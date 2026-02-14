@@ -38,3 +38,19 @@ backend/env.dev
 CLAUDE.md
 infra/docker-compose.yml
 .obsidian
+
+# Internal files (not for public repo)
+INDEXES-FIXED.md
+PERFORMANCE-INDEXES-CHECKLIST.md
+SECURITY-AUDIT-REPORT.md
+TROUBLESHOOT-QA.md
+TROUBLESHOOT-QA-LOCAL-PG.md
+share.html
+/package-lock.json
+planning/
+steps/
+doc/.obsidian/
+doc/archive/
+doc/operations/
+doc/planning/
+doc/templates/
