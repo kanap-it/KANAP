@@ -41,7 +41,7 @@ Multi-tenant by design &mdash; single database with RLS isolation, subdomain rou
 
 ```bash
 # Clone and start
-git clone https://github.com/your-org/kanap.git
+git clone https://github.com/kanap-it/kanap.git
 cd kanap/infra
 docker compose up -d
 ```
