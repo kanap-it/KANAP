@@ -67,6 +67,8 @@ export type ServerDataGridProps<T> = {
     columnField?: string;
     defaultScope?: StatusScope;
   };
+  enablePagination?: boolean;
+  paginationPageSize?: number;
   toolbarExtras?: React.ReactNode;
 };
 
@@ -216,6 +218,8 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
   enableRowSelection = false,
   onSelectionChanged,
   statusScopeConfig,
+  enablePagination = false,
+  paginationPageSize,
   toolbarExtras,
 }: ServerDataGridProps<T>) {
   // Process columns to move custom properties to context to avoid AG Grid warnings
@@ -563,6 +567,9 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
     const fm = api?.getFilterModel?.() ?? {};
     filterModelRef.current = fm;
     try {
+      if (enablePagination) {
+        (api as any)?.paginationGoToFirstPage?.();
+      }
       (api as any)?.purgeInfiniteCache?.();
       if (api?.ensureIndexVisible) api.ensureIndexVisible(0, 'top');
     } catch {}
@@ -573,7 +580,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
         onQueryStateChange({ sort, filterModel: fm, q: searchRef.current, statusScope: statusScopeRef.current });
       }
     } catch {}
-  }, []);
+  }, [defaultSort, enablePagination, onQueryStateChange]);
 
 
   // Reset data when sort/search, extra params, refreshKey, endpoint, or status scope change
@@ -586,11 +593,14 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
     const api = gridApiRef.current;
     // update URL handled in other effect; here we simply purge cache to refetch with new params
     try {
+      if (enablePagination) {
+        (api as any)?.paginationGoToFirstPage?.();
+      }
       (api as any)?.purgeInfiniteCache?.();
       if (api?.ensureIndexVisible) api.ensureIndexVisible(0, 'top');
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortModel, debouncedSearch, extraParamsKey, refreshKey, endpoint, statusScope]);
+  }, [sortModel, debouncedSearch, extraParamsKey, refreshKey, endpoint, statusScope, enablePagination]);
 
   const agGetRowId = useCallback((params: GetRowIdParams<T>) => {
     if (getRowId) return String(getRowId(params.data));
@@ -761,8 +771,10 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
     return () => obs.disconnect();
   }, [recalcTopScrollWidth]);
 
+  const showAuxHorizontalScrollbar = showTopScroll && !enablePagination;
+
   return (
-    <Box sx={{ width: '100%', height: '100%' }}>
+    <Box sx={{ width: '100%', height: '100%', minWidth: 0, overflowX: 'hidden' }}>
       <Stack spacing={1} sx={{ mb: 1 }}>
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
           {enableSearch && (
@@ -820,7 +832,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
           width: '100%',
           position: 'relative',
           overflow: 'hidden', // contain grid overflow; grid manages its own scrollbars
-          paddingBottom: 14, // reserve space for sticky bottom scroller
+          paddingBottom: showAuxHorizontalScrollbar ? 14 : 0, // reserve space only when sticky aux scroller is shown
         }}
         className="ag-theme-quartz"
         ref={gridDivRef}
@@ -828,6 +840,8 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
         <AgGridReact<T>
           columnDefs={processedColumns}
           rowModelType="infinite"
+          pagination={enablePagination}
+          paginationPageSize={paginationPageSize ?? cacheBlockSize}
           initialState={initialState}
           defaultColDef={defaultColDef}
           context={gridContext}
@@ -864,7 +878,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
         />
 
         {/* Sticky bottom horizontal scrollbar for wide tables */}
-        {showTopScroll && (
+        {showAuxHorizontalScrollbar && (
           <div
             ref={topScrollRef}
             onScroll={syncGridToTop}

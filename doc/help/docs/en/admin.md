@@ -1,6 +1,6 @@
 # Administration
 
-The Admin section provides access to user management, role configuration, billing, and authentication settings. These pages are typically restricted to administrators.
+The Admin section provides access to user management, role configuration, billing, authentication settings, and the audit log viewer. These pages are typically restricted to administrators.
 
 ## Where to find it
 
@@ -10,6 +10,7 @@ Navigate to **Admin** from the main menu to access the administration hub.
 - Companies, Departments, Suppliers, Accounts: `{resource}:reader` to view
 - Users & Access: `users:reader` to view, `users:admin` to manage
 - Roles: `users:reader` to view, `users:admin` to edit
+- Audit Log: Requires `users:admin`
 - Billing: Requires billing admin role
 - Authentication: Requires `users:admin`
 
@@ -27,7 +28,46 @@ The Admin landing page provides quick access to all administrative functions:
 | **Accounts** | Manage accounting codes | `accounts:reader` |
 | **Users & Access** | Assign seats and roles | `users:reader` |
 | **Roles** | Define role permissions | `users:reader` |
+| **Audit Log** | Browse who changed what and when | `users:admin` |
 | **Billing** | Plan, seats and invoices | Billing admin |
+
+---
+
+## Audit Log
+
+The Audit Log page shows tenant-scoped change history for data updates across the platform.
+
+### Access
+
+- Route: `/admin/audit-logs`
+- Required permission: `users:admin`
+- This page is read-only (no create/edit/delete actions).
+
+### What You Can Do
+
+- Search across table name, action, and actor (email/name)
+- Filter by:
+  - Date
+  - Table
+  - Action
+  - Source (`user`, `system`, `webhook`)
+- Open any row to view full details:
+  - Metadata chips (date, table, action, source, source reference, tenant, record id, user)
+  - Changed fields summary
+  - Side-by-side **Before** and **After** JSON payloads
+
+### Pagination
+
+- The grid uses explicit pagination with **100 rows per page**.
+- Filters and search apply to the full dataset, not only the current page.
+
+### Understanding Source and Actor
+
+- **Source = user**: change initiated by an authenticated user action.
+- **Source = webhook**: change initiated by an external webhook (for example billing sync events). Use **Source Ref** to correlate upstream event IDs.
+- **Source = system**: internal platform process without a direct user actor.
+
+If a user account is no longer resolvable in the current context, the User column may show a UUID fallback (`Unknown (xxxx...)`) instead of an email.
 
 ---
 

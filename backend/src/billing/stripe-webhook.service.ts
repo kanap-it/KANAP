@@ -6,6 +6,7 @@ import { computePriceAmount, normaliseStripePrice } from './price.util';
 import { Tenant } from '../tenants/tenant.entity';
 import { withTenant } from '../common/tenant-runner';
 import { EmailService } from '../email/email.service';
+import { AuditService } from '../audit/audit.service';
 import {
   PLANS,
   resolvePlanKeyFromPriceId,
@@ -25,6 +26,7 @@ export class StripeWebhookService implements OnModuleInit {
     private readonly config: StripeConfigService,
     private readonly stripeClient: StripeClientService,
     private readonly dataSource: DataSource,
+    private readonly audit: AuditService,
     @Optional() private readonly emailService?: EmailService,
   ) {}
 
@@ -231,6 +233,7 @@ export class StripeWebhookService implements OnModuleInit {
       if (!sub) {
         sub = await repo.findOne({ where: {} });
       }
+      const before = sub ? { ...sub } : null;
 
       if (!sub) {
         const initPlanKey = this.resolvePlanKey(subscriptionData, null);
@@ -328,7 +331,20 @@ export class StripeWebhookService implements OnModuleInit {
       }
 
       sub.last_synced_at = new Date();
-      await repo.save(sub);
+      const saved = await repo.save(sub);
+      await this.audit.log(
+        {
+          table: 'subscriptions',
+          recordId: saved.id,
+          action: before ? 'update' : 'create',
+          before,
+          after: { ...saved },
+          userId: null,
+          source: 'webhook',
+          sourceRef: event?.id ? String(event.id) : null,
+        },
+        { manager },
+      );
     });
 
     if (identifiers.customerId) {

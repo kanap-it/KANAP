@@ -26,6 +26,12 @@ export class AuditLog {
   @Column('uuid', { nullable: true })
   user_id!: string | null;
 
+  @Column('text', { default: 'user' })
+  source!: string; // user|system|webhook
+
+  @Column('text', { nullable: true })
+  source_ref!: string | null;
+
   @Column('timestamptz', { default: () => 'now()' })
   created_at!: Date;
 }

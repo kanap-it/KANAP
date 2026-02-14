@@ -5,12 +5,14 @@ import { BusinessProcessCategory } from './business-process-category.entity';
 import { BusinessProcessCategoryLink } from './business-process-category-link.entity';
 import { parsePagination } from '../common/pagination';
 import { BusinessProcessCategoryUpsertDto } from './dto/business-process-category.dto';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class BusinessProcessCategoriesService {
   constructor(
     @InjectRepository(BusinessProcessCategory) private readonly categoriesRepo: Repository<BusinessProcessCategory>,
     @InjectRepository(BusinessProcessCategoryLink) private readonly linksRepo: Repository<BusinessProcessCategoryLink>,
+    private readonly audit: AuditService,
   ) {}
 
   private getCategoriesRepo(manager?: EntityManager) {
@@ -42,7 +44,7 @@ export class BusinessProcessCategoriesService {
     return { items, total, page, limit };
   }
 
-  async create(body: { name: string } | BusinessProcessCategoryUpsertDto, opts?: { manager?: EntityManager }) {
+  async create(body: { name: string } | BusinessProcessCategoryUpsertDto, userId?: string | null, opts?: { manager?: EntityManager }) {
     const repo = this.getCategoriesRepo(opts?.manager);
     const rawName = (body.name ?? '').toString().trim();
     if (!rawName) throw new BadRequestException('Name is required');
@@ -62,13 +64,26 @@ export class BusinessProcessCategoriesService {
       is_default: payload.is_default ?? false,
       sort_order: payload.sort_order ?? 100,
     });
-    return repo.save(next);
+    const saved = await repo.save(next);
+    await this.audit.log(
+      {
+        table: 'business_process_categories',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId: userId ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
+    return saved;
   }
 
-  async update(id: string, body: BusinessProcessCategoryUpsertDto, opts?: { manager?: EntityManager }) {
+  async update(id: string, body: BusinessProcessCategoryUpsertDto, userId?: string | null, opts?: { manager?: EntityManager }) {
     const repo = this.getCategoriesRepo(opts?.manager);
     const existing = await repo.findOne({ where: { id } });
     if (!existing) throw new BadRequestException('Category not found');
+    const before = { ...existing };
 
     if (body.name !== undefined) {
       const trimmed = (body.name ?? '').toString().trim();
@@ -92,10 +107,22 @@ export class BusinessProcessCategoriesService {
     if (body.sort_order !== undefined && Number.isFinite(body.sort_order)) {
       existing.sort_order = body.sort_order!;
     }
-    return repo.save(existing);
+    const saved = await repo.save(existing);
+    await this.audit.log(
+      {
+        table: 'business_process_categories',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: saved,
+        userId: userId ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
+    return saved;
   }
 
-  async delete(id: string, opts?: { manager?: EntityManager }) {
+  async delete(id: string, userId?: string | null, opts?: { manager?: EntityManager }) {
     const linksRepo = this.getLinksRepo(opts?.manager);
     const repo = this.getCategoriesRepo(opts?.manager);
     const existing = await repo.findOne({ where: { id } });
@@ -106,5 +133,16 @@ export class BusinessProcessCategoriesService {
       throw new BadRequestException('Cannot delete category because it is used by one or more business processes');
     }
     await repo.delete({ id });
+    await this.audit.log(
+      {
+        table: 'business_process_categories',
+        recordId: id,
+        action: 'delete',
+        before: existing,
+        after: null,
+        userId: userId ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
   }
 }

@@ -36,7 +36,7 @@ export class NotificationPreferencesController {
       throw new Error('User or tenant not found');
     }
 
-    return this.svc.updateForUser(userId, tenantId, body, { manager: req?.queryRunner?.manager });
+    return this.svc.updateForUser(userId, tenantId, body, userId, { manager: req?.queryRunner?.manager });
   }
 
   @Post('test-weekly-review')

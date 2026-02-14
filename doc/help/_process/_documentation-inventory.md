@@ -1,6 +1,6 @@
 # User Manual Documentation Inventory
 
-_Generated: 2026-02-12_
+_Generated: 2026-02-14_
 
 This document tracks documentation coverage for the KANAP user manual.
 
@@ -12,10 +12,10 @@ This document tracks documentation coverage for the KANAP user manual.
 | Dashboard & Operations | 9 | 9 | 0 |
 | IT Operations | 8 | 8 | 0 |
 | Master Data | 8 | 8 | 0 |
-| Admin & Settings | 6 | 6 | 0 |
-| Reports | 6 | 6 | 0 |
+| Admin & Settings | 7 | 7 | 0 |
+| Reports | 10 | 10 | 0 |
 | Portfolio | 7 | 7 | 0 |
-| **TOTAL** | **46** | **45** | **1** |
+| **TOTAL** | **51** | **50** | **1** |
 
 _Note: Portfolio Planning is a placeholder (coming soon) and excluded from counts._
 
@@ -25,6 +25,7 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-02-14 | `admin.md` | Added Audit Log documentation (access, filtering, pagination, source interpretation) |
 | 2026-02-12 | `portfolio-reporting.md` | Added Status Change Report documentation (filters, inclusion rules, columns, exports) |
 | 2026-02-10 | `tasks.md` | Added "Sending a link" section (Send link feature) |
 | 2026-02-10 | `portfolio-projects.md` | Added "Sending a link" section (Send link feature) |
@@ -115,6 +116,7 @@ _Note: `/ops/tasks` redirects to `/my/tasks`_
 |-------|-----------|--------|----------|
 | `/admin/users` | UsersPage | **DOCUMENTED** | `admin.md` |
 | `/admin/roles` | RolesPage | **DOCUMENTED** | `admin.md` |
+| `/admin/audit-logs` | AuditLogsPage | **DOCUMENTED** | `admin.md` |
 | `/admin/billing` | BillingCenter | **DOCUMENTED** | `admin.md` |
 | `/admin/auth` | AdminAuthPage | **DOCUMENTED** | `admin.md` |
 | `/master-data/operations` | MasterDataOperationsPage | **DOCUMENTED** | `master-data-operations.md` |
@@ -128,7 +130,11 @@ _Note: `/ops/tasks` redirects to `/my/tasks`_
 | `/ops/reports` | ReportsLandingPage | **DOCUMENTED** | `reports.md` |
 | `/ops/reports/top-opex` | TopOpexReport | **DOCUMENTED** | `reports.md` |
 | `/ops/reports/opex-delta` | OpexDeltaReport | **DOCUMENTED** | `reports.md` |
+| `/ops/reports/comparison` | ComparisonReport | **DOCUMENTED** | `reports.md` |
 | `/ops/reports/capex/trend` | CapexBudgetTrendReport | **DOCUMENTED** | `reports.md` |
+| `/ops/reports/budget-columns-compare` | BudgetColumnsCompareReport | **DOCUMENTED** | `reports.md` |
+| `/ops/reports/consolidation` | ConsolidationReport | **DOCUMENTED** | `reports.md` |
+| `/ops/reports/analytics` | AnalyticsCategoryReport | **DOCUMENTED** | `reports.md` |
 | `/ops/reports/chargeback/global` | GlobalChargebackReport | **DOCUMENTED** | `reports.md` |
 | `/ops/reports/chargeback/company` | CompanyChargebackReport | **DOCUMENTED** | `reports.md` |
 
@@ -195,6 +201,7 @@ When these files change, the corresponding documentation may need updates:
 | `frontend/src/pages/it/LocationWorkspacePage.tsx` | `locations.md` |
 | `frontend/src/pages/UsersPage.tsx` | `admin.md` |
 | `frontend/src/pages/admin/RolesPage.tsx` | `admin.md` |
+| `frontend/src/pages/admin/AuditLogsPage.tsx` | `admin.md` |
 | `frontend/src/pages/TasksPage.tsx` | `tasks.md` |
 | `frontend/src/pages/tasks/TaskWorkspacePage.tsx` | `tasks.md` |
 | `frontend/src/components/EntityTasksPanel.tsx` | `opex.md`, `capex.md`, `contracts.md`, `portfolio-projects.md` |
@@ -213,6 +220,11 @@ When these files change, the corresponding documentation may need updates:
 | `frontend/src/pages/portfolio/SettingsPage.tsx` | `portfolio-settings.md` |
 | `frontend/src/pages/portfolio/ContributorsPage.tsx` | `portfolio-team-members.md` |
 | `frontend/src/pages/portfolio/ContributorWorkspacePage.tsx` | `portfolio-team-members.md` |
+| `frontend/src/pages/portfolio/TeamMembersPage.tsx` | `portfolio-team-members.md` |
+| `frontend/src/pages/portfolio/TeamMemberWorkspacePage.tsx` | `portfolio-team-members.md` |
 | `frontend/src/pages/portfolio/PlanningPage.tsx` | (placeholder - no doc needed yet) |
+| `frontend/src/pages/reports/**/*.tsx` | `reports.md` |
+| `frontend/src/pages/admin/BillingCenter.tsx` | `admin.md` |
+| `frontend/src/pages/admin/AdminAuthPage.tsx` | `admin.md` |
 
 _This mapping enables automated staleness detection._

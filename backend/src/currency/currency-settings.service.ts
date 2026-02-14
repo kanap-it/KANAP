@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { Tenant } from '../tenants/tenant.entity';
 import { ISO_CURRENCIES } from './iso-currencies';
+import { AuditService } from '../audit/audit.service';
 
 export interface CurrencySettings {
   reportingCurrency: string;
@@ -23,6 +24,7 @@ export class CurrencySettingsService {
   constructor(
     @InjectRepository(Tenant)
     private readonly tenants: Repository<Tenant>,
+    private readonly audit: AuditService,
   ) {}
 
   async ensureCurrencyRecords(
@@ -88,6 +90,7 @@ export class CurrencySettingsService {
   async updateSettings(
     tenantId: string,
     patch: Partial<CurrencySettings>,
+    userId?: string | null,
     opts?: { manager?: EntityManager },
   ): Promise<CurrencySettings> {
     const repo = this.repo(opts?.manager);
@@ -95,6 +98,7 @@ export class CurrencySettingsService {
     if (!tenant) {
       throw new Error(`Tenant ${tenantId} not found`);
     }
+    const beforeSettings = await this.getSettings(tenantId, opts);
 
     const existing = (tenant.metadata as MetadataShape | undefined) ?? {};
     const merged: MetadataShape = { ...existing };
@@ -148,6 +152,21 @@ export class CurrencySettingsService {
 
     await repo.save(tenant);
 
-    return this.getSettings(tenantId, opts);
+    const nextSettings = await this.getSettings(tenantId, opts);
+    if (JSON.stringify(beforeSettings) !== JSON.stringify(nextSettings)) {
+      await this.audit.log(
+        {
+          table: 'tenants',
+          recordId: tenantId,
+          action: 'update',
+          before: beforeSettings,
+          after: nextSettings,
+          userId: userId ?? null,
+        },
+        { manager: opts?.manager ?? repo.manager },
+      );
+    }
+
+    return nextSettings;
   }
 }

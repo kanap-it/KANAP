@@ -7,6 +7,7 @@ import { ApplicationCompany } from '../application-company.entity';
 import { ApplicationDepartment } from '../application-department.entity';
 import { ApplicationSupportContact } from '../application-support-contact.entity';
 import { ExternalContact } from '../../contacts/external-contact.entity';
+import { AuditService } from '../../audit/audit.service';
 import { ApplicationsBaseService, ServiceOpts } from './applications-base.service';
 
 /**
@@ -16,6 +17,7 @@ import { ApplicationsBaseService, ServiceOpts } from './applications-base.servic
 export class ApplicationsOwnersService extends ApplicationsBaseService {
   constructor(
     @InjectRepository(Application) appRepo: Repository<Application>,
+    private readonly audit: AuditService,
   ) {
     super(appRepo);
   }
@@ -26,11 +28,13 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
     return mg.getRepository(ApplicationOwner).find({ where: { application_id: appId } as any });
   }
 
-  async bulkReplaceOwners(appId: string, owners: Array<{ user_id: string; owner_type: 'business' | 'it' }>, opts?: ServiceOpts) {
+  async bulkReplaceOwners(appId: string, owners: Array<{ user_id: string; owner_type: 'business' | 'it' }>, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(ApplicationOwner);
     const existing = await repo.find({ where: { application_id: appId } as any });
+    const beforeState = existing.map((o) => `${o.owner_type}:${o.user_id}`).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
+    let afterRows: ApplicationOwner[] = [];
     if (owners && owners.length) {
       const uniqueOwners: Array<{ user_id: string; owner_type: 'business' | 'it' }> = [];
       const seen = new Set<string>();
@@ -44,7 +48,21 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
         uniqueOwners.push({ user_id: userId, owner_type: ownerType });
       }
       const rows = uniqueOwners.map((o) => repo.create({ application_id: appId, user_id: o.user_id, owner_type: o.owner_type }));
-      await repo.save(rows);
+      afterRows = await repo.save(rows);
+    }
+    const afterState = afterRows.map((o) => `${o.owner_type}:${o.user_id}`).sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'application_owners',
+          recordId: appId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
     }
     return this.listOwners(appId, { manager: mg });
   }
@@ -55,14 +73,30 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
     return mg.getRepository(ApplicationCompany).find({ where: { application_id: appId } as any });
   }
 
-  async bulkReplaceCompanies(appId: string, companyIds: string[], opts?: ServiceOpts) {
+  async bulkReplaceCompanies(appId: string, companyIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(ApplicationCompany);
     const existing = await repo.find({ where: { application_id: appId } as any });
+    const beforeState = existing.map((c) => c.company_id).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
+    let afterRows: ApplicationCompany[] = [];
     if (companyIds && companyIds.length) {
       const rows = companyIds.map((cid) => repo.create({ application_id: appId, company_id: cid }));
-      await repo.save(rows);
+      afterRows = await repo.save(rows);
+    }
+    const afterState = afterRows.map((c) => c.company_id).sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'application_companies',
+          recordId: appId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
     }
     return this.listCompanies(appId, { manager: mg });
   }
@@ -73,14 +107,30 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
     return mg.getRepository(ApplicationDepartment).find({ where: { application_id: appId } as any });
   }
 
-  async bulkReplaceDepartments(appId: string, departmentIds: string[], opts?: ServiceOpts) {
+  async bulkReplaceDepartments(appId: string, departmentIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(ApplicationDepartment);
     const existing = await repo.find({ where: { application_id: appId } as any });
+    const beforeState = existing.map((d) => d.department_id).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
+    let afterRows: ApplicationDepartment[] = [];
     if (departmentIds && departmentIds.length) {
       const rows = departmentIds.map((did) => repo.create({ application_id: appId, department_id: did }));
-      await repo.save(rows);
+      afterRows = await repo.save(rows);
+    }
+    const afterState = afterRows.map((d) => d.department_id).sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'application_departments',
+          recordId: appId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
     }
     return this.listDepartments(appId, { manager: mg });
   }
@@ -113,7 +163,7 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
     }));
   }
 
-  async bulkReplaceSupportContacts(appId: string, contacts: Array<{ contact_id: string; role?: string | null }>, opts?: ServiceOpts) {
+  async bulkReplaceSupportContacts(appId: string, contacts: Array<{ contact_id: string; role?: string | null }>, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
     if (!app) throw new NotFoundException('Application not found');
@@ -132,10 +182,26 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
     }
 
     const existing = await repo.find({ where: { application_id: appId } as any });
+    const beforeState = existing.map((c) => `${c.contact_id}:${c.role ?? ''}`).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
+    let afterRows: ApplicationSupportContact[] = [];
     if (filtered.length) {
       const rows = filtered.map((c) => repo.create({ tenant_id: app.tenant_id, application_id: appId, contact_id: c.contact_id, role: c.role ?? null }));
-      await repo.save(rows);
+      afterRows = await repo.save(rows);
+    }
+    const afterState = afterRows.map((c) => `${c.contact_id}:${c.role ?? ''}`).sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'application_support_contacts',
+          recordId: appId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
     }
     return this.listSupportContacts(appId, { manager: mg });
   }

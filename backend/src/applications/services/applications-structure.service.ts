@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Application } from '../application.entity';
 import { ApplicationSuiteLink } from '../application-suite.entity';
+import { AuditService } from '../../audit/audit.service';
 import { ApplicationsBaseService, ServiceOpts } from './applications-base.service';
 
 /**
@@ -12,6 +13,7 @@ import { ApplicationsBaseService, ServiceOpts } from './applications-base.servic
 export class ApplicationsStructureService extends ApplicationsBaseService {
   constructor(
     @InjectRepository(Application) appRepo: Repository<Application>,
+    private readonly audit: AuditService,
   ) {
     super(appRepo);
   }
@@ -30,7 +32,7 @@ export class ApplicationsStructureService extends ApplicationsBaseService {
     return { items: rows };
   }
 
-  async bulkReplaceSuites(appId: string, suiteIds: string[], opts?: ServiceOpts) {
+  async bulkReplaceSuites(appId: string, suiteIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(ApplicationSuiteLink);
     const unique = Array.from(new Set((suiteIds || []).filter((id) => !!id && id !== appId)));
@@ -45,11 +47,26 @@ export class ApplicationsStructureService extends ApplicationsBaseService {
       }
     }
     const existing = await repo.find({ where: { application_id: appId } as any });
+    const beforeState = existing.map((e: any) => e.suite_id).sort();
     const toDelete = existing.filter((e: any) => !unique.includes(e.suite_id));
     const existingSet = new Set(existing.map((e: any) => e.suite_id));
     const toInsert = unique.filter((id) => !existingSet.has(id)).map((id) => repo.create({ application_id: appId, suite_id: id } as any));
     if (toDelete.length > 0) await repo.remove(toDelete as any);
     if (toInsert.length > 0) await repo.save(toInsert as any);
+    const afterState = [...unique].sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'application_suites',
+          recordId: appId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
+    }
     return { ok: true, added: toInsert.length, removed: toDelete.length };
   }
 

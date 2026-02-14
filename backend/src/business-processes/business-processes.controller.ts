@@ -127,20 +127,20 @@ export class BusinessProcessCategoriesController {
   @RequireLevel('business_processes', 'member')
   @Post()
   create(@Body() body: { name: string } | BusinessProcessCategoryUpsertDto, @Req() req: any) {
-    return this.svc.create(body, { manager: req?.queryRunner?.manager });
+    return this.svc.create(body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('business_processes', 'member')
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: BusinessProcessCategoryUpsertDto, @Req() req: any) {
-    return this.svc.update(id, body, { manager: req?.queryRunner?.manager });
+    return this.svc.update(id, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('business_processes', 'admin')
   @Delete(':id')
   delete(@Param('id') id: string, @Req() req: any) {
-    return this.svc.delete(id, { manager: req?.queryRunner?.manager });
+    return this.svc.delete(id, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
   }
 }

@@ -30,6 +30,7 @@ import LocationCityIcon from '@mui/icons-material/LocationCity';
 import InboxIcon from '@mui/icons-material/Inbox';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import HistoryIcon from '@mui/icons-material/History';
 import { useAuth } from '../auth/AuthContext';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -93,6 +94,7 @@ const portfolioNav: NavItem[] = [
 const tenantAdminNav: NavItem[] = [
   { to: '/admin/users', label: 'Users', icon: <PeopleIcon />, resource: 'users' },
   { to: '/admin/roles', label: 'Roles', icon: <SecurityIcon />, resource: 'users' },
+  { to: '/admin/audit-logs', label: 'Audit Log', icon: <HistoryIcon />, resource: 'users' },
   { to: '/admin/billing', label: 'Billing', icon: <CreditCardIcon />, resource: 'billing' },
   { to: '/admin/auth', label: 'Authentication', icon: <AdminPanelSettingsIcon />, resource: 'users' },
 ];

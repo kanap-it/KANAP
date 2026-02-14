@@ -57,7 +57,7 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
     interfaceId: string,
     body: any,
     tenantId: string,
-    _userId: string | null,
+    userId: string | null,
     opts?: ServiceOpts,
   ) {
     const mg = opts?.manager ?? this.repo.manager;
@@ -75,6 +75,15 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
     if (legs.length === 0) {
       return { items: [] };
     }
+    const beforeSnapshot = legs.map((leg) => ({
+      id: leg.id,
+      leg_type: leg.leg_type,
+      order_index: leg.order_index,
+      trigger_type: leg.trigger_type,
+      integration_pattern: leg.integration_pattern,
+      data_format: leg.data_format,
+      job_name: leg.job_name,
+    }));
 
     const legById = new Map<string, InterfaceLeg>();
     for (const leg of legs) {
@@ -142,6 +151,25 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
       where: { interface_id: interfaceId } as any,
       order: { order_index: 'ASC' as any, created_at: 'ASC' as any },
     });
+    await this.audit.log(
+      {
+        table: 'interface_legs',
+        recordId: interfaceId,
+        action: 'update',
+        before: beforeSnapshot,
+        after: updatedLegs.map((leg) => ({
+          id: leg.id,
+          leg_type: leg.leg_type,
+          order_index: leg.order_index,
+          trigger_type: leg.trigger_type,
+          integration_pattern: leg.integration_pattern,
+          data_format: leg.data_format,
+          job_name: leg.job_name,
+        })),
+        userId,
+      },
+      { manager: mg },
+    );
     return { items: updatedLegs };
   }
 
@@ -341,12 +369,15 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
   async bulkReplaceOwners(
     interfaceId: string,
     owners: Array<{ user_id: string; owner_type: 'business' | 'it' }>,
+    userId?: string | null,
     opts?: ServiceOpts,
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(InterfaceOwner);
     const existing = await repo.find({ where: { interface_id: interfaceId } as any });
+    const beforeState = existing.map((o) => `${o.owner_type}:${o.user_id}`).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
+    let afterRows: InterfaceOwner[] = [];
     if (owners && owners.length) {
       const rows = owners.map((o) =>
         repo.create({
@@ -355,7 +386,21 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
           owner_type: o.owner_type,
         }),
       );
-      await repo.save(rows);
+      afterRows = await repo.save(rows);
+    }
+    const afterState = afterRows.map((o) => `${o.owner_type}:${o.user_id}`).sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'interface_owners',
+          recordId: interfaceId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
     }
     return this.listOwners(interfaceId, { manager: mg });
   }
@@ -371,11 +416,13 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
   /**
    * Bulk replace companies for an interface.
    */
-  async bulkReplaceCompanies(interfaceId: string, companyIds: string[], opts?: ServiceOpts) {
+  async bulkReplaceCompanies(interfaceId: string, companyIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(InterfaceCompany);
     const existing = await repo.find({ where: { interface_id: interfaceId } as any });
+    const beforeState = existing.map((c) => c.company_id).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
+    let afterRows: InterfaceCompany[] = [];
     if (companyIds && companyIds.length) {
       const rows = companyIds.map((cid) =>
         repo.create({
@@ -383,7 +430,21 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
           company_id: cid,
         }),
       );
-      await repo.save(rows);
+      afterRows = await repo.save(rows);
+    }
+    const afterState = afterRows.map((c) => c.company_id).sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'interface_companies',
+          recordId: interfaceId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
     }
     return this.listCompanies(interfaceId, { manager: mg });
   }
@@ -403,11 +464,13 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
     interfaceId: string,
     upstreamIds: string[],
     downstreamIds: string[],
+    userId?: string | null,
     opts?: ServiceOpts,
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(InterfaceDependency);
     const existing = await repo.find({ where: { interface_id: interfaceId } as any });
+    const beforeState = existing.map((d) => `${d.direction}:${d.related_interface_id}`).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
 
     const rows: InterfaceDependency[] = [];
@@ -437,8 +500,24 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
       );
     }
 
+    let afterRows: InterfaceDependency[] = [];
     if (rows.length) {
-      await repo.save(rows);
+      afterRows = await repo.save(rows);
+    }
+
+    const afterState = afterRows.map((d) => `${d.direction}:${d.related_interface_id}`).sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'interface_dependencies',
+          recordId: interfaceId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
     }
 
     return this.listDependencies(interfaceId, { manager: mg });
@@ -460,11 +539,13 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
   async bulkReplaceKeyIdentifiers(
     interfaceId: string,
     items: Array<{ source_identifier: string; destination_identifier: string; identifier_notes?: string | null }>,
+    userId?: string | null,
     opts?: ServiceOpts,
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(InterfaceKeyIdentifier);
     const existing = await repo.find({ where: { interface_id: interfaceId } as any });
+    const beforeState = existing.map((i) => `${i.source_identifier}:${i.destination_identifier}:${i.identifier_notes ?? ''}`).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
 
     const clean = (items || [])
@@ -478,6 +559,7 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
       }))
       .filter((item) => item.source_identifier && item.destination_identifier);
 
+    let afterRows: InterfaceKeyIdentifier[] = [];
     if (clean.length) {
       const rows = clean.map((item) =>
         repo.create({
@@ -487,7 +569,22 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
           identifier_notes: item.identifier_notes,
         }),
       );
-      await repo.save(rows);
+      afterRows = await repo.save(rows);
+    }
+
+    const afterState = afterRows.map((i) => `${i.source_identifier}:${i.destination_identifier}:${i.identifier_notes ?? ''}`).sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'interface_key_identifiers',
+          recordId: interfaceId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
     }
 
     return this.listKeyIdentifiers(interfaceId, { manager: mg });
@@ -507,11 +604,13 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
   async bulkReplaceDataResidency(
     interfaceId: string,
     countryCodes: string[],
+    userId?: string | null,
     opts?: ServiceOpts,
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(InterfaceDataResidency);
     const existing = await repo.find({ where: { interface_id: interfaceId } as any });
+    const beforeState = existing.map((r) => r.country_iso).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
 
     const clean = (countryCodes || [])
@@ -519,6 +618,7 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
       .filter((c) => !!c && c.length === 2);
     const unique = Array.from(new Set(clean));
 
+    let afterRows: InterfaceDataResidency[] = [];
     if (unique.length) {
       const rows = unique.map((iso) =>
         repo.create({
@@ -526,7 +626,22 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
           country_iso: iso,
         }),
       );
-      await repo.save(rows);
+      afterRows = await repo.save(rows);
+    }
+
+    const afterState = afterRows.map((r) => r.country_iso).sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'interface_data_residency',
+          recordId: interfaceId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
     }
 
     return this.listDataResidency(interfaceId, { manager: mg });

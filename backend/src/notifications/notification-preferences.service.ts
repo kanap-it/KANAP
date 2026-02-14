@@ -7,12 +7,14 @@ import {
   NotificationPreferencesData,
   WorkspaceSettings,
 } from './notifications.constants';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class NotificationPreferencesService {
   constructor(
     @InjectRepository(NotificationPreferences)
     private readonly repo: Repository<NotificationPreferences>,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -52,6 +54,7 @@ export class NotificationPreferencesService {
     userId: string,
     tenantId: string,
     updates: Partial<NotificationPreferencesData>,
+    actorUserId?: string | null,
     opts?: { manager?: EntityManager },
   ): Promise<NotificationPreferencesData> {
     const mg = opts?.manager ?? this.repo.manager;
@@ -59,6 +62,7 @@ export class NotificationPreferencesService {
     let prefs = await mg.findOne(NotificationPreferences, {
       where: { user_id: userId, tenant_id: tenantId },
     });
+    const before = prefs ? { ...prefs } : null;
 
     if (!prefs) {
       // Create new preferences with defaults
@@ -106,6 +110,18 @@ export class NotificationPreferencesService {
     prefs.updated_at = new Date();
 
     const saved = await mg.save(NotificationPreferences, prefs);
+
+    await this.audit.log(
+      {
+        table: 'notification_preferences',
+        recordId: saved.id,
+        action: before ? 'update' : 'create',
+        before,
+        after: { ...saved },
+        userId: actorUserId ?? userId,
+      },
+      { manager: mg },
+    );
 
     return {
       emails_enabled: saved.emails_enabled,

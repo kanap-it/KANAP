@@ -48,7 +48,7 @@ export class CurrencyController {
       payload.allowedCurrencies = body.allowedCurrencies.map((code: any) => String(code || '').trim().toUpperCase()).filter((code: string) => code.length === 3);
     }
 
-    const next = await this.settings.updateSettings(tenantId, payload, { manager: req?.queryRunner?.manager });
+    const next = await this.settings.updateSettings(tenantId, payload, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
     await this.fxIngestion.refreshTenant(tenantId, new Date().getFullYear(), { manual: true });
     return next;
   }

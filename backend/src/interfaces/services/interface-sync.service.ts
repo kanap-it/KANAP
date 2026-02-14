@@ -131,7 +131,7 @@ export class InterfaceSyncService extends InterfacesBaseService {
       // Best-effort; ignore storage errors during delete
     }
     await this.audit.log(
-      { table: 'interface_attachments', recordId: found.id, action: 'update', before: found, after: null, userId },
+      { table: 'interface_attachments', recordId: found.id, action: 'delete', before: found, after: null, userId },
       { manager: mg },
     );
     return { ok: true };

@@ -132,6 +132,7 @@ nav:
 
   - Administration:
     - Admin & Users: admin.md
+    - Audit Log: admin.md#audit-log
     - Master Data Operations: master-data-operations.md
     - Dashboard: operations-dashboard.md
 

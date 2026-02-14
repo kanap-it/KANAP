@@ -4,6 +4,7 @@ import { Repository, EntityManager, In } from 'typeorm';
 import { Application } from './application.entity';
 import { ApplicationOwner } from './application-owner.entity';
 import { ApplicationDataResidency } from './application-data-residency.entity';
+import { AuditService } from '../audit/audit.service';
 import {
   CsvExportService,
   CsvImportService,
@@ -32,6 +33,7 @@ export class ApplicationsCsvService {
     private readonly exportSvc: CsvExportService,
     private readonly importSvc: CsvImportService,
     private readonly resolver: CsvResolverService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -194,8 +196,8 @@ export class ApplicationsCsvService {
   /**
    * Handle owner import from CSV after main import.
    */
-  private async handleOwnerImport(file: Express.Multer.File, opts: { manager: EntityManager; tenantId: string }) {
-    const { manager, tenantId } = opts;
+  private async handleOwnerImport(file: Express.Multer.File, opts: { manager: EntityManager; tenantId: string; userId?: string | null }) {
+    const { manager, tenantId, userId } = opts;
 
     // Re-parse the file to get owner columns
     const { parseString } = await import('@fast-csv/parse');
@@ -231,6 +233,9 @@ export class ApplicationsCsvService {
       if (appRows.length === 0) continue;
       const appId = appRows[0].id;
 
+      const ownerRepo = manager.getRepository(ApplicationOwner);
+      const beforeRows = await ownerRepo.find({ where: { application_id: appId } as any });
+
       // Clear existing owners
       await manager.query(`DELETE FROM application_owners WHERE application_id = $1`, [appId]);
 
@@ -260,14 +265,30 @@ export class ApplicationsCsvService {
       }
 
       // Insert new owners
+      let afterRows: ApplicationOwner[] = [];
       if (newOwners.length > 0) {
-        const ownerRepo = manager.getRepository(ApplicationOwner);
-        await ownerRepo.save(
+        afterRows = await ownerRepo.save(
           newOwners.map((o) => ownerRepo.create({
             application_id: appId,
             user_id: o.user_id,
             owner_type: o.owner_type,
           })),
+        );
+      }
+
+      const beforeState = beforeRows.map((r) => `${r.owner_type}:${r.user_id}`).sort();
+      const afterState = afterRows.map((r) => `${r.owner_type}:${r.user_id}`).sort();
+      if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+        await this.audit.log(
+          {
+            table: 'application_owners',
+            recordId: appId,
+            action: 'update',
+            before: beforeRows.map((r) => ({ user_id: r.user_id, owner_type: r.owner_type })),
+            after: afterRows.map((r) => ({ user_id: r.user_id, owner_type: r.owner_type })),
+            userId: userId ?? null,
+          },
+          { manager },
         );
       }
     }
@@ -276,8 +297,8 @@ export class ApplicationsCsvService {
   /**
    * Handle data residency import from CSV after main import.
    */
-  private async handleDataResidencyImport(file: Express.Multer.File, opts: { manager: EntityManager; tenantId: string }) {
-    const { manager, tenantId } = opts;
+  private async handleDataResidencyImport(file: Express.Multer.File, opts: { manager: EntityManager; tenantId: string; userId?: string | null }) {
+    const { manager, tenantId, userId } = opts;
 
     // Re-parse the file
     const { parseString } = await import('@fast-csv/parse');
@@ -315,17 +336,35 @@ export class ApplicationsCsvService {
 
       if (codes.length === 0) continue;
 
+      const residencyRepo = manager.getRepository(ApplicationDataResidency);
+      const beforeRows = await residencyRepo.find({ where: { application_id: appId } as any });
+
       // Clear existing residency
       await manager.query(`DELETE FROM application_data_residency WHERE application_id = $1`, [appId]);
 
       // Insert new residency
-      const residencyRepo = manager.getRepository(ApplicationDataResidency);
-      await residencyRepo.save(
+      const afterRows = await residencyRepo.save(
         [...new Set(codes)].map((iso) => residencyRepo.create({
           application_id: appId,
           country_iso: iso,
         })),
       );
+
+      const beforeState = beforeRows.map((r) => r.country_iso).sort();
+      const afterState = afterRows.map((r) => r.country_iso).sort();
+      if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+        await this.audit.log(
+          {
+            table: 'application_data_residency',
+            recordId: appId,
+            action: 'update',
+            before: beforeRows.map((r) => ({ country_iso: r.country_iso })),
+            after: afterRows.map((r) => ({ country_iso: r.country_iso })),
+            userId: userId ?? null,
+          },
+          { manager },
+        );
+      }
     }
   }
 
