@@ -30,7 +30,7 @@ KANAP replaces that patchwork with a single platform where costs link to applica
 |-------|-----------|
 | Backend | NestJS, TypeScript, TypeORM |
 | Frontend | React, TypeScript, Vite, MUI, AG Grid, TanStack Query |
-| Database | PostgreSQL 15 with Row-Level Security |
+| Database | PostgreSQL 16 with Row-Level Security |
 | Infrastructure | Docker, Nginx, S3-compatible storage |
 
 Multi-tenant by design &mdash; single database with RLS isolation, subdomain routing, and RBAC.
@@ -56,7 +56,7 @@ Three services come up:
 
 The API container runs database migrations automatically on startup.
 
-See the [documentation](doc/) for environment configuration, QA/production deployment, and detailed setup guides.
+See the [on-premise installation guide](https://doc.kanap.net/on-premise/installation/) and the [documentation](doc/) for environment configuration, QA/production deployment, and detailed setup guides.
 
 ## Project structure
 
