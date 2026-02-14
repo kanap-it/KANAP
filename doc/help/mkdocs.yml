@@ -89,6 +89,9 @@ plugins:
 nav:
   - Home: index.md
 
+  - Fast Track:
+    - "From Request to Delivery": fast-track/index.md
+
   - My Workspace:
     - Tasks: tasks.md
 
