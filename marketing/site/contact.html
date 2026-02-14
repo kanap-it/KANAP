@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/assets/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <title>Contact KANAP - Demo, Support &amp; Partnership Inquiries</title>
+    <meta name="description" content="Get in touch with the KANAP team. Request a product demo, ask about deployment options, or explore partnerships. We respond within one business day." />
+    <link rel="canonical" href="https://kanap.net/contact.html" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://kanap.net/contact.html" />
+    <meta property="og:title" content="Contact KANAP - Demo, Support &amp; Partnership Inquiries" />
+    <meta property="og:description" content="Request a product demo, ask about deployment, or explore partnerships. We respond within one business day." />
+    <meta property="og:image" content="https://kanap.net/assets/og-image.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Contact KANAP - Demo, Support &amp; Partnership Inquiries" />
+    <meta name="twitter:description" content="Request a product demo or ask about deployment. We respond within one business day." />
+
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JNTR8JXN1Q"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-JNTR8JXN1Q');
+    </script>
+
+    <link rel="stylesheet" href="assets/styles.css?v=20260209" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="top-bar">
+        <div class="top-bar__inner">
+          <a class="brand" href="/">
+            <img src="assets/logo.svg" alt="KANAP logo" />
+            <span class="brand-title">KANAP</span>
+          </a>
+          <nav class="nav" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <div class="nav-dropdown">
+              <a href="features/" class="nav-dropdown__trigger">Features</a>
+              <div class="nav-dropdown__menu">
+                <a href="features/">Overview</a>
+                <a href="features/budget.html">Budget Management</a>
+                <a href="features/it-ops.html">IT Operations</a>
+                <a href="features/portfolio.html">Portfolio Management</a>
+                <a href="features/comparison.html">Why KANAP</a>
+              </div>
+            </div>
+            <a href="features/comparison.html">Why KANAP</a>
+            <a href="offer.html">Get started</a>
+            <a href="https://doc.kanap.net/" target="_blank" rel="noopener noreferrer">Documentation</a>
+            <a href="contact.html" aria-current="page">Contact</a>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <section class="section contact-section">
+          <div class="container">
+            <div class="contact-card">
+              <div class="contact-card__intro">
+                <p class="eyebrow">Contact</p>
+                <h1>We'd love to hear from you</h1>
+                <p>
+                  Whether you need a guided demo, deployment clarification, or procurement details, we
+                  answer within one business day.
+                </p>
+                <ul class="contact-card__highlights">
+                  <li>Product demos and onboarding guidance</li>
+                  <li>Procurement and billing coordination</li>
+                  <li>Looking to partner?</li>
+                </ul>
+                <div class="contact-captcha-host" id="contact-captcha-host"></div>
+              </div>
+
+              <form class="contact-form contact-form--compact" data-contact-form data-captcha-container="#contact-captcha-host">
+                <div class="contact-field">
+                  <label for="contact_name">Full name</label>
+                  <input id="contact_name" name="name" autocomplete="name" required />
+                </div>
+
+                <div class="contact-field">
+                  <label for="contact_email">Work email</label>
+                  <input id="contact_email" name="email" type="email" autocomplete="email" required />
+                </div>
+
+                <div class="contact-field contact-field--full">
+                  <label for="contact_company">Company</label>
+                  <input id="contact_company" name="company" autocomplete="organization" required />
+                </div>
+
+                <div class="contact-field contact-field--full">
+                  <label for="contact_message">How can we help?</label>
+                  <textarea id="contact_message" name="message" placeholder="Tell us what you want to achieve..." required></textarea>
+                </div>
+
+                <div class="contact-field--full contact-form__actions">
+                  <button class="button button--primary" type="submit">Send message</button>
+                  <div class="status" data-contact-status aria-live="polite"></div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <div class="footer__inner">
+          <div class="footer__links" aria-label="Footer links">
+            <a href="legal.html">Legal mentions</a>
+            <a href="terms.html">Terms & conditions</a>
+            <a href="sales.html">General Terms and Conditions of Sale</a>
+            <a href="privacy.html">Privacy policy</a>
+            <a href="contact.html" aria-current="page">Contact</a>
+            <a href="https://github.com/kanap-sarl/kanap" target="_blank" rel="noopener noreferrer">GitHub</a>
+          </div>
+          <div class="footer__copy">&copy; Kanap, All rights reserved.</div>
+        </div>
+      </footer>
+    </div>
+
+    <div class="trial-modal" role="dialog" aria-modal="true" aria-labelledby="trial-title">
+      <div class="trial-modal__panel">
+        <button class="trial-modal__close" type="button" aria-label="Close form" data-close-trial>
+          &times;
+        </button>
+        <div>
+          <p class="eyebrow" id="trial-title">Get Started</p>
+          <h2 style="margin: 0 0 0.5rem;">Create your workspace</h2>
+          <p style="color: var(--muted); margin: 0;">
+            Provision your workspace in minutes. We'll email the activation link to your admin.
+          </p>
+        </div>
+        <form class="form-grid" data-trial-form>
+          <label for="org">Organization name</label>
+          <input id="org" name="org" autocomplete="organization" required />
+
+          <label for="country_iso">Country</label>
+          <select id="country_iso" name="country_iso" required data-country>
+            <option value="" disabled selected hidden>Select a country...</option>
+          </select>
+
+          <label for="slug">Desired subdomain</label>
+          <input id="slug" name="slug" pattern="[a-z0-9-]+" placeholder="acme-eu" required />
+
+          <label for="email">Admin email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required />
+
+          <button class="button button--primary" type="submit">Create workspace</button>
+          <div class="status" data-trial-status aria-live="polite"></div>
+        </form>
+      </div>
+    </div>
+
+    <script src="assets/scripts.js?v=20260212" defer></script>
+  </body>
+</html>

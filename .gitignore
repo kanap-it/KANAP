@@ -1,0 +1,40 @@
+# macOS
+.DS_Store
+
+# Node.js dependencies
+node_modules/
+
+# Build outputs
+dist/
+backend/dist/
+frontend/dist/
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE/editor
+.vscode/
+.idea/
+.vs/
+
+# Env files (keep examples)
+**/.env
+**/.env.*
+!**/.env.example
+backend/env.dev
+
+# Docker (local build caches)
+.docker/
+
+CLAUDE.md
+infra/docker-compose.yml
+.obsidian

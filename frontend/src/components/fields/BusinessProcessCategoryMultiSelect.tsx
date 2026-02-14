@@ -1,0 +1,149 @@
+import React from 'react';
+import { Autocomplete, Chip, CircularProgress, Stack, TextField, Button } from '@mui/material';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import api from '../../api';
+
+type BusinessProcessCategory = {
+  id: string;
+  name: string;
+  is_active: boolean;
+  sort_order?: number;
+};
+
+type Props = {
+  value: string[];
+  onChange: (ids: string[]) => void;
+  label?: string;
+  helperText?: React.ReactNode;
+  error?: boolean;
+  disabled?: boolean;
+  onManageCategoriesClick?: () => void;
+};
+
+export default function BusinessProcessCategoryMultiSelect({
+  value,
+  onChange,
+  label = 'Categories',
+  helperText,
+  error,
+  disabled,
+  onManageCategoriesClick,
+}: Props) {
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['business-process-categories', 'all'],
+    queryFn: async () => {
+      const res = await api.get<{ items: BusinessProcessCategory[] }>('/business-process-categories', {
+        params: { limit: 1000, sort: 'sort_order:ASC', includeInactive: true },
+      });
+      const items = res.data?.items || [];
+      return items.slice().sort((a, b) => {
+        const sa = a.sort_order ?? 100;
+        const sb = b.sort_order ?? 100;
+        if (sa !== sb) return sa - sb;
+        return a.name.localeCompare(b.name);
+      });
+    },
+  });
+
+  const options = data || [];
+
+  const selectedOptions = React.useMemo(() => {
+    if (!options.length) return [] as BusinessProcessCategory[];
+    return options.filter((opt) => value.includes(opt.id));
+  }, [options, value]);
+
+  const handleCreateCategory = async () => {
+    const name = window.prompt('New category name');
+    const trimmed = (name ?? '').trim();
+    if (!trimmed) return;
+    try {
+      const res = await api.post<BusinessProcessCategory>('/business-process-categories', { name: trimmed });
+      const created = res.data as BusinessProcessCategory;
+      queryClient.setQueryData<BusinessProcessCategory[] | undefined>(
+        ['business-process-categories', 'all'],
+        (old) => {
+          const base = old ? [...old] : [];
+          if (!base.some((c) => c.id === created.id)) base.push(created);
+          return base.sort((a, b) => {
+            const sa = a.sort_order ?? 100;
+            const sb = b.sort_order ?? 100;
+            if (sa !== sb) return sa - sb;
+            return a.name.localeCompare(b.name);
+          });
+        },
+      );
+      const nextIds = Array.from(new Set([...(value || []), created.id]));
+      onChange(nextIds);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to create category', e);
+    }
+  };
+
+  return (
+    <Stack spacing={0.5} alignItems="flex-start">
+      <Autocomplete<BusinessProcessCategory, true, false, false>
+        multiple
+        options={options}
+        value={selectedOptions}
+        disabled={disabled || isLoading}
+        onChange={(_, newValue) => {
+          const ids = newValue.map((opt) => opt.id);
+          onChange(ids);
+        }}
+        getOptionLabel={(option) => option.name}
+        renderTags={(tagValue, getTagProps) =>
+          tagValue.map((option, index) => (
+            <Chip
+              {...getTagProps({ index })}
+              key={option.id}
+              label={option.is_active ? option.name : `${option.name} (inactive)`}
+              size="small"
+            />
+          ))
+        }
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label={label}
+            placeholder="Select categories"
+            helperText={helperText}
+            error={error}
+            InputProps={{
+              ...params.InputProps,
+              endAdornment: (
+                <>
+                  {(isLoading || isFetching) ? <CircularProgress color="inherit" size={16} /> : null}
+                  {params.InputProps.endAdornment}
+                </>
+              ),
+            }}
+          />
+        )}
+        loading={isLoading || isFetching}
+        noOptionsText={isLoading ? 'Loading…' : 'No categories found'}
+        fullWidth
+      />
+      <Stack direction="row" spacing={1}>
+        <Button
+          size="small"
+          onClick={handleCreateCategory}
+          disabled={disabled}
+        >
+          New category
+        </Button>
+        {onManageCategoriesClick && (
+          <Button
+            size="small"
+            onClick={onManageCategoriesClick}
+            disabled={disabled}
+          >
+            Edit categories
+          </Button>
+        )}
+      </Stack>
+    </Stack>
+  );
+}

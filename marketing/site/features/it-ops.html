@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/assets/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <title>Enterprise Architecture Tool for SMBs - Application &amp; Interface Mapping | KANAP</title>
+    <meta name="description" content="Document your entire information system: applications, interfaces, infrastructure. Interactive architecture maps and lifecycle tracking. Open code. Start free." />
+    <link rel="canonical" href="https://kanap.net/features/it-ops.html" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://kanap.net/features/it-ops.html" />
+    <meta property="og:title" content="Enterprise Architecture Tool for SMBs | KANAP" />
+    <meta property="og:description" content="Document applications, interfaces, and infrastructure. Interactive architecture maps and lifecycle tracking." />
+    <meta property="og:image" content="https://kanap.net/assets/og-image.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Enterprise Architecture Tool for SMBs | KANAP" />
+    <meta name="twitter:description" content="Document applications, interfaces, and infrastructure. Interactive architecture maps and lifecycle tracking." />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://kanap.net/" },
+        { "@type": "ListItem", "position": 2, "name": "Features", "item": "https://kanap.net/features/" },
+        { "@type": "ListItem", "position": 3, "name": "IT Operations" }
+      ]
+    }
+    </script>
+
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JNTR8JXN1Q"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-JNTR8JXN1Q');
+    </script>
+
+    <link rel="stylesheet" href="../assets/styles.css?v=20260209" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="top-bar">
+        <div class="top-bar__inner">
+          <a class="brand" href="/">
+            <img src="../assets/logo.svg" alt="KANAP logo" />
+            <span class="brand-title">KANAP</span>
+          </a>
+          <nav class="nav" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <div class="nav-dropdown">
+              <a href="./" class="nav-dropdown__trigger">Features</a>
+              <div class="nav-dropdown__menu">
+                <a href="./">Overview</a>
+                <a href="budget.html">Budget Management</a>
+                <a href="it-ops.html" aria-current="page">IT Operations</a>
+                <a href="portfolio.html">Portfolio Management</a>
+                <a href="comparison.html">Why KANAP</a>
+              </div>
+            </div>
+            <a href="comparison.html">Why KANAP</a>
+            <a href="../offer.html">Get started</a>
+            <a href="https://doc.kanap.net/" target="_blank" rel="noopener noreferrer">Documentation</a>
+            <a href="../contact.html">Contact</a>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+
+        <nav class="breadcrumb container" aria-label="Breadcrumb">
+          <ol>
+            <li><a href="/">Home</a></li>
+            <li><a href="./">Features</a></li>
+            <li aria-current="page">IT Operations</li>
+          </ol>
+        </nav>
+
+        <section class="feature-hero">
+          <div class="container">
+            <p class="eyebrow" style="color: var(--itops-color);">IT Operations</p>
+            <h1>Document your entire information system</h1>
+            <p>
+              Applications, interfaces, and infrastructure in one place.
+              Visualize your architecture with interactive maps and track lifecycles from proposal to retirement.
+            </p>
+          </div>
+        </section>
+
+        <!-- Application Portfolio -->
+        <section class="feature-section">
+          <div class="container">
+            <div class="feature-grid">
+              <div class="feature-text">
+                <h2>Application Portfolio Management</h2>
+                <p>
+                  Maintain a comprehensive inventory of your applications with per-environment instances.
+                  Track ownership, criticality, compliance status, and lifecycle stage. Manage version
+                  lineage as applications evolve.
+                </p>
+                <ul class="feature-list">
+                  <li>Logical applications with per-environment instances (prod, pre-prod, QA, dev)</li>
+                  <li>Version lineage tracking for application evolution</li>
+                  <li>Lifecycle management: Proposed, Active, Deprecated, Retired</li>
+                  <li>Ownership tracking: IT owners, business owners, support contacts</li>
+                  <li>Compliance fields: data class, PII flag, data residency</li>
+                </ul>
+              </div>
+              <div class="hero-visual">
+                <div class="screenshot-placeholder" style="border-color: var(--itops-color);">
+                  <span style="color: var(--itops-color);">Application Grid</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Interface Documentation -->
+        <section class="feature-section">
+          <div class="container">
+            <div class="feature-grid feature-grid--reverse">
+              <div class="feature-text">
+                <h2>Interface Documentation</h2>
+                <p>
+                  Document integrations between applications with business and technical definitions.
+                  Support for direct connections and 3-leg middleware patterns (Extract/Transform/Load).
+                  Configure per-environment bindings with endpoints and authentication.
+                </p>
+                <ul class="feature-list">
+                  <li>Business purpose, data category, and process linking</li>
+                  <li>Direct or via-middleware route types</li>
+                  <li>3-leg support: Extract, Transform, Load legs</li>
+                  <li>Per-environment, per-leg binding configuration</li>
+                  <li>Functional definition: business objects, use cases, key identifiers</li>
+                </ul>
+              </div>
+              <div class="hero-visual">
+                <div class="screenshot-placeholder" style="border-color: var(--itops-color);">
+                  <span style="color: var(--itops-color);">Interface Workspace</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Infrastructure Registry -->
+        <section class="feature-section">
+          <div class="container">
+            <div class="feature-grid">
+              <div class="feature-text">
+                <h2>Infrastructure Registry</h2>
+                <p>
+                  Track servers, locations, and connections across your infrastructure.
+                  Support for on-premise and cloud deployments. Document network connectivity
+                  with multi-server topologies and layered routing.
+                </p>
+                <ul class="feature-list">
+                  <li>Server registry: VMs, databases, queues, containers, functions</li>
+                  <li>Location management: datacenters, cloud regions, availability zones</li>
+                  <li>Connection documentation: server-to-server and multi-server mesh</li>
+                  <li>Cluster support with member grouping</li>
+                  <li>Operating system tracking with support dates</li>
+                </ul>
+              </div>
+              <div class="hero-visual">
+                <div class="screenshot-placeholder" style="border-color: var(--itops-color);">
+                  <span style="color: var(--itops-color);">Server Grid</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Visual Architecture Maps -->
+        <section class="feature-section">
+          <div class="container">
+            <div class="feature-grid feature-grid--reverse">
+              <div class="feature-text">
+                <h2>Visual Architecture Maps</h2>
+                <p>
+                  Two interactive D3-powered visualizations help you understand your architecture at a glance.
+                  Filter by environment, lifecycle, or specific root nodes. Export to SVG or PNG for documentation.
+                </p>
+                <ul class="feature-list">
+                  <li><strong>Interface Map:</strong> Applications as nodes, interfaces as edges</li>
+                  <li><strong>Connection Map:</strong> Servers/entities with network connectivity</li>
+                  <li>Business view (hides middleware) and technical view</li>
+                  <li>Depth filtering: limit graph to N hops from selected nodes</li>
+                  <li>SVG and PNG export at 2x resolution</li>
+                </ul>
+              </div>
+              <div class="hero-visual">
+                <div class="screenshot-placeholder" style="border-color: var(--itops-color);">
+                  <span style="color: var(--itops-color);">Interface Map</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- More Features -->
+        <section class="section section--alt">
+          <div class="container">
+            <div class="section-header">
+              <h2>More IT Operations Features</h2>
+            </div>
+            <div class="cross-features-grid">
+              <article class="cross-feature">
+                <h3>Risk Derivation</h3>
+                <p>Connection risk calculated from linked interfaces. Criticality, data class, PII auto-derived.</p>
+              </article>
+              <article class="cross-feature">
+                <h3>Support Contacts</h3>
+                <p>Track internal users and external contacts per application with roles and notes.</p>
+              </article>
+              <article class="cross-feature">
+                <h3>Cost Linking</h3>
+                <p>Link applications to OPEX/CAPEX items. Understand the true cost of your portfolio.</p>
+              </article>
+              <article class="cross-feature">
+                <h3>CSV Import/Export</h3>
+                <p>Bulk import applications and interfaces. Export your entire inventory for analysis.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="container">
+            <div class="module-cross-links">
+              <span>Explore other modules:</span>
+              <a href="budget.html">Budget Management &rarr;</a>
+              <a href="portfolio.html">Portfolio Management &rarr;</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Final CTA -->
+        <section class="section cta-section">
+          <div class="container">
+            <div class="cta-content" style="text-align: center;">
+              <h2>Ready to document your information system?</h2>
+              <p>
+                Start free with self-hosting, or let us handle everything from 49 EUR/month.<br />
+                Open code. All features included.
+              </p>
+              <div class="cta-buttons" style="justify-content: center;">
+                <a class="button button--primary button--large" href="../offer.html">Get started</a>
+                <a class="button button--ghost button--large" href="../contact.html">Contact us</a>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <div class="footer__inner">
+          <div class="footer__links" aria-label="Footer links">
+            <a href="../legal.html">Legal mentions</a>
+            <a href="../terms.html">Terms & conditions</a>
+            <a href="../sales.html">General Terms and Conditions of Sale</a>
+            <a href="../privacy.html">Privacy policy</a>
+            <a href="../contact.html">Contact</a>
+            <a href="https://github.com/kanap-sarl/kanap" target="_blank" rel="noopener noreferrer">GitHub</a>
+          </div>
+          <div class="footer__copy">&copy; Kanap, All rights reserved.</div>
+        </div>
+      </footer>
+    </div>
+
+    <div class="trial-modal" role="dialog" aria-modal="true" aria-labelledby="trial-title">
+      <div class="trial-modal__panel">
+        <button class="trial-modal__close" type="button" aria-label="Close form" data-close-trial>
+          &times;
+        </button>
+        <div>
+          <p class="eyebrow" id="trial-title">Get Started</p>
+          <h2 style="margin: 0 0 0.5rem;">Create your workspace</h2>
+          <p style="color: var(--muted); margin: 0;">
+            Provision your workspace in minutes. We'll email the activation link to your admin.
+          </p>
+        </div>
+        <form class="form-grid" data-trial-form>
+          <label for="org">Organization name</label>
+          <input id="org" name="org" autocomplete="organization" required />
+
+          <label for="country_iso">Country</label>
+          <select id="country_iso" name="country_iso" required data-country>
+            <option value="" disabled selected hidden>Select a country...</option>
+          </select>
+
+          <label for="slug">Desired subdomain</label>
+          <input id="slug" name="slug" pattern="[a-z0-9-]+" placeholder="acme-eu" required />
+
+          <label for="email">Admin email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required />
+
+          <button class="button button--primary" type="submit">Create workspace</button>
+          <div class="status" data-trial-status aria-live="polite"></div>
+        </form>
+      </div>
+    </div>
+
+    <script src="../assets/scripts.js?v=20260212" defer></script>
+  </body>
+</html>

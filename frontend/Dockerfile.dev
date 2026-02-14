@@ -1,0 +1,11 @@
+FROM node:20-alpine
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci || npm install
+COPY tsconfig*.json vite.config.ts ./
+COPY index.html ./
+COPY public ./public
+COPY src ./src
+RUN npm run typecheck
+EXPOSE 5173
+# No default CMD; compose runs: npm run dev -- --host

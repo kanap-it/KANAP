@@ -1,0 +1,471 @@
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  Box,
+  Button,
+  Stack,
+  TextField,
+  MenuItem,
+  Paper,
+  Typography,
+  Switch,
+  FormControlLabel,
+  Alert,
+} from '@mui/material';
+import { AgGridReact } from 'ag-grid-react';
+import type { ColDef } from 'ag-grid-community';
+import ReportLayout from '../../components/reports/ReportLayout';
+import { useOpexSummaryAll, SummaryRow, pickYearSlot } from '../reports/useOpexSummary';
+import { useQueryClient } from '@tanstack/react-query';
+import { copyBudgetColumn, BudgetColumn, BudgetOperationResult } from '../../services/budgetOperations';
+import { useFreezeState } from '../../hooks/useFreezeState';
+import { FreezeColumn } from '../../services/freeze';
+
+type ProcessedRow = {
+  id: string;
+  product_name: string;
+  sourceValue: number;
+  destinationValue: number;
+  previewValue?: number;
+  willBeSkipped?: boolean;
+};
+
+function formatNumber(v: any) {
+  const n = Number(v ?? 0);
+  if (!isFinite(n)) return '';
+  const i = Math.round(n);
+  return i.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+const BUDGET_COLUMNS: { value: BudgetColumn; label: string }[] = [
+  { value: 'budget', label: 'Budget' },
+  { value: 'revision', label: 'Revision' },
+  { value: 'follow_up', label: 'Follow-up' },
+  { value: 'landing', label: 'Landing' },
+];
+
+const budgetToFreezeColumn: Record<BudgetColumn, FreezeColumn> = {
+  budget: 'budget',
+  revision: 'revision',
+  follow_up: 'actual',
+  landing: 'landing',
+};
+
+export default function CopyBudgetColumnsPage() {
+  const queryClient = useQueryClient();
+  const now = new Date();
+  const Y = now.getFullYear();
+
+  // Generate years from Y-1 to Y+5
+  const years = Array.from({ length: 7 }, (_, i) => Y - 1 + i);
+
+  const [sourceYear, setSourceYear] = useState<number>(Y);
+  const [sourceColumn, setSourceColumn] = useState<BudgetColumn>('budget');
+  const [destinationYear, setDestinationYear] = useState<number>(Y + 1);
+  const [destinationColumn, setDestinationColumn] = useState<BudgetColumn>('budget');
+  const [percentageIncrease, setPercentageIncrease] = useState<number>(0);
+  const [overwrite, setOverwrite] = useState<boolean>(false);
+  const [previewData, setPreviewData] = useState<ProcessedRow[]>([]);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [showPreview, setShowPreview] = useState<boolean>(false);
+
+  const { data: freezeData, isLoading: freezeLoading } = useFreezeState(destinationYear);
+
+  // Fetch data for both source and destination years
+  const requiredYears = useMemo(() => {
+    const yearsSet = new Set([sourceYear, destinationYear]);
+    return Array.from(yearsSet).sort((a, b) => a - b);
+  }, [sourceYear, destinationYear]);
+
+  const { data: rows, isLoading } = useOpexSummaryAll(requiredYears);
+
+  const freezeKey = budgetToFreezeColumn[destinationColumn];
+  const destinationFrozen = freezeData?.summary?.scopes.opex[freezeKey]?.frozen ?? false;
+
+  const processedData = useMemo(() => {
+    if (!rows) return [];
+
+    return rows.map((r: SummaryRow) => {
+      const sourceSlot = pickYearSlot(r, sourceYear);
+      const destinationSlot = pickYearSlot(r, destinationYear);
+
+      const sourceValue = Number(sourceSlot?.totals?.[sourceColumn] || 0);
+      const destinationValue = Number(destinationSlot?.totals?.[destinationColumn] || 0);
+
+      return {
+        id: r.id,
+        product_name: r.product_name,
+        sourceValue,
+        destinationValue,
+      };
+    }); // Show ALL items in preview, not just ones with non-zero source values
+  }, [rows, sourceYear, sourceColumn, destinationYear, destinationColumn]);
+
+  const calculatePreview = (data: ProcessedRow[]): ProcessedRow[] => {
+    return data.map(row => {
+      let previewValue = row.sourceValue;
+
+      // Apply percentage increase
+      if (percentageIncrease !== 0) {
+        previewValue = previewValue * (1 + percentageIncrease / 100);
+      }
+
+      // Round to nearest integer
+      previewValue = Math.round(previewValue);
+
+      // Check overwrite logic
+      if (!overwrite && row.destinationValue !== 0) {
+        previewValue = row.destinationValue; // Don't overwrite existing data
+      }
+
+      return {
+        ...row,
+        previewValue,
+      };
+    });
+  };
+
+  const handleDryRun = async () => {
+    setIsProcessing(true);
+    try {
+      const result = await copyBudgetColumn({
+        sourceYear,
+        sourceColumn,
+        destinationYear,
+        destinationColumn,
+        percentageIncrease,
+        overwrite,
+        dryRun: true,
+      });
+
+      // Convert API result to our display format, preserving original frontend data
+      const preview = result.results.map((apiRow: BudgetOperationResult) => {
+        const matchingRow = processedData.find((row: ProcessedRow) => row.id === apiRow.itemId);
+        const willBeSkipped = apiRow.sourceValue === 0 || (!overwrite && apiRow.currentDestinationValue !== 0);
+        return {
+          id: apiRow.itemId,
+          product_name: apiRow.itemName,
+          sourceValue: matchingRow?.sourceValue || apiRow.sourceValue, // Use frontend value
+          destinationValue: matchingRow?.destinationValue || apiRow.currentDestinationValue, // Use frontend value
+          previewValue: apiRow.newValue,
+          willBeSkipped,
+        };
+      });
+
+      setPreviewData(preview);
+      setShowPreview(true);
+    } catch (error) {
+      console.error('Dry run failed:', error);
+      alert('Dry run failed. Please check the console for details.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCopyData = async () => {
+    setIsProcessing(true);
+    try {
+      const result = await copyBudgetColumn({
+        sourceYear,
+        sourceColumn,
+        destinationYear,
+        destinationColumn,
+        percentageIncrease,
+        overwrite,
+        dryRun: false,
+      });
+
+      alert(`Copy operation completed successfully!
+Processed: ${result.summary.processed} items
+Skipped: ${result.summary.skipped} items
+Errors: ${result.summary.errors} items`);
+
+      // Invalidate and refetch the summary data to show updated values
+      await queryClient.invalidateQueries({ queryKey: ['spend-items-summary'] });
+
+      // Clear the preview state so user can see the updated source data
+      setPreviewData([]);
+      setShowPreview(false);
+    } catch (error) {
+      console.error('Copy data failed:', error);
+      alert('Copy operation failed. Please check the console for details.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const columns = useMemo<ColDef[]>(() => {
+    const baseColumns: ColDef[] = [
+      {
+        field: 'product_name',
+        headerName: 'Product',
+        flex: 1,
+        minWidth: 220,
+        cellRenderer: (params: any) => {
+          const willBeSkipped = params.data?.willBeSkipped;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {showPreview && willBeSkipped && (
+                <span style={{ fontSize: '12px', color: '#e65100', fontWeight: 'bold' }}>
+                  [SKIP]
+                </span>
+              )}
+              <span>{params.value}</span>
+            </div>
+          );
+        }
+      },
+      {
+        field: 'sourceValue',
+        headerName: `${sourceColumn} (${sourceYear})`,
+        width: 160,
+        type: 'rightAligned',
+        valueFormatter: (p) => formatNumber(p.value),
+      },
+      {
+        field: 'destinationValue',
+        headerName: `${destinationColumn} (${destinationYear}) - Current`,
+        width: 180,
+        type: 'rightAligned',
+        valueFormatter: (p) => formatNumber(p.value),
+      },
+    ];
+
+    if (showPreview) {
+      baseColumns.push({
+        field: 'previewValue',
+        headerName: `${destinationColumn} (${destinationYear}) - Preview`,
+        width: 180,
+        type: 'rightAligned',
+        valueFormatter: (p) => formatNumber(p.value),
+        cellStyle: (params) => {
+          const willBeSkipped = params.data?.willBeSkipped;
+          return {
+            backgroundColor: willBeSkipped ? '#fff3e0' : '#e3f2fd',
+            fontWeight: 'bold',
+            color: willBeSkipped ? '#e65100' : 'inherit',
+          };
+        },
+      });
+    }
+
+    return baseColumns;
+  }, [sourceYear, sourceColumn, destinationYear, destinationColumn, showPreview]);
+
+  const gridApiRef = useRef<any>(null);
+
+  // Always show original data, but merge in preview values when available
+  const displayData = useMemo(() => {
+    if (!showPreview || previewData.length === 0) {
+      return processedData;
+    }
+
+    // Create a map of preview data by id for quick lookup
+    const previewMap = new Map(previewData.map(p => [p.id, p]));
+
+    return processedData.map((row: ProcessedRow) => {
+      const preview = previewMap.get(row.id);
+      return {
+        ...row,
+        previewValue: preview?.previewValue,
+        willBeSkipped: preview?.willBeSkipped,
+      };
+    });
+  }, [processedData, previewData, showPreview]);
+
+  const stats = useMemo(() => {
+    const totalItems = displayData.length;
+    const totalSource = displayData.reduce((sum: number, row: ProcessedRow) => sum + row.sourceValue, 0);
+    const totalDestinationCurrent = displayData.reduce((sum: number, row: ProcessedRow) => sum + row.destinationValue, 0);
+    const totalPreview = showPreview
+      ? displayData.reduce((sum: number, row: ProcessedRow) => sum + (row.previewValue || 0), 0)
+      : 0;
+    const itemsWithExistingData = displayData.filter((row: ProcessedRow) => row.destinationValue !== 0).length;
+    const itemsToBeProcessed = showPreview
+      ? displayData.filter((row: ProcessedRow) => !row.willBeSkipped).length
+      : displayData.filter((row: ProcessedRow) => row.sourceValue !== 0 && (overwrite || row.destinationValue === 0)).length;
+
+    return {
+      totalItems,
+      totalSource,
+      totalDestinationCurrent,
+      totalPreview,
+      itemsWithExistingData,
+      itemsToBeProcessed,
+    };
+  }, [displayData, showPreview]);
+
+  return (
+    <ReportLayout
+      title="Copy Budget Columns"
+      subtitle="Copy budget data between years and columns with optional percentage adjustments"
+      filters={
+        <>
+          <TextField
+            select
+            size="small"
+            label="Source Year"
+            value={sourceYear}
+            onChange={(e) => setSourceYear(parseInt(e.target.value, 10))}
+          >
+            {years.map((year) => (
+              <MenuItem key={year} value={year}>
+                {year}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Source Column"
+            value={sourceColumn}
+            onChange={(e) => setSourceColumn(e.target.value as BudgetColumn)}
+          >
+            {BUDGET_COLUMNS.map((col) => (
+              <MenuItem key={col.value} value={col.value}>
+                {col.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Destination Year"
+            value={destinationYear}
+            onChange={(e) => setDestinationYear(parseInt(e.target.value, 10))}
+          >
+            {years.map((year) => (
+              <MenuItem key={year} value={year}>
+                {year}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Destination Column"
+            value={destinationColumn}
+            onChange={(e) => setDestinationColumn(e.target.value as BudgetColumn)}
+          >
+            {BUDGET_COLUMNS.map((col) => (
+              <MenuItem key={col.value} value={col.value}>
+                {col.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            size="small"
+            type="number"
+            label="Percentage Increase"
+            value={percentageIncrease}
+            onChange={(e) => setPercentageIncrease(parseFloat(e.target.value) || 0)}
+            inputProps={{ step: 0.1 }}
+            sx={{ width: 160 }}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={overwrite}
+                onChange={(e) => setOverwrite(e.target.checked)}
+                size="small"
+              />
+            }
+            label="Overwrite existing data"
+            sx={{ ml: 1 }}
+          />
+        </>
+      }
+      actions={
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            onClick={handleDryRun}
+            disabled={isProcessing || processedData.length === 0 || freezeLoading || destinationFrozen}
+          >
+            {isProcessing ? 'Processing...' : 'Dry Run'}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleCopyData}
+            disabled={isProcessing || processedData.length === 0 || !showPreview || freezeLoading || destinationFrozen}
+            color="primary"
+          >
+            {isProcessing ? 'Processing...' : 'Copy Data'}
+          </Button>
+        </Stack>
+      }
+      onExportTableCsv={() => gridApiRef.current?.exportDataAsCsv?.()}
+    >
+      <Stack direction="column" spacing={2} alignItems="stretch">
+        {destinationFrozen && (
+          <Alert severity="error">
+            The {destinationYear} {BUDGET_COLUMNS.find((c) => c.value === destinationColumn)?.label ?? destinationColumn} column is frozen. Unfreeze it before copying data.
+          </Alert>
+        )}
+
+        {stats.itemsWithExistingData > 0 && !overwrite && (
+          <Alert severity="warning">
+            {stats.itemsWithExistingData} items already have data in the destination column and will be skipped.
+            Enable "Overwrite existing data" to replace them.
+          </Alert>
+        )}
+
+        {showPreview && (
+          <Alert severity="info">
+            Preview shows all {stats.totalItems} items. {stats.itemsToBeProcessed} items will be processed, {stats.totalItems - stats.itemsToBeProcessed} will be skipped.
+            Items marked with [SKIP] will not be modified during copy operation.
+          </Alert>
+        )}
+
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+            Data Preview
+          </Typography>
+          <Box className="ag-theme-quartz">
+            <AgGridReact
+              rowData={displayData}
+              columnDefs={columns}
+              defaultColDef={{ sortable: true, resizable: true }}
+              initialState={{
+                sort: {
+                  sortModel: [{ colId: 'sourceValue', sort: 'desc' }],
+                },
+              }}
+              onGridReady={(e) => { gridApiRef.current = e.api; }}
+              domLayout="autoHeight"
+            />
+          </Box>
+
+          <Box sx={{ mt: 2, display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))' } }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="body2" color="text.secondary">Total items</Typography>
+              <Typography variant="subtitle2">{stats.totalItems.toLocaleString()}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="body2" color="text.secondary">Items to be processed</Typography>
+              <Typography variant="subtitle2" sx={{ color: 'success.main' }}>{stats.itemsToBeProcessed.toLocaleString()}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="body2" color="text.secondary">Source total</Typography>
+              <Typography variant="subtitle2">{formatNumber(stats.totalSource)}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="body2" color="text.secondary">Current destination total</Typography>
+              <Typography variant="subtitle2">{formatNumber(stats.totalDestinationCurrent)}</Typography>
+            </Box>
+            {showPreview && (
+              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="body2" color="text.secondary">Preview total</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                  {formatNumber(stats.totalPreview)}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Paper>
+      </Stack>
+      {isLoading && (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading data…</Typography>
+      )}
+    </ReportLayout>
+  );
+}

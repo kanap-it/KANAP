@@ -1,0 +1,620 @@
+import React from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Button,
+  Divider,
+  Stack,
+  Typography,
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import AddIcon from '@mui/icons-material/Add';
+import { Link } from 'react-router-dom';
+import api from '../../../api';
+import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
+import DateEUField from '../../../components/fields/DateEUField';
+import UserSelect from '../../../components/fields/UserSelect';
+import UserMultiSelect from '../../../components/fields/UserMultiSelect';
+import RelatedObjectSelect, { RelatedObjectType } from '../../../components/fields/RelatedObjectSelect';
+import CompanySelect from '../../../components/fields/CompanySelect';
+import TaskLogTimeDialog from './TaskLogTimeDialog';
+
+// Classification types
+interface ClassificationSource {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+interface ClassificationStream {
+  id: string;
+  name: string;
+  category_id: string;
+  is_active: boolean;
+}
+
+interface ClassificationCategory {
+  id: string;
+  name: string;
+  is_active: boolean;
+  streams?: ClassificationStream[];
+}
+
+const STATUS_OPTIONS = [
+  { label: 'Open', value: 'open' },
+  { label: 'In Progress', value: 'in_progress' },
+  { label: 'Done', value: 'done' },
+  { label: 'Cancelled', value: 'cancelled' },
+];
+
+const PRIORITY_OPTIONS = [
+  { label: 'Blocker (+10)', value: 'blocker' },
+  { label: 'High (+5)', value: 'high' },
+  { label: 'Normal (0)', value: 'normal' },
+  { label: 'Low (-5)', value: 'low' },
+  { label: 'Optional (-10)', value: 'optional' },
+];
+
+interface TaskData {
+  id: string;
+  status: string;
+  task_type_id?: string | null;
+  task_type_name?: string | null;
+  priority_level: string;
+  start_date: string | null;
+  due_date: string | null;
+  assignee_user_id: string | null;
+  assignee_name: string | null;
+  creator_id: string | null;
+  creator_name: string | null;
+  owner_ids: string[];
+  viewer_ids: string[];
+  labels: string[];
+  related_object_type: string | null;
+  related_object_id: string | null;
+  related_object_name: string | null;
+  phase_id: string | null;
+  phase_name: string | null;
+  // Classification fields
+  source_id?: string | null;
+  source_name?: string | null;
+  category_id: string | null;
+  category_name: string | null;
+  stream_id: string | null;
+  stream_name: string | null;
+  company_id?: string | null;
+  company_name?: string | null;
+}
+
+interface TaskType {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  display_order: number;
+}
+
+interface RelationChangeParams {
+  type: RelatedObjectType;
+  id: string | null;
+  name: string | null;
+}
+
+interface TaskSidebarProps {
+  task: TaskData;
+  onChange: (field: string, value: any) => void;
+  readOnly?: boolean;
+  totalTimeHours?: number;
+  isCreate?: boolean;
+  onRelationChange?: (params: RelationChangeParams) => void;
+}
+
+export default function TaskSidebar({
+  task,
+  onChange,
+  readOnly = false,
+  totalTimeHours = 0,
+  isCreate = false,
+  onRelationChange,
+}: TaskSidebarProps) {
+  const queryClient = useQueryClient();
+  const [logTimeOpen, setLogTimeOpen] = React.useState(false);
+  const [expanded, setExpanded] = React.useState<string[]>(['context', 'status', 'dates', 'people', 'time', 'classification']);
+
+  const isProjectTask = task.related_object_type === 'project';
+  const isStandalone = !task.related_object_type;
+
+  // Fetch task types from classification API
+  const { data: taskTypesData } = useQuery({
+    queryKey: ['portfolio-task-types'],
+    queryFn: async () => {
+      const res = await api.get('/portfolio/classification/task-types');
+      return res.data as TaskType[];
+    },
+  });
+  const taskTypeOptions = React.useMemo(() =>
+    (taskTypesData || []).filter(t => t.is_active).map(t => ({ label: t.name, value: t.id })),
+    [taskTypesData]
+  );
+
+  // Fetch classification data (sources, categories, streams) for standalone tasks
+  const { data: classificationData } = useQuery({
+    queryKey: ['portfolio-classification'],
+    queryFn: async () => {
+      const res = await api.get('/portfolio/classification/all');
+      return res.data as {
+        sources: ClassificationSource[];
+        categories: ClassificationCategory[];
+        streams: ClassificationStream[];
+      };
+    },
+    enabled: isStandalone && !readOnly,
+  });
+
+  const sources = classificationData?.sources?.filter((s) => s.is_active) || [];
+  const categories = classificationData?.categories?.filter((c) => c.is_active) || [];
+  const streams = classificationData?.streams?.filter((s) => s.is_active) || [];
+
+  // Filter streams by selected category
+  const filteredStreams = React.useMemo(() => {
+    if (!task.category_id) return streams;
+    return streams.filter((s) => s.category_id === task.category_id);
+  }, [streams, task.category_id]);
+
+  const sourceOptions = React.useMemo(() =>
+    sources.map((s) => ({ label: s.name, value: s.id })),
+    [sources]
+  );
+
+  const categoryOptions = React.useMemo(() =>
+    categories.map((c) => ({ label: c.name, value: c.id })),
+    [categories]
+  );
+
+  const streamOptions = React.useMemo(() =>
+    filteredStreams.map((s) => ({ label: s.name, value: s.id })),
+    [filteredStreams]
+  );
+
+  // Fetch phases for the project (if task is project-related and has a valid project ID)
+  const { data: phases = [] } = useQuery({
+    queryKey: ['project-phases', task.related_object_id],
+    queryFn: async () => {
+      if (task.related_object_type !== 'project' || !task.related_object_id) return [];
+      const res = await api.get<Array<{ id: string; name: string }>>(`/portfolio/projects/${task.related_object_id}/phases`);
+      return res.data;
+    },
+    enabled: task.related_object_type === 'project' && !!task.related_object_id,
+  });
+
+  const handleAccordionChange = (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpanded(prev =>
+      isExpanded ? [...prev, panel] : prev.filter(p => p !== panel)
+    );
+  };
+
+  const formatHours = (hours: number) => {
+    const days = Math.floor(hours / 8);
+    const remaining = Math.round(hours % 8);
+    if (days > 0 && remaining > 0) {
+      return `${days} Day${days !== 1 ? 's' : ''} ${remaining} Hour${remaining !== 1 ? 's' : ''}`;
+    } else if (days > 0) {
+      return `${days} Day${days !== 1 ? 's' : ''}`;
+    }
+    return `${hours} Hour${hours !== 1 ? 's' : ''}`;
+  };
+
+  // Task types that don't support time logging
+  const timeLoggingExcludedTypes = ['contract', 'spend_item', 'capex_item'];
+  const supportsTimeLogging = isStandalone || !timeLoggingExcludedTypes.includes(task.related_object_type || '');
+
+  return (
+    <Box sx={{ width: '100%' }}>
+      {/* CONTEXT - First */}
+      <Accordion
+        expanded={expanded.includes('context')}
+        onChange={handleAccordionChange('context')}
+        disableGutters
+        elevation={0}
+        sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography variant="subtitle2" fontWeight="bold">Context</Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ pt: 0 }}>
+          <Stack spacing={1.5}>
+            {/* Related Object (Context card) - FIRST */}
+            {isCreate && onRelationChange ? (
+              <RelatedObjectSelect
+                relationType={task.related_object_type as RelatedObjectType}
+                relationId={task.related_object_id || null}
+                onChangeType={(type) => onRelationChange({ type, id: null, name: null })}
+                onChangeId={(id, name) =>
+                  onRelationChange({ type: task.related_object_type as RelatedObjectType, id, name })
+                }
+                size="small"
+              />
+            ) : isStandalone ? (
+              <Box
+                sx={{
+                  bgcolor: 'action.hover',
+                  borderRadius: 1,
+                  p: 1.5,
+                }}
+              >
+                <Typography component="span" fontWeight="bold">
+                  Standalone Task
+                </Typography>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  bgcolor: 'action.hover',
+                  borderRadius: 1,
+                  p: 1.5,
+                }}
+              >
+                <Typography component="span" fontWeight="bold">
+                  {isProjectTask ? 'Project' : task.related_object_type === 'spend_item' ? 'Budget' :
+                   task.related_object_type === 'contract' ? 'Contract' :
+                   task.related_object_type === 'capex_item' ? 'CAPEX' : 'Related'}
+                </Typography>
+                <Typography component="span"> : </Typography>
+                <Typography
+                  component={Link}
+                  to={isProjectTask ? `/portfolio/projects/${task.related_object_id}` :
+                      task.related_object_type === 'spend_item' ? `/ops/opex/${task.related_object_id}` :
+                      task.related_object_type === 'contract' ? `/ops/contracts/${task.related_object_id}` :
+                      task.related_object_type === 'capex_item' ? `/ops/capex/${task.related_object_id}` :
+                      '#'}
+                  sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                >
+                  {task.related_object_name || 'Unknown'}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Phase (only for project tasks) - SECOND for projects */}
+            {isProjectTask && (
+              readOnly ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Phase</Typography>
+                  <Typography sx={{ mt: 0.25 }}>{task.phase_name || 'Project-level'}</Typography>
+                </Box>
+              ) : (
+                <EnumAutocomplete
+                  label="Phase"
+                  value={task.phase_id || ''}
+                  onChange={(v) => onChange('phase_id', v || null)}
+                  options={[
+                    { label: 'Project-level', value: '' },
+                    ...phases.map(p => ({ label: p.name, value: p.id })),
+                  ]}
+                  size="small"
+                />
+              )
+            )}
+
+            {/* Task Type - THIRD */}
+            {readOnly ? (
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Task Type</Typography>
+                <Typography sx={{ mt: 0.25 }}>
+                  {task.task_type_name || taskTypeOptions.find(o => o.value === task.task_type_id)?.label || '-'}
+                </Typography>
+              </Box>
+            ) : (
+              <EnumAutocomplete
+                label="Task Type"
+                value={task.task_type_id || ''}
+                onChange={(v) => onChange('task_type_id', v || null)}
+                options={taskTypeOptions}
+                size="small"
+              />
+            )}
+
+            {/* Priority dropdown - FOURTH */}
+            {readOnly ? (
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Priority</Typography>
+                <Typography sx={{ mt: 0.25 }}>{PRIORITY_OPTIONS.find(o => o.value === task.priority_level)?.label || task.priority_level}</Typography>
+              </Box>
+            ) : (
+              <EnumAutocomplete
+                label="Priority"
+                value={task.priority_level}
+                onChange={(v) => onChange('priority_level', v)}
+                options={PRIORITY_OPTIONS}
+                size="small"
+              />
+            )}
+
+            {/* Classification fields for project tasks (inherited, read-only) */}
+            {isProjectTask && (task.category_name || task.stream_name || task.source_name || task.company_name) && (
+              <>
+                {task.source_name && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                      Source <Typography component="span" variant="caption" color="text.disabled">(from project)</Typography>
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.source_name}</Typography>
+                  </Box>
+                )}
+                {task.category_name && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                      Classification <Typography component="span" variant="caption" color="text.disabled">(from project)</Typography>
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.category_name}</Typography>
+                  </Box>
+                )}
+                {task.stream_name && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                      Stream <Typography component="span" variant="caption" color="text.disabled">(from project)</Typography>
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.stream_name}</Typography>
+                  </Box>
+                )}
+                {task.company_name && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                      Company <Typography component="span" variant="caption" color="text.disabled">(from project)</Typography>
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.company_name}</Typography>
+                  </Box>
+                )}
+              </>
+            )}
+
+            {/* Classification fields for standalone tasks - EDITABLE */}
+            {isStandalone && !readOnly && (
+              <>
+                <EnumAutocomplete
+                  label="Source"
+                  value={task.source_id || ''}
+                  onChange={(v) => onChange('source_id', v || null)}
+                  options={sourceOptions}
+                  size="small"
+                />
+                <EnumAutocomplete
+                  label="Category"
+                  value={task.category_id || ''}
+                  onChange={(v) => {
+                    onChange('category_id', v || null);
+                    // Clear stream if it doesn't belong to the new category
+                    if (v && task.stream_id) {
+                      const streamBelongsToCategory = streams.some(
+                        (s) => s.id === task.stream_id && s.category_id === v
+                      );
+                      if (!streamBelongsToCategory) {
+                        onChange('stream_id', null);
+                      }
+                    }
+                  }}
+                  options={categoryOptions}
+                  size="small"
+                />
+                <EnumAutocomplete
+                  label="Stream"
+                  value={task.stream_id || ''}
+                  onChange={(v) => onChange('stream_id', v || null)}
+                  options={streamOptions}
+                  size="small"
+                  disabled={!task.category_id}
+                />
+                <CompanySelect
+                  label="Company"
+                  value={task.company_id || null}
+                  onChange={(v) => onChange('company_id', v)}
+                  size="small"
+                />
+              </>
+            )}
+
+            {/* Classification fields for standalone tasks - READ-ONLY */}
+            {isStandalone && readOnly && (task.category_name || task.stream_name || task.source_name || task.company_name) && (
+              <>
+                {task.source_name && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Source</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.source_name}</Typography>
+                  </Box>
+                )}
+                {task.category_name && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Category</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.category_name}</Typography>
+                  </Box>
+                )}
+                {task.stream_name && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Stream</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.stream_name}</Typography>
+                  </Box>
+                )}
+                {task.company_name && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Company</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.company_name}</Typography>
+                  </Box>
+                )}
+              </>
+            )}
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
+
+      <Divider />
+
+      {/* STATUS - Second */}
+      <Accordion
+        expanded={expanded.includes('status')}
+        onChange={handleAccordionChange('status')}
+        disableGutters
+        elevation={0}
+        sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography variant="subtitle2" fontWeight="bold">Status</Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ pt: 0 }}>
+          <Stack spacing={1.5}>
+            {readOnly ? (
+              <Typography>{STATUS_OPTIONS.find(o => o.value === task.status)?.label || task.status}</Typography>
+            ) : (
+              <EnumAutocomplete
+                label="Change status"
+                value={task.status}
+                onChange={(v) => {
+                  if (v === 'done' && isProjectTask && totalTimeHours === 0) {
+                    alert('Cannot mark task as done without logging time. Please log time first.');
+                    return;
+                  }
+                  onChange('status', v);
+                }}
+                options={STATUS_OPTIONS.map(opt => ({
+                  ...opt,
+                  label: opt.value === 'done' && isProjectTask && totalTimeHours === 0
+                    ? `${opt.label} (requires time)`
+                    : opt.label,
+                }))}
+                size="small"
+              />
+            )}
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
+
+      {/* TIME - Third (hidden in create mode and for task types that don't support time logging) */}
+      {!isCreate && supportsTimeLogging && (
+        <>
+          <Divider />
+
+          <Accordion
+            expanded={expanded.includes('time')}
+            onChange={handleAccordionChange('time')}
+            disableGutters
+            elevation={0}
+            sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle2" fontWeight="bold">Time</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ pt: 0 }}>
+              <Stack spacing={1.5}>
+                {!readOnly && supportsTimeLogging && (
+                  <Button
+                    startIcon={<AddIcon />}
+                    size="small"
+                    onClick={() => setLogTimeOpen(true)}
+                  >
+                    Log Time
+                  </Button>
+                )}
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Time Spent</Typography>
+                  <Typography variant="h6" sx={{ mt: 0.25 }}>
+                    {formatHours(totalTimeHours)}
+                  </Typography>
+                </Box>
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+
+          <TaskLogTimeDialog
+            open={logTimeOpen}
+            onClose={() => setLogTimeOpen(false)}
+            taskId={task.id}
+            projectId={isProjectTask && task.related_object_id ? task.related_object_id : undefined}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['task-time-entries-sum', task.id] });
+              queryClient.invalidateQueries({ queryKey: ['task-time-entries', task.id] });
+              queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
+              if (isProjectTask && task.related_object_id) {
+                queryClient.invalidateQueries({ queryKey: ['project', task.related_object_id] });
+                queryClient.invalidateQueries({ queryKey: ['project-tasks-time-summary', task.related_object_id] });
+              }
+            }}
+          />
+        </>
+      )}
+
+      <Divider />
+
+      {/* PEOPLE - Fourth */}
+      <Accordion
+        expanded={expanded.includes('people')}
+        onChange={handleAccordionChange('people')}
+        disableGutters
+        elevation={0}
+        sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography variant="subtitle2" fontWeight="bold">People</Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ pt: 0 }}>
+          <Stack spacing={1.5}>
+            <UserSelect
+              label="Creator"
+              value={task.creator_id}
+              onChange={(v) => onChange('creator_id', v)}
+              disabled={readOnly}
+              size="small"
+            />
+            <UserSelect
+              label="Assignee"
+              value={task.assignee_user_id}
+              onChange={(v) => onChange('assignee_user_id', v)}
+              disabled={readOnly}
+              size="small"
+            />
+            <UserMultiSelect
+              label="Viewers"
+              value={task.viewer_ids || []}
+              onChange={(v) => onChange('viewer_ids', v)}
+              disabled={readOnly}
+              size="small"
+            />
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
+
+      <Divider />
+
+      {/* DATES - Fifth (Last) */}
+      <Accordion
+        expanded={expanded.includes('dates')}
+        onChange={handleAccordionChange('dates')}
+        disableGutters
+        elevation={0}
+        sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography variant="subtitle2" fontWeight="bold">Dates</Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ pt: 0 }}>
+          <Stack spacing={1.5}>
+            <DateEUField
+              label="Start Date"
+              valueYmd={task.start_date || ''}
+              onChangeYmd={(v) => onChange('start_date', v || null)}
+              disabled={readOnly}
+              size="small"
+            />
+            <DateEUField
+              label="Due Date"
+              valueYmd={task.due_date || ''}
+              onChangeYmd={(v) => onChange('due_date', v || null)}
+              disabled={readOnly}
+              size="small"
+            />
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
+    </Box>
+  );
+}

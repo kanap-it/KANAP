@@ -1,0 +1,8 @@
+{
+  "name": "kanap-docs",
+  "private": true,
+  "description": "MkDocs documentation - no npm dependencies",
+  "scripts": {
+    "build": "pip install -r requirements.txt && mkdocs build"
+  }
+}

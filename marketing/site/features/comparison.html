@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/assets/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <title>All-in-One IT Management - Alternative to Spreadsheets &amp; Enterprise Suites | KANAP</title>
+    <meta name="description" content="Portfolio, architecture, and budget in one place. Enterprise-grade integration at SMB-friendly prices. Compare KANAP to LeanIX, ServiceNow, and spreadsheets. Open code. Start free." />
+    <link rel="canonical" href="https://kanap.net/features/comparison.html" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://kanap.net/features/comparison.html" />
+    <meta property="og:title" content="All-in-One IT Management for SMBs | KANAP" />
+    <meta property="og:description" content="Portfolio, architecture, and budget in one place. Enterprise-grade integration at SMB-friendly prices. Open code." />
+    <meta property="og:image" content="https://kanap.net/assets/og-image.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="All-in-One IT Management for SMBs | KANAP" />
+    <meta name="twitter:description" content="Portfolio, architecture, and budget in one place. Enterprise-grade integration at SMB-friendly prices. Open code." />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://kanap.net/" },
+        { "@type": "ListItem", "position": 2, "name": "Features", "item": "https://kanap.net/features/" },
+        { "@type": "ListItem", "position": 3, "name": "Why KANAP" }
+      ]
+    }
+    </script>
+
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JNTR8JXN1Q"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-JNTR8JXN1Q');
+    </script>
+
+    <link rel="stylesheet" href="../assets/styles.css?v=20260209" />
+    <style>
+      /* Comparison Page Specific Styles */
+      .comparison-hero {
+        background: linear-gradient(160deg, rgba(25, 118, 210, 0.12), rgba(25, 118, 210, 0.02));
+        text-align: center;
+        padding: clamp(4rem, 8vw, 6rem) 0;
+      }
+      .comparison-hero h1 {
+        font-size: clamp(2.5rem, 5vw, 3.75rem);
+        margin: 0.5rem 0 1rem;
+        font-weight: 700;
+      }
+      .comparison-hero p {
+        font-size: 1.15rem;
+        color: var(--muted);
+        max-width: 700px;
+        margin: 0 auto;
+        line-height: 1.7;
+      }
+      .comparison-hero .highlight {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      /* Reality Cards */
+      .reality-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-top: 2rem;
+      }
+      @media (max-width: 900px) {
+        .reality-grid {
+          grid-template-columns: 1fr;
+          max-width: 500px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+      }
+      .reality-card {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 1.75rem;
+        border: 1px solid var(--border);
+      }
+      .reality-card h3 {
+        font-size: 1.1rem;
+        margin: 0 0 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .reality-card h3 svg {
+        flex-shrink: 0;
+      }
+      .reality-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+
+      /* What KANAP Offers */
+      .kanap-value {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .value-card {
+        background: var(--surface);
+        border-radius: 20px;
+        padding: 2.5rem;
+        border: 1px solid var(--border);
+        text-align: center;
+      }
+      .value-card h2 {
+        margin: 0 0 1rem;
+        font-size: 1.75rem;
+      }
+      .value-card .tagline {
+        font-size: 1.15rem;
+        color: var(--muted);
+        margin: 0 0 2rem;
+        line-height: 1.6;
+      }
+      .value-pillars {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+      @media (max-width: 700px) {
+        .value-pillars {
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+      }
+      .pillar {
+        text-align: center;
+      }
+      .pillar-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+      }
+      .pillar-icon svg {
+        width: 28px;
+        height: 28px;
+      }
+      .pillar-icon--portfolio {
+        background: rgba(0, 137, 123, 0.1);
+        color: var(--portfolio-color);
+      }
+      .pillar-icon--architecture {
+        background: rgba(123, 31, 162, 0.1);
+        color: var(--itops-color);
+      }
+      .pillar-icon--budget {
+        background: rgba(25, 118, 210, 0.1);
+        color: var(--budget-color);
+      }
+      .pillar h3 {
+        font-size: 1.1rem;
+        margin: 0 0 0.5rem;
+      }
+      .pillar p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      /* Integration Highlight */
+      .integration-highlight {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: #fff;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-top: 2rem;
+        text-align: center;
+      }
+      .integration-highlight h3 {
+        margin: 0 0 0.75rem;
+        font-size: 1.25rem;
+      }
+      .integration-highlight p {
+        margin: 0;
+        opacity: 0.9;
+        line-height: 1.6;
+      }
+
+      /* Pricing Comparison */
+      .pricing-compare {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .pricing-compare h2 {
+        text-align: center;
+        margin-bottom: 0.5rem;
+      }
+      .pricing-compare > p {
+        text-align: center;
+        color: var(--muted);
+        margin-bottom: 2rem;
+      }
+      .pricing-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+      }
+      .pricing-table th,
+      .pricing-table td {
+        padding: 1rem 1.25rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      .pricing-table th {
+        background: var(--background);
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      .pricing-table tr:last-child td {
+        border-bottom: none;
+      }
+      .pricing-table .category {
+        font-weight: 600;
+        color: var(--text);
+      }
+      .pricing-table .price-range {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .pricing-table .kanap-price {
+        color: var(--primary);
+        font-weight: 600;
+      }
+      .pricing-table .note {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      @media (max-width: 600px) {
+        .pricing-table {
+          font-size: 0.85rem;
+        }
+        .pricing-table th,
+        .pricing-table td {
+          padding: 0.75rem;
+        }
+      }
+
+      /* Differentiators */
+      .diff-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+      }
+      @media (max-width: 700px) {
+        .diff-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .diff-card {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 1.75rem;
+        border: 1px solid var(--border);
+      }
+      .diff-card h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
+      }
+      .diff-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+        font-size: 0.95rem;
+      }
+
+      /* Fit Section */
+      .fit-section {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .fit-section h2 {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+      .fit-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+      }
+      @media (max-width: 700px) {
+        .fit-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .fit-card {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 1.75rem;
+        border: 1px solid var(--border);
+      }
+      .fit-card h3 {
+        margin: 0 0 1rem;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .fit-card ul {
+        margin: 0;
+        padding-left: 1.25rem;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .fit-card li {
+        margin-bottom: 0.5rem;
+        line-height: 1.5;
+      }
+      .fit-card--ideal {
+        border-color: rgba(15, 157, 88, 0.3);
+        background: linear-gradient(135deg, rgba(15, 157, 88, 0.04) 0%, transparent 100%);
+      }
+      .fit-card--ideal h3 {
+        color: var(--success);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="top-bar">
+        <div class="top-bar__inner">
+          <a class="brand" href="/">
+            <img src="../assets/logo.svg" alt="KANAP logo" />
+            <span class="brand-title">KANAP</span>
+          </a>
+          <nav class="nav" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <div class="nav-dropdown">
+              <a href="./" class="nav-dropdown__trigger">Features</a>
+              <div class="nav-dropdown__menu">
+                <a href="./">Overview</a>
+                <a href="budget.html">Budget Management</a>
+                <a href="it-ops.html">IT Operations</a>
+                <a href="portfolio.html">Portfolio Management</a>
+                <a href="comparison.html" aria-current="page">Why KANAP</a>
+              </div>
+            </div>
+            <a href="comparison.html" aria-current="page">Why KANAP</a>
+            <a href="../offer.html">Get started</a>
+            <a href="https://doc.kanap.net/" target="_blank" rel="noopener noreferrer">Documentation</a>
+            <a href="../contact.html">Contact</a>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+
+        <nav class="breadcrumb container" aria-label="Breadcrumb">
+          <ol>
+            <li><a href="/">Home</a></li>
+            <li><a href="./">Features</a></li>
+            <li aria-current="page">Why KANAP</li>
+          </ol>
+        </nav>
+
+        <!-- Hero -->
+        <section class="comparison-hero">
+          <div class="container">
+            <p class="eyebrow">Why KANAP</p>
+            <h1>One tool. Three capabilities.<br />No more duct tape.</h1>
+            <p>
+              Most IT teams either pay enterprise prices for suites they'll never fully use,
+              cobble together tools that don't talk to each other, or live in spreadsheet chaos.
+              <span class="highlight">KANAP gives you portfolio, architecture, and budget in one place &mdash; at a price that makes sense.</span>
+            </p>
+          </div>
+        </section>
+
+        <!-- The Reality -->
+        <section class="section">
+          <div class="container">
+            <div class="section-header">
+              <h2>The reality for most IT teams</h2>
+              <p style="color: var(--muted); max-width: 600px; margin: 0.5rem auto 0;">
+                If you're running IT for a company with 100 to 2,500 employees, you're probably familiar with these approaches.
+              </p>
+            </div>
+            <div class="reality-grid">
+              <div class="reality-card">
+                <h3>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  Multi-tool approach
+                </h3>
+                <p>Task trackers, diagram tools, spreadsheets. Each good at one thing, but data lives in silos. Keeping them synchronized takes real effort.</p>
+              </div>
+              <div class="reality-card">
+                <h3>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>
+                  Spreadsheet-based
+                </h3>
+                <p>Flexible and familiar. But version control is manual, formulas break, and there's no single source of truth. Works until it doesn't.</p>
+              </div>
+              <div class="reality-card">
+                <h3>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  Enterprise platforms
+                </h3>
+                <p>Powerful and integrated. Designed for large organizations with dedicated teams and budgets to match. Often more than what mid-sized companies need.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- What KANAP Offers -->
+        <section class="section section--alt">
+          <div class="container">
+            <div class="kanap-value">
+              <div class="value-card">
+                <h2>What KANAP offers</h2>
+                <p class="tagline">
+                  Three essential capabilities for IT management, natively integrated in a single platform.
+                </p>
+                <div class="value-pillars">
+                  <div class="pillar">
+                    <div class="pillar-icon pillar-icon--portfolio">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <path d="M3 9h18"/>
+                        <path d="M9 21V9"/>
+                      </svg>
+                    </div>
+                    <h3>Portfolio Management</h3>
+                    <p>Request intake, prioritization scoring, CAB workflows, project tracking, Kanban and timeline views.</p>
+                  </div>
+                  <div class="pillar">
+                    <div class="pillar-icon pillar-icon--architecture">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="4" y="4" width="6" height="6" rx="1"/>
+                        <rect x="14" y="4" width="6" height="6" rx="1"/>
+                        <rect x="4" y="14" width="6" height="6" rx="1"/>
+                        <rect x="14" y="14" width="6" height="6" rx="1"/>
+                        <path d="M10 7h4"/>
+                        <path d="M10 17h4"/>
+                        <path d="M7 10v4"/>
+                        <path d="M17 10v4"/>
+                      </svg>
+                    </div>
+                    <h3>Enterprise Architecture</h3>
+                    <p>Application inventory, infrastructure catalog, connections and interfaces, visual dependency mapping.</p>
+                  </div>
+                  <div class="pillar">
+                    <div class="pillar-icon pillar-icon--budget">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"/>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                      </svg>
+                    </div>
+                    <h3>Budget Management</h3>
+                    <p>Cost tracking by project, application, and department. Internal invoicing, chargeback, multi-company allocation.</p>
+                  </div>
+                </div>
+                <div class="integration-highlight">
+                  <h3>Native integration makes the difference</h3>
+                  <p>
+                    Projects link to the applications they affect. Applications link to the servers they run on.
+                    Servers link to the costs they generate. Costs link back to the departments being charged.
+                    One change updates everything.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pricing Context -->
+        <section class="section">
+          <div class="container">
+            <div class="pricing-compare">
+              <h2>Pricing in context</h2>
+              <p>How KANAP compares to other approaches for a typical IT team.</p>
+              <table class="pricing-table">
+                <thead>
+                  <tr>
+                    <th>Approach</th>
+                    <th>Typical annual cost</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="category">Task + diagram tools</td>
+                    <td class="price-range">2,000 &ndash; 5,000 EUR</td>
+                    <td class="note">Direct cost only. Integration is manual.</td>
+                  </tr>
+                  <tr>
+                    <td class="category">Enterprise EA platforms</td>
+                    <td class="price-range">20,000 &ndash; 150,000+ EUR</td>
+                    <td class="note">Architecture only. Portfolio and budget separate.</td>
+                  </tr>
+                  <tr>
+                    <td class="category">Enterprise portfolio suites</td>
+                    <td class="price-range">50,000 &ndash; 150,000+ EUR</td>
+                    <td class="note">Portfolio only. Architecture and budget separate.</td>
+                  </tr>
+                  <tr>
+                    <td class="category">KANAP</td>
+                    <td class="kanap-price">0 &ndash; 2,490 EUR</td>
+                    <td class="note">All three capabilities. Fully integrated.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p style="text-align: center; margin-top: 1.5rem; color: var(--muted); font-size: 0.9rem;">
+                Free tier available for self-hosting. Paid plans from 49 EUR/month include cloud hosting and support.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- What Makes KANAP Different -->
+        <section class="section section--alt">
+          <div class="container">
+            <div class="section-header">
+              <h2>What makes KANAP different</h2>
+            </div>
+            <div class="diff-grid">
+              <div class="diff-card">
+                <h3>Transparent pricing</h3>
+                <p>No "contact sales" games. No surprise quotes after evaluation. You know exactly what you'll pay before you start.</p>
+              </div>
+              <div class="diff-card">
+                <h3>Genuine free option</h3>
+                <p>Self-host with zero cost, forever. Not a 14-day trial. Upgrade only when you want cloud hosting or premium support.</p>
+              </div>
+              <div class="diff-card">
+                <h3>Open code</h3>
+                <p>Inspect it, extend it, customize it. No vendor lock-in. If we disappear tomorrow, your data and your tool remain yours.</p>
+              </div>
+              <div class="diff-card">
+                <h3>Built by a practitioner</h3>
+                <p>Created by a working CIO who uses it daily. Designed to solve real problems in real IT departments, not by consultants.</p>
+              </div>
+              <div class="diff-card">
+                <h3>Quick deployment</h3>
+                <p>No long implementation project. No army of consultants. Start using it this week.</p>
+              </div>
+              <div class="diff-card">
+                <h3>Enterprise-grade support</h3>
+                <p>When you need help, you get direct access to someone who understands your challenges. Not a ticket queue.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Common Alternatives -->
+        <section class="section">
+          <div class="container">
+            <div class="section-header">
+              <h2>How KANAP compares to common alternatives</h2>
+              <p style="color: var(--muted); max-width: 700px; margin: 0.5rem auto 0;">
+                IT teams typically evaluate KANAP alongside these categories of tools.
+              </p>
+            </div>
+            <div class="diff-grid">
+              <div class="diff-card">
+                <h3>vs. Enterprise Architecture Platforms</h3>
+                <p>Tools like LeanIX, MEGA HOPEX, or Ardoq focus exclusively on enterprise architecture. They excel at large-scale EA governance but typically cost 20,000&ndash;150,000+ EUR/year and don't include budget or portfolio management. KANAP provides practical architecture documentation with native budget and portfolio integration, starting free.</p>
+              </div>
+              <div class="diff-card">
+                <h3>vs. IT Portfolio Management Suites</h3>
+                <p>Platforms like Planview, Clarity PPM, or ServiceNow SPM offer deep portfolio capabilities for large enterprises. They require significant implementation effort, dedicated admin teams, and budgets to match. KANAP delivers portfolio management with scoring, capacity planning, and lifecycle tracking &mdash; integrated with architecture and budget &mdash; at a fraction of the cost.</p>
+              </div>
+              <div class="diff-card">
+                <h3>vs. Spreadsheets &amp; General-Purpose Tools</h3>
+                <p>Many IT teams run on Excel, Google Sheets, Jira, and Confluence. These are flexible and familiar, but data lives in silos, version control is manual, and there's no single source of truth. KANAP replaces the patchwork with one integrated platform purpose-built for IT departments.</p>
+              </div>
+              <div class="diff-card">
+                <h3>vs. IT Financial Management Tools</h3>
+                <p>Dedicated ITFM tools like Apptio or ServiceNow ITOM handle IT cost management for large enterprises. KANAP's budget module provides multi-year planning, cost allocation, and chargeback reports natively integrated with your application portfolio and project pipeline &mdash; without enterprise pricing or complexity.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Who It's For -->
+        <section class="section">
+          <div class="container">
+            <div class="fit-section">
+              <h2>Is KANAP right for you?</h2>
+              <div class="fit-grid">
+                <div class="fit-card fit-card--ideal">
+                  <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                    Ideal fit
+                  </h3>
+                  <ul>
+                    <li>IT teams up to 50 people</li>
+                    <li>Companies with 100 to 2,500 employees</li>
+                    <li>Organizations needing portfolio visibility without enterprise budgets</li>
+                    <li>IT leaders tired of maintaining "the spreadsheet that runs everything"</li>
+                    <li>Teams wanting one place for projects, systems, and budgets</li>
+                  </ul>
+                </div>
+                <div class="fit-card">
+                  <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Probably not for
+                  </h3>
+                  <ul>
+                    <li>IT teams looking for another ticketing tool</li>
+                    <li>Large enterprises with existing enterprise tool investments</li>
+                    <li>Small organizations that only need task management</li>
+                    <li>Teams with no interest in architecture documentation or budget tracking</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Final CTA -->
+        <section class="section cta-section">
+          <div class="container">
+            <div class="cta-content" style="text-align: center;">
+              <h2>Ready to bring clarity to your IT department?</h2>
+              <p>
+                Start free with self-hosting, or let us handle everything from 49 EUR/month.<br />
+                Open code. All features included.
+              </p>
+              <div class="cta-buttons" style="justify-content: center;">
+                <a class="button button--primary button--large" href="../offer.html">Get started</a>
+                <a class="button button--ghost button--large" href="../contact.html">Contact us</a>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <div class="footer__inner">
+          <div class="footer__links" aria-label="Footer links">
+            <a href="../legal.html">Legal mentions</a>
+            <a href="../terms.html">Terms & conditions</a>
+            <a href="../sales.html">General Terms and Conditions of Sale</a>
+            <a href="../privacy.html">Privacy policy</a>
+            <a href="../contact.html">Contact</a>
+            <a href="https://github.com/kanap-sarl/kanap" target="_blank" rel="noopener noreferrer">GitHub</a>
+          </div>
+          <div class="footer__copy">&copy; Kanap, All rights reserved.</div>
+        </div>
+      </footer>
+    </div>
+
+    <div class="trial-modal" role="dialog" aria-modal="true" aria-labelledby="trial-title">
+      <div class="trial-modal__panel">
+        <button class="trial-modal__close" type="button" aria-label="Close form" data-close-trial>
+          &times;
+        </button>
+        <div>
+          <p class="eyebrow" id="trial-title">Get Started</p>
+          <h2 style="margin: 0 0 0.5rem;">Create your workspace</h2>
+          <p style="color: var(--muted); margin: 0;">
+            Provision your workspace in minutes. We'll email the activation link to your admin.
+          </p>
+        </div>
+        <form class="form-grid" data-trial-form>
+          <label for="org">Organization name</label>
+          <input id="org" name="org" autocomplete="organization" required />
+
+          <label for="country_iso">Country</label>
+          <select id="country_iso" name="country_iso" required data-country>
+            <option value="" disabled selected hidden>Select a country...</option>
+          </select>
+
+          <label for="slug">Desired subdomain</label>
+          <input id="slug" name="slug" pattern="[a-z0-9-]+" placeholder="acme-eu" required />
+
+          <label for="email">Admin email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required />
+
+          <button class="button button--primary" type="submit">Create workspace</button>
+          <div class="status" data-trial-status aria-live="polite"></div>
+        </form>
+      </div>
+    </div>
+
+    <script src="../assets/scripts.js?v=20260212" defer></script>
+  </body>
+</html>

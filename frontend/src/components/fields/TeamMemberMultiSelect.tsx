@@ -1,0 +1,194 @@
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Autocomplete, Box, Chip, CircularProgress, IconButton, Stack, TextField, Typography,
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import api from '../../api';
+
+interface TeamMember {
+  user_id: string;
+  user_display_name?: string;
+  user_email?: string;
+  display_name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+}
+
+interface User {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  email: string;
+}
+
+interface TeamMemberMultiSelectProps {
+  label: string;
+  value: TeamMember[];
+  onChange: (userIds: string[]) => Promise<void>;
+  disabled?: boolean;
+}
+
+export default function TeamMemberMultiSelect({
+  label,
+  value,
+  onChange,
+  disabled,
+}: TeamMemberMultiSelectProps) {
+  const [loading, setLoading] = useState(false);
+
+  // Fetch all users
+  const { data: users, isLoading: loadingUsers } = useQuery({
+    queryKey: ['users-for-team-select'],
+    queryFn: async () => {
+      const res = await api.get('/users', { params: { status: 'enabled', limit: 1000 } });
+      return (res.data?.items || []) as User[];
+    },
+  });
+
+  // Users that are not yet selected
+  const selectedUserIds = useMemo(() => {
+    return new Set(value.map((m) => m.user_id));
+  }, [value]);
+
+  const availableUsers = useMemo(() => {
+    if (!users) return [];
+    return users.filter((u) => !selectedUserIds.has(u.id));
+  }, [users, selectedUserIds]);
+
+  // Get display name for a team member
+  const getDisplayName = useCallback((m: TeamMember) => {
+    if (m.user_display_name) return m.user_display_name;
+    if (m.display_name) return m.display_name;
+    if (m.first_name || m.last_name) return `${m.first_name || ''} ${m.last_name || ''}`.trim();
+    return m.user_email || m.email || m.user_id;
+  }, []);
+
+  const getEmail = useCallback((m: TeamMember) => {
+    return m.user_email || m.email || '';
+  }, []);
+
+  // Format user name from first_name/last_name
+  const formatUserName = useCallback((u: User) => {
+    const fn = (u.first_name || '').trim();
+    const ln = (u.last_name || '').trim();
+    const name = [fn, ln].filter(Boolean).join(' ');
+    return name || u.email;
+  }, []);
+
+  const handleAdd = useCallback(async (user: User | null) => {
+    if (!user) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const existingIds = (value || []).map((m) => m.user_id).filter(Boolean);
+      const newUserIds = [...existingIds, user.id];
+      await onChange(newUserIds);
+    } catch (err) {
+    } finally {
+      setLoading(false);
+    }
+  }, [value, onChange]);
+
+  const handleRemove = useCallback(async (userId: string) => {
+    setLoading(true);
+    try {
+      const newUserIds = (value || [])
+        .filter((m) => m.user_id !== userId)
+        .map((m) => m.user_id)
+        .filter(Boolean);
+      await onChange(newUserIds);
+    } catch (err) {
+    } finally {
+      setLoading(false);
+    }
+  }, [value, onChange]);
+
+  const isLoading = loadingUsers || loading;
+
+  return (
+    <Stack spacing={1}>
+      <Typography variant="subtitle2">{label}</Typography>
+
+      <Autocomplete
+        options={availableUsers}
+        getOptionLabel={(option) => formatUserName(option)}
+        value={null}
+        onChange={(_, v) => {
+          void handleAdd(v);
+        }}
+        renderOption={(props, option) => {
+          const { key, ...other } = props as any;
+          const name = formatUserName(option);
+          return (
+            <li {...other} key={option.id}>
+              <Box>
+                <Typography variant="body2">{name}</Typography>
+                {name !== option.email && (
+                  <Typography variant="caption" color="text.secondary">
+                    {option.email}
+                  </Typography>
+                )}
+              </Box>
+            </li>
+          );
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            placeholder="Add team member..."
+            size="small"
+            InputProps={{
+              ...params.InputProps,
+              endAdornment: (
+                <>
+                  {isLoading ? <CircularProgress color="inherit" size={16} /> : null}
+                  {params.InputProps.endAdornment}
+                </>
+              ),
+            }}
+          />
+        )}
+        disabled={disabled || isLoading}
+        loading={isLoading}
+        size="small"
+      />
+
+      {value.length > 0 ? (
+        <Stack spacing={0.5}>
+          {value.map((m) => (
+            <Stack
+              key={m.user_id}
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{ p: 0.5, bgcolor: 'action.hover', borderRadius: 1 }}
+            >
+              <Typography variant="body2" sx={{ flex: 1 }}>
+                {getDisplayName(m)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {getEmail(m)}
+              </Typography>
+              {!disabled && (
+                <IconButton
+                  size="small"
+                  onClick={() => handleRemove(m.user_id)}
+                  disabled={loading}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              )}
+            </Stack>
+          ))}
+        </Stack>
+      ) : (
+        <Typography variant="body2" color="text.secondary">
+          No team members assigned.
+        </Typography>
+      )}
+    </Stack>
+  );
+}

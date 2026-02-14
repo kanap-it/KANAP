@@ -1,0 +1,269 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { EntityManager, Repository } from 'typeorm';
+import { PortfolioProject } from '../portfolio-project.entity';
+import { PortfolioProjectDependency } from '../portfolio-project-dependency.entity';
+import { PortfolioRequestProject } from '../portfolio-request-project.entity';
+import { PortfolioRequest } from '../portfolio-request.entity';
+import { PortfolioProjectUrl } from '../portfolio-project-url.entity';
+import { PortfolioProjectsBaseService, ServiceOpts } from './portfolio-projects-base.service';
+import { AuditService } from '../../audit/audit.service';
+
+/**
+ * Service for managing project dependencies and source request links.
+ */
+@Injectable()
+export class PortfolioDependenciesService extends PortfolioProjectsBaseService {
+  constructor(
+    @InjectRepository(PortfolioProject) projectRepo: Repository<PortfolioProject>,
+    private readonly audit: AuditService,
+  ) {
+    super(projectRepo);
+  }
+
+  /**
+   * Link a source request to a project.
+   */
+  async linkSourceRequest(
+    projectId: string,
+    requestId: string,
+    tenantId: string,
+    opts?: ServiceOpts,
+  ) {
+    const mg = this.getManager(opts);
+    const linkRepo = mg.getRepository(PortfolioRequestProject);
+    const requestRepo = mg.getRepository(PortfolioRequest);
+
+    const project = await this.ensureProject(projectId, mg);
+
+    const request = await requestRepo.findOne({ where: { id: requestId } });
+    if (!request) throw new NotFoundException('Request not found');
+
+    if (request.status !== 'approved' && request.status !== 'converted') {
+      throw new BadRequestException('Only Approved or Converted requests can be linked');
+    }
+
+    // Check if link already exists
+    const existing = await linkRepo.findOne({
+      where: { project_id: projectId, request_id: requestId },
+    });
+    if (existing) {
+      return { ok: true, message: 'Already linked' };
+    }
+
+    // Create link
+    await linkRepo.save(linkRepo.create({
+      tenant_id: tenantId,
+      request_id: requestId,
+      project_id: projectId,
+    }));
+
+    // Update request status to converted if not already
+    if (request.status === 'approved') {
+      const requestBefore = { ...request };
+      request.status = 'converted';
+      request.converted_date = new Date();
+      request.updated_at = new Date();
+      await requestRepo.save(request);
+      await this.audit.log({
+        table: 'portfolio_requests',
+        recordId: request.id,
+        action: 'update',
+        before: requestBefore,
+        after: request,
+        userId: null,
+      }, { manager: mg });
+    }
+
+    return { ok: true };
+  }
+
+  /**
+   * Unlink a source request from a project.
+   */
+  async unlinkSourceRequest(
+    projectId: string,
+    requestId: string,
+    opts?: ServiceOpts,
+  ) {
+    const mg = this.getManager(opts);
+    const linkRepo = mg.getRepository(PortfolioRequestProject);
+
+    await linkRepo.delete({
+      project_id: projectId,
+      request_id: requestId,
+    });
+
+    return { ok: true };
+  }
+
+  /**
+   * Add a dependency to a project.
+   */
+  async addDependency(
+    projectId: string,
+    targetType: 'request' | 'project',
+    targetId: string,
+    tenantId: string,
+    opts?: ServiceOpts,
+  ) {
+    const mg = this.getManager(opts);
+
+    // Projects can only depend on other projects
+    if (targetType !== 'project') {
+      throw new BadRequestException('Projects can only depend on other projects');
+    }
+
+    const project = await this.ensureProject(projectId, mg);
+
+    // Validate target exists
+    const target = await mg.getRepository(PortfolioProject).findOne({ where: { id: targetId } });
+    if (!target) throw new NotFoundException('Target project not found');
+    if (targetId === projectId) throw new BadRequestException('Cannot add self as dependency');
+
+    // Check for circular dependency
+    await this.checkCircularDependency(projectId, targetId, mg);
+
+    // Check if already exists
+    const repo = mg.getRepository(PortfolioProjectDependency);
+    const existing = await repo.findOne({
+      where: { project_id: projectId, depends_on_project_id: targetId },
+    });
+    if (existing) return { ok: true, message: 'Already linked' };
+
+    // Create dependency
+    const entity = repo.create({
+      tenant_id: tenantId,
+      project_id: projectId,
+      depends_on_project_id: targetId,
+    });
+    await repo.save(entity);
+
+    return { ok: true };
+  }
+
+  /**
+   * Remove a dependency from a project.
+   */
+  async removeDependency(
+    projectId: string,
+    targetType: 'request' | 'project',
+    targetId: string,
+    opts?: ServiceOpts,
+  ) {
+    const mg = this.getManager(opts);
+    const repo = mg.getRepository(PortfolioProjectDependency);
+
+    // Projects can only depend on other projects
+    if (targetType !== 'project') {
+      return { ok: true };
+    }
+
+    await repo.delete({
+      project_id: projectId,
+      depends_on_project_id: targetId,
+    });
+
+    return { ok: true };
+  }
+
+  /**
+   * Replace all URLs for a project.
+   */
+  async replaceUrls(
+    projectId: string,
+    urls: Array<{ url: string; label?: string }>,
+    opts?: ServiceOpts,
+  ) {
+    const mg = this.getManager(opts);
+    const repo = mg.getRepository(PortfolioProjectUrl);
+
+    const project = await this.ensureProject(projectId, mg);
+
+    await repo.delete({ project_id: projectId });
+
+    const toInsert = (urls || [])
+      .filter((u) => u.url && String(u.url).trim())
+      .map((u) => repo.create({
+        tenant_id: project.tenant_id,
+        project_id: projectId,
+        url: String(u.url).trim(),
+        label: u.label ? String(u.label).trim() : null,
+      }));
+
+    if (toInsert.length > 0) {
+      await repo.save(toInsert);
+    }
+
+    return { ok: true, count: toInsert.length };
+  }
+
+  /**
+   * List linked applications for a project.
+   */
+  async listLinkedApplications(projectId: string, opts?: ServiceOpts) {
+    const mg = this.getManager(opts);
+    const project = await this.ensureProject(projectId, mg);
+    const rows = await mg.query(
+      `SELECT ap.application_id as id, a.name, a.lifecycle, a.criticality
+       FROM application_projects ap
+       JOIN applications a ON a.id = ap.application_id
+       WHERE ap.project_id = $1
+       ORDER BY a.name ASC`,
+      [projectId],
+    );
+    return { items: rows };
+  }
+
+  /**
+   * List linked assets for a project.
+   */
+  async listLinkedAssets(projectId: string, opts?: ServiceOpts) {
+    const mg = this.getManager(opts);
+    const project = await this.ensureProject(projectId, mg);
+    const rows = await mg.query(
+      `SELECT asp.asset_id as id, a.name, a.kind, a.environment
+       FROM asset_projects asp
+       JOIN assets a ON a.id = asp.asset_id
+       WHERE asp.project_id = $1
+       ORDER BY a.name ASC`,
+      [projectId],
+    );
+    return { items: rows };
+  }
+
+  /**
+   * Check for circular dependencies using DFS.
+   */
+  private async checkCircularDependency(
+    sourceId: string,
+    targetId: string,
+    mg: EntityManager,
+  ): Promise<void> {
+    const visited = new Set<string>();
+    const stack: string[] = [targetId];
+
+    while (stack.length > 0) {
+      const currentId = stack.pop()!;
+
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      // If we reach the source, we have a cycle
+      if (currentId === sourceId) {
+        throw new BadRequestException('Cannot add dependency: would create a circular reference');
+      }
+
+      // Get dependencies of current project
+      const deps = await mg.query(
+        `SELECT depends_on_project_id FROM portfolio_project_dependencies WHERE project_id = $1`,
+        [currentId]
+      );
+      for (const dep of deps) {
+        if (dep.depends_on_project_id) {
+          stack.push(dep.depends_on_project_id);
+        }
+      }
+    }
+  }
+}

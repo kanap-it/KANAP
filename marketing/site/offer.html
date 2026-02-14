@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/assets/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <title>KANAP Pricing - Free Self-Hosting or Cloud from 49 EUR/month</title>
+    <meta name="description" content="Simple, transparent IT management pricing. Self-host free forever or let us handle everything from 49 EUR/month. All features included on every plan. No lock-in." />
+    <link rel="canonical" href="https://kanap.net/offer.html" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://kanap.net/offer.html" />
+    <meta property="og:title" content="KANAP Pricing - Free Self-Hosting or Cloud from 49 EUR/month" />
+    <meta property="og:description" content="Simple, transparent pricing. Self-host free forever or cloud from 49 EUR/month. All features included." />
+    <meta property="og:image" content="https://kanap.net/assets/og-image.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="KANAP Pricing - Free Self-Hosting or Cloud from 49 EUR/month" />
+    <meta name="twitter:description" content="Simple, transparent pricing. Self-host free forever or cloud from 49 EUR/month. All features included." />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the O'Saasy license?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It's an open-source-style license that lets you inspect, modify, and self-host the code freely. The only restriction: you can't use it to compete directly by offering KANAP as your own SaaS product."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does the free trial work?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Every paid cloud plan starts with a 14-day free trial. No credit card required. You get full access to all features during the trial period."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What happens after my trial?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "After your 14-day trial, you must choose a paid plan to continue. Your tenant will remain available for 30 more days with limited access. After this 30-day period your tenant will be deleted."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What's the difference between cloud and self-hosted?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Cloud hosting means we run everything for you — updates, backups, infrastructure. Self-hosted means you run KANAP on your own servers. Paid cloud plans include cloud hosting; the free tier is self-hosted only."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is Enterprise Support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Enterprise Support is a professional support add-on for self-hosted installations. It includes email support and a 20% discount on consulting services. Priced at 2,490 EUR/year."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does enterprise support work?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "For paying subscribers, email us about operational issues and we'll respond within 24h and fix your problem. It's best-effort, no SLA — but we're real humans who actually read and respond to every message."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I pay by invoice?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Invoice payment (bank transfer) is available for subscriptions above 1,000 EUR. That means Standard annual, Max annual, and Enterprise Support. Subscriptions at or below 1,000 EUR are paid by card. Invoices are NET30."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I upgrade or downgrade?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Switch between Starter, Standard, and Max anytime from your workspace settings. If you upgrade mid-cycle, you'll be charged the prorated difference. Downgrade at the end of your billing period."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I cancel my subscription?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Of course. Simply cancel from your Billing Center at any time — your subscription will remain active until the end of the current billing period, no questions asked."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "I have more questions!",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "We'd love to hear from you. Head over to our contact form and we'll get back to you as soon as possible."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JNTR8JXN1Q"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-JNTR8JXN1Q');
+    </script>
+
+    <link rel="stylesheet" href="assets/styles.css?v=20260209" />
+    <style>
+      /* Pricing Page Specific Styles */
+      .pricing-hero {
+        background: linear-gradient(160deg, rgba(25, 118, 210, 0.12), rgba(25, 118, 210, 0.02));
+        text-align: center;
+        padding: clamp(4rem, 8vw, 6rem) 0;
+      }
+      .pricing-hero h1 {
+        font-size: clamp(2.5rem, 5vw, 3.75rem);
+        margin: 0.5rem 0 1rem;
+        font-weight: 700;
+      }
+      .pricing-hero p {
+        font-size: 1.15rem;
+        color: var(--muted);
+        max-width: 600px;
+        margin: 0 auto;
+        line-height: 1.7;
+      }
+
+      .pricing-main {
+        padding-bottom: 4rem;
+      }
+
+      /* Tier Groups */
+      .tier-group {
+        margin-bottom: 3rem;
+      }
+      .tier-group-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+      }
+      .tier-group-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0 0 0.25rem;
+      }
+      .tier-group-header p {
+        color: var(--muted);
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      /* Tier Cards */
+      .tier-grid {
+        display: grid;
+        gap: 1.5rem;
+        margin: 0 auto;
+      }
+      .tier-grid--onprem {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 700px;
+      }
+      .tier-grid--cloud {
+        grid-template-columns: repeat(3, 1fr);
+        max-width: 1000px;
+      }
+      @media (max-width: 900px) {
+        .tier-grid--cloud {
+          grid-template-columns: repeat(2, 1fr);
+          max-width: 600px;
+        }
+      }
+      @media (max-width: 600px) {
+        .tier-grid--onprem,
+        .tier-grid--cloud {
+          grid-template-columns: 1fr;
+          max-width: 400px;
+        }
+      }
+
+      .tier-card {
+        background: var(--surface);
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+      .tier-badge {
+        position: absolute;
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--muted);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        padding: 0.35rem 1rem;
+        border-radius: 100px;
+        white-space: nowrap;
+      }
+      .tier-grid--onprem .tier-card:nth-child(1) .tier-badge {
+        background: #6b7280;
+      }
+      .tier-grid--onprem .tier-card:nth-child(2) .tier-badge {
+        background: var(--success);
+      }
+      .tier-grid--cloud .tier-card .tier-badge {
+        background: var(--primary);
+      }
+
+      .tier-name {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin: 0 0 0.25rem;
+      }
+      .tier-target {
+        font-size: 0.9rem;
+        color: var(--muted);
+        margin: 0 0 1.5rem;
+      }
+
+      .tier-price {
+        display: flex;
+        align-items: baseline;
+        gap: 0.25rem;
+        margin-bottom: 0.25rem;
+      }
+      .tier-price-amount {
+        font-size: 3rem;
+        font-weight: 800;
+        color: var(--primary);
+        line-height: 1;
+      }
+      .tier-price-currency {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary);
+      }
+      .tier-price-period {
+        font-size: 1rem;
+        color: var(--muted);
+      }
+      .tier-annual {
+        font-size: 0.85rem;
+        color: var(--success);
+        font-weight: 500;
+        margin-bottom: 1.5rem;
+        min-height: 1.25rem;
+      }
+
+      .tier-features {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 2rem;
+        flex-grow: 1;
+      }
+      .tier-features li {
+        padding: 0.6rem 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.95rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+      }
+      .tier-features li:last-child {
+        border-bottom: none;
+      }
+      .tier-features svg {
+        flex-shrink: 0;
+        color: var(--success);
+        margin-top: 0.15rem;
+      }
+
+      .tier-cta {
+        margin-top: auto;
+      }
+      .tier-cta .button {
+        width: 100%;
+        justify-content: center;
+      }
+      .tier-cta .button + .button {
+        margin-top: 0.5rem;
+      }
+      .tier-microcopy {
+        font-size: 0.8rem;
+        color: var(--muted);
+        text-align: center;
+        margin-top: 0.5rem;
+        line-height: 1.4;
+      }
+      /* Open Code Badge */
+      .open-code-banner {
+        max-width: 900px;
+        margin: 3rem auto 4rem;
+        background: linear-gradient(135deg, rgba(76, 175, 80, 0.08) 0%, rgba(76, 175, 80, 0.02) 100%);
+        border: 1px solid rgba(76, 175, 80, 0.2);
+        border-radius: 16px;
+        padding: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+      }
+      @media (max-width: 700px) {
+        .open-code-banner {
+          flex-direction: column;
+          text-align: center;
+        }
+      }
+      .open-code-icon {
+        width: 64px;
+        height: 64px;
+        background: rgba(76, 175, 80, 0.1);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .open-code-icon svg {
+        width: 32px;
+        height: 32px;
+        color: #4caf50;
+      }
+      .open-code-content h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.25rem;
+      }
+      .open-code-content p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .open-code-content a {
+        color: var(--primary);
+        text-decoration: underline;
+      }
+
+      /* Feature Comparison */
+      .comparison-section {
+        max-width: 1100px;
+        margin: 4rem auto 0;
+      }
+      .comparison-section h2 {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+      .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+      }
+      .comparison-table th,
+      .comparison-table td {
+        padding: 1rem 1.25rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      .comparison-table th {
+        background: var(--background);
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      .comparison-table th:not(:first-child) {
+        text-align: center;
+      }
+      .comparison-table td:not(:first-child) {
+        text-align: center;
+      }
+      .comparison-table tr:last-child td {
+        border-bottom: none;
+      }
+      .comparison-table .feature-name {
+        font-weight: 500;
+      }
+      .check-icon {
+        color: var(--success);
+      }
+      .dash-icon {
+        color: var(--muted);
+      }
+      @media (max-width: 600px) {
+        .comparison-table {
+          font-size: 0.85rem;
+        }
+        .comparison-table th,
+        .comparison-table td {
+          padding: 0.75rem;
+        }
+      }
+
+      /* Support vs Consulting */
+      .support-section {
+        max-width: 900px;
+        margin: 4rem auto 0;
+      }
+      .support-section h2 {
+        text-align: center;
+        margin-bottom: 0.5rem;
+      }
+      .support-section > p {
+        text-align: center;
+        color: var(--muted);
+        margin-bottom: 2rem;
+      }
+      .support-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+      }
+      @media (max-width: 700px) {
+        .support-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .support-card {
+        background: var(--surface);
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        padding: 1.75rem;
+      }
+      .support-card h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .support-card h3 .badge {
+        font-size: 0.7rem;
+        background: var(--success);
+        color: #fff;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .support-card h3 .badge--paid {
+        background: var(--primary);
+      }
+      .support-card p {
+        margin: 0 0 1rem;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .support-card ul {
+        margin: 0;
+        padding-left: 1.25rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .support-card li {
+        margin-bottom: 0.35rem;
+      }
+
+      /* Consulting Rates */
+      .consulting-section {
+        max-width: 700px;
+        margin: 4rem auto 0;
+      }
+      .consulting-section h2 {
+        text-align: center;
+        margin-bottom: 0.5rem;
+      }
+      .consulting-section > p {
+        text-align: center;
+        color: var(--muted);
+        margin-bottom: 2rem;
+      }
+      .consulting-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+      }
+      .consulting-table th,
+      .consulting-table td {
+        padding: 1rem 1.25rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      .consulting-table th {
+        background: var(--background);
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .consulting-table tr:last-child td {
+        border-bottom: none;
+      }
+      .consulting-table .rate {
+        color: var(--primary);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .consulting-table .subscriber-price {
+        color: var(--success);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .consulting-note {
+        text-align: center;
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      /* FAQ Section */
+      .faq-section {
+        max-width: 700px;
+        margin: 4rem auto 0;
+        padding: 0 1rem;
+      }
+      .faq-section h2 {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+      .faq-grid {
+        display: grid;
+        gap: 1.5rem;
+      }
+      .faq-item {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 1.75rem 2rem;
+        border: 1px solid var(--border);
+      }
+      .faq-item h3 {
+        margin: 0 0 0.75rem;
+        font-size: 1.1rem;
+      }
+      .faq-item p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      /* Final CTA */
+      .pricing-final-cta {
+        margin-top: 4rem;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: #fff;
+        text-align: center;
+        padding: 4rem 2rem;
+        border-radius: 24px;
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .pricing-final-cta h2 {
+        margin: 0 0 0.75rem;
+        font-size: 2rem;
+      }
+      .pricing-final-cta p {
+        margin: 0 0 1.5rem;
+        opacity: 0.9;
+        font-size: 1.1rem;
+      }
+      .pricing-final-cta .button--primary {
+        background: #fff;
+        color: var(--primary);
+      }
+      .pricing-final-cta .button--primary:hover {
+        background: rgba(255,255,255,0.9);
+      }
+      .pricing-final-cta .button--ghost {
+        border-color: rgba(255,255,255,0.4);
+        color: #fff;
+      }
+      .pricing-final-cta .button--ghost:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.6);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="top-bar">
+        <div class="top-bar__inner">
+          <a class="brand" href="/">
+            <img src="assets/logo.svg" alt="KANAP logo" />
+            <span class="brand-title">KANAP</span>
+          </a>
+          <nav class="nav" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <div class="nav-dropdown">
+              <a href="features/" class="nav-dropdown__trigger">Features</a>
+              <div class="nav-dropdown__menu">
+                <a href="features/">Overview</a>
+                <a href="features/budget.html">Budget Management</a>
+                <a href="features/it-ops.html">IT Operations</a>
+                <a href="features/portfolio.html">Portfolio Management</a>
+                <a href="features/comparison.html">Why KANAP</a>
+              </div>
+            </div>
+            <a href="features/comparison.html">Why KANAP</a>
+            <a href="offer.html" aria-current="page">Get started</a>
+            <a href="https://doc.kanap.net/" target="_blank" rel="noopener noreferrer">Documentation</a>
+            <a href="contact.html">Contact</a>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <!-- Hero -->
+        <section class="pricing-hero">
+          <div class="container">
+            <p class="eyebrow">Simple, transparent pricing</p>
+            <h1>Full freedom. Zero lock-in.</h1>
+            <p>Open code.<br />Self-host for free or with support, or let us handle everything.</p>
+          </div>
+        </section>
+
+        <!-- Tier Cards -->
+        <section class="pricing-main">
+          <div class="container">
+            <!-- On Premise -->
+            <div class="tier-group">
+              <div class="tier-group-header">
+                <h2>On Premise</h2>
+                <p>Self-host KANAP on your own infrastructure</p>
+              </div>
+              <div class="tier-grid tier-grid--onprem">
+                <!-- Free Tier -->
+                <div class="tier-card">
+                  <span class="tier-badge">For tinkerers</span>
+                  <h3 class="tier-name">Free</h3>
+                  <p class="tier-target">Self-hosted, unlimited users</p>
+                  <div class="tier-price">
+                    <span class="tier-price-amount">0</span>
+                    <span class="tier-price-currency">EUR</span>
+                  </div>
+                  <p class="tier-annual">&nbsp;</p>
+                  <ul class="tier-features">
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>All features included</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Unlimited contributors</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Self-hosted only</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Community support via GitHub issues</span>
+                    </li>
+                  </ul>
+                  <div class="tier-cta">
+                    <a href="https://github.com/kanap-sarl/kanap" class="button button--ghost" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+                  </div>
+                </div>
+
+                <!-- Enterprise Support Tier -->
+                <div class="tier-card">
+                  <span class="tier-badge">Professional support</span>
+                  <h3 class="tier-name">Enterprise Support</h3>
+                  <p class="tier-target">Self-hosted, unlimited users</p>
+                  <div class="tier-price">
+                    <span class="tier-price-amount">2,490</span>
+                    <span class="tier-price-currency">EUR</span>
+                    <span class="tier-price-period">/year</span>
+                  </div>
+                  <p class="tier-annual">&nbsp;</p>
+                  <ul class="tier-features">
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>All features included</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Unlimited contributors</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Enterprise support</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>20% consulting discount</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Annual billing only</span>
+                    </li>
+                  </ul>
+                  <div class="tier-cta">
+                    <button class="button button--primary" type="button" data-open-enterprise-invoice>Subscribe now</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Open Code Banner -->
+            <div class="open-code-banner">
+              <div class="open-code-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
+                </svg>
+              </div>
+              <div class="open-code-content">
+                <h3>Open Code under the O'Saasy License</h3>
+                <p>
+                  KANAP's source code is publicly available. Inspect it, self-host it, improve it!
+                  The O'Saasy license allows free use while preventing SaaS competition.
+                  <a href="https://github.com/kanap-sarl/kanap/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Read the license</a>.
+                </p>
+              </div>
+            </div>
+
+            <!-- Cloud Hosted -->
+            <div class="tier-group">
+              <div class="tier-group-header">
+                <h2>Cloud Hosted</h2>
+                <p>We handle hosting, updates, and backups</p>
+              </div>
+              <div class="tier-grid tier-grid--cloud">
+                <!-- Starter Tier -->
+                <div class="tier-card">
+                  <span class="tier-badge">Peace of mind</span>
+                  <h3 class="tier-name">Starter</h3>
+                  <p class="tier-target">Up to 5 contributors</p>
+                  <div class="tier-price">
+                    <span class="tier-price-amount">49</span>
+                    <span class="tier-price-currency">EUR</span>
+                    <span class="tier-price-period">/month</span>
+                  </div>
+                  <p class="tier-annual">490 EUR/year (2 months free)</p>
+                  <ul class="tier-features">
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>All features included</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Cloud hosting</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Automatic updates</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Unlimited read-only users</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Enterprise support</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>20% consulting discount</span>
+                    </li>
+                  </ul>
+                  <div class="tier-cta">
+                    <button class="button button--primary" data-open-trial>Start 14-day free trial</button>
+                  </div>
+                </div>
+
+                <!-- Standard Tier -->
+                <div class="tier-card">
+                  <span class="tier-badge">Room to grow</span>
+                  <h3 class="tier-name">Standard</h3>
+                  <p class="tier-target">Up to 25 contributors</p>
+                  <div class="tier-price">
+                    <span class="tier-price-amount">149</span>
+                    <span class="tier-price-currency">EUR</span>
+                    <span class="tier-price-period">/month</span>
+                  </div>
+                  <p class="tier-annual">1,490 EUR/year (2 months free)</p>
+                  <ul class="tier-features">
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>All features included</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Cloud hosting</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Automatic updates</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Unlimited read-only users</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Enterprise support</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>20% consulting discount</span>
+                    </li>
+                  </ul>
+                  <div class="tier-cta">
+                    <button class="button button--primary" data-open-trial>Start 14-day free trial</button>
+                  </div>
+                </div>
+
+                <!-- Max Tier -->
+                <div class="tier-card">
+                  <span class="tier-badge">No limits</span>
+                  <h3 class="tier-name">Max</h3>
+                  <p class="tier-target">Unlimited contributors</p>
+                  <div class="tier-price">
+                    <span class="tier-price-amount">249</span>
+                    <span class="tier-price-currency">EUR</span>
+                    <span class="tier-price-period">/month</span>
+                  </div>
+                  <p class="tier-annual">2,490 EUR/year (2 months free)</p>
+                  <ul class="tier-features">
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>All features included</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Cloud hosting</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Automatic updates</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Unlimited read-only users</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Enterprise support</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>20% consulting discount</span>
+                    </li>
+                  </ul>
+                  <div class="tier-cta">
+                    <button class="button button--primary" data-open-trial>Start 14-day free trial</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Feature Comparison Table -->
+            <div class="comparison-section">
+              <h2>Feature comparison</h2>
+              <table class="comparison-table">
+                <thead>
+                  <tr>
+                    <th>Feature</th>
+                    <th>Free</th>
+                    <th>Ent. Support</th>
+                    <th>Starter</th>
+                    <th>Standard</th>
+                    <th>Max</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="feature-name">Budget Management</td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                  </tr>
+                  <tr>
+                    <td class="feature-name">IT Operations</td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                  </tr>
+                  <tr>
+                    <td class="feature-name">Portfolio Management</td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                  </tr>
+                  <tr>
+                    <td class="feature-name">Unlimited read-only users</td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                  </tr>
+                  <tr>
+                    <td class="feature-name">RBAC & Audit trail</td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                  </tr>
+                  <tr>
+                    <td class="feature-name">Contributors</td>
+                    <td>Unlimited</td>
+                    <td>Unlimited</td>
+                    <td>Up to 5</td>
+                    <td>Up to 25</td>
+                    <td>Unlimited</td>
+                  </tr>
+                  <tr>
+                    <td class="feature-name">On premise</td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><span class="dash-icon">&mdash;</span></td>
+                    <td><span class="dash-icon">&mdash;</span></td>
+                    <td><span class="dash-icon">&mdash;</span></td>
+                  </tr>
+                  <tr>
+                    <td class="feature-name">Cloud hosting</td>
+                    <td><span class="dash-icon">&mdash;</span></td>
+                    <td><span class="dash-icon">&mdash;</span></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                  </tr>
+                  <tr>
+                    <td class="feature-name">Automatic updates</td>
+                    <td><span class="dash-icon">&mdash;</span></td>
+                    <td><span class="dash-icon">&mdash;</span></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                  </tr>
+                  <tr>
+                    <td class="feature-name">Enterprise support</td>
+                    <td><span class="dash-icon">&mdash;</span></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
+                  </tr>
+                  <tr>
+                    <td class="feature-name">Consulting discount</td>
+                    <td><span class="dash-icon">&mdash;</span></td>
+                    <td>20%</td>
+                    <td>20%</td>
+                    <td>20%</td>
+                    <td>20%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Support vs Consulting -->
+            <div class="support-section">
+              <h2>Support vs Consulting</h2>
+              <p>Different needs, different services.</p>
+              <div class="support-grid">
+                <div class="support-card">
+                  <h3>Enterprise Support <span class="badge">Included</span></h3>
+                  <p>Keep it running and smooth. For paying subscribers via dedicated email and chat.</p>
+                  <ul>
+                    <li>Bugs, errors, outages, access issues</li>
+                    <li>On-prem installation troubleshooting</li>
+                    <li>"Is this expected behavior?"</li>
+                    <li>Quick clarifications</li>
+                  </ul>
+                </div>
+                <div class="support-card">
+                  <h3>Consulting <span class="badge badge--paid">Paid</span></h3>
+                  <p>Helps you get value from KANAP. Always available, subscribers get 20% off.</p>
+                  <ul>
+                    <li>Anything requiring a scheduled call</li>
+                    <li>Setup, configuration, onboarding, training, CIO Advisory</li>
+                    <li>Workflow design, best practices, advice</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Consulting Rates -->
+            <div class="consulting-section">
+              <h2>Consulting services</h2>
+              <p>Consulting is provided through scheduled video calls or on-premise. I'm a practicing CIO, not a support desk. You get direct access to someone who understands your challenges, on a timeline that works for both of us.</p>
+              <table class="consulting-table">
+                <thead>
+                  <tr>
+                    <th>Duration</th>
+                    <th>Use cases</th>
+                    <th>Rate</th>
+                    <th>Subscriber</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1 hour</td>
+                    <td>Troubleshooting, specific questions, quick advice</td>
+                    <td class="rate">150 EUR</td>
+                    <td class="subscriber-price">120 EUR</td>
+                  </tr>
+                  <tr>
+                    <td>Half day (4h)</td>
+                    <td>Onboarding, training, configuration workshop</td>
+                    <td class="rate">550 EUR</td>
+                    <td class="subscriber-price">440 EUR</td>
+                  </tr>
+                  <tr>
+                    <td>Full day (8h)</td>
+                    <td>Large team training, in-depth consulting, CIO Advisory</td>
+                    <td class="rate">1,000 EUR</td>
+                    <td class="subscriber-price">800 EUR</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- FAQ -->
+            <div class="faq-section">
+              <h2>Common questions</h2>
+              <div class="faq-grid">
+                <div class="faq-item">
+                  <h3>What is the O'Saasy license?</h3>
+                  <p>It's an open-source-style license that lets you inspect, modify, and self-host the code freely. The only restriction: you can't use it to compete directly by offering KANAP as your own SaaS product. <a href="https://osaasy.dev/" target="_blank" rel="noopener noreferrer">Learn more about O'Saasy</a>.</p>
+                </div>
+                <div class="faq-item">
+                  <h3>How does the free trial work?</h3>
+                  <p>Every paid cloud plan starts with a 14-day free trial. No credit card required. You get full access to all features during the trial period.</p>
+                </div>
+                <div class="faq-item">
+                  <h3>What happens after my trial?</h3>
+                  <p>After your 14-day trial, you must choose a paid plan to continue. Your tenant will remain available for 30 more days with limited access. After this 30-day period your tenant will be deleted.</p>
+                </div>
+                <div class="faq-item">
+                  <h3>What's the difference between cloud and self-hosted?</h3>
+                  <p>Cloud hosting means we run everything for you &mdash; updates, backups, infrastructure. Self-hosted means you run KANAP on your own servers. Paid cloud plans (Starter, Standard, Max) include cloud hosting; the free tier is self-hosted only. You can purchase Enterprise Support for self-hosted installations.</p>
+                </div>
+                <div class="faq-item">
+                  <h3>What is Enterprise Support?</h3>
+                  <p>Enterprise Support is a professional support add-on for self-hosted installations. It includes email support and a 20% discount on consulting services. Priced at 2,490 EUR/year.</p>
+                </div>
+                <div class="faq-item">
+                  <h3>How does enterprise support work?</h3>
+                  <p>For paying subscribers, email us about operational issues and we'll respond within 24h and fix your problem. It's best-effort, no SLA &mdash; but we're real humans who actually read and respond to every message. We'll get it done!</p>
+                </div>
+                <div class="faq-item">
+                  <h3>Can I pay by invoice?</h3>
+                  <p>Invoice payment (bank transfer) is available for subscriptions above 1,000 EUR. Today, that means Standard annual, Max annual, and Enterprise Support. Subscriptions at or below 1,000 EUR are paid by card. Invoices are NET30.</p>
+                </div>
+                <div class="faq-item">
+                  <h3>Can I upgrade or downgrade?</h3>
+                  <p>Yes. Switch between Starter, Standard, and Max anytime from your workspace settings. If you upgrade mid-cycle, you'll be charged the prorated difference. Downgrade at the end of your billing period.</p>
+                </div>
+                <div class="faq-item">
+                  <h3>Can I cancel my subscription?</h3>
+                  <p>Of course. Simply cancel from your Billing Center at any time &mdash; your subscription will remain active until the end of the current billing period, no questions asked.</p>
+                </div>
+                <div class="faq-item">
+                  <h3>I have more questions!</h3>
+                  <p>We'd love to hear from you. Head over to our <a href="contact.html">contact form</a> and we'll get back to you as soon as possible.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Final CTA -->
+            <div class="pricing-final-cta">
+              <h2>Ready to get started?</h2>
+              <p>Start free with self-hosting, or let us handle everything from 49 EUR/month.</p>
+              <button class="button button--primary button--large" data-open-trial>Create your workspace</button>
+            </div>
+
+          </div>
+        </section>
+      </main>
+
+      <footer style="margin-top: 4rem;">
+        <div class="footer__inner">
+          <div class="footer__links" aria-label="Footer links">
+            <a href="legal.html">Legal mentions</a>
+            <a href="terms.html">Terms & conditions</a>
+            <a href="sales.html">General Terms and Conditions of Sale</a>
+            <a href="privacy.html">Privacy policy</a>
+            <a href="contact.html">Contact</a>
+            <a href="https://github.com/kanap-sarl/kanap" target="_blank" rel="noopener noreferrer">GitHub</a>
+          </div>
+          <div class="footer__copy">&copy; Kanap, All rights reserved.</div>
+        </div>
+      </footer>
+    </div>
+
+    <div class="trial-modal" role="dialog" aria-modal="true" aria-labelledby="trial-title">
+      <div class="trial-modal__panel">
+        <button class="trial-modal__close" type="button" aria-label="Close form" data-close-trial>
+          &times;
+        </button>
+        <div>
+          <p class="eyebrow" id="trial-title">Get Started</p>
+          <h2 style="margin: 0 0 0.5rem;">Create your workspace</h2>
+          <p style="color: var(--muted); margin: 0;">
+            Provision your workspace in minutes. We'll email the activation link to your admin.
+          </p>
+        </div>
+        <form class="form-grid" data-trial-form>
+          <label for="org">Organization name</label>
+          <input id="org" name="org" autocomplete="organization" required />
+
+          <label for="country_iso">Country</label>
+          <select id="country_iso" name="country_iso" required data-country>
+            <option value="" disabled selected hidden>Select a country...</option>
+          </select>
+
+          <label for="slug">Desired subdomain</label>
+          <input id="slug" name="slug" pattern="[a-z0-9-]+" placeholder="acme-eu" required />
+
+          <label for="email">Admin email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required />
+
+          <button class="button button--primary" type="submit">Create workspace</button>
+          <div class="status" data-trial-status aria-live="polite"></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="enterprise-invoice-modal" role="dialog" aria-modal="true" aria-labelledby="enterprise-invoice-title">
+      <div class="enterprise-invoice-modal__panel">
+        <button class="enterprise-invoice-modal__close" type="button" aria-label="Close form" data-close-enterprise-invoice>
+          &times;
+        </button>
+        <div>
+          <p class="eyebrow" id="enterprise-invoice-title">Enterprise Support</p>
+          <h2 style="margin: 0 0 0.5rem;">Request your invoice</h2>
+          <p style="color: var(--muted); margin: 0;">
+            We will create your annual Enterprise Support invoice (NET30) and send it to your billing email.
+            Upon payment, you'll get access to our professional support services.
+          </p>
+        </div>
+        <form class="form-grid enterprise-invoice-form" data-enterprise-invoice-form>
+          <div class="enterprise-field">
+            <label for="enterprise_company_name">Company name</label>
+            <input id="enterprise_company_name" name="company_name" autocomplete="organization" required />
+          </div>
+
+          <div class="enterprise-field">
+            <label for="enterprise_contact_name">Contact name</label>
+            <input id="enterprise_contact_name" name="contact_name" autocomplete="name" required />
+          </div>
+
+          <div class="enterprise-field">
+            <label for="enterprise_billing_email">Billing email</label>
+            <input id="enterprise_billing_email" name="billing_email" type="email" autocomplete="email" required />
+          </div>
+
+          <div class="enterprise-field">
+            <label for="enterprise_country">Country</label>
+            <select id="enterprise_country" name="country" required data-country>
+              <option value="" disabled selected hidden>Select a country...</option>
+            </select>
+          </div>
+
+          <details class="enterprise-optional">
+            <summary>Optional billing details</summary>
+            <div class="enterprise-optional-grid">
+              <div class="enterprise-field">
+                <label for="enterprise_vat_id">VAT ID</label>
+                <input id="enterprise_vat_id" name="vat_id" autocomplete="off" />
+              </div>
+
+              <div class="enterprise-field enterprise-field--full">
+                <label for="enterprise_address_line1">Address line 1</label>
+                <input id="enterprise_address_line1" name="address_line1" autocomplete="address-line1" />
+              </div>
+
+              <div class="enterprise-field enterprise-field--full">
+                <label for="enterprise_address_line2">Address line 2</label>
+                <input id="enterprise_address_line2" name="address_line2" autocomplete="address-line2" />
+              </div>
+
+              <div class="enterprise-field">
+                <label for="enterprise_city">City</label>
+                <input id="enterprise_city" name="city" autocomplete="address-level2" />
+              </div>
+
+              <div class="enterprise-field">
+                <label for="enterprise_postal_code">Postal code</label>
+                <input id="enterprise_postal_code" name="postal_code" autocomplete="postal-code" />
+              </div>
+            </div>
+          </details>
+
+          <button class="button button--primary" type="submit">Request invoice</button>
+          <div class="status" data-enterprise-invoice-status aria-live="polite"></div>
+        </form>
+      </div>
+    </div>
+
+    <script src="assets/scripts.js?v=20260212" defer></script>
+  </body>
+</html>

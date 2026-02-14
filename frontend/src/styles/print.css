@@ -1,0 +1,35 @@
+/* Print-friendly styles for report pages */
+@media print {
+  /* Hide everything by default */
+  body * {
+    visibility: hidden !important;
+  }
+  /* Show only the report frame */
+  .report-print-frame, .report-print-frame * {
+    visibility: visible !important;
+  }
+  .report-print-frame {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .capacity-heatmap-print {
+    max-width: 100% !important;
+  }
+  .capacity-heatmap-print .ag-root-wrapper,
+  .capacity-heatmap-print .ag-theme-quartz {
+    width: 100% !important;
+  }
+  .capacity-heatmap-print .ag-header-cell,
+  .capacity-heatmap-print .ag-cell {
+    padding: 2px 4px !important;
+    font-size: 11px !important;
+  }
+  /* Remove page padding/margins to use space efficiently */
+  @page {
+    margin: 12mm;
+  }
+}

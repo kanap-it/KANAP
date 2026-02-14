@@ -1,0 +1,386 @@
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SpendItemsService } from './spend-items.service';
+import { SpendItemsDeleteService } from './spend-items-delete.service';
+import { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { attachmentMulterOptions, csvImportMulterOptions } from '../common/upload';
+import { PermissionGuard } from '../auth/permission.guard';
+import { RequireLevel } from '../auth/require-level.decorator';
+import { StorageService } from '../common/storage/storage.service';
+import { contentDisposition } from '../common/content-disposition';
+import { SpendItemContactsService } from './spend-item-contacts.service';
+import { SupplierContactRole } from '../contacts/supplier-contact.entity';
+import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
+import {
+  CreateSpendItemInput,
+  UpdateSpendItemInput,
+  ListSpendQueryInput,
+} from './dto';
+
+@UseGuards(JwtAuthGuard)
+@Controller('spend-items')
+export class SpendItemsController {
+  constructor(
+    private readonly svc: SpendItemsService,
+    private readonly deleteSvc: SpendItemsDeleteService,
+    private readonly storage: StorageService,
+    private readonly contactsSvc: SpendItemContactsService,
+  ) {}
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get()
+  list(
+    @Query() query: ListSpendQueryInput,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.list(query, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get('summary')
+  summary(
+    @Query() query: ListSpendQueryInput,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.summary(query, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get('summary/filter-values')
+  summaryFilterValues(
+    @Query() query: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.summaryFilterValues(query, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get('summary/ids')
+  summaryIds(
+    @Query() query: ListSpendQueryInput,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.summaryIds(query, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get('summary/totals')
+  summaryTotals(
+    @Query() query: ListSpendQueryInput,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.summaryTotals(query, { manager: ctx.manager });
+  }
+
+  // Export before parameterized ':id'
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'admin')
+  @Get('export')
+  async export(
+    @Query('scope') scope: 'template' | 'data' = 'data',
+    @Res() res: Response,
+    @Tenant() ctx: TenantRequest,
+  ): Promise<void> {
+    const { filename, content } = await this.svc.exportCsv(scope, { manager: ctx.manager });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', contentDisposition(filename));
+    res.send(content);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get(':id')
+  get(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.get(id, { manager: ctx.manager });
+  }
+
+  // Linked projects (Portfolio workspace)
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get(':id/projects')
+  listProjects(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.listProjects(id, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Post(':id/projects/bulk-replace')
+  bulkReplaceProjects(
+    @Param('id') id: string,
+    @Body() body: { project_ids: string[] },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.bulkReplaceProjects(id, body?.project_ids ?? [], { manager: ctx.manager });
+  }
+
+  // Linked applications (Apps & Services workspace)
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get(':id/applications')
+  listApplications(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.listApplications(id, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Post(':id/applications/bulk-replace')
+  bulkReplaceApplications(
+    @Param('id') id: string,
+    @Body() body: { application_ids: string[] },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.bulkReplaceApplications(id, body?.application_ids ?? [], { manager: ctx.manager });
+  }
+
+  // Links (OPEX)
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get(':id/links')
+  listLinks(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.listLinks(id, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Post(':id/links')
+  createLink(
+    @Param('id') id: string,
+    @Body() body: { description?: string; url: string },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.createLink(id, body, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Patch(':id/links/:linkId')
+  updateLink(
+    @Param('id') id: string,
+    @Param('linkId') linkId: string,
+    @Body() body: { description?: string; url?: string },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.updateLink(id, linkId, body, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Delete(':id/links/:linkId')
+  deleteLink(
+    @Param('id') id: string,
+    @Param('linkId') linkId: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.deleteLink(id, linkId, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  // Attachments: downloads use a static segment before :id routing
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get('attachments/:attachmentId')
+  async downloadAttachment(
+    @Param('attachmentId') attachmentId: string,
+    @Res() res: Response,
+    @Tenant() ctx: TenantRequest,
+  ): Promise<void> {
+    const meta = await this.svc.downloadAttachment(attachmentId, { manager: ctx.manager });
+    const obj = await this.storage.getObjectStream(meta.storage_path);
+    res.setHeader('Content-Type', obj.contentType || meta.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', contentDisposition(meta.original_filename));
+    if (obj.contentLength != null) res.setHeader('Content-Length', String(obj.contentLength));
+    obj.stream.pipe(res);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Patch('attachments/:attachmentId/delete')
+  deleteAttachment(
+    @Param('attachmentId') attachmentId: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.deleteAttachment(attachmentId, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get(':id/attachments')
+  listAttachments(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.listAttachments(id, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Post(':id/attachments')
+  @UseInterceptors(FileInterceptor('file', attachmentMulterOptions))
+  uploadAttachment(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.uploadAttachment(id, file, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  // Contacts
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get(':id/contacts')
+  listContacts(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.contactsSvc.listForItem(id, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Post(':id/contacts')
+  attachContact(
+    @Param('id') id: string,
+    @Body() body: { contactId: string; role: SupplierContactRole },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.contactsSvc.attachManual(id, body, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Delete(':id/contacts/:linkId')
+  detachContact(
+    @Param('id') id: string,
+    @Param('linkId') linkId: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.contactsSvc.detach(linkId, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Post(':id/contacts/sync-from-supplier')
+  syncContactsFromSupplier(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.contactsSvc.syncFromSupplierForItem(id, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Post()
+  create(
+    @Body() body: CreateSpendItemInput,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.create(body as Record<string, unknown>, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'member')
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() body: UpdateSpendItemInput,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.update(id, body as Record<string, unknown>, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'admin')
+  @Post('import')
+  @UseInterceptors(FileInterceptor('file', csvImportMulterOptions))
+  async import(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('dryRun') dryRunRaw: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const dryRun = String(dryRunRaw ?? 'true').toLowerCase() !== 'false';
+    return this.svc.importCsv({ file, dryRun, userId: ctx.userId || null }, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'admin')
+  @Post('budget-operations/copy-column')
+  copyBudgetColumn(
+    @Body() body: {
+      sourceYear: number;
+      sourceColumn: 'budget' | 'revision' | 'follow_up' | 'landing';
+      destinationYear: number;
+      destinationColumn: 'budget' | 'revision' | 'follow_up' | 'landing';
+      percentageIncrease: number;
+      overwrite: boolean;
+      dryRun: boolean;
+    },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.copyBudgetColumn(body, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'admin')
+  @Post('budget-operations/copy-allocations')
+  copyAllocations(
+    @Body() body: {
+      sourceYear: number;
+      destinationYear: number;
+      overwrite?: boolean;
+      dryRun?: boolean;
+    },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.copyAllocations(body, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'admin')
+  @Post('budget-operations/clear-column')
+  clearBudgetColumn(
+    @Body() body: {
+      year: number;
+      column: 'budget' | 'revision' | 'follow_up' | 'landing';
+    },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.clearBudgetColumn(body, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'admin')
+  @Delete('bulk')
+  bulkDelete(
+    @Body() body: { ids: string[] },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.deleteSvc.bulkDelete(body.ids, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'admin')
+  @Delete(':id')
+  delete(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.deleteSvc.delete(id, { manager: ctx.manager, userId: ctx.userId || null });
+  }
+}

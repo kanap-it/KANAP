@@ -1,0 +1,124 @@
+import React from 'react';
+import { Autocomplete, TextField, CircularProgress } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../api';
+
+type Contact = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  job_title: string | null;
+  email: string;
+  active: boolean;
+  supplier_id: string | null;
+  supplier_name: string | null;
+};
+
+type ContactSelectProps = {
+  label?: string;
+  value: string | null | undefined;
+  onChange: (v: string | null) => void;
+  disabled?: boolean;
+  error?: boolean;
+  helperText?: React.ReactNode;
+  required?: boolean;
+  query?: string; // initial query
+  showEmail?: boolean;
+};
+
+function formatLabel(c: Contact, showEmail: boolean): string {
+  const name = [c.first_name, c.last_name].filter(Boolean).join(' ').trim();
+  if (!showEmail) return name || c.email;
+  const supplier = c.supplier_name ? ` — ${c.supplier_name}` : '';
+  return name ? `${name}${supplier} (${c.email})` : c.email;
+}
+
+const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(function ContactSelect(
+  {
+    label = 'Contact',
+    value,
+    onChange,
+    disabled,
+    error,
+    helperText,
+    required = false,
+    query = '',
+    showEmail = true,
+  },
+  ref,
+) {
+  const [input, setInput] = React.useState(query);
+  const { data: items, isFetching } = useQuery({
+    queryKey: ['contacts', 'typeahead', input],
+    queryFn: async () => {
+      const res = await api.get<{ items: Contact[] }>('/contacts', { params: { limit: 20, q: input } });
+      return res.data.items;
+    },
+    placeholderData: (prev) => prev, // keep previous results while fetching new ones
+  });
+
+  // Ensure selected contact is visible even if not in the current typeahead results
+  const needSelectedFetch = !!value && !(items || []).some((c) => c.id === value);
+  const { data: selectedById, isLoading: isLoadingSelected } = useQuery({
+    queryKey: ['contacts', 'by-id', value],
+    enabled: needSelectedFetch,
+    queryFn: async () => {
+      const res = await api.get<Contact>(`/contacts/${value}`);
+      return res.data as unknown as Contact;
+    },
+  });
+
+  const mergedOptions = React.useMemo(() => {
+    const base = items ? [...items] : [];
+    if (selectedById && !base.some((c) => c.id === selectedById.id)) base.unshift(selectedById);
+    // Sort by supplier name for grouping
+    base.sort((a, b) => {
+      const sa = a.supplier_name || '';
+      const sb = b.supplier_name || '';
+      return sa.localeCompare(sb);
+    });
+    return base;
+  }, [items, selectedById]);
+
+  const selected = mergedOptions.find((c) => c.id === value) || null;
+
+  return (
+    <Autocomplete
+      options={mergedOptions}
+      value={selected}
+      onChange={(_, newValue) => onChange((newValue as Contact | null)?.id || null)}
+      onInputChange={(_, newValue, reason) => {
+        if (reason === 'input') setInput(newValue);
+        else if (reason === 'clear') setInput('');
+      }}
+      getOptionLabel={(option) => formatLabel(option as Contact, showEmail)}
+      groupBy={(option) => (option as Contact).supplier_name || 'No supplier'}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label={label}
+          required={required}
+          inputRef={ref}
+          error={error}
+          helperText={helperText}
+          InputProps={{
+            ...params.InputProps,
+            endAdornment: (
+              <>
+                {(isFetching || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}
+                {params.InputProps.endAdornment}
+              </>
+            ),
+          }}
+        />
+      )}
+      disabled={disabled}
+      loading={isFetching || isLoadingSelected}
+      filterOptions={(x) => x}
+      noOptionsText={isFetching ? 'Loading…' : 'No contacts found'}
+      fullWidth
+    />
+  );
+});
+
+export default ContactSelect;

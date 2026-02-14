@@ -1,0 +1,84 @@
+name: cio
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres
+      # Note: Using default 'postgres' superuser, 'app' user created via init script
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    restart: unless-stopped
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    # Local dev config (untracked)
+    env_file:
+      - ../backend/env.dev
+    ports:
+      - "8080:8080"
+    command: ["sh","-lc","npm run typeorm -- migration:run && npm run start:dev"]
+
+  web:
+    restart: unless-stopped
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: /api
+      VITE_MARKETING_URL: http://localhost:8082
+    ports:
+      - "5173:5173"
+    command: ["npm","run","dev","--","--host"]
+
+  marketing:
+    restart: unless-stopped
+    build:
+      context: ../marketing
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "8082:80"
+    # static site served by nginx within the container
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # Optional dev proxy to test subdomains with lvh.me
+  nginx:
+    restart: unless-stopped
+    image: nginx:alpine
+    profiles: ["dev-proxy"]
+    depends_on:
+      api:
+        condition: service_started
+      web:
+        condition: service_started
+      marketing:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/dev/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  db-data:

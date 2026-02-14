@@ -1,0 +1,411 @@
+import React, { useMemo, useRef, useState, useCallback } from 'react';
+import { Box, Button, Chip, Stack } from '@mui/material';
+import { useNavigate, useLocation } from 'react-router-dom';
+import PageHeader from '../../components/PageHeader';
+import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
+import { ICellRendererParams } from 'ag-grid-community';
+import { useAuth } from '../../auth/AuthContext';
+import ForbiddenPage from '../ForbiddenPage';
+import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
+import DeleteSelectedButton from '../../components/DeleteSelectedButton';
+import { CsvExportDialogV2, CsvImportDialogV2 } from '../../components/csv';
+import CheckboxSetFilter from '../../components/CheckboxSetFilter';
+import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
+import api from '../../api';
+
+type AssetRow = {
+  id: string;
+  name: string;
+  kind: string;
+  provider: string;
+  environment: string;
+  cluster: string | null;
+  is_cluster: boolean;
+  status: string;
+  go_live_date: string | null;
+  end_of_life_date: string | null;
+  location_id: string | null;
+  location_name: string | null;
+  hosting_type: string | null;
+  operating_system: string | null;
+  network_segment: string | null;
+  assignments_count?: number;
+  created_at: string;
+};
+
+const envLabel = (v?: string) => {
+  switch (v) {
+    case 'prod': return 'Prod';
+    case 'pre_prod': return 'Pre-prod';
+    case 'qa': return 'QA';
+    case 'test': return 'Test';
+    case 'dev': return 'Dev';
+    case 'sandbox': return 'Sandbox';
+    default: return v || '';
+  }
+};
+
+const ENV_LABEL_MAP: Record<string, string> = {
+  prod: 'Prod',
+  pre_prod: 'Pre-prod',
+  qa: 'QA',
+  test: 'Test',
+  dev: 'Dev',
+  sandbox: 'Sandbox',
+};
+
+const ENV_ORDER = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox'];
+
+export default function AssetsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { hasLevel } = useAuth();
+  const gridApiRef = useRef<any>(null);
+  const [selectedRows, setSelectedRows] = useState<AssetRow[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const { labelFor } = useItOpsEnumOptions();
+
+  // Read filters from URL to restore state when returning from workspace
+  const urlFilters = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const filtersParam = params.get('filters');
+    if (filtersParam) {
+      try {
+        return JSON.parse(filtersParam);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [location.search]);
+
+  // Use URL filters if present (no default filter for assets)
+  const initialGridState = useMemo(() => {
+    if (urlFilters && Object.keys(urlFilters).length > 0) {
+      return {
+        filter: {
+          filterModel: urlFilters,
+        },
+      };
+    }
+    return undefined;
+  }, [urlFilters]);
+  const lifecycleLabel = React.useCallback(
+    (value?: string) => labelFor('lifecycleStatus', value) || (value || ''),
+    [labelFor],
+  );
+
+  // Factory for checkbox set filter values - fetches scoped values from backend
+  const getAssetFilterValues = useCallback((
+    field: string,
+    opts?: {
+      labelMap?: Record<string, string>;
+      labelFn?: (code: string) => string;
+      order?: Array<string | null>;
+      emptyLabel?: string;
+    },
+  ) => {
+    const labelMap = opts?.labelMap;
+    const labelFn = opts?.labelFn;
+    const order = opts?.order;
+    const emptyLabel = opts?.emptyLabel ?? '(Blank)';
+    return async ({ context }: any) => {
+      const queryState = context?.getQueryState?.() ?? {};
+      const filters = { ...(queryState.filters || {}) };
+      delete filters[field];
+      const params: Record<string, any> = { fields: field };
+      if (queryState.q) params.q = queryState.q;
+      if (Object.keys(filters).length > 0) {
+        params.filters = JSON.stringify(filters);
+      }
+      const res = await api.get('/assets/filter-values', { params });
+      const values = (res.data?.[field] || []) as Array<string | null>;
+      let options = values.map((value) => {
+        if (value == null) return { value, label: emptyLabel };
+        const key = String(value);
+        let label: string;
+        if (labelFn) {
+          label = labelFn(key) || key;
+        } else if (labelMap && Object.prototype.hasOwnProperty.call(labelMap, key)) {
+          label = labelMap[key];
+        } else {
+          label = key;
+        }
+        return { value, label };
+      });
+      if (order && order.length > 0) {
+        const orderMap = new Map(order.map((val, index) => [val, index]));
+        options.sort((a, b) => {
+          const aIndex = orderMap.has(a.value) ? (orderMap.get(a.value) as number) : Number.MAX_SAFE_INTEGER;
+          const bIndex = orderMap.has(b.value) ? (orderMap.get(b.value) as number) : Number.MAX_SAFE_INTEGER;
+          if (aIndex !== bIndex) return aIndex - bIndex;
+          return (a.label || '').localeCompare(b.label || '');
+        });
+      } else {
+        options.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+      }
+      return options;
+    };
+  }, []);
+
+  // List context preservation for prev/next navigation
+  const lastQueryRef = useRef<{ sort: string; q: string; filters: any } | null>(null);
+  const buildWorkspaceSearch = useCallback(() => {
+    const sp = new URLSearchParams();
+    const sort = lastQueryRef.current?.sort || 'created_at:DESC';
+    const q = lastQueryRef.current?.q || '';
+    const filters = lastQueryRef.current?.filters || {};
+    if (sort) sp.set('sort', sort);
+    if (q) sp.set('q', q);
+    if (filters && Object.keys(filters).length > 0) sp.set('filters', JSON.stringify(filters));
+    return sp;
+  }, []);
+
+  if (!hasLevel('infrastructure', 'reader')) {
+    return <ForbiddenPage />;
+  }
+
+  const ClickToWorkspace = useMemo(() => {
+    const Cell: React.FC<ICellRendererParams<AssetRow, any>> = (params) => (
+      <Box
+        component="span"
+        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+        title={params.valueFormatted ?? params.value}
+        onClick={() => {
+          const id = params.data?.id;
+          if (!id) return;
+          const sp = buildWorkspaceSearch();
+          navigate(`/it/assets/${id}/overview?${sp.toString()}`);
+        }}
+      >
+        {params.valueFormatted ?? params.value}
+      </Box>
+    );
+    return Cell;
+  }, [navigate, buildWorkspaceSearch]);
+
+  const ClusterCell = useMemo(() => {
+    const Cell: React.FC<ICellRendererParams<AssetRow, any>> = (params) => {
+      const id = params.data?.id;
+      const value = params.data?.cluster;
+      const isCluster = params.data?.is_cluster;
+      return (
+        <Box
+          component="span"
+          sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+          onClick={() => {
+            if (id) {
+              const sp = buildWorkspaceSearch();
+              navigate(`/it/assets/${id}/overview?${sp.toString()}`);
+            }
+          }}
+        >
+          {isCluster ? (
+            <Chip size="small" label="Cluster" color="primary" variant="outlined" sx={{ height: 22 }} />
+          ) : value ? (
+            value
+          ) : (
+            '—'
+          )}
+        </Box>
+      );
+    };
+    return Cell;
+  }, [navigate, buildWorkspaceSearch]);
+
+  const columns: EnhancedColDef<AssetRow>[] = useMemo(() => [
+    { headerName: 'Name', field: 'name', minWidth: 180, cellRenderer: ClickToWorkspace },
+    {
+      headerName: 'Asset Type',
+      field: 'kind',
+      width: 140,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        getValues: getAssetFilterValues('kind', { labelFn: (v) => labelFor('serverKind', v) }),
+        searchable: false,
+      },
+      valueFormatter: (p) => labelFor('serverKind', p.value) || p.value,
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'Cluster',
+      field: 'cluster',
+      width: 160,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        getValues: getAssetFilterValues('cluster', { emptyLabel: '(No cluster)' }),
+        searchable: false,
+      },
+      valueFormatter: (p) => (p.data?.is_cluster ? 'Cluster' : p.value || '—'),
+      cellRenderer: ClusterCell,
+    },
+    {
+      headerName: 'Environment',
+      field: 'environment',
+      width: 130,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        getValues: getAssetFilterValues('environment', { labelMap: ENV_LABEL_MAP, order: ENV_ORDER }),
+        searchable: false,
+      },
+      valueFormatter: (p) => envLabel(p.value),
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'Location',
+      field: 'location_name',
+      width: 160,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        getValues: getAssetFilterValues('location_name', { emptyLabel: '(No location)' }),
+        searchable: false,
+      },
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'Hosting',
+      field: 'hosting_type',
+      width: 140,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        getValues: getAssetFilterValues('hosting_type', { labelFn: (v) => labelFor('hostingType', v) }),
+        searchable: false,
+      },
+      valueFormatter: (p) => labelFor('hostingType', p.value) || p.value,
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'OS',
+      field: 'operating_system',
+      width: 140,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        getValues: getAssetFilterValues('operating_system', { labelFn: (v) => labelFor('operatingSystem', v) }),
+        searchable: false,
+      },
+      valueFormatter: (p) => labelFor('operatingSystem', p.value) || p.value,
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'Network Zone',
+      field: 'network_segment',
+      width: 160,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        getValues: getAssetFilterValues('network_segment', { labelFn: (v) => labelFor('networkSegment', v) }),
+        searchable: false,
+      },
+      valueFormatter: (p) => labelFor('networkSegment', p.value) || p.value,
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'Lifecycle',
+      field: 'status',
+      width: 140,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        getValues: getAssetFilterValues('status', { labelFn: (v) => labelFor('lifecycleStatus', v) }),
+        searchable: false,
+      },
+      valueFormatter: (p) => lifecycleLabel(p.value),
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'Go-live',
+      field: 'go_live_date',
+      width: 120,
+      hide: true,
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'End-of-life',
+      field: 'end_of_life_date',
+      width: 120,
+      hide: true,
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'Assignments',
+      field: 'assignments_count',
+      width: 140,
+      sortable: false,
+      filter: false,
+      valueFormatter: (p) => p.value ?? 0,
+      cellRenderer: ClickToWorkspace,
+    },
+    { headerName: 'Created', field: 'created_at', width: 180, cellRenderer: ClickToWorkspace },
+  ], [ClickToWorkspace, ClusterCell, getAssetFilterValues, labelFor, lifecycleLabel]);
+
+  const actions = (
+    <Stack direction="row" spacing={1}>
+      {hasLevel('infrastructure', 'member') && (
+        <Button variant="contained" onClick={() => {
+          const sp = buildWorkspaceSearch();
+          navigate(`/it/assets/new/overview?${sp.toString()}`);
+        }}>
+          Add asset
+        </Button>
+      )}
+      {hasLevel('infrastructure', 'admin') && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
+      {hasLevel('infrastructure', 'admin') && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {hasLevel('infrastructure', 'admin') && (
+        <DeleteSelectedButton
+          selectedRows={selectedRows}
+          endpoint="/assets/bulk"
+          getItemId={(row) => row.id}
+          getItemName={(row) => row.name}
+          gridApi={gridApiRef.current}
+          onDeleteSuccess={() => { setRefreshKey((k) => k + 1); }}
+          label="Delete asset"
+        />
+      )}
+    </Stack>
+  );
+
+  return (
+    <>
+      <PageHeader title="Assets" actions={actions} />
+      <ServerDataGrid<AssetRow>
+        columns={columns}
+        endpoint="/assets"
+        queryKey="assets"
+        defaultSort={{ field: 'created_at', direction: 'DESC' }}
+        enableColumnChooser
+        enableSearch
+        columnPreferencesKey="it-assets"
+        enableRowSelection={hasLevel('infrastructure', 'admin')}
+        onSelectionChanged={setSelectedRows}
+        onGridApiReady={(api) => { gridApiRef.current = api; }}
+        refreshKey={refreshKey}
+        initialState={initialGridState}
+        onQueryStateChange={(state) => {
+          lastQueryRef.current = { sort: state.sort, q: state.q || '', filters: state.filterModel || {} };
+        }}
+      />
+      <CsvExportDialogV2
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        endpoint="/assets"
+        title="Export Assets"
+        presets={[{ name: 'enrichment', label: 'Data Enrichment' }]}
+      />
+      <CsvImportDialogV2
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        endpoint="/assets"
+        title="Import Assets"
+        onImported={() => setRefreshKey((k) => k + 1)}
+      />
+    </>
+  );
+}

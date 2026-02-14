@@ -1,0 +1,327 @@
+import {
+  CsvEntityConfig,
+  CsvFieldType,
+  CsvImportContext,
+} from '../common/csv';
+
+/**
+ * CSV configuration for Portfolio Requests entity
+ *
+ * Field order matches RequestWorkspacePage.tsx tabs:
+ * - Overview: name, status, purpose, type, category, stream, requestor, company, department, target_delivery_date
+ * - Analysis: current_situation, expected_benefits, risks
+ * - Team: business_sponsor, business_lead, it_sponsor, it_lead
+ * - Scoring: criteria_values, priority fields
+ */
+export const portfolioRequestCsvConfig: CsvEntityConfig = {
+  entityName: 'portfolio_request',
+  tableName: 'portfolio_requests',
+  displayName: 'Portfolio Requests',
+  upsertKey: ['name'],
+  fields: [
+    // Identity
+    {
+      csvColumn: 'id',
+      entityProperty: 'id',
+      type: CsvFieldType.STRING,
+      isIdentityColumn: true,
+      exportable: true,
+      importable: true,
+      required: false,
+      defaultExport: true,
+      label: 'ID',
+      group: 'Identity',
+    },
+
+    // === OVERVIEW TAB ===
+    {
+      csvColumn: 'name',
+      entityProperty: 'name',
+      type: CsvFieldType.STRING,
+      required: true,
+      defaultExport: true,
+      label: 'Name',
+      group: 'Overview',
+    },
+    {
+      csvColumn: 'status',
+      entityProperty: 'status',
+      type: CsvFieldType.ENUM,
+      enumValues: ['pending_review', 'candidate', 'approved', 'on_hold', 'rejected', 'converted'],
+      required: false,
+      defaultExport: true,
+      label: 'Status',
+      group: 'Overview',
+    },
+    {
+      csvColumn: 'purpose',
+      entityProperty: 'purpose',
+      type: CsvFieldType.STRING,
+      required: false,
+      defaultExport: true,
+      label: 'Purpose',
+      group: 'Overview',
+    },
+    {
+      csvColumn: 'source_name',
+      entityProperty: 'source_id',
+      type: CsvFieldType.FK_BY_NAME,
+      fkEntity: 'portfolio_sources',
+      fkLookupColumn: 'name',
+      fkRequired: false,
+      required: false,
+      defaultExport: true,
+      label: 'Source',
+      group: 'Overview',
+    },
+    {
+      csvColumn: 'category_name',
+      entityProperty: 'category_id',
+      type: CsvFieldType.FK_BY_NAME,
+      fkEntity: 'portfolio_categories',
+      fkLookupColumn: 'name',
+      fkRequired: false,
+      required: false,
+      defaultExport: true,
+      label: 'Category',
+      group: 'Overview',
+    },
+    {
+      csvColumn: 'stream_name',
+      entityProperty: 'stream_id',
+      type: CsvFieldType.FK_BY_NAME,
+      fkEntity: 'portfolio_streams',
+      fkLookupColumn: 'name',
+      fkRequired: false,
+      required: false,
+      defaultExport: true,
+      label: 'Stream',
+      group: 'Overview',
+    },
+    {
+      csvColumn: 'requestor_email',
+      entityProperty: 'requestor_id',
+      type: CsvFieldType.FK_BY_EMAIL,
+      fkEntity: 'users',
+      fkLookupColumn: 'email',
+      fkRequired: false,
+      required: false,
+      defaultExport: true,
+      label: 'Requestor Email',
+      group: 'Overview',
+    },
+    {
+      csvColumn: 'company_name',
+      entityProperty: 'company_id',
+      type: CsvFieldType.FK_BY_NAME,
+      fkEntity: 'companies',
+      fkLookupColumn: 'name',
+      fkRequired: false,
+      required: false,
+      defaultExport: true,
+      label: 'Company',
+      group: 'Overview',
+    },
+    {
+      csvColumn: 'department_name',
+      entityProperty: 'department_id',
+      type: CsvFieldType.FK_BY_NAME,
+      fkEntity: 'departments',
+      fkLookupColumn: 'name',
+      fkRequired: false,
+      required: false,
+      defaultExport: true,
+      label: 'Department',
+      group: 'Overview',
+    },
+    {
+      csvColumn: 'target_delivery_date',
+      entityProperty: 'target_delivery_date',
+      type: CsvFieldType.DATE,
+      required: false,
+      defaultExport: true,
+      label: 'Target Delivery Date',
+      group: 'Overview',
+    },
+
+    // === ANALYSIS TAB ===
+    {
+      csvColumn: 'current_situation',
+      entityProperty: 'current_situation',
+      type: CsvFieldType.STRING,
+      required: false,
+      defaultExport: false,
+      label: 'Current Situation',
+      group: 'Analysis',
+    },
+    {
+      csvColumn: 'expected_benefits',
+      entityProperty: 'expected_benefits',
+      type: CsvFieldType.STRING,
+      required: false,
+      defaultExport: false,
+      label: 'Expected Benefits',
+      group: 'Analysis',
+    },
+    {
+      csvColumn: 'risks',
+      entityProperty: 'risks',
+      type: CsvFieldType.STRING,
+      required: false,
+      defaultExport: false,
+      label: 'Risks',
+      group: 'Analysis',
+    },
+
+    // === TEAM TAB ===
+    {
+      csvColumn: 'business_sponsor_email',
+      entityProperty: 'business_sponsor_id',
+      type: CsvFieldType.FK_BY_EMAIL,
+      fkEntity: 'users',
+      fkLookupColumn: 'email',
+      fkRequired: false,
+      required: false,
+      defaultExport: true,
+      label: 'Business Sponsor Email',
+      group: 'Team',
+    },
+    {
+      csvColumn: 'business_lead_email',
+      entityProperty: 'business_lead_id',
+      type: CsvFieldType.FK_BY_EMAIL,
+      fkEntity: 'users',
+      fkLookupColumn: 'email',
+      fkRequired: false,
+      required: false,
+      defaultExport: true,
+      label: 'Business Lead Email',
+      group: 'Team',
+    },
+    {
+      csvColumn: 'it_sponsor_email',
+      entityProperty: 'it_sponsor_id',
+      type: CsvFieldType.FK_BY_EMAIL,
+      fkEntity: 'users',
+      fkLookupColumn: 'email',
+      fkRequired: false,
+      required: false,
+      defaultExport: true,
+      label: 'IT Sponsor Email',
+      group: 'Team',
+    },
+    {
+      csvColumn: 'it_lead_email',
+      entityProperty: 'it_lead_id',
+      type: CsvFieldType.FK_BY_EMAIL,
+      fkEntity: 'users',
+      fkLookupColumn: 'email',
+      fkRequired: false,
+      required: false,
+      defaultExport: true,
+      label: 'IT Lead Email',
+      group: 'Team',
+    },
+
+    // === SCORING TAB ===
+    {
+      csvColumn: 'criteria_values',
+      entityProperty: 'criteria_values',
+      type: CsvFieldType.JSON,
+      jsonValidator: 'portfolio_criteria',
+      required: false,
+      defaultExport: false,
+      label: 'Criteria Values (JSON)',
+      group: 'Scoring',
+    },
+    {
+      csvColumn: 'priority_score',
+      entityProperty: 'priority_score',
+      type: CsvFieldType.COMPUTED,
+      exportable: true,
+      importable: false,
+      defaultExport: true,
+      label: 'Priority Score',
+      group: 'Scoring',
+      exportFn: (entity: any) => {
+        return entity.priority_score != null ? String(entity.priority_score) : '';
+      },
+    },
+    {
+      csvColumn: 'priority_override',
+      entityProperty: 'priority_override',
+      type: CsvFieldType.BOOLEAN,
+      required: false,
+      defaultExport: false,
+      label: 'Priority Override',
+      group: 'Scoring',
+    },
+    {
+      csvColumn: 'override_value',
+      entityProperty: 'override_value',
+      type: CsvFieldType.NUMBER,
+      required: false,
+      defaultExport: false,
+      label: 'Override Value',
+      group: 'Scoring',
+    },
+    {
+      csvColumn: 'override_justification',
+      entityProperty: 'override_justification',
+      type: CsvFieldType.STRING,
+      required: false,
+      defaultExport: false,
+      label: 'Override Justification',
+      group: 'Scoring',
+    },
+  ],
+
+  // Export presets
+  exportPresets: [
+    {
+      name: 'enrichment',
+      label: 'Data Enrichment',
+      // Only importable fields - excludes computed fields like priority_score
+      fields: [
+        'id', 'name', 'status', 'purpose',
+        'source_name', 'category_name', 'stream_name',
+        'requestor_email', 'company_name', 'department_name',
+        'target_delivery_date',
+        'current_situation', 'expected_benefits', 'risks',
+        'business_sponsor_email', 'business_lead_email',
+        'it_sponsor_email', 'it_lead_email',
+        'criteria_values', 'priority_override',
+        'override_value', 'override_justification',
+      ],
+    },
+  ],
+
+  /**
+   * Hook to normalize status values before commit.
+   * Accepts both codes and common labels for status field.
+   */
+  beforeCommit: async (entities: any[], context: CsvImportContext) => {
+    // Status label to code mapping
+    const statusLookup = new Map<string, string>([
+      // Codes map to themselves
+      ['pending_review', 'pending_review'],
+      ['candidate', 'candidate'],
+      ['approved', 'approved'],
+      ['on_hold', 'on_hold'],
+      ['rejected', 'rejected'],
+      ['converted', 'converted'],
+      // Common labels
+      ['pending review', 'pending_review'],
+      ['pending', 'pending_review'],
+      ['on hold', 'on_hold'],
+    ]);
+
+    for (const entity of entities) {
+      if (entity.status) {
+        const input = String(entity.status).trim().toLowerCase();
+        const resolved = statusLookup.get(input);
+        if (resolved) entity.status = resolved;
+      }
+    }
+  },
+};

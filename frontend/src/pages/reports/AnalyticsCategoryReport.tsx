@@ -1,0 +1,363 @@
+import React, { useMemo, useRef, useState } from 'react';
+import { Autocomplete, Box, Checkbox, ListItemText, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { AgGridReact } from 'ag-grid-react';
+import type { ColDef } from 'ag-grid-community';
+import { useQuery } from '@tanstack/react-query';
+import ReportLayout from '../../components/reports/ReportLayout';
+import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
+import api from '../../api';
+import { useOpexSummaryAll, pickYearSlot, SummaryRow } from './useOpexSummary';
+import { metricKeys, metricLabels, MetricKey } from './reportMetrics';
+
+type AnalyticsCategory = {
+  id: string;
+  name: string;
+  status?: string | null;
+};
+
+type CategoryOption = { id: string; label: string };
+
+function formatNumber(v: any) {
+  const n = Number(v ?? 0);
+  if (!isFinite(n)) return '';
+  const i = Math.round(n);
+  return i.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+export default function AnalyticsCategoryReport() {
+  const now = new Date();
+  const Y = now.getFullYear();
+  const allowedYears = [Y - 1, Y, Y + 1];
+
+  const [startYear, setStartYear] = useState<number>(Y);
+  const [endYear, setEndYear] = useState<number>(Y);
+  const [metric, setMetric] = useState<MetricKey>('budget');
+  const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
+  const [chartType, setChartType] = useState<'pie' | 'bar'>('pie');
+
+  const singleYear = startYear === endYear;
+  const years = useMemo(() => allowedYears.filter((yr) => yr >= startYear && yr <= endYear), [allowedYears, startYear, endYear]);
+
+  const { data: rows, isLoading } = useOpexSummaryAll();
+  const { data: categories } = useQuery<AnalyticsCategory[]>({
+    queryKey: ['analytics-categories', 'reporting'],
+    queryFn: async () => {
+      const res = await api.get<{ items: AnalyticsCategory[] }>('/analytics-categories', { params: { limit: 1000, sort: 'name:ASC' } });
+      return res.data.items;
+    },
+  });
+
+  const categoryById = useMemo(() => {
+    const map = new Map<string, AnalyticsCategory>();
+    for (const cat of categories ?? []) {
+      map.set(cat.id, cat);
+    }
+    return map;
+  }, [categories]);
+
+  const categoryOptions = useMemo<CategoryOption[]>(() => {
+    const map = new Map<string, CategoryOption>();
+    for (const cat of categories ?? []) {
+      const label = (cat.name ?? '').trim() || 'Unnamed category';
+      map.set(cat.id, { id: cat.id, label });
+    }
+    for (const row of rows ?? []) {
+      const id = row.analytics_category_id ?? undefined;
+      if (!id || map.has(id)) continue;
+      const label = (row.analytics_category_name ?? '').trim() || 'Unnamed category';
+      map.set(id, { id, label });
+    }
+    const list = Array.from(map.values());
+    list.sort((a, b) => a.label.localeCompare(b.label));
+    return list;
+  }, [categories, rows]);
+
+  const selectedOptions = useMemo<CategoryOption[]>(() => {
+    if (excludedCategories.length === 0) return [];
+    const lookup = new Map(categoryOptions.map((option) => [option.id, option] as const));
+    return excludedCategories
+      .map((id) => lookup.get(id))
+      .filter((option): option is CategoryOption => Boolean(option));
+  }, [excludedCategories, categoryOptions]);
+
+  type Group = {
+    key: string;
+    label: string;
+    values: Record<number, number>;
+  };
+
+  const groups = useMemo<Group[]>(() => {
+    const acc: Map<string, Group> = new Map();
+    const source = rows ?? [];
+    const makeKey = (id: string | null | undefined, fallbackName: string | null | undefined): { key: string; label: string } => {
+      if (!id) return { key: 'uncategorized', label: 'Unassigned' };
+      const labelFromCatalog = categoryById.get(id)?.name;
+      const label = (labelFromCatalog ?? fallbackName ?? '').trim() || 'Unnamed category';
+      return { key: `cat_${id}`, label };
+    };
+    for (const row of source) {
+      const id = row.analytics_category_id ?? null;
+      if (id && excludedCategories.includes(id)) continue;
+      const keyInfo = makeKey(id, row.analytics_category_name ?? null);
+      let group = acc.get(keyInfo.key);
+      if (!group) { group = { key: keyInfo.key, label: keyInfo.label, values: {} }; acc.set(keyInfo.key, group); }
+      for (const yr of years) {
+        const slot = pickYearSlot(row, yr);
+        const totals = (slot?.reporting ?? slot?.totals) as Record<string, number | undefined> | undefined;
+        const total = Number(totals?.[metric] ?? 0);
+        group.values[yr] = (group.values[yr] || 0) + total;
+      }
+    }
+    return Array.from(acc.values()).sort((a, b) => {
+      const pYear = years[0];
+      return (b.values[pYear] || 0) - (a.values[pYear] || 0);
+    });
+  }, [rows, years, metric, excludedCategories, categoryById]);
+
+  const tableRows = useMemo(() => groups.map((group) => {
+    const row: any = { group: group.label };
+    for (const yr of years) row[yr] = group.values[yr] || 0;
+    return row;
+  }), [groups, years]);
+
+  const columns = useMemo<ColDef[]>(() => {
+    const cols: ColDef[] = [
+      { field: 'group', headerName: 'Analytics category', flex: 1, minWidth: 240 },
+    ];
+    for (const yr of years) {
+      cols.push({ field: String(yr), headerName: String(yr), width: 140, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) });
+    }
+    return cols;
+  }, [years]);
+
+  const metricLabel = metricLabels[metric];
+
+  const totalsRow = useMemo(() => {
+    const row: any = { group: `Total ${metricLabel}` };
+    for (const yr of years) {
+      row[yr] = groups.reduce((acc, group) => acc + (Number(group.values[yr]) || 0), 0);
+    }
+    return row;
+  }, [groups, years, metricLabel]);
+
+  const gridApiRef = useRef<any>(null);
+  const chartRef = useRef<ChartCardHandle>(null);
+
+  const metricsCaption = metricLabel;
+
+  const chartOptions = useMemo(() => {
+    if (singleYear) {
+      const year = years[0];
+      const chartData = groups.map((group) => ({ label: group.label, value: group.values[year] || 0 }));
+      const total = chartData.reduce((acc, datum) => acc + (Number(datum.value) || 0), 0);
+      const base = {
+        title: { text: `Budget by Analytics Category — ${year}` },
+        subtitle: { text: metricsCaption || 'Share of selected totals' },
+        footnote: { text: `Total (${metricsCaption || 'Selected'}): ${formatNumber(total)}` },
+        data: chartData,
+        legend: { enabled: false },
+        animation: { enabled: true, duration: 800 },
+      } as const;
+      if (chartType === 'bar') {
+        return {
+          ...base,
+          axes: [
+            { type: 'category', position: 'left', label: { padding: 8 } },
+            {
+              type: 'number',
+              position: 'bottom',
+              label: {
+                formatter: ({ value }: { value: number }) => formatNumber(value),
+              },
+            },
+          ],
+          series: [
+            {
+              type: 'bar',
+              direction: 'horizontal',
+              xKey: 'label',
+              yKey: 'value',
+              strokeWidth: 0,
+              label: {
+                formatter: ({ value }: { value: number }) => formatNumber(value),
+              },
+              tooltip: {
+                enabled: true,
+                renderer: ({ datum }: any) => {
+                  const value = Number(datum.value || 0);
+                  const pct = total > 0 ? (value / total) * 100 : 0;
+                  return {
+                    title: datum.label,
+                    data: [
+                      { label: metricLabel, value: formatNumber(value) },
+                      { label: 'Share', value: `${pct.toFixed(1)}%` },
+                    ],
+                  };
+                },
+              },
+            },
+          ],
+        };
+      }
+      return {
+        ...base,
+        series: [
+          {
+            type: 'pie',
+            calloutLabelKey: 'label',
+            sectorLabelKey: 'value',
+            angleKey: 'value',
+            calloutLabel: { offset: 20 },
+            sectorLabel: {
+              positionOffset: 30,
+              formatter: ({ datum, angleKey }: any) => {
+                const value = Number(datum[angleKey] || 0);
+                const pct = total > 0 ? (value / total) * 100 : 0;
+                const shown = Math.round(pct);
+                return shown >= 5 ? `${shown}%` : '';
+              },
+            },
+            strokeWidth: 1,
+          },
+        ],
+      };
+    }
+    const chartData = years.map((yr) => {
+      const row: any = { year: yr };
+      for (const group of groups) row[group.key] = group.values[yr] || 0;
+      return row;
+    });
+    const series = groups.map((group) => ({ type: 'line', xKey: 'year', yKey: group.key, yName: group.label }));
+    return {
+      title: { text: `Budget by Analytics Category — ${years[0]} to ${years[years.length - 1]}` },
+      subtitle: { text: metricsCaption || 'Annual totals per analytics category' },
+      data: chartData,
+      series,
+      axes: [
+        { type: 'number', position: 'bottom' },
+        { type: 'number', position: 'left' },
+      ],
+      legend: { enabled: true },
+    };
+  }, [groups, singleYear, years, metricsCaption, chartType, metricLabel]);
+
+  return (
+    <ReportLayout
+      title="Budget by Analytics Category"
+      subtitle="Group totals by analytics category; pie for a single year, line for multi-year range"
+      filters={(
+        <>
+          <TextField select size="small" label="Start year" value={startYear} onChange={(e) => {
+            const v = parseInt(e.target.value, 10);
+            setStartYear(v);
+            if (v > endYear) setEndYear(v);
+          }} InputLabelProps={{ shrink: true }}>
+            {allowedYears.map((yr) => (<MenuItem key={yr} value={yr}>{yr}</MenuItem>))}
+          </TextField>
+          <TextField select size="small" label="End year" value={endYear} onChange={(e) => {
+            const v = parseInt(e.target.value, 10);
+            setEndYear(v);
+            if (v < startYear) setStartYear(v);
+          }} InputLabelProps={{ shrink: true }}>
+            {allowedYears.map((yr) => (<MenuItem key={yr} value={yr}>{yr}</MenuItem>))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Metric"
+            value={metric}
+            onChange={(e) => setMetric(e.target.value as MetricKey)}
+            sx={{ minWidth: 200 }}
+            InputLabelProps={{ shrink: true }}
+          >
+            {metricKeys.map((key) => (
+              <MenuItem key={key} value={key}>{metricLabels[key]}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Chart type"
+            value={chartType}
+            onChange={(e) => setChartType(e.target.value as 'pie' | 'bar')}
+            disabled={!singleYear}
+            InputLabelProps={{ shrink: true }}
+          >
+            <MenuItem value="pie">Pie chart</MenuItem>
+            <MenuItem value="bar">Horizontal bar chart</MenuItem>
+          </TextField>
+          <Autocomplete
+            multiple
+            size="small"
+            disableCloseOnSelect
+            options={categoryOptions}
+            value={selectedOptions}
+            onChange={(_, next) => {
+              setExcludedCategories(next.map((option) => option.id));
+            }}
+            getOptionLabel={(option) => option.label}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            renderOption={(props, option, { selected }) => (
+              <li {...props}>
+                <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
+                <ListItemText primary={option.label} />
+              </li>
+            )}
+            renderTags={() => []}
+            renderInput={(params) => {
+              const count = excludedCategories.length;
+              return (
+                <TextField
+                  {...params}
+                  label="Exclude analytics categories"
+                  placeholder={count === 0 ? 'Select categories to exclude' : ''}
+                  InputLabelProps={{ shrink: true }}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: count > 0 ? (
+                      <>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ ml: 0.5, mr: 1, whiteSpace: 'nowrap' }}
+                        >
+                          {count === 1 ? '1 category selected' : `${count} categories selected`}
+                        </Typography>
+                        {params.InputProps.startAdornment}
+                      </>
+                    ) : params.InputProps.startAdornment,
+                  }}
+                />
+              );
+            }}
+            sx={{ minWidth: 280 }}
+            noOptionsText="No matching categories"
+          />
+        </>
+      )}
+      onExportTableCsv={() => gridApiRef.current?.exportDataAsCsv?.()}
+      onExportChartPng={() => chartRef.current?.download(`analytics-${years[0]}-${years[years.length - 1]}`)}
+    >
+      <Stack direction="column" spacing={2} alignItems="stretch">
+        <Box sx={{ minWidth: 0 }}>
+          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+        </Box>
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>Summary Table</Typography>
+          <Box className="ag-theme-quartz" sx={{ height: 520 }}>
+            <AgGridReact
+              rowData={tableRows}
+              columnDefs={columns}
+              defaultColDef={{ sortable: true, resizable: true }}
+              onGridReady={(e) => { gridApiRef.current = e.api; }}
+              pinnedBottomRowData={[totalsRow]}
+            />
+          </Box>
+        </Paper>
+      </Stack>
+      {isLoading && (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading data…</Typography>
+      )}
+    </ReportLayout>
+  );
+}

@@ -1,0 +1,140 @@
+site_name: KANAP
+site_url: https://doc.kanap.net
+site_description: User documentation for KANAP - IT portfolio and budget management platform
+
+repo_url: https://github.com/your-org/kanap
+repo_name: kanap
+
+docs_dir: docs/en
+
+theme:
+  name: material
+  language: en
+
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - toc.follow
+
+  icon:
+    repo: fontawesome/brands/github
+
+  # Custom logo (place in overrides/.icons/ or use default)
+  # logo: assets/logo.png
+  # favicon: assets/favicon.png
+
+extra:
+  social:
+    - icon: fontawesome/solid/globe
+      link: https://kanap.net
+      name: KANAP Website
+
+  # Language selector (when i18n is set up)
+  # alternate:
+  #   - name: English
+  #     link: /en/
+  #     lang: en
+  #   - name: Français
+  #     link: /fr/
+  #     lang: fr
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search:
+      lang: en
+
+nav:
+  - Home: index.md
+
+  - My Workspace:
+    - Tasks: tasks.md
+
+  - Portfolio Management:
+    - Requests: portfolio-requests.md
+    - Projects: portfolio-projects.md
+    - Planning: portfolio-planning.md
+    - Team Members: portfolio-team-members.md
+    - Reporting: portfolio-reporting.md
+    - Settings: portfolio-settings.md
+
+  - Budget Management:
+    - OPEX: opex.md
+    - CAPEX: capex.md
+    - Contracts: contracts.md
+    - Budget Operations: budget-operations.md
+    - Reports: reports.md
+
+  - IT Operations:
+    - Locations: locations.md
+    - Applications: applications.md
+    - Interfaces: interfaces.md
+    - Interface Map: interface-map.md
+    - Connections: connections.md
+    - Connection Map: connection-map.md
+    - Assets: assets.md
+    - Settings: it-ops-settings.md
+
+  - Master Data:
+    - Companies: companies.md
+    - Departments: departments.md
+    - Contacts: contacts.md
+    - Suppliers: suppliers.md
+    - Business Processes: business-processes.md
+    - Chart of Accounts: chart-of-accounts.md
+    - Analytics Categories: analytics.md
+    - Currencies: currencies.md
+
+  - Administration:
+    - Admin & Users: admin.md
+    - Master Data Operations: master-data-operations.md
+    - Dashboard: operations-dashboard.md
+
+  - On-Premise:
+    - Overview: on-premise/index.md
+    - Installation: on-premise/installation.md
+    - Configuration: on-premise/configuration.md
+    - Operations: on-premise/operations.md
+    - Microsoft Entra SSO: on-premise/sso-entra.md

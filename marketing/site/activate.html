@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/assets/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+    <title>KANAP - Activate Your Workspace</title>
+    <meta name="robots" content="noindex, nofollow" />
+
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JNTR8JXN1Q"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-JNTR8JXN1Q');
+    </script>
+
+    <link rel="stylesheet" href="assets/styles.css?v=20260209" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="top-bar">
+        <div class="top-bar__inner">
+          <a class="brand" href="/">
+            <img src="assets/logo.svg" alt="KANAP logo" />
+            <span class="brand-title">KANAP</span>
+          </a>
+          <nav class="nav" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <div class="nav-dropdown">
+              <a href="features/" class="nav-dropdown__trigger">Features</a>
+              <div class="nav-dropdown__menu">
+                <a href="features/">Overview</a>
+                <a href="features/budget.html">Budget Management</a>
+                <a href="features/it-ops.html">IT Operations</a>
+                <a href="features/portfolio.html">Portfolio Management</a>
+                <a href="features/comparison.html">Why KANAP</a>
+              </div>
+            </div>
+            <a href="features/comparison.html">Why KANAP</a>
+            <a href="offer.html">Get started</a>
+            <a href="https://doc.kanap.net/" target="_blank" rel="noopener noreferrer">Documentation</a>
+            <a href="contact.html">Contact</a>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <section class="section hero">
+          <div class="container">
+            <p class="eyebrow">Workspace activation</p>
+            <h1>Hold tight while we prepare your workspace</h1>
+            <p style="max-width: 640px; margin: 0 auto; color: var(--muted);">
+              We are validating your email address and provisioning your workspace. This only takes a few
+              seconds. You will be redirected to set your password as soon as everything is ready.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" style="padding-top: 0;">
+          <div class="container content-block" data-activation>
+            <p data-activation-message style="margin: 0;">Activating your workspace...</p>
+            <div data-activation-actions hidden style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+              <button class="button button--primary" data-open-trial>Create a new workspace</button>
+              <a class="button button--ghost" href="contact.html">Contact support</a>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <div class="footer__inner">
+          <div class="footer__links" aria-label="Footer links">
+            <a href="legal.html">Legal mentions</a>
+            <a href="terms.html">Terms &amp; conditions</a>
+            <a href="sales.html">General Terms and Conditions of Sale</a>
+            <a href="privacy.html">Privacy policy</a>
+            <a href="contact.html">Contact</a>
+            <a href="https://github.com/kanap-sarl/kanap" target="_blank" rel="noopener noreferrer">GitHub</a>
+          </div>
+          <div class="footer__copy">&copy; Kanap, All rights reserved.</div>
+        </div>
+      </footer>
+    </div>
+
+    <div class="trial-modal" role="dialog" aria-modal="true" aria-labelledby="trial-title">
+      <div class="trial-modal__panel">
+        <button class="trial-modal__close" type="button" aria-label="Close form" data-close-trial>
+          &times;
+        </button>
+        <div>
+          <p class="eyebrow" id="trial-title">Get Started</p>
+          <h2 style="margin: 0 0 0.5rem;">Create your workspace</h2>
+          <p style="color: var(--muted); margin: 0;">
+            Provision your workspace in minutes. We'll email the activation link to your admin.
+          </p>
+        </div>
+        <form class="form-grid" data-trial-form>
+          <label for="org">Organization name</label>
+          <input id="org" name="org" autocomplete="organization" required />
+
+          <label for="country_iso">Country</label>
+          <select id="country_iso" name="country_iso" required data-country>
+            <option value="" disabled selected hidden>Select a country...</option>
+          </select>
+
+          <label for="slug">Desired subdomain</label>
+          <input id="slug" name="slug" pattern="[a-z0-9-]+" placeholder="acme-eu" required />
+
+          <label for="email">Admin email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required />
+
+          <button class="button button--primary" type="submit">Create workspace</button>
+          <div class="status" data-trial-status aria-live="polite"></div>
+        </form>
+      </div>
+    </div>
+
+    <script src="assets/scripts.js?v=20260212" defer></script>
+  </body>
+</html>

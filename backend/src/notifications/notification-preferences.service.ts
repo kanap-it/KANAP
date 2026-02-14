@@ -1,0 +1,163 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, EntityManager } from 'typeorm';
+import { NotificationPreferences } from './notification-preferences.entity';
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NotificationPreferencesData,
+  WorkspaceSettings,
+} from './notifications.constants';
+
+@Injectable()
+export class NotificationPreferencesService {
+  constructor(
+    @InjectRepository(NotificationPreferences)
+    private readonly repo: Repository<NotificationPreferences>,
+  ) {}
+
+  /**
+   * Get notification preferences for a user.
+   * Returns defaults if no preferences exist yet.
+   */
+  async getForUser(
+    userId: string,
+    tenantId: string,
+    opts?: { manager?: EntityManager },
+  ): Promise<NotificationPreferencesData> {
+    const mg = opts?.manager ?? this.repo.manager;
+    const prefs = await mg.findOne(NotificationPreferences, {
+      where: { user_id: userId, tenant_id: tenantId },
+    });
+
+    if (!prefs) {
+      return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    }
+
+    // Merge with defaults to handle any missing fields (schema evolution)
+    return {
+      emails_enabled: prefs.emails_enabled,
+      workspace_settings: this.mergeWorkspaceSettings(prefs.workspace_settings),
+      weekly_review_enabled: prefs.weekly_review_enabled,
+      weekly_review_day: prefs.weekly_review_day,
+      weekly_review_hour: prefs.weekly_review_hour,
+      timezone: prefs.timezone,
+    };
+  }
+
+  /**
+   * Update notification preferences for a user.
+   * Creates row if it doesn't exist (upsert).
+   */
+  async updateForUser(
+    userId: string,
+    tenantId: string,
+    updates: Partial<NotificationPreferencesData>,
+    opts?: { manager?: EntityManager },
+  ): Promise<NotificationPreferencesData> {
+    const mg = opts?.manager ?? this.repo.manager;
+
+    let prefs = await mg.findOne(NotificationPreferences, {
+      where: { user_id: userId, tenant_id: tenantId },
+    });
+
+    if (!prefs) {
+      // Create new preferences with defaults
+      prefs = mg.create(NotificationPreferences, {
+        user_id: userId,
+        tenant_id: tenantId,
+        emails_enabled: DEFAULT_NOTIFICATION_PREFERENCES.emails_enabled,
+        workspace_settings: DEFAULT_NOTIFICATION_PREFERENCES.workspace_settings,
+        weekly_review_enabled: DEFAULT_NOTIFICATION_PREFERENCES.weekly_review_enabled,
+        weekly_review_day: DEFAULT_NOTIFICATION_PREFERENCES.weekly_review_day,
+        weekly_review_hour: DEFAULT_NOTIFICATION_PREFERENCES.weekly_review_hour,
+        timezone: DEFAULT_NOTIFICATION_PREFERENCES.timezone,
+      });
+    }
+
+    // Apply updates
+    if (updates.emails_enabled !== undefined) {
+      prefs.emails_enabled = updates.emails_enabled;
+    }
+
+    if (updates.workspace_settings !== undefined) {
+      // Deep merge workspace settings
+      prefs.workspace_settings = this.deepMergeWorkspaceSettings(
+        prefs.workspace_settings,
+        updates.workspace_settings,
+      );
+    }
+
+    if (updates.weekly_review_enabled !== undefined) {
+      prefs.weekly_review_enabled = updates.weekly_review_enabled;
+    }
+
+    if (updates.weekly_review_day !== undefined) {
+      prefs.weekly_review_day = updates.weekly_review_day;
+    }
+
+    if (updates.weekly_review_hour !== undefined) {
+      prefs.weekly_review_hour = updates.weekly_review_hour;
+    }
+
+    if (updates.timezone !== undefined) {
+      prefs.timezone = updates.timezone;
+    }
+
+    prefs.updated_at = new Date();
+
+    const saved = await mg.save(NotificationPreferences, prefs);
+
+    return {
+      emails_enabled: saved.emails_enabled,
+      workspace_settings: this.mergeWorkspaceSettings(saved.workspace_settings),
+      weekly_review_enabled: saved.weekly_review_enabled,
+      weekly_review_day: saved.weekly_review_day,
+      weekly_review_hour: saved.weekly_review_hour,
+      timezone: saved.timezone,
+    };
+  }
+
+  /**
+   * Merge user's workspace settings with defaults to handle missing fields.
+   */
+  private mergeWorkspaceSettings(userSettings: Partial<WorkspaceSettings>): WorkspaceSettings {
+    const defaults = DEFAULT_NOTIFICATION_PREFERENCES.workspace_settings;
+    return {
+      portfolio: {
+        ...defaults.portfolio,
+        ...(userSettings?.portfolio ?? {}),
+      },
+      tasks: {
+        ...defaults.tasks,
+        ...(userSettings?.tasks ?? {}),
+      },
+      budget: {
+        ...defaults.budget,
+        ...(userSettings?.budget ?? {}),
+      },
+    };
+  }
+
+  /**
+   * Deep merge for partial workspace settings updates.
+   */
+  private deepMergeWorkspaceSettings(
+    existing: WorkspaceSettings,
+    updates: Partial<WorkspaceSettings>,
+  ): WorkspaceSettings {
+    return {
+      portfolio: {
+        ...existing.portfolio,
+        ...(updates.portfolio ?? {}),
+      },
+      tasks: {
+        ...existing.tasks,
+        ...(updates.tasks ?? {}),
+      },
+      budget: {
+        ...existing.budget,
+        ...(updates.budget ?? {}),
+      },
+    };
+  }
+}

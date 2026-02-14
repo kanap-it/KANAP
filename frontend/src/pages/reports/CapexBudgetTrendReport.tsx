@@ -1,0 +1,153 @@
+import React, { useMemo, useRef, useState } from 'react';
+import { Box, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { AgGridReact } from 'ag-grid-react';
+import type { ColDef } from 'ag-grid-community';
+import ReportLayout from '../../components/reports/ReportLayout';
+import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
+import { useCapexSummaryAll, pickYearSlot } from './useCapexSummary';
+
+function formatNumber(v: any) {
+  const n = Number(v ?? 0);
+  if (!isFinite(n)) return '';
+  const i = Math.round(n);
+  return i.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+export default function CapexBudgetTrendReport() {
+  const now = new Date();
+  const Y = now.getFullYear();
+  const allowedYears = [Y - 2, Y - 1, Y, Y + 1, Y + 2];
+  const { data: rows, isLoading } = useCapexSummaryAll(allowedYears);
+
+  const [startYear, setStartYear] = useState<number>(Y - 1);
+  const [endYear, setEndYear] = useState<number>(Y + 1);
+  const [metrics, setMetrics] = useState<Array<'budget' | 'follow_up' | 'landing' | 'revision'>>(['budget', 'landing']);
+
+  const years = useMemo(() => allowedYears.filter((yr) => yr >= startYear && yr <= endYear), [allowedYears, startYear, endYear]);
+  const metricLabels: Record<string, string> = { budget: 'Budget', follow_up: 'Follow-up', landing: 'Landing', revision: 'Revision' };
+
+  const totalsByMetricAndYear = useMemo(() => {
+    const acc: Record<string, Record<number, number>> = {};
+    for (const m of metrics) acc[m] = {} as any;
+    for (const yr of years) {
+      for (const m of metrics) {
+        let sum = 0;
+        for (const r of rows || []) {
+          const slot = pickYearSlot(r as any, yr);
+          const totals = (slot?.reporting ?? slot?.totals) as Record<string, number | undefined> | undefined;
+          const v = Number(totals?.[m] ?? 0);
+          sum += v;
+        }
+        acc[m][yr] = sum;
+      }
+    }
+    return acc;
+  }, [rows, years, metrics]);
+
+  const tableRows = useMemo(() => {
+    return metrics.map((m) => {
+      const row: any = { metric: metricLabels[m], _key: m };
+      for (const yr of years) row[yr] = totalsByMetricAndYear[m]?.[yr] || 0;
+      return row;
+    });
+  }, [metrics, metricLabels, years, totalsByMetricAndYear]);
+
+  const columns = useMemo<ColDef[]>(() => {
+    const cols: ColDef[] = [
+      { field: 'metric', headerName: 'Metric', flex: 1, minWidth: 200 },
+    ];
+    for (const yr of years) {
+      cols.push({ field: String(yr), headerName: String(yr), width: 140, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) });
+    }
+    return cols;
+  }, [years]);
+
+  const chartData = useMemo(() => {
+    return years.map((yr) => {
+      const row: any = { year: yr };
+      for (const m of metrics) row[m] = totalsByMetricAndYear[m]?.[yr] || 0;
+      return row;
+    });
+  }, [years, metrics, totalsByMetricAndYear]);
+
+  const chartSeries = useMemo(() => metrics.map((m) => ({ type: 'line', xKey: 'year', yKey: m, yName: metricLabels[m] })), [metrics]);
+  const chartRef = useRef<ChartCardHandle>(null);
+  const gridApiRef = useRef<any>(null);
+
+  const chartOptions = useMemo(() => ({
+    title: { text: 'Budget Trend (CAPEX)' },
+    subtitle: { text: metrics.map((m) => metricLabels[m]).join(' • ') },
+    data: chartData,
+    series: chartSeries,
+    axes: [
+      { type: 'number', position: 'bottom' },
+      { type: 'number', position: 'left' },
+    ],
+    legend: { enabled: true },
+  }), [chartData, chartSeries, metrics]);
+
+  return (
+    <ReportLayout
+      title="Budget Trend (CAPEX)"
+      subtitle="Compare selected metrics across a year range"
+      filters={(
+        <>
+          <TextField select size="small" label="Start year" value={startYear} onChange={(e) => {
+            const v = parseInt(e.target.value, 10);
+            setStartYear(v);
+            if (v > endYear) setEndYear(v);
+          }}>
+            {allowedYears.map((yr) => (<MenuItem key={yr} value={yr}>{yr}</MenuItem>))}
+          </TextField>
+          <TextField select size="small" label="End year" value={endYear} onChange={(e) => {
+            const v = parseInt(e.target.value, 10);
+            setEndYear(v);
+            if (v < startYear) setStartYear(v);
+          }}>
+            {allowedYears.map((yr) => (<MenuItem key={yr} value={yr}>{yr}</MenuItem>))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Metrics"
+            value={metrics}
+            SelectProps={{ multiple: true, renderValue: (sel: any) => (sel as string[]).map((s) => metricLabels[s]).join(', ') }}
+            onChange={(e) => {
+              const value = e.target.value as unknown as string[];
+              const arr = Array.isArray(value) ? value : [value];
+              if (arr.length === 0) setMetrics(['budget']); else setMetrics(arr as any);
+            }}
+            sx={{ minWidth: 240 }}
+          >
+            {(['budget', 'follow_up', 'landing', 'revision'] as const).map((m) => (
+              <MenuItem key={m} value={m}>{metricLabels[m]}</MenuItem>
+            ))}
+          </TextField>
+        </>
+      )}
+      onExportTableCsv={() => gridApiRef.current?.exportDataAsCsv?.()}
+      onExportChartPng={() => chartRef.current?.download(`capex-trend-${years[0]}-${years[years.length - 1]}-${metrics.join('_')}`)}
+    >
+      <Stack direction="column" spacing={2} alignItems="stretch">
+        <Box sx={{ minWidth: 0 }}>
+          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+        </Box>
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>Key Table</Typography>
+          <Box className="ag-theme-quartz" sx={{ height: 360 }}>
+            <AgGridReact
+              rowData={tableRows}
+              columnDefs={columns}
+              defaultColDef={{ sortable: true, resizable: true }}
+              onGridReady={(e) => { gridApiRef.current = e.api; }}
+            />
+          </Box>
+        </Paper>
+      </Stack>
+      {isLoading && (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading data…</Typography>
+      )}
+    </ReportLayout>
+  );
+}
+

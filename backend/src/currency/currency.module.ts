@@ -1,0 +1,23 @@
+import { forwardRef, Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { CurrencyRateSet } from './currency-rate-set.entity';
+import { CurrencySettingsService } from './currency-settings.service';
+import { FxRateService } from './fx-rate.service';
+import { Tenant } from '../tenants/tenant.entity';
+import { FxIngestionService } from './fx-ingestion.service';
+import { WorldBankClient } from './world-bank-client';
+import { CurrencyController } from './currency.controller';
+import { PermissionsModule } from '../permissions/permissions.module';
+import { UsersModule } from '../users/users.module';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([CurrencyRateSet, Tenant]),
+    PermissionsModule,
+    forwardRef(() => UsersModule),
+  ],
+  controllers: [CurrencyController],
+  providers: [CurrencySettingsService, FxRateService, WorldBankClient, FxIngestionService],
+  exports: [CurrencySettingsService, FxRateService, FxIngestionService],
+})
+export class CurrencyModule {}

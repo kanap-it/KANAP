@@ -1,0 +1,491 @@
+import React from 'react';
+import { AppBar, Box, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, Tooltip, Tabs, Tab, Menu, MenuItem } from '@mui/material';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
+import HubIcon from '@mui/icons-material/Hub';
+import DnsIcon from '@mui/icons-material/Dns';
+import BusinessIcon from '@mui/icons-material/Business';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import PeopleIcon from '@mui/icons-material/People';
+import MenuIcon from '@mui/icons-material/Menu';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import DescriptionIcon from '@mui/icons-material/Description';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import ApartmentIcon from '@mui/icons-material/Apartment';
+import SecurityIcon from '@mui/icons-material/Security';
+import LanIcon from '@mui/icons-material/Lan';
+import InsightsIcon from '@mui/icons-material/Insights';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import SettingsIcon from '@mui/icons-material/Settings';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import BuildIcon from '@mui/icons-material/Build';
+import StorageIcon from '@mui/icons-material/Storage';
+import HomeIcon from '@mui/icons-material/Home';
+import LocationCityIcon from '@mui/icons-material/LocationCity';
+import InboxIcon from '@mui/icons-material/Inbox';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import { useAuth } from '../auth/AuthContext';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import { useTenant } from '../tenant/TenantContext';
+import { getDocUrl } from '../utils/docUrls';
+import SubscriptionBanner from './SubscriptionBanner';
+
+const drawerWidth = 240;
+
+type NavItem = { to: string; label: string; icon: React.ReactNode; resource?: string };
+
+const operations: NavItem[] = [
+  { to: '/ops', label: 'Dashboard', icon: <DashboardIcon /> },
+  { to: '/ops/opex', label: 'OPEX', icon: <AccountBalanceWalletIcon />, resource: 'opex' },
+  { to: '/ops/capex', label: 'CAPEX', icon: <AccountBalanceIcon />, resource: 'capex' },
+  { to: '/ops/contracts', label: 'Contracts', icon: <DescriptionIcon />, resource: 'contracts' },
+  { to: '/ops/reports', label: 'Reporting', icon: <BarChartIcon />, resource: 'reporting' },
+  { to: '/ops/operations', label: 'Budget Operations', icon: <SettingsIcon />, resource: 'opex' },
+];
+
+const myWorkspaceNav: NavItem[] = [
+  { to: '/my/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+  { to: '/my/tasks', label: 'My Tasks', icon: <AssignmentIcon />, resource: 'tasks' },
+];
+
+const masterData: NavItem[] = [
+  { to: '/master-data', label: 'Master Data Home', icon: <HomeIcon /> },
+  { to: '/master-data/companies', label: 'Companies', icon: <BusinessIcon />, resource: 'companies' },
+  { to: '/master-data/departments', label: 'Departments', icon: <AccountTreeIcon />, resource: 'departments' },
+  { to: '/master-data/suppliers', label: 'Suppliers', icon: <LocalShippingIcon />, resource: 'suppliers' },
+  { to: '/master-data/contacts', label: 'Contacts', icon: <PeopleIcon />, resource: 'contacts' },
+  // Place Charts of Accounts between Contacts and Accounts as requested
+  { to: '/master-data/coa', label: 'Charts of Accounts', icon: <StorageIcon />, resource: 'accounts' },
+  { to: '/master-data/accounts', label: 'Accounts', icon: <AccountBalanceIcon />, resource: 'accounts' },
+  { to: '/master-data/currency', label: 'Currency', icon: <AttachMoneyIcon />, resource: 'settings' },
+  { to: '/master-data/business-processes', label: 'Business Processes', icon: <WorkOutlineIcon />, resource: 'business_processes' },
+  { to: '/master-data/analytics', label: 'Analytics', icon: <InsightsIcon />, resource: 'analytics' },
+  { to: '/master-data/operations', label: 'Master Data Ops', icon: <BuildIcon />, resource: 'companies' },
+];
+
+const itOperations: NavItem[] = [
+  { to: '/it/locations', label: 'Locations', icon: <LocationCityIcon />, resource: 'locations' },
+  { to: '/it/assets', label: 'Assets', icon: <DnsIcon />, resource: 'infrastructure' },
+  { to: '/it/connections', label: 'Connections', icon: <LanIcon />, resource: 'infrastructure' },
+  { to: '/it/connection-map', label: 'Connection Map', icon: <LanIcon />, resource: 'infrastructure' },
+  { to: '/it/applications', label: 'Apps & Services', icon: <WorkOutlineIcon />, resource: 'applications' },
+  { to: '/it/interfaces', label: 'Interfaces', icon: <HubIcon />, resource: 'applications' },
+  { to: '/it/interface-map', label: 'Interface Map', icon: <AccountTreeIcon />, resource: 'applications' },
+  { to: '/it/settings', label: 'Settings', icon: <SettingsIcon />, resource: 'settings' },
+];
+
+const portfolioNav: NavItem[] = [
+  { to: '/portfolio/requests', label: 'Requests', icon: <InboxIcon />, resource: 'portfolio_requests' },
+  { to: '/portfolio/projects', label: 'Projects', icon: <AccountTreeIcon />, resource: 'portfolio_projects' },
+  { to: '/portfolio/planning', label: 'Planning', icon: <CalendarMonthIcon />, resource: 'portfolio_planning' },
+  { to: '/portfolio/reports', label: 'Reporting', icon: <AssessmentIcon />, resource: 'portfolio_reports' },
+  { to: '/portfolio/contributors', label: 'Contributors', icon: <PeopleIcon />, resource: 'portfolio_settings' },
+  { to: '/portfolio/settings', label: 'Settings', icon: <SettingsIcon />, resource: 'portfolio_settings' },
+];
+
+const tenantAdminNav: NavItem[] = [
+  { to: '/admin/users', label: 'Users', icon: <PeopleIcon />, resource: 'users' },
+  { to: '/admin/roles', label: 'Roles', icon: <SecurityIcon />, resource: 'users' },
+  { to: '/admin/billing', label: 'Billing', icon: <CreditCardIcon />, resource: 'billing' },
+  { to: '/admin/auth', label: 'Authentication', icon: <AdminPanelSettingsIcon />, resource: 'users' },
+];
+
+const platformAdminNav: NavItem[] = [
+  { to: '/admin/tenants', label: 'Tenants', icon: <ApartmentIcon /> },
+  { to: '/admin/coa-templates', label: 'CoA Templates', icon: <StorageIcon /> },
+  { to: '/admin/standard-accounts', label: 'Standard Accounts', icon: <AccountBalanceIcon /> },
+];
+
+// Helper to check if user has ANY permission for resources in a workspace
+const getWorkspaceResources = (ws: string): string[] => {
+  switch (ws) {
+    case 'ops': return [...new Set(operations.map(i => i.resource).filter(Boolean) as string[])];
+    case 'master-data': return [...new Set(masterData.map(i => i.resource).filter(Boolean) as string[])];
+    case 'it': return [...new Set(itOperations.map(i => i.resource).filter(Boolean) as string[])];
+    case 'portfolio': return [...new Set(portfolioNav.map(i => i.resource).filter(Boolean) as string[])];
+    case 'admin': return [...new Set(tenantAdminNav.map(i => i.resource).filter(Boolean) as string[])];
+    case 'my': return [...new Set(myWorkspaceNav.map(i => i.resource).filter(Boolean) as string[])];
+    default: return [];
+  }
+};
+
+export default function Layout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { logout, token, hasLevel, claims, profile } = useAuth();
+  const { isPlatformHost } = useTenant();
+  const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
+  const openMenu = (e: React.MouseEvent<HTMLElement>) => setMenuAnchor(e.currentTarget);
+  const closeMenu = () => setMenuAnchor(null);
+
+  // Check if user has access to any resource in a workspace
+  const hasWorkspaceAccess = React.useCallback((ws: string): boolean => {
+    if (claims?.isGlobalAdmin || claims?.isPlatformAdmin) return true;
+    const resources = getWorkspaceResources(ws);
+    return resources.some(r => hasLevel(r, 'reader'));
+  }, [hasLevel, claims]);
+
+  // Determine which workspaces are visible
+  const visibleWorkspaces = React.useMemo(() => {
+    if (isPlatformHost) return ['admin'];
+    const all = ['my', 'portfolio', 'it', 'ops', 'master-data', 'admin'] as const;
+    return all.filter(ws => hasWorkspaceAccess(ws));
+  }, [isPlatformHost, hasWorkspaceAccess]);
+
+  // Derive active workspace from the current route to keep the top bar highlight in sync
+  const workspace: 'ops' | 'it' | 'master-data' | 'portfolio' | 'admin' | 'my' = React.useMemo(() => {
+    if (isPlatformHost) return 'admin';
+    const p = location.pathname;
+    if (p.startsWith('/admin')) return 'admin';
+    if (p.startsWith('/master-data')) return 'master-data';
+    if (p.startsWith('/portfolio')) return 'portfolio';
+    if (p.startsWith('/it')) return 'it';
+    if (p.startsWith('/my')) return 'my';
+    return 'ops';
+  }, [location.pathname, isPlatformHost]);
+  const [navOpen, setNavOpen] = React.useState<boolean>(() => {
+    // Default to open unless explicitly stored as 'false'
+    try {
+      return window.localStorage.getItem('navOpen') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem('navOpen', String(navOpen));
+    } catch {}
+  }, [navOpen]);
+
+  // workspace is derived from route; no sync to localStorage required
+
+  return (
+    <Box sx={{ display: 'flex' }}>
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={() => setNavOpen((v) => !v)}
+            sx={{ mr: 2 }}
+            title={navOpen ? 'Collapse navigation' : 'Expand navigation'}
+            aria-label={navOpen ? 'Collapse navigation' : 'Expand navigation'}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" sx={{ mr: 3 }}>KANAP</Typography>
+          {!isPlatformHost && visibleWorkspaces.length > 0 && (
+            <Tabs
+              value={visibleWorkspaces.includes(workspace) ? workspace : visibleWorkspaces[0]}
+              onChange={(_, val) => {
+                navigate(val === 'ops' ? '/ops' : val === 'it' ? '/it' : val === 'master-data' ? '/master-data' : val === 'portfolio' ? '/portfolio' : val === 'my' ? '/my' : '/admin');
+              }}
+              sx={{
+                flex: 1,
+                '& .MuiTab-root': {
+                  color: 'rgba(255,255,255,0.7)',
+                  minHeight: 64,
+                  textTransform: 'none',
+                  fontSize: '0.95rem',
+                  fontWeight: 500,
+                },
+                '& .MuiTab-root.Mui-selected': {
+                  color: 'common.white',
+                },
+                '& .MuiTabs-indicator': {
+                  backgroundColor: 'common.white',
+                },
+              }}
+              aria-label="Section navigation"
+            >
+              {visibleWorkspaces.includes('my') && <Tab value="my" label="My Workspace" />}
+              {visibleWorkspaces.includes('portfolio') && <Tab value="portfolio" label="Portfolio" />}
+              {visibleWorkspaces.includes('it') && <Tab value="it" label="IT Operations" />}
+              {visibleWorkspaces.includes('ops') && <Tab value="ops" label="Budget Management" />}
+              {visibleWorkspaces.includes('master-data') && <Tab value="master-data" label="Master Data" />}
+              {visibleWorkspaces.includes('admin') && <Tab value="admin" label="Admin" />}
+            </Tabs>
+          )}
+          {isPlatformHost && <Box sx={{ flex: 1 }} />}
+          {token && (
+            <>
+              <IconButton
+                color="inherit"
+                size="small"
+                title="Help"
+                component="a"
+                href={getDocUrl(location.pathname)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open documentation for this page"
+              >
+                <HelpOutlineIcon />
+              </IconButton>
+              <IconButton color="inherit" onClick={openMenu} size="small" title="Account">
+                <AccountCircleIcon />
+              </IconButton>
+              <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={closeMenu} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
+                <Box sx={{ px: 2, py: 1, minWidth: 200 }}>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    {[profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'User'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {profile?.email}
+                  </Typography>
+                </Box>
+                <Divider sx={{ my: 0.5 }} />
+                <MenuItem onClick={() => { closeMenu(); navigate('/settings'); }}>My Profile</MenuItem>
+                <MenuItem onClick={() => { closeMenu(); logout(); }}>Logout</MenuItem>
+              </Menu>
+            </>
+          )}
+        </Toolbar>
+      </AppBar>
+
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: (theme) => (navOpen ? drawerWidth : `calc(${theme.spacing(7)} + 1px)`),
+          flexShrink: 0,
+          [`& .MuiDrawer-paper`]: (theme) => ({
+            width: navOpen ? drawerWidth : `calc(${theme.spacing(7)} + 1px)`,
+            boxSizing: 'border-box',
+            overflowX: 'hidden',
+            transition: theme.transitions.create('width', {
+              easing: theme.transitions.easing.sharp,
+              duration: navOpen ? theme.transitions.duration.enteringScreen : theme.transitions.duration.leavingScreen,
+            }),
+          }),
+        }}
+      >
+        <Toolbar />
+        <Box sx={{ overflowY: 'auto', overflowX: 'hidden' }}>
+          {workspace === 'ops' && !isPlatformHost && (
+          <List>
+            {operations.filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
+              const button = (
+                <ListItemButton
+                  key={item.to}
+                  component={Link}
+                  to={item.to}
+                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
+                  sx={{
+                    minHeight: 48,
+                    justifyContent: navOpen ? 'initial' : 'center',
+                    px: 2.5,
+                  }}
+                >
+                  <ListItemIcon sx={{
+                    minWidth: 0,
+                    mr: navOpen ? 3 : 'auto',
+                    justifyContent: 'center',
+                  }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  {navOpen && <ListItemText primary={item.label} />}
+                </ListItemButton>
+              );
+              return navOpen ? (
+                button
+              ) : (
+                <Tooltip key={item.to} title={item.label} placement="right">
+                  <Box>{button}</Box>
+                </Tooltip>
+              );
+            })}
+          </List>
+          )}
+          {workspace === 'master-data' && !isPlatformHost && (
+          <List>
+            {masterData.filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
+              const button = (
+                <ListItemButton
+                  key={item.to}
+                  component={Link}
+                  to={item.to}
+                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
+                  sx={{
+                    minHeight: 48,
+                    justifyContent: navOpen ? 'initial' : 'center',
+                    px: 2.5,
+                  }}
+                >
+                  <ListItemIcon sx={{
+                    minWidth: 0,
+                    mr: navOpen ? 3 : 'auto',
+                    justifyContent: 'center',
+                  }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  {navOpen && <ListItemText primary={item.label} />}
+                </ListItemButton>
+              );
+              return navOpen ? (
+                button
+              ) : (
+                <Tooltip key={item.to} title={item.label} placement="right">
+                  <Box>{button}</Box>
+                </Tooltip>
+              );
+            })}
+          </List>
+          )}
+          {workspace === 'it' && !isPlatformHost && (
+          <List>
+            {itOperations.filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
+              const button = (
+                <ListItemButton
+                  key={item.to}
+                  component={Link}
+                  to={item.to}
+                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
+                  sx={{
+                    minHeight: 48,
+                    justifyContent: navOpen ? 'initial' : 'center',
+                    px: 2.5,
+                  }}
+                >
+                  <ListItemIcon sx={{
+                    minWidth: 0,
+                    mr: navOpen ? 3 : 'auto',
+                    justifyContent: 'center',
+                  }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  {navOpen && <ListItemText primary={item.label} />}
+                </ListItemButton>
+              );
+              return navOpen ? (
+                button
+              ) : (
+                <Tooltip key={item.to} title={item.label} placement="right">
+                  <Box>{button}</Box>
+                </Tooltip>
+              );
+            })}
+          </List>
+          )}
+          {workspace === 'portfolio' && !isPlatformHost && (
+          <List>
+            {portfolioNav.filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
+              const button = (
+                <ListItemButton
+                  key={item.to}
+                  component={Link}
+                  to={item.to}
+                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
+                  sx={{
+                    minHeight: 48,
+                    justifyContent: navOpen ? 'initial' : 'center',
+                    px: 2.5,
+                  }}
+                >
+                  <ListItemIcon sx={{
+                    minWidth: 0,
+                    mr: navOpen ? 3 : 'auto',
+                    justifyContent: 'center',
+                  }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  {navOpen && <ListItemText primary={item.label} />}
+                </ListItemButton>
+              );
+              return navOpen ? (
+                button
+              ) : (
+                <Tooltip key={item.to} title={item.label} placement="right">
+                  <Box>{button}</Box>
+                </Tooltip>
+              );
+            })}
+          </List>
+          )}
+          {workspace === 'my' && !isPlatformHost && (
+          <List>
+            {myWorkspaceNav.filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
+              const button = (
+                <ListItemButton
+                  key={item.to}
+                  component={Link}
+                  to={item.to}
+                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
+                  sx={{
+                    minHeight: 48,
+                    justifyContent: navOpen ? 'initial' : 'center',
+                    px: 2.5,
+                  }}
+                >
+                  <ListItemIcon sx={{
+                    minWidth: 0,
+                    mr: navOpen ? 3 : 'auto',
+                    justifyContent: 'center',
+                  }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  {navOpen && <ListItemText primary={item.label} />}
+                </ListItemButton>
+              );
+              return navOpen ? (
+                button
+              ) : (
+                <Tooltip key={item.to} title={item.label} placement="right">
+                  <Box>{button}</Box>
+                </Tooltip>
+              );
+            })}
+          </List>
+          )}
+          {workspace === 'admin' && (
+          <List>
+            {(isPlatformHost ? platformAdminNav : tenantAdminNav).filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
+              const button = (
+                <ListItemButton
+                  key={item.to}
+                  component={Link}
+                  to={item.to}
+                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
+                  sx={{
+                    minHeight: 48,
+                    justifyContent: navOpen ? 'initial' : 'center',
+                    px: 2.5,
+                  }}
+                >
+                  <ListItemIcon sx={{
+                    minWidth: 0,
+                    mr: navOpen ? 3 : 'auto',
+                    justifyContent: 'center',
+                  }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  {navOpen && <ListItemText primary={item.label} />}
+                </ListItemButton>
+              );
+              return navOpen ? (
+                button
+              ) : (
+                <Tooltip key={item.to} title={item.label} placement="right">
+                  <Box>{button}</Box>
+                </Tooltip>
+              );
+            })}
+          </List>
+          )}
+        </Box>
+      </Drawer>
+
+      <Box component="main" sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <Toolbar />
+        <SubscriptionBanner />
+        <Outlet />
+      </Box>
+    </Box>
+  );
+}

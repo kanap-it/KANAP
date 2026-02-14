@@ -1,0 +1,107 @@
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { EntityManager, Repository } from 'typeorm';
+import { Asset } from '../asset.entity';
+
+/**
+ * Environment values for assets.
+ */
+export const ENVIRONMENTS = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox'] as const;
+export type EnvironmentValue = (typeof ENVIRONMENTS)[number];
+
+/**
+ * Common options for service methods.
+ */
+export interface ServiceOpts {
+  manager?: EntityManager;
+  tenantId?: string;
+}
+
+/**
+ * Base class with shared utilities for asset services.
+ */
+export abstract class AssetsBaseService {
+  constructor(protected readonly assetRepo: Repository<Asset>) {}
+
+  protected getRepo(manager?: EntityManager): Repository<Asset> {
+    return manager ? manager.getRepository(Asset) : this.assetRepo;
+  }
+
+  protected normalizeEnvironment(value: unknown): EnvironmentValue {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!ENVIRONMENTS.includes(normalized as EnvironmentValue)) {
+      throw new BadRequestException(`Invalid environment "${value}"`);
+    }
+    return normalized as EnvironmentValue;
+  }
+
+  protected normalizeNullable(value: unknown): string | null {
+    if (value == null) return null;
+    const text = String(value).trim();
+    return text.length === 0 ? null : text;
+  }
+
+  protected ensureTenantId(tenantId?: string): string {
+    const normalized = String(tenantId || '').trim();
+    if (!normalized) {
+      throw new BadRequestException('Tenant context is required');
+    }
+    return normalized;
+  }
+
+  protected normalizeBooleanFlag(value: unknown, label: string = 'flag'): boolean {
+    if (typeof value === 'boolean') return value;
+    const normalized = String(value ?? '').trim().toLowerCase();
+    if (['true', '1', 'yes', 'y'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'n'].includes(normalized)) return false;
+    throw new BadRequestException(`Invalid ${label}`);
+  }
+
+  async ensureAsset(id: string, manager?: EntityManager, tenantId?: string): Promise<Asset> {
+    const repo = this.getRepo(manager);
+    const where: Record<string, any> = { id };
+    if (tenantId) {
+      where.tenant_id = tenantId;
+    }
+    const asset = await repo.findOne({ where: where as any });
+    if (!asset) throw new NotFoundException('Asset not found');
+    return asset;
+  }
+
+  protected async ensureAssetIsCluster(id: string, manager?: EntityManager, tenantId?: string): Promise<Asset> {
+    const asset = await this.ensureAsset(id, manager, tenantId);
+    if (!asset.is_cluster) {
+      throw new BadRequestException('Asset is not a cluster');
+    }
+    return asset;
+  }
+
+  protected async ensureAssetIsNode(id: string, manager?: EntityManager, tenantId?: string): Promise<Asset> {
+    const asset = await this.ensureAsset(id, manager, tenantId);
+    if (asset.is_cluster) {
+      throw new BadRequestException('Select a host asset, not a cluster');
+    }
+    return asset;
+  }
+
+  protected async resolveLocationId(
+    value: unknown,
+    tenantId: string,
+    manager?: EntityManager,
+  ): Promise<string | null> {
+    const normalized = this.normalizeNullable(value);
+    if (!normalized) return null;
+    const mg = manager ?? this.assetRepo.manager;
+    const rows = await mg.query(
+      `SELECT id FROM locations WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+      [normalized, tenantId],
+    );
+    if (!rows || rows.length === 0) {
+      throw new BadRequestException('Invalid location_id');
+    }
+    return normalized;
+  }
+
+  protected getManager(opts?: ServiceOpts): EntityManager {
+    return opts?.manager ?? this.assetRepo.manager;
+  }
+}

@@ -1,0 +1,61 @@
+import { IsISO8601, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { StatusLifecycleDto } from '../../common/dto/status-lifecycle.dto';
+
+export class SpendItemUpsertDto extends StatusLifecycleDto {
+  @IsOptional()
+  @IsString()
+  product_name?: string | null;
+
+  @IsOptional()
+  @IsString()
+  description?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  supplier_id?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  paying_company_id?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  account_id?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @Length(3, 3)
+  currency?: string | null;
+
+  @IsOptional()
+  @IsISO8601()
+  effective_start?: string | null;
+
+  @IsOptional()
+  @IsISO8601()
+  effective_end?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  owner_it_id?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  owner_business_id?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  analytics_category_id?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  project_id?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  contract_id?: string | null;
+
+  @IsOptional()
+  @IsString()
+  notes?: string | null;
+}

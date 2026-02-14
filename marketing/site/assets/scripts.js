@@ -1,0 +1,990 @@
+(function () {
+  // Populate country selects using ISO country codes (same list as app)
+  const COUNTRY_DATA = `
+AF|Afghanistan
+AX|Aland Islands
+AL|Albania
+DZ|Algeria
+AS|American Samoa
+AD|Andorra
+AO|Angola
+AI|Anguilla
+AQ|Antarctica
+AG|Antigua and Barbuda
+AR|Argentina
+AM|Armenia
+AW|Aruba
+AU|Australia
+AT|Austria
+AZ|Azerbaijan
+BS|Bahamas
+BH|Bahrain
+BD|Bangladesh
+BB|Barbados
+BY|Belarus
+BE|Belgium
+BZ|Belize
+BJ|Benin
+BM|Bermuda
+BT|Bhutan
+BO|Bolivia
+BQ|Bonaire Sint Eustatius and Saba
+BA|Bosnia and Herzegovina
+BW|Botswana
+BV|Bouvet Island
+BR|Brazil
+IO|British Indian Ocean Territory
+BN|Brunei Darussalam
+BG|Bulgaria
+BF|Burkina Faso
+BI|Burundi
+CV|Cabo Verde
+KH|Cambodia
+CM|Cameroon
+CA|Canada
+KY|Cayman Islands
+CF|Central African Republic
+TD|Chad
+CL|Chile
+CN|China
+CX|Christmas Island
+CC|Cocos Islands
+CO|Colombia
+KM|Comoros
+CG|Congo
+CD|Congo Democratic Republic
+CK|Cook Islands
+CR|Costa Rica
+CI|Cote d'Ivoire
+HR|Croatia
+CU|Cuba
+CW|Curacao
+CY|Cyprus
+CZ|Czechia
+DK|Denmark
+DJ|Djibouti
+DM|Dominica
+DO|Dominican Republic
+EC|Ecuador
+EG|Egypt
+SV|El Salvador
+GQ|Equatorial Guinea
+ER|Eritrea
+EE|Estonia
+SZ|Eswatini
+ET|Ethiopia
+FK|Falkland Islands
+FO|Faroe Islands
+FJ|Fiji
+FI|Finland
+FR|France
+GF|French Guiana
+PF|French Polynesia
+TF|French Southern Territories
+GA|Gabon
+GM|Gambia
+GE|Georgia
+DE|Germany
+GH|Ghana
+GI|Gibraltar
+GR|Greece
+GL|Greenland
+GD|Grenada
+GP|Guadeloupe
+GU|Guam
+GT|Guatemala
+GG|Guernsey
+GN|Guinea
+GW|Guinea-Bissau
+GY|Guyana
+HT|Haiti
+HM|Heard Island and McDonald Islands
+VA|Holy See
+HN|Honduras
+HK|Hong Kong
+HU|Hungary
+IS|Iceland
+IN|India
+ID|Indonesia
+IR|Iran
+IQ|Iraq
+IE|Ireland
+IM|Isle of Man
+IL|Israel
+IT|Italy
+JM|Jamaica
+JP|Japan
+JE|Jersey
+JO|Jordan
+KZ|Kazakhstan
+KE|Kenya
+KI|Kiribati
+KP|North Korea
+KR|South Korea
+KW|Kuwait
+KG|Kyrgyzstan
+LA|Laos
+LV|Latvia
+LB|Lebanon
+LS|Lesotho
+LR|Liberia
+LY|Libya
+LI|Liechtenstein
+LT|Lithuania
+LU|Luxembourg
+MO|Macao
+MK|North Macedonia
+MG|Madagascar
+MW|Malawi
+MY|Malaysia
+MV|Maldives
+ML|Mali
+MT|Malta
+MH|Marshall Islands
+MQ|Martinique
+MR|Mauritania
+MU|Mauritius
+YT|Mayotte
+MX|Mexico
+FM|Micronesia
+MD|Moldova
+MC|Monaco
+MN|Mongolia
+ME|Montenegro
+MS|Montserrat
+MA|Morocco
+MZ|Mozambique
+MM|Myanmar
+NA|Namibia
+NR|Nauru
+NP|Nepal
+NL|Netherlands
+NC|New Caledonia
+NZ|New Zealand
+NI|Nicaragua
+NE|Niger
+NG|Nigeria
+NU|Niue
+NF|Norfolk Island
+MP|Northern Mariana Islands
+NO|Norway
+OM|Oman
+PK|Pakistan
+PW|Palau
+PS|Palestine
+PA|Panama
+PG|Papua New Guinea
+PY|Paraguay
+PE|Peru
+PH|Philippines
+PN|Pitcairn
+PL|Poland
+PT|Portugal
+PR|Puerto Rico
+QA|Qatar
+RE|Reunion
+RO|Romania
+RU|Russian Federation
+RW|Rwanda
+BL|Saint Barthelemy
+SH|Saint Helena Ascension and Tristan da Cunha
+KN|Saint Kitts and Nevis
+LC|Saint Lucia
+MF|Saint Martin
+PM|Saint Pierre and Miquelon
+VC|Saint Vincent and the Grenadines
+WS|Samoa
+SM|San Marino
+ST|Sao Tome and Principe
+SA|Saudi Arabia
+SN|Senegal
+RS|Serbia
+SC|Seychelles
+SL|Sierra Leone
+SG|Singapore
+SX|Sint Maarten
+SK|Slovakia
+SI|Slovenia
+SB|Solomon Islands
+SO|Somalia
+ZA|South Africa
+GS|South Georgia and the South Sandwich Islands
+SS|South Sudan
+ES|Spain
+LK|Sri Lanka
+SD|Sudan
+SR|Suriname
+SJ|Svalbard and Jan Mayen
+SE|Sweden
+CH|Switzerland
+SY|Syrian Arab Republic
+TW|Taiwan
+TJ|Tajikistan
+TZ|Tanzania
+TH|Thailand
+TL|Timor-Leste
+TG|Togo
+TK|Tokelau
+TO|Tonga
+TT|Trinidad and Tobago
+TN|Tunisia
+TR|Turkey
+TM|Turkmenistan
+TC|Turks and Caicos Islands
+TV|Tuvalu
+UG|Uganda
+UA|Ukraine
+AE|United Arab Emirates
+GB|United Kingdom
+US|United States
+UM|United States Minor Outlying Islands
+UY|Uruguay
+UZ|Uzbekistan
+VU|Vanuatu
+VE|Venezuela
+VN|Vietnam
+VG|Virgin Islands British
+VI|Virgin Islands US
+WF|Wallis and Futuna
+EH|Western Sahara
+YE|Yemen
+ZM|Zambia
+ZW|Zimbabwe`;
+
+  function populateCountrySelects() {
+    const selects = document.querySelectorAll('select[data-country]');
+    if (!selects.length) return;
+    const options = COUNTRY_DATA.split('\n')
+      .map((line) => line.trim())
+      .filter((line) => !!line && line.includes('|'))
+      .map((line) => {
+        const [code, name] = line.split('|');
+        return { code: code.toUpperCase(), name };
+      });
+    selects.forEach((sel) => {
+      // Clear existing
+      while (sel.options.length > 1) sel.remove(1);
+      options.forEach(({ code, name }) => {
+        const opt = document.createElement('option');
+        opt.value = code;
+        opt.textContent = `${code} — ${name}`;
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', populateCountrySelects);
+  } else {
+    populateCountrySelects();
+  }
+
+  const captchaState = {
+    configPromise: null,
+    scriptPromise: null,
+    widgets: new WeakMap(),
+  };
+
+  function defaultCaptchaConfig() {
+    return {
+      provider: 'turnstile',
+      enabled: false,
+      required: false,
+      siteKey: null,
+    };
+  }
+
+  function normalizeCaptchaConfig(data) {
+    if (!data || typeof data !== 'object') return defaultCaptchaConfig();
+    return {
+      provider: data.provider === 'turnstile' ? 'turnstile' : 'turnstile',
+      enabled: !!data.enabled,
+      required: !!data.required,
+      siteKey: typeof data.siteKey === 'string' && data.siteKey.trim() ? data.siteKey.trim() : null,
+    };
+  }
+
+  async function fetchCaptchaConfig() {
+    if (captchaState.configPromise) return captchaState.configPromise;
+
+    captchaState.configPromise = fetch('/api/public/captcha-config', {
+      headers: { Accept: 'application/json' },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`captcha-config ${response.status}`);
+        }
+        const payload = await response.json();
+        return normalizeCaptchaConfig(payload);
+      })
+      .catch((error) => {
+        console.warn('[captcha] Unable to load captcha config:', error);
+        return defaultCaptchaConfig();
+      });
+
+    return captchaState.configPromise;
+  }
+
+  async function ensureTurnstileScript() {
+    if (window.turnstile && typeof window.turnstile.render === 'function') return;
+    if (captchaState.scriptPromise) return captchaState.scriptPromise;
+
+    captchaState.scriptPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-turnstile-script]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => reject(new Error('Turnstile script failed to load')), { once: true });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async = true;
+      script.defer = true;
+      script.setAttribute('data-turnstile-script', 'true');
+      script.addEventListener('load', () => resolve(), { once: true });
+      script.addEventListener('error', () => reject(new Error('Turnstile script failed to load')), { once: true });
+      document.head.appendChild(script);
+    })
+      .catch((error) => {
+        captchaState.scriptPromise = null;
+        throw error;
+      });
+
+    return captchaState.scriptPromise;
+  }
+
+  function ensureCaptchaSlot(form, statusElement) {
+    const externalSelector = String(form.getAttribute('data-captcha-container') || '').trim();
+    let externalContainer = null;
+
+    if (externalSelector) {
+      try {
+        externalContainer = document.querySelector(externalSelector);
+      } catch {
+        externalContainer = null;
+      }
+    }
+
+    let slot = externalContainer
+      ? externalContainer.querySelector('[data-captcha-slot]')
+      : form.querySelector('[data-captcha-slot]');
+    if (slot) return slot;
+
+    slot = document.createElement('div');
+    slot.className = 'captcha-slot';
+    slot.setAttribute('data-captcha-slot', 'turnstile');
+
+    if (externalContainer) {
+      externalContainer.appendChild(slot);
+      return slot;
+    }
+
+    if (statusElement && statusElement.parentElement === form) {
+      form.insertBefore(slot, statusElement);
+    } else {
+      form.appendChild(slot);
+    }
+
+    return slot;
+  }
+
+  async function ensureTurnstileWidget(form, statusElement, action) {
+    const config = await fetchCaptchaConfig();
+    if (!config.enabled || !config.siteKey || config.provider !== 'turnstile') {
+      return null;
+    }
+
+    await ensureTurnstileScript();
+
+    const existing = captchaState.widgets.get(form);
+    if (existing) return existing;
+
+    const slot = ensureCaptchaSlot(form, statusElement);
+    slot.innerHTML = '';
+
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = 'captchaToken';
+
+    const widgetMount = document.createElement('div');
+    slot.appendChild(widgetMount);
+    slot.appendChild(hiddenInput);
+
+    const widgetId = window.turnstile.render(widgetMount, {
+      sitekey: config.siteKey,
+      action,
+      theme: 'light',
+      callback: (token) => {
+        hiddenInput.value = token || '';
+      },
+      'expired-callback': () => {
+        hiddenInput.value = '';
+      },
+      'error-callback': () => {
+        hiddenInput.value = '';
+      },
+    });
+
+    const record = { widgetId, hiddenInput };
+    captchaState.widgets.set(form, record);
+    return record;
+  }
+
+  async function getCaptchaToken(form, statusElement, action) {
+    const config = await fetchCaptchaConfig();
+    if (!config.enabled || config.provider !== 'turnstile' || !config.siteKey) {
+      return { token: '', required: false };
+    }
+
+    let widget;
+    try {
+      widget = await ensureTurnstileWidget(form, statusElement, action);
+    } catch (error) {
+      console.warn('[captcha] Unable to initialize widget:', error);
+      return { token: '', required: config.required };
+    }
+
+    if (!widget) return { token: '', required: config.required };
+
+    let token = (widget.hiddenInput.value || '').trim();
+    if (!token && window.turnstile && typeof window.turnstile.getResponse === 'function') {
+      token = String(window.turnstile.getResponse(widget.widgetId) || '').trim();
+    }
+
+    return { token, required: config.required };
+  }
+
+  function resetCaptcha(form) {
+    const widget = captchaState.widgets.get(form);
+    if (!widget) return;
+    widget.hiddenInput.value = '';
+    if (window.turnstile && typeof window.turnstile.reset === 'function') {
+      try {
+        window.turnstile.reset(widget.widgetId);
+      } catch {
+        // Ignore reset failures (script unload or stale widget).
+      }
+    }
+  }
+
+  async function readErrorMessage(response) {
+    const text = await response.text();
+    if (!text) return 'Request failed';
+    try {
+      const payload = JSON.parse(text);
+      if (typeof payload?.message === 'string' && payload.message.trim()) return payload.message.trim();
+      if (Array.isArray(payload?.message) && payload.message.length > 0) {
+        return String(payload.message[0]);
+      }
+    } catch {
+      // fall through
+    }
+    return text;
+  }
+
+  function collectErrorSignals(node, out, depth) {
+    if (depth > 6 || node == null) return;
+
+    if (typeof node === 'string') {
+      const value = node.trim();
+      if (value) out.messages.push(value);
+      return;
+    }
+
+    if (Array.isArray(node)) {
+      node.forEach((item) => collectErrorSignals(item, out, depth + 1));
+      return;
+    }
+
+    if (typeof node !== 'object') return;
+
+    Object.entries(node).forEach(([key, value]) => {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey === 'code' && typeof value === 'string' && value.trim()) {
+        out.codes.push(value.trim());
+      }
+
+      if (
+        (lowerKey === 'message'
+          || lowerKey === 'error'
+          || lowerKey === 'detail'
+          || lowerKey === 'description')
+        && typeof value === 'string'
+        && value.trim()
+      ) {
+        out.messages.push(value.trim());
+      }
+
+      collectErrorSignals(value, out, depth + 1);
+    });
+  }
+
+  function pickBestErrorMessage(messages) {
+    const blacklist = new Set(['bad request', 'request failed', '[object object]']);
+    const firstUseful = messages.find((entry) => {
+      const normalized = String(entry || '').trim().toLowerCase();
+      return normalized && !blacklist.has(normalized);
+    });
+    return firstUseful || messages[0] || '';
+  }
+
+  async function readErrorDetails(response) {
+    const status = Number(response?.status || 0);
+    const text = await response.text();
+    if (!text) {
+      return { status, code: '', message: 'Request failed' };
+    }
+
+    try {
+      const payload = JSON.parse(text);
+      const signals = { codes: [], messages: [] };
+      collectErrorSignals(payload, signals, 0);
+      const code = signals.codes[0] || '';
+      const message = pickBestErrorMessage(signals.messages) || text;
+      return { status, code, message };
+    } catch {
+      return { status, code: '', message: text };
+    }
+  }
+
+  function resolveTrialSignupErrorMessage(detail, code, status) {
+    if (String(code || '').trim().toUpperCase() === 'SUBDOMAIN_NOT_AVAILABLE') {
+      return "This subdomain name isn't available. Please try another one.";
+    }
+
+    const normalized = String(detail || '').trim().toLowerCase();
+    if (!normalized) {
+      return "This subdomain name isn't available. Please try another one.";
+    }
+
+    if (
+      normalized.includes('slug not available')
+      || normalized.includes('tenant already exists')
+      || normalized.includes('subdomain not available')
+      || normalized.includes('subdomain_not_available')
+      || normalized.includes("isn't available")
+      || (status === 409 && normalized.includes('tenant'))
+      || (status === 400 && (normalized === 'bad request' || normalized === '[object object]'))
+    ) {
+      return "This subdomain name isn't available. Please try another one.";
+    }
+
+    return "This subdomain name isn't available. Please try another one.";
+  }
+
+  const modal = document.querySelector('.trial-modal');
+  const openers = document.querySelectorAll('[data-open-trial]');
+  const body = document.body;
+
+  if (modal) {
+    const closeBtn = modal.querySelector('[data-close-trial]');
+    const trialForm = modal.querySelector('[data-trial-form]');
+    const trialStatus = modal.querySelector('[data-trial-status]');
+
+    function openModal() {
+      modal.classList.add('open');
+      body.style.overflow = 'hidden';
+      const orgInput = modal.querySelector('#org');
+      if (orgInput) orgInput.focus();
+      if (trialForm && trialStatus) {
+        ensureTurnstileWidget(trialForm, trialStatus, 'start_trial').catch((error) => {
+          console.warn('[captcha] Trial captcha widget initialization failed:', error);
+        });
+      }
+    }
+
+    function closeModal() {
+      modal.classList.remove('open');
+      body.style.overflow = '';
+      if (trialStatus) trialStatus.textContent = '';
+      if (trialForm) {
+        trialForm.reset();
+        resetCaptcha(trialForm);
+        const submitBtn = trialForm.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.removeAttribute('disabled');
+      }
+    }
+
+    openers.forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        openModal();
+      });
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+    }
+
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && modal.classList.contains('open')) {
+        closeModal();
+      }
+    });
+
+    if (trialForm && trialStatus) {
+      trialForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const submitBtn = trialForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.setAttribute('disabled', 'true');
+        }
+
+        trialStatus.textContent = 'Creating your workspace...';
+        const captcha = await getCaptchaToken(trialForm, trialStatus, 'start_trial');
+        if (captcha.required && !captcha.token) {
+          trialStatus.textContent = 'Please complete the CAPTCHA challenge before submitting.';
+          if (submitBtn) submitBtn.removeAttribute('disabled');
+          return;
+        }
+
+        const payload = {
+          org: trialForm.org.value.trim(),
+          slug: trialForm.slug.value.trim(),
+          email: trialForm.email.value.trim(),
+          country_iso: (trialForm.country_iso?.value || '').toString().toUpperCase().trim(),
+          captchaToken: captcha.token || undefined,
+        };
+
+        try {
+          const response = await fetch('/api/public/start-trial', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const details = await readErrorDetails(response);
+            const error = new Error(details.message || 'Request failed');
+            error.code = details.code;
+            error.status = details.status;
+            throw error;
+          }
+
+          const data = await response.json();
+          if (data && data.ok) {
+            if (trialForm) {
+              Array.from(trialForm.elements).forEach((el) => {
+                if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement || el instanceof HTMLButtonElement) {
+                  el.disabled = true;
+                }
+              });
+            }
+            if (data.activation_url) {
+              trialStatus.innerHTML =
+                '<span class="alert">Email service is not configured. Use the link below to activate your workspace manually.</span>';
+              const manual = document.createElement('p');
+              manual.style.marginTop = '0.5rem';
+              manual.innerHTML = `Activation link: <a href="${data.activation_url}">${data.activation_url}</a>`;
+              trialStatus.appendChild(manual);
+            } else {
+              trialStatus.innerHTML = '<span class="alert">Check your inbox to activate your workspace.</span>';
+            }
+            return;
+          }
+          throw new Error('Unexpected response format');
+        } catch (error) {
+          console.error(error);
+          const detail = error instanceof Error ? error.message : '';
+          const code = typeof error?.code === 'string' ? error.code : '';
+          const status = Number(error?.status || 0);
+          if (/captcha/i.test(detail) || String(code).toLowerCase().includes('captcha')) {
+            trialStatus.textContent = 'CAPTCHA verification failed. Please retry the challenge.';
+          } else {
+            trialStatus.textContent = resolveTrialSignupErrorMessage(detail, code, status);
+          }
+          resetCaptcha(trialForm);
+          if (submitBtn) {
+            submitBtn.removeAttribute('disabled');
+          }
+        }
+      });
+    }
+  }
+
+  const enterpriseModal = document.querySelector('.enterprise-invoice-modal');
+  const enterpriseOpeners = document.querySelectorAll('[data-open-enterprise-invoice], [data-stripe-link="enterprise-support"]');
+
+  if (enterpriseModal) {
+    const closeBtn = enterpriseModal.querySelector('[data-close-enterprise-invoice]');
+    const enterpriseForm = enterpriseModal.querySelector('[data-enterprise-invoice-form]');
+    const enterpriseStatus = enterpriseModal.querySelector('[data-enterprise-invoice-status]');
+
+    const releaseBodyScrollIfNoOpenModal = () => {
+      const trialOpen = !!(modal && modal.classList.contains('open'));
+      const enterpriseOpen = enterpriseModal.classList.contains('open');
+      if (!trialOpen && !enterpriseOpen) {
+        body.style.overflow = '';
+      }
+    };
+
+    const openEnterpriseModal = () => {
+      enterpriseModal.classList.add('open');
+      body.style.overflow = 'hidden';
+      const companyInput = enterpriseModal.querySelector('#enterprise_company_name');
+      if (companyInput) companyInput.focus();
+      if (enterpriseForm && enterpriseStatus) {
+        ensureTurnstileWidget(enterpriseForm, enterpriseStatus, 'support_invoice').catch((error) => {
+          console.warn('[captcha] Enterprise support captcha widget initialization failed:', error);
+        });
+      }
+    };
+
+    const closeEnterpriseModal = () => {
+      enterpriseModal.classList.remove('open');
+      releaseBodyScrollIfNoOpenModal();
+      if (enterpriseStatus) enterpriseStatus.textContent = '';
+      if (enterpriseForm) {
+        enterpriseForm.reset();
+        resetCaptcha(enterpriseForm);
+        const submitBtn = enterpriseForm.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.removeAttribute('disabled');
+        Array.from(enterpriseForm.elements).forEach((el) => {
+          if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement || el instanceof HTMLButtonElement) {
+            el.disabled = false;
+          }
+        });
+      }
+    };
+
+    enterpriseOpeners.forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        openEnterpriseModal();
+      });
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeEnterpriseModal);
+    }
+
+    enterpriseModal.addEventListener('click', (event) => {
+      if (event.target === enterpriseModal) {
+        closeEnterpriseModal();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && enterpriseModal.classList.contains('open')) {
+        closeEnterpriseModal();
+      }
+    });
+
+    if (enterpriseForm && enterpriseStatus) {
+      enterpriseForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submitBtn = enterpriseForm.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.setAttribute('disabled', 'true');
+
+        enterpriseStatus.textContent = 'Preparing your invoice request...';
+        const captcha = await getCaptchaToken(enterpriseForm, enterpriseStatus, 'support_invoice');
+        if (captcha.required && !captcha.token) {
+          enterpriseStatus.textContent = 'Please complete the CAPTCHA challenge before submitting.';
+          if (submitBtn) submitBtn.removeAttribute('disabled');
+          return;
+        }
+
+        const formData = new FormData(enterpriseForm);
+        const requiredValue = (name) => String(formData.get(name) || '').trim();
+        const optionalValue = (name) => {
+          const value = String(formData.get(name) || '').trim();
+          return value || undefined;
+        };
+
+        const payload = {
+          company_name: requiredValue('company_name'),
+          contact_name: requiredValue('contact_name'),
+          billing_email: requiredValue('billing_email'),
+          country: requiredValue('country'),
+          vat_id: optionalValue('vat_id'),
+          address_line1: optionalValue('address_line1'),
+          address_line2: optionalValue('address_line2'),
+          city: optionalValue('city'),
+          postal_code: optionalValue('postal_code'),
+          captchaToken: captcha.token || undefined,
+        };
+
+        try {
+          const response = await fetch('/api/public/request-support-invoice', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const message = await readErrorMessage(response);
+            throw new Error(message || 'Request failed');
+          }
+
+          const data = await response.json();
+          if (data && data.ok) {
+            Array.from(enterpriseForm.elements).forEach((el) => {
+              if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement || el instanceof HTMLButtonElement) {
+                el.disabled = true;
+              }
+            });
+            const hostedInvoiceUrl = typeof data.hosted_invoice_url === 'string' ? data.hosted_invoice_url : '';
+            if (hostedInvoiceUrl) {
+              enterpriseStatus.innerHTML =
+                `<span class="alert">Invoice request submitted. We sent it to your billing email. <a href="${hostedInvoiceUrl}" target="_blank" rel="noopener noreferrer">Open invoice</a>.</span>`;
+            } else {
+              enterpriseStatus.innerHTML =
+                '<span class="alert">Invoice request submitted. Please check your billing email for invoice details.</span>';
+            }
+            return;
+          }
+          throw new Error('Unexpected response format');
+        } catch (error) {
+          console.error(error);
+          const detail = error instanceof Error ? error.message : '';
+          if (/captcha/i.test(detail)) {
+            enterpriseStatus.textContent = 'CAPTCHA verification failed. Please retry the challenge.';
+          } else if (detail) {
+            enterpriseStatus.textContent = detail;
+          } else {
+            enterpriseStatus.textContent = 'We could not submit your invoice request. Please try again or contact support@kanap.net.';
+          }
+          resetCaptcha(enterpriseForm);
+          if (submitBtn) submitBtn.removeAttribute('disabled');
+        }
+      });
+    }
+  }
+
+  const contactForm = document.querySelector('[data-contact-form]');
+  const contactStatus = document.querySelector('[data-contact-status]');
+
+  if (contactForm && contactStatus) {
+    ensureTurnstileWidget(contactForm, contactStatus, 'contact').catch((error) => {
+      console.warn('[captcha] Contact captcha widget initialization failed:', error);
+    });
+
+    contactForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const submitBtn = contactForm.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.setAttribute('disabled', 'true');
+
+      contactStatus.textContent = 'Sending your message...';
+      const captcha = await getCaptchaToken(contactForm, contactStatus, 'contact');
+      if (captcha.required && !captcha.token) {
+        contactStatus.textContent = 'Please complete the CAPTCHA challenge before sending your message.';
+        if (submitBtn) submitBtn.removeAttribute('disabled');
+        return;
+      }
+
+      const payload = {
+        name: contactForm.name.value.trim(),
+        email: contactForm.email.value.trim(),
+        company: contactForm.company.value.trim(),
+        message: contactForm.message.value.trim(),
+        captchaToken: captcha.token || undefined,
+      };
+
+      try {
+        const response = await fetch('/api/public/contact', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const message = await readErrorMessage(response);
+          throw new Error(message || 'Request failed');
+        }
+
+        const data = await response.json();
+        if (data && data.ok) {
+          contactStatus.innerHTML =
+            '<span class="alert">Thank you! We will reply within one business day.</span>';
+          contactForm.reset();
+          return;
+        }
+        throw new Error('Unexpected response format');
+      } catch (error) {
+        console.error(error);
+        const detail = error instanceof Error ? error.message : '';
+        if (/captcha/i.test(detail)) {
+          contactStatus.textContent = 'CAPTCHA verification failed. Please retry the challenge.';
+        } else {
+          contactStatus.textContent = 'We could not send your message. Please try again or email support@kanap.net directly.';
+        }
+        resetCaptcha(contactForm);
+      } finally {
+        if (submitBtn) submitBtn.removeAttribute('disabled');
+      }
+    });
+  }
+
+
+  const activationContainer = document.querySelector('[data-activation]');
+  const activationMessage = activationContainer?.querySelector('[data-activation-message]');
+  const activationActions = activationContainer?.querySelector('[data-activation-actions]');
+
+  if (activationContainer && activationMessage) {
+    const hashParams = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash);
+    const queryParams = new URLSearchParams(window.location.search);
+    // TODO: remove query-string fallback after one release.
+    const token = hashParams.get('token') || queryParams.get('token');
+    if (token && (window.location.hash || window.location.search)) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    if (!token) {
+      activationMessage.textContent = 'Activation token is missing. Create a new workspace from the home page.';
+      if (activationActions) activationActions.removeAttribute('hidden');
+      return;
+    }
+
+    const redirectAfter = (tenantUrl, resetToken) => {
+      const base = tenantUrl.replace(/\/$/, '');
+      const fragment = new URLSearchParams({ token: resetToken, from: 'trial' });
+      const target = `${base}/reset-password#${fragment.toString()}`;
+      activationMessage.textContent = 'Tenant created. Redirecting you to set your password...';
+      window.setTimeout(() => {
+        window.location.href = target;
+      }, 1200);
+    };
+
+    (async () => {
+      activationMessage.textContent = 'Activating your workspace...';
+      try {
+        const response = await fetch('/api/public/activate-trial', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token }),
+        });
+
+        if (!response.ok) {
+          const detail = await response.text();
+          throw new Error(detail || 'Activation failed');
+        }
+
+        const data = await response.json();
+        if (data && data.tenant_url && data.reset_token) {
+          redirectAfter(data.tenant_url, data.reset_token);
+        } else {
+          throw new Error('Unexpected response format');
+        }
+      } catch (error) {
+        console.error(error);
+        activationMessage.textContent = 'We could not activate your workspace. The link may have expired. Create a new workspace from the home page.';
+        if (activationActions) activationActions.removeAttribute('hidden');
+      }
+    })();
+  }
+})();

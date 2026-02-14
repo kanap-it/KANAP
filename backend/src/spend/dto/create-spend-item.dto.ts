@@ -1,0 +1,58 @@
+import { z } from 'zod';
+
+/**
+ * Zod schema for creating a spend item.
+ */
+export const CreateSpendItemSchema = z.object({
+  /** Product name (required) */
+  product_name: z.string().min(1, 'Product name is required'),
+
+  /** Description (optional) */
+  description: z.string().nullable().optional(),
+
+  /** Currency code (3 characters) */
+  currency: z.string().length(3, 'Currency must be a 3-character code'),
+
+  /** Effective start date (YYYY-MM-DD) */
+  effective_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+
+  /** Effective end date (optional, YYYY-MM-DD) */
+  effective_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').nullable().optional(),
+
+  /** Paying company ID (optional) */
+  paying_company_id: z.string().uuid().nullable().optional(),
+
+  /** Account ID (optional) */
+  account_id: z.string().uuid().nullable().optional(),
+
+  /** Supplier ID (optional) */
+  supplier_id: z.string().uuid().nullable().optional(),
+
+  /** IT Owner ID (optional) */
+  owner_it_id: z.string().uuid().nullable().optional(),
+
+  /** Business Owner ID (optional) */
+  owner_business_id: z.string().uuid().nullable().optional(),
+
+  /** Analytics Category ID (optional) */
+  analytics_category_id: z.string().uuid().nullable().optional(),
+
+  /** Project ID (optional) */
+  project_id: z.string().uuid().nullable().optional(),
+
+  /** Contract ID (optional) */
+  contract_id: z.string().uuid().nullable().optional(),
+
+  /** Notes (optional) */
+  notes: z.string().nullable().optional(),
+});
+
+export type CreateSpendItemInput = z.input<typeof CreateSpendItemSchema>;
+export type CreateSpendItemDto = z.output<typeof CreateSpendItemSchema>;
+
+/**
+ * Parse and validate create spend item input.
+ */
+export function parseCreateSpendItem(input: unknown): CreateSpendItemDto {
+  return CreateSpendItemSchema.parse(input);
+}

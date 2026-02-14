@@ -1,0 +1,171 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import PageHeader from '../../components/PageHeader';
+import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
+import { Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, TextField, Alert } from '@mui/material';
+// no special tenant checks here; backend enforces platform admin
+import { COUNTRY_OPTIONS } from '../../constants/isoOptions';
+import DeleteSelectedButton from '../../components/DeleteSelectedButton';
+import api from '../../api';
+import CsvExportDialog from '../../components/csv/CsvExportDialog';
+import CsvImportDialog from '../../components/csv/CsvImportDialog';
+
+type Template = {
+  id: string;
+  country_iso: string | null;
+  template_code: string;
+  template_name: string;
+  version: string;
+  is_global?: boolean;
+  loaded_by_default?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+function TemplateDialog({ open, onClose, onSaved, initial }: { open: boolean; onClose: () => void; onSaved: () => void; initial?: Partial<Template> }) {
+  const [country, setCountry] = useState(initial?.country_iso ?? '');
+  const [code, setCode] = useState(initial?.template_code ?? '');
+  const [name, setName] = useState(initial?.template_name ?? '');
+  const [version, setVersion] = useState(initial?.version ?? '');
+  const [isGlobal, setIsGlobal] = useState<boolean>(!!initial?.is_global || initial?.country_iso == null);
+  const [loadedByDefault, setLoadedByDefault] = useState<boolean>(!!initial?.loaded_by_default);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setCountry(initial?.country_iso ?? '');
+    setCode(initial?.template_code ?? '');
+    setName(initial?.template_name ?? '');
+    setVersion(initial?.version ?? '');
+    setIsGlobal(!!initial?.is_global || initial?.country_iso == null);
+    setLoadedByDefault(!!initial?.loaded_by_default);
+    setError(null);
+  }, [initial, open]);
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const payload: any = { template_code: code, template_name: name, version, is_global: isGlobal, loaded_by_default: loadedByDefault };
+      if (!isGlobal) payload.country_iso = country;
+      if (initial?.id) await api.patch(`/admin/coa-templates/${initial.id}`, payload);
+      else await api.post(`/admin/coa-templates`, payload);
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Save failed');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>{initial?.id ? 'Edit CoA Template' : 'New CoA Template'}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <FormControlLabel control={<Checkbox checked={isGlobal} onChange={(e) => setIsGlobal(e.target.checked)} />} label="All countries (global template)" />
+          {!isGlobal && (
+            <TextField select label="Country" value={country} onChange={(e) => setCountry(e.target.value)} required size="small">
+              {COUNTRY_OPTIONS.map((c) => (
+                <MenuItem key={c.code} value={c.code}>{c.code} — {c.name}</MenuItem>
+              ))}
+            </TextField>
+          )}
+          <TextField label="Template Code" value={code} onChange={(e) => setCode(e.target.value)} required size="small" />
+          <TextField label="Template Name" value={name} onChange={(e) => setName(e.target.value)} required size="small" />
+          <TextField label="Version" value={version} onChange={(e) => setVersion(e.target.value)} required size="small" />
+          {isGlobal && (
+            <FormControlLabel control={<Checkbox checked={loadedByDefault} onChange={(e) => setLoadedByDefault(e.target.checked)} />} label="Loaded by default for all new tenants" />
+          )}
+          {error && <Alert severity="error">{error}</Alert>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button onClick={save} variant="contained" disabled={saving}>Save</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+export default function AdminCoaTemplatesPage() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedRows, setSelectedRows] = useState<Template[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editInitial, setEditInitial] = useState<Partial<Template> | undefined>(undefined);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const gridApiRef = useRef<any>(null);
+
+  const columns: EnhancedColDef<Template>[] = useMemo(() => [
+    { field: 'template_code', headerName: 'Code', width: 160, required: true },
+    { field: 'template_name', headerName: 'Name', flex: 1, required: true },
+    { field: 'version', headerName: 'Version', width: 120 },
+    { field: 'country_iso', headerName: 'Scope', width: 150, valueFormatter: (p: any) => (!p.value ? 'All countries' : p.value) },
+    { field: 'loaded_by_default', headerName: 'Loaded by default', width: 170, valueFormatter: (p: any) => (p.value ? 'Yes' : 'No') },
+    { field: 'updated_at', headerName: 'Updated', width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : '') },
+  ], []);
+
+  const actions = (
+    <Stack direction="row" spacing={1}>
+      <Button variant="contained" onClick={() => { setEditInitial(undefined); setEditOpen(true); }}>New</Button>
+      <Button disabled={selectedRows.length !== 1} onClick={() => { setEditInitial(selectedRows[0]); setEditOpen(true); }}>Edit</Button>
+      <Button disabled={selectedRows.length !== 1} onClick={() => setImportOpen(true)}>Import CSV</Button>
+      <Button disabled={selectedRows.length !== 1} onClick={() => setExportOpen(true)}>Export CSV</Button>
+      <DeleteSelectedButton
+        selectedRows={selectedRows}
+        endpoint="/admin/coa-templates/bulk" // not implemented; fall back to single delete below
+        getItemId={(row) => row.id}
+        getItemName={(row) => `${row.template_code} ${row.version}`}
+        onDeleteSuccess={() => setRefreshKey((k) => k + 1)}
+        gridApi={gridApiRef.current}
+        disabled
+      />
+      <Button
+        color="error"
+        disabled={selectedRows.length !== 1}
+        onClick={async () => { await api.delete(`/admin/coa-templates/${selectedRows[0].id}`); setRefreshKey((k) => k + 1); }}
+      >Delete</Button>
+    </Stack>
+  );
+
+  return (
+    <>
+      <PageHeader title="CoA Templates (Platform Admin)" actions={actions} />
+      <ServerDataGrid<Template>
+        columns={columns}
+        endpoint="/admin/coa-templates"
+        queryKey="admin-coa-templates"
+        defaultSort={{ field: 'updated_at', direction: 'DESC' }}
+        refreshKey={refreshKey}
+        columnPreferencesKey="admin-coa-templates"
+        enableRowSelection
+        onSelectionChanged={(rows) => setSelectedRows(rows as Template[])}
+        onGridApiReady={(api) => { gridApiRef.current = api; }}
+      />
+
+      <TemplateDialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => setRefreshKey((k) => k + 1)}
+        initial={editInitial}
+      />
+
+      {selectedRows.length === 1 && (
+        <CsvExportDialog
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          endpoint={`/admin/coa-templates/${selectedRows[0].id}`}
+          title={`Export Template ${selectedRows[0].template_code} ${selectedRows[0].version}`}
+        />
+      )}
+      {selectedRows.length === 1 && (
+        <CsvImportDialog
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          endpoint={`/admin/coa-templates/${selectedRows[0].id}`}
+          title={`Import Template CSV — ${selectedRows[0].template_code} ${selectedRows[0].version}`}
+          onImported={() => setRefreshKey((k) => k + 1)}
+        />
+      )}
+    </>
+  );
+}
