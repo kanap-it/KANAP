@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { Box, Button, Stack, Chip, Tooltip, Typography, RadioGroup, FormControlLabel, Radio } from '@mui/material';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
@@ -14,6 +14,7 @@ import api from '../../api';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import CheckboxSetFilter from '../../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
+import { useGridScopePreference } from '../../hooks/useGridScopePreference';
 
 const ENV_SUMMARY = [
   { value: 'prod', label: 'Production', short: 'Prod' },
@@ -108,10 +109,10 @@ export default function ApplicationsPage() {
     }
     return null;
   }, [location.search]);
-  const [appScope, setAppScope] = useState<'my' | 'team' | 'all'>(urlAppScope || 'my');
+  const [appScope, setAppScope] = useGridScopePreference('apps', urlAppScope);
 
   // Fetch current user's team config (for My team's apps scope)
-  const { data: myTeamConfig } = useQuery({
+  const { data: myTeamConfig, isFetched: isTeamConfigFetched } = useQuery({
     queryKey: ['my-team-config', profile?.id],
     queryFn: async () => {
       const res = await api.get<{ id: string; team_id?: string | null }>(`/portfolio/team-members/by-user/${profile?.id}`);
@@ -121,6 +122,12 @@ export default function ApplicationsPage() {
   });
 
   const hasTeam = !!myTeamConfig?.team_id;
+
+  useEffect(() => {
+    if (appScope === 'team' && isTeamConfigFetched && !hasTeam) {
+      setAppScope('my');
+    }
+  }, [appScope, isTeamConfigFetched, hasTeam, setAppScope]);
 
   const lifecycleDefaultValues = useMemo(() => {
     const codes = (byField.lifecycleStatus || [])
@@ -234,7 +241,7 @@ export default function ApplicationsPage() {
     return String(v || '');
   }, [labelFor]);
   const categoryLabel = useCallback((value?: string) => labelFor('applicationCategory', value), [labelFor]);
-  const criticalityLabel = (v?: string) => {
+  const criticalityLabel = useCallback((v?: string) => {
     switch (String(v || '')) {
       case 'business_critical': return 'Business critical';
       case 'high': return 'High';
@@ -242,8 +249,8 @@ export default function ApplicationsPage() {
       case 'low': return 'Low';
       default: return String(v || '');
     }
-  };
-  const hostingModelLabel = (v?: string) => {
+  }, []);
+  const hostingModelLabel = useCallback((v?: string) => {
     switch (String(v || '')) {
       case 'on_premise': return 'On premise';
       case 'saas': return 'SaaS';
@@ -251,8 +258,8 @@ export default function ApplicationsPage() {
       case 'private_cloud': return 'Private cloud';
       default: return String(v || '');
     }
-  };
-  const environmentLabel = (v?: string) => {
+  }, []);
+  const environmentLabel = useCallback((v?: string) => {
     switch (String(v || '')) {
       case 'prod': return 'Prod';
       case 'pre_prod': return 'Pre-prod';
@@ -262,10 +269,10 @@ export default function ApplicationsPage() {
       case 'sandbox': return 'Sandbox';
       default: return String(v || '');
     }
-  };
-  const dataClassLabel = (v?: string) => {
+  }, []);
+  const dataClassLabel = useCallback((v?: string) => {
     return labelFor('dataClass', v);
-  };
+  }, [labelFor]);
 
   const getAppFilterValues = useCallback((
     field: string,
@@ -322,58 +329,67 @@ export default function ApplicationsPage() {
     return true;
   }, []);
 
+  const countryNameByCode = useMemo(
+    () => new Map(COUNTRY_OPTIONS.map((c) => [c.code.toUpperCase(), c.name])),
+    [],
+  );
+  const formatYesNo = useCallback((b?: boolean) => (b ? 'Yes' : 'No'), []);
+
   if (!hasLevel('applications', 'reader')) {
     return <ForbiddenPage />;
   }
 
-  const formatYesNo = (b?: boolean) => (b ? 'Yes' : 'No');
+  const OwnersCell = useMemo(() => {
+    const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
+      const arr = (params?.value as string[] | undefined) || [];
+      const first = arr[0] || '';
+      const extra = arr.length > 1 ? ` +${arr.length - 1}` : '';
+      const title = arr.join(', ');
+      return (
+        <Box
+          component="span"
+          sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+          title={title || undefined}
+          onClick={() => {
+            const id = (params?.data as AppRow | undefined)?.id;
+            if (!id) return;
+            const sp = buildWorkspaceSearch();
+            navigate(`/it/applications/${id}/ownership?${sp.toString()}`);
+          }}
+        >
+          {`${first}${extra}`}
+        </Box>
+      );
+    };
+    return Cell;
+  }, [buildWorkspaceSearch, navigate]);
 
-  const OwnersCell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
-    const arr = (params?.value as string[] | undefined) || [];
-    const first = arr[0] || '';
-    const extra = arr.length > 1 ? ` +${arr.length - 1}` : '';
-    const title = arr.join(', ');
-    return (
-      <Box
-        component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-        title={title || undefined}
-        onClick={() => {
-          const id = (params?.data as AppRow | undefined)?.id;
-          if (!id) return;
-          const sp = buildWorkspaceSearch();
-          navigate(`/it/applications/${id}/ownership?${sp.toString()}`);
-        }}
-      >
-        {`${first}${extra}`}
-      </Box>
-    );
-  };
+  const ResidencyCell = useMemo(() => {
+    const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
+      const arr = (params?.value as string[] | undefined) || [];
+      const firstTwo = arr.slice(0, 2);
+      const extra = arr.length > 2 ? ` +${arr.length - 2}` : '';
+      const fullNames = arr.map((c) => countryNameByCode.get(String(c || '').toUpperCase()) || String(c || ''));
+      return (
+        <Box
+          component="span"
+          sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+          title={fullNames.join(', ') || undefined}
+          onClick={() => {
+            const id = (params?.data as AppRow | undefined)?.id;
+            if (!id) return;
+            const sp = buildWorkspaceSearch();
+            navigate(`/it/applications/${id}/compliance?${sp.toString()}`);
+          }}
+        >
+          {firstTwo.join(', ')}{extra}
+        </Box>
+      );
+    };
+    return Cell;
+  }, [buildWorkspaceSearch, countryNameByCode, navigate]);
 
-  const ResidencyCell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
-    const arr = (params?.value as string[] | undefined) || [];
-    const firstTwo = arr.slice(0, 2);
-    const extra = arr.length > 2 ? ` +${arr.length - 2}` : '';
-    const nameMap = useMemo(() => new Map(COUNTRY_OPTIONS.map((c) => [c.code.toUpperCase(), c.name])), []);
-    const fullNames = arr.map((c) => nameMap.get(String(c || '').toUpperCase()) || String(c || ''));
-    return (
-      <Box
-        component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-        title={fullNames.join(', ') || undefined}
-        onClick={() => {
-          const id = (params?.data as AppRow | undefined)?.id;
-          if (!id) return;
-          const sp = buildWorkspaceSearch();
-          navigate(`/it/applications/${id}/compliance?${sp.toString()}`);
-        }}
-      >
-        {firstTwo.join(', ')}{extra}
-      </Box>
-    );
-  };
-
-  const RelationSummaryCell = (tab: 'relations') => {
+  const RelationSummaryCell = useCallback((tab: 'relations') => {
     const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
       const data = params.data as AppRow | undefined;
       const field = String((params as any)?.colDef?.field ?? '');
@@ -401,9 +417,9 @@ export default function ApplicationsPage() {
       );
     };
     return Cell;
-  };
+  }, [buildWorkspaceSearch, navigate]);
 
-  const StructureSummaryCell = (kind: 'suites' | 'components') => {
+  const StructureSummaryCell = useCallback((kind: 'suites' | 'components') => {
     const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
       const data = params.data as AppRow | undefined;
       const count = kind === 'suites' ? (data?.suites_count || 0) : (data?.components_count || 0);
@@ -428,53 +444,114 @@ export default function ApplicationsPage() {
       );
     };
     return Cell;
-  };
+  }, [buildWorkspaceSearch, navigate]);
 
-  const NameWithSuiteCell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
-    const data = params.data as AppRow | undefined;
-    const name = params.valueFormatted ?? params.value;
-    const suitesCount = data?.suites_count || 0;
-    const firstSuite = data?.first_suite_name || null;
-    const extra = suitesCount > 1 ? ` +${suitesCount - 1}` : '';
-    return (
-      <Stack component="span" direction="row" spacing={1} alignItems="center">
-        <Box component="span">
-          <Box
-            component="span"
-            sx={{ cursor: 'pointer', display: 'block', '&:hover': { color: 'primary.main' } }}
-            title={String(name || '')}
-            onClick={() => {
-              const id = data?.id; if (!id) return;
-              const sp = buildWorkspaceSearch();
-              navigate(`/it/applications/${id}/overview?${sp.toString()}`);
-            }}
-          >
-            {name}
+  const NameWithSuiteCell = useMemo(() => {
+    const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
+      const data = params.data as AppRow | undefined;
+      const name = params.valueFormatted ?? params.value;
+      const suitesCount = data?.suites_count || 0;
+      const firstSuite = data?.first_suite_name || null;
+      const extra = suitesCount > 1 ? ` +${suitesCount - 1}` : '';
+      return (
+        <Stack component="span" direction="row" spacing={1} alignItems="center">
+          <Box component="span">
+            <Box
+              component="span"
+              sx={{ cursor: 'pointer', display: 'block', '&:hover': { color: 'primary.main' } }}
+              title={String(name || '')}
+              onClick={() => {
+                const id = data?.id;
+                if (!id) return;
+                const sp = buildWorkspaceSearch();
+                navigate(`/it/applications/${id}/overview?${sp.toString()}`);
+              }}
+            >
+              {name}
+            </Box>
+            <Typography variant="caption" color="text.secondary" component="span">
+              {categoryLabel(data?.category)}
+            </Typography>
           </Box>
-          <Typography variant="caption" color="text.secondary" component="span">
-            {categoryLabel(data?.category)}
+          {(firstSuite && suitesCount > 0 && !suitesColVisible) && (
+            <Box
+              component="span"
+              sx={{ px: 0.75, py: 0.25, borderRadius: 1, bgcolor: 'action.hover', color: 'text.secondary', cursor: 'pointer', fontSize: '0.75rem' }}
+              title={`Included in: ${firstSuite}${extra}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const id = data?.id;
+                if (!id) return;
+                const sp = buildWorkspaceSearch();
+                navigate(`/it/applications/${id}/relations?${sp.toString()}`);
+              }}
+            >
+              Included in: {firstSuite}{extra}
+            </Box>
+          )}
+        </Stack>
+      );
+    };
+    return Cell;
+  }, [buildWorkspaceSearch, categoryLabel, navigate, suitesColVisible]);
+
+  const EnvironmentCell = useMemo(() => {
+    const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
+      const instances = (params.data?.instances || []) as AppInstanceSummary[];
+      const activeEnvs = ENV_SUMMARY.map((env) => {
+        const match = instances.find((inst) => inst.environment === env.value);
+        if (!isInstanceActive(match)) return null;
+        return { env, match: match as AppInstanceSummary };
+      }).filter(Boolean) as Array<{ env: typeof ENV_SUMMARY[number]; match: AppInstanceSummary }>;
+      if (activeEnvs.length === 0) {
+        return (
+          <Typography variant="body2" color="text.secondary">
+            No active environments
           </Typography>
+        );
+      }
+      return (
+        <Box
+          component="span"
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 0.5,
+            alignItems: 'center',
+            height: '100%',
+          }}
+        >
+          {activeEnvs.map(({ env, match }) => {
+            const lifecycleText = match.lifecycle ? ` · ${lifecycleLabel(match.lifecycle)}` : '';
+            const tooltip = `${env.label}${match.base_url ? ` · ${match.base_url}` : ''}${lifecycleText}`;
+            return (
+              <Tooltip key={`${params.data?.id}-${env.value}`} title={tooltip}>
+                <Chip
+                  size="small"
+                  variant="filled"
+                  color="primary"
+                  label={env.short}
+                  onClick={() => {
+                    const id = params.data?.id;
+                    if (!id) return;
+                    const sp = buildWorkspaceSearch();
+                    navigate(`/it/applications/${id}/instances?${sp.toString()}`);
+                  }}
+                />
+              </Tooltip>
+            );
+          })}
         </Box>
-        {(firstSuite && suitesCount > 0 && !suitesColVisible) && (
-          <Box
-            component="span"
-            sx={{ px: 0.75, py: 0.25, borderRadius: 1, bgcolor: 'action.hover', color: 'text.secondary', cursor: 'pointer', fontSize: '0.75rem' }}
-            title={`Included in: ${firstSuite}${extra}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              const id = data?.id; if (!id) return;
-              const sp = buildWorkspaceSearch();
-              navigate(`/it/applications/${id}/relations?${sp.toString()}`);
-            }}
-          >
-            Included in: {firstSuite}{extra}
-          </Box>
-        )}
-      </Stack>
-    );
-  };
+      );
+    };
+    return Cell;
+  }, [buildWorkspaceSearch, isInstanceActive, lifecycleLabel, navigate]);
 
-  const columns: EnhancedColDef<AppRow>[] = [
+  const SuitesSummaryCell = useMemo(() => StructureSummaryCell('suites'), [StructureSummaryCell]);
+  const ComponentsSummaryCell = useMemo(() => StructureSummaryCell('components'), [StructureSummaryCell]);
+  const RelationsSummaryCell = useMemo(() => RelationSummaryCell('relations'), [RelationSummaryCell]);
+
+  const columns: EnhancedColDef<AppRow>[] = useMemo(() => [
     {
       headerName: 'Name', field: 'name', minWidth: 200,
       cellRenderer: NameWithSuiteCell,
@@ -503,60 +580,10 @@ export default function ApplicationsPage() {
         getValues: getAppFilterValues('environments', { labelFormatter: environmentLabel }),
         searchable: false,
       },
-      cellRenderer: useMemo(() => {
-        const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
-          const instances = (params.data?.instances || []) as AppInstanceSummary[];
-          const activeEnvs = ENV_SUMMARY.map((env) => {
-            const match = instances.find((inst) => inst.environment === env.value);
-            if (!isInstanceActive(match)) return null;
-            return { env, match: match as AppInstanceSummary };
-          }).filter(Boolean) as Array<{ env: typeof ENV_SUMMARY[number]; match: AppInstanceSummary }>;
-          if (activeEnvs.length === 0) {
-            return (
-              <Typography variant="body2" color="text.secondary">
-                No active environments
-              </Typography>
-            );
-          }
-          return (
-            <Box
-              component="span"
-              sx={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 0.5,
-                alignItems: 'center',
-                height: '100%',
-              }}
-            >
-              {activeEnvs.map(({ env, match }) => {
-                const lifecycleText = match.lifecycle ? ` · ${lifecycleLabel(match.lifecycle)}` : '';
-                const tooltip = `${env.label}${match.base_url ? ` · ${match.base_url}` : ''}${lifecycleText}`;
-                return (
-                  <Tooltip key={`${params.data?.id}-${env.value}`} title={tooltip}>
-                    <Chip
-                      size="small"
-                      variant="filled"
-                      color="primary"
-                      label={env.short}
-                      onClick={() => {
-                        const id = params.data?.id;
-                        if (!id) return;
-                        const sp = buildWorkspaceSearch();
-                        navigate(`/it/applications/${id}/instances?${sp.toString()}`);
-                      }}
-                    />
-                  </Tooltip>
-                );
-              })}
-            </Box>
-          );
-        };
-        return Cell;
-      }, [buildWorkspaceSearch, navigate, lifecycleLabel, isInstanceActive]),
+      cellRenderer: EnvironmentCell,
     },
     // Suites is available in chooser but hidden by default
-    { headerName: 'Suites', field: 'suites_count', width: 200, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: useMemo(() => StructureSummaryCell('suites'), []) },
+    { headerName: 'Suites', field: 'suites_count', width: 200, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: SuitesSummaryCell },
     {
       headerName: 'Lifecycle',
       field: 'lifecycle',
@@ -655,12 +682,12 @@ export default function ApplicationsPage() {
     },
     { headerName: 'Data Integration / ETL', field: 'etl_enabled', width: 190, defaultHidden: true, sortable: false, filter: 'agSetColumnFilter', filterParams: { values: [true, false], suppressMiniFilter: true }, valueFormatter: (p: any) => formatYesNo(!!p.value), cellRenderer: ClickToTechnical },
 
-    { headerName: 'OPEX Items', field: 'spend_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: useMemo(() => RelationSummaryCell('relations'), []) },
-    { headerName: 'CAPEX Items', field: 'capex_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: useMemo(() => RelationSummaryCell('relations'), []) },
-    { headerName: 'Contracts', field: 'contracts_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: useMemo(() => RelationSummaryCell('relations'), []) },
+    { headerName: 'OPEX Items', field: 'spend_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: RelationsSummaryCell },
+    { headerName: 'CAPEX Items', field: 'capex_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: RelationsSummaryCell },
+    { headerName: 'Contracts', field: 'contracts_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: RelationsSummaryCell },
 
     // Structure: Components column remains optional
-    { headerName: 'Components', field: 'components_count', width: 200, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: useMemo(() => StructureSummaryCell('components'), []) },
+    { headerName: 'Components', field: 'components_count', width: 200, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: ComponentsSummaryCell },
 
     {
       headerName: 'Data Class',
@@ -692,7 +719,27 @@ export default function ApplicationsPage() {
       cellRenderer: ClickToCompliance,
     },
     { headerName: 'Data Residency', field: 'data_residency', width: 200, defaultHidden: true, sortable: false, filter: 'agTextColumnFilter', cellRenderer: ResidencyCell },
-  ];
+  ], [
+    ClickToCompliance,
+    ClickToOverview,
+    ClickToOwnership,
+    ClickToTechnical,
+    ComponentsSummaryCell,
+    EnvironmentCell,
+    NameWithSuiteCell,
+    OwnersCell,
+    RelationsSummaryCell,
+    ResidencyCell,
+    SuitesSummaryCell,
+    categoryLabel,
+    criticalityLabel,
+    dataClassLabel,
+    environmentLabel,
+    formatYesNo,
+    getAppFilterValues,
+    labelFor,
+    lifecycleLabel,
+  ]);
 
   const initialState = useMemo(() => {
     if (!initialFilterModel) return undefined;
@@ -702,12 +749,21 @@ export default function ApplicationsPage() {
       },
     };
   }, [initialFilterModel]);
+  const appliedLateDefaultFilterRef = useRef(false);
+  useEffect(() => {
+    const api = gridApiRef.current;
+    if (!api) return;
+    if (urlFilters && typeof urlFilters === 'object') return;
+    if (!defaultFilterModel) return;
+    if (appliedLateDefaultFilterRef.current) return;
 
-  const gridKey = useMemo(() => {
-    if (urlFilters && typeof urlFilters === 'object') return 'apps-filters-url';
-    if (defaultFilterModel) return 'apps-filters-default';
-    return 'apps-filters-none';
-  }, [urlFilters, defaultFilterModel]);
+    const currentFilterModel = (api as any).getFilterModel?.() || {};
+    if (!Object.keys(currentFilterModel).length) {
+      (api as any).setFilterModel?.(defaultFilterModel);
+      (api as any).onFilterChanged?.();
+    }
+    appliedLateDefaultFilterRef.current = true;
+  }, [defaultFilterModel, urlFilters]);
 
   const canCreate = hasLevel('applications', 'manager');
   const canAdmin = hasLevel('applications', 'admin');
@@ -831,7 +887,6 @@ export default function ApplicationsPage() {
     <>
       <PageHeader title="Apps & Services" actions={actions} />
       <ServerDataGrid<AppRow>
-        key={gridKey}
         columns={columns}
         endpoint={'/applications'}
         queryKey={'applications'}

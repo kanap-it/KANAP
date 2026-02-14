@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Chip, Button, Stack, Box, RadioGroup, FormControlLabel, Radio, Tooltip, Typography } from '@mui/material';
 import type { EnhancedColDef } from '../components/ServerDataGrid';
 import ServerDataGrid from '../components/ServerDataGrid';
@@ -13,6 +13,7 @@ import ForbiddenPage from './ForbiddenPage';
 import api from '../api';
 import CheckboxSetFilter from '../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../components/CheckboxSetFloatingFilter';
+import { useGridScopePreference } from '../hooks/useGridScopePreference';
 
 type TaskRow = {
   id: string;
@@ -236,13 +237,13 @@ export default function TasksPage() {
     return null;
   }, [location.search]);
 
-  const [taskScope, setTaskScope] = useState<'my' | 'team' | 'all'>(urlTaskScope || 'my');
+  const [taskScope, setTaskScope] = useGridScopePreference('tasks', urlTaskScope);
 
   const canCreate = hasLevel('tasks', 'member');
   const canAdmin = hasLevel('tasks', 'admin');
 
   // Fetch current user's team config
-  const { data: myTeamConfig } = useQuery({
+  const { data: myTeamConfig, isFetched: isTeamConfigFetched } = useQuery({
     queryKey: ['my-team-config', profile?.id],
     queryFn: async () => {
       const res = await api.get<{ id: string; team_id?: string | null }>(`/portfolio/team-members/by-user/${profile?.id}`);
@@ -252,6 +253,12 @@ export default function TasksPage() {
   });
 
   const hasTeam = !!myTeamConfig?.team_id;
+
+  useEffect(() => {
+    if (taskScope === 'team' && isTeamConfigFetched && !hasTeam) {
+      setTaskScope('my');
+    }
+  }, [taskScope, isTeamConfigFetched, hasTeam, setTaskScope]);
 
   // Filter extraParams based on scope selection
   const extraParams = useMemo(() => {

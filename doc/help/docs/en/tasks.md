@@ -59,6 +59,13 @@ If you don't see Tasks in the menu, ask your administrator to grant you the appr
 
 The Tasks grid shows all tasks across your organization.
 
+**Top scope filter**:
+  - **My tasks** (default): shows tasks assigned to you
+  - **My team's tasks**: shows tasks assigned to any member of your Portfolio team (including yours)
+  - **All tasks**: shows the full tasks grid
+  - If you are not assigned to a Portfolio team, **My team's tasks** is disabled
+  - Your selection is remembered across sessions — returning to the page restores your last choice
+
 **Default columns**:
   - **Task Title**: The task name (click to open workspace)
   - **Context**: The entity type (Project, OPEX, Contract, CAPEX, or "Standalone")

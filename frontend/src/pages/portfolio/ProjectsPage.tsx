@@ -12,6 +12,7 @@ import ForbiddenPage from '../ForbiddenPage';
 import CheckboxSetFilter from '../../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
 import api from '../../api';
+import { useGridScopePreference } from '../../hooks/useGridScopePreference';
 
 type ProjectRow = {
   id: string;
@@ -118,7 +119,7 @@ export default function ProjectsPage() {
     }
     return null;
   }, [location.search]);
-  const [projectScope, setProjectScope] = useState<'my' | 'team' | 'all'>(urlProjectScope || 'my');
+  const [projectScope, setProjectScope] = useGridScopePreference('projects', urlProjectScope);
 
   const { data: myTeamConfig, isFetched: isTeamConfigFetched } = useQuery({
     queryKey: ['my-team-config', profile?.id],
