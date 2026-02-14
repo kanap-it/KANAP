@@ -4,7 +4,7 @@ Metadata
 - Purpose: Quick reference for core endpoints and allocation/metrics model
 - Audience: Engineers, integrators
 - Status: current
-- Last Updated: 2026-02-10
+- Last Updated: 2026-02-14
 
 ## Auth
 
@@ -1026,6 +1026,27 @@ POST  /spend-versions/v-2025/allocations/bulk-upsert []
 - PUT `/roles/:id/permissions` → sets per-page permission levels for the role
   - Body: `{ permissions: { [resource]: 'reader'|'manager'|'admin'|null } }`
   - Note: `Administrator` and `Contact` are system-locked; the former is always full access, the latter cannot be granted access or login
+
+## Audit Logs (Admin)
+- Permission: `users:admin`
+- GET `/audit-logs?page=1&limit=100&sort=created_at:DESC&q=...&from=YYYY-MM-DD&to=YYYY-MM-DD&table_name=...&action=...&source=...&user_id=...&filters=<agGridFilterModel>`
+  - Returns paginated audit entries for the current tenant:
+    - `{ items, total, page, limit }`
+  - Item shape:
+    - `{ id, tenant_id, table_name, record_id, action, before_json, after_json, user_id, user_email, user_name, source, source_ref, created_at }`
+  - Supports quick search (`q`) across `table_name`, `action`, and actor name/email.
+  - Supports date range filtering:
+    - `from` is inclusive (`>=`)
+    - `to` is exclusive (`<`) when a full datetime is provided; for `YYYY-MM-DD`, API treats it as end-of-day inclusive by shifting to the next day internally.
+  - Whitelisted sort fields: `created_at`, `table_name`, `action`. Default: `created_at:DESC`.
+  - `source` identifies origin (`user`, `system`, `webhook`); `source_ref` stores upstream event correlation (for example Stripe event id).
+- GET `/audit-logs/filter-values?fields=table_name,action,source&q=...&filters=<agGridFilterModel>`
+  - Returns distinct filter values for checkbox-set column filters, scoped by the current query state.
+  - Response shape:
+    - `{ table_name?: (string|null)[], action?: (string|null)[], source?: (string|null)[] }`
+- GET `/audit-logs/:id`
+  - Returns one audit entry with the same shape as list items.
+  - Used by the detail dialog to display full before/after JSON payloads.
 
 ## Budget Operations (OPEX Admin)
 

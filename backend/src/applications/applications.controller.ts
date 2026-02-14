@@ -305,7 +305,7 @@ export class ApplicationsController {
     @Body() body: { owners: Array<{ user_id: string; owner_type: 'business' | 'it' }> },
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationOwner[]> {
-    return this.svc.bulkReplaceOwners(id, body?.owners ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceOwners(id, body?.owners ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Audience: companies & departments
@@ -327,7 +327,7 @@ export class ApplicationsController {
     @Body() body: { company_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationCompany[]> {
-    return this.svc.bulkReplaceCompanies(id, body?.company_ids ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceCompanies(id, body?.company_ids ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
@@ -348,7 +348,7 @@ export class ApplicationsController {
     @Body() body: { department_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationDepartment[]> {
-    return this.svc.bulkReplaceDepartments(id, body?.department_ids ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceDepartments(id, body?.department_ids ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Map-side summaries
@@ -381,7 +381,7 @@ export class ApplicationsController {
     @Body() body: { contacts: Array<{ contact_id: string; role?: string | null }> },
     @Tenant() ctx: TenantRequest,
   ): Promise<Array<{ id: string; contact_id: string; role: string | null; contact: Record<string, unknown> }>> {
-    return this.svc.bulkReplaceSupportContacts(id, body?.contacts ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceSupportContacts(id, body?.contacts ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Links
@@ -471,7 +471,7 @@ export class ApplicationsController {
     @Body() body: { countries: string[] },
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationDataResidency[]> {
-    return this.svc.bulkReplaceDataResidency(id, body?.countries ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceDataResidency(id, body?.countries ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Relations — OPEX (spend items)
@@ -493,7 +493,7 @@ export class ApplicationsController {
     @Body() body: { spend_item_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ): Promise<BulkOperationResponse> {
-    return this.svc.bulkReplaceLinkedSpendItems(id, body?.spend_item_ids ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceLinkedSpendItems(id, body?.spend_item_ids ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Relations — CAPEX items
@@ -515,7 +515,7 @@ export class ApplicationsController {
     @Body() body: { capex_item_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ): Promise<BulkOperationResponse> {
-    return this.svc.bulkReplaceLinkedCapexItems(id, body?.capex_item_ids ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceLinkedCapexItems(id, body?.capex_item_ids ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Relations — Contracts
@@ -537,7 +537,7 @@ export class ApplicationsController {
     @Body() body: { contract_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ): Promise<BulkOperationResponse> {
-    return this.svc.bulkReplaceLinkedContracts(id, body?.contract_ids ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceLinkedContracts(id, body?.contract_ids ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Relations — Projects
@@ -559,7 +559,7 @@ export class ApplicationsController {
     @Body() body: { project_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ): Promise<{ items: Array<{ id: string; name: string }> }> {
-    return this.svc.bulkReplaceProjects(id, body?.project_ids ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceProjects(id, body?.project_ids ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Structure — Suites and Components
@@ -581,7 +581,7 @@ export class ApplicationsController {
     @Body() body: { suite_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ): Promise<BulkOperationResponse> {
-    return this.svc.bulkReplaceSuites(id, body?.suite_ids ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceSuites(id, body?.suite_ids ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)

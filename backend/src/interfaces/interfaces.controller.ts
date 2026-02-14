@@ -195,7 +195,7 @@ export class InterfacesController {
     @Body() body: { owners: Array<{ user_id: string; owner_type: 'business' | 'it' }> },
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.svc.bulkReplaceOwners(id, body?.owners ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceOwners(id, body?.owners ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Companies
@@ -217,7 +217,7 @@ export class InterfacesController {
     @Body() body: { company_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.svc.bulkReplaceCompanies(id, body?.company_ids ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceCompanies(id, body?.company_ids ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Dependencies
@@ -243,6 +243,7 @@ export class InterfacesController {
       id,
       body?.upstream_ids ?? [],
       body?.downstream_ids ?? [],
+      ctx.userId || null,
       { manager: ctx.manager },
     );
   }
@@ -267,7 +268,7 @@ export class InterfacesController {
     body: { items: Array<{ source_identifier: string; destination_identifier: string; identifier_notes?: string | null }> },
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.svc.bulkReplaceKeyIdentifiers(id, body?.items ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceKeyIdentifiers(id, body?.items ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Data residency
@@ -289,7 +290,7 @@ export class InterfacesController {
     @Body() body: { countries: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.svc.bulkReplaceDataResidency(id, body?.countries ?? [], { manager: ctx.manager });
+    return this.svc.bulkReplaceDataResidency(id, body?.countries ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   // Links

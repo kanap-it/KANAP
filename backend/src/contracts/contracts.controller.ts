@@ -136,21 +136,21 @@ export class ContractsController {
   @RequireLevel('contracts', 'member')
   @Post(':id/contacts')
   attachContact(@Param('id') id: string, @Body() body: { contactId: string; role: SupplierContactRole }, @Req() req: any) {
-    return this.contactsSvc.attachManual(id, body, { manager: req?.queryRunner?.manager });
+    return this.contactsSvc.attachManual(id, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('contracts', 'member')
   @Delete(':id/contacts/:linkId')
   detachContact(@Param('id') id: string, @Param('linkId') linkId: string, @Req() req: any) {
-    return this.contactsSvc.detach(linkId, { manager: req?.queryRunner?.manager });
+    return this.contactsSvc.detach(linkId, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('contracts', 'member')
   @Post(':id/contacts/sync-from-supplier')
   syncContactsFromSupplier(@Param('id') id: string, @Req() req: any) {
-    return this.contactsSvc.syncFromSupplierForItem(id, { manager: req?.queryRunner?.manager });
+    return this.contactsSvc.syncFromSupplierForItem(id, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
   }
 
   // URLs

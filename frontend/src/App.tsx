@@ -49,6 +49,7 @@ import ContactWorkspacePage from './pages/contacts/ContactWorkspacePage';
 import BillingCenter from './pages/admin/BillingCenter';
 import AdminLanding from './pages/admin/AdminLanding';
 import RolesPage from './pages/admin/RolesPage';
+import AuditLogsPage from './pages/admin/AuditLogsPage';
 import AdminTenantsPage from './pages/admin/AdminTenantsPage';
 import AdminCoaTemplatesPage from './pages/admin/AdminCoaTemplatesPage';
 import AdminStandardAccountsPage from './pages/admin/AdminStandardAccountsPage';
@@ -174,6 +175,7 @@ export default function App() {
           <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
           <Route path="/admin/users" element={<UsersPage />} />
           <Route path="/admin/roles" element={<RolesPage />} />
+          <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
           <Route path="/admin/billing" element={<BillingCenter />} />
           <Route path="/admin/choose-plan" element={<Navigate to="/admin/billing" replace />} />
           <Route path="/admin/auth" element={<AdminAuthPage />} />

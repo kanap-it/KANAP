@@ -9,12 +9,14 @@ import { WorldBankClient } from './world-bank-client';
 import { CurrencyController } from './currency.controller';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { UsersModule } from '../users/users.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([CurrencyRateSet, Tenant]),
     PermissionsModule,
     forwardRef(() => UsersModule),
+    AuditModule,
   ],
   controllers: [CurrencyController],
   providers: [CurrencySettingsService, FxRateService, WorldBankClient, FxIngestionService],

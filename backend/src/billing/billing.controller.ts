@@ -154,7 +154,7 @@ export class BillingController {
       throw new BadRequestException('Tenant context not resolved');
     }
     const mg = req?.queryRunner?.manager as import('typeorm').EntityManager | undefined;
-    return this.billing.changePlan(tenantId, body.plan_key, body.subscription_type, mg);
+    return this.billing.changePlan(tenantId, body.plan_key, body.subscription_type, req.user?.sub ?? null, mg);
   }
 
   @UseGuards(PermissionGuard)
@@ -166,7 +166,7 @@ export class BillingController {
       throw new BadRequestException('Tenant context not resolved');
     }
     const mg = req?.queryRunner?.manager as import('typeorm').EntityManager | undefined;
-    return this.billing.requestInvoice(tenantId, body.plan_key, body.subscription_type, mg);
+    return this.billing.requestInvoice(tenantId, body.plan_key, body.subscription_type, req.user?.sub ?? null, mg);
   }
 
   @UseGuards(PermissionGuard)
@@ -228,10 +228,13 @@ export class BillingController {
     if (!tenantId) {
       throw new BadRequestException('Tenant context not resolved');
     }
+    const mg = req?.queryRunner?.manager as import('typeorm').EntityManager | undefined;
     const profile = await this.billing.updateBillingProfile({
       tenantId,
       customer: body.customer ?? undefined,
       invoice: body.invoice ?? undefined,
+      userId: req.user?.sub ?? null,
+      manager: mg,
     });
     return profile;
   }

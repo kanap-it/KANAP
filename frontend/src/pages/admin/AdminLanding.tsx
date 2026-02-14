@@ -26,6 +26,7 @@ export default function AdminLanding() {
     { title: 'Accounts', description: 'Manage accounting codes', to: '/admin/accounts', resource: 'accounts' },
     { title: 'Users & Access', description: 'Assign seats and roles', to: '/admin/users', resource: 'users' },
     { title: 'Roles', description: 'Define role permissions', to: '/admin/roles', resource: 'users' },
+    { title: 'Audit Log', description: 'Browse all change history', to: '/admin/audit-logs', resource: 'users' },
     { title: 'Billing', description: 'Plan, seats and invoices', to: '/admin/billing', resource: 'billing', requireBillingAdmin: true },
   ];
 

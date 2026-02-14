@@ -50,7 +50,8 @@ KANAP helps IT and finance teams manage their technology landscape, budgets, and
 
 ### Administration
 
-- [Admin & Users](admin.md) - Manage users, roles, and workspace settings
+- [Admin & Users](admin.md) - Manage users, roles, authentication, and audit logs
+- [Audit Log](admin.md#audit-log) - Review tenant change history with filters and detail view
 - [Master Data Operations](master-data-operations.md) - Freeze and copy master data
 - [Operations Dashboard](operations-dashboard.md) - Overview and quick actions
 

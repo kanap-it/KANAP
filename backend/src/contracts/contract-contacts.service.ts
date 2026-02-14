@@ -5,6 +5,7 @@ import { ContractContactLink, ContactOrigin } from './contract-contact.entity';
 import { ExternalContact } from '../contacts/external-contact.entity';
 import { SupplierContactLink, SupplierContactRole } from '../contacts/supplier-contact.entity';
 import { Contract } from './contract.entity';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class ContractContactsService {
@@ -17,6 +18,7 @@ export class ContractContactsService {
     private readonly supplierContactRepo: Repository<SupplierContactLink>,
     @InjectRepository(Contract)
     private readonly itemRepo: Repository<Contract>,
+    private readonly audit: AuditService,
   ) {}
 
   private getLinkRepo(manager?: EntityManager) {
@@ -45,6 +47,7 @@ export class ContractContactsService {
   async attachManual(
     itemId: string,
     params: { contactId: string; role: SupplierContactRole },
+    userId?: string | null,
     opts?: { manager?: EntityManager },
   ) {
     const repo = this.getLinkRepo(opts?.manager);
@@ -70,14 +73,37 @@ export class ContractContactsService {
       role: params.role,
       origin: ContactOrigin.MANUAL,
     });
-    return repo.save(link);
+    const saved = await repo.save(link);
+    await this.audit.log(
+      {
+        table: 'contract_contacts',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId: userId ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
+    return saved;
   }
 
-  async detach(linkId: string, opts?: { manager?: EntityManager }) {
+  async detach(linkId: string, userId?: string | null, opts?: { manager?: EntityManager }) {
     const repo = this.getLinkRepo(opts?.manager);
     const existing = await repo.findOne({ where: { id: linkId } });
     if (!existing) throw new NotFoundException('Link not found');
     await repo.delete({ id: linkId });
+    await this.audit.log(
+      {
+        table: 'contract_contacts',
+        recordId: linkId,
+        action: 'delete',
+        before: existing,
+        after: null,
+        userId: userId ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return { ok: true };
   }
 
@@ -86,13 +112,14 @@ export class ContractContactsService {
    * 1. Remove all contacts with origin='supplier'
    * 2. If newSupplierId is not null, fetch supplier's contacts and add them with origin='supplier'
    */
-  async syncFromSupplier(itemId: string, newSupplierId: string | null, opts?: { manager?: EntityManager }) {
+  async syncFromSupplier(itemId: string, newSupplierId: string | null, userId?: string | null, opts?: { manager?: EntityManager }) {
     const repo = this.getLinkRepo(opts?.manager);
     const supplierContactRepo = this.getSupplierContactRepo(opts?.manager);
     const itemRepo = this.getItemRepo(opts?.manager);
 
     const item = await itemRepo.findOne({ where: { id: itemId } });
     if (!item) throw new NotFoundException('Contract not found');
+    const before = await repo.find({ where: { contract_id: itemId, origin: ContactOrigin.SUPPLIER } });
 
     // 1. Remove all supplier-derived contacts
     await repo.delete({ contract_id: itemId, origin: ContactOrigin.SUPPLIER });
@@ -120,16 +147,33 @@ export class ContractContactsService {
         await repo.save(link);
       }
     }
+
+    const after = await repo.find({ where: { contract_id: itemId, origin: ContactOrigin.SUPPLIER } });
+    const beforeState = before.map((r) => `${r.contact_id}:${r.role}`).sort();
+    const afterState = after.map((r) => `${r.contact_id}:${r.role}`).sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'contract_contacts',
+          recordId: itemId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: opts?.manager ?? repo.manager },
+      );
+    }
   }
 
   /**
    * Called when supplier_id on contract changes. Fetches contract's supplier and syncs.
    */
-  async syncFromSupplierForItem(itemId: string, opts?: { manager?: EntityManager }) {
+  async syncFromSupplierForItem(itemId: string, userId?: string | null, opts?: { manager?: EntityManager }) {
     const itemRepo = this.getItemRepo(opts?.manager);
     const item = await itemRepo.findOne({ where: { id: itemId } });
     if (!item) throw new NotFoundException('Contract not found');
-    await this.syncFromSupplier(itemId, item.supplier_id, opts);
+    await this.syncFromSupplier(itemId, item.supplier_id, userId, opts);
   }
 
   /**
@@ -139,6 +183,7 @@ export class ContractContactsService {
     itemId: string,
     contactId: string,
     role: SupplierContactRole,
+    userId?: string | null,
     opts?: { manager?: EntityManager },
   ) {
     const repo = this.getLinkRepo(opts?.manager);
@@ -160,7 +205,18 @@ export class ContractContactsService {
       role: role,
       origin: ContactOrigin.SUPPLIER,
     });
-    await repo.save(link);
+    const saved = await repo.save(link);
+    await this.audit.log(
+      {
+        table: 'contract_contacts',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId: userId ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
   }
 
   /**
@@ -170,14 +226,36 @@ export class ContractContactsService {
     itemId: string,
     contactId: string,
     role: SupplierContactRole,
+    userId?: string | null,
     opts?: { manager?: EntityManager },
   ) {
     const repo = this.getLinkRepo(opts?.manager);
+    const existing = await repo.findOne({
+      where: {
+        contract_id: itemId,
+        contact_id: contactId,
+        role: role,
+        origin: ContactOrigin.SUPPLIER,
+      },
+    });
     await repo.delete({
       contract_id: itemId,
       contact_id: contactId,
       role: role,
       origin: ContactOrigin.SUPPLIER,
     });
+    if (existing) {
+      await this.audit.log(
+        {
+          table: 'contract_contacts',
+          recordId: existing.id,
+          action: 'delete',
+          before: existing,
+          after: null,
+          userId: userId ?? null,
+        },
+        { manager: opts?.manager ?? repo.manager },
+      );
+    }
   }
 }

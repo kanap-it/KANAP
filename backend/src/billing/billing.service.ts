@@ -7,6 +7,7 @@ import { Tenant } from '../tenants/tenant.entity';
 import { StripeClientService, StripeConfigService } from './stripe';
 import { computePriceAmount, computeStripePriceAmount, normaliseStripePrice, type NormalisedPrice } from './price.util';
 import { withTenant } from '../common/tenant-runner';
+import { AuditService } from '../audit/audit.service';
 import {
   PLANS,
   HEALTHY_STATUSES,
@@ -68,7 +69,28 @@ export class BillingService {
     private readonly stripeClient: StripeClientService,
     private readonly stripeConfig: StripeConfigService,
     private readonly dataSource: DataSource,
+    private readonly audit: AuditService,
   ) {}
+
+  private subscriptionAuditSnapshot(sub: Subscription | null) {
+    if (!sub) return null;
+    return { ...sub };
+  }
+
+  private tenantBillingSnapshot(tenant: Tenant | null) {
+    if (!tenant) return null;
+    return {
+      id: tenant.id,
+      billing_customer_info: tenant.billing_customer_info ?? null,
+      billing_invoice_info: tenant.billing_invoice_info ?? null,
+      billing_email: tenant.billing_email ?? null,
+      billing_company_name: tenant.billing_company_name ?? null,
+      billing_phone: tenant.billing_phone ?? null,
+      billing_tax_id: tenant.billing_tax_id ?? null,
+      billing_address: tenant.billing_address ?? null,
+      stripe_customer_id: tenant.stripe_customer_id ?? null,
+    };
+  }
 
   async getPlans() {
     return Object.values(PLANS).map(plan => ({
@@ -200,8 +222,12 @@ export class BillingService {
     tenantId: string;
     customer?: BillingContactInput | null;
     invoice?: BillingContactInput | null;
+    manager?: EntityManager;
+    userId?: string | null;
   }) {
-    const tenant = await this.requireTenant(opts.tenantId);
+    const manager = opts.manager ?? this.tenants.manager;
+    const tenant = await this.requireTenant(opts.tenantId, manager);
+    const before = this.tenantBillingSnapshot(tenant);
     const currentCustomer = this.getCustomerContact(tenant);
     const currentInvoice = this.getInvoiceContact(tenant);
 
@@ -216,11 +242,24 @@ export class BillingService {
     tenant.billing_tax_id = invoice.vatNumber;
     tenant.billing_address = this.addressToRecord(invoice.address);
 
-    await this.tenants.save(tenant);
+    const tenantRepo = manager.getRepository(Tenant);
+    const savedTenant = await tenantRepo.save(tenant);
 
-    await this.syncStripeCustomerProfile(tenant, invoice);
+    await this.audit.log(
+      {
+        table: 'tenants',
+        recordId: savedTenant.id,
+        action: 'update',
+        before,
+        after: this.tenantBillingSnapshot(savedTenant),
+        userId: opts.userId ?? null,
+      },
+      { manager },
+    );
 
-    const invoices = await this.listRecentInvoices(tenant);
+    await this.syncStripeCustomerProfile(savedTenant, invoice);
+
+    const invoices = await this.listRecentInvoices(savedTenant);
 
     return {
       customer: this.contactToResponse(customer),
@@ -336,10 +375,11 @@ export class BillingService {
     return { url: session.url, id: session.id };
   }
 
-  async changePlan(tenantId: string, planKey: PlanKey, interval: IntervalKey, manager?: EntityManager) {
+  async changePlan(tenantId: string, planKey: PlanKey, interval: IntervalKey, userId?: string | null, manager?: EntityManager) {
     const client = this.getStripeClientOrThrow();
     const mg = manager ?? this.subs.manager;
     const sub = await this.ensureSubscription(mg);
+    const before = this.subscriptionAuditSnapshot(sub);
 
     if (!sub.stripe_subscription_id || !sub.status || !(HEALTHY_STATUSES as readonly string[]).includes(sub.status)) {
       throw new BadRequestException('NO_ACTIVE_SUBSCRIPTION');
@@ -376,12 +416,23 @@ export class BillingService {
     sub.payment_mode = PaymentMode.CARD;
     sub.days_until_due = null;
     sub.last_synced_at = new Date();
-    await mg.getRepository(Subscription).save(sub);
+    const saved = await mg.getRepository(Subscription).save(sub);
+    await this.audit.log(
+      {
+        table: 'subscriptions',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: this.subscriptionAuditSnapshot(saved),
+        userId: userId ?? null,
+      },
+      { manager: mg },
+    );
 
     return this.getSubscriptionSummary({ manager: mg, forceStripeRefresh: true });
   }
 
-  async requestInvoice(tenantId: string, planKey: PlanKey, interval: IntervalKey, manager?: EntityManager) {
+  async requestInvoice(tenantId: string, planKey: PlanKey, interval: IntervalKey, userId?: string | null, manager?: EntityManager) {
     const client = this.getStripeClientOrThrow();
 
     if (!isBankTransferEligible(planKey, interval)) {
@@ -396,6 +447,7 @@ export class BillingService {
     const tenant = await this.requireTenant(tenantId);
     const mg = manager ?? this.subs.manager;
     const sub = await this.ensureSubscription(mg);
+    const before = this.subscriptionAuditSnapshot(sub);
     const customerId = await this.ensureStripeCustomerForTenant(tenant, { manager: mg });
     const invoiceContact = this.getInvoiceContact(tenant);
     const euBankTransferCountry = this.resolveEuBankTransferCountry(invoiceContact.address.country);
@@ -450,7 +502,18 @@ export class BillingService {
     sub.payment_mode = PaymentMode.BANK_TRANSFER;
     sub.days_until_due = 30;
     sub.last_synced_at = new Date();
-    await mg.getRepository(Subscription).save(sub);
+    const saved = await mg.getRepository(Subscription).save(sub);
+    await this.audit.log(
+      {
+        table: 'subscriptions',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: this.subscriptionAuditSnapshot(saved),
+        userId: userId ?? null,
+      },
+      { manager: mg },
+    );
 
     const preferredInvoiceId = this.extractStripeInvoiceId(stripeSubResult?.latest_invoice);
     const latestInvoice = sub.stripe_subscription_id
@@ -1245,8 +1308,9 @@ export class BillingService {
     return summary.seats_used || summary.seat_limit || 1;
   }
 
-  private async requireTenant(id: string): Promise<Tenant> {
-    const tenant = await this.tenants.findOne({ where: { id } });
+  private async requireTenant(id: string, manager?: EntityManager): Promise<Tenant> {
+    const tenantRepo = manager ? manager.getRepository(Tenant) : this.tenants;
+    const tenant = await tenantRepo.findOne({ where: { id } });
     if (!tenant) throw new NotFoundException('Tenant not found');
     return tenant;
   }

@@ -14,6 +14,8 @@ export class AuditService {
     before?: any | null;
     after?: any | null;
     userId?: string | null;
+    source?: 'user' | 'system' | 'webhook' | string;
+    sourceRef?: string | null;
   }, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(AuditLog);
@@ -24,6 +26,8 @@ export class AuditService {
       before_json: params.before ?? null,
       after_json: params.after ?? null,
       user_id: params.userId ?? null,
+      source: params.source ?? (params.userId ? 'user' : 'system'),
+      source_ref: params.sourceRef ?? null,
     });
     await repo.save(entry);
   }

@@ -7,12 +7,14 @@ import { NotificationsService } from './notifications.service';
 import { ScheduledNotificationsService } from './scheduled-notifications.service';
 import { EmailModule } from '../email/email.module';
 import { StorageModule } from '../common/storage/storage.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([NotificationPreferences]),
     EmailModule,
     StorageModule,
+    AuditModule,
   ],
   controllers: [NotificationPreferencesController],
   providers: [

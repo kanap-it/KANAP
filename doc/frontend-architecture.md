@@ -5,14 +5,14 @@ Metadata
 - Audience: Frontend engineers, full‑stack engineers, QA
 - Status: updated
 - Owner: TBD
-- Last Updated: 2026-02-10
+- Last Updated: 2026-02-14
 
 ## Overview
 - Tech: React + TypeScript (Vite) with MUI and AG Grid (community)
 - State & Data: TanStack Query for server data fetching/caching; Axios client (`src/api.ts`)
 - Layout: Top AppBar with a workspace toggle; permanent Drawer for navigation within the active workspace
 - Workspaces: Budget Management, IT Operations, Portfolio Management, My Workspace, Master Data, and Admin (toggle in AppBar). Admin pages are separate to reduce confusion and enable clear permissions.
-- Lists: Shared `ServerDataGrid` wrapper built on AG Grid (infinite row model) provides server sort and per‑column floating filters (single condition). No page UI; infinite scroll. For entities with an enabled/disabled lifecycle, lists should expose a standard `Show: All / Enabled / Disabled` scope selector backed by the same `StatusState`/`disabled_at` helpers used server‑side, and keep the Status column hidden by default (available via the column chooser for advanced filtering).
+- Lists: Shared `ServerDataGrid` wrapper built on AG Grid provides server sort and per‑column floating filters (single condition). Default behavior uses infinite scroll; pages can opt into explicit server pagination (`enablePagination`) when needed for very large datasets (for example Audit Log with 100 rows per page). For entities with an enabled/disabled lifecycle, lists should expose a standard `Show: All / Enabled / Disabled` scope selector backed by the same `StatusState`/`disabled_at` helpers used server‑side, and keep the Status column hidden by default (available via the column chooser for advanced filtering).
 - Page chrome: `PageHeader` renders breadcrumbs and page title, with an actions slot for primary buttons. Admin pages display an "Admin" chip.
 
 ## PWA Configuration
@@ -581,11 +581,11 @@ export const applicationsApi = {
   - "Manage in Admin" deep links: operational forms (e.g., OPEX, Contracts) may show buttons linking to the corresponding Admin pages when the user has `reader` for that resource
   - Wraps on narrow widths (`flexWrap: 'wrap'`) so action buttons remain visible without expanding the page width
 - `ServerDataGrid` (`src/components/ServerDataGrid.tsx`)
-    - Props: `columns` (AG `ColDef[]`), `endpoint`, `queryKey`, `getRowId?`, `cacheBlockSize?`, `enableSearch?`, `defaultSort?`, `extraParams?`, `refreshKey?`, `initialState?`, `enableColumnChooser?`, `requiredColumns?`, `defaultHiddenColumns?`, `columnPreferencesKey?`, `onColumnStateChange?`, `onCellClicked?`
+    - Props: `columns` (AG `ColDef[]`), `endpoint`, `queryKey`, `getRowId?`, `cacheBlockSize?`, `enablePagination?`, `paginationPageSize?`, `enableSearch?`, `defaultSort?`, `extraParams?`, `refreshKey?`, `initialState?`, `enableColumnChooser?`, `requiredColumns?`, `defaultHiddenColumns?`, `columnPreferencesKey?`, `onColumnStateChange?`, `onCellClicked?`
     - URL sync: `?sort` only (field:ASC|DESC). Filters are not URL‑synced.
     - Server contract: `{ items, total, page, limit }` with `sort` and optional `filters` (AG Grid filterModel JSON)
     - DefaultColDef: `sortable: true`, `filter: true`, `floatingFilter: true`, `filterParams` = single‑condition (no AND/OR) with options: contains, notContains, equals, notEqual, startsWith, endsWith, blank, notBlank.
-    - Infinite scrolling backed by server requests; sort/filter changes purge the cache and refetch.
+    - Supports infinite scrolling and optional paginated mode, both backed by server requests. Sort/filter/search changes reset and refetch data (and reset page index when pagination is enabled).
     - Closed-choice filters: use `CheckboxSetFilter` + `CheckboxSetFloatingFilter` for finite choice columns (Status, Type, Category, Stream, Company).
       - Default state is “implicit All”: all values selected and the filter is unfiltered.
       - Emits Set filter models: `{ filterType: 'set', values: [...] }` (empty array = match nothing; no model = unfiltered).
@@ -644,8 +644,9 @@ export const applicationsApi = {
   - The main content area (`Layout` → `<Box component="main">`) uses `display: 'flex'`, `flexDirection: 'column'`, and `minWidth: 0` so content cannot widen the page.
   - `ServerDataGrid` measures available viewport height using `getBoundingClientRect()` on the grid container and sets its height dynamically. This prevents page-level vertical scrolling.
   - The grid container sets `overflow: 'hidden'`; AG Grid handles vertical scrolling internally.
-  - For wide tables, an auxiliary horizontal scrollbar is rendered sticky at the bottom of the visible grid area (not at the page bottom). It is synchronized with the grid’s native horizontal scroll.
-  - The grid container reserves 14px bottom padding to avoid overlapping the last row with the sticky scroller.
+  - For wide tables, an auxiliary horizontal scrollbar can be rendered sticky at the bottom of the visible grid area (not at the page bottom), synchronized with the grid’s native horizontal scroll.
+  - In paginated mode, the auxiliary scrollbar is suppressed to avoid duplicate horizontal bars (native AG Grid scrollbar remains).
+  - The grid container reserves 14px bottom padding only when the auxiliary scroller is enabled.
   - On resize/orientation changes, the component re-measures height and recalculates the horizontal scrollbar width.
 
 Developer notes:

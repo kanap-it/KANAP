@@ -7,6 +7,7 @@ import { ApplicationCapexItemLink } from '../application-capex-item.entity';
 import { ApplicationContractLink } from '../application-contract.entity';
 import { ApplicationProject } from '../application-project.entity';
 import { PortfolioProject } from '../../portfolio/portfolio-project.entity';
+import { AuditService } from '../../audit/audit.service';
 import { ApplicationsBaseService, ServiceOpts } from './applications-base.service';
 
 /**
@@ -17,6 +18,7 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
   constructor(
     @InjectRepository(Application) appRepo: Repository<Application>,
     @InjectRepository(PortfolioProject) private readonly projectRepo: Repository<PortfolioProject>,
+    private readonly audit: AuditService,
   ) {
     super(appRepo);
   }
@@ -31,16 +33,31 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
     return { items };
   }
 
-  async bulkReplaceLinkedSpendItems(appId: string, spendItemIds: string[], opts?: ServiceOpts) {
+  async bulkReplaceLinkedSpendItems(appId: string, spendItemIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(ApplicationSpendItemLink);
     const unique = Array.from(new Set((spendItemIds || []).filter(Boolean)));
     const existing = await repo.find({ where: { application_id: appId } as any });
+    const beforeState = existing.map((e: any) => e.spend_item_id).sort();
     const toDelete = existing.filter((e: any) => !unique.includes(e.spend_item_id));
     const existingSet = new Set(existing.map((e: any) => e.spend_item_id));
     const toInsert = unique.filter((id) => !existingSet.has(id)).map((id) => repo.create({ application_id: appId, spend_item_id: id } as any));
     if (toDelete.length > 0) await repo.remove(toDelete as any);
     if (toInsert.length > 0) await repo.save(toInsert as any);
+    const afterState = [...unique].sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'application_spend_items',
+          recordId: appId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
+    }
     return { ok: true, added: toInsert.length, removed: toDelete.length };
   }
 
@@ -57,16 +74,31 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
     return { items: items.map((i: any) => ({ id: i.id, description: i.description })) };
   }
 
-  async bulkReplaceLinkedCapexItems(appId: string, capexItemIds: string[], opts?: ServiceOpts) {
+  async bulkReplaceLinkedCapexItems(appId: string, capexItemIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(ApplicationCapexItemLink);
     const unique = Array.from(new Set((capexItemIds || []).filter(Boolean)));
     const existing = await repo.find({ where: { application_id: appId } as any });
+    const beforeState = existing.map((e: any) => e.capex_item_id).sort();
     const toDelete = existing.filter((e: any) => !unique.includes(e.capex_item_id));
     const existingSet = new Set(existing.map((e: any) => e.capex_item_id));
     const toInsert = unique.filter((id) => !existingSet.has(id)).map((id) => repo.create({ application_id: appId, capex_item_id: id } as any));
     if (toDelete.length > 0) await repo.remove(toDelete as any);
     if (toInsert.length > 0) await repo.save(toInsert as any);
+    const afterState = [...unique].sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'application_capex_items',
+          recordId: appId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
+    }
     return { ok: true, added: toInsert.length, removed: toDelete.length };
   }
 
@@ -80,16 +112,31 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
     return { items };
   }
 
-  async bulkReplaceLinkedContracts(appId: string, contractIds: string[], opts?: ServiceOpts) {
+  async bulkReplaceLinkedContracts(appId: string, contractIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(ApplicationContractLink);
     const unique = Array.from(new Set((contractIds || []).filter(Boolean)));
     const existing = await repo.find({ where: { application_id: appId } as any });
+    const beforeState = existing.map((e: any) => e.contract_id).sort();
     const toDelete = existing.filter((e: any) => !unique.includes(e.contract_id));
     const existingSet = new Set(existing.map((e: any) => e.contract_id));
     const toInsert = unique.filter((id) => !existingSet.has(id)).map((id) => repo.create({ application_id: appId, contract_id: id } as any));
     if (toDelete.length > 0) await repo.remove(toDelete as any);
     if (toInsert.length > 0) await repo.save(toInsert as any);
+    const afterState = [...unique].sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'application_contracts',
+          recordId: appId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
+    }
     return { ok: true, added: toInsert.length, removed: toDelete.length };
   }
 
@@ -108,7 +155,7 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
     return { items: rows };
   }
 
-  async bulkReplaceProjects(applicationId: string, projectIds: string[], opts?: ServiceOpts) {
+  async bulkReplaceProjects(applicationId: string, projectIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const app = await this.ensureApp(applicationId, mg);
     const cleanIds = Array.from(new Set((projectIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
@@ -120,10 +167,25 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
     }
     const repo = mg.getRepository(ApplicationProject);
     const existing = await repo.find({ where: { application_id: applicationId } as any });
+    const beforeState = existing.map((e) => e.project_id).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
     if (cleanIds.length) {
       const rows = cleanIds.map((projId) => repo.create({ tenant_id: (app as any).tenant_id, project_id: projId, application_id: applicationId }));
       await repo.save(rows);
+    }
+    const afterState = [...cleanIds].sort();
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'application_projects',
+          recordId: applicationId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
     }
     return this.listProjects(applicationId, { manager: mg });
   }

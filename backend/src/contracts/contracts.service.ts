@@ -251,7 +251,7 @@ export class ContractsService {
 
     // Sync contacts from supplier if supplier changed
     if (oldSupplierId !== newSupplierId) {
-      await this.itemContacts.syncFromSupplier(id, newSupplierId, { manager: mg });
+      await this.itemContacts.syncFromSupplier(id, newSupplierId, userId ?? null, { manager: mg });
     }
 
     // Notify owner on status change

@@ -4,14 +4,25 @@ import { EntityManager, ILike, Repository } from 'typeorm';
 import { CoaTemplate } from './coa-template.entity';
 import { parseString } from '@fast-csv/parse';
 import { format } from '@fast-csv/format';
+import { AuditService } from '../../audit/audit.service';
 
 @Injectable()
 export class AdminCoaTemplatesService {
   constructor(
     @InjectRepository(CoaTemplate) private readonly repo: Repository<CoaTemplate>,
+    private readonly audit: AuditService,
   ) {}
 
   private getRepo(manager?: EntityManager) { return manager ? manager.getRepository(CoaTemplate) : this.repo; }
+
+  private toTemplateAuditSnapshot(template: CoaTemplate | null) {
+    if (!template) return null;
+    const { csv_payload, ...rest } = template as any;
+    return {
+      ...rest,
+      csv_payload_length: typeof csv_payload === 'string' ? csv_payload.length : 0,
+    };
+  }
 
   private csvHeaders(): string[] {
     return [
@@ -86,8 +97,8 @@ export class AdminCoaTemplatesService {
     });
   }
 
-  private async getTemplateCsv(id: string): Promise<string> {
-    const found = await this.get(id);
+  private async getTemplateCsv(id: string, opts?: { manager?: EntityManager }): Promise<string> {
+    const found = await this.get(id, opts);
     return found.csv_payload || ('\ufeff' + this.csvHeaders().join(';') + '\n');
   }
 
@@ -151,7 +162,11 @@ export class AdminCoaTemplatesService {
     return found;
   }
 
-  async create(body: { country_iso?: string; template_code?: string; template_name?: string; version?: string; is_global?: boolean; loaded_by_default?: boolean }, opts?: { manager?: EntityManager }) {
+  async create(
+    body: { country_iso?: string; template_code?: string; template_name?: string; version?: string; is_global?: boolean; loaded_by_default?: boolean },
+    userId?: string | null,
+    opts?: { manager?: EntityManager },
+  ) {
     const repo = this.getRepo(opts?.manager);
     const is_global = !!body.is_global;
     const country_iso_raw = (body.country_iso || '').toUpperCase();
@@ -170,6 +185,17 @@ export class AdminCoaTemplatesService {
         await repo.manager.query(`UPDATE coa_templates SET loaded_by_default = false WHERE is_global = true AND loaded_by_default = true`);
       }
       const saved = await repo.save(repo.create({ country_iso, template_code, template_name, version, is_global, loaded_by_default: !!body.loaded_by_default }));
+      await this.audit.log(
+        {
+          table: 'coa_templates',
+          recordId: saved.id,
+          action: 'create',
+          before: null,
+          after: this.toTemplateAuditSnapshot(saved),
+          userId: userId ?? null,
+        },
+        { manager: opts?.manager ?? repo.manager },
+      );
       return saved;
     } catch (e: any) {
       if (e?.code === '23505') throw new ConflictException('Template version already exists for this country and code');
@@ -177,10 +203,16 @@ export class AdminCoaTemplatesService {
     }
   }
 
-  async update(id: string, body: Partial<{ country_iso: string | null; template_code: string; template_name: string; version: string; csv_payload: string | null; is_global: boolean; loaded_by_default: boolean }>, opts?: { manager?: EntityManager }) {
+  async update(
+    id: string,
+    body: Partial<{ country_iso: string | null; template_code: string; template_name: string; version: string; csv_payload: string | null; is_global: boolean; loaded_by_default: boolean }>,
+    userId?: string | null,
+    opts?: { manager?: EntityManager; skipAudit?: boolean },
+  ) {
     const repo = this.getRepo(opts?.manager);
     const existing = await repo.findOne({ where: { id } });
     if (!existing) throw new NotFoundException('Template not found');
+    const before = this.toTemplateAuditSnapshot(existing);
     if (body.is_global != null) {
       existing.is_global = !!body.is_global;
       if (existing.is_global) existing.country_iso = null;
@@ -198,18 +230,43 @@ export class AdminCoaTemplatesService {
       existing.loaded_by_default = nextLoaded;
     }
     try {
-      return await repo.save(existing);
+      const saved = await repo.save(existing);
+      if (!opts?.skipAudit) {
+        await this.audit.log(
+          {
+            table: 'coa_templates',
+            recordId: saved.id,
+            action: 'update',
+            before,
+            after: this.toTemplateAuditSnapshot(saved),
+            userId: userId ?? null,
+          },
+          { manager: opts?.manager ?? repo.manager },
+        );
+      }
+      return saved;
     } catch (e: any) {
       if (e?.code === '23505') throw new ConflictException('Template version already exists for this country and code');
       throw e;
     }
   }
 
-  async delete(id: string, opts?: { manager?: EntityManager }) {
+  async delete(id: string, userId?: string | null, opts?: { manager?: EntityManager }) {
     const repo = this.getRepo(opts?.manager);
     const existing = await repo.findOne({ where: { id } });
     if (!existing) throw new NotFoundException('Template not found');
     await repo.delete({ id });
+    await this.audit.log(
+      {
+        table: 'coa_templates',
+        recordId: id,
+        action: 'delete',
+        before: this.toTemplateAuditSnapshot(existing),
+        after: null,
+        userId: userId ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
   }
 
   async exportCsv(id: string) {
@@ -219,7 +276,7 @@ export class AdminCoaTemplatesService {
     return { filename, content };
   }
 
-  async importCsv(id: string, file: Express.Multer.File, dryRun = true) {
+  async importCsv(id: string, file: Express.Multer.File, dryRun = true, userId?: string | null, opts?: { manager?: EntityManager }) {
     if (!file) throw new BadRequestException('No file uploaded');
     const buf = file.buffer ?? ((file as any).path ? require('fs').readFileSync((file as any).path) : undefined);
     if (!buf) throw new BadRequestException('Empty upload');
@@ -244,13 +301,13 @@ export class AdminCoaTemplatesService {
     if (dryRun) {
       return { ok: true, dryRun: true, total, inserted: total, updated: 0, errors: [] };
     }
-    await this.update(id, { csv_payload: content });
+    await this.update(id, { csv_payload: content }, userId, { manager: opts?.manager, skipAudit: false });
     return { ok: true, dryRun: false, total, inserted: total, updated: 0, processed: total, errors: [] };
   }
 
   // Accounts within a template
-  async listAccounts(id: string, query: any) {
-    const csv = await this.getTemplateCsv(id);
+  async listAccounts(id: string, query: any, opts?: { manager?: EntityManager }) {
+    const csv = await this.getTemplateCsv(id, opts);
     const rows = await this.parseTemplateRows(csv);
     // Basic search/sort/pagination
     const page = Math.max(1, parseInt(query.page ?? '1', 10) || 1);
@@ -280,13 +337,13 @@ export class AdminCoaTemplatesService {
     return { items, total, page, limit };
   }
 
-  async listAccountIds(id: string, query: any) {
-    const { items } = await this.listAccounts(id, { ...query, page: 1, limit: 100000 });
+  async listAccountIds(id: string, query: any, opts?: { manager?: EntityManager }) {
+    const { items } = await this.listAccounts(id, { ...query, page: 1, limit: 100000 }, opts);
     return { ids: items.map((r) => String(r.account_number)) };
   }
 
-  async getAccount(id: string, accountNumber: string) {
-    const csv = await this.getTemplateCsv(id);
+  async getAccount(id: string, accountNumber: string, opts?: { manager?: EntityManager }) {
+    const csv = await this.getTemplateCsv(id, opts);
     const rows = await this.parseTemplateRows(csv);
     const num = Number(accountNumber);
     const found = rows.find((r) => Number(r.account_number) === num);
@@ -294,8 +351,8 @@ export class AdminCoaTemplatesService {
     return found;
   }
 
-  async createAccount(id: string, body: any) {
-    const csv = await this.getTemplateCsv(id);
+  async createAccount(id: string, body: any, userId?: string | null, opts?: { manager?: EntityManager }) {
+    const csv = await this.getTemplateCsv(id, opts);
     const rows = await this.parseTemplateRows(csv);
     const payload = this.validateRowPayload(body);
     if (rows.some((r) => Number(r.account_number) === Number(payload.account_number))) {
@@ -303,16 +360,28 @@ export class AdminCoaTemplatesService {
     }
     const next = [...rows, payload];
     const encoded = await this.encodeTemplateRows(next);
-    await this.update(id, { csv_payload: encoded });
+    await this.update(id, { csv_payload: encoded }, userId, { manager: opts?.manager, skipAudit: true });
+    await this.audit.log(
+      {
+        table: 'coa_template_accounts',
+        recordId: id,
+        action: 'create',
+        before: null,
+        after: payload,
+        userId: userId ?? null,
+      },
+      { manager: opts?.manager ?? this.repo.manager },
+    );
     return { account_number: payload.account_number };
   }
 
-  async updateAccount(id: string, accountNumber: string, body: any) {
-    const csv = await this.getTemplateCsv(id);
+  async updateAccount(id: string, accountNumber: string, body: any, userId?: string | null, opts?: { manager?: EntityManager }) {
+    const csv = await this.getTemplateCsv(id, opts);
     const rows = await this.parseTemplateRows(csv);
     const current = Number(accountNumber);
     const idx = rows.findIndex((r) => Number(r.account_number) === current);
     if (idx < 0) throw new NotFoundException('Account not found in template');
+    const before = { ...rows[idx] };
     const payload = this.validateRowPayload({ ...rows[idx], ...body });
     const newNum = Number(payload.account_number);
     if (newNum !== current && rows.some((r, i) => i !== idx && Number(r.account_number) === newNum)) {
@@ -320,32 +389,57 @@ export class AdminCoaTemplatesService {
     }
     rows[idx] = payload;
     const encoded = await this.encodeTemplateRows(rows);
-    await this.update(id, { csv_payload: encoded });
-    return this.getAccount(id, String(payload.account_number));
+    await this.update(id, { csv_payload: encoded }, userId, { manager: opts?.manager, skipAudit: true });
+    await this.audit.log(
+      {
+        table: 'coa_template_accounts',
+        recordId: id,
+        action: 'update',
+        before,
+        after: payload,
+        userId: userId ?? null,
+      },
+      { manager: opts?.manager ?? this.repo.manager },
+    );
+    return this.getAccount(id, String(payload.account_number), opts);
   }
 
-  async deleteAccount(id: string, accountNumber: string) {
-    const csv = await this.getTemplateCsv(id);
+  async deleteAccount(id: string, accountNumber: string, userId?: string | null, opts?: { manager?: EntityManager }) {
+    const csv = await this.getTemplateCsv(id, opts);
     const rows = await this.parseTemplateRows(csv);
     const num = Number(accountNumber);
+    const before = rows.find((r) => Number(r.account_number) === num) ?? null;
     const next = rows.filter((r) => Number(r.account_number) !== num);
     if (next.length === rows.length) throw new NotFoundException('Account not found in template');
     const encoded = await this.encodeTemplateRows(next);
-    await this.update(id, { csv_payload: encoded });
+    await this.update(id, { csv_payload: encoded }, userId, { manager: opts?.manager, skipAudit: true });
+    await this.audit.log(
+      {
+        table: 'coa_template_accounts',
+        recordId: id,
+        action: 'delete',
+        before,
+        after: null,
+        userId: userId ?? null,
+      },
+      { manager: opts?.manager ?? this.repo.manager },
+    );
     return { ok: true };
   }
 
-  async bulkDeleteAccounts(id: string, ids: string[]) {
-    const csv = await this.getTemplateCsv(id);
+  async bulkDeleteAccounts(id: string, ids: string[], userId?: string | null, opts?: { manager?: EntityManager }) {
+    const csv = await this.getTemplateCsv(id, opts);
     const rows = await this.parseTemplateRows(csv);
     const toDelete = new Set(ids.map((x) => Number(x)));
     const deleted: string[] = [];
     const failed: Array<{ id: string; reason: string }> = [];
     const next: typeof rows = [];
+    const removedRows: typeof rows = [];
     for (const r of rows) {
       const num = Number(r.account_number);
       if (toDelete.has(num)) {
         deleted.push(String(num));
+        removedRows.push(r);
       } else {
         next.push(r);
       }
@@ -355,7 +449,20 @@ export class AdminCoaTemplatesService {
       if (!deleted.includes(String(idNum))) failed.push({ id: String(idNum), reason: 'Not found' });
     }
     const encoded = await this.encodeTemplateRows(next);
-    await this.update(id, { csv_payload: encoded });
+    await this.update(id, { csv_payload: encoded }, userId, { manager: opts?.manager, skipAudit: true });
+    if (removedRows.length > 0) {
+      await this.audit.log(
+        {
+          table: 'coa_template_accounts',
+          recordId: id,
+          action: 'delete',
+          before: removedRows,
+          after: null,
+          userId: userId ?? null,
+        },
+        { manager: opts?.manager ?? this.repo.manager },
+      );
+    }
     return { deleted, failed };
   }
 }

@@ -108,9 +108,10 @@ export class InterfacesService {
   bulkReplaceOwners(
     interfaceId: string,
     owners: Array<{ user_id: string; owner_type: 'business' | 'it' }>,
+    userId?: string | null,
     opts?: ServiceOpts,
   ) {
-    return this.bindingsService.bulkReplaceOwners(interfaceId, owners, opts);
+    return this.bindingsService.bulkReplaceOwners(interfaceId, owners, userId, opts);
   }
 
   // =========================================================================
@@ -121,8 +122,8 @@ export class InterfacesService {
     return this.bindingsService.listCompanies(interfaceId, opts);
   }
 
-  bulkReplaceCompanies(interfaceId: string, companyIds: string[], opts?: ServiceOpts) {
-    return this.bindingsService.bulkReplaceCompanies(interfaceId, companyIds, opts);
+  bulkReplaceCompanies(interfaceId: string, companyIds: string[], userId?: string | null, opts?: ServiceOpts) {
+    return this.bindingsService.bulkReplaceCompanies(interfaceId, companyIds, userId, opts);
   }
 
   // =========================================================================
@@ -137,9 +138,10 @@ export class InterfacesService {
     interfaceId: string,
     upstreamIds: string[],
     downstreamIds: string[],
+    userId?: string | null,
     opts?: ServiceOpts,
   ) {
-    return this.bindingsService.bulkReplaceDependencies(interfaceId, upstreamIds, downstreamIds, opts);
+    return this.bindingsService.bulkReplaceDependencies(interfaceId, upstreamIds, downstreamIds, userId, opts);
   }
 
   // =========================================================================
@@ -153,9 +155,10 @@ export class InterfacesService {
   bulkReplaceKeyIdentifiers(
     interfaceId: string,
     items: Array<{ source_identifier: string; destination_identifier: string; identifier_notes?: string | null }>,
+    userId?: string | null,
     opts?: ServiceOpts,
   ) {
-    return this.bindingsService.bulkReplaceKeyIdentifiers(interfaceId, items, opts);
+    return this.bindingsService.bulkReplaceKeyIdentifiers(interfaceId, items, userId, opts);
   }
 
   // =========================================================================
@@ -166,8 +169,8 @@ export class InterfacesService {
     return this.bindingsService.listDataResidency(interfaceId, opts);
   }
 
-  bulkReplaceDataResidency(interfaceId: string, countryCodes: string[], opts?: ServiceOpts) {
-    return this.bindingsService.bulkReplaceDataResidency(interfaceId, countryCodes, opts);
+  bulkReplaceDataResidency(interfaceId: string, countryCodes: string[], userId?: string | null, opts?: ServiceOpts) {
+    return this.bindingsService.bulkReplaceDataResidency(interfaceId, countryCodes, userId, opts);
   }
 
   // =========================================================================

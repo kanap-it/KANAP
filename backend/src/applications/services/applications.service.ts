@@ -145,8 +145,8 @@ export class ApplicationsService {
     return this.ownersService.listOwners(appId, opts);
   }
 
-  bulkReplaceOwners(appId: string, owners: Array<{ user_id: string; owner_type: 'business' | 'it' }>, opts?: ServiceOpts) {
-    return this.ownersService.bulkReplaceOwners(appId, owners, opts);
+  bulkReplaceOwners(appId: string, owners: Array<{ user_id: string; owner_type: 'business' | 'it' }>, userId?: string | null, opts?: ServiceOpts) {
+    return this.ownersService.bulkReplaceOwners(appId, owners, userId, opts);
   }
 
   // Companies (Audience)
@@ -154,8 +154,8 @@ export class ApplicationsService {
     return this.ownersService.listCompanies(appId, opts);
   }
 
-  bulkReplaceCompanies(appId: string, companyIds: string[], opts?: ServiceOpts) {
-    return this.ownersService.bulkReplaceCompanies(appId, companyIds, opts);
+  bulkReplaceCompanies(appId: string, companyIds: string[], userId?: string | null, opts?: ServiceOpts) {
+    return this.ownersService.bulkReplaceCompanies(appId, companyIds, userId, opts);
   }
 
   // Departments (Audience)
@@ -163,8 +163,8 @@ export class ApplicationsService {
     return this.ownersService.listDepartments(appId, opts);
   }
 
-  bulkReplaceDepartments(appId: string, departmentIds: string[], opts?: ServiceOpts) {
-    return this.ownersService.bulkReplaceDepartments(appId, departmentIds, opts);
+  bulkReplaceDepartments(appId: string, departmentIds: string[], userId?: string | null, opts?: ServiceOpts) {
+    return this.ownersService.bulkReplaceDepartments(appId, departmentIds, userId, opts);
   }
 
   // Support contacts
@@ -172,8 +172,8 @@ export class ApplicationsService {
     return this.ownersService.listSupportContacts(appId, opts);
   }
 
-  bulkReplaceSupportContacts(appId: string, contacts: Array<{ contact_id: string; role?: string | null }>, opts?: ServiceOpts) {
-    return this.ownersService.bulkReplaceSupportContacts(appId, contacts, opts);
+  bulkReplaceSupportContacts(appId: string, contacts: Array<{ contact_id: string; role?: string | null }>, userId?: string | null, opts?: ServiceOpts) {
+    return this.ownersService.bulkReplaceSupportContacts(appId, contacts, userId, opts);
   }
 
   // =========================================================================
@@ -184,32 +184,32 @@ export class ApplicationsService {
     return this.instancesService.listLinkedSpendItems(appId, opts);
   }
 
-  bulkReplaceLinkedSpendItems(appId: string, spendItemIds: string[], opts?: ServiceOpts) {
-    return this.instancesService.bulkReplaceLinkedSpendItems(appId, spendItemIds, opts);
+  bulkReplaceLinkedSpendItems(appId: string, spendItemIds: string[], userId?: string | null, opts?: ServiceOpts) {
+    return this.instancesService.bulkReplaceLinkedSpendItems(appId, spendItemIds, userId, opts);
   }
 
   listLinkedCapexItems(appId: string, opts?: ServiceOpts) {
     return this.instancesService.listLinkedCapexItems(appId, opts);
   }
 
-  bulkReplaceLinkedCapexItems(appId: string, capexItemIds: string[], opts?: ServiceOpts) {
-    return this.instancesService.bulkReplaceLinkedCapexItems(appId, capexItemIds, opts);
+  bulkReplaceLinkedCapexItems(appId: string, capexItemIds: string[], userId?: string | null, opts?: ServiceOpts) {
+    return this.instancesService.bulkReplaceLinkedCapexItems(appId, capexItemIds, userId, opts);
   }
 
   listLinkedContracts(appId: string, opts?: ServiceOpts) {
     return this.instancesService.listLinkedContracts(appId, opts);
   }
 
-  bulkReplaceLinkedContracts(appId: string, contractIds: string[], opts?: ServiceOpts) {
-    return this.instancesService.bulkReplaceLinkedContracts(appId, contractIds, opts);
+  bulkReplaceLinkedContracts(appId: string, contractIds: string[], userId?: string | null, opts?: ServiceOpts) {
+    return this.instancesService.bulkReplaceLinkedContracts(appId, contractIds, userId, opts);
   }
 
   listProjects(applicationId: string, opts?: ServiceOpts) {
     return this.instancesService.listProjects(applicationId, opts);
   }
 
-  bulkReplaceProjects(applicationId: string, projectIds: string[], opts?: ServiceOpts) {
-    return this.instancesService.bulkReplaceProjects(applicationId, projectIds, opts);
+  bulkReplaceProjects(applicationId: string, projectIds: string[], userId?: string | null, opts?: ServiceOpts) {
+    return this.instancesService.bulkReplaceProjects(applicationId, projectIds, userId, opts);
   }
 
   // =========================================================================
@@ -220,8 +220,8 @@ export class ApplicationsService {
     return this.residencyService.listDataResidency(appId, opts);
   }
 
-  bulkReplaceDataResidency(appId: string, countryCodes: string[], opts?: ServiceOpts) {
-    return this.residencyService.bulkReplaceDataResidency(appId, countryCodes, opts);
+  bulkReplaceDataResidency(appId: string, countryCodes: string[], userId?: string | null, opts?: ServiceOpts) {
+    return this.residencyService.bulkReplaceDataResidency(appId, countryCodes, userId, opts);
   }
 
   // =========================================================================
@@ -232,8 +232,8 @@ export class ApplicationsService {
     return this.structureService.listSuites(appId, opts);
   }
 
-  bulkReplaceSuites(appId: string, suiteIds: string[], opts?: ServiceOpts) {
-    return this.structureService.bulkReplaceSuites(appId, suiteIds, opts);
+  bulkReplaceSuites(appId: string, suiteIds: string[], userId?: string | null, opts?: ServiceOpts) {
+    return this.structureService.bulkReplaceSuites(appId, suiteIds, userId, opts);
   }
 
   listComponents(suiteId: string, opts?: ServiceOpts) {

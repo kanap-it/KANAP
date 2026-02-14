@@ -323,7 +323,7 @@ export class CapexItemsService {
     const oldSupplierId = (before as any).supplier_id ?? null;
     const newSupplierId = (persisted as any)?.supplier_id ?? (saved as any).supplier_id ?? null;
     if (oldSupplierId !== newSupplierId) {
-      await this.itemContacts.syncFromSupplier(id, newSupplierId, { manager: mg });
+      await this.itemContacts.syncFromSupplier(id, newSupplierId, userId ?? null, { manager: mg });
     }
 
     return persisted ?? saved;

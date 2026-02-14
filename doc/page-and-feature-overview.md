@@ -1,6 +1,6 @@
 # Page & Platform Feature Overview
 
- _Last updated: 2026-02-10_
+ _Last updated: 2026-02-14_
 
 This document summarizes the current tenant-facing and platform-facing page structure alongside the backend features that support multi-tenancy, permissions, and tenant lifecycle operations.
 
@@ -57,6 +57,7 @@ Behavior
 | `/settings` | `frontend/src/pages/settings/SettingsPage.tsx` | User settings hub. Tabs: Profile (edit name, job title, phone) and Notifications (per-workspace email toggles, weekly review config). URL-driven tabs via `:tab` param (`/settings/profile`, `/settings/notifications`). | Any authenticated user |
 | `/settings/:tab` | `frontend/src/pages/settings/SettingsPage.tsx` | Deep-link to a specific settings tab (profile or notifications). Email footer links point to `/settings/notifications`. | Any authenticated user |
 | `/admin` | `frontend/src/pages/admin/AdminLanding.tsx` | Quick links to master data, billing, roles. Switchboard for admins. | Any admin-level access; available once `companies` reader allowed. |
+| `/admin/audit-logs` | `frontend/src/pages/admin/AuditLogsPage.tsx` | Read-only audit viewer with quick search, date filter, set filters (`table_name`, `action`, `source`), and explicit pagination (100 rows/page). Row click opens a detail dialog with metadata plus side-by-side before/after JSON and changed-field chips. | `users:admin` |
 | `/admin/master-data` | `frontend/src/pages/admin/MasterDataOperationsPage.tsx` | Master Data Operations landing page with cards for freeze/unfreeze and copy workflows. | `companies` or `departments` reader |
 | `/master-data/business-processes` | `frontend/src/pages/BusinessProcessesPage.tsx` | Business Processes master data grid: seeded ISO 9001-style core processes (O2C, P2P, H2R, etc.) with categories, Process Owner / IT Owner, CSV import/export, and a workspace for editing. | `business_processes` (`reader` for view, `manager` for edit, `admin` for CSV + delete) |
 | `/admin/master-data/freeze` | `frontend/src/pages/admin/master-data/MasterDataFreezePage.tsx` | Freeze / Unfreeze Data tool for company and department metrics with per-resource permission checks. | `companies:admin` and/or `departments:admin` (budget ops admin also allowed) |
@@ -277,7 +278,9 @@ Platform admins operate through `AdminTenantsService` (`backend/src/admin/tenant
 
 ## Audit & Compliance
 
-Every mutating service logs to `audit_log` via `backend/src/audit/audit.service.ts`, using the same tenant-scoped `EntityManager`. Entries capture table, record ID, serialized `before`/`after`, actor ID, and timestamp, ensuring traceability under RLS.
+Every mutating service logs to `audit_log` via `backend/src/audit/audit.service.ts`, using the same tenant-scoped `EntityManager`. Entries capture table, record ID, serialized `before`/`after`, actor ID, source metadata (`source`, `source_ref`), and timestamp, ensuring traceability under RLS.
+
+Audit records are exposed in the Admin workspace through `GET /audit-logs`, `GET /audit-logs/filter-values`, and `GET /audit-logs/:id` (all guarded by `users:admin`).
 
 ## Frontend/Backend Integration Patterns
 
