@@ -91,6 +91,7 @@ nav:
 
   - Fast Track:
     - "From Request to Delivery": fast-track/index.md
+    - "From Application to Server": fast-track/apps-and-assets.md
 
   - My Workspace:
     - Dashboard: my-dashboard.md
