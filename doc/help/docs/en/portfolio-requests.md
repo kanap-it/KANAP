@@ -41,7 +41,8 @@ The requests list shows all portfolio requests with key information at a glance.
     - **Contributors** (Business Contributors or IT Contributors)
   - **My team's requests**: shows requests where any member of your Portfolio team appears in those same explicit request roles. Your own involvement is also included in this scope.
   - **All requests**: shows the full requests grid (with the standard default status behavior).
-  - If you are not assigned to a Portfolio team, **My team's requests** is disabled.
+  - If you are not assigned to a Portfolio team, **My team's requests** is disabled
+  - Your selection is remembered across sessions — returning to the page restores your last choice
 
 **Default columns**:
   - **Request Name**: The initiative title (click to open workspace)

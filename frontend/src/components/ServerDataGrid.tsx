@@ -29,6 +29,8 @@ import api from '../api';
 import useDebouncedValue from '../hooks/useDebouncedValue';
 import ClearableColumnFloatingFilter from './ClearableColumnFloatingFilter';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
+import { useTenant } from '../tenant/TenantContext';
 
 type ServerResponse<T> = { items: T[]; total: number; page: number; limit: number };
 
@@ -92,10 +94,27 @@ function useColumnState(
   key: string | undefined,
   columns: EnhancedColDef<any>[],
   requiredColumns: string[] = [],
-  defaultHiddenColumns: string[] = []
+  defaultHiddenColumns: string[] = [],
+  tenantSlug?: string,
+  userId?: string,
 ) {
-  const getStorageKey = () => key ? `grid-columns-${key}` : null;
-  
+  const legacyKey = key ? `grid-columns-${key}` : null;
+  const scopedKey = key && tenantSlug && userId
+    ? `grid-columns:${tenantSlug}:${userId}:${key}`
+    : null;
+
+  // One-time migration: copy legacy key → scoped key, then delete legacy
+  if (scopedKey && legacyKey) {
+    try {
+      if (!localStorage.getItem(scopedKey) && localStorage.getItem(legacyKey)) {
+        localStorage.setItem(scopedKey, localStorage.getItem(legacyKey)!);
+        localStorage.removeItem(legacyKey);
+      }
+    } catch { /* ignore */ }
+  }
+
+  const getStorageKey = () => scopedKey ?? legacyKey;
+
   const getDefaultColumnState = useCallback((): ColumnState[] => {
     return columns.map(col => {
       const field = col.field || col.colId || '';
@@ -222,6 +241,9 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
   paginationPageSize,
   toolbarExtras,
 }: ServerDataGridProps<T>) {
+  const { profile } = useAuth();
+  const { tenantSlug } = useTenant();
+
   // Process columns to move custom properties to context to avoid AG Grid warnings
   const processedColumns = useMemo(() => {
     return columns.map(col => {
@@ -267,9 +289,22 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
   }, [statusScope]);
 
   // Column state management
-  const columnStateManager = useColumnState(columnPreferencesKey, columns, requiredColumns, defaultHiddenColumns);
+  const columnStateManager = useColumnState(columnPreferencesKey, columns, requiredColumns, defaultHiddenColumns, tenantSlug ?? undefined, profile?.id);
   const [currentColumnState, setCurrentColumnState] = useState<ColumnState[]>(() => columnStateManager.loadColumnState());
   const initializedRef = useRef<boolean>(false);
+
+  // Re-apply column state when tenant/user changes (scoped key changes)
+  const scopedColumnKey = columnPreferencesKey && tenantSlug && profile?.id
+    ? `grid-columns:${tenantSlug}:${profile.id}:${columnPreferencesKey}`
+    : null;
+  useEffect(() => {
+    if (gridApiRef.current && scopedColumnKey) {
+      const newState = columnStateManager.loadColumnState();
+      (gridApiRef.current as any).applyColumnState?.({ state: newState, applyOrder: true });
+      setCurrentColumnState(newState);
+      appliedInitialColumnStateRef.current = false;
+    }
+  }, [scopedColumnKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Column state change handler
   const onColumnStateChanged = useCallback((e: any) => {
@@ -452,11 +487,6 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
   const onGridReady = useCallback((event: GridReadyEvent) => {
     gridApiRef.current = event.api as any;
     
-    // Call the parent callback to provide grid API reference
-    if (onGridApiReady) {
-      onGridApiReady(event.api);
-    }
-    
     // Apply initial column state if enabled and not already applied
     if (!appliedInitialColumnStateRef.current && columnPreferencesKey) {
       try {
@@ -507,6 +537,11 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
     
     // finally, provide datasource once
     (event.api as any).setGridOption?.('datasource', dataSourceRef.current);
+
+    // Call parent callback after initial state has been applied
+    if (onGridApiReady) {
+      onGridApiReady(event.api);
+    }
     
     // Notify parent of initial state (no explicit filter-change trigger; datasource will load with current models)
     setTimeout(() => {
@@ -871,11 +906,13 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
             } catch {}
           }}
           rowSelection={rowSelection}
-          onSelectionChanged={handleSelectionChanged}
-          onCellClicked={onCellClicked as any}
-          // Explicitly allow column moving at the grid level
-          suppressMovableColumns={false}
-        />
+        onSelectionChanged={handleSelectionChanged}
+        onCellClicked={onCellClicked as any}
+        // Explicitly allow column moving at the grid level
+        suppressMovableColumns={false}
+        // Preserve user order when column defs update between renders
+        maintainColumnOrder
+      />
 
         {/* Sticky bottom horizontal scrollbar for wide tables */}
         {showAuxHorizontalScrollbar && (

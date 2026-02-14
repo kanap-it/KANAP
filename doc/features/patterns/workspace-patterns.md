@@ -868,10 +868,31 @@ const initialFilterModel = useMemo(() => {
 
 ### Scope Filters (Task Example)
 
-For pages with additional scope filters (e.g., "My tasks" vs "All tasks"), include scope params in URL:
+Pages with a "My / My team's / All" scope filter use the `useGridScopePreference` hook to persist the selection per tenant and user. The URL param takes priority when returning from workspace navigation.
 
 ```tsx
-// List page - include scope in workspace URL
+import { useGridScopePreference } from '../hooks/useGridScopePreference';
+
+// Read scope from URL (returning from workspace preserves context)
+const urlTaskScope = useMemo(() => {
+  const params = new URLSearchParams(location.search);
+  const scope = params.get('taskScope');
+  return (scope === 'my' || scope === 'team' || scope === 'all') ? scope : null;
+}, [location.search]);
+
+// useGridScopePreference handles persistence to localStorage
+// Priority: URL param > localStorage > default ('my')
+// Key: kanap-grid-scope:{tenantSlug}:{userId}:tasks
+const [taskScope, setTaskScope] = useGridScopePreference('tasks', urlTaskScope);
+
+// Guard: coerce 'team' back to 'my' if user has no team
+useEffect(() => {
+  if (taskScope === 'team' && isTeamConfigFetched && !hasTeam) {
+    setTaskScope('my');
+  }
+}, [taskScope, isTeamConfigFetched, hasTeam, setTaskScope]);
+
+// Include scope in workspace URL for round-trip preservation
 const buildWorkspaceSearch = useCallback(() => {
   const sp = new URLSearchParams();
   // ... standard params
@@ -883,16 +904,9 @@ const buildWorkspaceSearch = useCallback(() => {
   }
   return sp;
 }, [taskScope, profile?.id, myTeamConfig?.team_id]);
-
-// Read scope from URL on page load
-const urlTaskScope = useMemo(() => {
-  const params = new URLSearchParams(location.search);
-  const scope = params.get('taskScope');
-  return (scope === 'my' || scope === 'team' || scope === 'all') ? scope : null;
-}, [location.search]);
-
-const [taskScope, setTaskScope] = useState<'my' | 'team' | 'all'>(urlTaskScope || 'my');
 ```
+
+Pages using this pattern: Tasks (`tasks`), Requests (`requests`), Projects (`projects`), Apps & Services (`apps`). The `pageKey` must be unique per page. Requests and Projects already had team-scope guards; Tasks and Apps had guards added alongside the hook.
 
 ### Navigation Hooks with Extra Params
 

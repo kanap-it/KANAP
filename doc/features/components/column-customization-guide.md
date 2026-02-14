@@ -16,6 +16,7 @@ The ServerDataGrid component now supports user-customizable column visibility, o
 - Column visibility, width, order, and pinning are automatically saved
 - Preferences persist across browser sessions
 - Each grid instance can have its own preference key
+- **Per-user scoping**: Preferences are scoped by tenant and user so they don't bleed across users sharing the same browser. Storage key pattern: `grid-columns:{tenantSlug}:{userId}:{pageKey}`
 
 ### User Interface
 - **Column Chooser Button**: Click the "Choose Columns" button to open a custom Material-UI popover with column options
@@ -257,8 +258,10 @@ export default function AdvancedPage() {
 ### Persistence
 - Column preferences are automatically saved to localStorage
 - Preferences include: visibility, width, order, and pinning
-- Each grid instance uses its own storage key
+- Each grid instance uses its own storage key, scoped per tenant and user: `grid-columns:{tenantSlug}:{userId}:{pageKey}`
 - Preferences persist across browser sessions and page reloads
+- Switching tenants or users loads independent preferences
+- **Migration**: On first load after deployment, legacy unscoped keys (`grid-columns-{pageKey}`) are automatically migrated to the new scoped key and the old key is deleted. The first logged-in user inherits the existing prefs; subsequent users on the same browser start fresh.
 
 ## Best Practices
 
@@ -329,6 +332,7 @@ const columns: EnhancedColDef<any>[] = [
 - Ensure `columnPreferencesKey` is provided
 - Check browser localStorage is enabled
 - Verify unique keys for different grids
+- Column state is scoped per tenant/user — logging in as a different user will show that user's preferences (or defaults if none saved)
 
 **Required columns being hidden**
 - Check `required: true` is set in column definition
@@ -349,6 +353,5 @@ const columns: EnhancedColDef<any>[] = [
 
 - Column grouping by category
 - Export/import column configurations
-- User-specific preferences (with backend integration)
 - Advanced column filtering options
 - Column templates and presets

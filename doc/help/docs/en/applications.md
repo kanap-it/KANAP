@@ -70,7 +70,8 @@ The Apps & Services grid provides a comprehensive view of your application portf
   - **My apps** (default): shows apps where you are listed in **Ownership & Audience** as either a **Business Owner** or **IT Owner**. Multi-owner entries are supported.
   - **My team's apps**: shows apps where any member of your Portfolio team is listed as Business Owner or IT Owner. Your own ownership is also included in this scope.
   - **All apps**: shows the full Apps & Services grid (with the standard default lifecycle filter behavior).
-  - If you are not assigned to a Portfolio team, **My team's apps** is disabled.
+  - If you are not assigned to a Portfolio team, **My team's apps** is disabled
+  - Your selection is remembered across sessions — returning to the page restores your last choice
 
 **Default columns**:
   - **Name**: Application name with category badge and suite membership

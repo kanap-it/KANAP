@@ -232,7 +232,7 @@ The Axios client (`src/api/client.ts`) automatically handles 401 responses:
 - Purpose: Centralized view for personal tasks across all entities (OPEX, Contracts, CAPEX, Projects) plus standalone tasks
 - **Tasks**
   - List: `frontend/src/pages/TasksPage.tsx` uses `ServerDataGrid` with Type, Phase, Priority, Score, Status columns. Default filter hides completed tasks. Score column shows calculated priority score for all tasks (project: `project.score + adjustment`; non-project: fixed mapping from priority level). Type column shows "Standalone" for tasks without a related object.
-  - **Scope filter**: Radio buttons for "My tasks" (default), "My team's tasks", "All tasks". Scope is preserved in URL (`taskScope`, `assigneeUserId`, `teamId`) when navigating to workspace and restored when returning. Prev/Next navigation in workspace respects the selected scope.
+  - **Scope filter**: Radio buttons for "My tasks" (default), "My team's tasks", "All tasks". Scope is persisted per user via `useGridScopePreference` hook (localStorage key `kanap-grid-scope:{tenantSlug}:{userId}:tasks`), so returning to the page restores the last selection. URL params take priority when returning from workspace (scope is preserved in URL via `taskScope`, `assigneeUserId`, `teamId`). If the persisted scope is `team` but the user has no team, it falls back to `my`. Prev/Next navigation in workspace respects the selected scope.
   - Workspace: `frontend/src/pages/tasks/TaskWorkspacePage.tsx` — Jira-inspired sidebar layout
     - Header: Priority score badge (project tasks only, 56×56 circular, primary color, left of title), inline-editable title, status chip, priority chip, "Attach files" button (toggles upload area)
     - Priority score calculation:
@@ -390,6 +390,31 @@ const confirmAndNavigate = (targetId: string | null) => {
 ```
 
 **Backend requirement:** The corresponding `/ids` endpoint must support the same filter params (assigneeUserId, teamId, etc.) to ensure prev/next navigation returns IDs within the same filtered set.
+
+### useGridScopePreference
+Persists the grid scope filter selection (my / team / all) per tenant and user.
+
+**Location:** `frontend/src/hooks/useGridScopePreference.ts`
+
+```typescript
+function useGridScopePreference(
+  pageKey: string,        // e.g. 'tasks', 'requests', 'projects', 'apps'
+  urlScope: string | null // URL param value (takes priority over stored)
+): [Scope, (scope: Scope) => void]
+```
+
+- localStorage key: `kanap-grid-scope:{tenantSlug}:{userId}:{pageKey}`
+- Priority: URL param > localStorage > default (`'my'`)
+- Automatically reloads from localStorage when tenant or user changes (follows `useRecentlyViewed` pattern)
+- Pages should add a team-scope fallback guard to coerce `'team'` back to `'my'` when the user has no team:
+  ```typescript
+  useEffect(() => {
+    if (scope === 'team' && isTeamConfigFetched && !hasTeam) {
+      setScope('my');
+    }
+  }, [scope, isTeamConfigFetched, hasTeam, setScope]);
+  ```
+- Used on: Tasks, Requests, Projects, Apps & Services
 
 ### useVirtualRows
 Virtual scrolling hook for large lists with consistent performance.
@@ -586,11 +611,12 @@ export const applicationsApi = {
     - Server contract: `{ items, total, page, limit }` with `sort` and optional `filters` (AG Grid filterModel JSON)
     - DefaultColDef: `sortable: true`, `filter: true`, `floatingFilter: true`, `filterParams` = single‑condition (no AND/OR) with options: contains, notContains, equals, notEqual, startsWith, endsWith, blank, notBlank.
     - Supports infinite scrolling and optional paginated mode, both backed by server requests. Sort/filter/search changes reset and refetch data (and reset page index when pagination is enabled).
+    - Column state persistence: When `columnPreferencesKey` is set, column visibility/width/order/pinning are saved to localStorage scoped per tenant and user (`grid-columns:{tenantSlug}:{userId}:{pageKey}`). Column state is automatically re-applied when the user or tenant changes. Legacy unscoped keys are migrated on first load. All 22 grid pages benefit from this scoping.
     - Closed-choice filters: use `CheckboxSetFilter` + `CheckboxSetFloatingFilter` for finite choice columns (Status, Type, Category, Stream, Company).
-      - Default state is “implicit All”: all values selected and the filter is unfiltered.
+      - Default state is "implicit All": all values selected and the filter is unfiltered.
       - Emits Set filter models: `{ filterType: 'set', values: [...] }` (empty array = match nothing; no model = unfiltered).
       - Floating filter shows `All`, `None`, or `N selected` and includes an **x** to clear the filter without opening the list.
-      - Use `treatAllAsUnfiltered: false` for default-filtered columns (e.g., lifecycle/status default hides Retired/Done) so “All” stays active.
+      - Use `treatAllAsUnfiltered: false` for default-filtered columns (e.g., lifecycle/status default hides Retired/Done) so "All" stays active.
       - `ServerDataGrid` exposes `context.getQueryState()` (q, filterModel, extraParams) so filters can request scoped values from a `filter-values` endpoint.
 
 ## Modal UX

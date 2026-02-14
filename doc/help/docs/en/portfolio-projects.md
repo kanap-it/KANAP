@@ -42,7 +42,8 @@ The projects list shows all portfolio projects with execution status at a glance
     - **Contributors** (Business Contributors or IT Contributors)
   - **My team's projects**: shows projects where any member of your Portfolio team appears in those same explicit project roles. Your own involvement is also included in this scope.
   - **All projects**: shows the full projects grid (with the standard default status behavior).
-  - If you are not assigned to a Portfolio team, **My team's projects** is disabled.
+  - If you are not assigned to a Portfolio team, **My team's projects** is disabled
+  - Your selection is remembered across sessions — returning to the page restores your last choice
 
 **Default columns**:
   - **Project Name**: The initiative title (click to open workspace)
