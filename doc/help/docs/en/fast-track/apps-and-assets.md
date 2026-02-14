@@ -22,9 +22,8 @@ Everything in KANAP's IT Operations module connects to paint a complete picture 
 | **Application** | A business app or IT service you need to document |
 | **Environment** | Where it runs — Prod, QA, Dev, etc. (called "Instances" in KANAP) |
 | **Server (Asset)** | The infrastructure that hosts it — VMs, physical servers, containers |
-| **Location** | Where the server lives — data center, cloud region, colo |
 
-The chain is simple: **Application → Environment → Server → Location**. By the end of this guide, you'll have this chain fully documented.
+The chain is simple: **Application → Environment → Server**. By the end of this guide, you'll have this chain fully documented.
 
 ![Application Relationship Model](images/app-relationship-model.png)
 
@@ -58,17 +57,18 @@ Click **Save**. Your application is now in the registry.
 
 Every application runs somewhere. The **Instances** tab documents your environments.
 
-Open your application and go to the **Instances** tab. Click **Add** and select **Production** (or whichever environment you want to document first).
+Open your application and go to the **Instances** tab. Click **Add** and select the environment type (Prod, Pre-prod, QA, Test, Dev, or Sandbox).
 
 For each instance, you can capture:
 
 | Field | What it does | Example |
 |-------|-------------|---------|
+| **Environment** | The environment type | `Prod` |
 | **Base URL** | The access URL | `https://mycompany.salesforce.com` |
-| **Region / Zone** | Geographic deployment | `EU West` |
+| **Lifecycle** | Instance-specific status | `Active` |
 | **SSO Enabled** | Is Single Sign-On active? | `Yes` |
 | **MFA Supported** | Is Multi-Factor Authentication supported? | `Yes` |
-| **Lifecycle** | Instance-specific status | `Active` |
+| **Notes** | Any additional context | `Primary EU instance` |
 
 !!! tip "Copy from Prod"
     Once your Production instance is set up, use the **Copy from Prod** button to quickly scaffold QA, Dev, and other environments with similar settings.
@@ -151,67 +151,57 @@ Go to the **Compliance** tab. This is increasingly important for audits and regu
 
 ---
 
-## Step 7: Create a Location (if needed)
-
-Before creating a server, you need a **Location** where it lives. If you already have locations configured, skip to Step 8.
-
-Go to **IT Operations → Locations** and click **Add Location**.
-
-| Field | What to enter | Example |
-|-------|--------------|---------|
-| **Code** | A short unique code | `DC-EU-PARIS` |
-| **Name** | Descriptive name | `Paris Datacenter` |
-| **Hosting Type** | The type of facility | `On-premises datacenter` |
-| **Country** | Geographic location | `France` |
-| **City** | City | `Paris` |
-
-!!! info "Location = many derived attributes"
-    The Location is powerful because it automatically determines:
-
-    - **Hosting type** (on-prem, cloud, colo) → shown on assets and apps
-    - **Provider** (AWS, Azure, etc.) → derived for cloud locations
-    - **Country** → enables geographic reporting and compliance
-    - **Network subnets** → configured per location for IP validation
-
-    One location record enriches every asset assigned to it. Set it up once, benefit everywhere.
-
----
-
-## Step 8: Create Your Server (Asset)
+## Step 7: Create Your Server (Asset)
 
 Go to **IT Operations → Assets** and click **Add Asset**.
+
+### Overview Tab
 
 Fill in the core fields:
 
 | Field | What to enter | Example |
 |-------|--------------|---------|
 | **Name** | Hostname or identifier | `PROD-WEB-01` |
-| **Asset Type** | The server's role | `Virtual Machine` |
-| **Environment** | Which environment | `Production` |
-| **Location** | Where it's hosted | `DC-EU-PARIS` |
+| **Asset Type** | The server type (dropdown) | `Virtual Machine` |
+| **Is Cluster** | Toggle if this is a cluster | `No` |
+| **Location** | Where it's hosted (required) | `Paris Datacenter` |
 | **Lifecycle** | Current status | `Active` |
+| **Go-live date** | When it entered service | `2025-01-15` |
+| **End-of-life date** | Planned decommission | — |
+| **Notes** | Any additional context | — |
+
+Once a Location is selected, several **read-only fields** are automatically derived:
+
+- **Hosting type** (on-premises, cloud, colocation, etc.)
+- **Provider / Company** (e.g., AWS, Azure, OVH)
+- **Country**
+- **City**
+
+!!! info "Location is the key"
+    The Location drives many attributes of your asset automatically. Locations are managed in **IT Operations → Locations** — set them up once and every asset assigned to them inherits hosting type, provider, country, and city. You don't need to fill these in manually.
 
 Click **Save** to unlock the full workspace.
 
-### Technical Details
+### Technical Tab
 
 Go to the **Technical** tab to add:
 
-- **Operating System**: e.g., `Ubuntu 24.04 LTS`
-- **Hostname** / **Domain** / **FQDN**: Network identity (FQDN is auto-computed)
-- **Aliases**: Additional DNS names
-- **IP Addresses**: Add one or more entries with type, address, and subnet
+| Section | Fields | Details |
+|---------|--------|---------|
+| **Environment** | Environment dropdown | `Production`, `QA`, `Dev`, etc. |
+| **Identity** | Hostname, Domain, FQDN, Aliases, OS | FQDN is auto-computed from Hostname + Domain |
+| **IP Addresses** | Type, IP, Subnet | Network Zone and VLAN are derived from Subnet |
 
 !!! tip "Naming conventions"
     Include environment, role, and sequence in your names: `prod-web-01`, `qa-db-master`, `dev-app-02`. Your future self will thank you.
 
 ---
 
-## Step 9: Link the Server to Your Application
+## Step 8: Link the Server to Your Application
 
 This is the final connection — tying your server to the application environment it supports.
 
-There are **two ways** to make this link:
+There are **two ways** to create this assignment:
 
 ### From the Application side
 
@@ -224,12 +214,23 @@ There are **two ways** to make this link:
 
 ### From the Asset side
 
-The asset's **Assignments** column in the list shows how many applications are linked. This is read-only from the asset — assignments are always managed from the Application's Servers tab.
+1. Open your asset
+2. Go to the **Assignments** tab
+3. Click **Add Assignment**
+4. Fill in the assignment fields:
+
+| Field | What to enter | Example |
+|-------|--------------|---------|
+| **Application** | The application to link | `Salesforce CRM` |
+| **Environment / Instance** | Which instance | `Production` |
+| **Role** | Server role for this app | `Web` |
+| **Since date** | When the assignment started | `2025-01-15` |
+| **Notes** | Any context | — |
 
 !!! success "The chain is complete"
     You now have the full path documented:
 
-    **Salesforce CRM** → **Production instance** → **PROD-WEB-01** → **DC-EU-PARIS**
+    **Salesforce CRM** → **Production instance** → **PROD-WEB-01**
 
     Anyone can trace from "what app?" to "what server?" to "where is it?" in seconds.
 
@@ -270,9 +271,9 @@ Once assets are documented, you can create **Connections** between them to visua
 | Set access methods | Open app → Technical & Support tab |
 | Link budgets/contracts | Open app → Relations tab |
 | Add compliance info | Open app → Compliance tab |
-| Create a location | IT Operations → Locations → Add Location |
 | Create a server | IT Operations → Assets → Add Asset |
-| Link server to app | Open app → Servers tab → Add Server |
+| Link server to app (from app) | Open app → Servers tab → Add Server |
+| Link server to app (from asset) | Open asset → Assignments tab → Add Assignment |
 | View connections | IT Operations → Connection Map |
 | Configure dropdowns | IT Operations → Settings |
 
