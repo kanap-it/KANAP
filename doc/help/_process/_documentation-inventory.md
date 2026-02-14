@@ -8,14 +8,14 @@ This document tracks documentation coverage for the KANAP user manual.
 
 | Category | Total Pages | Documented | Gap |
 |----------|-------------|------------|-----|
-| My Workspace | 2 | 1 | 1 |
+| My Workspace | 2 | 2 | 0 |
 | Dashboard & Operations | 9 | 9 | 0 |
 | IT Operations | 8 | 8 | 0 |
 | Master Data | 8 | 8 | 0 |
 | Admin & Settings | 7 | 7 | 0 |
 | Reports | 10 | 10 | 0 |
 | Portfolio | 7 | 7 | 0 |
-| **TOTAL** | **51** | **50** | **1** |
+| **TOTAL** | **51** | **51** | **0** |
 
 _Note: Portfolio Planning is a placeholder (coming soon) and excluded from counts._
 
@@ -25,6 +25,7 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-02-14 | `my-dashboard.md` | New documentation for My Dashboard (tiles, quick actions, settings, customisation) |
 | 2026-02-14 | `admin.md` | Added Audit Log documentation (access, filtering, pagination, source interpretation) |
 | 2026-02-12 | `portfolio-reporting.md` | Added Status Change Report documentation (filters, inclusion rules, columns, exports) |
 | 2026-02-10 | `tasks.md` | Added "Sending a link" section (Send link feature) |
@@ -65,7 +66,7 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 | Route | Component | Status | Doc File |
 |-------|-----------|--------|----------|
-| `/my/dashboard` | WorkspaceDashboardPage | **MISSING** | — |
+| `/my/dashboard` | WorkspaceDashboardPage | **DOCUMENTED** | `my-dashboard.md` |
 | `/my/tasks` | TasksPage + TaskWorkspacePage | **DOCUMENTED** | `tasks.md` |
 
 _Note: `/ops/tasks` redirects to `/my/tasks`_
@@ -165,9 +166,7 @@ _Note: `/ops/tasks` redirects to `/my/tasks`_
 
 ## Remaining Gaps
 
-| Route | Component | Priority | Notes |
-|-------|-----------|----------|-------|
-| `/my/dashboard` | WorkspaceDashboardPage | Medium | Configurable personal dashboard with tiles, quick task creation, quick time logging |
+No gaps remaining — all tenant-facing pages are documented.
 
 ---
 
@@ -178,7 +177,8 @@ When these files change, the corresponding documentation may need updates:
 | Component Path | Triggers Update To |
 |----------------|-------------------|
 | `frontend/src/pages/DashboardPage.tsx` | `operations-dashboard.md` |
-| `frontend/src/pages/workspace/WorkspaceDashboardPage.tsx` | (undocumented) |
+| `frontend/src/pages/workspace/WorkspaceDashboardPage.tsx` | `my-dashboard.md` |
+| `frontend/src/pages/workspace/**/*.tsx` | `my-dashboard.md` |
 | `frontend/src/pages/OpexListPage.tsx` | `opex.md` |
 | `frontend/src/pages/opex/**/*.tsx` | `opex.md` |
 | `frontend/src/pages/CapexPage.tsx` | `capex.md` |
