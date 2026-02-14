@@ -1,8 +1,14 @@
 # KANAP
 
+[![Website](https://img.shields.io/badge/website-kanap.net-blue)](https://kanap.net)
+[![Documentation](https://img.shields.io/badge/docs-doc.kanap.net-green)](https://doc.kanap.net)
+[![License](https://img.shields.io/badge/license-O'Saasy-orange)](LICENSE)
+
 **The integrated IT management platform for budget planning, enterprise architecture, and portfolio management.**
 
-[Website](https://kanap.net) | [Documentation](doc/)
+Built by an IT director who got tired of duct-taping spreadsheets, wikis, and project tools together.
+
+[Website](https://kanap.net) | [Documentation](https://doc.kanap.net) | [Source docs](doc/)
 
 ---
 
@@ -11,6 +17,9 @@
 IT departments juggle budgets across spreadsheets, track applications in wikis, and manage projects in yet another tool. Nothing connects. When the CFO asks "what are we spending on that system?", the answer takes days to assemble.
 
 KANAP replaces that patchwork with a single platform where costs link to applications, applications link to projects, and projects link back to budgets. One source of truth, zero complexity theater.
+
+<!-- TODO: Add a screenshot of the dashboard here -->
+<!-- ![KANAP Dashboard](docs/assets/screenshot.png) -->
 
 ## What it does
 
@@ -70,6 +79,10 @@ doc/        Architecture, API reference, runbooks, guides
 ## Self-hosted vs. managed
 
 KANAP is free to self-host. A managed cloud service is available at [kanap.net](https://kanap.net) starting at EUR 49/month.
+
+## Contributing
+
+Contributions are welcome! Please [open an issue](https://github.com/kanap-it/kanap/issues) first to discuss what you'd like to change.
 
 ## License
 
