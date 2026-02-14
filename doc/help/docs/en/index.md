@@ -13,6 +13,7 @@ KANAP helps IT and finance teams manage their technology landscape, budgets, and
 - [OPEX](opex.md) - Manage recurring IT costs and allocations
 - [CAPEX](capex.md) - Track capital expenditure projects
 - [Contracts](contracts.md) - Manage vendor contracts and renewals
+- [My Dashboard](my-dashboard.md) - Personal overview with configurable tiles
 - [Tasks](tasks.md) - Track action items and follow-ups
 - [Budget Operations](budget-operations.md) - Freeze, copy, and manage budget data
 - [Reports](reports.md) - Generate budget and chargeback reports
