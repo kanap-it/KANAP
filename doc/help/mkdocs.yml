@@ -93,6 +93,7 @@ nav:
   - Home: index.md
 
   - Fast Track:
+    - "Getting Started": fast-track/getting-started.md
     - "From Request to Delivery": fast-track/index.md
     - "From Application to Server": fast-track/apps-and-assets.md
 
