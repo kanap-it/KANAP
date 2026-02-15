@@ -5,7 +5,8 @@ import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { contentDisposition } from '../common/content-disposition';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
-import { resolveAppBaseUrl } from '../common/url';
+import { resolveAppBaseUrl, resolveNotificationBaseUrl } from '../common/url';
+import { Features } from '../config/features';
 import {
   PortfolioStatusChangeReportService,
   StatusChangeItemType,
@@ -130,6 +131,9 @@ export class PortfolioStatusChangeReportController {
   }
 
   private resolveExportBaseUrl(req: any, tenantSlug: string | null): string | null {
+    if (Features.SINGLE_TENANT) {
+      return resolveNotificationBaseUrl(tenantSlug);
+    }
     const hostCandidates: Array<{ host: string; proto: 'http' | 'https' }> = [];
 
     const forwardedHost = normalizeHost(req?.headers?.['x-forwarded-host']);

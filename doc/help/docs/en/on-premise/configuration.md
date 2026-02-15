@@ -9,14 +9,14 @@ A full template is available at `infra/.env.onprem.example`.
 |----------|-------------|---------|
 | `DEPLOYMENT_MODE` | **Must be `single-tenant`** for on-prem deployments | `single-tenant` |
 
-## Required: Tenant Configuration
+## Optional: Tenant Identity
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DEFAULT_TENANT_SLUG` | No | `default` | URL-safe identifier (lowercase, no spaces) |
-| `DEFAULT_TENANT_NAME` | No | `My Organization` | Display name shown in UI |
+| Variable              | Required | Default           | Description                                                     |
+| --------------------- | -------- | ----------------- | --------------------------------------------------------------- |
+| `DEFAULT_TENANT_SLUG` | No       | `default`         | Internal identifier for the tenant (URL-safe, lowercase)        |
+| `DEFAULT_TENANT_NAME` | No       | `My Organization` | Your organization's name, displayed in the UI header and reports |
 
-The tenant is auto-created on first boot if it doesn’t exist.
+On first boot, KANAP automatically creates a tenant using these values. The defaults work fine for most deployments — you only need to change them if you want a specific organization name to appear in the application.
 
 ## Required: Admin Credentials
 
@@ -30,23 +30,11 @@ The tenant is auto-created on first boot if it doesn’t exist.
 
 **Email links:** Password reset/invite URLs use `APP_BASE_URL` (or forwarded host/proto). On-prem should set `APP_BASE_URL` to the externally reachable URL and configure the reverse proxy to pass `Host` / `X-Forwarded-Proto`.
 
-**CORS:** Configure `CORS_ORIGINS` to control which browser origins can access the API. The application **will fail to start in production** if `CORS_ORIGINS` is not set.
+**CORS:** Configure `CORS_ORIGINS` to control which browser origins can access the API. The application **will fail to start in production** if `CORS_ORIGINS` is not set. Set it to the exact URL users access KANAP from.
 
-Supported patterns:
-- **Exact origin:** `https://app.company.com`
-- **Wildcard subdomain:** `https://*.company.com` (matches any subdomain, e.g., `https://tenant1.company.com`)
-- **Wildcard port:** `http://localhost:*` (matches any port, useful for local development)
-
-Examples:
 ```bash
-# Single-tenant on-prem
+# Match your APP_BASE_URL
 CORS_ORIGINS=https://kanap.company.com
-
-# Multi-tenant with subdomains
-CORS_ORIGINS=https://*.company.com
-
-# Multiple patterns
-CORS_ORIGINS=https://*.company.com,https://admin.company.com
 ```
 
 **Startup validation:** The application will refuse to start if `JWT_SECRET`, `DATABASE_URL`, or `APP_BASE_URL` are missing or empty.
@@ -102,7 +90,6 @@ KANAP uses the AWS SDK v3 S3 client for object storage access; any provider with
 - AWS S3 (`S3_ENDPOINT=https://s3.amazonaws.com`, `S3_FORCE_PATH_STYLE=false`)
 - MinIO (`S3_ENDPOINT=http://minio:9000`, `S3_FORCE_PATH_STYLE=true`)
 - Cloudflare R2 (`https://<account>.r2.cloudflarestorage.com`)
-- Backblaze B2 (`https://s3.<region>.backblazeb2.com`)
 - Hetzner (`https://<region>.your-objectstorage.com`)
 
 ## Recommended : Email via Resend
@@ -140,7 +127,7 @@ See the dedicated guide: `sso-entra.md`.
 | `JWT_REFRESH_TOKEN_TTL` | Refresh token lifetime | `4h` |
 | `RATE_LIMIT_ENABLED` | App-level rate limiting toggle | `true` |
 | `RATE_LIMIT_TRUST_PROXY` | Trust proxy headers for client IP detection | `false` |
-| `APP_URL` | Base URL for notification email links (tenant slug replaces `app`); also used as fallback origin for comment-email inline image URLs when CID embedding is not possible | `https://app.kanap.net` |
+| `APP_URL` | Base URL for notification email links in multi-tenant mode (tenant slug replaces `app`). **Not needed for on-prem** — `APP_BASE_URL` is used instead. | `https://app.kanap.net` |
 | `EMAIL_OVERRIDE` | Redirect all emails to this address (dev/QA only, **never in production**) | *unset* |
 
 ## Full Example (.env)
@@ -218,4 +205,4 @@ The backend runs scheduled background jobs for email notifications:
 - **Expiration warnings**: daily at 08:00 UTC — alerts users about contracts and OPEX items expiring within 30 days.
 - **Weekly review digest**: hourly check — sends timezone-aware weekly summaries to users who have opted in.
 
-These jobs require the API to run as a **long-running process** (not a serverless function). `APP_URL` must be set for notification email links to resolve correctly.
+These jobs require the API to run as a **long-running process** (not a serverless function). In on-premise mode, `APP_BASE_URL` is used for notification email links (no subdomain derivation). If email is not configured (`RESEND_API_KEY` not set), these jobs skip sending gracefully.

@@ -7,6 +7,7 @@ import { Tenant } from '../tenants/tenant.entity';
 import { StripeClientService, StripeConfigService } from './stripe';
 import { computePriceAmount, computeStripePriceAmount, normaliseStripePrice, type NormalisedPrice } from './price.util';
 import { withTenant } from '../common/tenant-runner';
+import { Features } from '../config/features';
 import { AuditService } from '../audit/audit.service';
 import {
   PLANS,
@@ -1277,13 +1278,10 @@ export class BillingService {
     const repo = manager.getRepository(Subscription);
     let subscription = await repo.findOne({ where: {} });
     if (!subscription) {
-      subscription = repo.create({
-        plan_name: 'Starter',
-        seat_limit: 5,
-        active_seats: 0,
-        subscription_type: SubscriptionType.MONTHLY,
-        payment_mode: PaymentMode.CARD,
-      });
+      const defaults = Features.SINGLE_TENANT
+        ? { plan_name: 'On-Prem', seat_limit: 1000, active_seats: 0, subscription_type: SubscriptionType.ANNUAL, payment_mode: PaymentMode.CARD }
+        : { plan_name: 'Starter', seat_limit: 5, active_seats: 0, subscription_type: SubscriptionType.MONTHLY, payment_mode: PaymentMode.CARD };
+      subscription = repo.create(defaults);
       subscription = await repo.save(subscription);
     }
     return subscription;

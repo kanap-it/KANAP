@@ -2,12 +2,14 @@ import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useTenant } from '../tenant/TenantContext';
+import { useFeatures } from '../config/FeaturesContext';
 import { Box, CircularProgress } from '@mui/material';
 
 export default function ProtectedRoute() {
   const { token, isAuthenticating, claims, hasLevel, subscription } = useAuth();
   const location = useLocation();
   const { isPlatformHost } = useTenant();
+  const { config } = useFeatures();
 
   // Show loading spinner while authenticating
   if (isAuthenticating) {
@@ -109,8 +111,9 @@ export default function ProtectedRoute() {
       return <Navigate to="/403" replace />;
     }
 
-    // Redirect billing admins to billing page when subscription is unhealthy
+    // Redirect billing admins to billing page when subscription is unhealthy (only when billing is enabled)
     if (
+      config.features.billing &&
       subscription?.is_subscription_healthy === false &&
       claims.isBillingAdmin &&
       !path.startsWith('/admin/billing') &&

@@ -9,6 +9,8 @@ import { contentDisposition } from '../common/content-disposition';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { resolveAppBaseUrl } from '../common/url';
+import { Features } from '../config/features';
+import { throwFeatureDisabled } from '../common/feature-gates';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserRole } from './user-role.entity';
@@ -101,6 +103,7 @@ export class UsersController {
   @UseGuards(PermissionGuard)
   @RequireLevel('users', 'admin')
   async invite(@Param('id') id: string, @Req() req: any) {
+    if (!Features.EMAIL_ENABLED) throwFeatureDisabled('email');
     const baseUrl = resolveAppBaseUrl(req);
     return this.svc.inviteUser(id, req.user?.sub ?? null, baseUrl, { manager: req?.queryRunner?.manager });
   }

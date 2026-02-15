@@ -1,3 +1,5 @@
+import { Features } from '../config/features';
+
 export type PlatformAdminCandidate = {
   email?: string | null;
   role?: { role_name?: string | null } | null;
@@ -13,6 +15,7 @@ function parseAllowlist(): Set<string> {
 }
 
 export function isPlatformAdmin(candidate: PlatformAdminCandidate | undefined | null): boolean {
+  if (Features.SINGLE_TENANT) return false;
   if (!candidate?.email) return false;
   const allowlist = parseAllowlist();
   const email = candidate.email.toLowerCase();

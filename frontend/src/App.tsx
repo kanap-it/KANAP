@@ -59,6 +59,7 @@ import MasterDataFreezePage from './pages/admin/master-data/MasterDataFreezePage
 import MasterDataCopyPage from './pages/admin/master-data/MasterDataCopyPage';
 import MasterDataHomePage from './pages/admin/MasterDataHomePage';
 import { TenantProvider, useTenant } from './tenant/TenantContext';
+import { FeaturesProvider, useFeatures } from './config/FeaturesContext';
 import ChartsOfAccountsPage from './pages/ChartsOfAccountsPage';
 import ApplicationsPage from './pages/it/ApplicationsPage';
 import ApplicationWorkspacePage from './pages/it/ApplicationWorkspacePage';
@@ -97,14 +98,15 @@ function HomeRoute() {
   return <Navigate to="/my/dashboard" replace />;
 }
 
-export default function App() {
+function AppRoutes() {
   const { token } = useAuth();
+  const { config } = useFeatures();
+  const isSingleTenant = config.deploymentMode === 'single-tenant';
   return (
-    <TenantProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/login/callback" element={<LoginCallbackPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/forgot-password" element={config.features.email ? <ForgotPasswordPage /> : <Navigate to="/login" replace />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/accept-invite" element={<AcceptInvitePage />} />
         <Route element={<ProtectedRoute />}>
@@ -176,15 +178,15 @@ export default function App() {
           <Route path="/admin/users" element={<UsersPage />} />
           <Route path="/admin/roles" element={<RolesPage />} />
           <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
-          <Route path="/admin/billing" element={<BillingCenter />} />
-          <Route path="/admin/choose-plan" element={<Navigate to="/admin/billing" replace />} />
-          <Route path="/admin/auth" element={<AdminAuthPage />} />
-          <Route path="/admin/tenants" element={<AdminTenantsPage />} />
-          <Route path="/admin/coa-templates" element={<AdminCoaTemplatesPage />} />
-          <Route path="/admin/standard-accounts" element={<AdminStandardAccountsPage />} />
-          <Route path="/admin/standard-accounts/:templateId/:id" element={<AdminStandardAccountWorkspacePage />} />
-          <Route path="/admin/standard-accounts/:templateId/:id/:tab" element={<AdminStandardAccountWorkspacePage />} />
-          <Route path="/admin/standard-accounts/:templateId/:id/*" element={<AdminStandardAccountWorkspacePage />} />
+          {config.features.billing && <Route path="/admin/billing" element={<BillingCenter />} />}
+          {config.features.billing && <Route path="/admin/choose-plan" element={<Navigate to="/admin/billing" replace />} />}
+          {config.features.sso && <Route path="/admin/auth" element={<AdminAuthPage />} />}
+          {!isSingleTenant && <Route path="/admin/tenants" element={<AdminTenantsPage />} />}
+          {!isSingleTenant && <Route path="/admin/coa-templates" element={<AdminCoaTemplatesPage />} />}
+          {!isSingleTenant && <Route path="/admin/standard-accounts" element={<AdminStandardAccountsPage />} />}
+          {!isSingleTenant && <Route path="/admin/standard-accounts/:templateId/:id" element={<AdminStandardAccountWorkspacePage />} />}
+          {!isSingleTenant && <Route path="/admin/standard-accounts/:templateId/:id/:tab" element={<AdminStandardAccountWorkspacePage />} />}
+          {!isSingleTenant && <Route path="/admin/standard-accounts/:templateId/:id/*" element={<AdminStandardAccountWorkspacePage />} />}
           {/* IT Operations */}
           <Route path="/it" element={<Navigate to="/it/locations" replace />} />
           <Route path="/it/locations" element={<LocationsPage />} />
@@ -232,6 +234,15 @@ export default function App() {
       <Route path="/403" element={<ForbiddenPage />} />
       <Route path="*" element={<Navigate to={token ? '/' : '/login'} replace />} />
       </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <TenantProvider>
+      <FeaturesProvider>
+        <AppRoutes />
+      </FeaturesProvider>
     </TenantProvider>
   );
 }

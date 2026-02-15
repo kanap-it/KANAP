@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Resend, type Attachment as ResendAttachment } from 'resend';
 import { emailWrapper } from '../notifications/notification-templates';
+import { FeatureDisabledError } from '../common/feature-gates';
 
 type Recipient = string | string[];
 export type EmailAttachment = ResendAttachment;
@@ -179,7 +180,7 @@ export class EmailService {
 
   private ensureClient() {
     if (!this.client) {
-      throw new Error('Email service is not configured. Please set RESEND_API_KEY.');
+      throw new FeatureDisabledError('email', 'Email service is not configured. Set RESEND_API_KEY.');
     }
     return this.client;
   }

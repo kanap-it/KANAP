@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { isProductionEnv } from './env';
+import { Features } from '../config/features';
 
 function normalizeProto(raw: string | undefined): 'http' | 'https' {
   const base = String(raw || '')
@@ -151,4 +152,22 @@ export function resolveTenantAppBaseUrl(req: any, tenantSlug: string) {
   const requestOrigin = getRequestOrigin(req);
   if (requestOrigin) return requestOrigin.replace(/\/$/, '');
   throw new BadRequestException('application url is not configured');
+}
+
+/**
+ * Resolve a base URL for notification links (emails, digests).
+ * In single-tenant mode, uses APP_BASE_URL directly (no subdomain logic).
+ * In multi-tenant mode, derives from APP_URL with slug substitution.
+ */
+export function resolveNotificationBaseUrl(tenantSlug: string | null): string {
+  if (Features.SINGLE_TENANT) {
+    const url = (process.env.APP_BASE_URL || '').trim();
+    if (!url) {
+      throw new Error('FATAL: APP_BASE_URL is required in single-tenant mode for notification links');
+    }
+    return url.replace(/\/$/, '');
+  }
+  const appUrl = process.env.APP_URL || 'https://app.kanap.net';
+  if (!tenantSlug) return appUrl;
+  return appUrl.replace(/\/\/app\./, `//${tenantSlug}.`);
 }

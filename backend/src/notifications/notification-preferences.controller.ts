@@ -3,6 +3,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { NotificationPreferencesData } from './notifications.constants';
 import { ScheduledNotificationsService } from './scheduled-notifications.service';
+import { Features } from '../config/features';
+import { throwFeatureDisabled } from '../common/feature-gates';
 
 @UseGuards(JwtAuthGuard)
 @Controller('users/me/notification-preferences')
@@ -41,6 +43,7 @@ export class NotificationPreferencesController {
 
   @Post('test-weekly-review')
   async testWeeklyReview(@Req() req: any): Promise<{ success: boolean; message: string }> {
+    if (!Features.EMAIL_ENABLED) throwFeatureDisabled('email');
     const userId = req.user?.sub;
     const tenantId = req.tenant?.id;
 

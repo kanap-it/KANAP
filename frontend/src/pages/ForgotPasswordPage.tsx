@@ -3,8 +3,44 @@ import { Alert, Button, Paper, Stack, TextField, Typography } from '@mui/materia
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import AuthFrame from '../components/AuthFrame';
+import { useFeatures } from '../config/FeaturesContext';
 
 export default function ForgotPasswordPage() {
+  const { config } = useFeatures();
+
+  if (!config.features.email) {
+    return (
+      <AuthFrame heading="Reset your password">
+        <Paper
+          elevation={4}
+          sx={{
+            width: '100%',
+            maxWidth: 420,
+            p: { xs: 3, md: 4 },
+            borderRadius: 3,
+          }}
+        >
+          <Stack spacing={3}>
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+              Password reset unavailable
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Password reset requires email to be configured. Contact your administrator.
+            </Typography>
+            <Button
+              variant="text"
+              color="primary"
+              fullWidth
+              onClick={() => window.location.href = '/login'}
+            >
+              Back to login
+            </Button>
+          </Stack>
+        </Paper>
+      </AuthFrame>
+    );
+  }
+
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');

@@ -9,6 +9,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mode: [cloud, onprem]
+    env:
+      DEPLOYMENT_MODE: ${{ matrix.mode == 'onprem' && 'single-tenant' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,7 +21,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Verify Docker is available
-        run: docker --version
-      - name: Placeholder build
-        run: echo "CI scaffold in place; add build, migrations, and tests later."
+      - name: Build backend (${{ matrix.mode }})
+        working-directory: backend
+        run: npm ci && npm run build
+      - name: Build frontend (${{ matrix.mode }})
+        working-directory: frontend
+        run: npm ci && npm run build

@@ -5,10 +5,9 @@
 ```bash
 # 1. Backup database and storage (your responsibility)
 
-# 2. Pull latest release tag and rebuild
+# 2. Pull latest changes and rebuild
 cd kanap
-git fetch --tags
-git checkout v1.2.0
+git pull origin main
 docker build -t kanap-api:latest ./backend
 docker build -t kanap-web:latest ./frontend
 
@@ -21,7 +20,6 @@ docker compose -f infra/compose.onprem.yml logs -f api
 ```
 
 **Breaking changes:** Check `CHANGELOG.md` before upgrading.
-**Recommendation:** Avoid `git pull` on `main` in production; always upgrade via release tags.
 
 **Rollback:** Restore database from backup. Migrations are forward-only.
 
@@ -72,7 +70,7 @@ docker compose -f infra/compose.onprem.yml logs -f api
 
 ## Password Reset
 
-**Recommended:** Configure email (Resend or SMTP) and use the “Forgot Password” flow.
+**Recommended:** Configure email (Resend API) and use the "Forgot Password" flow. SMTP support is planned for a future release.
 
 **Fallback (SQL):** If email is not configured, reset passwords directly in the database.
 

@@ -1,4 +1,6 @@
 import { BadRequestException, Body, Controller, Get, InternalServerErrorException, Logger, Post, Req, UseGuards } from '@nestjs/common';
+import { Features } from '../config/features';
+import { throwNotAvailableInMode } from '../common/feature-gates';
 import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -152,6 +154,7 @@ export class PublicController {
   @UseGuards(RateLimitGuard)
   @Throttle({ default: RATE_LIMITS.publicStartTrial })
   async startTrial(@Body() body: StartTrialDto, @Req() req: any) {
+    if (Features.SINGLE_TENANT) throwNotAvailableInMode();
     await this.turnstile.verifyOrThrow({
       token: body.captchaToken,
       remoteIp: this.resolveClientIp(req),
@@ -215,8 +218,7 @@ export class PublicController {
         text: this.renderActivationText(email, activationUrl, org),
       });
     } catch (error: any) {
-      const message = typeof error?.message === 'string' ? error.message : '';
-      if (message.includes('Email service is not configured')) {
+      if (error?.code === 'FEATURE_DISABLED') {
         return { ok: true, activation_url: activationUrl };
       }
       throw error;
@@ -272,6 +274,7 @@ export class PublicController {
   @UseGuards(RateLimitGuard)
   @Throttle({ default: RATE_LIMITS.publicRequestSupportInvoice })
   async requestSupportInvoice(@Body() body: RequestSupportInvoiceDto, @Req() req: any) {
+    if (Features.SINGLE_TENANT) throwNotAvailableInMode();
     await this.turnstile.verifyOrThrow({
       token: body.captchaToken,
       remoteIp: this.resolveClientIp(req),
@@ -350,8 +353,8 @@ export class PublicController {
           `VAT: ${body.vat_id || 'N/A'}`;
         await this.emails.send({ to: notifyEmail, subject, html, text });
       } catch (e: any) {
-        const msg = typeof e?.message === 'string' ? e.message : '';
-        if (!msg.includes('Email service is not configured')) {
+        if (e?.code !== 'FEATURE_DISABLED') {
+          const msg = typeof e?.message === 'string' ? e.message : '';
           console.warn('[email] Failed to send enterprise support notification:', msg);
         }
       }
@@ -367,6 +370,7 @@ export class PublicController {
 
   @Post('activate-trial')
   async activateTrial(@Body() body: ActivateTrialDto, @Req() req: any) {
+    if (Features.SINGLE_TENANT) throwNotAvailableInMode();
     const token = body.token?.trim();
     if (!token) throw new BadRequestException('token is required');
 
@@ -460,9 +464,9 @@ export class PublicController {
         `Country: ${countryIso}`;
       await this.emails.send({ to: 'admin@kanap.net', subject, html, text });
     } catch (e: any) {
-      const msg = typeof e?.message === 'string' ? e.message : '';
-      if (!msg.includes('Email service is not configured')) {
+      if (e?.code !== 'FEATURE_DISABLED') {
         // Log but do not block activation response
+        const msg = typeof e?.message === 'string' ? e.message : '';
         console.warn('[email] Failed to send new-tenant notification:', msg);
       }
     }

@@ -1,13 +1,14 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, Req, UseGuards, UploadedFile, UseInterceptors, Res } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PlatformAdminGuard } from '../../auth/platform-admin.guard';
+import { MultiTenantOnlyGuard } from '../../common/feature-gates';
 import { AdminCoaTemplatesService } from './admin-coa-templates.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { csvImportMulterOptions } from '../../common/upload';
 import { contentDisposition } from '../../common/content-disposition';
 import { Response } from 'express';
 
-@UseGuards(JwtAuthGuard, PlatformAdminGuard)
+@UseGuards(MultiTenantOnlyGuard, JwtAuthGuard, PlatformAdminGuard)
 @Controller('admin/coa-templates')
 export class AdminCoaTemplatesController {
   constructor(private readonly svc: AdminCoaTemplatesService) {}

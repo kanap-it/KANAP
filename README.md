@@ -44,28 +44,52 @@ KANAP replaces that patchwork with a single platform where costs link to applica
 
 Multi-tenant by design &mdash; single database with RLS isolation, subdomain routing, and RBAC.
 
-## Quick start
+## Quick start (development)
 
 **Prerequisites:** Docker and Docker Compose.
 
 ```bash
-# Clone and start
+# Clone and start the dev environment
 git clone https://github.com/kanap-it/kanap.git
 cd kanap/infra
 docker compose up -d
 ```
 
-Three services come up:
+Four services come up (including a local PostgreSQL for development):
 
 | Service | URL |
 |---------|-----|
-| Web (React) | http://localhost:5173 |
+| Web (React, hot-reload) | http://localhost:5173 |
 | API (NestJS) | http://localhost:8080 |
-| Database (PostgreSQL) | localhost:5432 |
+| Database (PostgreSQL, dev only) | localhost:5432 |
+| Marketing site | http://localhost:8082 |
 
 The API container runs database migrations automatically on startup.
 
-See the [on-premise installation guide](https://doc.kanap.net/on-premise/installation/) and the [documentation](doc/) for environment configuration, QA/production deployment, and detailed setup guides.
+See [doc/setup/dev-setup.md](doc/setup/dev-setup.md) for environment configuration and subdomain testing.
+
+## Self-hosted / on-premise
+
+KANAP supports single-tenant on-premise deployment. You provide your own PostgreSQL, S3-compatible storage, and reverse proxy:
+
+```bash
+# 1. Clone
+git clone https://github.com/kanap-it/kanap.git
+cd kanap
+
+# 2. Configure
+cp infra/.env.onprem.example .env
+# Edit .env: set DATABASE_URL, S3 credentials, ADMIN_EMAIL, JWT_SECRET, APP_BASE_URL
+
+# 3. Build
+docker build -t kanap-api:latest ./backend
+docker build -t kanap-web:latest ./frontend
+
+# 4. Start
+docker compose -f infra/compose.onprem.yml up -d
+```
+
+The first boot auto-creates the tenant, admin user, and subscription. See the [on-premise installation guide](https://doc.kanap.net/on-premise/installation/) for full setup including reverse proxy configuration.
 
 ## Project structure
 
@@ -78,7 +102,7 @@ doc/        Architecture, API reference, runbooks, guides
 
 ## Self-hosted vs. managed
 
-KANAP is free to self-host. A managed cloud service is available at [kanap.net](https://kanap.net) starting at EUR 49/month.
+KANAP is free to self-host using the on-premise deployment mode. A managed cloud service is available at [kanap.net](https://kanap.net) starting at EUR 49/month.
 
 ## Contributing
 
