@@ -14,6 +14,7 @@ import {
   TeamOccupationEntry,
   UnschedulableProject,
   OccupationEntry,
+  OnHoldRange,
   parseRoadmapApply,
   parseRoadmapGenerate,
   BottleneckEntry,
@@ -27,6 +28,7 @@ type ProjectRow = {
   name: string;
   status: ProjectStatus;
   category_id: string | null;
+  source_id: string | null;
   priority_score: number | null;
   execution_progress: number | null;
   estimated_effort_it: number | null;
@@ -99,6 +101,7 @@ type ProjectComputation = {
   name: string;
   status: ProjectStatus;
   categoryId: string | null;
+  sourceId: string | null;
   priorityScore: number | null;
   executionProgress: number;
   remainingIt: number;
@@ -117,6 +120,7 @@ type CapacityReservation = {
   projectName: string;
   status: ProjectStatus;
   categoryId: string | null;
+  sourceId: string | null;
   executionProgress: number;
   reason: RoadmapReservationReason;
   startDate: Date;
@@ -268,6 +272,21 @@ export class PortfolioRoadmapService {
       || a.contributorName.localeCompare(b.contributorName)
       || a.contributorId.localeCompare(b.contributorId));
 
+    // Attach on-hold ranges to scheduled projects via batched audit query.
+    if (baseResult.schedule.length > 0) {
+      const onHoldRangesByProject = await this.buildOnHoldRanges(
+        tenantId,
+        baseResult.schedule,
+        mg,
+      );
+      for (const item of baseResult.schedule) {
+        const ranges = onHoldRangesByProject.get(item.projectId);
+        if (ranges && ranges.length > 0) {
+          item.onHoldRanges = ranges;
+        }
+      }
+    }
+
     const occupation = this.buildOccupation(
       baseResult.weeklyProjectLoad,
       prepared.contributors,
@@ -387,6 +406,7 @@ export class PortfolioRoadmapService {
         p.name,
         p.status,
         p.category_id,
+        p.source_id,
         p.priority_score,
         p.execution_progress,
         p.estimated_effort_it,
@@ -688,6 +708,7 @@ export class PortfolioRoadmapService {
         name: row.name,
         status: row.status,
         categoryId: row.category_id ?? null,
+        sourceId: row.source_id ?? null,
         priorityScore: row.priority_score != null ? toNumber(row.priority_score) : null,
         executionProgress: progress,
         remainingIt,
@@ -806,6 +827,7 @@ export class PortfolioRoadmapService {
         projectName: row.name,
         status: row.status,
         categoryId: row.category_id ?? null,
+        sourceId: row.source_id ?? null,
         executionProgress: round2(project?.executionProgress ?? toNumber(row.execution_progress ?? 0)),
         reason,
         startDate,
@@ -1017,6 +1039,7 @@ export class PortfolioRoadmapService {
       firstWeek: Date | null;
       lastWeek: Date | null;
       done: boolean;
+      activeWeekKeys: Set<string>;
     };
 
     const runtimeByProject = new Map<string, CandidateRuntimeState>();
@@ -1038,6 +1061,7 @@ export class PortfolioRoadmapService {
         firstWeek: null,
         lastWeek: null,
         done: false,
+        activeWeekKeys: new Set<string>(),
       });
 
       let earliestDate = startDate;
@@ -1392,6 +1416,7 @@ export class PortfolioRoadmapService {
             state.remainingTotal = Math.max(0, state.remainingTotal - burn);
             if (!state.firstWeek) state.firstWeek = cursor;
             state.lastWeek = cursor;
+            state.activeWeekKeys.add(weekKey);
             allocatedProjectsThisWeek.add(projectId);
           }
         } else {
@@ -1546,6 +1571,7 @@ export class PortfolioRoadmapService {
             state.remainingTotal = Math.max(0, state.remainingTotal - totalBurned);
             if (!state.firstWeek) state.firstWeek = cursor;
             state.lastWeek = cursor;
+            state.activeWeekKeys.add(weekKey);
             allocatedProjectsThisWeek.add(projectId);
           }
         }
@@ -1618,11 +1644,14 @@ export class PortfolioRoadmapService {
           / (7 * MS_PER_DAY),
         ) + 1,
       );
+      const activeWeekStarts = Array.from(state.activeWeekKeys).sort((a, b) => a.localeCompare(b));
+
       schedule.push({
         projectId: project.id,
         projectName: project.name,
         status: project.status,
         categoryId: project.categoryId,
+        sourceId: project.sourceId,
         executionProgress: round2(project.executionProgress),
         priorityScore: project.priorityScore,
         plannedStart: toYmdUtc(computedStart),
@@ -1632,6 +1661,7 @@ export class PortfolioRoadmapService {
         remainingEffortDays: round2(project.remainingTotal),
         blockerProjectIds: (prepared.blockersByProject.get(project.id) ?? []).slice(),
         contributorLoads,
+        activeWeekStarts,
       });
     }
 
@@ -1658,6 +1688,7 @@ export class PortfolioRoadmapService {
         projectName: reservation.projectName,
         status: reservation.status,
         categoryId: reservation.categoryId,
+        sourceId: reservation.sourceId,
         executionProgress: reservation.executionProgress,
         plannedStart: toYmdUtc(reservation.startDate),
         plannedEnd: toYmdUtc(reservation.endDate),
@@ -1910,6 +1941,148 @@ export class PortfolioRoadmapService {
       (a.teamName ?? '').localeCompare(b.teamName ?? '')
       || (a.teamId ?? '').localeCompare(b.teamId ?? '')
       || a.week.localeCompare(b.week));
+
+    return result;
+  }
+
+  /**
+   * Build on-hold date ranges for scheduled projects from audit_log history.
+   * Single batched query, tenant-scoped. No N+1 loops.
+   */
+  private async buildOnHoldRanges(
+    tenantId: string,
+    schedule: ScheduledProject[],
+    mg: EntityManager,
+  ): Promise<Map<string, OnHoldRange[]>> {
+    const projectIds = schedule.map((p) => p.projectId);
+    const projectInfoById = new Map(
+      schedule.map((p) => [p.projectId, {
+        plannedStart: p.plannedStart,
+        plannedEnd: p.plannedEnd,
+        historicalStart: p.historicalStart,
+        currentStatus: p.status,
+      }]),
+    );
+
+    // Batched query: fetch all status-change audit rows for scheduled projects.
+    const auditRows: Array<{
+      record_id: string;
+      before_json: any;
+      after_json: any;
+      created_at: Date;
+      id: string;
+    }> = await mg.query(
+      `
+      SELECT a.record_id, a.before_json, a.after_json, a.created_at, a.id
+      FROM audit_log a
+      WHERE a.tenant_id = $1
+        AND a.table_name = 'portfolio_projects'
+        AND a.record_id = ANY($2)
+        AND a.action = 'update'
+      ORDER BY a.record_id ASC, a.created_at ASC, a.id ASC
+      `,
+      [tenantId, projectIds],
+    );
+
+    // Group by project and filter to status changes only
+    const statusChangesByProject = new Map<string, Array<{ oldStatus: string; newStatus: string; at: Date }>>();
+    for (const row of auditRows) {
+      const beforeStatus = row.before_json?.status;
+      const afterStatus = row.after_json?.status;
+      if (!beforeStatus || !afterStatus || beforeStatus === afterStatus) continue;
+
+      const list = statusChangesByProject.get(row.record_id) ?? [];
+      list.push({
+        oldStatus: String(beforeStatus),
+        newStatus: String(afterStatus),
+        at: new Date(row.created_at),
+      });
+      statusChangesByProject.set(row.record_id, list);
+    }
+
+    const result = new Map<string, OnHoldRange[]>();
+
+    for (const projectId of projectIds) {
+      const info = projectInfoById.get(projectId);
+      if (!info) continue;
+
+      const windowStart = info.historicalStart ?? info.plannedStart;
+      const windowEnd = info.plannedEnd;
+      const windowStartDate = parseYmdUtc(windowStart);
+      const windowEndDate = parseYmdUtc(windowEnd);
+
+      const changes = statusChangesByProject.get(projectId);
+
+      // Edge case: project currently on_hold with no audit records at all
+      if (!changes || changes.length === 0) {
+        if (info.currentStatus === 'on_hold') {
+          result.set(projectId, [{
+            from: toYmdUtc(windowStartDate),
+            to: toYmdUtc(windowEndDate),
+          }]);
+        }
+        continue;
+      }
+
+      // Build on-hold intervals from status transitions
+      const rawIntervals: Array<{ from: Date; to: Date }> = [];
+      let onHoldStart: Date | null = null;
+
+      for (const change of changes) {
+        if (change.newStatus === 'on_hold') {
+          // Enter on-hold
+          if (!onHoldStart) {
+            onHoldStart = change.at;
+          }
+        } else if (change.oldStatus === 'on_hold') {
+          // Exit on-hold
+          if (onHoldStart) {
+            rawIntervals.push({ from: onHoldStart, to: change.at });
+            onHoldStart = null;
+          } else {
+            // Exit without prior enter in history window: backfill from window start
+            rawIntervals.push({ from: windowStartDate, to: change.at });
+          }
+        }
+      }
+
+      // If still on-hold at end of history, close at window end
+      if (onHoldStart) {
+        rawIntervals.push({ from: onHoldStart, to: windowEndDate });
+      }
+
+      // Clip intervals to window, convert to YMD, merge overlapping/adjacent
+      const clipped: Array<{ from: Date; to: Date }> = [];
+      for (const interval of rawIntervals) {
+        const clippedFrom = new Date(Math.max(interval.from.getTime(), windowStartDate.getTime()));
+        const clippedTo = new Date(Math.min(interval.to.getTime(), windowEndDate.getTime()));
+        if (clippedFrom.getTime() <= clippedTo.getTime()) {
+          clipped.push({ from: clippedFrom, to: clippedTo });
+        }
+      }
+
+      // Sort and merge overlapping/adjacent
+      clipped.sort((a, b) => a.from.getTime() - b.from.getTime());
+      const merged: Array<{ from: Date; to: Date }> = [];
+      for (const interval of clipped) {
+        const last = merged[merged.length - 1];
+        if (last && interval.from.getTime() <= last.to.getTime() + MS_PER_DAY) {
+          last.to = new Date(Math.max(last.to.getTime(), interval.to.getTime()));
+        } else {
+          merged.push({ from: new Date(interval.from), to: new Date(interval.to) });
+        }
+      }
+
+      if (merged.length > 0) {
+        result.set(
+          projectId,
+          merged.map((interval) => ({
+            from: toYmdUtc(interval.from),
+            to: toYmdUtc(interval.to),
+          })),
+        );
+      }
+    }
 
     return result;
   }

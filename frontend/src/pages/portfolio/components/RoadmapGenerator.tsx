@@ -28,6 +28,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableRow,
   Tabs,
@@ -39,20 +40,29 @@ import {
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import ImageIcon from '@mui/icons-material/Image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import api from '../../../api';
 import { PortfolioGantt } from './PortfolioGantt';
+import { computeInactiveSegments } from './roadmap-inactive-segments';
 
 type RoadmapTab = 'schedule' | 'bottlenecks' | 'occupation';
 type OccupationView = 'contributor' | 'team';
+
+type OnHoldRange = {
+  from: string;
+  to: string;
+};
 
 type ScheduledProject = {
   projectId: string;
   projectName: string;
   status: string;
   categoryId: string | null;
+  sourceId: string | null;
   executionProgress: number;
   priorityScore: number | null;
   plannedStart: string;
@@ -66,6 +76,8 @@ type ScheduledProject = {
     contributorName: string;
     days: number;
   }>;
+  activeWeekStarts: string[];
+  onHoldRanges?: OnHoldRange[];
 };
 
 type ReservationReason = 'not_recalculated' | 'external_blocker';
@@ -75,6 +87,7 @@ type ReservationProject = {
   projectName: string;
   status: string;
   categoryId: string | null;
+  sourceId: string | null;
   executionProgress: number;
   plannedStart: string;
   plannedEnd: string;
@@ -319,6 +332,8 @@ type GanttRoadmapItem = {
   historicalStart?: string | null;
   isReservation?: boolean;
   reservationReason?: ReservationReason;
+  activeWeekStarts?: string[];
+  onHoldRanges?: OnHoldRange[];
 };
 
 const exportRoadmapGanttAsPng = async (
@@ -507,6 +522,60 @@ const exportRoadmapGanttAsPng = async (
         drawRoundedRect(ctx, barX, barY, barWidth * progressRatio, barHeight, 4);
         ctx.fill();
       }
+
+      // Inactive segment overlays
+      if (project.activeWeekStarts?.length) {
+        const segments = computeInactiveSegments(
+          project.plannedStart,
+          project.plannedEnd,
+          project.activeWeekStarts,
+          project.onHoldRanges,
+          project.historicalStart,
+        );
+        const barStartMs = start.getTime();
+        const barEndMs = end.getTime();
+        const barSpanMs = barEndMs - barStartMs;
+        if (barSpanMs > 0) {
+          for (const seg of segments) {
+            const segStartMs = parseYmdUtc(seg.from).getTime();
+            const segEndMs = parseYmdUtc(seg.to).getTime();
+            const clippedStart = Math.max(segStartMs, barStartMs);
+            const clippedEnd = Math.min(segEndMs, barEndMs);
+            if (clippedEnd < clippedStart) continue;
+            const segX = barX + (barWidth * (clippedStart - barStartMs) / barSpanMs);
+            const segW = barWidth * (clippedEnd - clippedStart) / barSpanMs;
+            if (segW < 1) continue;
+
+            ctx.save();
+            drawRoundedRect(ctx, barX, barY, barWidth, barHeight, 4);
+            ctx.clip();
+
+            if (seg.type === 'on_hold') {
+              // Diagonal hatch pattern for on-hold
+              ctx.fillStyle = 'rgba(158, 158, 158, 0.25)';
+              ctx.fillRect(segX, barY, segW, barHeight);
+              ctx.strokeStyle = 'rgba(158, 158, 158, 0.45)';
+              ctx.lineWidth = 1;
+              for (let hx = segX - barHeight; hx < segX + segW + barHeight; hx += 6) {
+                ctx.beginPath();
+                ctx.moveTo(hx, barY + barHeight);
+                ctx.lineTo(hx + barHeight, barY);
+                ctx.stroke();
+              }
+            } else {
+              // Dotted/lighter pattern for gaps
+              ctx.fillStyle = 'rgba(200, 200, 200, 0.35)';
+              ctx.fillRect(segX, barY, segW, barHeight);
+              ctx.setLineDash([3, 3]);
+              ctx.strokeStyle = 'rgba(160, 160, 160, 0.5)';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(segX, barY, segW, barHeight);
+              ctx.setLineDash([]);
+            }
+            ctx.restore();
+          }
+        }
+      }
     }
 
     if (barWidth > 26) {
@@ -550,6 +619,222 @@ const exportRoadmapGanttAsPng = async (
   });
 };
 
+type OccupationExportData = {
+  weekKeys: string[];
+  contributorGroups: ContributorOccupationGroup[];
+  teamRows: TeamOccupationRow[];
+  contributorAverages: Map<string, number | null>;
+  teamAverages: Map<string, number | null>;
+};
+
+const exportOccupationAsExcel = (data: OccupationExportData): void => {
+  const { weekKeys, contributorGroups, teamRows, contributorAverages, teamAverages } = data;
+  const weekHeaders = weekKeys.map((weekKey) => {
+    const parts = getIsoWeekParts(weekKey);
+    return `W${String(parts.week).padStart(2, '0')} ${parts.year}`;
+  });
+
+  // Contributors sheet
+  const contributorSheetRows: (string | number | null)[][] = [];
+  contributorSheetRows.push(['Team', 'Contributor', ...weekHeaders, 'Average']);
+  for (const group of contributorGroups) {
+    for (const row of group.rows) {
+      const weekValues = weekKeys.map((wk) => row.weekOccupation.get(wk) ?? null);
+      const nonNull = weekValues.filter((v): v is number => v != null);
+      const avg = nonNull.length > 0 ? Math.round(nonNull.reduce((a, b) => a + b, 0) / nonNull.length) : null;
+      contributorSheetRows.push([group.teamName, row.contributorName, ...weekValues, avg]);
+    }
+  }
+  const contributorAvgRow: (string | number | null)[] = ['Avg', ''];
+  for (const wk of weekKeys) contributorAvgRow.push(contributorAverages.get(wk) ?? null);
+  const allContribNonNull = weekKeys.map((wk) => contributorAverages.get(wk)).filter((v): v is number => v != null);
+  contributorAvgRow.push(allContribNonNull.length > 0 ? Math.round(allContribNonNull.reduce((a, b) => a + b, 0) / allContribNonNull.length) : null);
+  contributorSheetRows.push(contributorAvgRow);
+
+  // Teams sheet
+  const teamSheetRows: (string | number | null)[][] = [];
+  teamSheetRows.push(['Team', ...weekHeaders, 'Average']);
+  for (const row of teamRows) {
+    const weekValues = weekKeys.map((wk) => row.weekOccupation.get(wk) ?? null);
+    const nonNull = weekValues.filter((v): v is number => v != null);
+    const avg = nonNull.length > 0 ? Math.round(nonNull.reduce((a, b) => a + b, 0) / nonNull.length) : null;
+    teamSheetRows.push([row.teamName, ...weekValues, avg]);
+  }
+  const teamAvgRow: (string | number | null)[] = ['Avg'];
+  for (const wk of weekKeys) teamAvgRow.push(teamAverages.get(wk) ?? null);
+  const allTeamNonNull = weekKeys.map((wk) => teamAverages.get(wk)).filter((v): v is number => v != null);
+  teamAvgRow.push(allTeamNonNull.length > 0 ? Math.round(allTeamNonNull.reduce((a, b) => a + b, 0) / allTeamNonNull.length) : null);
+  teamSheetRows.push(teamAvgRow);
+
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(contributorSheetRows);
+  XLSX.utils.book_append_sheet(wb, ws1, 'Contributors');
+  const ws2 = XLSX.utils.aoa_to_sheet(teamSheetRows);
+  XLSX.utils.book_append_sheet(wb, ws2, 'Teams');
+
+  XLSX.writeFile(wb, `roadmap-occupation-${getTodayYmd()}.xlsx`);
+};
+
+const exportOccupationAsPng = async (
+  data: OccupationExportData,
+  view: OccupationView,
+): Promise<void> => {
+  const { weekKeys, contributorGroups, teamRows, contributorAverages, teamAverages } = data;
+
+  const weekHeaders = weekKeys.map((weekKey) => {
+    const parts = getIsoWeekParts(weekKey);
+    return `W${String(parts.week).padStart(2, '0')}`;
+  });
+
+  type FlatRow = { labels: string[]; values: (number | null)[] };
+  const rows: FlatRow[] = [];
+  const labelColCount = view === 'contributor' ? 2 : 1;
+  const tone: 'contributor' | 'team' = view === 'contributor' ? 'contributor' : 'team';
+  const averages = view === 'contributor' ? contributorAverages : teamAverages;
+
+  if (view === 'contributor') {
+    for (const group of contributorGroups) {
+      for (const row of group.rows) {
+        rows.push({
+          labels: [group.teamName, row.contributorName],
+          values: weekKeys.map((wk) => row.weekOccupation.get(wk) ?? null),
+        });
+      }
+    }
+  } else {
+    for (const row of teamRows) {
+      rows.push({
+        labels: [row.teamName],
+        values: weekKeys.map((wk) => row.weekOccupation.get(wk) ?? null),
+      });
+    }
+  }
+
+  // Add average row
+  rows.push({
+    labels: view === 'contributor' ? ['Avg', ''] : ['Avg'],
+    values: weekKeys.map((wk) => averages.get(wk) ?? null),
+  });
+
+  const cellH = 30;
+  const headerH = 36;
+  const labelColWidths = view === 'contributor' ? [160, 200] : [200];
+  const dataCellW = 64;
+  const totalLabelW = labelColWidths.reduce((a, b) => a + b, 0);
+  const totalDataW = weekHeaders.length * dataCellW;
+  const canvasW = totalLabelW + totalDataW;
+  const canvasH = headerH + rows.length * cellH + 1;
+
+  const scale = Math.max(1, Math.ceil(window.devicePixelRatio || 1));
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasW * scale;
+  canvas.height = canvasH * scale;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context unavailable');
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Header
+  ctx.fillStyle = '#f7f8fb';
+  ctx.fillRect(0, 0, canvasW, headerH);
+  ctx.font = '600 11px Arial, sans-serif';
+  ctx.fillStyle = '#334155';
+  let headerX = 0;
+  const headerLabels = view === 'contributor' ? ['Team', 'Contributor'] : ['Team'];
+  for (let i = 0; i < headerLabels.length; i++) {
+    ctx.fillText(headerLabels[i], headerX + 6, headerH - 10);
+    headerX += labelColWidths[i];
+  }
+  for (let i = 0; i < weekHeaders.length; i++) {
+    const x = totalLabelW + i * dataCellW;
+    const textW = ctx.measureText(weekHeaders[i]).width;
+    ctx.fillText(weekHeaders[i], x + (dataCellW - textW) / 2, headerH - 10);
+  }
+
+  // Grid lines
+  ctx.strokeStyle = '#dfe3eb';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, headerH + 0.5);
+  ctx.lineTo(canvasW, headerH + 0.5);
+  ctx.stroke();
+
+  // Data rows
+  ctx.font = '400 11px Arial, sans-serif';
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    const y = headerH + r * cellH;
+    const isAvgRow = r === rows.length - 1;
+
+    if (isAvgRow) {
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(0, y, canvasW, cellH);
+    } else if (r % 2 === 1) {
+      ctx.fillStyle = '#fcfdff';
+      ctx.fillRect(0, y, canvasW, cellH);
+    }
+
+    // Label cells
+    let lx = 0;
+    for (let c = 0; c < labelColCount; c++) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(lx + 4, y + 2, labelColWidths[c] - 8, cellH - 4);
+      ctx.clip();
+      ctx.fillStyle = '#334155';
+      ctx.font = isAvgRow ? '700 11px Arial, sans-serif' : '400 11px Arial, sans-serif';
+      ctx.fillText(row.labels[c] || '', lx + 6, y + cellH - 10);
+      ctx.restore();
+      lx += labelColWidths[c];
+    }
+
+    // Data cells
+    for (let c = 0; c < row.values.length; c++) {
+      const val = row.values[c];
+      const x = totalLabelW + c * dataCellW;
+
+      // Background
+      const bg = getOccupationCellBackground(val, tone);
+      if (bg) {
+        ctx.fillStyle = bg;
+        ctx.fillRect(x, y, dataCellW, cellH);
+      }
+
+      // Text
+      const text = val != null ? `${val}%` : '-';
+      ctx.font = isAvgRow ? '700 11px Arial, sans-serif' : '400 11px Arial, sans-serif';
+      ctx.fillStyle = '#334155';
+      const textW = ctx.measureText(text).width;
+      ctx.fillText(text, x + (dataCellW - textW) / 2, y + cellH - 10);
+    }
+
+    // Row border
+    ctx.strokeStyle = '#edf0f4';
+    ctx.beginPath();
+    ctx.moveTo(0, y + cellH + 0.5);
+    ctx.lineTo(canvasW, y + cellH + 0.5);
+    ctx.stroke();
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('PNG generation failed'));
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `roadmap-occupation-${view}-${getTodayYmd()}.png`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+      resolve();
+    }, 'image/png');
+  });
+};
+
 type Props = {
   onApplied?: () => void;
 };
@@ -571,12 +856,16 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   const [parallelizationLimit, setParallelizationLimit] = useState<number>(1);
   const [optimizationMode, setOptimizationMode] = useState<'priority_focused' | 'completion_focused'>('priority_focused');
   const [includeAlreadyScheduled, setIncludeAlreadyScheduled] = useState(true);
-  const [contextSwitchPenaltyPct, setContextSwitchPenaltyPct] = useState<number>(0.1);
+  const [contextSwitchPenaltyPct, setContextSwitchPenaltyPct] = useState<number>(0.05);
   const [contextSwitchGrace, setContextSwitchGrace] = useState<number>(1);
   const [collaborativeScheduling, setCollaborativeScheduling] = useState(false);
   const [ganttCategoryId, setGanttCategoryId] = useState<string>('');
   const [showReservations, setShowReservations] = useState(true);
   const [expandedBottleneckIds, setExpandedBottleneckIds] = useState<Set<string>>(new Set());
+  const [panelExpanded, setPanelExpanded] = useState(true);
+  const [ganttContributorId, setGanttContributorId] = useState<string>('');
+  const [ganttTeamId, setGanttTeamId] = useState<string>('');
+  const [ganttSourceId, setGanttSourceId] = useState<string>('');
 
   const [response, setResponse] = useState<RoadmapResponse | null>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
@@ -586,6 +875,14 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     queryKey: ['portfolio-categories'],
     queryFn: async () => {
       const res = await api.get('/portfolio/classification/categories');
+      return (res.data || []) as Category[];
+    },
+  });
+
+  const { data: sources } = useQuery({
+    queryKey: ['portfolio-sources'],
+    queryFn: async () => {
+      const res = await api.get('/portfolio/classification/sources');
       return (res.data || []) as Category[];
     },
   });
@@ -649,8 +946,101 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     return options;
   }, [categories, ganttCategoryId, reservationProjects, scheduledProjects]);
 
+  const ganttContributorOptions = useMemo(() => {
+    const contributorNameById = new Map<string, string>();
+    const allProjects = [...scheduledProjects, ...reservationProjects];
+    for (const project of allProjects) {
+      for (const load of project.contributorLoads) {
+        contributorNameById.set(load.contributorId, load.contributorName);
+      }
+    }
+    return Array.from(contributorNameById.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [reservationProjects, scheduledProjects]);
+
+  const contributorFilteredScheduled = useMemo(
+    () => (ganttContributorId
+      ? filteredScheduledProjects.filter((project) =>
+        project.contributorLoads.some((load) => load.contributorId === ganttContributorId))
+      : filteredScheduledProjects),
+    [filteredScheduledProjects, ganttContributorId],
+  );
+  const contributorFilteredReservations = useMemo(
+    () => (ganttContributorId
+      ? filteredReservationProjects.filter((project) =>
+        project.contributorLoads.some((load) => load.contributorId === ganttContributorId))
+      : filteredReservationProjects),
+    [filteredReservationProjects, ganttContributorId],
+  );
+
+  const contributorTeamMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const entry of response?.occupation ?? []) {
+      if (entry.teamId) map.set(entry.contributorId, entry.teamId);
+    }
+    return map;
+  }, [response?.occupation]);
+
+  const ganttTeamOptions = useMemo(() => {
+    const teamNameById = new Map<string, string>();
+    for (const entry of response?.occupation ?? []) {
+      if (entry.teamId) teamNameById.set(entry.teamId, entry.teamName || entry.teamId);
+    }
+    return Array.from(teamNameById.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [response?.occupation]);
+
+  const teamFilteredScheduled = useMemo(
+    () => (ganttTeamId
+      ? contributorFilteredScheduled.filter((project) =>
+        project.contributorLoads.some((load) => contributorTeamMap.get(load.contributorId) === ganttTeamId))
+      : contributorFilteredScheduled),
+    [contributorFilteredScheduled, ganttTeamId, contributorTeamMap],
+  );
+  const teamFilteredReservations = useMemo(
+    () => (ganttTeamId
+      ? contributorFilteredReservations.filter((project) =>
+        project.contributorLoads.some((load) => contributorTeamMap.get(load.contributorId) === ganttTeamId))
+      : contributorFilteredReservations),
+    [contributorFilteredReservations, ganttTeamId, contributorTeamMap],
+  );
+
+  const ganttSourceOptions = useMemo(() => {
+    const sourceNameById = new Map((sources ?? []).map((s) => [s.id, s.name]));
+    const options = Array.from(
+      new Set(
+        scheduledProjects
+          .map((p) => p.sourceId)
+          .concat(reservationProjects.map((p) => p.sourceId))
+          .filter((id): id is string => !!id),
+      ),
+    )
+      .sort((a, b) => {
+        const la = sourceNameById.get(a) || a;
+        const lb = sourceNameById.get(b) || b;
+        return la.localeCompare(lb);
+      })
+      .map((id) => ({ id, name: sourceNameById.get(id) || id }));
+    return options;
+  }, [sources, scheduledProjects, reservationProjects]);
+
+  const sourceFilteredScheduled = useMemo(
+    () => (ganttSourceId
+      ? teamFilteredScheduled.filter((p) => p.sourceId === ganttSourceId)
+      : teamFilteredScheduled),
+    [teamFilteredScheduled, ganttSourceId],
+  );
+  const sourceFilteredReservations = useMemo(
+    () => (ganttSourceId
+      ? teamFilteredReservations.filter((p) => p.sourceId === ganttSourceId)
+      : teamFilteredReservations),
+    [teamFilteredReservations, ganttSourceId],
+  );
+
   const ganttProjects = useMemo(() => {
-    const scheduledRows = filteredScheduledProjects.map((project) => ({
+    const scheduledRows = sourceFilteredScheduled.map((project) => ({
       id: project.projectId,
       name: project.projectName,
       status: project.status,
@@ -659,10 +1049,12 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       historical_start: project.historicalStart,
       planned_end: project.plannedEnd,
       execution_progress: project.executionProgress || 0,
+      active_week_starts: project.activeWeekStarts,
+      on_hold_ranges: project.onHoldRanges,
     }));
     if (!showReservations) return scheduledRows;
 
-    const reservationRows = filteredReservationProjects.map((project) => ({
+    const reservationRows = sourceFilteredReservations.map((project) => ({
       id: project.projectId,
       name: project.projectName,
       status: project.status,
@@ -676,10 +1068,10 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     }));
 
     return [...scheduledRows, ...reservationRows];
-  }, [filteredReservationProjects, filteredScheduledProjects, showReservations]);
+  }, [sourceFilteredReservations, sourceFilteredScheduled, showReservations]);
 
   const ganttExportRows = useMemo<GanttRoadmapItem[]>(() => {
-    const scheduledRows = filteredScheduledProjects.map((project) => ({
+    const scheduledRows = sourceFilteredScheduled.map((project) => ({
       projectId: project.projectId,
       projectName: project.projectName,
       status: project.status,
@@ -688,9 +1080,11 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       plannedEnd: project.plannedEnd,
       historicalStart: project.historicalStart,
       isReservation: false,
+      activeWeekStarts: project.activeWeekStarts,
+      onHoldRanges: project.onHoldRanges,
     }));
     if (!showReservations) return scheduledRows;
-    const reservationRows = filteredReservationProjects.map((project) => ({
+    const reservationRows = sourceFilteredReservations.map((project) => ({
       projectId: project.projectId,
       projectName: project.projectName,
       status: project.status,
@@ -702,12 +1096,12 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       reservationReason: project.reason,
     }));
     return [...scheduledRows, ...reservationRows];
-  }, [filteredReservationProjects, filteredScheduledProjects, showReservations]);
+  }, [sourceFilteredReservations, sourceFilteredScheduled, showReservations]);
 
   const ganttDependencies = useMemo(() => {
     const visibleIds = new Set<string>([
-      ...filteredScheduledProjects.map((p) => p.projectId),
-      ...(showReservations ? filteredReservationProjects.map((p) => p.projectId) : []),
+      ...sourceFilteredScheduled.map((p) => p.projectId),
+      ...(showReservations ? sourceFilteredReservations.map((p) => p.projectId) : []),
     ]);
     const links: Array<{
       id: string;
@@ -728,17 +1122,17 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       }
     }
     return links;
-  }, [filteredReservationProjects, filteredScheduledProjects, scheduledProjects, showReservations]);
+  }, [sourceFilteredReservations, sourceFilteredScheduled, scheduledProjects, showReservations]);
 
   const monthsForGantt = useMemo(() => {
     const allRows = [
-      ...filteredScheduledProjects.map((item) => ({ plannedEnd: item.plannedEnd })),
+      ...sourceFilteredScheduled.map((item) => ({ plannedEnd: item.plannedEnd })),
       ...(showReservations
-        ? filteredReservationProjects.map((item) => ({ plannedEnd: item.plannedEnd }))
+        ? sourceFilteredReservations.map((item) => ({ plannedEnd: item.plannedEnd }))
         : []),
     ];
     return calcMonthsSpan(allRows);
-  }, [filteredReservationProjects, filteredScheduledProjects, showReservations]);
+  }, [sourceFilteredReservations, sourceFilteredScheduled, showReservations]);
   const monthOffsetForGantt = 0;
   const ganttHeight = useMemo(
     () => Math.max(420, (ganttProjects.length * 38) + 180),
@@ -859,6 +1253,34 @@ export default function RoadmapGenerator({ onApplied }: Props) {
         || (a.teamId || '').localeCompare(b.teamId || ''));
   }, [response?.teamOccupation]);
 
+  const contributorOccupationAverages = useMemo(() => {
+    const averages = new Map<string, number | null>();
+    for (const weekKey of occupationWeekKeys) {
+      const values: number[] = [];
+      for (const group of contributorOccupationGroups) {
+        for (const row of group.rows) {
+          const pct = row.weekOccupation.get(weekKey);
+          if (pct != null) values.push(pct);
+        }
+      }
+      averages.set(weekKey, values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : null);
+    }
+    return averages;
+  }, [contributorOccupationGroups, occupationWeekKeys]);
+
+  const teamOccupationAverages = useMemo(() => {
+    const averages = new Map<string, number | null>();
+    for (const weekKey of occupationWeekKeys) {
+      const values: number[] = [];
+      for (const row of teamOccupationRows) {
+        const pct = row.weekOccupation.get(weekKey);
+        if (pct != null) values.push(pct);
+      }
+      averages.set(weekKey, values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : null);
+    }
+    return averages;
+  }, [teamOccupationRows, occupationWeekKeys]);
+
   const toggleBottleneckExpansion = (contributorId: string) => {
     setExpandedBottleneckIds((prev) => {
       const next = new Set(prev);
@@ -876,6 +1298,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     setError(null);
     setSuccess(null);
     setApplyError(null);
+    const isFirstGeneration = !response;
     try {
       const payload = {
         startDate,
@@ -894,11 +1317,34 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       setResponse(nextResponse);
 
       if (options?.resetSelectionPool) {
+        const oldPoolIds = new Set(scheduleSelectionPool.map((p) => p.projectId));
+        const newPoolIds = new Set(nextResponse.schedule.map((p) => p.projectId));
+
+        if (oldPoolIds.size === 0) {
+          // First generation: select all
+          setSelectedProjectIds(new Set(newPoolIds));
+        } else {
+          // Re-generate: preserve deselections, auto-select new projects
+          const nextSelected = new Set<string>();
+          for (const id of newPoolIds) {
+            if (!oldPoolIds.has(id)) {
+              // New project: auto-select
+              nextSelected.add(id);
+            } else if (selectedProjectIds.has(id)) {
+              // Existing project that was selected: keep selected
+              nextSelected.add(id);
+            }
+            // Existing project that was deselected: stays deselected
+          }
+          setSelectedProjectIds(nextSelected);
+        }
         setScheduleSelectionPool(nextResponse.schedule);
-        setSelectedProjectIds(new Set(nextResponse.schedule.map((project) => project.projectId)));
       }
 
-      setTab('schedule');
+      // Only force schedule tab on first successful generation
+      if (isFirstGeneration) {
+        setTab('schedule');
+      }
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Failed to generate roadmap');
     } finally {
@@ -994,6 +1440,35 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     }
   };
 
+  const occupationExportData = useMemo<OccupationExportData | null>(() => {
+    if (occupationWeekKeys.length === 0) return null;
+    return {
+      weekKeys: occupationWeekKeys,
+      contributorGroups: contributorOccupationGroups,
+      teamRows: teamOccupationRows,
+      contributorAverages: contributorOccupationAverages,
+      teamAverages: teamOccupationAverages,
+    };
+  }, [occupationWeekKeys, contributorOccupationGroups, teamOccupationRows, contributorOccupationAverages, teamOccupationAverages]);
+
+  const handleExportOccupationExcel = () => {
+    if (!occupationExportData) return;
+    try {
+      exportOccupationAsExcel(occupationExportData);
+    } catch (err: any) {
+      setError(err?.message ? `Failed to export occupation as Excel: ${err.message}` : 'Failed to export occupation as Excel');
+    }
+  };
+
+  const handleExportOccupationPng = async () => {
+    if (!occupationExportData) return;
+    try {
+      await exportOccupationAsPng(occupationExportData, occupationView);
+    } catch (err: any) {
+      setError(err?.message ? `Failed to export occupation as PNG: ${err.message}` : 'Failed to export occupation as PNG');
+    }
+  };
+
   const hasResponse = !!response;
 
   return (
@@ -1059,6 +1534,8 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                 <MenuItem value="1">1</MenuItem>
                 <MenuItem value="2">2</MenuItem>
                 <MenuItem value="3">3</MenuItem>
+                <MenuItem value="4">4</MenuItem>
+                <MenuItem value="5">5</MenuItem>
               </Select>
             </FormControl>
           </Stack>
@@ -1172,6 +1649,37 @@ export default function RoadmapGenerator({ onApplied }: Props) {
           </Paper>
 
           <Paper variant="outlined" sx={{ p: 0 }}>
+            <Box
+              role="button"
+              tabIndex={0}
+              aria-expanded={panelExpanded}
+              aria-controls="roadmap-panel-content"
+              onClick={() => setPanelExpanded((prev) => !prev)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setPanelExpanded((prev) => !prev);
+                }
+              }}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: 2,
+                py: 1,
+                cursor: 'pointer',
+                userSelect: 'none',
+                '&:hover': { backgroundColor: 'action.hover' },
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Schedule / Bottlenecks / Occupation
+              </Typography>
+              {panelExpanded
+                ? <KeyboardArrowUpIcon fontSize="small" />
+                : <KeyboardArrowDownIcon fontSize="small" />}
+            </Box>
+            <Collapse in={panelExpanded} id="roadmap-panel-content">
             <Tabs
               value={tab}
               onChange={(_, value) => setTab(value)}
@@ -1313,70 +1821,6 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                       </Paper>
                     </Paper>
                   )}
-
-                  <Paper variant="outlined" sx={{ p: 1 }}>
-                    <Stack
-                      direction={{ xs: 'column', sm: 'row' }}
-                      spacing={1.5}
-                      alignItems={{ xs: 'stretch', sm: 'center' }}
-                      sx={{ px: 1, py: 0.5 }}
-                    >
-                      <Typography variant="subtitle2" sx={{ flex: 1 }}>
-                        Read-only Gantt
-                      </Typography>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
-                        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 260 } }}>
-                          <InputLabel>Category</InputLabel>
-                          <Select
-                            value={ganttCategoryId}
-                            label="Category"
-                            onChange={(event) => setGanttCategoryId(event.target.value)}
-                          >
-                            <MenuItem value="">All Categories</MenuItem>
-                            {ganttCategoryOptions.map((category) => (
-                              <MenuItem key={category.id} value={category.id}>
-                                {category.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={showReservations}
-                              onChange={(event) => setShowReservations(event.target.checked)}
-                            />
-                          }
-                          label="Show reservations"
-                        />
-                        <Tooltip title="Export Gantt as PNG">
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={handleExportGanttPng}
-                              disabled={ganttProjects.length === 0}
-                              aria-label="Export Gantt as PNG"
-                            >
-                              <ImageIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </Stack>
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary" sx={{ px: 1, pb: 0.5, display: 'block' }}>
-                      Solid bar shows active scheduled work. Dashed lead-in marks earlier historical start with pause before resumed work. Hatched bars are capacity reservations.
-                    </Typography>
-                    <Box sx={{ height: `${ganttHeight}px` }}>
-                      <PortfolioGantt
-                        projects={ganttProjects}
-                        dependencies={ganttDependencies}
-                        milestones={[]}
-                        readOnly
-                        months={monthsForGantt}
-                        monthOffset={monthOffsetForGantt}
-                      />
-                    </Box>
-                  </Paper>
                 </Stack>
               )}
 
@@ -1471,17 +1915,43 @@ export default function RoadmapGenerator({ onApplied }: Props) {
 
               {tab === 'occupation' && (
                 <Stack spacing={2}>
-                  <ToggleButtonGroup
-                    size="small"
-                    value={occupationView}
-                    exclusive
-                    onChange={(_, value) => {
-                      if (value) setOccupationView(value);
-                    }}
-                  >
-                    <ToggleButton value="contributor">Contributors</ToggleButton>
-                    <ToggleButton value="team">Teams</ToggleButton>
-                  </ToggleButtonGroup>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <ToggleButtonGroup
+                      size="small"
+                      value={occupationView}
+                      exclusive
+                      onChange={(_, value) => {
+                        if (value) setOccupationView(value);
+                      }}
+                    >
+                      <ToggleButton value="contributor">Contributors</ToggleButton>
+                      <ToggleButton value="team">Teams</ToggleButton>
+                    </ToggleButtonGroup>
+                    <Tooltip title="Export occupation as Excel">
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={handleExportOccupationExcel}
+                          disabled={!occupationExportData}
+                          aria-label="Export occupation as Excel"
+                        >
+                          <FileDownloadIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title="Export occupation as PNG">
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={handleExportOccupationPng}
+                          disabled={!occupationExportData}
+                          aria-label="Export occupation as PNG"
+                        >
+                          <ImageIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </Stack>
 
                   {occupationView === 'contributor' && (
                     <Paper variant="outlined" sx={{ overflowX: 'auto' }}>
@@ -1541,6 +2011,26 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                               ))
                             ))}
                           </TableBody>
+                          <TableFooter>
+                            <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                              <TableCell colSpan={2} sx={{ fontWeight: 700 }}>Avg</TableCell>
+                              {occupationWeekKeys.map((weekKey) => {
+                                const avg = contributorOccupationAverages.get(weekKey) ?? null;
+                                return (
+                                  <TableCell
+                                    key={`contributor-avg:${weekKey}`}
+                                    align="center"
+                                    sx={{
+                                      fontWeight: 700,
+                                      backgroundColor: getOccupationCellBackground(avg, 'contributor'),
+                                    }}
+                                  >
+                                    {avg != null ? `${avg}%` : '-'}
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          </TableFooter>
                         </Table>
                       )}
                     </Paper>
@@ -1593,12 +2083,142 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                               </TableRow>
                             ))}
                           </TableBody>
+                          <TableFooter>
+                            <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                              <TableCell sx={{ fontWeight: 700 }}>Avg</TableCell>
+                              {occupationWeekKeys.map((weekKey) => {
+                                const avg = teamOccupationAverages.get(weekKey) ?? null;
+                                return (
+                                  <TableCell
+                                    key={`team-avg:${weekKey}`}
+                                    align="center"
+                                    sx={{
+                                      fontWeight: 700,
+                                      backgroundColor: getOccupationCellBackground(avg, 'team'),
+                                    }}
+                                  >
+                                    {avg != null ? `${avg}%` : '-'}
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          </TableFooter>
                         </Table>
                       )}
                     </Paper>
                   )}
                 </Stack>
               )}
+            </Box>
+            </Collapse>
+          </Paper>
+
+          <Paper variant="outlined" sx={{ p: 1 }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              sx={{ px: 1, py: 0.5 }}
+            >
+              <Typography variant="subtitle2" sx={{ flex: 1, fontWeight: 600 }}>
+                Read-only Gantt
+              </Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 260 } }}>
+                  <InputLabel>Category</InputLabel>
+                  <Select
+                    value={ganttCategoryId}
+                    label="Category"
+                    onChange={(event) => setGanttCategoryId(event.target.value)}
+                  >
+                    <MenuItem value="">All Categories</MenuItem>
+                    {ganttCategoryOptions.map((category) => (
+                      <MenuItem key={category.id} value={category.id}>
+                        {category.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 220 } }}>
+                  <InputLabel>Contributor</InputLabel>
+                  <Select
+                    value={ganttContributorId}
+                    label="Contributor"
+                    onChange={(event) => setGanttContributorId(event.target.value)}
+                  >
+                    <MenuItem value="">All Contributors</MenuItem>
+                    {ganttContributorOptions.map((contributor) => (
+                      <MenuItem key={contributor.id} value={contributor.id}>
+                        {contributor.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                  <InputLabel>Team</InputLabel>
+                  <Select
+                    value={ganttTeamId}
+                    label="Team"
+                    onChange={(event) => setGanttTeamId(event.target.value)}
+                  >
+                    <MenuItem value="">All Teams</MenuItem>
+                    {ganttTeamOptions.map((team) => (
+                      <MenuItem key={team.id} value={team.id}>
+                        {team.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                  <InputLabel>Source</InputLabel>
+                  <Select
+                    value={ganttSourceId}
+                    label="Source"
+                    onChange={(event) => setGanttSourceId(event.target.value)}
+                  >
+                    <MenuItem value="">All Sources</MenuItem>
+                    {ganttSourceOptions.map((source) => (
+                      <MenuItem key={source.id} value={source.id}>
+                        {source.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={showReservations}
+                      onChange={(event) => setShowReservations(event.target.checked)}
+                    />
+                  }
+                  label="Show reservations"
+                />
+                <Tooltip title="Export Gantt as PNG">
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={handleExportGanttPng}
+                      disabled={ganttProjects.length === 0}
+                      aria-label="Export Gantt as PNG"
+                    >
+                      <ImageIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Stack>
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ px: 1, pb: 0.5, display: 'block' }}>
+              Solid bar shows active scheduled work. Dashed lead-in marks earlier historical start with pause before resumed work. Hatched bars are capacity reservations. Dotted overlay marks scheduling gaps; diagonal gray overlay marks on-hold periods.
+            </Typography>
+            <Box sx={{ height: `${ganttHeight}px` }}>
+              <PortfolioGantt
+                projects={ganttProjects}
+                dependencies={ganttDependencies}
+                milestones={[]}
+                readOnly
+                months={monthsForGantt}
+                monthOffset={monthOffsetForGantt}
+              />
             </Box>
           </Paper>
 
