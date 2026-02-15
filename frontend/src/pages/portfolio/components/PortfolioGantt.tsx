@@ -5,6 +5,8 @@ import type { ITask, IApi } from '@svar-ui/react-gantt';
 import { Box, Typography } from '@mui/material';
 import '@svar-ui/react-gantt/style.css';
 import api from '../../../api';
+import { computeInactiveSegments, formatInactiveTooltip } from './roadmap-inactive-segments';
+import type { InactiveSegment } from './roadmap-inactive-segments';
 
 interface GanttProject {
   id: string;
@@ -17,6 +19,8 @@ interface GanttProject {
   planned_start: string | null;
   planned_end: string | null;
   execution_progress: number;
+  active_week_starts?: string[];
+  on_hold_ranges?: Array<{ from: string; to: string }>;
 }
 
 interface ProjectDependency {
@@ -194,6 +198,16 @@ export function PortfolioGantt({
           : 0;
         const activeSpanDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / MS_PER_DAY) + 1);
 
+        const inactiveSegments = !isReservation && p.active_week_starts?.length
+          ? computeInactiveSegments(
+            p.planned_start!,
+            p.planned_end!,
+            p.active_week_starts,
+            p.on_hold_ranges,
+            p.historical_start,
+          )
+          : [];
+
         return {
           id: p.id,
           text: p.name,
@@ -212,6 +226,7 @@ export function PortfolioGantt({
           _historicalStart: p.historical_start,
           _sleepLeadDays: sleepLeadDays,
           _activeSpanDays: activeSpanDays,
+          _inactiveSegments: inactiveSegments,
         };
       });
 
@@ -534,7 +549,24 @@ export function PortfolioGantt({
       ? RESERVATION_REASON_LABELS[data._reservationReason as 'not_recalculated' | 'external_blocker']
       : null;
     const sleepWeeks = hasSleepLead ? Math.max(1, Math.round(sleepLeadDays / 7)) : 0;
-    const tooltip = `${data.text}\nStatus: ${data._statusLabel || data._status}\nProgress: ${progress}%\nStart: ${startStr}\nEnd: ${endStr}${isReservation ? `\nType: Capacity Reservation${reservationReason ? `\nReason: ${reservationReason}` : ''}` : ''}${hasSleepLead && historicalStartStr ? `\nHistorical Start: ${historicalStartStr}\nPaused: ~${sleepWeeks} week(s)` : ''}`;
+    const inactiveSegments: InactiveSegment[] = data._inactiveSegments || [];
+    const inactiveTooltipPart = inactiveSegments.length > 0 ? `\n${formatInactiveTooltip(inactiveSegments)}` : '';
+    const tooltip = `${data.text}\nStatus: ${data._statusLabel || data._status}\nProgress: ${progress}%\nStart: ${startStr}\nEnd: ${endStr}${isReservation ? `\nType: Capacity Reservation${reservationReason ? `\nReason: ${reservationReason}` : ''}` : ''}${hasSleepLead && historicalStartStr ? `\nHistorical Start: ${historicalStartStr}\nPaused: ~${sleepWeeks} week(s)` : ''}${inactiveTooltipPart}`;
+
+    // Compute overlay positions for inactive segments as percentages of the bar
+    const barStartMs = data.start ? new Date(data.start).getTime() : 0;
+    const barEndMs = data.end ? new Date(data.end).getTime() : 0;
+    const barSpanMs = barEndMs - barStartMs;
+    const segmentOverlays = !isReservation && barSpanMs > 0 ? inactiveSegments.map((seg, idx) => {
+      const segStart = new Date(`${seg.from}T00:00:00Z`).getTime();
+      const segEnd = new Date(`${seg.to}T00:00:00Z`).getTime();
+      const clippedStart = Math.max(segStart, barStartMs);
+      const clippedEnd = Math.min(segEnd, barEndMs);
+      if (clippedEnd < clippedStart) return null;
+      const leftPct = ((clippedStart - barStartMs) / barSpanMs) * 100;
+      const widthPct = ((clippedEnd - clippedStart) / barSpanMs) * 100;
+      return { type: seg.type, leftPct, widthPct, key: idx };
+    }).filter(Boolean) as Array<{ type: 'gap' | 'on_hold'; leftPct: number; widthPct: number; key: number }> : [];
 
     return (
       <div
@@ -599,6 +631,23 @@ export function PortfolioGantt({
               }}
             />
           )}
+          {/* Inactive segment overlays */}
+          {segmentOverlays.map((overlay) => (
+            <div
+              key={overlay.key}
+              style={{
+                position: 'absolute',
+                left: `${overlay.leftPct}%`,
+                top: 0,
+                bottom: 0,
+                width: `${overlay.widthPct}%`,
+                background: overlay.type === 'gap'
+                  ? `repeating-linear-gradient(90deg, rgba(200,200,200,0.35) 0, rgba(200,200,200,0.35) 3px, transparent 3px, transparent 6px)`
+                  : `repeating-linear-gradient(135deg, rgba(158,158,158,0.4) 0, rgba(158,158,158,0.4) 4px, rgba(158,158,158,0.15) 4px, rgba(158,158,158,0.15) 8px)`,
+                pointerEvents: 'none',
+              }}
+            />
+          ))}
           {/* Text overlay */}
           <div
             style={{

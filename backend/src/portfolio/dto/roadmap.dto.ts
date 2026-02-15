@@ -24,11 +24,11 @@ export const RoadmapGenerateSchema = z.object({
   startDate: YmdDateSchema,
   statuses: GenerateStatusesSchema,
   capacityMode: z.enum(['theoretical', 'historical']).default('theoretical'),
-  parallelizationLimit: z.number().int().min(1).max(3).default(1),
+  parallelizationLimit: z.number().int().min(1).max(5).default(1),
   optimizationMode: z.enum(['priority_focused', 'completion_focused']).default('priority_focused'),
   includeAlreadyScheduled: z.boolean().default(true),
   excludedProjectIds: z.array(z.string().uuid()).default([]),
-  contextSwitchPenaltyPct: z.number().min(0).max(0.5).default(0.1),
+  contextSwitchPenaltyPct: z.number().min(0).max(0.5).default(0.05),
   contextSwitchGrace: z.number().int().min(0).max(10).default(1),
   collaborativeScheduling: z.boolean().default(false),
 });
@@ -78,11 +78,17 @@ export interface ScheduledProjectContributorLoad {
   days: number;
 }
 
+export interface OnHoldRange {
+  from: string;
+  to: string;
+}
+
 export interface ScheduledProject {
   projectId: string;
   projectName: string;
   status: ProjectStatus;
   categoryId: string | null;
+  sourceId: string | null;
   executionProgress: number;
   priorityScore: number | null;
   plannedStart: string;
@@ -92,6 +98,8 @@ export interface ScheduledProject {
   remainingEffortDays: number;
   blockerProjectIds: string[];
   contributorLoads: ScheduledProjectContributorLoad[];
+  activeWeekStarts: string[];
+  onHoldRanges?: OnHoldRange[];
 }
 
 export type RoadmapReservationReason = 'not_recalculated' | 'external_blocker';
@@ -101,6 +109,7 @@ export interface RoadmapReservation {
   projectName: string;
   status: ProjectStatus;
   categoryId: string | null;
+  sourceId: string | null;
   executionProgress: number;
   plannedStart: string;
   plannedEnd: string;
