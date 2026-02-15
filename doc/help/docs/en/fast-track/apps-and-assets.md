@@ -94,7 +94,7 @@ The IT team members responsible for technical operations and support. Same mecha
 Select which **Companies** and **Departments** use this application. KANAP automatically calculates the number of users based on your master data.
 
 !!! warning "Why owners matter"
-    Ownership drives the **My Apps** and **My Team's Apps** scope filters on the main list. Without owners, the app is only visible in the "All Apps" view — which means nobody feels responsible for it.
+    Ownership makes it easy to **reach the right people** when it matters — planned maintenance, service disruptions, upgrade decisions, license renewals. It also drives the **My Apps** and **My Team's Apps** scope filters on the main list. Without owners, the app is only visible in the "All Apps" view — which means nobody feels responsible for it, and nobody gets notified.
 
 ---
 
@@ -192,8 +192,8 @@ Go to the **Technical** tab to add:
 | **Identity** | Hostname, Domain, FQDN, Aliases, OS | FQDN is auto-computed from Hostname + Domain |
 | **IP Addresses** | Type, IP, Subnet | Network Zone and VLAN are derived from Subnet |
 
-!!! tip "Naming conventions"
-    Include environment, role, and sequence in your names: `prod-web-01`, `qa-db-master`, `dev-app-02`. Your future self will thank you.
+!!! info "Multiple IP addresses"
+    A server can have several IP addresses — add as many as needed (e.g., management interface, production VLAN, backup network). Each entry can have its own type and subnet, and the Network Zone and VLAN are derived automatically.
 
 ---
 
@@ -258,6 +258,10 @@ Data classification, PII flags, and data residency flow into compliance views. W
 ### Connection Map
 
 Once assets are documented, you can create **Connections** between them to visualize network flows and dependencies. See [Connection Map](../connection-map.md).
+
+### Interfaces & Interface Maps
+
+Take it one step further: document **Interfaces** between applications to capture data flows, protocols, and integration points. Then use **Interface Maps** to visualize the full application flow — who talks to whom, how, and why. It's the architect's view of your IT landscape.
 
 ---
 
