@@ -7,6 +7,9 @@ description: Get your application landscape documented in minutes. A practical g
 
 This guide walks you through documenting an application and its supporting infrastructure — from creating the app entry to linking it to the server that hosts it. It's designed to get you productive fast, covering the essential steps without drowning you in options.
 
+!!! abstract "Prefer a one-page summary?"
+    [:material-file-pdf-box: Download the cheat sheet (PDF)](downloads/kanap-itops-fast-track.pdf){ .md-button } — all the key steps on a single A4 page.
+
 For full details, see the [Apps & Services](../applications.md) and [Assets](../assets.md) reference docs.
 
 ---

@@ -5,7 +5,12 @@ description: Get productive with KANAP's Portfolio module in minutes. A practica
 
 # Portfolio Fast Track: From Request to Delivery
 
-This guide walks you through the entire portfolio lifecycle — from submitting your first request to delivering a finished project. It's designed to get you productive fast, not to cover every option. For full details, see the [Portfolio reference docs](../portfolio-requests.md).
+This guide walks you through the entire portfolio lifecycle — from submitting your first request to delivering a finished project. It's designed to get you productive fast, not to cover every option.
+
+!!! abstract "Prefer a one-page summary?"
+    [:material-file-pdf-box: Download the cheat sheet (PDF)](downloads/kanap-portfolio-fast-track.pdf){ .md-button } — all the key steps on a single A4 page.
+
+For full details, see the [Portfolio reference docs](../portfolio-requests.md).
 
 ---
 
