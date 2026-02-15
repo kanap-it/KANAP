@@ -101,12 +101,11 @@ export class ApiClient {
       async (error) => {
         const originalRequest = error.config;
 
-        // Handle billing-specific 403 errors
+        // Handle billing-specific and feature-disabled 403 errors
         if (error.response?.status === 403) {
-          const errorCode = error.response.data?.error;
-          if (errorCode === 'SUBSCRIPTION_FROZEN' || errorCode === 'TRIAL_EXPIRED') {
-            // Don't redirect — let the ProtectedRoute/SubscriptionBanner handle it
-            // Just reject with a structured error so components can react
+          const errorCode = error.response.data?.error || error.response.data?.code;
+          if (errorCode === 'SUBSCRIPTION_FROZEN' || errorCode === 'TRIAL_EXPIRED' || errorCode === 'FEATURE_DISABLED') {
+            // Don't redirect — let the caller handle
             return Promise.reject(error);
           }
         }

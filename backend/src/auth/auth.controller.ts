@@ -9,6 +9,8 @@ import { BillingService } from '../billing/billing.service';
 import * as jwt from 'jsonwebtoken';
 import { EmailService } from '../email/email.service';
 import { resolveAppBaseUrl } from '../common/url';
+import { Features } from '../config/features';
+import { throwFeatureDisabled } from '../common/feature-gates';
 import { isPlatformAdmin } from './platform-admin.util';
 import { FxIngestionService } from '../currency/fx-ingestion.service';
 import { DataSource } from 'typeorm';
@@ -201,6 +203,7 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @Throttle({ default: RATE_LIMITS.authPasswordResetRequest })
   async requestPasswordReset(@Body() body: PasswordResetRequestDto, @Req() req: any) {
+    if (!Features.EMAIL_ENABLED) throwFeatureDisabled('email');
     const email = body.email.trim().toLowerCase();
     const user = await this.users.findByEmail(email, { manager: req?.queryRunner?.manager });
     if (!user) return { ok: true };

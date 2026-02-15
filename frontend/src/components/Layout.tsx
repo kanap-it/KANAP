@@ -35,6 +35,7 @@ import { useAuth } from '../auth/AuthContext';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useTenant } from '../tenant/TenantContext';
+import { useFeatures } from '../config/FeaturesContext';
 import { getDocUrl } from '../utils/docUrls';
 import SubscriptionBanner from './SubscriptionBanner';
 
@@ -123,6 +124,8 @@ export default function Layout() {
   const navigate = useNavigate();
   const { logout, token, hasLevel, claims, profile } = useAuth();
   const { isPlatformHost } = useTenant();
+  const { config } = useFeatures();
+  const isSingleTenant = config.deploymentMode === 'single-tenant';
   const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
   const openMenu = (e: React.MouseEvent<HTMLElement>) => setMenuAnchor(e.currentTarget);
   const closeMenu = () => setMenuAnchor(null);
@@ -447,7 +450,11 @@ export default function Layout() {
           )}
           {workspace === 'admin' && (
           <List>
-            {(isPlatformHost ? platformAdminNav : tenantAdminNav).filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
+            {(isPlatformHost && !isSingleTenant ? platformAdminNav : tenantAdminNav.filter((i) => {
+              if (i.to === '/admin/billing' && !config.features.billing) return false;
+              if (i.to === '/admin/auth' && !config.features.sso) return false;
+              return true;
+            })).filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
               const button = (
                 <ListItemButton
                   key={item.to}
@@ -485,7 +492,7 @@ export default function Layout() {
 
       <Box component="main" sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Toolbar />
-        <SubscriptionBanner />
+        {config.features.billing && <SubscriptionBanner />}
         <Outlet />
       </Box>
     </Box>

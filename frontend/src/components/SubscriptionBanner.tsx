@@ -2,11 +2,16 @@ import React from 'react';
 import { Alert, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { useFeatures } from '../config/FeaturesContext';
 
 export default function SubscriptionBanner() {
   const { subscription, claims } = useAuth();
   const navigate = useNavigate();
+  const { config } = useFeatures();
   const isBillingAdmin = claims?.isBillingAdmin;
+
+  // Don't show billing banner when billing is disabled
+  if (!config.features.billing) return null;
 
   // Don't show the banner if user is platform admin
   if (claims?.isPlatformAdmin) return null;

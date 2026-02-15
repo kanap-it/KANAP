@@ -48,6 +48,12 @@ mkdocs serve  # Preview at http://localhost:8000
 
 ---
 
+### `/on-premise` - On-Premise Deployment (Internal)
+- **[technical-design.md](on-premise/technical-design.md)**: Architecture decisions, feature flags, tenant resolution, error contract, behavioral differences
+- **[operations-internals.md](on-premise/operations-internals.md)**: Distribution model, maintenance strategy, support policy
+
+User-facing on-premise guides are in `/help/docs/en/on-premise/` (published to [doc.kanap.net](https://doc.kanap.net)).
+
 ### `/setup` - Development Environment
 - **[dev-setup.md](setup/dev-setup.md)**: Local development setup (Docker, subdomain testing, environment variables)
 - **[contributing.md](setup/contributing.md)**: Contribution process, code guidelines, documentation standards
@@ -134,13 +140,14 @@ Legacy location for user documentation. Content has been migrated to `/help/docs
 
 ## 🎯 Key Concepts
 
-### Multi-Tenancy
+### Multi-Tenancy & Deployment Modes
 - **Single-DB approach**: Shared PostgreSQL with Row-Level Security (RLS)
 - **Tenant isolation**: `tenant_id` on all tables, RLS policies enforce per-request context
 - **Per-request binding**: `TenantInitGuard` sets `app.current_tenant` from subdomain
 - **Platform admin**: Separate host for tenant management (`PLATFORM_ADMIN_HOST`)
+- **On-premise (single-tenant)**: `DEPLOYMENT_MODE=single-tenant` bypasses subdomain routing, disables billing/platform-admin, auto-provisions tenant on first boot
 
-**See**: [architecture.md](architecture.md) (Multitenancy section), [features/patterns/workspace-patterns.md](features/patterns/workspace-patterns.md) (RLS requirements)
+**See**: [architecture.md](architecture.md) (Multitenancy section), [on-premise/technical-design.md](on-premise/technical-design.md) (on-prem design), [features/patterns/workspace-patterns.md](features/patterns/workspace-patterns.md) (RLS requirements)
 
 ### Workspace Pattern
 - **Route-driven editing**: `/module/items/:id/:tab` (not modals)
@@ -248,6 +255,7 @@ Shared hooks and components for consistency:
 ✅ Email notifications (event-driven + scheduled weekly review digest)
 ✅ User settings (profile editing, notification preferences)
 ✅ Rate limiting (app-level throttling on auth and public endpoints)
+✅ On-premise deployment (single-tenant mode, feature flags, first-boot provisioning, CI matrix)
 
 ### In Progress
 None - V1+ features complete
@@ -287,5 +295,5 @@ See [planning/roadmap.md](planning/roadmap.md)
 
 ---
 
-**Last Updated**: 2026-02-06
+**Last Updated**: 2026-02-15
 **Document Owner**: Engineering Team

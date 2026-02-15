@@ -15,7 +15,7 @@
 | Component | Requirement |
 |-----------|-------------|
 | PostgreSQL | Version 16+ with `citext`, `pgcrypto`, `uuid-ossp` extensions |
-| S3 Storage | Any S3-compatible: AWS S3, MinIO, Cloudflare R2, Backblaze B2, etc. |
+| S3 Storage | Any S3-compatible: AWS S3, MinIO, Cloudflare R2, Hetzner, etc. |
 | Reverse Proxy | TLS termination and routing (nginx, Traefik, Caddy, etc.) |
 | Domain | DNS pointing to your server |
 
@@ -27,17 +27,17 @@ Optional:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/kanap.git
+git clone https://github.com/kanap-it/kanap.git
 cd kanap
 
-# 2. Build Docker images
+# 2. Configure environment BEFORE building
+cp infra/.env.onprem.example .env
+nano .env  # Set DATABASE_URL, S3 credentials, ADMIN_EMAIL, JWT_SECRET, APP_BASE_URL
+# See the Configuration guide for all variables
+
+# 3. Build Docker images
 docker build -t kanap-api:latest ./backend
 docker build -t kanap-web:latest ./frontend
-
-# 3. Copy and configure environment
-cp infra/.env.onprem.example .env
-nano .env  # Configure database, storage, admin credentials
-# Set APP_BASE_URL to your public URL (e.g., https://kanap.company.com)
 
 # 4. Start containers
 docker compose -f infra/compose.onprem.yml up -d
@@ -45,6 +45,7 @@ docker compose -f infra/compose.onprem.yml up -d
 # 5. Verify startup
 docker compose -f infra/compose.onprem.yml logs -f api
 # Wait for "Application started" message
+# First boot creates the tenant, admin user, and subscription automatically
 
 # 6. Configure your reverse proxy to route traffic to:
 #    - /api/* → api:8080
@@ -55,6 +56,8 @@ docker compose -f infra/compose.onprem.yml logs -f api
 # https://kanap.your-domain.com
 # Login with ADMIN_EMAIL / ADMIN_PASSWORD from .env
 ```
+
+**Important:** Complete the configuration (step 2) before starting containers. The API reads `.env` at startup and creates the tenant and admin user on first boot using those values.
 
 ## Reverse Proxy Example (nginx)
 

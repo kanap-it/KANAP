@@ -19,6 +19,8 @@ import { HttpAdapterHost } from '@nestjs/core';
 import { ReleaseTenantRunnerFilter } from './common/filters/release-tenant-runner.filter';
 import { isProductionEnv, parseBoolean, parseCorsPatterns, matchesCorsOrigin, requireAppBaseUrl, requireEnv } from './common/env';
 import { shouldTrustProxyForRateLimit } from './common/rate-limit';
+import { Features } from './config/features';
+import { TenantsService } from './tenants/tenants.service';
 
 function validateStartupEnv() {
   requireEnv('DATABASE_URL');
@@ -189,6 +191,126 @@ async function bootstrap() {
     console.log('Admin seeding disabled (set SEED_ADMIN=true to enable)');
   }
 
+  // Single-tenant auto-provisioning: create tenant + admin + subscription on first boot
+  if (Features.SINGLE_TENANT) {
+    const slug = (process.env.DEFAULT_TENANT_SLUG || 'default').trim();
+    const name = (process.env.DEFAULT_TENANT_NAME || 'My Organization').trim();
+
+    const tenantsService = app.get(TenantsService);
+
+    // 1. Ensure tenant exists (idempotent — TenantsService.createTenant returns existing if found)
+    const existing = await ds.query('SELECT id FROM tenants WHERE slug = $1 LIMIT 1', [slug]);
+    if (!existing?.[0]) {
+      await tenantsService.createTenant({ slug, name });
+      // eslint-disable-next-line no-console
+      console.log(`[on-prem] Created tenant '${slug}'`);
+    }
+
+    // 2. Seed admin user (reuses SEED_ADMIN logic pattern but triggered by single-tenant mode)
+    const adminEmail = process.env.ADMIN_EMAIL?.trim();
+    const adminPassword = process.env.ADMIN_PASSWORD?.trim();
+    if (adminEmail && adminPassword) {
+      const tenantRow = await ds.query('SELECT id FROM tenants WHERE slug = $1 LIMIT 1', [slug]);
+      const tenantId = tenantRow[0].id;
+      const runner = ds.createQueryRunner();
+      await runner.connect();
+      await runner.startTransaction();
+      try {
+        await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
+
+        const roleRepo = runner.manager.getRepository(Role);
+        const userRepo = runner.manager.getRepository(User);
+        const rolePermRepo = runner.manager.getRepository(RolePermission);
+
+        let adminRole = await roleRepo.findOne({ where: { role_name: 'Administrator' } });
+        if (!adminRole) {
+          adminRole = await roleRepo.save(roleRepo.create({
+            role_name: 'Administrator',
+            role_description: 'Full system administrator with access to all features',
+            is_system: true,
+          }));
+        }
+        if (!adminRole.is_system) {
+          adminRole.is_system = true as any;
+          await roleRepo.save(adminRole);
+        }
+        let contactRole = await roleRepo.findOne({ where: { role_name: 'Contact' } });
+        if (!contactRole) {
+          contactRole = await roleRepo.save(roleRepo.create({
+            role_name: 'Contact',
+            role_description: 'Directory contact without app access by default',
+            is_system: true,
+          }));
+        }
+        if (!contactRole.is_system) {
+          contactRole.is_system = true as any;
+          await roleRepo.save(contactRole);
+        }
+
+        for (const r of RESOURCES) {
+          const existingPerm = await rolePermRepo.findOne({ where: { role_id: adminRole.id, resource: r } });
+          if (!existingPerm) {
+            await rolePermRepo.save(rolePermRepo.create({ role_id: adminRole.id, resource: r, level: 'admin' as any }));
+          } else if (existingPerm.level !== 'admin') {
+            existingPerm.level = 'admin' as any;
+            await rolePermRepo.save(existingPerm);
+          }
+        }
+
+        const existingUser = await userRepo.findOne({ where: { email: adminEmail } });
+        if (!existingUser) {
+          const password_hash = await argon2.hash(adminPassword, { type: argon2.argon2id });
+          await userRepo.save(userRepo.create({
+            email: adminEmail,
+            password_hash,
+            role_id: adminRole.id,
+            status: 'enabled',
+          }));
+          // eslint-disable-next-line no-console
+          console.log(`[on-prem] Seeded admin user ${adminEmail}`);
+        } else if (existingUser.role_id !== adminRole.id) {
+          existingUser.role_id = adminRole.id;
+          await userRepo.save(existingUser);
+          // eslint-disable-next-line no-console
+          console.log(`[on-prem] Updated admin user ${adminEmail} to Administrator role`);
+        }
+
+        await runner.commitTransaction();
+      } catch (seedError) {
+        await runner.rollbackTransaction();
+        throw seedError;
+      } finally {
+        await runner.release();
+      }
+    }
+
+    // 3. Bootstrap subscription row
+    const tenantRow = await ds.query('SELECT id FROM tenants WHERE slug = $1 LIMIT 1', [slug]);
+    const tenantId = tenantRow[0].id;
+    const subRunner = ds.createQueryRunner();
+    await subRunner.connect();
+    await subRunner.startTransaction();
+    try {
+      await subRunner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
+      const subRows = await subRunner.query('SELECT id FROM subscriptions LIMIT 1');
+      if (!subRows?.[0]) {
+        await subRunner.query(`
+          INSERT INTO subscriptions (tenant_id, plan_name, seat_limit, active_seats, subscription_type, payment_mode, status)
+          VALUES ($1, 'On-Prem', 1000, 0, 'ANNUAL', 'CARD', 'active')
+        `, [tenantId]);
+        // eslint-disable-next-line no-console
+        console.log('[on-prem] Created default subscription (On-Prem, 1000 seats)');
+      }
+      await subRunner.commitTransaction();
+    } catch (e) {
+      await subRunner.rollbackTransaction();
+      // eslint-disable-next-line no-console
+      console.error('[on-prem] Subscription bootstrap failed:', e);
+    } finally {
+      await subRunner.release();
+    }
+  }
+
   // Tenancy resolution middleware: attach { slug, id? } based on Host header
   // NOTE: TenancyMiddleware is available in common/tenancy for use with NestJS module-level
   // middleware configuration. This inline middleware is kept for backward compatibility.
@@ -198,6 +320,19 @@ async function bootstrap() {
 
   const tenancy = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Single-tenant mode: skip all Host parsing, resolve tenant by slug
+      if (Features.SINGLE_TENANT) {
+        const stSlug = (process.env.DEFAULT_TENANT_SLUG || 'default').trim();
+        const rows = await ds.query('SELECT id, slug, name FROM tenants WHERE slug = $1 LIMIT 1', [stSlug]);
+        if (rows?.[0]) {
+          (req as any).tenant = { id: rows[0].id, slug: rows[0].slug, name: rows[0].name };
+        } else {
+          res.status(503).json({ error: 'TENANT_NOT_READY', message: 'Single-tenant provisioning in progress. Retry shortly.' });
+          return;
+        }
+        return next();
+      }
+
       const rawHost = req.headers.host || '';
       const host = rawHost.split(':')[0]?.toLowerCase() ?? '';
 

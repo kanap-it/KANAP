@@ -1,12 +1,13 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PlatformAdminGuard } from '../../auth/platform-admin.guard';
+import { MultiTenantOnlyGuard } from '../../common/feature-gates';
 import { AdminTenantsService } from './admin-tenants.service';
 import { UpdateTenantPlanDto } from './dto/update-tenant-plan.dto';
 import { FreezeTenantDto } from './dto/freeze-tenant.dto';
 import { DeleteTenantDto } from './dto/delete-tenant.dto';
 
-@UseGuards(JwtAuthGuard, PlatformAdminGuard)
+@UseGuards(MultiTenantOnlyGuard, JwtAuthGuard, PlatformAdminGuard)
 @Controller('admin/tenants')
 export class AdminTenantsController {
   constructor(private readonly svc: AdminTenantsService) {}

@@ -8,6 +8,7 @@ import { EmailService } from '../email/email.service';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { NotificationsService } from './notifications.service';
 import { buildWeeklyReviewEmail } from './notification-templates';
+import { resolveNotificationBaseUrl } from '../common/url';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -36,8 +37,6 @@ export class ScheduledNotificationsService implements OnModuleInit {
    * Falls back to the raw APP_URL if the slug cannot be resolved.
    */
   private async getTenantAppUrl(tenantId: string): Promise<string> {
-    const appUrl = process.env.APP_URL || 'https://app.kanap.net';
-
     try {
       let slug = this.tenantSlugCache.get(tenantId);
       if (!slug) {
@@ -50,14 +49,12 @@ export class ScheduledNotificationsService implements OnModuleInit {
           this.tenantSlugCache.set(tenantId, slug);
         }
       }
-      if (slug) {
-        return appUrl.replace(/\/\/app\./, `//${slug}.`);
-      }
+      return resolveNotificationBaseUrl(slug ?? null);
     } catch (error) {
       this.logger.warn(`Failed to get tenant slug for ${tenantId}: ${error}`);
     }
 
-    return appUrl;
+    return resolveNotificationBaseUrl(null);
   }
 
   // ============================================

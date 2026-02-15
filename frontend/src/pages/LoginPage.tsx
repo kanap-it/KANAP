@@ -5,6 +5,7 @@ import api from '../api';
 import { useAuth } from '../auth/AuthContext';
 import AuthFrame from '../components/AuthFrame';
 import { useTenant } from '../tenant/TenantContext';
+import { useFeatures } from '../config/FeaturesContext';
 
 const marketingUrl = import.meta.env.VITE_MARKETING_URL ?? 'https://kanap.net';
 
@@ -34,6 +35,7 @@ export default function LoginPage() {
   );
   const { login } = useAuth();
   const { isPlatformHost } = useTenant();
+  const { config } = useFeatures();
 
   useEffect(() => {
     const state = location.state as any;
@@ -90,7 +92,7 @@ export default function LoginPage() {
           </Box>
 
           <Stack spacing={3}>
-            {!isPlatformHost && (
+            {!isPlatformHost && config.features.sso && (
               <Button
                 type="button"
                 variant="contained"
@@ -159,15 +161,17 @@ export default function LoginPage() {
                   Sign in with email
                 </Button>
               </Stack>
-              <Button
-                type="button"
-                variant="text"
-                color="primary"
-                fullWidth
-                onClick={() => navigate('/forgot-password')}
-              >
-                Forgot password
-              </Button>
+              {config.features.email && (
+                <Button
+                  type="button"
+                  variant="text"
+                  color="primary"
+                  fullWidth
+                  onClick={() => navigate('/forgot-password')}
+                >
+                  Forgot password
+                </Button>
+              )}
             </Stack>
           </Stack>
         </Stack>

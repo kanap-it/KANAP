@@ -46,6 +46,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { RateLimitGuard } from './common/rate-limit.guard';
 import { TurnstileService } from './public/turnstile.service';
+import { ConfigController } from './config/config.controller';
 
 @Module({
   imports: [
@@ -120,7 +121,7 @@ import { TurnstileService } from './public/turnstile.service';
     DashboardModule,
     NotificationsModule,
   ],
-  controllers: [HealthController, PublicController],
+  controllers: [HealthController, PublicController, ConfigController],
   providers: [RateLimitGuard, TurnstileService],
 })
 export class AppModule {}

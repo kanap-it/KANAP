@@ -52,24 +52,29 @@ Support policy:
 
 ## Maintenance Strategy
 
-Single codebase with minimal feature flags:
+Single codebase with minimal feature flags.
+
+**Single source of truth:** `backend/src/config/features.ts`
+**Mode/feature gating utilities:** `backend/src/common/feature-gates.ts`
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │                  main branch                         │
 │                                                      │
 │   Common Code (98%)  │  Cloud-only  │  On-Prem-only │
-│                      │  (Stripe,    │  (SMTP in     │
-│                      │   etc.)      │   Phase 2)    │
+│                      │  (Stripe,    │  (first-boot   │
+│                      │   trial,     │   provisioning, │
+│                      │   platform   │   SMTP in      │
+│                      │   admin)     │   Phase 2)     │
 │                                                      │
 │         Runtime detection via environment variables  │
 └─────────────────────────────────────────────────────┘
 ```
 
 Rules:
-- Keep flags minimal and centralized
-- Prefer strategy/DI patterns to avoid if/else sprawl
-- Every PR must pass cloud and on-prem tests
+- Keep flags minimal and centralized in `features.ts`
+- Use `MultiTenantOnlyGuard` for controller-level gating, `throwFeatureDisabled()` for endpoint-level
+- Every PR must pass cloud and on-prem CI builds (matrix in `.github/workflows/ci.yml`)
 
 ## External Connectivity
 

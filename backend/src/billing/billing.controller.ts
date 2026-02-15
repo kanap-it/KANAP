@@ -3,6 +3,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { BillingService } from './billing.service';
+import { Features } from '../config/features';
+import { throwFeatureDisabled } from '../common/feature-gates';
 import { IsBoolean, IsEmail, IsEnum, IsIn, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { SubscriptionType } from './subscription.entity';
 import { Type } from 'class-transformer';
@@ -137,11 +139,13 @@ export class BillingController {
 
   @Get('plans')
   async getPlans() {
+    if (!Features.STRIPE_BILLING) throwFeatureDisabled('billing');
     return this.billing.getPlans();
   }
 
   @Get('subscription')
   async subscription(@Req() req: any) {
+    if (!Features.STRIPE_BILLING) throwFeatureDisabled('billing');
     return this.billing.getSubscriptionSummary({ manager: req?.queryRunner?.manager, forceStripeRefresh: true });
   }
 
@@ -149,6 +153,7 @@ export class BillingController {
   @RequireLevel('billing', 'admin')
   @Post('change-plan')
   async changePlan(@Req() req: any, @Body() body: ChangePlanDto) {
+    if (!Features.STRIPE_BILLING) throwFeatureDisabled('billing');
     const tenantId = req?.tenant?.id as string | undefined;
     if (!tenantId) {
       throw new BadRequestException('Tenant context not resolved');
@@ -161,6 +166,7 @@ export class BillingController {
   @RequireLevel('billing', 'admin')
   @Post('request-invoice')
   async requestInvoice(@Req() req: any, @Body() body: RequestInvoiceDto) {
+    if (!Features.STRIPE_BILLING) throwFeatureDisabled('billing');
     const tenantId = req?.tenant?.id as string | undefined;
     if (!tenantId) {
       throw new BadRequestException('Tenant context not resolved');
@@ -173,6 +179,7 @@ export class BillingController {
   @RequireLevel('billing', 'reader')
   @Get('profile')
   async profile(@Req() req: any) {
+    if (!Features.STRIPE_BILLING) throwFeatureDisabled('billing');
     const tenantId = req?.tenant?.id as string | undefined;
     if (!tenantId) {
       throw new BadRequestException('Tenant context not resolved');
@@ -187,6 +194,7 @@ export class BillingController {
   @RequireLevel('billing', 'admin')
   @Post('portal')
   async openPortal(@Req() req: any, @Body() body: OpenPortalDto) {
+    if (!Features.STRIPE_BILLING) throwFeatureDisabled('billing');
     const tenantId = req?.tenant?.id as string | undefined;
     if (!tenantId) {
       throw new BadRequestException('Tenant context not resolved');
@@ -200,6 +208,7 @@ export class BillingController {
   @RequireLevel('billing', 'admin')
   @Post('checkout')
   async createCheckout(@Req() req: any, @Body() body: CreateCheckoutSessionDto) {
+    if (!Features.STRIPE_BILLING) throwFeatureDisabled('billing');
     const tenantId = req?.tenant?.id as string | undefined;
     if (!tenantId) {
       throw new BadRequestException('Tenant context not resolved');
@@ -224,6 +233,7 @@ export class BillingController {
   @RequireLevel('billing', 'admin')
   @Patch('profile')
   async updateProfile(@Req() req: any, @Body() body: UpdateBillingProfileDto) {
+    if (!Features.STRIPE_BILLING) throwFeatureDisabled('billing');
     const tenantId = req?.tenant?.id as string | undefined;
     if (!tenantId) {
       throw new BadRequestException('Tenant context not resolved');

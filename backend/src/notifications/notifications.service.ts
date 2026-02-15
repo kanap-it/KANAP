@@ -3,6 +3,7 @@ import { Interval } from '@nestjs/schedule';
 import { DataSource, EntityManager } from 'typeorm';
 import { EmailAttachment, EmailService } from '../email/email.service';
 import { StorageService } from '../common/storage/storage.service';
+import { resolveNotificationBaseUrl } from '../common/url';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { NotificationPreferencesData, WorkspaceSettings } from './notifications.constants';
 import {
@@ -118,14 +119,7 @@ export class NotificationsService {
    * Build base URL for a tenant.
    */
   private buildTenantBaseUrl(tenantSlug: string | null): string {
-    const appUrl = process.env.APP_URL || 'https://app.kanap.net';
-
-    if (!tenantSlug) {
-      return appUrl;
-    }
-
-    // Replace "app" subdomain with the tenant slug
-    return appUrl.replace(/\/\/app\./, `//${tenantSlug}.`);
+    return resolveNotificationBaseUrl(tenantSlug);
   }
 
   /**

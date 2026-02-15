@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    env_file: ../.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+    # Default CMD runs migrations then starts the API
+
+  web:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:8081:80"
+    restart: unless-stopped
+    # nginx serves the built SPA and proxies /api to api:8080
