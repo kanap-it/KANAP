@@ -1,10 +1,10 @@
-# Budget Operations
+# Budget Administration
 
-Budget Operations provides powerful tools for managing and transforming your budget data across years and columns. Use these tools during budget planning cycles to prepare data, lock approved budgets, and manage year-over-year transitions.
+Budget Administration provides powerful tools for managing and transforming your budget data across years and columns. Use these tools during budget planning cycles to prepare data, lock approved budgets, and manage year-over-year transitions.
 
 ## Where to find it
 
-Navigate to **Budget Management → Budget Operations** to access the operations hub.
+Navigate to **Budget Management → Administration** to access the administration hub.
 
 **Permissions**: Most operations require `budget_ops:admin` permission.
 
@@ -12,7 +12,7 @@ Navigate to **Budget Management → Budget Operations** to access the operations
 
 ## Available Operations
 
-The Budget Operations landing page provides access to four tools:
+The Budget Administration landing page provides access to four tools:
 
 | Tool | Purpose |
 |------|---------|

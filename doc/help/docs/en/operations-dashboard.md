@@ -1,4 +1,4 @@
-# Budget Management Dashboard
+# Budget Management Overview
 
 The Budget Management Dashboard is the home page after signing in. It provides a quick overview of your current budget status and actionable shortcuts across a responsive tile layout.
 

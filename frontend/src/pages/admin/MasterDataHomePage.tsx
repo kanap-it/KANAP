@@ -35,12 +35,12 @@ const cards = [
     to: '/master-data/business-processes',
   },
   {
-    title: 'Analytics Categories',
+    title: 'Analytics Dimensions',
     description: 'Configure analytics dimensions',
     to: '/master-data/analytics',
   },
   {
-    title: 'Master Data Operations',
+    title: 'Administration',
     description: 'Freeze, copy, and manage master data across years',
     to: '/master-data/operations',
   },

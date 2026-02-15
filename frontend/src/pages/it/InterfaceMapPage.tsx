@@ -601,8 +601,8 @@ export default function InterfaceMapPage() {
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Apps & Services"
-            placeholder="Select applications or services"
+            label="Applications"
+            placeholder="Select applications"
             InputLabelProps={{ shrink: true }}
           />
         )}

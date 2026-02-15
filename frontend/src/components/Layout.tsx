@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppBar, Box, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, Tooltip, Tabs, Tab, Menu, MenuItem } from '@mui/material';
+import { AppBar, Box, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader, Toolbar, Typography, Tooltip, Tabs, Tab, Menu, MenuItem } from '@mui/material';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -42,48 +42,61 @@ import SubscriptionBanner from './SubscriptionBanner';
 const drawerWidth = 240;
 
 type NavItem = { to: string; label: string; icon: React.ReactNode; resource?: string };
+type NavDivider = { divider: string };
+type NavEntry = NavItem | NavDivider;
 
-const operations: NavItem[] = [
-  { to: '/ops', label: 'Dashboard', icon: <DashboardIcon /> },
+function isNavItem(entry: NavEntry): entry is NavItem {
+  return 'to' in entry;
+}
+
+const operations: NavEntry[] = [
+  { to: '/ops', label: 'Overview', icon: <DashboardIcon /> },
   { to: '/ops/opex', label: 'OPEX', icon: <AccountBalanceWalletIcon />, resource: 'opex' },
   { to: '/ops/capex', label: 'CAPEX', icon: <AccountBalanceIcon />, resource: 'capex' },
   { to: '/ops/contracts', label: 'Contracts', icon: <DescriptionIcon />, resource: 'contracts' },
   { to: '/ops/reports', label: 'Reporting', icon: <BarChartIcon />, resource: 'reporting' },
-  { to: '/ops/operations', label: 'Budget Operations', icon: <SettingsIcon />, resource: 'opex' },
+  { to: '/ops/operations', label: 'Administration', icon: <SettingsIcon />, resource: 'opex' },
 ];
 
-const myWorkspaceNav: NavItem[] = [
+const myWorkspaceNav: NavEntry[] = [
   { to: '/my/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
   { to: '/my/tasks', label: 'My Tasks', icon: <AssignmentIcon />, resource: 'tasks' },
 ];
 
-const masterData: NavItem[] = [
+const masterData: NavEntry[] = [
   { to: '/master-data', label: 'Master Data Home', icon: <HomeIcon /> },
+  { divider: 'Organization' },
   { to: '/master-data/companies', label: 'Companies', icon: <BusinessIcon />, resource: 'companies' },
   { to: '/master-data/departments', label: 'Departments', icon: <AccountTreeIcon />, resource: 'departments' },
+  { divider: 'External Parties' },
   { to: '/master-data/suppliers', label: 'Suppliers', icon: <LocalShippingIcon />, resource: 'suppliers' },
   { to: '/master-data/contacts', label: 'Contacts', icon: <PeopleIcon />, resource: 'contacts' },
-  // Place Charts of Accounts between Contacts and Accounts as requested
+  { divider: 'Finance' },
   { to: '/master-data/coa', label: 'Charts of Accounts', icon: <StorageIcon />, resource: 'accounts' },
   { to: '/master-data/accounts', label: 'Accounts', icon: <AccountBalanceIcon />, resource: 'accounts' },
   { to: '/master-data/currency', label: 'Currency', icon: <AttachMoneyIcon />, resource: 'settings' },
+  { divider: 'Classification' },
   { to: '/master-data/business-processes', label: 'Business Processes', icon: <WorkOutlineIcon />, resource: 'business_processes' },
-  { to: '/master-data/analytics', label: 'Analytics', icon: <InsightsIcon />, resource: 'analytics' },
-  { to: '/master-data/operations', label: 'Master Data Ops', icon: <BuildIcon />, resource: 'companies' },
+  { to: '/master-data/analytics', label: 'Analytics Dimensions', icon: <InsightsIcon />, resource: 'analytics' },
+  { divider: '' },
+  { to: '/master-data/operations', label: 'Administration', icon: <BuildIcon />, resource: 'companies' },
 ];
 
-const itOperations: NavItem[] = [
+const itOperations: NavEntry[] = [
+  { divider: 'Infrastructure' },
   { to: '/it/locations', label: 'Locations', icon: <LocationCityIcon />, resource: 'locations' },
   { to: '/it/assets', label: 'Assets', icon: <DnsIcon />, resource: 'infrastructure' },
   { to: '/it/connections', label: 'Connections', icon: <LanIcon />, resource: 'infrastructure' },
   { to: '/it/connection-map', label: 'Connection Map', icon: <LanIcon />, resource: 'infrastructure' },
-  { to: '/it/applications', label: 'Apps & Services', icon: <WorkOutlineIcon />, resource: 'applications' },
+  { divider: 'Applications' },
+  { to: '/it/applications', label: 'Applications', icon: <WorkOutlineIcon />, resource: 'applications' },
   { to: '/it/interfaces', label: 'Interfaces', icon: <HubIcon />, resource: 'applications' },
   { to: '/it/interface-map', label: 'Interface Map', icon: <AccountTreeIcon />, resource: 'applications' },
+  { divider: '' },
   { to: '/it/settings', label: 'Settings', icon: <SettingsIcon />, resource: 'settings' },
 ];
 
-const portfolioNav: NavItem[] = [
+const portfolioNav: NavEntry[] = [
   { to: '/portfolio/requests', label: 'Requests', icon: <InboxIcon />, resource: 'portfolio_requests' },
   { to: '/portfolio/projects', label: 'Projects', icon: <AccountTreeIcon />, resource: 'portfolio_projects' },
   { to: '/portfolio/planning', label: 'Planning', icon: <CalendarMonthIcon />, resource: 'portfolio_planning' },
@@ -92,7 +105,7 @@ const portfolioNav: NavItem[] = [
   { to: '/portfolio/settings', label: 'Settings', icon: <SettingsIcon />, resource: 'portfolio_settings' },
 ];
 
-const tenantAdminNav: NavItem[] = [
+const tenantAdminNav: NavEntry[] = [
   { to: '/admin/users', label: 'Users', icon: <PeopleIcon />, resource: 'users' },
   { to: '/admin/roles', label: 'Roles', icon: <SecurityIcon />, resource: 'users' },
   { to: '/admin/audit-logs', label: 'Audit Log', icon: <HistoryIcon />, resource: 'users' },
@@ -100,21 +113,25 @@ const tenantAdminNav: NavItem[] = [
   { to: '/admin/auth', label: 'Authentication', icon: <AdminPanelSettingsIcon />, resource: 'users' },
 ];
 
-const platformAdminNav: NavItem[] = [
+const platformAdminNav: NavEntry[] = [
   { to: '/admin/tenants', label: 'Tenants', icon: <ApartmentIcon /> },
   { to: '/admin/coa-templates', label: 'CoA Templates', icon: <StorageIcon /> },
   { to: '/admin/standard-accounts', label: 'Standard Accounts', icon: <AccountBalanceIcon /> },
 ];
 
+// Helper to extract resource strings from a nav array (filtering out dividers)
+const getNavResources = (entries: NavEntry[]): string[] =>
+  [...new Set(entries.filter(isNavItem).map(i => i.resource).filter(Boolean) as string[])];
+
 // Helper to check if user has ANY permission for resources in a workspace
 const getWorkspaceResources = (ws: string): string[] => {
   switch (ws) {
-    case 'ops': return [...new Set(operations.map(i => i.resource).filter(Boolean) as string[])];
-    case 'master-data': return [...new Set(masterData.map(i => i.resource).filter(Boolean) as string[])];
-    case 'it': return [...new Set(itOperations.map(i => i.resource).filter(Boolean) as string[])];
-    case 'portfolio': return [...new Set(portfolioNav.map(i => i.resource).filter(Boolean) as string[])];
-    case 'admin': return [...new Set(tenantAdminNav.map(i => i.resource).filter(Boolean) as string[])];
-    case 'my': return [...new Set(myWorkspaceNav.map(i => i.resource).filter(Boolean) as string[])];
+    case 'ops': return getNavResources(operations);
+    case 'master-data': return getNavResources(masterData);
+    case 'it': return getNavResources(itOperations);
+    case 'portfolio': return getNavResources(portfolioNav);
+    case 'admin': return getNavResources(tenantAdminNav);
+    case 'my': return getNavResources(myWorkspaceNav);
     default: return [];
   }
 };
@@ -273,220 +290,97 @@ export default function Layout() {
       >
         <Toolbar />
         <Box sx={{ overflowY: 'auto', overflowX: 'hidden' }}>
-          {workspace === 'ops' && !isPlatformHost && (
-          <List>
-            {operations.filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
-              const button = (
-                <ListItemButton
-                  key={item.to}
-                  component={Link}
-                  to={item.to}
-                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: navOpen ? 'initial' : 'center',
-                    px: 2.5,
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    minWidth: 0,
-                    mr: navOpen ? 3 : 'auto',
-                    justifyContent: 'center',
-                  }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  {navOpen && <ListItemText primary={item.label} />}
-                </ListItemButton>
-              );
-              return navOpen ? (
-                button
-              ) : (
-                <Tooltip key={item.to} title={item.label} placement="right">
-                  <Box>{button}</Box>
-                </Tooltip>
-              );
-            })}
-          </List>
-          )}
-          {workspace === 'master-data' && !isPlatformHost && (
-          <List>
-            {masterData.filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
-              const button = (
-                <ListItemButton
-                  key={item.to}
-                  component={Link}
-                  to={item.to}
-                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: navOpen ? 'initial' : 'center',
-                    px: 2.5,
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    minWidth: 0,
-                    mr: navOpen ? 3 : 'auto',
-                    justifyContent: 'center',
-                  }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  {navOpen && <ListItemText primary={item.label} />}
-                </ListItemButton>
-              );
-              return navOpen ? (
-                button
-              ) : (
-                <Tooltip key={item.to} title={item.label} placement="right">
-                  <Box>{button}</Box>
-                </Tooltip>
-              );
-            })}
-          </List>
-          )}
-          {workspace === 'it' && !isPlatformHost && (
-          <List>
-            {itOperations.filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
-              const button = (
-                <ListItemButton
-                  key={item.to}
-                  component={Link}
-                  to={item.to}
-                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: navOpen ? 'initial' : 'center',
-                    px: 2.5,
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    minWidth: 0,
-                    mr: navOpen ? 3 : 'auto',
-                    justifyContent: 'center',
-                  }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  {navOpen && <ListItemText primary={item.label} />}
-                </ListItemButton>
-              );
-              return navOpen ? (
-                button
-              ) : (
-                <Tooltip key={item.to} title={item.label} placement="right">
-                  <Box>{button}</Box>
-                </Tooltip>
-              );
-            })}
-          </List>
-          )}
-          {workspace === 'portfolio' && !isPlatformHost && (
-          <List>
-            {portfolioNav.filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
-              const button = (
-                <ListItemButton
-                  key={item.to}
-                  component={Link}
-                  to={item.to}
-                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: navOpen ? 'initial' : 'center',
-                    px: 2.5,
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    minWidth: 0,
-                    mr: navOpen ? 3 : 'auto',
-                    justifyContent: 'center',
-                  }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  {navOpen && <ListItemText primary={item.label} />}
-                </ListItemButton>
-              );
-              return navOpen ? (
-                button
-              ) : (
-                <Tooltip key={item.to} title={item.label} placement="right">
-                  <Box>{button}</Box>
-                </Tooltip>
-              );
-            })}
-          </List>
-          )}
-          {workspace === 'my' && !isPlatformHost && (
-          <List>
-            {myWorkspaceNav.filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
-              const button = (
-                <ListItemButton
-                  key={item.to}
-                  component={Link}
-                  to={item.to}
-                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: navOpen ? 'initial' : 'center',
-                    px: 2.5,
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    minWidth: 0,
-                    mr: navOpen ? 3 : 'auto',
-                    justifyContent: 'center',
-                  }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  {navOpen && <ListItemText primary={item.label} />}
-                </ListItemButton>
-              );
-              return navOpen ? (
-                button
-              ) : (
-                <Tooltip key={item.to} title={item.label} placement="right">
-                  <Box>{button}</Box>
-                </Tooltip>
-              );
-            })}
-          </List>
-          )}
-          {workspace === 'admin' && (
-          <List>
-            {(isPlatformHost && !isSingleTenant ? platformAdminNav : tenantAdminNav.filter((i) => {
-              if (i.to === '/admin/billing' && !config.features.billing) return false;
-              if (i.to === '/admin/auth' && !config.features.sso) return false;
-              return true;
-            })).filter((i) => !i.resource || hasLevel(i.resource, 'reader')).map((item) => {
-              const button = (
-                <ListItemButton
-                  key={item.to}
-                  component={Link}
-                  to={item.to}
-                  selected={location.pathname === item.to || location.pathname.startsWith(item.to + '/')}
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: navOpen ? 'initial' : 'center',
-                    px: 2.5,
-                  }}
-                >
-                  <ListItemIcon sx={{
-                    minWidth: 0,
-                    mr: navOpen ? 3 : 'auto',
-                    justifyContent: 'center',
-                  }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  {navOpen && <ListItemText primary={item.label} />}
-                </ListItemButton>
-              );
-              return navOpen ? (
-                button
-              ) : (
-                <Tooltip key={item.to} title={item.label} placement="right">
-                  <Box>{button}</Box>
-                </Tooltip>
-              );
-            })}
-          </List>
-          )}
+          {(() => {
+            // Determine which nav entries to render
+            let entries: NavEntry[];
+            if (workspace === 'admin') {
+              const base = isPlatformHost && !isSingleTenant ? platformAdminNav : tenantAdminNav;
+              entries = base.filter((entry) => {
+                if (!isNavItem(entry)) return true;
+                if (entry.to === '/admin/billing' && !config.features.billing) return false;
+                if (entry.to === '/admin/auth' && !config.features.sso) return false;
+                return true;
+              });
+            } else if (isPlatformHost) {
+              entries = [];
+            } else {
+              const navMap: Record<string, NavEntry[]> = {
+                ops: operations,
+                'master-data': masterData,
+                it: itOperations,
+                portfolio: portfolioNav,
+                my: myWorkspaceNav,
+              };
+              entries = navMap[workspace] || [];
+            }
+
+            // Filter items by permission (dividers pass through)
+            const visible = entries.filter((entry) => {
+              if (!isNavItem(entry)) return true;
+              return !entry.resource || hasLevel(entry.resource, 'reader');
+            });
+
+            return (
+              <List>
+                {visible.map((entry, idx) => {
+                  // Render dividers
+                  if (!isNavItem(entry)) {
+                    if (!navOpen) return null;
+                    if (entry.divider) {
+                      return (
+                        <ListSubheader
+                          key={`divider-${idx}`}
+                          sx={{
+                            lineHeight: '32px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            mt: idx === 0 ? 0 : 1,
+                          }}
+                        >
+                          {entry.divider}
+                        </ListSubheader>
+                      );
+                    }
+                    return <Divider key={`divider-${idx}`} sx={{ my: 1 }} />;
+                  }
+
+                  // Render nav items
+                  const button = (
+                    <ListItemButton
+                      key={entry.to}
+                      component={Link}
+                      to={entry.to}
+                      selected={location.pathname === entry.to || location.pathname.startsWith(entry.to + '/')}
+                      sx={{
+                        minHeight: 48,
+                        justifyContent: navOpen ? 'initial' : 'center',
+                        px: 2.5,
+                      }}
+                    >
+                      <ListItemIcon sx={{
+                        minWidth: 0,
+                        mr: navOpen ? 3 : 'auto',
+                        justifyContent: 'center',
+                      }}>
+                        {entry.icon}
+                      </ListItemIcon>
+                      {navOpen && <ListItemText primary={entry.label} />}
+                    </ListItemButton>
+                  );
+                  return navOpen ? (
+                    button
+                  ) : (
+                    <Tooltip key={entry.to} title={entry.label} placement="right">
+                      <Box>{button}</Box>
+                    </Tooltip>
+                  );
+                })}
+              </List>
+            );
+          })()}
         </Box>
       </Drawer>
 

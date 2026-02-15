@@ -37,7 +37,7 @@ export default function BudgetOperationsLandingPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <PageHeader title="Budget Operations" />
+      <PageHeader title="Administration" />
       <Typography variant="body1" sx={{ color: 'text.secondary' }}>
         Powerful tools to manage and transform your budget data across different years and columns.
       </Typography>

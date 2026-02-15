@@ -92,8 +92,8 @@ The Budget tab is where you enter financial data per year. It supports multiple 
   - When switching modes, the system calculates monthly values from the flat total (equal spread) or sums monthly values back to a flat total
 
 **Freeze behavior**:
-  - If a year's budget is frozen (via Budget Operations), inputs are disabled
-  - You can still view frozen data; admins can unfreeze via **Budget Management → Budget Operations → Freeze/Unfreeze**
+  - If a year's budget is frozen (via Budget Administration), inputs are disabled
+  - You can still view frozen data; admins can unfreeze via **Budget Management → Budget Administration → Freeze/Unfreeze**
 
 **Notes field**:
   - Each year's budget version has a **Notes** field for year-specific comments (e.g., "Includes 10% price increase in Q3")
@@ -376,7 +376,7 @@ Every OPEX item has a **status** (Enabled or Disabled) and an optional **Disable
 
 5. **Add vendor portal links**: Use the Relevant Websites feature to link to vendor admin consoles, support portals, and documentation for quick access.
 
-6. **Leverage analytics categories**: Tag items with categories (Infrastructure, Business Apps, Security) to group spend in reports.
+6. **Leverage analytics dimensions**: Tag items with dimensions (Infrastructure, Business Apps, Security) to group spend in reports.
 
 7. **Keep company metrics up to date**: Allocations depend on company headcount, IT users, and turnover. Outdated metrics cause allocation errors.
 
@@ -388,7 +388,7 @@ Every OPEX item has a **status** (Enabled or Disabled) and an optional **Disable
 
 11. **Use quick search + filters**: Build focused views (e.g., "All cloud spend > $50k with missing allocations") and navigate item-by-item with Prev/Next.
 
-12. **Freeze budgets after year-end close**: Use Budget Operations to freeze Y-1 budgets once actuals are finalized, preventing accidental edits.
+12. **Freeze budgets after year-end close**: Use Budget Administration to freeze Y-1 budgets once actuals are finalized, preventing accidental edits.
 
 ---
 

@@ -154,9 +154,9 @@ Resources are organized into groups for easier management:
 |----------|------------------|
 | `opex` | Operating Expenses |
 | `capex` | Capital Expenses |
-| `budget_ops` | Budget Operations tools |
+| `budget_ops` | Budget Administration tools |
 | `contracts` | Vendor contracts |
-| `analytics` | Analytics categories |
+| `analytics` | Analytics dimensions |
 | `reporting` | Reports access |
 
 **Portfolio Management**
@@ -171,7 +171,7 @@ Resources are organized into groups for easier management:
 **IT Operations**
 | Resource | What it controls |
 |----------|------------------|
-| `applications` | Apps & Services |
+| `applications` | Applications |
 | `infrastructure` | Servers and infrastructure |
 | `locations` | Location master data |
 | `settings` | Application settings |

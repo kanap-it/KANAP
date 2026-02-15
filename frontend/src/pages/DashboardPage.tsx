@@ -303,7 +303,7 @@ export default function DashboardPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <PageHeader title="Dashboard" />
+      <PageHeader title="Overview" />
       <Grid container spacing={3}>
         {/* OPEX Snapshot */}
         <Grid item xs={12} md={6} lg={4}>

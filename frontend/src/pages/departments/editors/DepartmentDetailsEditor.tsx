@@ -94,7 +94,7 @@ export default forwardRef<DepartmentDetailsEditorHandle, Props>(function Departm
   const save = React.useCallback(async () => {
     if (!dirty || readOnly) return;
     if (metricsFrozen) {
-      setServerError('Metrics are frozen for this year. Unfreeze them from Budget Operations to edit.');
+      setServerError('Metrics are frozen for this year. Unfreeze them from Administration to edit.');
       throw new Error('Metrics frozen');
     }
     if (headcountError || values.headcount === '') {
@@ -156,7 +156,7 @@ export default forwardRef<DepartmentDetailsEditorHandle, Props>(function Departm
       )}
       {metricsFrozen && (
         <Alert severity="info">
-          Metrics for {year} are frozen. Unfreeze them from Budget Operations to make changes.
+          Metrics for {year} are frozen. Unfreeze them from Administration to make changes.
         </Alert>
       )}
 

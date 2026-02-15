@@ -113,33 +113,39 @@ nav:
     - OPEX: opex.md
     - CAPEX: capex.md
     - Contracts: contracts.md
-    - Budget Operations: budget-operations.md
+    - Budget Administration: budget-operations.md
     - Reports: reports.md
 
   - IT Operations:
-    - Locations: locations.md
-    - Applications: applications.md
-    - Interfaces: interfaces.md
-    - Interface Map: interface-map.md
-    - Connections: connections.md
-    - Connection Map: connection-map.md
-    - Assets: assets.md
+    - Infrastructure:
+      - Locations: locations.md
+      - Assets: assets.md
+      - Connections: connections.md
+      - Connection Map: connection-map.md
+    - Applications:
+      - Applications: applications.md
+      - Interfaces: interfaces.md
+      - Interface Map: interface-map.md
     - Settings: it-ops-settings.md
 
   - Master Data:
-    - Companies: companies.md
-    - Departments: departments.md
-    - Contacts: contacts.md
-    - Suppliers: suppliers.md
-    - Business Processes: business-processes.md
-    - Chart of Accounts: chart-of-accounts.md
-    - Analytics Categories: analytics.md
-    - Currencies: currencies.md
+    - Organization:
+      - Companies: companies.md
+      - Departments: departments.md
+    - External Parties:
+      - Suppliers: suppliers.md
+      - Contacts: contacts.md
+    - Finance:
+      - Chart of Accounts: chart-of-accounts.md
+      - Currencies: currencies.md
+    - Classification:
+      - Business Processes: business-processes.md
+      - Analytics Dimensions: analytics.md
 
   - Administration:
     - Admin & Users: admin.md
-    - Master Data Operations: master-data-operations.md
-    - Dashboard: operations-dashboard.md
+    - Master Data Administration: master-data-operations.md
+    - Budget Overview: operations-dashboard.md
 
   - On-Premise:
     - Overview: on-premise/index.md

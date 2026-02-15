@@ -80,7 +80,7 @@ The Contacts tab shows all contacts linked to this supplier.
 Suppliers are referenced throughout KANAP:
 
 ### Applications
-In the Apps & Services workspace, the Overview tab has a **Vendor** field linking to suppliers.
+In the Applications workspace, the Overview tab has a **Vendor** field linking to suppliers.
 
 ### Contracts
 Each contract has a **Supplier** field identifying the vendor party.

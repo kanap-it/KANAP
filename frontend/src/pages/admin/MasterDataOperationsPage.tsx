@@ -21,7 +21,7 @@ export default function MasterDataOperationsPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <PageHeader title="Master Data Operations" />
+      <PageHeader title="Administration" />
       <Typography variant="body1" sx={{ color: 'text.secondary' }}>
         Administrative tools to manage company and department metrics across years.
       </Typography>

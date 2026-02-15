@@ -1,6 +1,6 @@
 # User Manual Documentation Inventory
 
-_Generated: 2026-02-14_
+_Generated: 2026-02-15_
 
 This document tracks documentation coverage for the KANAP user manual.
 
@@ -25,6 +25,7 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-02-15 | Multiple files | Navigation restructure: renamed "Apps & Services" → "Applications", "Budget Operations" → "Budget Administration", "Master Data Operations" → "Master Data Administration", "Analytics Categories" → "Analytics Dimensions", "Dashboard" → "Overview"; added sidebar grouping to IT Ops and Master Data doc nav |
 | 2026-02-14 | `my-dashboard.md` | New documentation for My Dashboard (tiles, quick actions, settings, customisation) |
 | 2026-02-14 | `admin.md` | Added Audit Log documentation (access, filtering, pagination, source interpretation) |
 | 2026-02-12 | `portfolio-reporting.md` | Added Status Change Report documentation (filters, inclusion rules, columns, exports) |
@@ -50,8 +51,8 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 | 2026-01-26 | `it-ops-settings.md` | Updated IT Operations Settings |
 | 2026-01-18 | `portfolio-team-members.md` | New documentation for Portfolio Team Members |
 | 2026-01-15 | `connections.md` | Updated for latest changes |
-| 2026-01-15 | `connection-map.md` | Added Apps & Services filter, App Env filter, connection layers, export SVG/PNG, linked interfaces |
-| 2026-01-15 | `interface-map.md` | Added Apps & Services filter, export SVG/PNG, snap to grid, infra connections panel |
+| 2026-01-15 | `connection-map.md` | Added Applications filter, App Env filter, connection layers, export SVG/PNG, linked interfaces |
+| 2026-01-15 | `interface-map.md` | Added Applications filter, export SVG/PNG, snap to grid, infra connections panel |
 | 2026-01-15 | `locations.md` | Updated for latest changes |
 | 2026-01-11 | `portfolio-requests.md` | New documentation for Portfolio Requests (initial) |
 | 2026-01-11 | `portfolio-projects.md` | New documentation for Portfolio Projects (initial) |
@@ -71,15 +72,15 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 _Note: `/ops/tasks` redirects to `/my/tasks`_
 
-### Dashboard & Budget Operations
+### Budget Management
 
 | Route | Component | Status | Doc File |
 |-------|-----------|--------|----------|
-| `/ops` | DashboardPage | **DOCUMENTED** | `operations-dashboard.md` |
+| `/ops` | DashboardPage (Overview) | **DOCUMENTED** | `operations-dashboard.md` |
 | `/ops/opex` | OpexListPage + SpendItemPage | **DOCUMENTED** | `opex.md` |
 | `/ops/capex` | CapexPage + CapexItemPage | **DOCUMENTED** | `capex.md` |
 | `/ops/contracts` | ContractsPage + ContractWorkspacePage | **DOCUMENTED** | `contracts.md` |
-| `/ops/operations` | BudgetOperationsLandingPage | **DOCUMENTED** | `budget-operations.md` |
+| `/ops/operations` | BudgetOperationsLandingPage (Administration) | **DOCUMENTED** | `budget-operations.md` |
 | `/ops/operations/freeze` | BudgetFreezePage | **DOCUMENTED** | (in budget-operations) |
 | `/ops/operations/copy-budget-columns` | CopyBudgetColumnsPage | **DOCUMENTED** | (in budget-operations) |
 | `/ops/operations/copy-allocations` | CopyAllocationsPage | **DOCUMENTED** | (in budget-operations) |
@@ -87,29 +88,58 @@ _Note: `/ops/tasks` redirects to `/my/tasks`_
 
 ### IT Operations
 
+**Infrastructure**
+
 | Route | Component | Status | Doc File |
 |-------|-----------|--------|----------|
 | `/it/locations` | LocationsPage + LocationWorkspacePage | **DOCUMENTED** | `locations.md` |
+| `/it/assets` | AssetsPage + AssetWorkspacePage | **DOCUMENTED** | `assets.md` |
+| `/it/connections` | ConnectionsPage + ConnectionWorkspacePage | **DOCUMENTED** | `connections.md` |
+| `/it/connection-map` | ConnectionMapPage | **DOCUMENTED** | `connection-map.md` |
+
+**Applications**
+
+| Route | Component | Status | Doc File |
+|-------|-----------|--------|----------|
 | `/it/applications` | ApplicationsPage + ApplicationWorkspacePage | **DOCUMENTED** | `applications.md` |
 | `/it/interfaces` | InterfacesPage + InterfaceWorkspacePage | **DOCUMENTED** | `interfaces.md` |
 | `/it/interface-map` | InterfaceMapPage | **DOCUMENTED** | `interface-map.md` |
-| `/it/connections` | ConnectionsPage + ConnectionWorkspacePage | **DOCUMENTED** | `connections.md` |
-| `/it/connection-map` | ConnectionMapPage | **DOCUMENTED** | `connection-map.md` |
-| `/it/assets` | AssetsPage + AssetWorkspacePage | **DOCUMENTED** | `assets.md` |
+
+**Settings**
+
+| Route | Component | Status | Doc File |
+|-------|-----------|--------|----------|
 | `/it/settings` | ItOperationsSettingsPage | **DOCUMENTED** | `it-ops-settings.md` |
 
 ### Master Data
+
+**Organization**
 
 | Route | Component | Status | Doc File |
 |-------|-----------|--------|----------|
 | `/master-data/companies` | CompaniesPage + CompanyWorkspacePage | **DOCUMENTED** | `companies.md` |
 | `/master-data/departments` | DepartmentsPage + DepartmentWorkspacePage | **DOCUMENTED** | `departments.md` |
-| `/master-data/business-processes` | BusinessProcessesPage + BusinessProcessWorkspacePage | **DOCUMENTED** | `business-processes.md` |
-| `/master-data/contacts` | ContactsPage + ContactWorkspacePage | **DOCUMENTED** | `contacts.md` |
+
+**External Parties**
+
+| Route | Component | Status | Doc File |
+|-------|-----------|--------|----------|
 | `/master-data/suppliers` | SuppliersPage + SupplierWorkspacePage | **DOCUMENTED** | `suppliers.md` |
+| `/master-data/contacts` | ContactsPage + ContactWorkspacePage | **DOCUMENTED** | `contacts.md` |
+
+**Finance**
+
+| Route | Component | Status | Doc File |
+|-------|-----------|--------|----------|
 | `/master-data/accounts` | AccountsPage + AccountWorkspacePage | **DOCUMENTED** | `chart-of-accounts.md` |
-| `/master-data/analytics` | AnalyticsCategoriesPage + AnalyticsWorkspacePage | **DOCUMENTED** | `analytics.md` |
 | `/master-data/currency` | CurrencySettingsPage | **DOCUMENTED** | `currencies.md` |
+
+**Classification**
+
+| Route | Component | Status | Doc File |
+|-------|-----------|--------|----------|
+| `/master-data/business-processes` | BusinessProcessesPage + BusinessProcessWorkspacePage | **DOCUMENTED** | `business-processes.md` |
+| `/master-data/analytics` | AnalyticsCategoriesPage + AnalyticsWorkspacePage | **DOCUMENTED** | `analytics.md` |
 
 ### Admin & Settings
 

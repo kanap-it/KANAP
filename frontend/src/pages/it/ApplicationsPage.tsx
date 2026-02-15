@@ -885,7 +885,7 @@ export default function ApplicationsPage() {
 
   return (
     <>
-      <PageHeader title="Apps & Services" actions={actions} />
+      <PageHeader title="Applications" actions={actions} />
       <ServerDataGrid<AppRow>
         columns={columns}
         endpoint={'/applications'}
@@ -961,14 +961,14 @@ export default function ApplicationsPage() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         endpoint="/applications"
-        title="Export Apps & Services"
+        title="Export Applications"
         presets={[{ name: 'enrichment', label: 'Data Enrichment' }]}
       />
       <CsvImportDialogV2
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/applications"
-        title="Import Apps & Services"
+        title="Import Applications"
         onImported={() => setRefreshKey((k) => k + 1)}
       />
     </>

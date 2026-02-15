@@ -66,7 +66,7 @@ export default function AnalyticsCategoriesPage() {
   return (
     <>
       <PageHeader
-        title="Analytics Categories"
+        title="Analytics Dimensions"
         actions={hasLevel('analytics', 'member') ? [
           <Button key="new" variant="contained" onClick={() => {
             const sp = buildWorkspaceSearch();

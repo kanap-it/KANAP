@@ -78,7 +78,7 @@ Each supplier has a Contacts tab showing all contacts linked to that vendor. You
   4. After saving, you are returned to the supplier workspace automatically
 
 ### Application Support
-In the Apps & Services workspace, the Technical & Support tab references contacts for support escalation.
+In the Applications workspace, the Technical & Support tab references contacts for support escalation.
 
 ### Location Contacts
 Locations can have support contacts (facility managers, NOC contacts, etc.)

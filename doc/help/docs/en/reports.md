@@ -24,7 +24,7 @@ The Reports landing page provides quick access to all available reports:
 | **Budget Trend (CAPEX)** | Compare CAPEX metrics across years |
 | **Budget Column Comparison** | Compare up to 10 year+column combinations |
 | **Consolidation Accounts** | Budget grouped by consolidation account |
-| **Analytics Categories** | Budget grouped by analytics category |
+| **Analytics Dimensions** | Budget grouped by analytics dimension |
 
 ---
 
@@ -227,9 +227,9 @@ Use this for:
 
 ---
 
-## Analytics Categories Report
+## Analytics Dimensions Report
 
-View budget data grouped by analytics category.
+View budget data grouped by analytics dimension.
 
 ### Controls
 
@@ -239,7 +239,7 @@ View budget data grouped by analytics category.
 
 ### What you'll see
 
-**Table**: Totals by analytics category
+**Table**: Totals by analytics dimension
 **Chart**: Visual breakdown by category
 
 ### Use case

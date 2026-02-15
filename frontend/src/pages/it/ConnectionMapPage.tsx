@@ -748,7 +748,7 @@ export default function ConnectionMapPage() {
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Apps & Services"
+              label="Applications"
               placeholder="Select applications"
               InputLabelProps={{ shrink: true }}
               InputProps={{
