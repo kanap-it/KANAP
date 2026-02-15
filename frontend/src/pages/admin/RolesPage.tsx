@@ -25,9 +25,9 @@ const RESOURCES = Object.values(PERMISSION_GROUPS).flat();
 const RESOURCE_LABELS: Record<string, string> = {
   opex: 'Operating Expenses',
   capex: 'Capital Expenses',
-  budget_ops: 'Budget Operations',
+  budget_ops: 'Budget Administration',
   contracts: 'Contracts',
-  analytics: 'Analytics',
+  analytics: 'Analytics Dimensions',
   billing: 'Billing',
   portfolio_requests: 'Requests',
   portfolio_projects: 'Projects',

@@ -1,6 +1,6 @@
-# Apps & Services
+# Applications
 
-Apps & Services is your central registry for documenting the IT application landscape. It covers business applications, productivity tools, infrastructure services, and everything in between. Use it to track ownership, environments, integrations, and compliance information across your entire portfolio.
+Applications is your central registry for documenting the IT application landscape. It covers business applications, productivity tools, infrastructure services, and everything in between. Use it to track ownership, environments, integrations, and compliance information across your entire portfolio.
 
 ## Application categories
 
@@ -36,7 +36,7 @@ Different teams can use categories to focus on their area of responsibility:
 
 ## Getting started
 
-Navigate to **IT Operations → Apps & Services** to see your list. Click **New App / Service** to create your first entry.
+Navigate to **IT Operations → Applications** to see your list. Click **New Application** to create your first entry.
 
 **Required fields**:
   - **Name**: A recognizable name for the application or service
@@ -64,12 +64,12 @@ Once you save, the workspace unlocks all tabs for detailed documentation.
 
 ## Working with the list
 
-The Apps & Services grid provides a comprehensive view of your application portfolio.
+The Applications grid provides a comprehensive view of your application portfolio.
 
 **Top scope filter**:
   - **My apps** (default): shows apps where you are listed in **Ownership & Audience** as either a **Business Owner** or **IT Owner**. Multi-owner entries are supported.
   - **My team's apps**: shows apps where any member of your Portfolio team is listed as Business Owner or IT Owner. Your own ownership is also included in this scope.
-  - **All apps**: shows the full Apps & Services grid (with the standard default lifecycle filter behavior).
+  - **All apps**: shows the full Applications grid (with the standard default lifecycle filter behavior).
   - If you are not assigned to a Portfolio team, **My team's apps** is disabled
   - Your selection is remembered across sessions — returning to the page restores your last choice
 
@@ -104,7 +104,7 @@ The Apps & Services grid provides a comprehensive view of your application portf
   - Retired applications are hidden by default; use the Lifecycle filter to include Retired
 
 **Actions**:
-  - **New App / Service**: Create a new entry (requires manager permission)
+  - **New Application**: Create a new entry (requires manager permission)
   - **Import CSV**: Bulk import from CSV file (requires admin permission)
   - **Export CSV**: Export the list to CSV (requires admin permission)
   - **Copy item**: Duplicate a selected application with all its relations (requires manager permission)
@@ -112,7 +112,7 @@ The Apps & Services grid provides a comprehensive view of your application portf
 
 ---
 
-## The Apps & Services workspace
+## The Applications workspace
 
 Click any row in the list to open the workspace. It has eight tabs:
 
@@ -424,7 +424,7 @@ Maintain your application inventory at scale using CSV import and export. This f
 
 ### Accessing CSV features
 
-From the Apps & Services list:
+From the Applications list:
   - **Export CSV**: Download applications to a CSV file
   - **Import CSV**: Upload a CSV file to create or update applications
   - **Download Template**: Get a blank CSV with correct headers

@@ -12,7 +12,7 @@ This guide walks you through documenting an application and its supporting infra
 
     [:material-download: Download the cheat sheet (PDF)](downloads/kanap-itops-fast-track.pdf){ .md-button .md-button--primary }
 
-For full details, see the [Apps & Services](../applications.md) and [Assets](../assets.md) reference docs.
+For full details, see the [Applications](../applications.md) and [Assets](../assets.md) reference docs.
 
 ---
 
@@ -39,7 +39,7 @@ The chain is simple: **Application → Environment → Server**. By the end of t
 
 ## Step 1: Create Your Application
 
-Go to **IT Operations → Apps & Services** and click **+ New App / Service**.
+Go to **IT Operations → Applications** and click **+ New Application**.
 
 Fill in the essentials:
 
@@ -247,7 +247,7 @@ Every piece of data you enter feeds into something bigger:
 
 ### Application Landscape View
 
-Your Apps & Services list becomes a live registry showing every application with its environments, criticality, hosting type, and ownership — filterable by any attribute.
+Your Applications list becomes a live registry showing every application with its environments, criticality, hosting type, and ownership — filterable by any attribute.
 
 ### Infrastructure Mapping
 
@@ -274,7 +274,7 @@ Take it one step further: document **Interfaces** between applications to captur
 
 | I want to… | Go to… |
 |------------|--------|
-| Create an application | IT Operations → Apps & Services → + New |
+| Create an application | IT Operations → Applications → + New |
 | Add environments | Open app → Instances tab |
 | Assign owners | Open app → Ownership & Audience tab |
 | Set access methods | Open app → Technical & Support tab |
@@ -289,4 +289,4 @@ Take it one step further: document **Interfaces** between applications to captur
 ---
 
 !!! success "You're ready"
-    You now know how to document the full chain from application to server. Start with your most critical apps, add their production environments, link the servers — and you'll have a living, queryable IT landscape in no time. For detailed documentation on every feature, explore the [Apps & Services](../applications.md) and [Assets](../assets.md) reference sections.
+    You now know how to document the full chain from application to server. Start with your most critical apps, add their production environments, link the servers — and you'll have a living, queryable IT landscape in no time. For detailed documentation on every feature, explore the [Applications](../applications.md) and [Assets](../assets.md) reference sections.

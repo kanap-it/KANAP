@@ -34,10 +34,10 @@ The map uses a force-directed graph layout where:
 
 Multi-select filter for connection lifecycle status. Choose which statuses to include in the visualization (e.g., Active, Planned, Deprecated).
 
-### Apps & Services
+### Applications
 
 Find assets by the applications that run on them:
-1. Select one or more applications from the **Apps & Services** dropdown
+1. Select one or more applications from the **Applications** dropdown
 2. Select environments in the **App Env** dropdown (shows only environments where selected apps have assets)
 3. The matching assets are automatically added to the **Assets** filter
 
@@ -59,7 +59,7 @@ Limit how many "hops" from selected assets to display:
 - **0**: Show only selected assets and their direct entity connections
 - **1-5**: Show assets within N hops of selected assets
 
-This filter is automatically set when you select assets via the Apps & Services or Assets filters.
+This filter is automatically set when you select assets via the Applications or Assets filters.
 
 ---
 
@@ -171,7 +171,7 @@ Member assets inherit the cluster's connections while maintaining their individu
 
 ## Tips
 
-  - **Start from applications**: Use the Apps & Services filter to find assets for a specific application, then explore their connections with depth=1.
+  - **Start from applications**: Use the Applications filter to find assets for a specific application, then explore their connections with depth=1.
   - **Use depth=0 for focused views**: When you only want to see connections between specific assets, select them and set depth to 0.
   - **Export for architecture docs**: Use the SVG export to create network diagrams for documentation or security reviews.
   - **Enable layers for troubleshooting**: Turn on "Show connection layers" to see exactly how multi-leg connections route through your infrastructure.

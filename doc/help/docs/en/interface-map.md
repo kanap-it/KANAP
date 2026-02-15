@@ -45,10 +45,10 @@ Filter interfaces by deployment environment:
 
 Multi-select filter for interface lifecycle status. Choose which statuses to include in the visualization (e.g., Active, Planned, Deprecated).
 
-### Apps & Services
+### Applications
 
 Focus the map on specific applications or services:
-1. Click the **Apps & Services** dropdown
+1. Click the **Applications** dropdown
 2. Select one or more applications (grouped by type: Applications vs Infrastructure services)
 3. The map filters to show only interfaces connected to your selection
 
@@ -60,7 +60,7 @@ Limit how many "hops" from selected applications to display:
 - **All**: Show all connected nodes (no limit)
 - **1-5**: Show only nodes within N hops of selected applications
 
-This filter is automatically enabled when you select applications in the Apps & Services filter.
+This filter is automatically enabled when you select applications in the Applications filter.
 
 ---
 
@@ -147,7 +147,7 @@ When you select a node or edge, a side panel opens with details:
 ## Tips
 
   - **Start with Production**: Select the Prod environment to see your most critical integrations first.
-  - **Focus on specific apps**: Use the Apps & Services filter with depth=2 to see just one application's neighborhood without the full landscape.
+  - **Focus on specific apps**: Use the Applications filter with depth=2 to see just one application's neighborhood without the full landscape.
   - **Export for documentation**: Use the SVG export to create architecture diagrams for documentation or presentations.
   - **Snap for clarity**: After dragging nodes, use Snap to Grid to create cleaner, more aligned layouts.
   - **Deep link for sharing**: Copy the URL after setting filters to share specific views with colleagues.

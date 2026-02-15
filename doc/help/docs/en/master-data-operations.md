@@ -1,8 +1,8 @@
-# Master Data Operations
+# Master Data Administration
 
-Master Data Operations provide administrative tools to manage company and department metrics across fiscal years. These operations help you prepare annual budgets, protect finalized data, and maintain year-over-year consistency.
+Master Data Administration provides administrative tools to manage company and department metrics across fiscal years. These operations help you prepare annual budgets, protect finalized data, and maintain year-over-year consistency.
 
-Access these tools at **Master Data → Master Data Ops**.
+Access these tools at **Master Data → Administration**.
 
 ## Available operations
 
@@ -25,7 +25,7 @@ Lock or unlock company and department metrics for a specific year to prevent acc
   - **Editable**: Data can be modified (shown as default)
   - Status cards show who froze the data and when
 
-**Permissions**: You need admin access to Companies, Departments, or Budget Operations to freeze/unfreeze data.
+**Permissions**: You need admin access to Companies, Departments, or Budget Administration to freeze/unfreeze data.
 
 **Important**: Freezing prevents edits to yearly metrics in the Details tab of Companies or Departments. It does not affect the Overview tab (name, description, etc.) or OPEX/CAPEX items.
 
@@ -67,7 +67,7 @@ Copy company and department metrics from one year to another with a dry-run prev
   - Skipped (excluded with reason)
   - Errors (if any)
 
-**Permissions**: You need admin access to Companies or Departments (or Budget Operations) to copy their respective metrics.
+**Permissions**: You need admin access to Companies or Departments (or Budget Administration) to copy their respective metrics.
 
 **Frozen data protection**: You cannot copy data to a frozen year. Unfreeze the destination year first using the Freeze/Unfreeze tool.
 
@@ -84,7 +84,7 @@ Both operations support **Export to CSV** via the export button in the toolbar. 
 Your 2024 budget is finalized and approved. You want to lock the data to prevent accidental changes.
 
 **Steps**:
-  1. Go to **Master Data → Master Data Ops → Freeze / Unfreeze Data**
+  1. Go to **Master Data → Master Data Administration → Freeze / Unfreeze Data**
   2. Select year **2024**
   3. Check **Companies** and **Departments**
   4. Click **Freeze Data**
@@ -96,7 +96,7 @@ Your 2024 budget is finalized and approved. You want to lock the data to prevent
 You want to start planning for 2025 using 2024's headcount and turnover as a starting point.
 
 **Steps**:
-  1. Go to **Master Data → Master Data Ops → Master Data Copy**
+  1. Go to **Master Data → Master Data Administration → Master Data Copy**
   2. Select **Source Year: 2024**
   3. Select **Destination Year: 2025**
   4. Select **Data Sources: Companies**
@@ -124,7 +124,7 @@ You added 5 new companies mid-year in 2024. You want to copy their metrics to 20
 You froze 2024 data but discovered an error in one company's headcount. You need to fix it.
 
 **Steps**:
-  1. Go to **Master Data → Master Data Ops → Freeze / Unfreeze Data**
+  1. Go to **Master Data → Master Data Administration → Freeze / Unfreeze Data**
   2. Select year **2024**
   3. Check **Companies**
   4. Click **Unfreeze Data**
@@ -160,7 +160,7 @@ A: No. The copy operation applies to all companies or departments for the select
 A: No. It only copies metrics for existing entities. If a company exists in the source year but not the destination year, that row is skipped.
 
 **Q: Who can see freeze status?**
-A: Anyone can view freeze status. Only users with admin access to Companies, Departments, or Budget Operations can freeze or unfreeze data.
+A: Anyone can view freeze status. Only users with admin access to Companies, Departments, or Budget Administration can freeze or unfreeze data.
 
 **Q: Can I freeze future years?**
 A: Yes. You can freeze any year within the available range (typically Y-1 to Y+5). This is useful for locking approved budgets before the year starts.

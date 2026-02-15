@@ -108,8 +108,8 @@ The Budget tab is where you enter financial data per year. It supports multiple 
   - When switching modes, the system calculates monthly values from the flat total (equal spread) or sums monthly values back to a flat total
 
 **Freeze behavior**:
-  - If a year's budget is frozen (via Budget Operations), inputs are disabled
-  - You can still view frozen data; admins can unfreeze via **Budget Management → Budget Operations → Freeze/Unfreeze**
+  - If a year's budget is frozen (via Budget Administration), inputs are disabled
+  - You can still view frozen data; admins can unfreeze via **Budget Management → Budget Administration → Freeze/Unfreeze**
 
 **Delete and redistribute** (manual by month mode only):
   - Click the delete icon next to a month to zero out that month and redistribute its value across other unlocked months
@@ -409,7 +409,7 @@ Every CAPEX item has a **status** (Enabled or Disabled) and an optional **Disabl
 
 11. **Track project spend with manual by month**: For large projects with phased spending, use manual by month mode to track spend timing against project milestones.
 
-12. **Freeze budgets after year-end close**: Use Budget Operations to freeze prior year budgets once actuals are finalized, preventing accidental edits.
+12. **Freeze budgets after year-end close**: Use Budget Administration to freeze prior year budgets once actuals are finalized, preventing accidental edits.
 
 ---
 

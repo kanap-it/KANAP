@@ -1,10 +1,10 @@
-# Analytics Categories
+# Analytics Dimensions
 
-Analytics Categories provide a flexible, optional dimension for classifying and analyzing your IT budget. Unlike the formal structure of Companies, Departments, and Accounts, analytics categories let you create custom groupings that match your reporting needs.
+Analytics Dimensions provide a flexible, optional dimension for classifying and analyzing your IT budget. Unlike the formal structure of Companies, Departments, and Accounts, analytics dimensions let you create custom groupings that match your reporting needs.
 
-## What are Analytics Categories for?
+## What are Analytics Dimensions for?
 
-Analytics categories give you a lightweight way to tag spend items for custom reporting and analysis. They work independently of your formal accounting structure, letting you create ad-hoc classifications without restructuring your master data.
+Analytics dimensions give you a lightweight way to tag spend items for custom reporting and analysis. They work independently of your formal accounting structure, letting you create ad-hoc classifications without restructuring your master data.
 
 **Common use cases**:
   - **Classify by expense type**: "Infrastructure," "Application Development," "Cloud Hosting," "Consulting," "Licenses"
@@ -101,10 +101,10 @@ Split a broad "Infrastructure" category into "On-premise Infrastructure" and "Cl
 
 ## Frequently asked questions
 
-**Q: Can I assign multiple analytics categories to one item?**
+**Q: Can I assign multiple analytics dimensions to one item?**
 A: No. Each item has zero or one category. For multi-dimensional tagging, consider combining categories or using Departments with Allocations.
 
-**Q: Do analytics categories affect allocations or accounting?**
+**Q: Do analytics dimensions affect allocations or accounting?**
 A: No. They're purely for reporting and don't influence cost allocations or accounting.
 
 **Q: What happens if I delete a category used by spend items?**
@@ -113,8 +113,8 @@ A: You can't. Remove or reassign the category from all items first. Disabling is
 **Q: How many categories should I create?**
 A: Start with 5-10. More than 20 usually indicates over-engineering.
 
-**Q: What's the difference between analytics categories and departments?**
-A: **Departments** are formal organizational units with precise allocation drivers. **Analytics categories** are informal, optional tags for flexible reporting without allocation overhead.
+**Q: What's the difference between analytics dimensions and departments?**
+A: **Departments** are formal organizational units with precise allocation drivers. **Analytics dimensions** are informal, optional tags for flexible reporting without allocation overhead.
 
 **Q: Why do some items show "Unassigned"?**
-A: Items without an analytics category appear as "Unassigned." This is normal—categories are optional.
+A: Items without an analytics dimension appear as "Unassigned." This is normal—categories are optional.

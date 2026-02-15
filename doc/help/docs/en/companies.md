@@ -62,7 +62,7 @@ Many parts of the app are year‑aware. Companies have metrics per year:
 **Freeze and copy**:
 
   - You can **freeze** a year once finalized to prevent edits.
-  - Use **Master Data Ops** to copy metrics from one year to another (choose which metrics to copy). Frozen years can't be overwritten.
+  - Use **Master Data Administration** to copy metrics from one year to another (choose which metrics to copy). Frozen years can't be overwritten.
 
 ## Working with the list
 

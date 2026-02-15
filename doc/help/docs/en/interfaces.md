@@ -181,7 +181,7 @@ Use this when you want to create an independent copy of an interface—typically
 
 ### Version Migration (from Application versioning)
 
-Use this when upgrading an application to a new version and need to migrate interfaces to the new version. See [Apps & Services → Version management](applications.md#version-management) for details.
+Use this when upgrading an application to a new version and need to migrate interfaces to the new version. See [Applications → Version management](applications.md#version-management) for details.
 
 **Key differences from Duplicate**:
 | Aspect | Duplicate | Version Migration |

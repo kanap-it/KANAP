@@ -24,8 +24,8 @@ KANAP is organized around a simple structure:
 |------|-----------------|
 | **My Workspace** | Your personal hub — Dashboard, Tasks |
 | **Portfolio** | Requests, Projects, Planning, Reporting, Contributors |
-| **IT Operations** | Apps & Services, Assets, Connections, Interfaces, Locations |
-| **Budget** | OPEX, CAPEX, Contracts, Budget Operations |
+| **IT Operations** | Applications, Assets, Connections, Interfaces, Locations |
+| **Budget** | OPEX, CAPEX, Contracts, Budget Administration |
 | **Admin** | Users, Roles, Billing (admin-only) |
 
 You don't need access to everything. Your role determines which modules and actions are available to you. If something is missing from your menu, ask your administrator.
@@ -133,7 +133,7 @@ The scope filter **remembers your last selection** across sessions. So if you sw
 ### Where scope filters appear
 
 - **My Workspace → Tasks** — My Tasks / My Team's Tasks / All Tasks
-- **IT Operations → Apps & Services** — My Apps / My Team's Apps / All Apps
+- **IT Operations → Applications** — My Apps / My Team's Apps / All Apps
 - **Portfolio → Projects** — My Projects / My Team's Projects / All Projects
 - **Portfolio → Requests** — My Requests / My Team's Requests / All Requests
 
