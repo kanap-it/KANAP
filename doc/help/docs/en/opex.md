@@ -327,7 +327,7 @@ You can bulk-load OPEX items via CSV to speed up initial setup or sync with exte
 
 **Common errors**:
   - **"Supplier not found"**: Create the supplier in **Master Data → Suppliers** first, then re-import.
-  - **"Account not found"**: Add the account in **Master Data → Accounts** or **Charts of Accounts**, then re-import.
+  - **"Account not found"**: Add the account in **Master Data → Charts of Accounts**, then re-import.
   - **"Invalid currency"**: Use 3-letter ISO codes (USD, EUR, GBP) that are allowed in your workspace currency settings.
   - **"Header mismatch"**: Download a fresh template; headers must match exactly (including order).
 

@@ -72,7 +72,7 @@ export default forwardRef<AccountCreateEditorHandle, Props>(function AccountCrea
   });
   const { register, control, formState, handleSubmit, setValue, watch, reset } = form;
 
-  // Load CoAs for selection and preselect from ?coaId when present
+  // Load CoAs for selection and preselect from ?selected or ?coaId when present
   const [coas, setCoas] = React.useState<Array<{ id: string; label: string }>>([]);
   const [loadingCoas, setLoadingCoas] = React.useState(false);
   const [loadError, setLoadError] = React.useState<string | null>(null);
@@ -83,7 +83,7 @@ export default forwardRef<AccountCreateEditorHandle, Props>(function AccountCrea
       setLoadError(null);
       try {
         const url = new URL(window.location.href);
-        const coaIdParam = url.searchParams.get('coaId') || '';
+        const coaIdParam = url.searchParams.get('selected') || url.searchParams.get('coaId') || '';
         const res = await api.get('/chart-of-accounts', { params: { page: 1, limit: 1000 } });
         if (!active) return;
         const items: any[] = res.data?.items || [];

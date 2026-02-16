@@ -20,9 +20,9 @@ const cards = [
     to: '/master-data/suppliers',
   },
   {
-    title: 'Accounts',
-    description: 'Manage chart of accounts',
-    to: '/master-data/accounts',
+    title: 'Charts of Accounts',
+    description: 'Manage charts of accounts and accounts',
+    to: '/master-data/coa',
   },
   {
     title: 'Currency',

@@ -16,7 +16,6 @@ import DepartmentsPage from './pages/DepartmentsPage';
 import DepartmentWorkspacePage from './pages/departments/DepartmentWorkspacePage';
 import SuppliersPage from './pages/SuppliersPage';
 import SupplierWorkspacePage from './pages/suppliers/SupplierWorkspacePage';
-import AccountsPage from './pages/AccountsPage';
 import AccountWorkspacePage from './pages/accounts/AccountWorkspacePage';
 import UsersPage from './pages/UsersPage';
 import CapexPage from './pages/CapexPage';
@@ -60,7 +59,7 @@ import MasterDataCopyPage from './pages/admin/master-data/MasterDataCopyPage';
 import MasterDataHomePage from './pages/admin/MasterDataHomePage';
 import { TenantProvider, useTenant } from './tenant/TenantContext';
 import { FeaturesProvider, useFeatures } from './config/FeaturesContext';
-import ChartsOfAccountsPage from './pages/ChartsOfAccountsPage';
+import CoaPage from './pages/coa/CoaPage';
 import ApplicationsPage from './pages/it/ApplicationsPage';
 import ApplicationWorkspacePage from './pages/it/ApplicationWorkspacePage';
 import InterfacesPage from './pages/it/InterfacesPage';
@@ -119,6 +118,18 @@ function LegacyTaskRedirect() {
   return <Navigate to={to} replace />;
 }
 
+function LegacyAccountsRedirect() {
+  const [sp] = useSearchParams();
+  const next = new URLSearchParams(sp);
+  const coaId = next.get('coaId');
+  if (coaId && !next.get('selected')) {
+    next.set('selected', coaId);
+  }
+  next.delete('coaId');
+  const qs = next.toString();
+  return <Navigate to={`/master-data/coa${qs ? `?${qs}` : ''}`} replace />;
+}
+
 function AppRoutes() {
   const { token } = useAuth();
   const { config } = useFeatures();
@@ -169,7 +180,7 @@ function AppRoutes() {
           <Route path="/ops/operations/freeze" element={<BudgetFreezePage />} />
           {/* Currency Settings moved under Master Data */}
           <Route path="/master-data" element={<MasterDataHomePage />} />
-          <Route path="/master-data/coa" element={<ChartsOfAccountsPage />} />
+          <Route path="/master-data/coa" element={<CoaPage />} />
           <Route path="/master-data/companies" element={<CompaniesPage />} />
           <Route path="/master-data/companies/:id" element={<CompanyWorkspacePage />} />
           <Route path="/master-data/companies/:id/:tab" element={<CompanyWorkspacePage />} />
@@ -182,7 +193,7 @@ function AppRoutes() {
           <Route path="/master-data/contacts" element={<ContactsPage />} />
           <Route path="/master-data/contacts/:id" element={<ContactWorkspacePage />} />
           <Route path="/master-data/contacts/:id/:tab" element={<ContactWorkspacePage />} />
-          <Route path="/master-data/accounts" element={<AccountsPage />} />
+          <Route path="/master-data/accounts" element={<LegacyAccountsRedirect />} />
           <Route path="/master-data/accounts/:id" element={<AccountWorkspacePage />} />
           <Route path="/master-data/accounts/:id/:tab" element={<AccountWorkspacePage />} />
           <Route path="/master-data/analytics" element={<AnalyticsCategoriesPage />} />

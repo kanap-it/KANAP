@@ -1,4 +1,4 @@
-# Charts of Acacounts and Account Management
+# Charts of Accounts and Account Management
 
 Charts of Accounts (CoA) organize your accounting structure by grouping accounts into named sets. Each company can be linked to a CoA, which determines which accounts are available when recording OPEX or CAPEX items.
 
@@ -58,7 +58,7 @@ Templates are standard account sets managed by platform administrators. They can
 **How it works**:
   - Go to **Master Data → Charts of Accounts**
   - Click **New** → **Copy from template**
-- Select a template; global templates show as “ALL — …” (loads a `GLOBAL` CoA); country templates display their 2‑letter code
+  - Select a template; global templates show as “ALL — …” (loads a `GLOBAL` CoA); country templates display their 2‑letter code
   - The system shows a preflight report (how many accounts will be inserted/updated)
   - Confirm to copy accounts into your CoA
 
@@ -70,19 +70,30 @@ Templates are standard account sets managed by platform administrators. They can
 
 New workspaces can be provisioned with a preloaded CoA (for example, “IFRS‑Basic”) when a platform global template is marked “Loaded by default”. This CoA is created with scope `GLOBAL` (no country) and set as the tenant’s Global Default so that companies without a country default can use it immediately. You can edit or delete the preloaded accounts/CoA later as needed (subject to standard guardrails).
 
-Global CoAs now appear as “Global” in the Charts of Accounts page (Scope column), with the Country column left blank. Only `GLOBAL` CoAs can be marked as the Global Default, and only `COUNTRY` CoAs can be set as a per-country default.
+Global CoAs are shown with scope metadata in the **Manage** modal, with no country value for `GLOBAL` entries. Only `GLOBAL` CoAs can be marked as the Global Default, and only `COUNTRY` CoAs can be set as a per-country default.
 
 ## Managing Accounts
 
-### The Accounts page
+### Single CoA page workflow
 
-The **Master Data → Accounts** page shows all accounts across all your Charts of Accounts (plus legacy accounts without a CoA).
+Account management is now integrated directly into **Master Data → Charts of Accounts**.
 
-**Key features**:
-- **CoA column**: Shows which Chart of Accounts each account belongs to
-  - **Filtering by CoA**: Click the filter icon in the CoA column to show only accounts from specific CoAs
-  - **Deep linking**: Clicking "Open Accounts" from the Charts of Accounts page filters the list to that CoA
-  - **Native name**: If an account has a `native_name` (original local-language name), hovering over the account name shows it as a tooltip
+**How it works**:
+- Select a CoA from the horizontal chip bar at the top.
+- The accounts grid below immediately shows accounts for that selected CoA only.
+- Use the page actions to manage accounts in that CoA:
+  - **New Account**
+  - **Import CSV**
+  - **Export CSV**
+  - **Delete Selected**
+
+**Manage button**:
+- The **Manage** button opens a compact modal for CoA administration (select CoA, review metadata, set defaults, delete).
+
+**Notes**:
+- The app stores selected CoA in the URL (`?selected=<coaId>`), so links can preserve context.
+- Legacy `/master-data/accounts` links still work and redirect to the merged page.
+- Native name behavior is unchanged: hover over account name to see `native_name` when present.
 
 ### Account numbers
 
@@ -177,7 +188,7 @@ This dual view lets you satisfy both local compliance requirements and group rep
 **How they work**:
   - Companies WITHOUT a CoA can use legacy accounts
   - Companies WITH a CoA cannot use legacy accounts—they're filtered out automatically
-  - Legacy accounts appear in the Accounts page with an empty CoA column
+  - Legacy accounts can still be migrated via CSV (`coa_code`) and reassignment workflows
 
 **Migration path**:
   1. Create or load Charts of Accounts for your companies
@@ -236,9 +247,9 @@ Deletion is immediate and irreversible. The tenant record remains for auditabili
 
 You can export a list of your CoAs (with metadata like code, name, country, default status) but not import CoAs directly via CSV. Create CoAs through the UI or load them from templates.
 
-### Accounts (global)
+### Accounts (global endpoint)
 
-The global **Accounts** page CSV includes a `coa_code` column to identify which CoA each account belongs to.
+The global `/accounts` CSV includes a `coa_code` column to identify which CoA each account belongs to.
 
   - **Export**
       - **Template**: headers only (use this to prepare imports)
@@ -258,7 +269,7 @@ coa_code;account_number;account_name;native_name;description;consolidation_accou
 
 ### Accounts (CoA-scoped)
 
-When you click "Open Accounts" from a specific CoA, the export/import buttons work on that CoA only.
+From the merged CoA page, import/export actions are automatically scoped to the currently selected CoA.
 
   - **Export**: accounts from this CoA (no `coa_code` column needed)
   - **Import**: accounts are inserted/updated into this CoA automatically
@@ -276,18 +287,13 @@ account_number;account_name;native_name;description;consolidation_account_number
 
 ## Working with the list
 
-### Charts of Accounts page
+### Charts of Accounts page (merged)
 
-  - **Key columns**: Code, Name, Country, Default (per country), Companies Count, Accounts Count
-  - **Actions**: New (from scratch or template), Set Default, Delete (guarded), Open Accounts
+  - **Selector**: Horizontal CoA chips with default badges
+  - **Accounts grid**: Always scoped to selected CoA (no global cross-CoA list in main UI)
+  - **Manage modal**: CoA list + details + actions (`Set Country Default`, `Set Global Default`, guarded delete)
   - **Guarded deletion**: You can only delete a CoA if no companies reference it and no OPEX/CAPEX items use its accounts
-
-### Accounts page
-
-  - **CoA column**: Shows which Chart of Accounts each account belongs to (or empty for legacy)
-  - **Filtering**: Use the CoA filter to narrow down to specific Charts of Accounts
-  - **Sorting**: Click column headers to sort (including by CoA code)
-  - **Deep linking**: URL parameter `?coaId=X` automatically filters to that CoA (used when clicking "Open Accounts" from a CoA)
+  - **Deep linking**: URL parameter `?selected=<coaId>` keeps the selected CoA context
 
 ## Tips
 
@@ -378,7 +384,7 @@ A: Deletion is blocked if any companies reference it or any OPEX/CAPEX items use
 A: Yes, in the account's workspace. Changing the account number updates all references in OPEX/CAPEX items automatically (the account's UUID remains the same internally).
 
 **Q: How do I see which companies use a specific CoA?**
-A: The Charts of Accounts list shows a "Companies Count" column. Click the CoA to open its workspace for details, or filter the Companies page by CoA.
+A: Open **Manage** on the Charts of Accounts page, select the CoA, and check **Linked Companies** in the details panel. You can also filter the Companies page by CoA.
 
 **Q: What if my country doesn't have a template?**
 A: Create a CoA from scratch and add accounts manually or via CSV import. If you have a standard account list from a reliable source, you can import it directly.
