@@ -96,6 +96,7 @@ nav:
     - "Getting Started": fast-track/getting-started.md
     - "From Request to Delivery": fast-track/index.md
     - "From Application to Server": fast-track/apps-and-assets.md
+    - "Run, Build & Tasks": fast-track/task-types.md
 
   - My Workspace:
     - Dashboard: my-dashboard.md
