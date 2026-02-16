@@ -132,7 +132,7 @@ export const ENTITY_TYPE_CONFIG: Record<
     label: 'Contract',
   },
   task: {
-    route: (id) => `/my/tasks/${id}`,
+    route: (id) => `/portfolio/tasks/${id}`,
     resource: 'tasks',
     icon: 'Task',
     label: 'Task',

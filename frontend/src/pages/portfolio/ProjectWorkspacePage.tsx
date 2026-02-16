@@ -277,7 +277,7 @@ function SortablePhaseRow({
             disabled={!canManage}
             title="Add task to phase"
             onClick={() => {
-              onNavigate(`/my/tasks/new/overview?projectId=${projectId}&phaseId=${phase.id}`);
+              onNavigate(`/portfolio/tasks/new/overview?projectId=${projectId}&phaseId=${phase.id}`);
             }}
           >
             <AddIcon fontSize="small" />

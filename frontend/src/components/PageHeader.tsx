@@ -10,7 +10,6 @@ function useBreadcrumbs(): Crumb[] {
   const parts = path.split('/').filter(Boolean);
   const mapLabel = (seg: string) => {
     switch (seg) {
-      case 'my': return 'My Workspace';
       case 'ops': return 'Budget Management';
       case 'admin': return 'Admin';
       case 'it': return 'IT Operations';
@@ -23,7 +22,7 @@ function useBreadcrumbs(): Crumb[] {
       case 'departments': return 'Departments';
       case 'suppliers': return 'Suppliers';
       case 'accounts': return 'Accounts';
-      case 'analytics': return 'Analytics';
+      case 'analytics': return 'Analytics Dimensions';
       case 'users': return 'Users';
       case 'roles': return 'Roles';
       case 'billing': return 'Billing';
@@ -33,7 +32,7 @@ function useBreadcrumbs(): Crumb[] {
       case 'interface-map': return 'Interface Map';
       case 'connection-map': return 'Connection Map';
       case 'tasks': return 'Tasks';
-      case 'operations': return 'Operations';
+      case 'operations': return 'Administration';
       default: return seg;
     }
   };

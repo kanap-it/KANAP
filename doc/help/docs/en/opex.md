@@ -197,7 +197,7 @@ The Tasks tab helps you track to-dos and follow-ups related to this OPEX item (e
 **Notes**:
   - Tasks are independent objects with their own permissions (`tasks:member` to create/edit)
   - Having OPEX manager access doesn't automatically grant task editing rights; check with your admin if you can't create tasks
-  - Tasks can also be viewed and managed from **My Workspace → Tasks**, which shows all tasks across your organization
+  - Tasks can also be viewed and managed from **Portfolio → Tasks**, which shows all tasks across your organization
 
 **Tip**: Use tasks to capture action items during budget reviews or contract renewals. Set due dates to track upcoming deadlines.
 

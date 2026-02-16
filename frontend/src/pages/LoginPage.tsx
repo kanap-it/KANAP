@@ -53,8 +53,7 @@ export default function LoginPage() {
       const res = await api.post('/auth/login', { email: username, password });
       // New response format: { access_token, refresh_token, expires_in }
       login(res.data as { access_token: string; refresh_token: string; expires_in: number });
-      const dest = (location.state as any)?.from?.pathname || '/';
-      navigate(dest);
+      navigate('/');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Login failed');
     }
@@ -63,8 +62,7 @@ export default function LoginPage() {
   const onMicrosoftSignIn = () => {
     const apiBase = (import.meta.env.VITE_API_URL as string | undefined) || '/api';
     const base = apiBase.replace(/\/$/, '');
-    const dest = (location.state as any)?.from?.pathname || '/';
-    const url = `${base}/auth/entra/login?redirectTo=${encodeURIComponent(dest)}`;
+    const url = `${base}/auth/entra/login?redirectTo=${encodeURIComponent('/')}`;
     window.location.href = url;
   };
 

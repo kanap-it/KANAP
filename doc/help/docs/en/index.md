@@ -8,24 +8,27 @@ KANAP helps IT and finance teams manage their technology landscape, budgets, and
 
 ## Modules
 
-### Budget Management
+### Dashboard
 
-- [OPEX](opex.md) - Manage recurring IT costs and allocations
-- [CAPEX](capex.md) - Track capital expenditure projects
-- [Contracts](contracts.md) - Manage vendor contracts and renewals
-- [My Dashboard](my-dashboard.md) - Personal overview with configurable tiles
-- [Tasks](tasks.md) - Track action items and follow-ups
-- [Budget Administration](budget-operations.md) - Freeze, copy, and manage budget data
-- [Reports](reports.md) - Generate budget and chargeback reports
+- [Dashboard](my-dashboard.md) - Personal overview with configurable tiles (click the KANAP logo)
 
 ### Portfolio Management
 
+- [Tasks](tasks.md) - Track action items and follow-ups
 - [Requests](portfolio-requests.md) - Capture and evaluate incoming initiatives
 - [Projects](portfolio-projects.md) - Manage approved projects end-to-end
 - [Planning](portfolio-planning.md) - Build timeline scenarios and generate roadmap schedules
 - [Contributors](portfolio-team-members.md) - Track skills, teams, and capacity
 - [Reporting](portfolio-reporting.md) - Capacity and workload reporting
 - [Settings](portfolio-settings.md) - Configure criteria, teams, and scoring
+
+### Budget Management
+
+- [OPEX](opex.md) - Manage recurring IT costs and allocations
+- [CAPEX](capex.md) - Track capital expenditure projects
+- [Contracts](contracts.md) - Manage vendor contracts and renewals
+- [Budget Administration](budget-operations.md) - Freeze, copy, and manage budget data
+- [Reports](reports.md) - Generate budget and chargeback reports
 
 ### IT Operations
 

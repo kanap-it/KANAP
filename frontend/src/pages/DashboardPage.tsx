@@ -337,7 +337,7 @@ export default function DashboardPage() {
 
         {/* My Tasks */}
         <Grid item xs={12} md={6} lg={4}>
-          <DashboardTile icon="Assignment" title="My Tasks" isLoading={tasksLoading} action={<Button size="small" onClick={() => navigate('/my/tasks')}>View All</Button>}>
+          <DashboardTile icon="Assignment" title="My Tasks" isLoading={tasksLoading} action={<Button size="small" onClick={() => navigate('/portfolio/tasks')}>View All</Button>}>
             <Typography variant="h5">{openTasks}</Typography>
             <Stack spacing={0.75} sx={{ mt: 1.5 }}>
               {taskItems.map((t) => {

@@ -408,7 +408,7 @@ export class PortfolioStatusChangeReportService {
   }
 
   private buildItemPath(itemType: StatusChangeItemType, itemId: string): string {
-    if (itemType === 'task') return `/my/tasks/${itemId}/overview`;
+    if (itemType === 'task') return `/portfolio/tasks/${itemId}/overview`;
     if (itemType === 'request') return `/portfolio/requests/${itemId}/overview`;
     return `/portfolio/projects/${itemId}/overview`;
   }

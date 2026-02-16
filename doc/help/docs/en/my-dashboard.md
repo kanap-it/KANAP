@@ -1,11 +1,10 @@
-# My Dashboard
+# Dashboard
 
-My Dashboard is your personal landing page in KANAP. It gives you a quick overview of your tasks, projects, time logged, and recent activity — all in one place. You can customise which tiles appear and how they behave.
+The Dashboard is your personal landing page in KANAP. It gives you a quick overview of your tasks, projects, time logged, and recent activity — all in one place. You can customise which tiles appear and how they behave.
 
 ## Where to find it
 
-- Navigate to **My Workspace → Dashboard**
-- Route: `/my/dashboard`
+- Click the **KANAP** logo or navigate to `/`
 - This is the default page after login for non-admin users.
 - No special permissions are required to view the dashboard itself, but individual tiles depend on your access rights.
 

@@ -477,7 +477,7 @@ export default function TaskWorkspacePage() {
     try {
       await api.delete('/tasks/bulk', { data: { ids: [task.id] } });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      navigate('/my/tasks');
+      navigate('/portfolio/tasks');
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Failed to delete task');
     }
@@ -485,7 +485,7 @@ export default function TaskWorkspacePage() {
 
   const handleBack = () => {
     const qs = searchParams.toString();
-    navigate(`/my/tasks${qs ? `?${qs}` : ''}`);
+    navigate(`/portfolio/tasks${qs ? `?${qs}` : ''}`);
   };
 
   // Navigation for prev/next
@@ -525,7 +525,7 @@ export default function TaskWorkspacePage() {
       }
     }
     const qs = searchParams.toString();
-    navigate(`/my/tasks/${targetId}${qs ? `?${qs}` : ''}`);
+    navigate(`/portfolio/tasks/${targetId}${qs ? `?${qs}` : ''}`);
   }, [dirty, task, searchParams, navigate, handleSave]);
 
   const formatDate = (dateStr: string) => {
@@ -622,7 +622,7 @@ export default function TaskWorkspacePage() {
 
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
         const qs = searchParams.toString();
-        navigate(`/my/tasks/${newId}/overview${qs ? `?${qs}` : ''}`, { replace: true });
+        navigate(`/portfolio/tasks/${newId}/overview${qs ? `?${qs}` : ''}`, { replace: true });
       }
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || 'Failed to create task');

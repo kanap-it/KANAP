@@ -15,9 +15,11 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   Typography,
+  Snackbar,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../../api';
+import { useAuth } from '../../../auth/AuthContext';
 
 interface QuickLogTimeModalProps {
   open: boolean;
@@ -29,16 +31,30 @@ interface Project {
   name: string;
 }
 
+interface Task {
+  id: string;
+  title: string;
+  related_object_type: string | null;
+  related_object_id: string | null;
+  related_object_name: string | null;
+}
+
+type LogTarget = 'project' | 'task';
+
 export default function QuickLogTimeModal({
   open,
   onClose,
 }: QuickLogTimeModalProps) {
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
+  const [target, setTarget] = useState<LogTarget>('project');
   const [projectId, setProjectId] = useState('');
+  const [taskId, setTaskId] = useState('');
   const [hours, setHours] = useState('');
   const [category, setCategory] = useState<'it' | 'business'>('it');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [snackOpen, setSnackOpen] = useState(false);
 
   // Fetch projects for dropdown
   const { data: projectsData } = useQuery({
@@ -49,34 +65,74 @@ export default function QuickLogTimeModal({
       });
       return res.data.items as Project[];
     },
-    enabled: open,
+    enabled: open && target === 'project',
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch user's active tasks for dropdown
+  const { data: tasksData } = useQuery({
+    queryKey: ['tasks', 'list-simple', profile?.id],
+    queryFn: async () => {
+      const res = await api.get('/tasks', {
+        params: {
+          limit: 200,
+          sort: 'title:ASC',
+          assigneeUserId: profile?.id,
+          filters: JSON.stringify({ status: { filterType: 'set', values: ['open', 'in_progress'] } }),
+        },
+      });
+      const items = res.data.items as Task[];
+      // Only show project and standalone tasks (exclude OPEX, CAPEX, Contract tasks)
+      return items.filter((t) => !t.related_object_type || t.related_object_type === 'project');
+    },
+    enabled: open && target === 'task' && !!profile?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const selectedTask = tasksData?.find((t) => t.id === taskId);
+
   const logTimeMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
-        category,
-        hours: parseFloat(hours),
-        notes: notes || undefined,
-      };
-
-      const res = await api.post(`/portfolio/projects/${projectId}/time-entries`, payload);
-      return res.data;
+      const hoursNum = parseFloat(hours);
+      if (target === 'project') {
+        await api.post(`/portfolio/projects/${projectId}/time-entries`, {
+          category,
+          hours: hoursNum,
+          notes: notes || undefined,
+        });
+      } else {
+        const projectIdForTask = selectedTask?.related_object_type === 'project' ? selectedTask.related_object_id : null;
+        const endpoint = projectIdForTask
+          ? `/portfolio/projects/${projectIdForTask}/tasks/${taskId}/time-entries`
+          : `/tasks/${taskId}/time-entries`;
+        await api.post(endpoint, {
+          category,
+          user_id: profile?.id,
+          hours: hoursNum,
+          notes: notes.trim() || null,
+          logged_at: new Date().toISOString().split('T')[0],
+        });
+      }
     },
     onSuccess: () => {
-      // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['dashboard', 'time-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['portfolio', 'projects', projectId] });
+      if (target === 'project') {
+        queryClient.invalidateQueries({ queryKey: ['portfolio', 'projects', projectId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      }
       handleClose();
+      setSnackOpen(true);
     },
-    onError: (err: Error) => {
-      setError(err.message || 'Failed to log time');
+    onError: (err: any) => {
+      setError(err?.response?.data?.message || err.message || 'Failed to log time');
     },
   });
 
   const handleClose = () => {
+    setTarget('project');
     setProjectId('');
+    setTaskId('');
     setHours('');
     setCategory('it');
     setNotes('');
@@ -85,8 +141,12 @@ export default function QuickLogTimeModal({
   };
 
   const handleSubmit = () => {
-    if (!projectId) {
+    if (target === 'project' && !projectId) {
       setError('Project is required');
+      return;
+    }
+    if (target === 'task' && !taskId) {
+      setError('Task is required');
       return;
     }
     const hoursNum = parseFloat(hours);
@@ -97,7 +157,20 @@ export default function QuickLogTimeModal({
     logTimeMutation.mutate();
   };
 
+  const formatTaskLabel = (task: Task) => {
+    if (task.related_object_name) return `${task.title} (${task.related_object_name})`;
+    return task.title;
+  };
+
   return (
+    <>
+    <Snackbar
+      open={snackOpen}
+      onClose={() => setSnackOpen(false)}
+      autoHideDuration={2000}
+      message="Time logged successfully"
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+    />
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>Log Time</DialogTitle>
       <DialogContent>
@@ -108,20 +181,60 @@ export default function QuickLogTimeModal({
             </Alert>
           )}
 
-          <FormControl fullWidth required>
-            <InputLabel>Project</InputLabel>
-            <Select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              label="Project"
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Log on
+            </Typography>
+            <ToggleButtonGroup
+              value={target}
+              exclusive
+              onChange={(_, val) => {
+                if (val) {
+                  setTarget(val);
+                  setProjectId('');
+                  setTaskId('');
+                  setError(null);
+                }
+              }}
+              size="small"
+              fullWidth
             >
-              {projectsData?.map((project) => (
-                <MenuItem key={project.id} value={project.id}>
-                  {project.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              <ToggleButton value="project">Project</ToggleButton>
+              <ToggleButton value="task">Task</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
+          {target === 'project' ? (
+            <FormControl fullWidth required>
+              <InputLabel>Project</InputLabel>
+              <Select
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                label="Project"
+              >
+                {projectsData?.map((project) => (
+                  <MenuItem key={project.id} value={project.id}>
+                    {project.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : (
+            <FormControl fullWidth required>
+              <InputLabel>Task</InputLabel>
+              <Select
+                value={taskId}
+                onChange={(e) => setTaskId(e.target.value)}
+                label="Task"
+              >
+                {tasksData?.map((task) => (
+                  <MenuItem key={task.id} value={task.id}>
+                    {formatTaskLabel(task)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
 
           <TextField
             label="Hours"
@@ -172,5 +285,6 @@ export default function QuickLogTimeModal({
         </Button>
       </DialogActions>
     </Dialog>
+    </>
   );
 }

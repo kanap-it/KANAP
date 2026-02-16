@@ -109,7 +109,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
         {items.map((task) => (
           <ListItemButton
             key={task.id}
-            onClick={() => navigate(`/my/tasks/${task.id}`)}
+            onClick={() => navigate(`/portfolio/tasks/${task.id}`)}
             sx={{ py: 0.5 }}
           >
             <ListItemText
@@ -149,7 +149,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
       icon="Task"
       isLoading={isLoading}
       action={
-        <Button size="small" onClick={() => navigate('/my/tasks')}>
+        <Button size="small" onClick={() => navigate('/portfolio/tasks')}>
           View All
         </Button>
       }
@@ -158,7 +158,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
         <TileEmptyState
           message="No tasks assigned to you"
           action={
-            <Button size="small" onClick={() => navigate('/my/tasks')}>
+            <Button size="small" onClick={() => navigate('/portfolio/tasks')}>
               Browse Tasks
             </Button>
           }

@@ -4,7 +4,7 @@ Tasks help you track action items, deliverables, and work packages across your K
 
 ## Getting started
 
-Navigate to **My Workspace → Tasks** to see all tasks across your organization. Click **New** to create a task.
+Navigate to **Portfolio → Tasks** to see all tasks across your organization. Click **New** to create a task.
 
 ### Creating a new task
 
@@ -45,7 +45,7 @@ When you click **New**, the full task workspace opens. To create a task:
 
 ## Where to find it
 
-- Path: **My Workspace → Tasks**
+- Path: **Portfolio → Tasks**
 - Permissions:
   - You need at least `tasks:reader` to view tasks
   - You need `tasks:member` to create and edit tasks
