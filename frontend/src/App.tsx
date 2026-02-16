@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
 import DashboardPage from './pages/DashboardPage';
 import ForbiddenPage from './pages/ForbiddenPage';
@@ -95,7 +95,28 @@ import SettingsPage from './pages/settings/SettingsPage';
 function HomeRoute() {
   const { isPlatformHost } = useTenant();
   if (isPlatformHost) return <Navigate to="/admin/tenants" replace />;
-  return <Navigate to="/my/dashboard" replace />;
+  return <WorkspaceDashboardPage />;
+}
+
+function PortfolioDefaultRedirect() {
+  const { hasLevel } = useAuth();
+  if (hasLevel('tasks', 'reader')) return <Navigate to="/portfolio/tasks" replace />;
+  if (hasLevel('portfolio_requests', 'reader')) return <Navigate to="/portfolio/requests" replace />;
+  if (hasLevel('portfolio_projects', 'reader')) return <Navigate to="/portfolio/projects" replace />;
+  if (hasLevel('portfolio_planning', 'reader')) return <Navigate to="/portfolio/planning" replace />;
+  if (hasLevel('portfolio_reports', 'reader')) return <Navigate to="/portfolio/reports" replace />;
+  if (hasLevel('portfolio_settings', 'reader')) return <Navigate to="/portfolio/contributors" replace />;
+  return <Navigate to="/portfolio/tasks" replace />;
+}
+
+function LegacyTaskRedirect() {
+  const { id, tab } = useParams();
+  const [sp] = useSearchParams();
+  const qs = sp.toString();
+  const to = id
+    ? `/portfolio/tasks/${id}${tab ? `/${tab}` : ''}${qs ? `?${qs}` : ''}`
+    : '/portfolio/tasks';
+  return <Navigate to={to} replace />;
 }
 
 function AppRoutes() {
@@ -122,10 +143,10 @@ function AppRoutes() {
           <Route path="/ops/contracts" element={<ContractsPage />} />
           <Route path="/ops/contracts/:id" element={<ContractWorkspacePage />} />
           <Route path="/ops/contracts/:id/:tab" element={<ContractWorkspacePage />} />
-          {/* Legacy task routes - redirect to My Workspace */}
-          <Route path="/ops/tasks" element={<Navigate to="/my/tasks" replace />} />
-          <Route path="/ops/tasks/:id" element={<Navigate to="/my/tasks" replace />} />
-          <Route path="/ops/tasks/:id/:tab" element={<Navigate to="/my/tasks" replace />} />
+          {/* Legacy ops/tasks routes - redirect to portfolio/tasks */}
+          <Route path="/ops/tasks" element={<Navigate to="/portfolio/tasks" replace />} />
+          <Route path="/ops/tasks/:id" element={<LegacyTaskRedirect />} />
+          <Route path="/ops/tasks/:id/:tab" element={<LegacyTaskRedirect />} />
           <Route path="/it/assets" element={<AssetsPage />} />
           <Route path="/it/assets/:id" element={<AssetWorkspacePage />} />
           <Route path="/it/assets/:id/:tab" element={<AssetWorkspacePage />} />
@@ -205,7 +226,7 @@ function AppRoutes() {
           <Route path="/it/connection-map" element={<ConnectionMapPage />} />
           <Route path="/it/settings" element={<ItOperationsSettingsPage />} />
           {/* Portfolio */}
-          <Route path="/portfolio" element={<Navigate to="/portfolio/requests" replace />} />
+          <Route path="/portfolio" element={<PortfolioDefaultRedirect />} />
           <Route path="/portfolio/requests" element={<PortfolioRequestsPage />} />
           <Route path="/portfolio/requests/:id" element={<PortfolioRequestWorkspacePage />} />
           <Route path="/portfolio/requests/:id/:tab" element={<PortfolioRequestWorkspacePage />} />
@@ -220,12 +241,15 @@ function AppRoutes() {
           <Route path="/portfolio/contributors/:id" element={<PortfolioContributorWorkspacePage />} />
           <Route path="/portfolio/contributors/:id/:tab" element={<PortfolioContributorWorkspacePage />} />
           <Route path="/portfolio/settings" element={<PortfolioSettingsPage />} />
-          {/* My Workspace */}
-          <Route path="/my" element={<Navigate to="/my/dashboard" replace />} />
-          <Route path="/my/dashboard" element={<WorkspaceDashboardPage />} />
-          <Route path="/my/tasks" element={<TasksPage />} />
-          <Route path="/my/tasks/:id" element={<TaskWorkspacePage />} />
-          <Route path="/my/tasks/:id/:tab" element={<TaskWorkspacePage />} />
+          <Route path="/portfolio/tasks" element={<TasksPage />} />
+          <Route path="/portfolio/tasks/:id" element={<TaskWorkspacePage />} />
+          <Route path="/portfolio/tasks/:id/:tab" element={<TaskWorkspacePage />} />
+          {/* Legacy My Workspace routes - redirect */}
+          <Route path="/my" element={<Navigate to="/" replace />} />
+          <Route path="/my/dashboard" element={<Navigate to="/" replace />} />
+          <Route path="/my/tasks/:id/:tab" element={<LegacyTaskRedirect />} />
+          <Route path="/my/tasks/:id" element={<LegacyTaskRedirect />} />
+          <Route path="/my/tasks" element={<Navigate to="/portfolio/tasks" replace />} />
           {/* Settings */}
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/:tab" element={<SettingsPage />} />

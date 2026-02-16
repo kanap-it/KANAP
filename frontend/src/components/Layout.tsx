@@ -58,11 +58,6 @@ const operations: NavEntry[] = [
   { to: '/ops/operations', label: 'Administration', icon: <SettingsIcon />, resource: 'opex' },
 ];
 
-const myWorkspaceNav: NavEntry[] = [
-  { to: '/my/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-  { to: '/my/tasks', label: 'My Tasks', icon: <AssignmentIcon />, resource: 'tasks' },
-];
-
 const masterData: NavEntry[] = [
   { to: '/master-data', label: 'Master Data Home', icon: <HomeIcon /> },
   { divider: 'Organization' },
@@ -97,6 +92,7 @@ const itOperations: NavEntry[] = [
 ];
 
 const portfolioNav: NavEntry[] = [
+  { to: '/portfolio/tasks', label: 'Tasks', icon: <AssignmentIcon />, resource: 'tasks' },
   { to: '/portfolio/requests', label: 'Requests', icon: <InboxIcon />, resource: 'portfolio_requests' },
   { to: '/portfolio/projects', label: 'Projects', icon: <AccountTreeIcon />, resource: 'portfolio_projects' },
   { to: '/portfolio/planning', label: 'Planning', icon: <CalendarMonthIcon />, resource: 'portfolio_planning' },
@@ -131,7 +127,6 @@ const getWorkspaceResources = (ws: string): string[] => {
     case 'it': return getNavResources(itOperations);
     case 'portfolio': return getNavResources(portfolioNav);
     case 'admin': return getNavResources(tenantAdminNav);
-    case 'my': return getNavResources(myWorkspaceNav);
     default: return [];
   }
 };
@@ -157,19 +152,19 @@ export default function Layout() {
   // Determine which workspaces are visible
   const visibleWorkspaces = React.useMemo(() => {
     if (isPlatformHost) return ['admin'];
-    const all = ['my', 'portfolio', 'it', 'ops', 'master-data', 'admin'] as const;
+    const all = ['portfolio', 'it', 'ops', 'master-data', 'admin'] as const;
     return all.filter(ws => hasWorkspaceAccess(ws));
   }, [isPlatformHost, hasWorkspaceAccess]);
 
   // Derive active workspace from the current route to keep the top bar highlight in sync
-  const workspace: 'ops' | 'it' | 'master-data' | 'portfolio' | 'admin' | 'my' = React.useMemo(() => {
+  const workspace: 'ops' | 'it' | 'master-data' | 'portfolio' | 'admin' | 'home' = React.useMemo(() => {
     if (isPlatformHost) return 'admin';
     const p = location.pathname;
+    if (p === '/') return 'home';
     if (p.startsWith('/admin')) return 'admin';
     if (p.startsWith('/master-data')) return 'master-data';
     if (p.startsWith('/portfolio')) return 'portfolio';
     if (p.startsWith('/it')) return 'it';
-    if (p.startsWith('/my')) return 'my';
     return 'ops';
   }, [location.pathname, isPlatformHost]);
   const [navOpen, setNavOpen] = React.useState<boolean>(() => {
@@ -203,12 +198,12 @@ export default function Layout() {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ mr: 3 }}>KANAP</Typography>
+          <Typography variant="h6" component={Link} to="/" sx={{ mr: 3, textDecoration: 'none', color: 'inherit' }}>KANAP</Typography>
           {!isPlatformHost && visibleWorkspaces.length > 0 && (
             <Tabs
-              value={visibleWorkspaces.includes(workspace) ? workspace : visibleWorkspaces[0]}
+              value={workspace === 'home' ? false : (visibleWorkspaces.includes(workspace) ? workspace : visibleWorkspaces[0])}
               onChange={(_, val) => {
-                navigate(val === 'ops' ? '/ops' : val === 'it' ? '/it' : val === 'master-data' ? '/master-data' : val === 'portfolio' ? '/portfolio' : val === 'my' ? '/my' : '/admin');
+                navigate(val === 'ops' ? '/ops' : val === 'it' ? '/it' : val === 'master-data' ? '/master-data' : val === 'portfolio' ? '/portfolio' : '/admin');
               }}
               sx={{
                 flex: 1,
@@ -228,7 +223,6 @@ export default function Layout() {
               }}
               aria-label="Section navigation"
             >
-              {visibleWorkspaces.includes('my') && <Tab value="my" label="My Workspace" />}
               {visibleWorkspaces.includes('portfolio') && <Tab value="portfolio" label="Portfolio" />}
               {visibleWorkspaces.includes('it') && <Tab value="it" label="IT Operations" />}
               {visibleWorkspaces.includes('ops') && <Tab value="ops" label="Budget Management" />}
@@ -272,7 +266,7 @@ export default function Layout() {
         </Toolbar>
       </AppBar>
 
-      <Drawer
+      {workspace !== 'home' && <Drawer
         variant="permanent"
         sx={{
           width: (theme) => (navOpen ? drawerWidth : `calc(${theme.spacing(7)} + 1px)`),
@@ -309,7 +303,6 @@ export default function Layout() {
                 'master-data': masterData,
                 it: itOperations,
                 portfolio: portfolioNav,
-                my: myWorkspaceNav,
               };
               entries = navMap[workspace] || [];
             }
@@ -382,7 +375,7 @@ export default function Layout() {
             );
           })()}
         </Box>
-      </Drawer>
+      </Drawer>}
 
       <Box component="main" sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Toolbar />

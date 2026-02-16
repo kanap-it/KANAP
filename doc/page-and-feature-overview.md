@@ -112,8 +112,8 @@ The Task Management system (frontend `TasksPage` + workspace and backend `TasksS
 - Permissions: `tasks:reader` shows all tasks in the tenant (auto-granted when any operations resource has access). `tasks:manager` allows create/edit/move. `tasks:admin` is required for bulk delete.
 - Multi-tenant model: The unified `tasks` table includes `tenant_id` with enforced RLS.
 - Schema: `tasks` fields include id, tenant_id, title (NOT NULL), description (nullable HTML), status, priority_level, start_date, due_date, assignee_user_id, creator_id, related_object_type (`'project'|'spend_item'|'contract'|'capex_item'`), related_object_id, phase_id (project tasks only), labels (JSONB), viewer_ids (JSONB), created_at, updated_at.
-- Create mode: Full workspace at `/my/tasks/new/overview` with two-dropdown relation selector (type → item). Relation is mandatory and locked after creation.
-- Project task creation: From Projects workspace (Tasks tab or Timeline "Add Task" button), navigation redirects to `/my/tasks/new/overview?projectId=...&phaseId=...` to pre-fill the relation.
+- Create mode: Full workspace at `/portfolio/tasks/new/overview` with two-dropdown relation selector (type → item). Relation is mandatory and locked after creation.
+- Project task creation: From Projects workspace (Tasks tab or Timeline "Add Task" button), navigation redirects to `/portfolio/tasks/new/overview?projectId=...&phaseId=...` to pre-fill the relation.
 - **Send link**: A "Send link" button in the workspace header (to the left of prev/next arrows) lets any reader quickly email a link to the current task. The dialog (`ShareDialog`) supports selecting existing platform users and/or typing arbitrary email addresses (freeSolo Autocomplete), with an optional personal message and a copy-link shortcut. Backend: `POST /tasks/:id/share` (reader permission).
 
 ## Portfolio Management

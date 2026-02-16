@@ -22,8 +22,8 @@ KANAP is organized around a simple structure:
 
 | Area | What it contains |
 |------|-----------------|
-| **My Workspace** | Your personal hub — Dashboard, Tasks |
-| **Portfolio** | Requests, Projects, Planning, Reporting, Contributors |
+| **Dashboard** | Your personal hub — click the KANAP logo |
+| **Portfolio** | Requests, Projects, Tasks, Planning, Reporting, Contributors |
 | **IT Operations** | Applications, Assets, Connections, Interfaces, Locations |
 | **Budget** | OPEX, CAPEX, Contracts, Budget Administration |
 | **Admin** | Users, Roles, Billing (admin-only) |
@@ -34,7 +34,7 @@ You don't need access to everything. Your role determines which modules and acti
 
 ## Step 1: Explore Your Dashboard
 
-After logging in, you land on **My Workspace → Dashboard**. This is your personal command center.
+After logging in, you land on the **Dashboard**. This is your personal command center.
 
 ### What you'll see
 
@@ -132,7 +132,7 @@ The scope filter **remembers your last selection** across sessions. So if you sw
 
 ### Where scope filters appear
 
-- **My Workspace → Tasks** — My Tasks / My Team's Tasks / All Tasks
+- **Portfolio → Tasks** — My Tasks / My Team's Tasks / All Tasks
 - **IT Operations → Applications** — My Apps / My Team's Apps / All Apps
 - **Portfolio → Projects** — My Projects / My Team's Projects / All Projects
 - **Portfolio → Requests** — My Requests / My Team's Requests / All Requests
@@ -147,7 +147,7 @@ Tasks are your daily workhorse. They track action items, deliverables, follow-up
 
 ### Find your tasks
 
-Navigate to **My Workspace → Tasks**. The default view shows **My Tasks** — items assigned to you, sorted by priority score.
+Navigate to **Portfolio → Tasks**. The default view shows **My Tasks** — items assigned to you, sorted by priority score.
 
 ### Create a task
 
@@ -267,10 +267,10 @@ The weekly email and real-time notifications keep you in the loop without checki
 
 | I want to… | Go to… |
 |------------|--------|
-| See my overview | My Workspace → Dashboard |
+| See my overview | Dashboard (click KANAP logo) |
 | Create a task quickly | Dashboard → Create Task button |
 | Log time quickly | Dashboard → Log Time button |
-| See all my tasks | My Workspace → Tasks (scope: My Tasks) |
+| See all my tasks | Portfolio → Tasks (scope: My Tasks) |
 | See everything in the org | Any list → scope filter → "All" |
 | Update my profile | Avatar → Settings → Profile |
 | Set up notifications | Avatar → Settings → Notifications |

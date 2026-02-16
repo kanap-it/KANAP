@@ -13,13 +13,16 @@ import {
 import SettingsIcon from '@mui/icons-material/Settings';
 import AddTaskIcon from '@mui/icons-material/AddTask';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import InboxIcon from '@mui/icons-material/Inbox';
+import DnsIcon from '@mui/icons-material/Dns';
+import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useDashboardConfig } from './hooks/useDashboardConfig';
 import { useTilePermissions } from './hooks/useTilePermissions';
 import { TILE_REGISTRY, TILE_LOADERS } from './tiles/TileRegistry';
 import DashboardTile from './tiles/DashboardTile';
 import DashboardSettingsModal from './settings/DashboardSettingsModal';
-import QuickCreateTaskModal from './actions/QuickCreateTaskModal';
 import QuickLogTimeModal from './actions/QuickLogTimeModal';
 
 // Create lazy-loaded tile components
@@ -41,17 +44,20 @@ function TileLoader() {
 }
 
 export default function WorkspaceDashboardPage() {
+  const navigate = useNavigate();
   const { hasLevel, profile } = useAuth();
   const { config, isLoading: configLoading } = useDashboardConfig();
   const { filterVisibleTiles, canViewTile } = useTilePermissions();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [logTimeOpen, setLogTimeOpen] = useState(false);
 
   // Quick actions visibility
   const canCreateTask = hasLevel('tasks', 'member');
-  const canLogTime = hasLevel('portfolio_projects', 'member');
+  const canLogTime = hasLevel('portfolio_projects', 'member') || hasLevel('tasks', 'member');
+  const canCreateRequest = hasLevel('portfolio_requests', 'member');
+  const canCreateAsset = hasLevel('infrastructure', 'member');
+  const canCreateApp = hasLevel('applications', 'member');
 
   // Filter tiles by permission AND enabled status
   const visibleTiles = useMemo(() => {
@@ -80,7 +86,7 @@ export default function WorkspaceDashboardPage() {
           <Button
             variant="outlined"
             startIcon={<AddTaskIcon />}
-            onClick={() => setCreateTaskOpen(true)}
+            onClick={() => navigate('/portfolio/tasks/new/overview')}
             size="small"
           >
             Create Task
@@ -94,6 +100,36 @@ export default function WorkspaceDashboardPage() {
             size="small"
           >
             Log Time
+          </Button>
+        )}
+        {canCreateRequest && (
+          <Button
+            variant="outlined"
+            startIcon={<InboxIcon />}
+            onClick={() => navigate('/portfolio/requests/new/overview')}
+            size="small"
+          >
+            New Request
+          </Button>
+        )}
+        {canCreateApp && (
+          <Button
+            variant="outlined"
+            startIcon={<WorkOutlineIcon />}
+            onClick={() => navigate('/it/applications/new/overview')}
+            size="small"
+          >
+            New Application
+          </Button>
+        )}
+        {canCreateAsset && (
+          <Button
+            variant="outlined"
+            startIcon={<DnsIcon />}
+            onClick={() => navigate('/it/assets/new/overview')}
+            size="small"
+          >
+            New Asset
           </Button>
         )}
         <Box flex={1} />
@@ -153,10 +189,6 @@ export default function WorkspaceDashboardPage() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         canViewTile={canViewTile}
-      />
-      <QuickCreateTaskModal
-        open={createTaskOpen}
-        onClose={() => setCreateTaskOpen(false)}
       />
       <QuickLogTimeModal open={logTimeOpen} onClose={() => setLogTimeOpen(false)} />
     </Box>

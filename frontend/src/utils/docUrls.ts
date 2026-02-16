@@ -12,12 +12,12 @@ const DOC_BASE_URL = 'https://doc.kanap.net';
  * Patterns are matched in order - more specific patterns should come first.
  */
 const routeToDocSlug: [RegExp, string][] = [
-  // My Workspace
-  [/^\/my\/tasks\/[^/]+/, 'tasks'],
-  [/^\/my\/tasks/, 'tasks'],
-  [/^\/my$/, 'tasks'],
+  // Home
+  [/^\/$/, 'my-dashboard'],
 
   // Portfolio Management
+  [/^\/portfolio\/tasks\/[^/]+/, 'tasks'],
+  [/^\/portfolio\/tasks/, 'tasks'],
   [/^\/portfolio\/requests\/[^/]+/, 'portfolio-requests'],
   [/^\/portfolio\/requests/, 'portfolio-requests'],
   [/^\/portfolio\/projects\/[^/]+/, 'portfolio-projects'],

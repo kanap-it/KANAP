@@ -11,7 +11,7 @@ Metadata
 - Tech: React + TypeScript (Vite) with MUI and AG Grid (community)
 - State & Data: TanStack Query for server data fetching/caching; Axios client (`src/api.ts`)
 - Layout: Top AppBar with a workspace toggle; permanent Drawer for navigation within the active workspace
-- Workspaces: Budget Management, IT Operations, Portfolio Management, My Workspace, Master Data, and Admin (toggle in AppBar). Admin pages are separate to reduce confusion and enable clear permissions.
+- Workspaces: Portfolio Management, IT Operations, Budget Management, Master Data, and Admin (toggle in AppBar). The home page (`/`) renders a personal Dashboard (no tab highlighted). Admin pages are separate to reduce confusion and enable clear permissions.
 - Lists: Shared `ServerDataGrid` wrapper built on AG Grid provides server sort and per‑column floating filters (single condition). Default behavior uses infinite scroll; pages can opt into explicit server pagination (`enablePagination`) when needed for very large datasets (for example Audit Log with 100 rows per page). For entities with an enabled/disabled lifecycle, lists should expose a standard `Show: All / Enabled / Disabled` scope selector backed by the same `StatusState`/`disabled_at` helpers used server‑side, and keep the Status column hidden by default (available via the column chooser for advanced filtering).
 - Page chrome: `PageHeader` renders breadcrumbs and page title, with an actions slot for primary buttons. Admin pages display an "Admin" chip.
 
@@ -45,9 +45,9 @@ The app is configured as a Progressive Web App for a native-like experience when
 Note: No service worker or offline support is configured - the PWA setup focuses only on presentation (hiding address bar, proper icons, theme color).
 
 ## Navigation & IA
-- Workspace Toggle: AppBar segmented control is centered in the top bar, uses white styling, persists to `localStorage`, and navigates on click: `Budget Management → /ops`, `IT Operations → /it` (also catches `/ops/servers*` to keep Servers in IT), `Portfolio Management → /portfolio`, `My Workspace → /my`, `Master Data → /master-data`, `Admin → /admin`.
-- Drawer: Shows only the routes for the active workspace; entries the user cannot at least read are hidden.
-- Routing: Explicit prefixes: `/ops/*` for Budget Management, `/it/*` for IT Operations, `/master-data/*` for Master Data, and `/admin/*` for Admin. Dashboard shortcut remains `/` (redirects into `/ops`).
+- Workspace Toggle: AppBar segmented control is centered in the top bar, uses white styling, and navigates on click: `Portfolio → /portfolio`, `IT Operations → /it`, `Budget Management → /ops`, `Master Data → /master-data`, `Admin → /admin`. The KANAP logo links to `/` (personal Dashboard). No tab is highlighted on the home page.
+- Drawer: Shows only the routes for the active workspace; entries the user cannot at least read are hidden. Empty on the home page.
+- Routing: Explicit prefixes: `/portfolio/*` for Portfolio Management, `/ops/*` for Budget Management, `/it/*` for IT Operations, `/master-data/*` for Master Data, and `/admin/*` for Admin. Home (`/`) renders the personal Dashboard directly.
 
 **See:** [page-and-feature-overview.md](page-and-feature-overview.md) for comprehensive page inventory with routes, purposes, and permission requirements.
 
@@ -227,9 +227,9 @@ The Axios client (`src/api/client.ts`) automatically handles 401 responses:
   - Shows "(edited)" indicator when comment has been modified
 - `PortfolioHistory.tsx` - Audit trail of field changes and decisions
 
-### My Workspace
-- Drawer entries: Tasks
-- Purpose: Centralized view for personal tasks across all entities (OPEX, Contracts, CAPEX, Projects) plus standalone tasks
+### Tasks (Portfolio)
+- Drawer entry under Portfolio, after Projects
+- Purpose: Centralized view for tasks across all entities (OPEX, Contracts, CAPEX, Projects) plus standalone tasks
 - **Tasks**
   - List: `frontend/src/pages/TasksPage.tsx` uses `ServerDataGrid` with Type, Phase, Priority, Score, Status columns. Default filter hides completed tasks. Score column shows calculated priority score for all tasks (project: `project.score + adjustment`; non-project: fixed mapping from priority level). Type column shows "Standalone" for tasks without a related object.
   - **Scope filter**: Radio buttons for "My tasks" (default), "My team's tasks", "All tasks". Scope is persisted per user via `useGridScopePreference` hook (localStorage key `kanap-grid-scope:{tenantSlug}:{userId}:tasks`), so returning to the page restores the last selection. URL params take priority when returning from workspace (scope is preserved in URL via `taskScope`, `assigneeUserId`, `teamId`). If the persisted scope is `team` but the user has no team, it falls back to `my`. Prev/Next navigation in workspace respects the selected scope.
@@ -256,7 +256,7 @@ The Axios client (`src/api/client.ts`) automatically handles 401 responses:
     - Components: `TaskSidebar.tsx`, `TaskActivity.tsx`, `TaskAttachments.tsx`, `TaskComments.tsx`, `TaskHistory.tsx`, `TaskWorkLog.tsx`, `TaskLogTimeDialog.tsx`
     - Features: File attachments (drag-and-drop or browse, 20MB limit), time logging with hours/days, comment threads with edit capability (author-only), change history, status validation (cannot mark "Done" without logged time for project tasks)
   - Create mode: Related object selection is optional; leaving it empty creates a standalone task. Classification fields are editable for standalone tasks during creation.
-  - Routes: `/my/tasks` (list), `/my/tasks/:id/:tab` (workspace with overview tab), `/my/tasks/new/:tab` (create)
+  - Routes: `/portfolio/tasks` (list), `/portfolio/tasks/:id/:tab` (workspace with overview tab), `/portfolio/tasks/new/:tab` (create)
   - Permissions: `tasks:reader` (view), `tasks:member` (create/edit), `tasks:admin` (bulk delete)
 
 ### Account Menu
@@ -385,7 +385,7 @@ const { hasPrev, hasNext, prevId, nextId, total, index } = nav;
 // Navigate preserving all context
 const confirmAndNavigate = (targetId: string | null) => {
   if (!targetId) return;
-  navigate(`/my/tasks/${targetId}/overview?${searchParams.toString()}`);
+  navigate(`/portfolio/tasks/${targetId}/overview?${searchParams.toString()}`);
 };
 ```
 

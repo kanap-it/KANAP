@@ -87,7 +87,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
     if (phaseId && isProject) {
       params.set('phaseId', phaseId);
     }
-    navigate(`/my/tasks/new/overview?${params.toString()}`);
+    navigate(`/portfolio/tasks/new/overview?${params.toString()}`);
   };
 
   const { data: tasks = [], isLoading, refetch } = useQuery({
@@ -239,7 +239,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                   <Typography
                     variant="body2"
                     component="a"
-                    onClick={() => navigate(`/my/tasks/${task.id}`)}
+                    onClick={() => navigate(`/portfolio/tasks/${task.id}`)}
                     sx={{
                       cursor: 'pointer',
                       color: 'primary.main',
@@ -279,7 +279,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                   <IconButton
                     size="small"
                     title="Open task"
-                    onClick={() => navigate(`/my/tasks/${task.id}`)}
+                    onClick={() => navigate(`/portfolio/tasks/${task.id}`)}
                   >
                     <OpenInNewIcon fontSize="small" />
                   </IconButton>

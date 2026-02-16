@@ -8,13 +8,13 @@ This document tracks documentation coverage for the KANAP user manual.
 
 | Category | Total Pages | Documented | Gap |
 |----------|-------------|------------|-----|
-| My Workspace | 2 | 2 | 0 |
+| Home | 1 | 1 | 0 |
 | Dashboard & Operations | 9 | 9 | 0 |
 | IT Operations | 8 | 8 | 0 |
 | Master Data | 8 | 8 | 0 |
 | Admin & Settings | 7 | 7 | 0 |
 | Reports | 10 | 10 | 0 |
-| Portfolio | 7 | 7 | 0 |
+| Portfolio | 8 | 8 | 0 |
 | **TOTAL** | **51** | **51** | **0** |
 
 _Note: Portfolio Planning is a placeholder (coming soon) and excluded from counts._
@@ -25,6 +25,7 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-02-16 | Multiple files | Dissolved My Workspace: Dashboard promoted to home page (`/`), Tasks moved to Portfolio section, My Workspace tab removed, legacy routes redirect |
 | 2026-02-15 | Multiple files | Navigation restructure: renamed "Apps & Services" → "Applications", "Budget Operations" → "Budget Administration", "Master Data Operations" → "Master Data Administration", "Analytics Categories" → "Analytics Dimensions", "Dashboard" → "Overview"; added sidebar grouping to IT Ops and Master Data doc nav |
 | 2026-02-14 | `my-dashboard.md` | New documentation for My Dashboard (tiles, quick actions, settings, customisation) |
 | 2026-02-14 | `admin.md` | Added Audit Log documentation (access, filtering, pagination, source interpretation) |
@@ -63,14 +64,13 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 ## Detailed Inventory
 
-### My Workspace
+### Home
 
 | Route | Component | Status | Doc File |
 |-------|-----------|--------|----------|
-| `/my/dashboard` | WorkspaceDashboardPage | **DOCUMENTED** | `my-dashboard.md` |
-| `/my/tasks` | TasksPage + TaskWorkspacePage | **DOCUMENTED** | `tasks.md` |
+| `/` | WorkspaceDashboardPage | **DOCUMENTED** | `my-dashboard.md` |
 
-_Note: `/ops/tasks` redirects to `/my/tasks`_
+_Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect to `/portfolio/tasks`._
 
 ### Budget Management
 
@@ -175,6 +175,7 @@ _Note: `/ops/tasks` redirects to `/my/tasks`_
 |-------|-----------|--------|----------|
 | `/portfolio/requests` | RequestsPage + RequestWorkspacePage | **DOCUMENTED** | `portfolio-requests.md` |
 | `/portfolio/projects` | ProjectsPage + ProjectWorkspacePage | **DOCUMENTED** | `portfolio-projects.md` |
+| `/portfolio/tasks` | TasksPage + TaskWorkspacePage | **DOCUMENTED** | `tasks.md` |
 | `/portfolio/contributors` | ContributorsPage + ContributorWorkspacePage | **DOCUMENTED** | `portfolio-team-members.md` |
 | `/portfolio/settings` | SettingsPage | **DOCUMENTED** | `portfolio-settings.md` |
 | `/portfolio/reports` | ReportsPage | **DOCUMENTED** | `portfolio-reporting.md` |
@@ -190,7 +191,7 @@ _Note: `/ops/tasks` redirects to `/my/tasks`_
 | `/admin/coa-templates` | Platform admin only |
 | `/admin/standard-accounts` | Platform admin only |
 | `/ops/projects` | Placeholder (removed from routes) |
-| `/ops/tasks` | Legacy route, redirects to `/my/tasks` |
+| `/ops/tasks` | Legacy route, redirects to `/portfolio/tasks` |
 
 ---
 

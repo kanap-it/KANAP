@@ -41,7 +41,7 @@ interface ShareDialogProps {
 function buildItemPath(itemType: ItemType, itemId: string): string {
   switch (itemType) {
     case 'task':
-      return `/my/tasks/${itemId}`;
+      return `/portfolio/tasks/${itemId}`;
     case 'project':
       return `/portfolio/projects/${itemId}`;
     case 'request':

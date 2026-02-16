@@ -356,7 +356,7 @@ export default function TasksPage() {
   const ClickableCell: React.FC<ICellRendererParams<TaskRow, any>> = (params) => (
     <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => {
       const sp = buildWorkspaceSearch();
-      navigate(`/my/tasks/${params.data?.id}/overview?${sp.toString()}`);
+      navigate(`/portfolio/tasks/${params.data?.id}/overview?${sp.toString()}`);
     }}>
       {params.valueFormatted ?? params.value ?? ''}
     </Box>
@@ -539,7 +539,7 @@ export default function TasksPage() {
           variant="contained"
           onClick={() => {
             const sp = buildWorkspaceSearch();
-            navigate(`/my/tasks/new/overview?${sp.toString()}`);
+            navigate(`/portfolio/tasks/new/overview?${sp.toString()}`);
           }}
         >
           New
