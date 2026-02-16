@@ -68,7 +68,6 @@ const masterData: NavEntry[] = [
   { to: '/master-data/contacts', label: 'Contacts', icon: <PeopleIcon />, resource: 'contacts' },
   { divider: 'Finance' },
   { to: '/master-data/coa', label: 'Charts of Accounts', icon: <StorageIcon />, resource: 'accounts' },
-  { to: '/master-data/accounts', label: 'Accounts', icon: <AccountBalanceIcon />, resource: 'accounts' },
   { to: '/master-data/currency', label: 'Currency', icon: <AttachMoneyIcon />, resource: 'settings' },
   { divider: 'Classification' },
   { to: '/master-data/business-processes', label: 'Business Processes', icon: <WorkOutlineIcon />, resource: 'business_processes' },

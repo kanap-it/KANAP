@@ -1,7 +1,7 @@
 # Accounts and Charts of Accounts (Tenant + Platform Admin)
 
-Status: current (Phase 2 implemented + hardened; legacy backfill complete; create/edit UX updated)
-Last Updated: 2025-11-01
+Status: current (merged CoA+Accounts page implemented; legacy accounts list route redirected)
+Last Updated: 2026-02-16
 
 This document explains the functional model and APIs for Charts of Accounts (CoA) and Accounts, including tenant flows, platform-admin templates, CSV import/export, the native account name capability, and CoA filtering in OPEX/CAPEX workspaces.
 
@@ -260,24 +260,31 @@ Import behavior:
 
 ## Frontend
 
-### Master Data → Charts of Accounts
-- Grid columns: `code`, `name`, `scope`, `country_iso` (blank for GLOBAL), `is_default`, `is_global_default`, `companies_count`, `accounts_count`, `created_at`
-- Actions:
-  - New (Create from scratch or Copy from template — with preflight)
-  - Set Default
-  - Open Accounts in this CoA (deep link, appends `?coaId=`)
-  - Delete Selected (guarded)
+### Master Data → Charts of Accounts (Merged CoA + Accounts)
+- The tenant UI now uses a single CoA-centric page at `/master-data/coa`.
+- Top section: horizontal CoA chip bar (`code` with default badges) plus `New` and `Manage`.
+- URL state: selected CoA is stored as `?selected=<coaId>` (legacy `?coaId=` links are mapped automatically).
+- Accounts grid is always CoA-scoped (no cross-CoA list view in the main UI).
+- Account actions are on the same page:
+  - `New Account`
+  - `Import CSV` (to `/chart-of-accounts/:id/accounts/import`)
+  - `Export CSV` (to `/chart-of-accounts/:id/accounts/export`)
+  - `Delete Selected` (guarded)
+- Account columns reuse prior Accounts page behavior, including native-name tooltip and optional hidden `Native Name` column.
 
-Notes:
-- CSV import/export for accounts is available from the Master Data → Accounts page. CoA‑scoped CSV is still supported via API but the UI entry point has moved.
+Manage dialog:
+- Replaced the oversized CoA grid with a compact modal:
+  - Left: selectable CoA list
+  - Right: details panel (scope, country, defaults, counts)
+  - Actions: `New`, `Set Country Default`, `Set Global Default`, `Delete Selected`
 
-### Master Data → Accounts
-- Create and Edit forms include a required “Chart of Accounts” selector.
-- Changing a CoA on an existing account is supported (move). A uniqueness conflict on `(tenant_id, coa_id, account_number)` results in a friendly error.
-- CoA column and deep link support via `?coaId`
-- Global CSV (includes `coa_code`) and CoA-scoped CSV
-- Native name tooltip: hovering the “Name” cell shows `native_name` if present and different from `account_name`
-- Hidden “Native Name” column can be enabled in the chooser
+Legacy route behavior:
+- `/master-data/accounts` now redirects to `/master-data/coa` and preserves list/query context.
+- Account workspace routes remain `/master-data/accounts/:id/:tab` for deep links and prev/next navigation.
+
+Account create/edit:
+- Create and Edit forms still include required CoA selection.
+- Moving an account to a different CoA is supported; uniqueness conflicts on `(tenant_id, coa_id, account_number)` return friendly errors.
 
 ### Master Data → Companies
 - Overview tab: CoA selector appears between Country and Address 1; persists `coa_id`.

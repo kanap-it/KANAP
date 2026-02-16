@@ -22,6 +22,7 @@ function useBreadcrumbs(): Crumb[] {
       case 'departments': return 'Departments';
       case 'suppliers': return 'Suppliers';
       case 'accounts': return 'Accounts';
+      case 'coa': return 'Charts of Accounts';
       case 'analytics': return 'Analytics Dimensions';
       case 'users': return 'Users';
       case 'roles': return 'Roles';

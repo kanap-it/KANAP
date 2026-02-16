@@ -1,6 +1,6 @@
 # Page & Platform Feature Overview
 
- _Last updated: 2026-02-14_
+ _Last updated: 2026-02-16_
 
 This document summarizes the current tenant-facing and platform-facing page structure alongside the backend features that support multi-tenancy, permissions, and tenant lifecycle operations.
 
@@ -65,7 +65,7 @@ Behavior
 | `/master-data/companies` | `frontend/src/pages/CompaniesPage.tsx` | Master data grid that deep-links into the Companies workspace (`/master-data/companies/:id/:tab`). Overview tab edits general details (Name, Country, Address 1/2, Postal Code, City, State, Registration/VAT, Base Currency, Enabled/Disabled_at, Notes) with searchable ISO dropdowns; Details tab manages yearly metrics with year tabs, freeze awareness, and prev/next navigation across companies. CSV import/export, quick search, and numeric filters stay available on the grid. | `companies` |
 | `/master-data/departments` | `frontend/src/pages/DepartmentsPage.tsx` | Department management with nested metrics. Quick search spans name, description, company, and derived headcount; column filters available for company name and yearly headcount. | `departments` |
 | `/admin/suppliers` | `frontend/src/pages/SuppliersPage.tsx` | Supplier CRUD, CSV I/O. | `suppliers` |
-| `/admin/accounts` | `frontend/src/pages/AccountsPage.tsx` | Chart of accounts with classifications. | `accounts` |
+| `/master-data/coa` | `frontend/src/pages/coa/CoaPage.tsx` + `frontend/src/pages/accounts/AccountWorkspacePage.tsx` | Merged CoA-centric page: chip-based CoA selection, CoA-scoped accounts grid, CoA manage modal, and account workspace deep links. Legacy `/master-data/accounts` redirects here. | `accounts` |
 | `/admin/analytics` | `frontend/src/pages/AnalyticsCategoriesPage.tsx` | Manage analytics categories (name, description, status). | `analytics` |
 | `/admin/users` | `frontend/src/pages/UsersPage.tsx` | User provisioning with bulk Invite/Delete actions in the header, Entra-synced profile fields (first/last name, job title, business/mobile phones), search + column chooser (Job Title shown by default), and status scope toggle (All/Enabled/Disabled). Status edits live in the user modal. | `users` |
 | `/admin/roles` | `frontend/src/pages/admin/RolesPage.tsx` | RBAC editor for page-level permissions. | `users` (aliased in guard). |

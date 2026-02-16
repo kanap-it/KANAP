@@ -131,7 +131,8 @@ _Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect t
 
 | Route | Component | Status | Doc File |
 |-------|-----------|--------|----------|
-| `/master-data/accounts` | AccountsPage + AccountWorkspacePage | **DOCUMENTED** | `chart-of-accounts.md` |
+| `/master-data/coa` | CoaPage + AccountWorkspacePage | **DOCUMENTED** | `chart-of-accounts.md` |
+| `/master-data/accounts` | Legacy redirect to `/master-data/coa` + AccountWorkspacePage | **DOCUMENTED** | `chart-of-accounts.md` |
 | `/master-data/currency` | CurrencySettingsPage | **DOCUMENTED** | `currencies.md` |
 
 **Classification**

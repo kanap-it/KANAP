@@ -29,9 +29,16 @@ export default function AccountWorkspacePage() {
   const sort = searchParams.get('sort');
   const q = searchParams.get('q');
   const filters = searchParams.get('filters');
-  const coaId = searchParams.get('coaId');
+  const selected = searchParams.get('selected');
+  const coaId = selected || searchParams.get('coaId');
 
-  const nav = useAccountNav({ id, sort, q, filters });
+  const nav = useAccountNav({
+    id,
+    sort,
+    q,
+    filters,
+    extraParams: coaId ? { coaId } : undefined,
+  });
   const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate
     ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null, nextId: null }
     : nav;
@@ -112,7 +119,7 @@ export default function AccountWorkspacePage() {
     if (sort) sp.set('sort', sort);
     if (q) sp.set('q', q);
     if (filters) sp.set('filters', filters);
-    if (coaId) sp.set('coaId', coaId);
+    if (coaId) sp.set('selected', coaId);
     return sp;
   }, [filters, q, sort, coaId]);
 
@@ -137,7 +144,7 @@ export default function AccountWorkspacePage() {
             title="Close"
             onClick={() => {
               const qs = listContextParams.toString();
-              navigate(`/master-data/accounts${qs ? `?${qs}` : ''}`);
+              navigate(`/master-data/coa${qs ? `?${qs}` : ''}`);
             }}
           >
             <CloseIcon />
