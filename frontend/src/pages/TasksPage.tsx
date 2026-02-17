@@ -35,6 +35,7 @@ type TaskRow = {
   related_object_name: string | null;
   phase_id: string | null;
   phase_name: string | null;
+  item_number: number;
   // Classification fields
   source_id: string | null;
   source_name: string | null;
@@ -356,13 +357,23 @@ export default function TasksPage() {
   const ClickableCell: React.FC<ICellRendererParams<TaskRow, any>> = (params) => (
     <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => {
       const sp = buildWorkspaceSearch();
-      navigate(`/portfolio/tasks/${params.data?.id}/overview?${sp.toString()}`);
+      const ref = params.data?.item_number ? `T-${params.data.item_number}` : params.data?.id;
+      navigate(`/portfolio/tasks/${ref}/overview?${sp.toString()}`);
     }}>
       {params.valueFormatted ?? params.value ?? ''}
     </Box>
   );
 
   const columns: EnhancedColDef<TaskRow>[] = useMemo(() => [
+    {
+      field: 'item_number',
+      headerName: '#',
+      width: 90,
+      filter: 'agTextColumnFilter',
+      cellRenderer: ClickableCell,
+      valueFormatter: (p: any) => p.value ? `T-${p.value}` : '',
+      comparator: (a: number, b: number) => (a || 0) - (b || 0),
+    },
     {
       field: 'title',
       headerName: 'Task Title',

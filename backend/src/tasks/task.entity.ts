@@ -17,12 +17,16 @@ export const PRIORITY_LEVELS: Record<TaskPriorityLevel, { label: string; adjustm
 @Index(['tenant_id', 'status'])
 @Index(['tenant_id', 'assignee_user_id'])
 @Index(['tenant_id', 'due_date'])
+@Index(['tenant_id', 'item_number'], { unique: true })
 export class Task {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column('uuid')
   tenant_id!: string;
+
+  @Column('int')
+  item_number!: number;
 
   @Column('text')
   title!: string;

@@ -3,6 +3,7 @@ import {
   CsvFieldType,
   CsvImportContext,
 } from '../common/csv';
+import { allocateItemNumbers } from '../common/item-number.service';
 
 /**
  * CSV configuration for Portfolio Requests entity
@@ -322,6 +323,15 @@ export const portfolioRequestCsvConfig: CsvEntityConfig = {
         const resolved = statusLookup.get(input);
         if (resolved) entity.status = resolved;
       }
+    }
+
+    // Assign item_numbers to new entities
+    const newEntities = entities.filter(e => !e.item_number);
+    if (newEntities.length > 0) {
+      const firstNumber = await allocateItemNumbers(
+        'request', context.tenantId, newEntities.length, context.manager,
+      );
+      newEntities.forEach((e, i) => { e.item_number = firstNumber + i; });
     }
   },
 };

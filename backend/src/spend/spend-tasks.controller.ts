@@ -18,7 +18,7 @@ export class SpendTasksController {
   @RequireLevel('tasks', 'member')
   @Post()
   create(@Param('id') itemId: string, @Body() body: any, @Req() req: any) {
-    return this.svc.createForItem(itemId, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+    return this.svc.createForItem(itemId, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id });
   }
 
   // PATCH expects body.id of the task to update

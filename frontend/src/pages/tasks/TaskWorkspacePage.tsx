@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -30,6 +30,7 @@ import TaskAttachments, { TaskAttachment } from './components/TaskAttachments';
 import { RelatedObjectType } from '../../components/fields/RelatedObjectSelect';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import ShareDialog from '../../components/ShareDialog';
+import { formatItemRef } from '../../utils/item-ref';
 
 const STATUS_LABELS: Record<string, string> = {
   open: 'Open',
@@ -63,6 +64,7 @@ const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' |
 
 interface TaskData {
   id: string;
+  item_number: number | null;
   title: string | null;
   description: string | null;
   status: 'open' | 'in_progress' | 'done' | 'cancelled';
@@ -99,6 +101,7 @@ interface TaskData {
 
 export default function TaskWorkspacePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useParams();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -180,6 +183,26 @@ export default function TaskWorkspacePage() {
       addToRecent('task', task.id, task.title);
     }
   }, [task?.id, task?.title, addToRecent]);
+
+  // Browser tab title
+  React.useEffect(() => {
+    if (task?.item_number && task?.title) {
+      document.title = `T-${task.item_number} — ${task.title} | KANAP`;
+    }
+    return () => { document.title = 'KANAP'; };
+  }, [task?.item_number, task?.title]);
+
+  // Swap UUID with item ref in URL bar
+  React.useEffect(() => {
+    if (!task?.item_number) return;
+    const currentParam = params.id || '';
+    const isUuid = /^[0-9a-f]{8}-/.test(currentParam);
+    if (isUuid) {
+      const ref = formatItemRef('task', task.item_number);
+      const newPath = location.pathname.replace(currentParam, ref);
+      window.history.replaceState(null, '', newPath + location.search);
+    }
+  }, [task?.item_number, params.id, location.pathname, location.search]);
 
   const { data: totalTimeHours = 0, refetch: refetchTime } = useQuery({
     queryKey: ['task-time-entries-sum', id],
@@ -917,23 +940,35 @@ export default function TaskWorkspacePage() {
             </Box>
           )}
           <Stack spacing={0.5} sx={{ flex: 1 }}>
-            {canManage ? (
-              <TextField
-                value={title}
-                onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
-                variant="standard"
-                fullWidth
-                placeholder="Task title"
-                InputProps={{
-                  disableUnderline: true,
-                  sx: { fontSize: '1.5rem', fontWeight: 600 },
-                }}
-              />
-            ) : (
-              <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                {title || 'Untitled Task'}
-              </Typography>
-            )}
+            <Stack direction="row" alignItems="center">
+              {task?.item_number && (
+                <Chip
+                  label={`T-${task.item_number}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontFamily: 'monospace', mr: 1 }}
+                  onClick={() => navigator.clipboard.writeText(`T-${task.item_number}`)}
+                  title="Click to copy reference"
+                />
+              )}
+              {canManage ? (
+                <TextField
+                  value={title}
+                  onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
+                  variant="standard"
+                  fullWidth
+                  placeholder="Task title"
+                  InputProps={{
+                    disableUnderline: true,
+                    sx: { fontSize: '1.5rem', fontWeight: 600 },
+                  }}
+                />
+              ) : (
+                <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                  {title || 'Untitled Task'}
+                </Typography>
+              )}
+            </Stack>
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
                 label={STATUS_LABELS[form.status || task.status] || task.status}
@@ -1103,6 +1138,7 @@ export default function TaskWorkspacePage() {
         itemType="task"
         itemId={id}
         itemName={title || 'Untitled Task'}
+        itemNumber={task?.item_number}
       />
     </Box>
   );

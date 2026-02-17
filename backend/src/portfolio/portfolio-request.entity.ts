@@ -41,12 +41,16 @@ export type FeasibilityReview = Record<FeasibilityReviewKey, FeasibilityReviewEn
 @Index(['tenant_id', 'name'])
 @Index(['tenant_id', 'status'])
 @Index(['tenant_id', 'company_id'])
+@Index(['tenant_id', 'item_number'], { unique: true })
 export class PortfolioRequest {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column('uuid')
   tenant_id!: string;
+
+  @Column('int')
+  item_number!: number;
 
   // === Overview Section ===
   @Column('text')

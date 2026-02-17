@@ -113,7 +113,7 @@ export class ContractsController {
   @RequireLevel('contracts', 'member')
   @Post(':id/tasks')
   createTask(@Param('id') id: string, @Body() body: any, @Req() req: any) {
-    return this.svc.createTask(id, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+    return this.svc.createTask(id, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id });
   }
 
   @UseGuards(PermissionGuard)

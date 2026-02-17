@@ -5,6 +5,7 @@ import { Repository, EntityManager, DataSource } from 'typeorm';
 export interface TaskListItem {
   id: string;
   tenant_id: string;
+  item_number: number;
   title: string | null;
   description: string;
   status: string;
@@ -231,17 +232,35 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
 
   // Apply quick search across multiple fields
   if (q) {
-    params.push(`%${q}%`);
-    whereConditions += ` AND (
-      t.title ILIKE $${params.length} OR
-      t.description ILIKE $${params.length} OR
-      si.product_name ILIKE $${params.length} OR
-      c.name ILIKE $${params.length} OR
-      pp.name ILIKE $${params.length} OR
-      u.first_name ILIKE $${params.length} OR
-      u.last_name ILIKE $${params.length} OR
-      u.email ILIKE $${params.length}
-    )`;
+    // Check if query matches item ref pattern (T-123 or plain number)
+    const refMatch = q.match(/^(?:T-)?(\d+)$/i);
+    if (refMatch) {
+      params.push(parseInt(refMatch[1], 10));
+      params.push(`%${q}%`);
+      whereConditions += ` AND (
+        t.item_number = $${params.length - 1} OR
+        t.title ILIKE $${params.length} OR
+        t.description ILIKE $${params.length} OR
+        si.product_name ILIKE $${params.length} OR
+        c.name ILIKE $${params.length} OR
+        pp.name ILIKE $${params.length} OR
+        u.first_name ILIKE $${params.length} OR
+        u.last_name ILIKE $${params.length} OR
+        u.email ILIKE $${params.length}
+      )`;
+    } else {
+      params.push(`%${q}%`);
+      whereConditions += ` AND (
+        t.title ILIKE $${params.length} OR
+        t.description ILIKE $${params.length} OR
+        si.product_name ILIKE $${params.length} OR
+        c.name ILIKE $${params.length} OR
+        pp.name ILIKE $${params.length} OR
+        u.first_name ILIKE $${params.length} OR
+        u.last_name ILIKE $${params.length} OR
+        u.email ILIKE $${params.length}
+      )`;
+    }
   }
 
   return { whereConditions, params };
@@ -330,6 +349,7 @@ export class TasksService {
       SELECT
         t.id,
         t.tenant_id,
+        t.item_number,
         t.title,
         t.description,
         t.status,
@@ -605,6 +625,7 @@ export class TasksService {
       SELECT
         t.id,
         t.tenant_id,
+        t.item_number,
         t.title,
         t.description,
         t.status,

@@ -31,6 +31,7 @@ type RequestRow = {
   requestor?: { id: string; email: string; first_name?: string; last_name?: string } | null;
   priority_score: number | null;
   target_delivery_date: string | null;
+  item_number: number;
   created_at: string;
 };
 
@@ -189,7 +190,8 @@ export default function RequestsPage() {
       onClick={() => {
         if (!params.data?.id) return;
         const sp = buildWorkspaceSearch();
-        navigate(`/portfolio/requests/${params.data.id}/overview?${sp.toString()}`);
+        const ref = params.data?.item_number ? `REQ-${params.data.item_number}` : params.data.id;
+        navigate(`/portfolio/requests/${ref}/overview?${sp.toString()}`);
       }}
     >
       {params.valueFormatted ?? params.value ?? ''}
@@ -239,6 +241,15 @@ export default function RequestsPage() {
   }, []);
 
   const columns: EnhancedColDef<RequestRow>[] = useMemo(() => [
+    {
+      field: 'item_number',
+      headerName: '#',
+      width: 90,
+      filter: 'agTextColumnFilter',
+      cellRenderer: ClickableCell,
+      valueFormatter: (p: any) => p.value ? `REQ-${p.value}` : '',
+      comparator: (a: number, b: number) => (a || 0) - (b || 0),
+    },
     {
       field: 'name',
       headerName: 'Request Name',

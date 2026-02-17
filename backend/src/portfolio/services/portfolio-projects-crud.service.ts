@@ -11,6 +11,7 @@ import { PortfolioProjectOpex } from '../portfolio-project-opex.entity';
 import { PortfolioProjectDependency } from '../portfolio-project-dependency.entity';
 import { TeamRole } from '../portfolio-request-team.entity';
 import { AuditService } from '../../audit/audit.service';
+import { ItemNumberService } from '../../common/item-number.service';
 import { PortfolioCriteriaService } from '../portfolio-criteria.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { ShareItemDto } from '../../notifications/dto/share-item.dto';
@@ -30,6 +31,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     @Inject(forwardRef(() => PortfolioCriteriaService))
     private readonly criteriaService: PortfolioCriteriaService,
     private readonly notifications: NotificationsService,
+    private readonly itemNumberService: ItemNumberService,
   ) {
     super(projectRepo);
   }
@@ -278,6 +280,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
       it_lead_id: body.it_lead_id || null,
     });
 
+    entity.item_number = await this.itemNumberService.nextItemNumber('project', tenantId, mg);
     const saved = await repo.save(entity);
 
     await this.audit.log({
@@ -352,6 +355,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
       it_lead_id: overrides.it_lead_id ?? request.it_lead_id,
     });
 
+    project.item_number = await this.itemNumberService.nextItemNumber('project', tenantId, mg);
     const savedProject = await projectRepo.save(project);
 
     // Create bidirectional link
