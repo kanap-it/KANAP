@@ -15,6 +15,7 @@ import { StorageService } from '../common/storage/storage.service';
 import { attachmentMulterOptions, inlineImageMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
+import { resolveToUuid } from '../common/resolve-item-id';
 
 @UseGuards(JwtAuthGuard)
 @Controller('portfolio/requests')
@@ -25,6 +26,10 @@ export class PortfolioRequestsController {
     private readonly projectsSvc: PortfolioProjectsService,
     private readonly storage: StorageService,
   ) {}
+
+  private resolve(idOrRef: string, req: any): Promise<string> {
+    return resolveToUuid(idOrRef, 'request', req.queryRunner.manager);
+  }
 
   // ==================== CRUD ====================
 
@@ -186,7 +191,8 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'reader')
   @Get(':id')
-  get(@Param('id', ParseUUIDPipe) id: string, @Query() query: any, @Req() req: any) {
+  async get(@Param('id') idOrRef: string, @Query() query: any, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.get(id, query, { manager: req?.queryRunner?.manager });
   }
 
@@ -203,7 +209,8 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Patch(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() body: any, @Req() req: any) {
+  async update(@Param('id') idOrRef: string, @Body() body: any, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.update(id, body, tenantId, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
@@ -215,7 +222,8 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'admin')
   @Delete(':id')
-  delete(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+  async delete(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.delete(id, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
@@ -226,11 +234,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'reader')
   @Post(':id/share')
-  share(
-    @Param('id', ParseUUIDPipe) id: string,
+  async share(
+    @Param('id') idOrRef: string,
     @Body() body: ShareItemDto,
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.shareRequest(id, body, tenantId, req.user?.sub ?? '', {
       manager: req?.queryRunner?.manager,
@@ -242,11 +251,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/business-team/bulk-replace')
-  bulkReplaceBusinessTeam(
-    @Param('id', ParseUUIDPipe) id: string,
+  async bulkReplaceBusinessTeam(
+    @Param('id') idOrRef: string,
     @Body() body: { user_ids: string[] },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.bulkReplaceTeam(id, 'business_team', body?.user_ids ?? [], {
       manager: req?.queryRunner?.manager,
       userId: req.user?.sub ?? null,
@@ -256,11 +266,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/it-team/bulk-replace')
-  bulkReplaceItTeam(
-    @Param('id', ParseUUIDPipe) id: string,
+  async bulkReplaceItTeam(
+    @Param('id') idOrRef: string,
     @Body() body: { user_ids: string[] },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.bulkReplaceTeam(id, 'it_team', body?.user_ids ?? [], {
       manager: req?.queryRunner?.manager,
       userId: req.user?.sub ?? null,
@@ -272,11 +283,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/contacts/bulk-replace')
-  bulkReplaceContacts(
-    @Param('id', ParseUUIDPipe) id: string,
+  async bulkReplaceContacts(
+    @Param('id') idOrRef: string,
     @Body() body: { contact_ids: string[] },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.bulkReplaceContacts(id, body?.contact_ids ?? [], {
       manager: req?.queryRunner?.manager,
     });
@@ -287,11 +299,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/dependencies')
-  addDependency(
-    @Param('id', ParseUUIDPipe) id: string,
+  async addDependency(
+    @Param('id') idOrRef: string,
     @Body() body: { target_type: 'request' | 'project'; target_id: string },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.addDependency(id, body.target_type, body.target_id, tenantId, {
       manager: req?.queryRunner?.manager,
@@ -301,12 +314,13 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Delete(':id/dependencies/:targetType/:targetId')
-  removeDependency(
-    @Param('id', ParseUUIDPipe) id: string,
+  async removeDependency(
+    @Param('id') idOrRef: string,
     @Param('targetType') targetType: 'request' | 'project',
     @Param('targetId', ParseUUIDPipe) targetId: string,
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.removeDependency(id, targetType, targetId, {
       manager: req?.queryRunner?.manager,
     });
@@ -317,11 +331,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/capex/bulk-replace')
-  bulkReplaceCapex(
-    @Param('id', ParseUUIDPipe) id: string,
+  async bulkReplaceCapex(
+    @Param('id') idOrRef: string,
     @Body() body: { capex_ids: string[] },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.bulkReplaceCapex(id, body?.capex_ids ?? [], {
       manager: req?.queryRunner?.manager,
     });
@@ -332,11 +347,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/opex/bulk-replace')
-  bulkReplaceOpex(
-    @Param('id', ParseUUIDPipe) id: string,
+  async bulkReplaceOpex(
+    @Param('id') idOrRef: string,
     @Body() body: { opex_ids: string[] },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.bulkReplaceOpex(id, body?.opex_ids ?? [], {
       manager: req?.queryRunner?.manager,
     });
@@ -347,11 +363,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/business-processes/bulk-replace')
-  bulkReplaceBusinessProcesses(
-    @Param('id', ParseUUIDPipe) id: string,
+  async bulkReplaceBusinessProcesses(
+    @Param('id') idOrRef: string,
     @Body() body: { business_process_ids: string[] },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.bulkReplaceBusinessProcesses(id, body?.business_process_ids ?? [], {
       manager: req?.queryRunner?.manager,
     });
@@ -362,11 +379,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/urls')
-  replaceUrls(
-    @Param('id', ParseUUIDPipe) id: string,
+  async replaceUrls(
+    @Param('id') idOrRef: string,
     @Body() body: { urls: Array<{ url: string; label?: string }> },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.replaceUrls(id, body?.urls ?? [], {
       manager: req?.queryRunner?.manager,
     });
@@ -377,8 +395,8 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/comments')
-  addComment(
-    @Param('id', ParseUUIDPipe) id: string,
+  async addComment(
+    @Param('id') idOrRef: string,
     @Body() body: {
       content: string;
       context?: string;
@@ -388,6 +406,7 @@ export class PortfolioRequestsController {
     },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.addComment(
       id,
@@ -407,12 +426,13 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Patch(':id/comments/:activityId')
-  updateComment(
-    @Param('id', ParseUUIDPipe) id: string,
+  async updateComment(
+    @Param('id') idOrRef: string,
     @Param('activityId', ParseUUIDPipe) activityId: string,
     @Body() body: { content: string },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     const userId = req.user?.sub;
     if (!userId) {
       throw new Error('User ID required');
@@ -428,11 +448,12 @@ export class PortfolioRequestsController {
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/attachments')
   @UseInterceptors(FileInterceptor('file', attachmentMulterOptions))
-  uploadAttachment(
-    @Param('id', ParseUUIDPipe) id: string,
+  async uploadAttachment(
+    @Param('id') idOrRef: string,
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.uploadAttachment(id, file, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
@@ -443,12 +464,13 @@ export class PortfolioRequestsController {
   @RequireLevel('portfolio_requests', 'member')
   @Post(':id/attachments/inline')
   @UseInterceptors(FileInterceptor('file', inlineImageMulterOptions))
-  uploadInlineAttachment(
-    @Param('id', ParseUUIDPipe) id: string,
+  async uploadInlineAttachment(
+    @Param('id') idOrRef: string,
     @UploadedFile() file: Express.Multer.File,
     @Body('source_field') sourceField: string,
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.svc.uploadInlineAttachment(id, file, sourceField || 'content', req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
@@ -472,9 +494,10 @@ export class PortfolioRequestsController {
   @RequireLevel('portfolio_requests', 'reader')
   @Get(':id/estimated-effort')
   async getEstimatedEffort(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') idOrRef: string,
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.getEstimatedEffort(id, tenantId, {
       manager: req?.queryRunner?.manager,
@@ -484,11 +507,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'member')
   @Post(':id/convert')
-  convertToProject(
-    @Param('id', ParseUUIDPipe) id: string,
+  async convertToProject(
+    @Param('id') idOrRef: string,
     @Body() body: any,
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.projectsSvc.convertFromRequest(id, body, tenantId, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,

@@ -16,6 +16,7 @@ import {
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api';
+import { formatItemRef } from '../utils/item-ref';
 
 type ItemType = 'task' | 'project' | 'request';
 
@@ -36,6 +37,7 @@ interface ShareDialogProps {
   itemType: ItemType;
   itemId: string;
   itemName: string;
+  itemNumber?: number | null;
 }
 
 function buildItemPath(itemType: ItemType, itemId: string): string {
@@ -75,6 +77,7 @@ export default function ShareDialog({
   itemType,
   itemId,
   itemName,
+  itemNumber,
 }: ShareDialogProps) {
   const [recipients, setRecipients] = React.useState<RecipientValue[]>([]);
   const [inputValue, setInputValue] = React.useState('');
@@ -83,7 +86,8 @@ export default function ShareDialog({
   const [error, setError] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
 
-  const itemUrl = `${window.location.origin}${buildItemPath(itemType, itemId)}`;
+  const refOrId = itemNumber ? formatItemRef(itemType, itemNumber) : itemId;
+  const itemUrl = `${window.location.origin}${buildItemPath(itemType, refOrId)}`;
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users', 'enabled', 'select'],

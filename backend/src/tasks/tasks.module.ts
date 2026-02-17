@@ -12,6 +12,7 @@ import { TasksCsvService } from './tasks-csv.service';
 import { AuditModule } from '../audit/audit.module';
 import { StorageModule } from '../common/storage/storage.module';
 import { CsvModule } from '../common/csv';
+import { CommonModule } from '../common/common.module';
 import { PortfolioProjectPhase } from '../portfolio/portfolio-project-phase.entity';
 import { PortfolioActivity } from '../portfolio/portfolio-activity.entity';
 import { PortfolioModule } from '../portfolio/portfolio.module';
@@ -28,6 +29,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     PermissionsModule,
     StorageModule,
     CsvModule,
+    CommonModule,
     NotificationsModule,
   ],
   // Note: TasksController is in spend module to avoid route conflicts

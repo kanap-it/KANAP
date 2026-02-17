@@ -32,6 +32,7 @@ type ProjectRow = {
   execution_progress: number;
   planned_start: string | null;
   planned_end: string | null;
+  item_number: number;
   created_at: string;
 };
 
@@ -205,7 +206,8 @@ export default function ProjectsPage() {
       onClick={() => {
         if (!params.data?.id) return;
         const sp = buildWorkspaceSearch();
-        navigate(`/portfolio/projects/${params.data.id}/overview?${sp.toString()}`);
+        const ref = params.data?.item_number ? `PRJ-${params.data.item_number}` : params.data.id;
+        navigate(`/portfolio/projects/${ref}/overview?${sp.toString()}`);
       }}
     >
       {params.valueFormatted ?? params.value ?? ''}
@@ -255,6 +257,15 @@ export default function ProjectsPage() {
   }, []);
 
   const columns: EnhancedColDef<ProjectRow>[] = useMemo(() => [
+    {
+      field: 'item_number',
+      headerName: '#',
+      width: 90,
+      filter: 'agTextColumnFilter',
+      cellRenderer: ClickableCell,
+      valueFormatter: (p: any) => p.value ? `PRJ-${p.value}` : '',
+      comparator: (a: number, b: number) => (a || 0) - (b || 0),
+    },
     {
       field: 'name',
       headerName: 'Project Name',

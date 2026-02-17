@@ -5,6 +5,7 @@ import {
   CsvFieldType,
   CsvImportContext,
 } from '../common/csv';
+import { allocateItemNumbers } from '../common/item-number.service';
 
 /**
  * CSV configuration for Tasks entity
@@ -605,6 +606,15 @@ export const taskCsvConfig: CsvEntityConfig = {
       }
 
       // Standalone tasks are valid - no type and no id
+    }
+
+    // Assign item_numbers to new entities
+    const newEntities = entities.filter(e => !e.item_number);
+    if (newEntities.length > 0) {
+      const firstNumber = await allocateItemNumbers(
+        'task', context.tenantId, newEntities.length, context.manager,
+      );
+      newEntities.forEach((e, i) => { e.item_number = firstNumber + i; });
     }
   },
 };

@@ -42,7 +42,7 @@ export class PortfolioProjectTasksController {
     return this.tasksSvc.createForTarget(
       { type: 'project', id: projectId, payload: body },
       req.user?.sub ?? null,
-      { manager: req?.queryRunner?.manager },
+      { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id },
     );
   }
 

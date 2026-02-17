@@ -173,6 +173,15 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     ];
     const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
 
+    // Add exact item_number match for ref patterns (PRJ-123 or plain number)
+    if (q) {
+      const refMatch = q.match(/^(?:PRJ-)?(\d+)$/i);
+      if (refMatch) {
+        const param = nextParam();
+        quickSearch.push({ sql: `p.item_number = :${param}`, params: { [param]: parseInt(refMatch[1], 10) } });
+      }
+    }
+
     // Build query
     const qb = repo.createQueryBuilder('p');
     applyProjectInvolvementScope(qb, involvementScope, 'p');

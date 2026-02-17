@@ -13,6 +13,7 @@ import { TaskAttachmentsService } from '../tasks/task-attachments.service';
 import { TaskTimeEntriesService } from '../tasks/task-time-entries.service';
 import { TasksCsvService } from '../tasks/tasks-csv.service';
 import { StorageService } from '../common/storage/storage.service';
+import { resolveToUuid } from '../common/resolve-item-id';
 import { attachmentMulterOptions, csvImportMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
@@ -30,6 +31,10 @@ export class TasksController {
     private readonly csvSvc: TasksCsvService,
     private readonly storage: StorageService,
   ) {}
+
+  private resolve(idOrRef: string, req: any): Promise<string> {
+    return resolveToUuid(idOrRef, 'task', req.queryRunner.manager);
+  }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'reader')
@@ -141,14 +146,15 @@ export class TasksController {
     return this.unified.createForTarget(
       { type: null, id: null, payload: body },
       req.user?.sub ?? null,
-      { manager: req?.queryRunner?.manager },
+      { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id },
     );
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'reader')
   @Get(':id')
-  async getOne(@Param('id') id: string, @Req() req: any) {
+  async getOne(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
     const res = await this.svc.getOne(id, { manager: req?.queryRunner?.manager });
     if (!res) {
       const { NotFoundException } = await import('@nestjs/common');
@@ -169,10 +175,11 @@ export class TasksController {
   @RequireLevel('tasks', 'member')
   @Patch(':id/move')
   async move(
-    @Param('id') id: string,
+    @Param('id') idOrRef: string,
     @Body() body: { related_object_type: 'spend_item' | 'contract'; related_object_id: string },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     if (!body?.related_object_type || !body?.related_object_id) {
       const { BadRequestException } = await import('@nestjs/common');
       throw new BadRequestException('related_object_type and related_object_id are required');
@@ -187,9 +194,8 @@ export class TasksController {
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'member')
   @Patch(':id')
-  async updateTask(@Param('id') id: string, @Body() body: any, @Req() req: any) {
-    // Use the unified service to update with proper validation
-    // This handles both standalone and linked tasks, with appropriate validation
+  async updateTask(@Param('id') idOrRef: string, @Body() body: any, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.unified.updateById(id, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager, tenantId });
   }
@@ -199,7 +205,8 @@ export class TasksController {
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'reader')
   @Post(':id/share')
-  async share(@Param('id') id: string, @Body() body: ShareItemDto, @Req() req: any) {
+  async share(@Param('id') idOrRef: string, @Body() body: ShareItemDto, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.unified.share(id, body, tenantId, req.user?.sub ?? '', {
       manager: req?.queryRunner?.manager,
@@ -211,7 +218,8 @@ export class TasksController {
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'reader')
   @Get(':id/time-entries/sum')
-  async getTimeSum(@Param('id') id: string, @Req() req: any) {
+  async getTimeSum(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
     const total = await this.timeEntriesSvc.sumForTask(id, { manager: req?.queryRunner?.manager });
     return { total };
   }
@@ -219,7 +227,8 @@ export class TasksController {
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'reader')
   @Get(':id/time-entries')
-  async listTimeEntries(@Param('id') id: string, @Req() req: any) {
+  async listTimeEntries(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
     return this.timeEntriesSvc.listForTask(id, { manager: req?.queryRunner?.manager });
   }
 
@@ -227,10 +236,11 @@ export class TasksController {
   @RequireLevel('tasks', 'member')
   @Post(':id/time-entries')
   async createTimeEntry(
-    @Param('id') id: string,
+    @Param('id') idOrRef: string,
     @Body() body: { user_id?: string; hours: number; notes?: string; logged_at: string; category?: 'it' | 'business' },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.timeEntriesSvc.create(
       id,
       {
@@ -285,7 +295,8 @@ export class TasksController {
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'reader')
   @Get(':id/activities')
-  async listActivities(@Param('id') id: string, @Req() req: any) {
+  async listActivities(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
     return this.activitiesSvc.listForTask(id, { manager: req?.queryRunner?.manager });
   }
 
@@ -293,10 +304,11 @@ export class TasksController {
   @RequireLevel('tasks', 'member')
   @Post(':id/activities')
   async createActivity(
-    @Param('id') id: string,
+    @Param('id') idOrRef: string,
     @Body() body: CreateTaskActivityDto,
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.activitiesSvc.create(id, body, tenantId, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
@@ -391,7 +403,8 @@ export class TasksController {
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'reader')
   @Get(':id/attachments')
-  async listAttachments(@Param('id') id: string, @Req() req: any) {
+  async listAttachments(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
     return this.attachmentsSvc.listAttachments(id, { manager: req?.queryRunner?.manager });
   }
 
@@ -400,10 +413,11 @@ export class TasksController {
   @Post(':id/attachments')
   @UseInterceptors(FileInterceptor('file', attachmentMulterOptions))
   async uploadAttachment(
-    @Param('id') id: string,
+    @Param('id') idOrRef: string,
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
     return this.attachmentsSvc.uploadAttachment(id, file, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
   }
 }

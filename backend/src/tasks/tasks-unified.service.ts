@@ -4,6 +4,7 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Task, TaskPriorityLevel } from './task.entity';
 import { TaskTimeEntry } from './task-time-entry.entity';
 import { AuditService } from '../audit/audit.service';
+import { ItemNumberService } from '../common/item-number.service';
 import { PortfolioProjectPhase } from '../portfolio/portfolio-project-phase.entity';
 import { UserTimeAggregateService } from '../portfolio/services/user-time-aggregate.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -19,6 +20,7 @@ export class TasksUnifiedService {
     private readonly dataSource: DataSource,
     private readonly userTimeAggregateService: UserTimeAggregateService,
     private readonly notifications: NotificationsService,
+    private readonly itemNumberService: ItemNumberService,
   ) {}
 
   /**
@@ -45,7 +47,7 @@ export class TasksUnifiedService {
     });
   }
 
-  async createForTarget(target: { type: RelatedType; id: string | null; payload: Partial<Task> }, userId?: string, opts?: { manager?: EntityManager }) {
+  async createForTarget(target: { type: RelatedType; id: string | null; payload: Partial<Task> }, userId?: string, opts?: { manager?: EntityManager; tenantId?: string }) {
     const manager = opts?.manager ?? this.repo.manager;
     const repo = manager.getRepository(Task);
     const { payload } = target;
@@ -98,6 +100,9 @@ export class TasksUnifiedService {
       owner_ids: payload.owner_ids ?? [],
       viewer_ids: payload.viewer_ids ?? [],
     });
+    if (opts?.tenantId) {
+      entity.item_number = await this.itemNumberService.nextItemNumber('task', opts.tenantId, manager);
+    }
     const saved = await repo.save(entity);
     await this.audit.log({ table: 'tasks', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager });
     return saved;

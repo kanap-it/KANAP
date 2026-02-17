@@ -303,7 +303,7 @@ export class ContractsService {
   async listTasks(contractId: string, opts?: { manager?: EntityManager }) {
     return this.unifiedTasks.listForTarget({ type: 'contract', id: contractId }, opts);
   }
-  async createTask(contractId: string, body: any, userId?: string, opts?: { manager?: EntityManager }) {
+  async createTask(contractId: string, body: any, userId?: string, opts?: { manager?: EntityManager; tenantId?: string }) {
     const saved = await this.unifiedTasks.createForTarget({ type: 'contract', id: contractId, payload: body as any }, userId, opts);
     await this.audit.log({ table: 'contract_tasks', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager: opts?.manager ?? this.repo.manager });
     return saved;

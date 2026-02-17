@@ -11,6 +11,7 @@ import { Public } from '../auth/public.decorator';
 import { PortfolioProjectsService } from './services';
 import { PortfolioProjectsCsvService } from './portfolio-projects-csv.service';
 import { StorageService } from '../common/storage/storage.service';
+import { resolveToUuid } from '../common/resolve-item-id';
 import { attachmentMulterOptions, inlineImageMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
@@ -29,6 +30,10 @@ export class PortfolioProjectsController {
     private readonly csvSvc: PortfolioProjectsCsvService,
     private readonly storage: StorageService,
   ) {}
+
+  private resolve(idOrRef: string, ctx: TenantRequest): Promise<string> {
+    return resolveToUuid(idOrRef, 'project', ctx.manager);
+  }
 
   // ==================== CRUD ====================
 
@@ -187,11 +192,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get(':id')
-  get(
-    @Param('id') id: string,
+  async get(
+    @Param('id') idOrRef: string,
     @Query() query: Record<string, unknown>,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.get(id, query, { manager: ctx.manager });
   }
 
@@ -210,11 +216,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Patch(':id')
-  update(
-    @Param('id') id: string,
+  async update(
+    @Param('id') idOrRef: string,
     @Body() body: UpdateProjectInput,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.update(id, body as Record<string, unknown>, ctx.tenantId, ctx.userId || null, {
       manager: ctx.manager,
     });
@@ -225,11 +232,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Post(':id/share')
-  share(
-    @Param('id') id: string,
+  async share(
+    @Param('id') idOrRef: string,
     @Body() body: ShareItemDto,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.shareProject(id, body, ctx.tenantId, ctx.userId || '', {
       manager: ctx.manager,
     });
@@ -240,11 +248,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/source-requests')
-  linkSourceRequest(
-    @Param('id') id: string,
+  async linkSourceRequest(
+    @Param('id') idOrRef: string,
     @Body() body: { request_id: string },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.linkSourceRequest(id, body?.request_id, ctx.tenantId, {
       manager: ctx.manager,
     });
@@ -253,11 +262,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Delete(':id/source-requests/:requestId')
-  unlinkSourceRequest(
-    @Param('id') id: string,
+  async unlinkSourceRequest(
+    @Param('id') idOrRef: string,
     @Param('requestId') requestId: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.unlinkSourceRequest(id, requestId, {
       manager: ctx.manager,
     });
@@ -268,11 +278,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/business-team/bulk-replace')
-  bulkReplaceBusinessTeam(
-    @Param('id') id: string,
+  async bulkReplaceBusinessTeam(
+    @Param('id') idOrRef: string,
     @Body() body: { user_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.bulkReplaceTeam(id, 'business_team', body?.user_ids ?? [], {
       manager: ctx.manager,
       userId: ctx.userId ?? null,
@@ -282,11 +293,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/it-team/bulk-replace')
-  bulkReplaceItTeam(
-    @Param('id') id: string,
+  async bulkReplaceItTeam(
+    @Param('id') idOrRef: string,
     @Body() body: { user_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.bulkReplaceTeam(id, 'it_team', body?.user_ids ?? [], {
       manager: ctx.manager,
       userId: ctx.userId ?? null,
@@ -298,11 +310,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get(':id/effort-allocations/:effortType')
-  getEffortAllocations(
-    @Param('id') id: string,
+  async getEffortAllocations(
+    @Param('id') idOrRef: string,
     @Param('effortType') effortType: 'it' | 'business',
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.getEffortAllocations(id, effortType, {
       manager: ctx.manager,
     });
@@ -311,12 +324,13 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/effort-allocations/:effortType')
-  setEffortAllocations(
-    @Param('id') id: string,
+  async setEffortAllocations(
+    @Param('id') idOrRef: string,
     @Param('effortType') effortType: 'it' | 'business',
     @Body() body: { allocations: Array<{ user_id: string; allocation_pct: number }> },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.setEffortAllocations(id, effortType, body?.allocations ?? [], {
       manager: ctx.manager,
     });
@@ -325,11 +339,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Delete(':id/effort-allocations/:effortType')
-  resetEffortAllocations(
-    @Param('id') id: string,
+  async resetEffortAllocations(
+    @Param('id') idOrRef: string,
     @Param('effortType') effortType: 'it' | 'business',
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.resetEffortAllocations(id, effortType, {
       manager: ctx.manager,
     });
@@ -340,11 +355,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/contacts/bulk-replace')
-  bulkReplaceContacts(
-    @Param('id') id: string,
+  async bulkReplaceContacts(
+    @Param('id') idOrRef: string,
     @Body() body: { contact_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.bulkReplaceContacts(id, body?.contact_ids ?? [], {
       manager: ctx.manager,
     });
@@ -355,10 +371,11 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get(':id/applications')
-  listLinkedApplications(
-    @Param('id') id: string,
+  async listLinkedApplications(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.listLinkedApplications(id, { manager: ctx.manager });
   }
 
@@ -367,10 +384,11 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get(':id/assets')
-  listLinkedAssets(
-    @Param('id') id: string,
+  async listLinkedAssets(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.listLinkedAssets(id, { manager: ctx.manager });
   }
 
@@ -379,11 +397,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/capex/bulk-replace')
-  bulkReplaceCapex(
-    @Param('id') id: string,
+  async bulkReplaceCapex(
+    @Param('id') idOrRef: string,
     @Body() body: { capex_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.bulkReplaceCapex(id, body?.capex_ids ?? [], {
       manager: ctx.manager,
     });
@@ -394,11 +413,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/opex/bulk-replace')
-  bulkReplaceOpex(
-    @Param('id') id: string,
+  async bulkReplaceOpex(
+    @Param('id') idOrRef: string,
     @Body() body: { opex_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.bulkReplaceOpex(id, body?.opex_ids ?? [], {
       manager: ctx.manager,
     });
@@ -409,11 +429,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/dependencies')
-  addDependency(
-    @Param('id') id: string,
+  async addDependency(
+    @Param('id') idOrRef: string,
     @Body() body: { target_type: 'request' | 'project'; target_id: string },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.addDependency(id, body.target_type, body.target_id, ctx.tenantId, {
       manager: ctx.manager,
     });
@@ -422,12 +443,13 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Delete(':id/dependencies/:targetType/:targetId')
-  removeDependency(
-    @Param('id') id: string,
+  async removeDependency(
+    @Param('id') idOrRef: string,
     @Param('targetType') targetType: 'request' | 'project',
     @Param('targetId') targetId: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.removeDependency(id, targetType, targetId, {
       manager: ctx.manager,
     });
@@ -438,11 +460,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/urls')
-  replaceUrls(
-    @Param('id') id: string,
+  async replaceUrls(
+    @Param('id') idOrRef: string,
     @Body() body: { urls: Array<{ url: string; label?: string }> },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.replaceUrls(id, body?.urls ?? [], {
       manager: ctx.manager,
     });
@@ -453,8 +476,8 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/comments')
-  addComment(
-    @Param('id') id: string,
+  async addComment(
+    @Param('id') idOrRef: string,
     @Body() body: {
       content: string;
       context?: string;
@@ -464,6 +487,7 @@ export class PortfolioProjectsController {
     },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.addComment(
       id,
       body?.content ?? '',
@@ -482,12 +506,13 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Patch(':id/comments/:activityId')
-  updateComment(
-    @Param('id') id: string,
+  async updateComment(
+    @Param('id') idOrRef: string,
     @Param('activityId', ParseUUIDPipe) activityId: string,
     @Body() body: { content: string },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     if (!ctx.userId) {
       throw new Error('User ID required');
     }
@@ -502,11 +527,12 @@ export class PortfolioProjectsController {
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/attachments')
   @UseInterceptors(FileInterceptor('file', attachmentMulterOptions))
-  uploadAttachment(
-    @Param('id') id: string,
+  async uploadAttachment(
+    @Param('id') idOrRef: string,
     @UploadedFile() file: Express.Multer.File,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.uploadAttachment(id, file, ctx.userId || null, {
       manager: ctx.manager,
     });
@@ -517,12 +543,13 @@ export class PortfolioProjectsController {
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/attachments/inline')
   @UseInterceptors(FileInterceptor('file', inlineImageMulterOptions))
-  uploadInlineAttachment(
-    @Param('id') id: string,
+  async uploadInlineAttachment(
+    @Param('id') idOrRef: string,
     @UploadedFile() file: Express.Multer.File,
     @Body('source_field') sourceField: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.uploadInlineAttachment(id, file, sourceField || 'content', ctx.userId || null, {
       manager: ctx.manager,
     });
@@ -545,21 +572,23 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get(':id/phases')
-  listPhases(
-    @Param('id') id: string,
+  async listPhases(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.listPhases(id, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/phases')
-  createPhase(
-    @Param('id') id: string,
+  async createPhase(
+    @Param('id') idOrRef: string,
     @Body() body: { name: string; planned_start?: string; planned_end?: string },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.createPhase(id, body, ctx.tenantId, ctx.userId || null, {
       manager: ctx.manager,
     });
@@ -593,11 +622,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/phases/reorder')
-  reorderPhases(
-    @Param('id') id: string,
+  async reorderPhases(
+    @Param('id') idOrRef: string,
     @Body() body: { phase_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.reorderPhases(id, body?.phase_ids ?? [], {
       manager: ctx.manager,
     });
@@ -606,8 +636,8 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/phases/:phaseId/toggle-milestone')
-  togglePhaseMilestone(
-    @Param('id') id: string,
+  async togglePhaseMilestone(
+    @Param('id') _idOrRef: string,
     @Param('phaseId') phaseId: string,
     @Body() body: { enabled: boolean; milestone_name?: string },
     @Tenant() ctx: TenantRequest,
@@ -627,21 +657,23 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get(':id/milestones')
-  listMilestones(
-    @Param('id') id: string,
+  async listMilestones(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.listMilestones(id, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/milestones')
-  createMilestone(
-    @Param('id') id: string,
+  async createMilestone(
+    @Param('id') idOrRef: string,
     @Body() body: { name: string; phase_id?: string; target_date?: string },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.createMilestone(id, body, ctx.tenantId, ctx.userId || null, {
       manager: ctx.manager,
     });
@@ -677,11 +709,12 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/apply-template')
-  applyPhaseTemplate(
-    @Param('id') id: string,
+  async applyPhaseTemplate(
+    @Param('id') idOrRef: string,
     @Body() body: { template_id: string; replace?: boolean },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.applyPhaseTemplate(
       id,
       body.template_id,
@@ -697,18 +730,19 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get(':id/time-entries')
-  listTimeEntries(
-    @Param('id') id: string,
+  async listTimeEntries(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.listTimeEntries(id, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':id/time-entries')
-  createTimeEntry(
-    @Param('id') id: string,
+  async createTimeEntry(
+    @Param('id') idOrRef: string,
     @Body() body: {
       category: 'it' | 'business';
       user_id?: string;
@@ -717,6 +751,7 @@ export class PortfolioProjectsController {
     },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolve(idOrRef, ctx);
     return this.svc.createTimeEntry(id, body, ctx.tenantId, ctx.userId || null, {
       manager: ctx.manager,
     });

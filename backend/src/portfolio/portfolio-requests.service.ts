@@ -24,6 +24,7 @@ import { PortfolioProjectDependency } from './portfolio-project-dependency.entit
 import { PortfolioProject } from './portfolio-project.entity';
 import { PortfolioActivity } from './portfolio-activity.entity';
 import { AuditService } from '../audit/audit.service';
+import { ItemNumberService } from '../common/item-number.service';
 import { StorageService } from '../common/storage/storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
@@ -118,6 +119,7 @@ export class PortfolioRequestsService {
     @Inject(forwardRef(() => PortfolioCriteriaService))
     private readonly criteriaService: PortfolioCriteriaService,
     private readonly notifications: NotificationsService,
+    private readonly itemNumberService: ItemNumberService,
   ) {}
 
   // ==================== LIST ====================
@@ -205,6 +207,15 @@ export class PortfolioRequestsService {
       `(SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id)`,
     ];
     const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
+
+    // Add exact item_number match for ref patterns (REQ-123 or plain number)
+    if (q) {
+      const refMatch = q.match(/^(?:REQ-)?(\d+)$/i);
+      if (refMatch) {
+        const param = nextParam();
+        quickSearch.push({ sql: `r.item_number = :${param}`, params: { [param]: parseInt(refMatch[1], 10) } });
+      }
+    }
 
     // Build query
     const qb = repo.createQueryBuilder('r');
@@ -827,6 +838,7 @@ export class PortfolioRequestsService {
       criteria_values: {},
     });
 
+    entity.item_number = await this.itemNumberService.nextItemNumber('request', tenantId, mg);
     const saved = await repo.save(entity);
 
     await this.audit.log({

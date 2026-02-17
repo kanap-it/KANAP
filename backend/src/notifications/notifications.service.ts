@@ -125,24 +125,53 @@ export class NotificationsService {
   /**
    * Build item URL based on type and tenant.
    */
-  private async buildItemUrl(itemType: ItemType, itemId: string, tenantId: string): Promise<string> {
+  private async buildItemUrl(itemType: ItemType, itemId: string, tenantId: string, manager?: import('typeorm').EntityManager): Promise<string> {
     const slug = await this.getTenantSlug(tenantId);
     const base = this.buildTenantBaseUrl(slug);
 
+    // For supported types, try to resolve item ref for friendlier URLs
+    let ref: string | null = null;
+    if (manager) {
+      ref = await this.resolveItemRef(itemType, itemId, manager);
+    }
+    const id = ref ?? itemId;
+
     switch (itemType) {
       case 'request':
-        return `${base}/portfolio/requests/${itemId}`;
+        return `${base}/portfolio/requests/${id}`;
       case 'project':
-        return `${base}/portfolio/projects/${itemId}`;
+        return `${base}/portfolio/projects/${id}`;
       case 'task':
-        return `${base}/tasks/${itemId}`;
+        return `${base}/portfolio/tasks/${id}`;
       case 'contract':
-        return `${base}/budget/contracts/${itemId}`;
+        return `${base}/ops/contracts/${id}`;
       case 'opex':
-        return `${base}/budget/opex/${itemId}`;
+        return `${base}/ops/opex/${id}`;
       default:
         return base;
     }
+  }
+
+  private async resolveItemRef(itemType: ItemType, itemId: string, manager: import('typeorm').EntityManager): Promise<string | null> {
+    const tableMap: Record<string, { table: string; prefix: string }> = {
+      task: { table: 'tasks', prefix: 'T' },
+      request: { table: 'portfolio_requests', prefix: 'REQ' },
+      project: { table: 'portfolio_projects', prefix: 'PRJ' },
+    };
+    const config = tableMap[itemType];
+    if (!config) return null;
+    try {
+      const rows = await manager.query(
+        `SELECT item_number FROM ${config.table} WHERE id = $1 LIMIT 1`,
+        [itemId],
+      );
+      if (rows.length > 0 && rows[0].item_number != null) {
+        return `${config.prefix}-${rows[0].item_number}`;
+      }
+    } catch {
+      // Fallback to UUID if lookup fails
+    }
+    return null;
   }
 
   /**
@@ -489,7 +518,7 @@ export class NotificationsService {
     manager?: EntityManager;
   }): Promise<void> {
     const workspace = this.getWorkspaceForItemType(params.itemType);
-    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId);
+    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
     const content = buildStatusChangeEmail({
       itemType: params.itemType,
       itemName: params.itemName,
@@ -538,7 +567,7 @@ export class NotificationsService {
 
     if (!this.checkPreferences(prefs, 'portfolio', 'team_added')) return;
 
-    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId);
+    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
     const content = buildTeamAddedEmail({
       itemType: params.itemType,
       itemName: params.itemName,
@@ -629,7 +658,7 @@ export class NotificationsService {
     const workspace = this.getWorkspaceForItemType(params.itemType);
     const tenantSlug = await this.getTenantSlug(params.tenantId);
     const tenantBaseUrl = this.buildTenantBaseUrl(tenantSlug);
-    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId);
+    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
     const renderedComment = renderCommentForEmail({
       commentHtml: params.commentContent,
       tenantBaseUrl,
@@ -694,7 +723,7 @@ export class NotificationsService {
 
     if (!this.checkPreferences(prefs, 'tasks', 'assignment', 'assignee')) return;
 
-    const taskUrl = await this.buildItemUrl('task', params.taskId, params.tenantId);
+    const taskUrl = await this.buildItemUrl('task', params.taskId, params.tenantId, params.manager);
     const content = buildTaskAssignedEmail({
       taskTitle: params.taskTitle,
       taskUrl,
@@ -719,7 +748,7 @@ export class NotificationsService {
     tenantId: string;
     manager?: EntityManager;
   }): Promise<void> {
-    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId);
+    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
     const content = buildExpirationWarningEmail({
       itemType: params.itemType,
       itemName: params.itemName,

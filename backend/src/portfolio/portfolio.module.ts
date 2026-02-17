@@ -102,6 +102,7 @@ import { UsersModule } from '../users/users.module';
 import { StorageModule } from '../common/storage/storage.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { CsvModule } from '../common/csv';
+import { CommonModule } from '../common/common.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 const entities = [
@@ -152,6 +153,7 @@ const entities = [
     StorageModule,
     forwardRef(() => TasksModule),
     CsvModule,
+    CommonModule,
     NotificationsModule,
   ],
   providers: [

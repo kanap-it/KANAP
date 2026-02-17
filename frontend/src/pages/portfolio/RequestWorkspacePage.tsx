@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Accordion, AccordionDetails, AccordionSummary,
@@ -36,6 +36,7 @@ import BusinessProcessMultiSelect from '../../components/fields/BusinessProcessM
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
 import ShareDialog from '../../components/ShareDialog';
+import { formatItemRef } from '../../utils/item-ref';
 
 type TabKey = 'overview' | 'analysis' | 'scoring' | 'team' | 'relations' | 'activity';
 
@@ -118,6 +119,7 @@ const hasRichTextContent = (value: unknown): boolean => {
 
 export default function RequestWorkspacePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useParams();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -146,6 +148,26 @@ export default function RequestWorkspacePage() {
       addToRecent('request', data.id, data.name);
     }
   }, [data?.id, data?.name, addToRecent]);
+
+  // Browser tab title
+  React.useEffect(() => {
+    if (data?.item_number && data?.name) {
+      document.title = `REQ-${data.item_number} — ${data.name} | KANAP`;
+    }
+    return () => { document.title = 'KANAP'; };
+  }, [data?.item_number, data?.name]);
+
+  // Replace UUID in URL with human-readable ref
+  React.useEffect(() => {
+    if (!data?.item_number) return;
+    const currentParam = params.id || '';
+    const isUuid = /^[0-9a-f]{8}-/.test(currentParam);
+    if (isUuid) {
+      const ref = formatItemRef('request', data.item_number);
+      const newPath = location.pathname.replace(currentParam, ref);
+      window.history.replaceState(null, '', newPath + location.search);
+    }
+  }, [data?.item_number, params.id, location.pathname, location.search]);
 
   // Fetch classification data (types, categories, streams)
   const { data: classificationData } = useQuery({
@@ -520,9 +542,21 @@ export default function RequestWorkspacePage() {
             </Box>
           )}
           <Stack spacing={0.5}>
-            <Typography variant="h6">
-              {isCreate ? 'New Request' : (form?.name || 'Request')}
-            </Typography>
+            <Stack direction="row" alignItems="center">
+              {data?.item_number && (
+                <Chip
+                  label={`REQ-${data.item_number}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontFamily: 'monospace', mr: 1 }}
+                  onClick={() => navigator.clipboard.writeText(`REQ-${data.item_number}`)}
+                  title="Click to copy reference"
+                />
+              )}
+              <Typography variant="h6">
+                {isCreate ? 'New Request' : (form?.name || 'Request')}
+              </Typography>
+            </Stack>
             {!isCreate && (
               <Stack direction="row" spacing={1} alignItems="center">
                 {form?.status && (
@@ -1057,6 +1091,7 @@ export default function RequestWorkspacePage() {
         itemType="request"
         itemId={form?.id || id}
         itemName={form?.name || 'Request'}
+        itemNumber={data?.item_number}
       />
 
       <Snackbar
