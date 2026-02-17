@@ -60,6 +60,7 @@ import { PortfolioClassificationService } from './portfolio-classification.servi
 import { PortfolioTeamsService } from './portfolio-teams.service';
 import { PortfolioCapacityReportService } from './services/portfolio-capacity-report.service';
 import { PortfolioStatusChangeReportService } from './services/portfolio-status-change-report.service';
+import { PortfolioWeeklyReportService } from './services/portfolio-weekly-report.service';
 
 // Decomposed portfolio projects services
 import {
@@ -90,6 +91,7 @@ import { PortfolioTeamsController } from './portfolio-teams.controller';
 import { PortfolioCapacityReportController } from './portfolio-capacity-report.controller';
 import { PortfolioRoadmapController } from './portfolio-roadmap.controller';
 import { PortfolioStatusChangeReportController } from './portfolio-status-change-report.controller';
+import { PortfolioWeeklyReportController } from './portfolio-weekly-report.controller';
 
 // CSV Services
 import { PortfolioRequestsCsvService } from './portfolio-requests-csv.service';
@@ -166,6 +168,7 @@ const entities = [
     PortfolioTeamsService,
     PortfolioCapacityReportService,
     PortfolioStatusChangeReportService,
+    PortfolioWeeklyReportService,
     // CSV services
     PortfolioRequestsCsvService,
     PortfolioProjectsCsvService,
@@ -196,6 +199,7 @@ const entities = [
     PortfolioTeamsController,
     PortfolioCapacityReportController,
     PortfolioStatusChangeReportController,
+    PortfolioWeeklyReportController,
     PortfolioRoadmapController,
   ],
   exports: [
