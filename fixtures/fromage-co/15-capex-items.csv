@@ -1,0 +1,4 @@
+description;ppe_type;investment_type;priority;currency;effective_start;effective_end;status;disabled_at;notes;company_name;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget
+SAP Cheddar Migration — S/4HANA upgrade;software;replacement;mandatory;EUR;2025-07-01;2027-12-31;enabled;;Migration from SAP ECC to S/4HANA with cheese industry customizations — 2.5 year program;Fromage & Co SA;50000;45000;350000;350000;380000;380000;450000
+Data Center Refresh — Paris DC;hardware;replacement;mandatory;EUR;2026-01-01;2026-12-31;enabled;;Server and storage refresh for Paris data center — replace aging ESXi hosts and SAN;Fromage & Co SA;0;0;250000;250000;260000;260000;0
+D2C E-commerce Platform — La Boutique;software;business_growth;high;EUR;2025-06-01;2026-09-30;enabled;;Fromage-as-a-Service — custom e-commerce platform on AWS (React + Node.js);Fromage & Co SA;80000;90000;120000;120000;115000;115000;0

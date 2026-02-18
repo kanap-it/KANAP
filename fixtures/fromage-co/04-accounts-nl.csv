@@ -1,0 +1,17 @@
+account_number;account_name;native_name;description;consolidation_account_number;consolidation_account_name;consolidation_account_description;status
+6100;IT Software & Cloud Services;;IFRS consolidation — software and cloud;;;;enabled
+6200;IT Infrastructure & Telecom;;IFRS consolidation — infrastructure and networks;;;;enabled
+6300;IT Professional Services;;IFRS consolidation — consulting and external labor;;;;enabled
+6400;IT General Expenses;;IFRS consolidation — training, travel and other;;;;enabled
+45100;SaaS Subscriptions;SaaS-abonnementen;Cloud-softwareabonnementen;6100;IT Software & Cloud Services;;enabled
+45200;Software Licenses;Softwarelicenties;Perpetuele en termijnlicenties;6100;IT Software & Cloud Services;;enabled
+45300;Cloud Hosting;Cloudhosting en IaaS;Dedicated servers en objectopslag;6100;IT Software & Cloud Services;;enabled
+45400;Cybersecurity Tools;Cyberbeveiligingstools;Endpointbeveiliging en IAM;6100;IT Software & Cloud Services;;enabled
+45500;Data & Analytics Platforms;Data- en analyticsplatformen;Monitoring, BI en datatools;6100;IT Software & Cloud Services;;enabled
+46100;IT Maintenance & Support;IT-onderhoud en support;Onderhoud van hardware en beheerde diensten;6200;IT Infrastructure & Telecom;;enabled
+46200;Telecom & Network;Telecommunicatie en netwerken;WAN, LAN, internet en telefonie;6200;IT Infrastructure & Telecom;;enabled
+46300;Data Center Costs;Datacenterkosten;Colocatie, energie en koeling;6200;IT Infrastructure & Telecom;;enabled
+47100;IT Staff Augmentation;IT-detachering;Externe ontwikkelaars en ingenieurs;6300;IT Professional Services;;enabled
+47200;IT Consulting;IT-advies;Strategie- en architectuuradvies;6300;IT Professional Services;;enabled
+48100;IT Training;IT-opleiding en certificering;Opleidingen en professionele certificeringen;6400;IT General Expenses;;enabled
+48200;IT Travel & Events;IT-reizen en evenementen;Reizen, conferenties en beurzen;6400;IT General Expenses;;enabled

@@ -1,0 +1,36 @@
+name;location_code;kind;environment;is_cluster;status;go_live_date;end_of_life_date;hostname;operating_system;notes
+PAR-ESX-01;PAR-DC1;Physical Server;prod;false;active;2023-06-01;;par-esx-01.fromage-co.local;VMware ESXi 8.0;Dell PowerEdge R750 — 64 cores, 512GB RAM — primary ESXi host
+PAR-ESX-02;PAR-DC1;Physical Server;prod;false;active;2023-06-01;;par-esx-02.fromage-co.local;VMware ESXi 8.0;Dell PowerEdge R750 — 64 cores, 512GB RAM
+PAR-ESX-03;PAR-DC1;Physical Server;prod;false;active;2021-03-01;2026-12-31;par-esx-03.fromage-co.local;VMware ESXi 8.0;Dell PowerEdge R640 — 32 cores, 256GB RAM — aging, scheduled for DC refresh
+PAR-ESX-04;PAR-DC1;Physical Server;prod;false;active;2021-03-01;2026-12-31;par-esx-04.fromage-co.local;VMware ESXi 8.0;Dell PowerEdge R640 — 32 cores, 256GB RAM — aging, scheduled for DC refresh
+PAR-SAN-01;PAR-DC1;Storage;prod;false;active;2023-06-01;;par-san-01.fromage-co.local;;NetApp FAS2750 — 50TB usable, primary SAN for all VMs
+PAR-SAN-02;PAR-DC1;Storage;prod;false;active;2021-03-01;2026-12-31;par-san-02.fromage-co.local;;NetApp FAS2720 — 20TB usable, backup target — end of life Dec 2026
+PAR-ERP-01;PAR-DC1;Virtual Machine;prod;false;active;2018-04-01;;par-erp-01.fromage-co.local;SUSE Linux Enterprise 15;SAP S/4HANA application server — 16 vCPU, 128GB RAM
+PAR-ERP-02;PAR-DC1;Virtual Machine;prod;false;active;2020-09-01;;par-erp-02.fromage-co.local;SUSE Linux Enterprise 15;SAP BW/4HANA server — 8 vCPU, 64GB RAM
+PAR-DB-01;PAR-DC1;Virtual Machine;prod;false;active;2021-03-01;;par-db-01.fromage-co.local;Ubuntu 22.04 LTS;PostgreSQL database server — B2B Portal and internal apps
+PAR-APP-01;PAR-DC1;Virtual Machine;prod;false;active;2021-03-01;;par-app-01.fromage-co.local;Ubuntu 22.04 LTS;Application server — Fromage B2B Portal + QualityLab LIMS
+PAR-WEB-01;PAR-DC1;Virtual Machine;prod;false;active;2021-06-01;;par-web-01.fromage-co.local;Ubuntu 22.04 LTS;NGINX reverse proxy and load balancer
+PAR-MON-01;PAR-DC1;Virtual Machine;prod;false;active;2019-01-01;;par-mon-01.fromage-co.local;Windows Server 2022;PRTG Network Monitor — monitors all on-prem infrastructure
+PAR-BKP-01;PAR-DC1;Virtual Machine;prod;false;active;2019-03-01;;par-bkp-01.fromage-co.local;Windows Server 2022;Veeam Backup & Replication server — RPO 4h / RTO 8h
+PAR-AD-01;PAR-DC1;Virtual Machine;prod;false;active;2016-06-01;;par-ad-01.fromage-co.local;Windows Server 2022;Active Directory domain controller + DNS + DHCP
+PAR-FW-01;PAR-DC1;Firewall;prod;true;active;2021-01-01;;par-fw-01.fromage-co.local;FortiOS 7.4;FortiGate 200F — primary firewall, HA active-passive pair
+PAR-FW-02;PAR-DC1;Firewall;prod;true;active;2021-01-01;;par-fw-02.fromage-co.local;FortiOS 7.4;FortiGate 200F — secondary firewall, HA passive
+GOU-ESX-01;GOU-DC1;Physical Server;prod;false;active;2022-09-01;;gou-esx-01.kaasmeester.local;VMware ESXi 8.0;Dell PowerEdge R650 — 32 cores, 256GB RAM — single host for Gouda site
+GOU-SAGE-01;GOU-DC1;Virtual Machine;prod;false;active;2020-01-01;;gou-sage-01.kaasmeester.local;Windows Server 2022;Sage X3 V12 — Dutch accounting and operations
+GOU-FW-01;GOU-DC1;Firewall;prod;false;active;2022-09-01;;gou-fw-01.kaasmeester.local;FortiOS 7.4;FortiGate 60F — site firewall with VPN to Paris DC
+GOU-NAS-01;GOU-DC1;Storage;prod;false;active;2022-09-01;;gou-nas-01.kaasmeester.local;;Synology RS1221+ — 16TB, local file shares and backup
+GOU-SW-01;GOU-DC1;Network Switch;prod;false;active;2021-06-01;;;Cisco Meraki;Meraki MS250-48 — core switch for Gouda office and warehouse
+PRM-ESX-01;PRM-SITE;Physical Server;prod;false;active;2022-06-01;;prm-esx-01.formaggio-supremo.local;VMware ESXi 8.0;Dell PowerEdge R650 — 32 cores, 256GB RAM — single host for Parma site
+PRM-SAGE-01;PRM-SITE;Virtual Machine;prod;false;active;2020-01-01;;prm-sage-01.formaggio-supremo.local;Windows Server 2022;Sage X3 V12 — Italian accounting and production
+PRM-FW-01;PRM-SITE;Firewall;prod;false;active;2022-06-01;;prm-fw-01.formaggio-supremo.local;FortiOS 7.4;FortiGate 60F — site firewall with VPN to Paris DC
+PRM-SW-01;PRM-SITE;Network Switch;prod;false;active;2021-06-01;;;Cisco Meraki;Meraki MS250-24 — core switch for Parma office and production
+CAVE-GW-01;PAR-CAVE;IoT Gateway;prod;false;active;2025-06-01;;cave-gw-01.fromage-co.local;Schneider EcoStruxure;Schneider Electric IoT gateway — Cave A (Comté), 24 sensors
+CAVE-GW-02;PAR-CAVE;IoT Gateway;prod;false;active;2025-06-01;;cave-gw-02.fromage-co.local;Schneider EcoStruxure;Schneider Electric IoT gateway — Cave B (Brie), 18 sensors
+CAVE-EDGE-01;PAR-CAVE;Edge Node;prod;false;active;2025-06-01;;cave-edge-01.fromage-co.local;Ubuntu 22.04 LTS;Edge compute node — local data aggregation and alerting for CaveGuard
+CAVE-SW-01;PAR-CAVE;Network Switch;prod;false;active;2025-06-01;;;Cisco Meraki;Meraki MS120-8 — industrial switch for cave network
+NYC-FW-01;NYC-OFF;Firewall;prod;false;active;2025-01-01;;nyc-fw-01.fromage-co.local;FortiOS 7.4;FortiGate 40F — NYC office firewall with VPN to Paris DC
+NYC-SW-01;NYC-OFF;Network Switch;prod;false;active;2025-01-01;;;Cisco Meraki;Meraki MS210-24 — office core switch
+NYC-AP-01;NYC-OFF;Access Point;prod;false;active;2025-01-01;;;Cisco Meraki;Meraki MR46 — wireless AP for NYC office floor
+AWS-EC2-BOUTIQUE;AWS-EU;Cloud Instance;prod;true;active;2025-06-15;;;Amazon Linux 2023;La Boutique web tier — 3x EC2 m6i.xlarge behind ALB in eu-west-1
+AWS-RDS-BOUTIQUE;AWS-EU;Cloud Database;prod;false;active;2025-06-15;;;Amazon RDS;La Boutique database — RDS PostgreSQL 16 Multi-AZ in eu-west-1
+AWS-ECS-API;AWS-EU;Cloud Instance;dev;true;active;2025-09-01;;;Amazon Linux 2023;API microservices — ECS Fargate cluster for La Boutique backend

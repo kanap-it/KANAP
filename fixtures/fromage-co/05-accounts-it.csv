@@ -1,0 +1,17 @@
+account_number;account_name;native_name;description;consolidation_account_number;consolidation_account_name;consolidation_account_description;status
+6100;IT Software & Cloud Services;;IFRS consolidation — software and cloud;;;;enabled
+6200;IT Infrastructure & Telecom;;IFRS consolidation — infrastructure and networks;;;;enabled
+6300;IT Professional Services;;IFRS consolidation — consulting and external labor;;;;enabled
+6400;IT General Expenses;;IFRS consolidation — training, travel and other;;;;enabled
+6501;SaaS Subscriptions;Abbonamenti SaaS;Abbonamenti software cloud;6100;IT Software & Cloud Services;;enabled
+6502;Software Licenses;Licenze software;Licenze perpetue e a termine;6100;IT Software & Cloud Services;;enabled
+6503;Cloud Hosting;Hosting cloud e IaaS;Server dedicati e archiviazione oggetti;6100;IT Software & Cloud Services;;enabled
+6504;Cybersecurity Tools;Strumenti di sicurezza informatica;Protezione endpoint e IAM;6100;IT Software & Cloud Services;;enabled
+6505;Data & Analytics Platforms;Piattaforme dati e analisi;Monitoraggio, BI e strumenti dati;6100;IT Software & Cloud Services;;enabled
+6601;IT Maintenance & Support;Manutenzione e supporto IT;Manutenzione hardware e servizi gestiti;6200;IT Infrastructure & Telecom;;enabled
+6602;Telecom & Network;Telecomunicazioni e reti;WAN, LAN, internet e telefonia;6200;IT Infrastructure & Telecom;;enabled
+6603;Data Center Costs;Costi datacenter;Colocation, energia e raffreddamento;6200;IT Infrastructure & Telecom;;enabled
+6701;IT Staff Augmentation;Personale esterno IT;Sviluppatori e ingegneri esterni;6300;IT Professional Services;;enabled
+6702;IT Consulting;Consulenza IT;Consulenza strategica e architetturale;6300;IT Professional Services;;enabled
+6801;IT Training;Formazione IT;Formazione e certificazioni professionali;6400;IT General Expenses;;enabled
+6802;IT Travel & Events;Viaggi e eventi IT;Viaggi, conferenze e fiere;6400;IT General Expenses;;enabled
