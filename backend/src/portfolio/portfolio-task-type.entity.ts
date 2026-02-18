@@ -33,9 +33,9 @@ export class PortfolioTaskType {
 }
 
 // Default task types to seed
-// "Task" is system (cannot be deleted), others are editable defaults
+// All defaults are editable/removable preload values for new tenants
 export const DEFAULT_TASK_TYPES = [
-  { name: 'Task', description: 'Standard task or work item', display_order: 0, is_system: true },
+  { name: 'Task', description: 'Standard task or work item', display_order: 0, is_system: false },
   { name: 'Bug', description: 'Software defect or error', display_order: 1, is_system: false },
   { name: 'Problem', description: 'Operational issue requiring investigation', display_order: 2, is_system: false },
   { name: 'Incident', description: 'Service disruption or security event', display_order: 3, is_system: false },
