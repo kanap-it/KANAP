@@ -35,6 +35,18 @@ export default function ReportsPage() {
             </CardActionArea>
           </Card>
         </Grid>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
+          <Card variant="outlined">
+            <CardActionArea onClick={() => navigate('/portfolio/reports/weekly')}>
+              <CardContent>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Weekly Report</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Weekly summary of project updates, closed tasks, and request changes.
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        </Grid>
       </Grid>
     </Box>
   );
