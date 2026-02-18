@@ -17,8 +17,11 @@ export type WeeklyProjectRow = {
   itemPath: string;
   name: string;
   priority: number | null;
+  sourceId: string | null;
   sourceName: string | null;
+  categoryId: string | null;
   categoryName: string | null;
+  streamId: string | null;
   streamName: string | null;
   progress: number | null;
   status: string;
@@ -32,8 +35,11 @@ export type WeeklyTaskRow = {
   taskTypeId: string | null;
   taskTypeName: string | null;
   priority: number | null;
+  sourceId: string | null;
   sourceName: string | null;
+  categoryId: string | null;
   categoryName: string | null;
+  streamId: string | null;
   streamName: string | null;
   status: string;
   lastChangedAt: string | null;
@@ -43,8 +49,11 @@ export type WeeklyRequestRow = {
   requestId: string;
   itemPath: string;
   name: string;
+  sourceId: string | null;
   sourceName: string | null;
+  categoryId: string | null;
   categoryName: string | null;
+  streamId: string | null;
   streamName: string | null;
   status: string;
   lastChangedAt: string | null;
@@ -68,8 +77,11 @@ type RawProjectRow = {
   project_id: string;
   name: string;
   priority: number | string | null;
+  source_id: string | null;
   source_name: string | null;
+  category_id: string | null;
   category_name: string | null;
+  stream_id: string | null;
   stream_name: string | null;
   progress: number | string | null;
   status: string | null;
@@ -82,8 +94,11 @@ type RawTaskRow = {
   task_type_id: string | null;
   task_type_name: string | null;
   priority: number | string | null;
+  source_id: string | null;
   source_name: string | null;
+  category_id: string | null;
   category_name: string | null;
+  stream_id: string | null;
   stream_name: string | null;
   status: string | null;
   last_changed_at: string | Date | null;
@@ -92,8 +107,11 @@ type RawTaskRow = {
 type RawRequestRow = {
   request_id: string;
   name: string;
+  source_id: string | null;
   source_name: string | null;
+  category_id: string | null;
   category_name: string | null;
+  stream_id: string | null;
   stream_name: string | null;
   status: string | null;
   last_changed_at: string | Date | null;
@@ -431,8 +449,11 @@ export class PortfolioWeeklyReportService {
         p.id AS project_id,
         p.name,
         p.priority_score::numeric AS priority,
+        p.source_id,
         ps.name AS source_name,
+        p.category_id,
         pc.name AS category_name,
+        p.stream_id,
         pst.name AS stream_name,
         p.execution_progress::numeric AS progress,
         COALESCE(le.status, p.status) AS status,
@@ -453,8 +474,11 @@ export class PortfolioWeeklyReportService {
       itemPath: `/portfolio/projects/${row.project_id}/overview`,
       name: row.name ?? '',
       priority: toNumber(row.priority),
+      sourceId: row.source_id ?? null,
       sourceName: row.source_name ?? null,
+      categoryId: row.category_id ?? null,
       categoryName: row.category_name ?? null,
+      streamId: row.stream_id ?? null,
       streamName: row.stream_name ?? null,
       progress: toNumber(row.progress),
       status: row.status ?? '',
@@ -542,8 +566,11 @@ export class PortfolioWeeklyReportService {
           WHEN 'optional' THEN 30
           ELSE NULL
         END::numeric AS priority,
+        t.source_id,
         ps.name AS source_name,
+        t.category_id,
         pc.name AS category_name,
+        t.stream_id,
         pst.name AS stream_name,
         le.status,
         le.last_changed_at
@@ -566,8 +593,11 @@ export class PortfolioWeeklyReportService {
       taskTypeId: row.task_type_id ?? null,
       taskTypeName: row.task_type_name ?? null,
       priority: toNumber(row.priority),
+      sourceId: row.source_id ?? null,
       sourceName: row.source_name ?? null,
+      categoryId: row.category_id ?? null,
       categoryName: row.category_name ?? null,
+      streamId: row.stream_id ?? null,
       streamName: row.stream_name ?? null,
       status: row.status ?? '',
       lastChangedAt: toIsoDate(row.last_changed_at),
@@ -643,8 +673,11 @@ export class PortfolioWeeklyReportService {
       SELECT
         r.id AS request_id,
         r.name,
+        r.source_id,
         ps.name AS source_name,
+        r.category_id,
         pc.name AS category_name,
+        r.stream_id,
         pst.name AS stream_name,
         COALESCE(le.status, r.status) AS status,
         le.last_changed_at
@@ -663,8 +696,11 @@ export class PortfolioWeeklyReportService {
       requestId: row.request_id,
       itemPath: `/portfolio/requests/${row.request_id}/overview`,
       name: row.name ?? '',
+      sourceId: row.source_id ?? null,
       sourceName: row.source_name ?? null,
+      categoryId: row.category_id ?? null,
       categoryName: row.category_name ?? null,
+      streamId: row.stream_id ?? null,
       streamName: row.stream_name ?? null,
       status: row.status ?? '',
       lastChangedAt: toIsoDate(row.last_changed_at),

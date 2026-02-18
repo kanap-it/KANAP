@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -24,8 +24,11 @@ type WeeklyProjectRow = {
   itemPath: string;
   name: string;
   priority: number | null;
+  sourceId: string | null;
   sourceName: string | null;
+  categoryId: string | null;
   categoryName: string | null;
+  streamId: string | null;
   streamName: string | null;
   progress: number | null;
   status: string;
@@ -39,8 +42,11 @@ type WeeklyTaskRow = {
   taskTypeId: string | null;
   taskTypeName: string | null;
   priority: number | null;
+  sourceId: string | null;
   sourceName: string | null;
+  categoryId: string | null;
   categoryName: string | null;
+  streamId: string | null;
   streamName: string | null;
   status: string;
   lastChangedAt: string | null;
@@ -50,8 +56,11 @@ type WeeklyRequestRow = {
   requestId: string;
   itemPath: string;
   name: string;
+  sourceId: string | null;
   sourceName: string | null;
+  categoryId: string | null;
   categoryName: string | null;
+  streamId: string | null;
   streamName: string | null;
   status: string;
   lastChangedAt: string | null;
@@ -142,14 +151,19 @@ const buildParams = (args: {
 export default function WeeklyReport() {
   const navigate = useNavigate();
   const today = useMemo(() => toIsoDate(new Date()), []);
-  const hasInitializedTaskTypes = useRef(false);
 
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
   const [endDate, setEndDate] = useState<string>(today);
+
+  const [sourceAll, setSourceAll] = useState(true);
   const [sourceIds, setSourceIds] = useState<string[]>([]);
+  const [categoryAll, setCategoryAll] = useState(true);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [streamAll, setStreamAll] = useState(true);
   const [streamIds, setStreamIds] = useState<string[]>([]);
+  const [taskTypeAll, setTaskTypeAll] = useState(true);
   const [taskTypeIds, setTaskTypeIds] = useState<string[]>([]);
+
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportingFormat, setExportingFormat] = useState<'csv' | 'xlsx' | null>(null);
 
@@ -163,53 +177,10 @@ export default function WeeklyReport() {
     },
   });
 
-  const sourceOptions = filterValuesData?.sources ?? [];
-  const categoryOptions = filterValuesData?.categories ?? [];
-  const streamOptions = filterValuesData?.streams ?? [];
-  const taskTypeOptions = filterValuesData?.taskTypes ?? [];
-
-  useEffect(() => {
-    if (!filterValuesData) return;
-
-    if (!hasInitializedTaskTypes.current) {
-      setTaskTypeIds(taskTypeOptions.map((option) => option.id));
-      hasInitializedTaskTypes.current = true;
-      return;
-    }
-
-    const allowed = new Set(taskTypeOptions.map((option) => option.id));
-    setTaskTypeIds((prev) => {
-      const next = prev.filter((id) => allowed.has(id));
-      return next.length === prev.length ? prev : next;
-    });
-  }, [filterValuesData, taskTypeOptions]);
-
-  const scopedStreamOptions = useMemo(() => {
-    if (categoryIds.length === 0) return [];
-    const allowedCategories = new Set(categoryIds);
-    return streamOptions.filter((stream) => {
-      if (!stream.categoryId) return false;
-      return allowedCategories.has(stream.categoryId);
-    });
-  }, [categoryIds, streamOptions]);
-
-  useEffect(() => {
-    if (categoryIds.length === 0) {
-      setStreamIds((prev) => (prev.length > 0 ? [] : prev));
-      return;
-    }
-    const allowed = new Set(scopedStreamOptions.map((stream) => stream.id));
-    setStreamIds((prev) => {
-      const next = prev.filter((id) => allowed.has(id));
-      return next.length === prev.length ? prev : next;
-    });
-  }, [categoryIds, scopedStreamOptions]);
-
-  const effectiveTaskTypeIds = useMemo(() => {
-    if (taskTypeIds.length === 0) return [];
-    if (taskTypeOptions.length > 0 && taskTypeIds.length === taskTypeOptions.length) return [];
-    return taskTypeIds;
-  }, [taskTypeIds, taskTypeOptions.length]);
+  const effectiveSourceIds = sourceAll ? [] : sourceIds;
+  const effectiveCategoryIds = categoryAll ? [] : categoryIds;
+  const effectiveStreamIds = streamAll ? [] : streamIds;
+  const effectiveTaskTypeIds = taskTypeAll ? [] : taskTypeIds;
 
   const {
     data: reportData,
@@ -221,18 +192,22 @@ export default function WeeklyReport() {
       'portfolio-weekly-report',
       startDate,
       endDate,
+      sourceAll,
       sourceIds,
+      categoryAll,
       categoryIds,
+      streamAll,
       streamIds,
-      effectiveTaskTypeIds,
+      taskTypeAll,
+      taskTypeIds,
     ],
     queryFn: async () => {
       const params = buildParams({
         startDate,
         endDate,
-        sourceIds,
-        categoryIds,
-        streamIds,
+        sourceIds: effectiveSourceIds,
+        categoryIds: effectiveCategoryIds,
+        streamIds: effectiveStreamIds,
         taskTypeIds: effectiveTaskTypeIds,
       });
       const res = await api.get('/portfolio/reports/weekly', { params });
@@ -242,15 +217,142 @@ export default function WeeklyReport() {
     placeholderData: keepPreviousData,
   });
 
+  const sourceBaseOptions = filterValuesData?.sources ?? [];
+  const categoryBaseOptions = filterValuesData?.categories ?? [];
+  const streamBaseOptions = filterValuesData?.streams ?? [];
+  const taskTypeBaseOptions = filterValuesData?.taskTypes ?? [];
+
   const projects = reportData?.projects ?? [];
   const tasks = reportData?.tasks ?? [];
   const requests = reportData?.requests ?? [];
   const totalRows = projects.length + tasks.length + requests.length;
 
-  const sourceOptionById = useMemo(() => new Map(sourceOptions.map((option) => [option.id, option])), [sourceOptions]);
-  const categoryOptionById = useMemo(() => new Map(categoryOptions.map((option) => [option.id, option])), [categoryOptions]);
-  const streamOptionById = useMemo(() => new Map(scopedStreamOptions.map((option) => [option.id, option])), [scopedStreamOptions]);
-  const taskTypeOptionById = useMemo(() => new Map(taskTypeOptions.map((option) => [option.id, option])), [taskTypeOptions]);
+  const presentSourceIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of projects) if (row.sourceId) ids.add(row.sourceId);
+    for (const row of tasks) if (row.sourceId) ids.add(row.sourceId);
+    for (const row of requests) if (row.sourceId) ids.add(row.sourceId);
+    return ids;
+  }, [projects, tasks, requests]);
+
+  const presentCategoryIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of projects) if (row.categoryId) ids.add(row.categoryId);
+    for (const row of tasks) if (row.categoryId) ids.add(row.categoryId);
+    for (const row of requests) if (row.categoryId) ids.add(row.categoryId);
+    return ids;
+  }, [projects, tasks, requests]);
+
+  const presentStreamIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of projects) if (row.streamId) ids.add(row.streamId);
+    for (const row of tasks) if (row.streamId) ids.add(row.streamId);
+    for (const row of requests) if (row.streamId) ids.add(row.streamId);
+    return ids;
+  }, [projects, tasks, requests]);
+
+  const presentTaskTypeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of tasks) if (row.taskTypeId) ids.add(row.taskTypeId);
+    return ids;
+  }, [tasks]);
+
+  const sourceOptions = useMemo(() => {
+    const selectedSet = new Set(sourceIds);
+    if (sourceAll) {
+      return sourceBaseOptions.filter((option) => presentSourceIds.has(option.id));
+    }
+    return sourceBaseOptions.filter((option) => presentSourceIds.has(option.id) || selectedSet.has(option.id));
+  }, [sourceAll, sourceIds, sourceBaseOptions, presentSourceIds]);
+
+  const categoryOptions = useMemo(() => {
+    const selectedSet = new Set(categoryIds);
+    if (categoryAll) {
+      return categoryBaseOptions.filter((option) => presentCategoryIds.has(option.id));
+    }
+    return categoryBaseOptions.filter((option) => presentCategoryIds.has(option.id) || selectedSet.has(option.id));
+  }, [categoryAll, categoryIds, categoryBaseOptions, presentCategoryIds]);
+
+  const streamsByCategory = useMemo(() => {
+    if (categoryAll) return streamBaseOptions;
+    const selectedCategorySet = new Set(categoryIds);
+    return streamBaseOptions.filter((stream) => {
+      if (!stream.categoryId) return false;
+      return selectedCategorySet.has(stream.categoryId);
+    });
+  }, [categoryAll, categoryIds, streamBaseOptions]);
+
+  const streamOptions = useMemo(() => {
+    const selectedSet = new Set(streamIds);
+    if (streamAll) {
+      return streamsByCategory.filter((option) => presentStreamIds.has(option.id));
+    }
+    return streamsByCategory.filter((option) => presentStreamIds.has(option.id) || selectedSet.has(option.id));
+  }, [streamAll, streamIds, streamsByCategory, presentStreamIds]);
+
+  const taskTypeOptions = useMemo(() => {
+    const selectedSet = new Set(taskTypeIds);
+    if (taskTypeAll) {
+      return taskTypeBaseOptions.filter((option) => presentTaskTypeIds.has(option.id));
+    }
+    return taskTypeBaseOptions.filter((option) => presentTaskTypeIds.has(option.id) || selectedSet.has(option.id));
+  }, [taskTypeAll, taskTypeIds, taskTypeBaseOptions, presentTaskTypeIds]);
+
+  useEffect(() => {
+    if (sourceAll) return;
+    const allowed = new Set(sourceOptions.map((option) => option.id));
+    const next = sourceIds.filter((id) => allowed.has(id));
+    if (next.length === 0) {
+      setSourceAll(true);
+      setSourceIds([]);
+      return;
+    }
+    if (next.length !== sourceIds.length) {
+      setSourceIds(next);
+    }
+  }, [sourceAll, sourceIds, sourceOptions]);
+
+  useEffect(() => {
+    if (categoryAll) return;
+    const allowed = new Set(categoryOptions.map((option) => option.id));
+    const next = categoryIds.filter((id) => allowed.has(id));
+    if (next.length === 0) {
+      setCategoryAll(true);
+      setCategoryIds([]);
+      return;
+    }
+    if (next.length !== categoryIds.length) {
+      setCategoryIds(next);
+    }
+  }, [categoryAll, categoryIds, categoryOptions]);
+
+  useEffect(() => {
+    if (streamAll) return;
+    const allowed = new Set(streamOptions.map((option) => option.id));
+    const next = streamIds.filter((id) => allowed.has(id));
+    if (next.length === 0) {
+      setStreamAll(true);
+      setStreamIds([]);
+      return;
+    }
+    if (next.length !== streamIds.length) {
+      setStreamIds(next);
+    }
+  }, [streamAll, streamIds, streamOptions]);
+
+  useEffect(() => {
+    if (taskTypeAll) return;
+    const allowed = new Set(taskTypeOptions.map((option) => option.id));
+    const next = taskTypeIds.filter((id) => allowed.has(id));
+    if (next.length === 0) {
+      setTaskTypeAll(true);
+      setTaskTypeIds([]);
+      return;
+    }
+    if (next.length !== taskTypeIds.length) {
+      setTaskTypeIds(next);
+    }
+  }, [taskTypeAll, taskTypeIds, taskTypeOptions]);
 
   const projectColumns = useMemo<ColDef<WeeklyProjectRow>[]>(() => {
     const ClickableNameCell: React.FC<ICellRendererParams<WeeklyProjectRow, string>> = (params) => (
@@ -406,9 +508,9 @@ export default function WeeklyReport() {
       const params = buildParams({
         startDate,
         endDate,
-        sourceIds,
-        categoryIds,
-        streamIds,
+        sourceIds: effectiveSourceIds,
+        categoryIds: effectiveCategoryIds,
+        streamIds: effectiveStreamIds,
         taskTypeIds: effectiveTaskTypeIds,
       }) as Record<string, string>;
       params.format = format;
@@ -464,26 +566,30 @@ export default function WeeklyReport() {
             select
             size="small"
             label="Source"
-            value={sourceIds}
+            value={sourceAll ? sourceOptions.map((option) => option.id) : sourceIds}
             SelectProps={{
               multiple: true,
-              renderValue: (selected) => {
-                const values = selected as string[];
-                if (values.length === 0) return 'All sources';
-                return values
-                  .map((id) => sourceOptionById.get(id)?.name || id)
-                  .join(', ');
+              renderValue: () => {
+                if (sourceAll) return 'All sources';
+                return `${sourceIds.length} selected`;
               },
             }}
             onChange={(e) => {
               const next = e.target.value as unknown as string[];
-              setSourceIds(Array.isArray(next) ? next : [next]);
+              const values = Array.isArray(next) ? next : [next];
+              if (values.length === 0 || values.length === sourceOptions.length) {
+                setSourceAll(true);
+                setSourceIds([]);
+                return;
+              }
+              setSourceAll(false);
+              setSourceIds(values);
             }}
             sx={{ minWidth: 220 }}
           >
             {sourceOptions.map((option) => (
               <MenuItem key={option.id} value={option.id}>
-                <Checkbox checked={sourceIds.includes(option.id)} />
+                <Checkbox checked={sourceAll || sourceIds.includes(option.id)} />
                 <ListItemText primary={option.name} />
               </MenuItem>
             ))}
@@ -492,26 +598,30 @@ export default function WeeklyReport() {
             select
             size="small"
             label="Category"
-            value={categoryIds}
+            value={categoryAll ? categoryOptions.map((option) => option.id) : categoryIds}
             SelectProps={{
               multiple: true,
-              renderValue: (selected) => {
-                const values = selected as string[];
-                if (values.length === 0) return 'All categories';
-                return values
-                  .map((id) => categoryOptionById.get(id)?.name || id)
-                  .join(', ');
+              renderValue: () => {
+                if (categoryAll) return 'All categories';
+                return `${categoryIds.length} selected`;
               },
             }}
             onChange={(e) => {
               const next = e.target.value as unknown as string[];
-              setCategoryIds(Array.isArray(next) ? next : [next]);
+              const values = Array.isArray(next) ? next : [next];
+              if (values.length === 0 || values.length === categoryOptions.length) {
+                setCategoryAll(true);
+                setCategoryIds([]);
+                return;
+              }
+              setCategoryAll(false);
+              setCategoryIds(values);
             }}
             sx={{ minWidth: 230 }}
           >
             {categoryOptions.map((option) => (
               <MenuItem key={option.id} value={option.id}>
-                <Checkbox checked={categoryIds.includes(option.id)} />
+                <Checkbox checked={categoryAll || categoryIds.includes(option.id)} />
                 <ListItemText primary={option.name} />
               </MenuItem>
             ))}
@@ -520,27 +630,31 @@ export default function WeeklyReport() {
             select
             size="small"
             label="Stream"
-            value={streamIds}
-            disabled={categoryIds.length === 0}
+            value={streamAll ? streamOptions.map((option) => option.id) : streamIds}
+            disabled={streamOptions.length === 0}
             SelectProps={{
               multiple: true,
-              renderValue: (selected) => {
-                const values = selected as string[];
-                if (values.length === 0) return 'All streams';
-                return values
-                  .map((id) => streamOptionById.get(id)?.name || id)
-                  .join(', ');
+              renderValue: () => {
+                if (streamAll) return 'All streams';
+                return `${streamIds.length} selected`;
               },
             }}
             onChange={(e) => {
               const next = e.target.value as unknown as string[];
-              setStreamIds(Array.isArray(next) ? next : [next]);
+              const values = Array.isArray(next) ? next : [next];
+              if (values.length === 0 || values.length === streamOptions.length) {
+                setStreamAll(true);
+                setStreamIds([]);
+                return;
+              }
+              setStreamAll(false);
+              setStreamIds(values);
             }}
             sx={{ minWidth: 220 }}
           >
-            {scopedStreamOptions.map((option) => (
+            {streamOptions.map((option) => (
               <MenuItem key={option.id} value={option.id}>
-                <Checkbox checked={streamIds.includes(option.id)} />
+                <Checkbox checked={streamAll || streamIds.includes(option.id)} />
                 <ListItemText primary={option.name} />
               </MenuItem>
             ))}
@@ -549,27 +663,30 @@ export default function WeeklyReport() {
             select
             size="small"
             label="Task Types"
-            value={taskTypeIds}
+            value={taskTypeAll ? taskTypeOptions.map((option) => option.id) : taskTypeIds}
             SelectProps={{
               multiple: true,
-              renderValue: (selected) => {
-                const values = selected as string[];
-                if (values.length === 0) return 'All task types';
-                if (taskTypeOptions.length > 0 && values.length === taskTypeOptions.length) return 'All task types';
-                return values
-                  .map((id) => taskTypeOptionById.get(id)?.name || id)
-                  .join(', ');
+              renderValue: () => {
+                if (taskTypeAll) return 'All task types';
+                return `${taskTypeIds.length} selected`;
               },
             }}
             onChange={(e) => {
               const next = e.target.value as unknown as string[];
-              setTaskTypeIds(Array.isArray(next) ? next : [next]);
+              const values = Array.isArray(next) ? next : [next];
+              if (values.length === 0 || values.length === taskTypeOptions.length) {
+                setTaskTypeAll(true);
+                setTaskTypeIds([]);
+                return;
+              }
+              setTaskTypeAll(false);
+              setTaskTypeIds(values);
             }}
             sx={{ minWidth: 240 }}
           >
             {taskTypeOptions.map((option) => (
               <MenuItem key={option.id} value={option.id}>
-                <Checkbox checked={taskTypeIds.includes(option.id)} />
+                <Checkbox checked={taskTypeAll || taskTypeIds.includes(option.id)} />
                 <ListItemText primary={option.name} />
               </MenuItem>
             ))}
