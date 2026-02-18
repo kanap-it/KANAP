@@ -6,6 +6,7 @@ import { RolesService } from '../roles/roles.service';
 import { Role } from '../roles/role.entity';
 import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
 import { isReservedTenantSlug, normalizeTenantSlug } from './tenant-slug-policy';
+import { DEFAULT_TASK_TYPES } from '../portfolio/portfolio-task-type.entity';
 
 // Built-in roles configuration (shared with migration 1776000000000)
 const BUILT_IN_ROLES: Array<{
@@ -245,7 +246,19 @@ export class TenantsService {
     const tenant = repo.create({ slug, name: params.name, status: TenantStatus.ACTIVE });
     const saved = await repo.save(tenant);
     await this.ensureSystemRoles(manager, saved.id);
+    await this.seedDefaultTaskTypes(manager, saved.id);
     return saved;
+  }
+
+  private async seedDefaultTaskTypes(manager: EntityManager, tenantId: string) {
+    for (const def of DEFAULT_TASK_TYPES) {
+      await manager.query(
+        `INSERT INTO portfolio_task_types (tenant_id, name, description, display_order, is_system)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (tenant_id, name) DO NOTHING`,
+        [tenantId, def.name, def.description ?? null, def.display_order, def.is_system ?? false],
+      );
+    }
   }
 
   private async ensureSystemRoles(manager: EntityManager, tenantId: string) {
