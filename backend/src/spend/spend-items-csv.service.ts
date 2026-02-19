@@ -9,6 +9,7 @@ import { SpendVersion } from './spend-version.entity';
 import { SpendAmount } from './spend-amount.entity';
 import { Supplier } from '../suppliers/supplier.entity';
 import { Account } from '../accounts/account.entity';
+import { Company } from '../companies/company.entity';
 import { AnalyticsCategory } from '../analytics/analytics-category.entity';
 import { User } from '../users/user.entity';
 import { AuditService } from '../audit/audit.service';
@@ -40,6 +41,7 @@ export class SpendItemsCsvService {
       'product_name',
       'description',
       'supplier_name',
+      'company_name',
       'account_number',
       'currency',
       'effective_start',
@@ -97,14 +99,17 @@ export class SpendItemsCsvService {
     }
     const supplierIds = Array.from(new Set(items.map((i) => (i as any).supplier_id).filter(Boolean)));
     const accountIds = Array.from(new Set(items.map((i) => (i as any).account_id).filter(Boolean)));
+    const companyIds = Array.from(new Set(items.map((i) => (i as any).paying_company_id).filter(Boolean)));
     const suppliers = supplierIds.length ? await mg.getRepository(Supplier).find({ where: { id: In(supplierIds) as any } as any }) : [];
     const accounts = accountIds.length ? await mg.getRepository(Account).find({ where: { id: In(accountIds) as any } as any }) : [];
+    const companies = companyIds.length ? await mg.getRepository(Company).find({ where: { id: In(companyIds) as any } as any }) : [];
     const categoryIds = Array.from(new Set(items.map((i) => (i as any).analytics_category_id).filter(Boolean)));
     const categories = categoryIds.length ? await mg.getRepository(AnalyticsCategory).find({ where: { id: In(categoryIds) as any } as any }) : [];
     const ownerIds = Array.from(new Set(items.flatMap((it: any) => [it.owner_it_id, it.owner_business_id]).filter(Boolean))) as string[];
     const owners = ownerIds.length ? await mg.getRepository(User).find({ where: { id: In(ownerIds) as any } as any }) : [];
     const supplierById = new Map(suppliers.map((s) => [s.id, s]));
     const accountById = new Map(accounts.map((a) => [a.id, a]));
+    const companyById = new Map(companies.map((c) => [c.id, c]));
     const categoryById = new Map(categories.map((c) => [c.id, c]));
     const ownerById = new Map(owners.map((u) => [u.id, u]));
 
@@ -130,6 +135,7 @@ export class SpendItemsCsvService {
         const tY = getTotals(perYear.get(Y));
         const tPlus1 = getTotals(perYear.get(Y + 1));
         const supplier = (it as any).supplier_id ? supplierById.get((it as any).supplier_id) : undefined;
+        const company = (it as any).paying_company_id ? companyById.get((it as any).paying_company_id) : undefined;
         const account = (it as any).account_id ? accountById.get((it as any).account_id) : undefined;
         const analyticsCategoryId = (it as any).analytics_category_id as string | null;
         const analyticsCategory = analyticsCategoryId ? categoryById.get(analyticsCategoryId) : undefined;
@@ -140,6 +146,7 @@ export class SpendItemsCsvService {
           product_name: (it as any).product_name ?? '',
           description: (it as any).description ?? '',
           supplier_name: supplier ? (supplier as any).name : '',
+          company_name: company ? (company as any).name : '',
           account_number: account ? (account as any).account_number : '',
           currency: (it as any).currency ?? '',
           effective_start: (it as any).effective_start ?? '',
@@ -246,6 +253,9 @@ export class SpendItemsCsvService {
       return user ?? null;
     };
 
+    const allCompanies = await mg.getRepository(Company).find();
+    const companiesByName = new Map(allCompanies.map(c => [c.name.toLowerCase(), c]));
+
     const now = new Date();
     const Y = now.getFullYear();
     const defaultStart = `${Y}-01-01`;
@@ -253,6 +263,7 @@ export class SpendItemsCsvService {
       product_name: string;
       description: string | null;
       supplier_name: string | null;
+      company_name: string | null;
       account_number: string | null;
       currency: string;
       effective_start: string;
@@ -289,6 +300,11 @@ export class SpendItemsCsvService {
       const line = i + 2;
       const product_name = (r['product_name'] ?? '').toString().trim();
       const supplier_name = ((r['supplier_name'] ?? '').toString().trim()) || null;
+      const company_name = ((r['company_name'] ?? '').toString().trim()) || null;
+      if (!company_name) errors.push({ row: line, message: 'company_name is required' });
+      if (company_name && !companiesByName.has(company_name.toLowerCase())) {
+        errors.push({ row: line, message: `Company '${company_name}' not found` });
+      }
       const accountNumStr = (r['account_number'] ?? '').toString().trim();
       const accountNumberSanitized = accountNumStr.replace(/\s+/g, '');
       if (accountNumberSanitized === '') {
@@ -348,6 +364,7 @@ export class SpendItemsCsvService {
         product_name,
         description: ((r['description'] ?? '').toString().trim()) || null,
         supplier_name,
+        company_name,
         account_number: normalizedAccountNumber,
         currency,
         effective_start,
@@ -392,6 +409,7 @@ export class SpendItemsCsvService {
       }
       const exists = await mg.getRepository(SpendItem).findOne({ where: { product_name: item.product_name, supplier_id: supplierId as any } as any });
       if (exists) continue;
+      const company = item.company_name ? companiesByName.get(item.company_name.toLowerCase()) : null;
       let accountId: string | null = null;
       if (item.account_number != null) {
         const a = await findAccount(item.account_number);
@@ -414,6 +432,7 @@ export class SpendItemsCsvService {
           product_name: item.product_name,
           description: item.description ?? null,
           supplier_id: supplierId,
+          paying_company_id: company ? company.id : null,
           account_id: accountId,
           currency: item.currency,
           effective_start: item.effective_start,

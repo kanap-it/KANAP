@@ -121,7 +121,7 @@ Import files in numbered order. Each file depends on entities created by previou
 
 **Important notes:**
 - Users import (#10) will trigger invitation emails — use test email addresses or disable email sending in your environment
-- For spend items (#14), the `account_number` column links each item to a company via its CoA — make sure CoA assignment (step 5) is done first, OR import spend items after step 5
+- For spend items (#14), the `company_name` column sets the paying company directly; the `account_number` is validated against that company's CoA, so CoA assignment (step 5) should ideally be done first
 - Asset import (#18) requires locations to be created manually first (step 4)
 - **Human-readable IDs** (T-1, PRJ-1, REQ-1, etc.) are auto-assigned during import for projects, requests and tasks — no CSV column needed
 
@@ -131,14 +131,14 @@ Import files in numbered order. Each file depends on entities created by previou
 
 Go to **IT Operations > Locations** and create:
 
-| Code | Name | Type | Address | City | Country | Notes |
-|------|------|------|---------|------|---------|-------|
-| PAR-DC1 | Paris Data Center | Data Center | 12 Rue du Camembert | Paris | France | Main DC — 4 racks, hosts all on-prem VMs |
-| GOU-DC1 | Gouda Server Room | Server Room | Goudsesingel 42 | Gouda | Netherlands | Single rack — Kaasmeester local infra |
-| PRM-SITE | Parma Server Room | Server Room | Via Parmigiano 7 | Parma | Italy | Single rack — Formaggio Supremo local infra |
-| PAR-CAVE | Paris Cheese Caves | Production Site | 15 Rue de l'Affinage | Paris | France | IoT-monitored aging caves — 2 of 8 caves instrumented |
-| NYC-OFF | New York Office | Office | 350 Fifth Avenue, Suite 4200 | New York | United States | US distribution office — managed by Atlantic IT Solutions |
-| AWS-EU | AWS eu-west-1 | Cloud Region | - | Dublin | Ireland | AWS Ireland region — La Boutique infrastructure |
+| Code     | Name               | Type            | Address                      | City     | Country       | Notes                                                     |
+| -------- | ------------------ | --------------- | ---------------------------- | -------- | ------------- | --------------------------------------------------------- |
+| PAR-DC1  | Paris Data Center  | Data Center     | 12 Rue du Camembert          | Paris    | France        | Main DC — 4 racks, hosts all on-prem VMs                  |
+| GOU-DC1  | Gouda Server Room  | Server Room     | Goudsesingel 42              | Gouda    | Netherlands   | Single rack — Kaasmeester local infra                     |
+| PRM-SITE | Parma Server Room  | Server Room     | Via Parmigiano 7             | Parma    | Italy         | Single rack — Formaggio Supremo local infra               |
+| PAR-CAVE | Paris Cheese Caves | Production Site | 15 Rue de l'Affinage         | Paris    | France        | IoT-monitored aging caves — 2 of 8 caves instrumented     |
+| NYC-OFF  | New York Office    | Office          | 350 Fifth Avenue, Suite 4200 | New York | United States | US distribution office — managed by Atlantic IT Solutions |
+| AWS-EU   | AWS eu-west-1      | Cloud Region    | -                            | Dublin   | Ireland       | AWS Ireland region — La Boutique infrastructure           |
 
 ---
 
