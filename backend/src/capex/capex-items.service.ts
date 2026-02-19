@@ -1194,6 +1194,7 @@ export class CapexItemsService {
             is_approved: false,
             as_of_date: `${yr}-01-01`,
             tenant_id: created.tenant_id,
+            allocation_method: 'default' as any,
           };
           version = mg.getRepository(CapexVersion).create(versionPartial);
           version = await mg.getRepository(CapexVersion).save(version);
