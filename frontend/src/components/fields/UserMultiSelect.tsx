@@ -1,7 +1,8 @@
 import React from 'react';
-import { Autocomplete, TextField, CircularProgress, Chip } from '@mui/material';
+import { Autocomplete, Divider, TextField, CircularProgress, Chip } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
+import { useAuth } from '../../auth/AuthContext';
 
 type User = {
   id: string;
@@ -44,16 +45,24 @@ export default function UserMultiSelect({
     },
   });
 
+  const { profile } = useAuth();
+  const myId = profile?.id ?? null;
+
   const sortedUsers = React.useMemo(() => {
     const list = users ? [...users] : [];
-    const getName = (u: User) => {
-      const fn = (u.first_name || '').trim();
-      const ln = (u.last_name || '').trim();
-      const name = [fn, ln].filter(Boolean).join(' ');
-      return (name || u.email).toLowerCase();
+    const sortKey = (u: User) => {
+      const ln = (u.last_name || '').trim().toLowerCase();
+      const fn = (u.first_name || '').trim().toLowerCase();
+      return ln ? `${ln}\0${fn}` : (fn || u.email.toLowerCase());
     };
-    return list.sort((a, b) => getName(a).localeCompare(getName(b), undefined, { sensitivity: 'base' }));
-  }, [users]);
+    list.sort((a, b) => sortKey(a).localeCompare(sortKey(b), undefined, { sensitivity: 'base' }));
+    // Pin current user first
+    if (myId) {
+      const idx = list.findIndex((u) => u.id === myId);
+      if (idx > 0) list.unshift(...list.splice(idx, 1));
+    }
+    return list;
+  }, [users, myId]);
 
   // Fetch any selected users not in the list
   const missingIds = value.filter(id => !sortedUsers.some(u => u.id === id));
@@ -94,12 +103,14 @@ export default function UserMultiSelect({
       getOptionLabel={(option) => formatName(option)}
       size={size}
       renderOption={(props, option) => (
-        <li {...props} key={option.id}>
-          <div>
-            <div style={{ fontWeight: 500 }}>{formatName(option)}</div>
-            <div style={{ fontSize: '0.875rem', opacity: 0.7 }}>{option.email}</div>
-          </div>
-        </li>
+        <React.Fragment key={option.id}>
+          <li {...props}>
+            <div style={{ fontWeight: 500 }}>
+              {formatName(option)}{option.id === myId ? ' (me)' : ''}
+            </div>
+          </li>
+          {option.id === myId && <Divider />}
+        </React.Fragment>
       )}
       renderTags={(tagValue, getTagProps) =>
         tagValue.map((option, index) => (

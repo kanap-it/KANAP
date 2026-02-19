@@ -1,0 +1,19 @@
+application_name;environment;lifecycle;status;base_url;region;zone;notes
+SAP S/4HANA;prod;active;enabled;;;EU-Paris;SAP production instance
+SAP S/4HANA;qa;active;enabled;;;EU-Paris;SAP QA instance for multi-environment showcase
+Salesforce Sales Cloud;prod;active;enabled;;;EU-West;Salesforce production org
+Salesforce Sales Cloud;qa;active;enabled;;;EU-West;Salesforce QA org for multi-environment showcase
+SAP BW/4HANA;prod;active;enabled;;;EU-Paris;SAP BW production
+Power BI;prod;active;enabled;;;EU-West;Power BI production
+HubSpot Marketing Hub;prod;active;enabled;;;EU-West;HubSpot production
+CheeseTrack;prod;active;enabled;;;EU-Paris;CheeseTrack production
+CaveGuard IoT;prod;active;enabled;;;EU-Paris;CaveGuard production
+Cave Monitoring Dashboard;prod;active;enabled;;;EU-Paris;Grafana dashboard production
+Datadog;prod;active;enabled;;;EU-West;Datadog production
+Okta Workforce Identity;prod;active;enabled;;;EU-West;Okta production
+Microsoft 365;prod;active;enabled;;;EU-Global;M365 tenant production
+Workday HCM;prod;active;enabled;;;EU-West;Workday production
+PagerDuty;prod;active;enabled;;;US-East;PagerDuty production
+Talend Data Integration;prod;active;enabled;;;EU-Paris;Talend production runtime
+Talend Data Integration;qa;active;enabled;;;EU-Paris;Talend QA runtime for multi-environment showcase
+Snowflake;prod;active;enabled;;;EU-Central;Snowflake production warehouse

@@ -735,7 +735,9 @@ export class CsvImportService {
         return this.parseBoolean(rawValue, field.csvColumn);
 
       case CsvFieldType.COMPUTED:
-        // Computed fields are export-only
+        // Computed fields are normally export-only, but some are importable
+        // (e.g. related_object_name resolved in beforeCommit hooks)
+        if (field.importable) return rawValue;
         return undefined;
 
       default:

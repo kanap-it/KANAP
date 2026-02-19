@@ -89,6 +89,7 @@ export interface ScheduledProject {
   status: ProjectStatus;
   categoryId: string | null;
   sourceId: string | null;
+  streamId: string | null;
   executionProgress: number;
   priorityScore: number | null;
   plannedStart: string;
@@ -110,6 +111,7 @@ export interface RoadmapReservation {
   status: ProjectStatus;
   categoryId: string | null;
   sourceId: string | null;
+  streamId: string | null;
   executionProgress: number;
   plannedStart: string;
   plannedEnd: string;

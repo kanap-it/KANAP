@@ -11,6 +11,7 @@ export type FkEntityType =
   | 'portfolio_categories'
   | 'portfolio_streams'
   | 'portfolio_sources'
+  | 'portfolio_task_types'
   | 'companies'
   | 'departments'
   | 'locations'
@@ -72,6 +73,11 @@ export class CsvResolverService {
     },
     portfolio_sources: {
       tableName: 'portfolio_sources',
+      lookupColumn: 'name',
+      idColumn: 'id',
+    },
+    portfolio_task_types: {
+      tableName: 'portfolio_task_types',
       lookupColumn: 'name',
       idColumn: 'id',
     },

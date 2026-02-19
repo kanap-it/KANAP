@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # setup-settings.sh — Idempotent seed script for Fromage & Co demo tenant settings.
-# Creates IT Ops settings, portfolio classification, and analytics categories.
+# Creates currency + IT Ops settings, portfolio classification, and analytics categories.
 #
 # Usage:
 #   ./setup-settings.sh <BASE_URL> <TENANT_ADMIN_EMAIL> <TENANT_ADMIN_PASSWORD>
@@ -129,7 +129,21 @@ fi
 log_ok "Authenticated"
 
 # ════════════════════════════════════════════════════════════════════════════════
-# Section 1 — IT Ops Settings (GET → merge → PATCH)
+# Section 1 — Currency Settings
+# ════════════════════════════════════════════════════════════════════════════════
+log_info "Configuring currency settings (EUR + USD)..."
+
+CURRENCY_PATCH='{"reportingCurrency":"EUR","defaultSpendCurrency":"EUR","defaultCapexCurrency":"EUR","allowedCurrencies":["EUR","USD"]}'
+CURRENCY_CODE=$(api_patch_code "/api/currency/settings" "$CURRENCY_PATCH") || CURRENCY_CODE="000"
+
+if [ "$CURRENCY_CODE" = "200" ]; then
+  log_ok "Currency settings updated (reporting/default: EUR, allowed: EUR+USD)"
+else
+  log_error "Failed to update currency settings (HTTP $CURRENCY_CODE)"
+fi
+
+# ════════════════════════════════════════════════════════════════════════════════
+# Section 2 — IT Ops Settings (GET → merge → PATCH)
 # ════════════════════════════════════════════════════════════════════════════════
 log_info "Configuring IT Ops settings..."
 
@@ -196,10 +210,10 @@ else
 fi
 
 # ════════════════════════════════════════════════════════════════════════════════
-# Section 2 — Portfolio Classification (GET → POST missing)
+# Section 3 — Portfolio Classification (GET → POST missing)
 # ════════════════════════════════════════════════════════════════════════════════
 
-# ── 2a: Sources ─────────────────────────────────────────────────────────────────
+# ── 3a: Sources ─────────────────────────────────────────────────────────────────
 log_info "Creating portfolio sources..."
 EXISTING=$(api_get "/api/portfolio/classification/sources")
 
@@ -220,7 +234,7 @@ create_if_missing "source" "/api/portfolio/classification/sources" \
   '{"name":"Regulatory Compliance","description":"Regulatory and legal requirements"}' \
   "$EXISTING"
 
-# ── 2b: Categories ──────────────────────────────────────────────────────────────
+# ── 3b: Categories ──────────────────────────────────────────────────────────────
 log_info "Creating portfolio categories..."
 EXISTING=$(api_get "/api/portfolio/classification/categories")
 
@@ -245,7 +259,7 @@ create_if_missing "category" "/api/portfolio/classification/categories" \
   '{"name":"Data & Analytics","description":"BI, data platforms and advanced analytics"}' \
   "$EXISTING"
 
-# ── 2c: Streams (linked to categories by ID) ────────────────────────────────────
+# ── 3c: Streams (linked to categories by ID) ────────────────────────────────────
 log_info "Creating portfolio streams..."
 CATEGORIES=$(api_get "/api/portfolio/classification/categories")
 EXISTING_STREAMS=$(api_get "/api/portfolio/classification/streams")
@@ -289,7 +303,7 @@ create_stream "Customer Experience" "Improve B2B and B2C customer interactions" 
 create_stream "IT Foundation" "Core IT infrastructure and shared services" "Infrastructure"
 
 # ════════════════════════════════════════════════════════════════════════════════
-# Section 3 — Analytics Categories (paginated GET → POST missing)
+# Section 4 — Analytics Categories (paginated GET → POST missing)
 # ════════════════════════════════════════════════════════════════════════════════
 log_info "Creating analytics categories..."
 EXISTING=$(api_get "/api/analytics-categories?limit=200" | jq '.items')

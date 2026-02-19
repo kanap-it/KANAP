@@ -1,0 +1,5 @@
+connection_id;name;topology;source_entity_code;destination_entity_code;protocol_codes;lifecycle;criticality;data_class;contains_pii;notes
+CONN-FROMAGE-001;Paris-Gouda MPLS;server_to_server;par_dc1;gou_dc1;tcp;active;medium;internal;false;100 Mbps MPLS link
+CONN-FROMAGE-002;Paris-Parma MPLS;server_to_server;par_dc1;prm_site;tcp;active;medium;internal;false;100 Mbps MPLS link
+CONN-FROMAGE-003;Paris-NYC VPN;server_to_server;par_dc1;nyc_off;ipsec;active;high;internal;false;Site-to-site IPSec VPN
+CONN-FROMAGE-004;Paris-AWS VPN;server_to_server;par_dc1;aws_eu;ipsec;active;high;internal;false;AWS Site-to-Site VPN

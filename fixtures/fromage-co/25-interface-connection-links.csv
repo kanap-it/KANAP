@@ -1,0 +1,12 @@
+interface_id;environment;leg_order;connection_id;notes
+IF-FROMAGE-001;prod;3;CONN-FROMAGE-001;SAP to Salesforce production routed via Paris-Gouda WAN
+IF-FROMAGE-001;qa;3;CONN-FROMAGE-001;SAP to Salesforce QA routed via Paris-Gouda WAN
+IF-FROMAGE-002;prod;3;CONN-FROMAGE-001;BW feed to Power BI via Paris-Gouda WAN
+IF-FROMAGE-003;prod;1;CONN-FROMAGE-002;Salesforce to HubSpot business link
+IF-FROMAGE-004;prod;1;CONN-FROMAGE-002;CheeseTrack to SAP production link
+IF-FROMAGE-005;prod;1;CONN-FROMAGE-004;Cave telemetry to Datadog via AWS VPN
+IF-FROMAGE-006;prod;1;CONN-FROMAGE-004;Cave telemetry to dashboard via AWS VPN
+IF-FROMAGE-007;prod;1;CONN-FROMAGE-003;Okta provisioning path to US-facing stack
+IF-FROMAGE-008;prod;1;CONN-FROMAGE-003;Workday to Okta path
+IF-FROMAGE-009;prod;1;CONN-FROMAGE-003;Datadog alerts to PagerDuty path
+IF-FROMAGE-010;prod;3;CONN-FROMAGE-004;Talend load to Snowflake via AWS VPN

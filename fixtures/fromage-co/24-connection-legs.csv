@@ -1,0 +1,5 @@
+connection_id;order_index;layer_type;source_entity_code;destination_entity_code;protocol_codes;port_override;notes
+CONN-FROMAGE-001;1;network;par_dc1;gou_dc1;tcp;;Primary transport leg
+CONN-FROMAGE-002;1;network;par_dc1;prm_site;tcp;;Primary transport leg
+CONN-FROMAGE-003;1;network;par_dc1;nyc_off;ipsec;;Primary VPN leg
+CONN-FROMAGE-004;1;network;par_dc1;aws_eu;ipsec;;Primary VPN leg

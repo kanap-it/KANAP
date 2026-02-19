@@ -29,6 +29,7 @@ type ProjectRow = {
   status: ProjectStatus;
   category_id: string | null;
   source_id: string | null;
+  stream_id: string | null;
   priority_score: number | null;
   execution_progress: number | null;
   estimated_effort_it: number | null;
@@ -102,6 +103,7 @@ type ProjectComputation = {
   status: ProjectStatus;
   categoryId: string | null;
   sourceId: string | null;
+  streamId: string | null;
   priorityScore: number | null;
   executionProgress: number;
   remainingIt: number;
@@ -121,6 +123,7 @@ type CapacityReservation = {
   status: ProjectStatus;
   categoryId: string | null;
   sourceId: string | null;
+  streamId: string | null;
   executionProgress: number;
   reason: RoadmapReservationReason;
   startDate: Date;
@@ -407,6 +410,7 @@ export class PortfolioRoadmapService {
         p.status,
         p.category_id,
         p.source_id,
+        p.stream_id,
         p.priority_score,
         p.execution_progress,
         p.estimated_effort_it,
@@ -709,6 +713,7 @@ export class PortfolioRoadmapService {
         status: row.status,
         categoryId: row.category_id ?? null,
         sourceId: row.source_id ?? null,
+        streamId: row.stream_id ?? null,
         priorityScore: row.priority_score != null ? toNumber(row.priority_score) : null,
         executionProgress: progress,
         remainingIt,
@@ -828,6 +833,7 @@ export class PortfolioRoadmapService {
         status: row.status,
         categoryId: row.category_id ?? null,
         sourceId: row.source_id ?? null,
+        streamId: row.stream_id ?? null,
         executionProgress: round2(project?.executionProgress ?? toNumber(row.execution_progress ?? 0)),
         reason,
         startDate,
@@ -1652,6 +1658,7 @@ export class PortfolioRoadmapService {
         status: project.status,
         categoryId: project.categoryId,
         sourceId: project.sourceId,
+        streamId: project.streamId,
         executionProgress: round2(project.executionProgress),
         priorityScore: project.priorityScore,
         plannedStart: toYmdUtc(computedStart),
@@ -1689,6 +1696,7 @@ export class PortfolioRoadmapService {
         status: reservation.status,
         categoryId: reservation.categoryId,
         sourceId: reservation.sourceId,
+        streamId: reservation.streamId,
         executionProgress: reservation.executionProgress,
         plannedStart: toYmdUtc(reservation.startDate),
         plannedEnd: toYmdUtc(reservation.endDate),

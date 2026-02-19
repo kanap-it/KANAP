@@ -930,6 +930,48 @@ ZW|Zimbabwe`;
   }
 
 
+  // Screenshot lightbox
+  (function initLightbox() {
+    var overlay = document.createElement('div');
+    overlay.className = 'lightbox-overlay';
+    overlay.style.display = 'none';
+    var img = document.createElement('img');
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+    var open = false;
+
+    function close() {
+      if (!open) return;
+      open = false;
+      overlay.classList.remove('active');
+      setTimeout(function () { overlay.style.display = 'none'; }, 200);
+    }
+
+    overlay.addEventListener('click', function () {
+      close();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') close();
+    });
+
+    document.querySelectorAll('.screenshot-img').forEach(function (el) {
+      el.addEventListener('click', function () {
+        img.src = el.src;
+        img.alt = el.alt;
+        overlay.style.display = 'flex';
+        open = true;
+        // Double rAF ensures the browser paints display:flex at opacity 0
+        // before transitioning to opacity 1
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            overlay.classList.add('active');
+          });
+        });
+      });
+    });
+  })();
+
   const activationContainer = document.querySelector('[data-activation]');
   const activationMessage = activationContainer?.querySelector('[data-activation-message]');
   const activationActions = activationContainer?.querySelector('[data-activation-actions]');

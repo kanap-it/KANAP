@@ -63,6 +63,7 @@ type ScheduledProject = {
   status: string;
   categoryId: string | null;
   sourceId: string | null;
+  streamId: string | null;
   executionProgress: number;
   priorityScore: number | null;
   plannedStart: string;
@@ -88,6 +89,7 @@ type ReservationProject = {
   status: string;
   categoryId: string | null;
   sourceId: string | null;
+  streamId: string | null;
   executionProgress: number;
   plannedStart: string;
   plannedEnd: string;
@@ -866,6 +868,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   const [ganttContributorId, setGanttContributorId] = useState<string>('');
   const [ganttTeamId, setGanttTeamId] = useState<string>('');
   const [ganttSourceId, setGanttSourceId] = useState<string>('');
+  const [ganttStreamId, setGanttStreamId] = useState<string>('');
 
   const [response, setResponse] = useState<RoadmapResponse | null>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
@@ -883,6 +886,14 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     queryKey: ['portfolio-sources'],
     queryFn: async () => {
       const res = await api.get('/portfolio/classification/sources');
+      return (res.data || []) as Category[];
+    },
+  });
+
+  const { data: streams } = useQuery({
+    queryKey: ['portfolio-streams'],
+    queryFn: async () => {
+      const res = await api.get('/portfolio/classification/streams');
       return (res.data || []) as Category[];
     },
   });
@@ -1039,8 +1050,40 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     [teamFilteredReservations, ganttSourceId],
   );
 
+  const ganttStreamOptions = useMemo(() => {
+    const streamNameById = new Map((streams ?? []).map((s) => [s.id, s.name]));
+    const options = Array.from(
+      new Set(
+        scheduledProjects
+          .map((p) => p.streamId)
+          .concat(reservationProjects.map((p) => p.streamId))
+          .filter((id): id is string => !!id),
+      ),
+    )
+      .sort((a, b) => {
+        const la = streamNameById.get(a) || a;
+        const lb = streamNameById.get(b) || b;
+        return la.localeCompare(lb);
+      })
+      .map((id) => ({ id, name: streamNameById.get(id) || id }));
+    return options;
+  }, [streams, scheduledProjects, reservationProjects]);
+
+  const streamFilteredScheduled = useMemo(
+    () => (ganttStreamId
+      ? sourceFilteredScheduled.filter((p) => p.streamId === ganttStreamId)
+      : sourceFilteredScheduled),
+    [sourceFilteredScheduled, ganttStreamId],
+  );
+  const streamFilteredReservations = useMemo(
+    () => (ganttStreamId
+      ? sourceFilteredReservations.filter((p) => p.streamId === ganttStreamId)
+      : sourceFilteredReservations),
+    [sourceFilteredReservations, ganttStreamId],
+  );
+
   const ganttProjects = useMemo(() => {
-    const scheduledRows = sourceFilteredScheduled.map((project) => ({
+    const scheduledRows = streamFilteredScheduled.map((project) => ({
       id: project.projectId,
       name: project.projectName,
       status: project.status,
@@ -1054,7 +1097,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     }));
     if (!showReservations) return scheduledRows;
 
-    const reservationRows = sourceFilteredReservations.map((project) => ({
+    const reservationRows = streamFilteredReservations.map((project) => ({
       id: project.projectId,
       name: project.projectName,
       status: project.status,
@@ -1068,10 +1111,10 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     }));
 
     return [...scheduledRows, ...reservationRows];
-  }, [sourceFilteredReservations, sourceFilteredScheduled, showReservations]);
+  }, [streamFilteredReservations, streamFilteredScheduled, showReservations]);
 
   const ganttExportRows = useMemo<GanttRoadmapItem[]>(() => {
-    const scheduledRows = sourceFilteredScheduled.map((project) => ({
+    const scheduledRows = streamFilteredScheduled.map((project) => ({
       projectId: project.projectId,
       projectName: project.projectName,
       status: project.status,
@@ -1084,7 +1127,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       onHoldRanges: project.onHoldRanges,
     }));
     if (!showReservations) return scheduledRows;
-    const reservationRows = sourceFilteredReservations.map((project) => ({
+    const reservationRows = streamFilteredReservations.map((project) => ({
       projectId: project.projectId,
       projectName: project.projectName,
       status: project.status,
@@ -1096,12 +1139,12 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       reservationReason: project.reason,
     }));
     return [...scheduledRows, ...reservationRows];
-  }, [sourceFilteredReservations, sourceFilteredScheduled, showReservations]);
+  }, [streamFilteredReservations, streamFilteredScheduled, showReservations]);
 
   const ganttDependencies = useMemo(() => {
     const visibleIds = new Set<string>([
-      ...sourceFilteredScheduled.map((p) => p.projectId),
-      ...(showReservations ? sourceFilteredReservations.map((p) => p.projectId) : []),
+      ...streamFilteredScheduled.map((p) => p.projectId),
+      ...(showReservations ? streamFilteredReservations.map((p) => p.projectId) : []),
     ]);
     const links: Array<{
       id: string;
@@ -1122,17 +1165,17 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       }
     }
     return links;
-  }, [sourceFilteredReservations, sourceFilteredScheduled, scheduledProjects, showReservations]);
+  }, [streamFilteredReservations, streamFilteredScheduled, scheduledProjects, showReservations]);
 
   const monthsForGantt = useMemo(() => {
     const allRows = [
-      ...sourceFilteredScheduled.map((item) => ({ plannedEnd: item.plannedEnd })),
+      ...streamFilteredScheduled.map((item) => ({ plannedEnd: item.plannedEnd })),
       ...(showReservations
-        ? sourceFilteredReservations.map((item) => ({ plannedEnd: item.plannedEnd }))
+        ? streamFilteredReservations.map((item) => ({ plannedEnd: item.plannedEnd }))
         : []),
     ];
     return calcMonthsSpan(allRows);
-  }, [sourceFilteredReservations, sourceFilteredScheduled, showReservations]);
+  }, [streamFilteredReservations, streamFilteredScheduled, showReservations]);
   const monthOffsetForGantt = 0;
   const ganttHeight = useMemo(
     () => Math.max(420, (ganttProjects.length * 38) + 180),
@@ -2123,67 +2166,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
               <Typography variant="subtitle2" sx={{ flex: 1, fontWeight: 600 }}>
                 Read-only Gantt
               </Typography>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
-                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 260 } }}>
-                  <InputLabel>Category</InputLabel>
-                  <Select
-                    value={ganttCategoryId}
-                    label="Category"
-                    onChange={(event) => setGanttCategoryId(event.target.value)}
-                  >
-                    <MenuItem value="">All Categories</MenuItem>
-                    {ganttCategoryOptions.map((category) => (
-                      <MenuItem key={category.id} value={category.id}>
-                        {category.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 220 } }}>
-                  <InputLabel>Contributor</InputLabel>
-                  <Select
-                    value={ganttContributorId}
-                    label="Contributor"
-                    onChange={(event) => setGanttContributorId(event.target.value)}
-                  >
-                    <MenuItem value="">All Contributors</MenuItem>
-                    {ganttContributorOptions.map((contributor) => (
-                      <MenuItem key={contributor.id} value={contributor.id}>
-                        {contributor.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-                  <InputLabel>Team</InputLabel>
-                  <Select
-                    value={ganttTeamId}
-                    label="Team"
-                    onChange={(event) => setGanttTeamId(event.target.value)}
-                  >
-                    <MenuItem value="">All Teams</MenuItem>
-                    {ganttTeamOptions.map((team) => (
-                      <MenuItem key={team.id} value={team.id}>
-                        {team.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-                  <InputLabel>Source</InputLabel>
-                  <Select
-                    value={ganttSourceId}
-                    label="Source"
-                    onChange={(event) => setGanttSourceId(event.target.value)}
-                  >
-                    <MenuItem value="">All Sources</MenuItem>
-                    {ganttSourceOptions.map((source) => (
-                      <MenuItem key={source.id} value={source.id}>
-                        {source.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+              <Stack direction="row" spacing={1} alignItems="center">
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -2206,6 +2189,83 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                   </span>
                 </Tooltip>
               </Stack>
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ px: 1, py: 0.5 }} useFlexGap flexWrap="wrap">
+              <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={ganttCategoryId}
+                  label="Category"
+                  onChange={(event) => setGanttCategoryId(event.target.value)}
+                >
+                  <MenuItem value="">All Categories</MenuItem>
+                  {ganttCategoryOptions.map((category) => (
+                    <MenuItem key={category.id} value={category.id}>
+                      {category.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                <InputLabel>Stream</InputLabel>
+                <Select
+                  value={ganttStreamId}
+                  label="Stream"
+                  onChange={(event) => setGanttStreamId(event.target.value)}
+                >
+                  <MenuItem value="">All Streams</MenuItem>
+                  {ganttStreamOptions.map((stream) => (
+                    <MenuItem key={stream.id} value={stream.id}>
+                      {stream.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                <InputLabel>Contributor</InputLabel>
+                <Select
+                  value={ganttContributorId}
+                  label="Contributor"
+                  onChange={(event) => setGanttContributorId(event.target.value)}
+                >
+                  <MenuItem value="">All Contributors</MenuItem>
+                  {ganttContributorOptions.map((contributor) => (
+                    <MenuItem key={contributor.id} value={contributor.id}>
+                      {contributor.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+                <InputLabel>Team</InputLabel>
+                <Select
+                  value={ganttTeamId}
+                  label="Team"
+                  onChange={(event) => setGanttTeamId(event.target.value)}
+                >
+                  <MenuItem value="">All Teams</MenuItem>
+                  {ganttTeamOptions.map((team) => (
+                    <MenuItem key={team.id} value={team.id}>
+                      {team.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+                <InputLabel>Source</InputLabel>
+                <Select
+                  value={ganttSourceId}
+                  label="Source"
+                  onChange={(event) => setGanttSourceId(event.target.value)}
+                >
+                  <MenuItem value="">All Sources</MenuItem>
+                  {ganttSourceOptions.map((source) => (
+                    <MenuItem key={source.id} value={source.id}>
+                      {source.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ px: 1, pb: 0.5, display: 'block' }}>
               Solid bar shows active scheduled work. Dashed lead-in marks earlier historical start with pause before resumed work. Hatched bars are capacity reservations. Dotted overlay marks scheduling gaps; diagonal gray overlay marks on-hold periods.

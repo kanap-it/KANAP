@@ -503,11 +503,11 @@ export const taskCsvConfig: CsvEntityConfig = {
     ]);
 
     // Table mapping for related object resolution
-    const tableMap: Record<string, string> = {
-      project: 'portfolio_projects',
-      spend_item: 'spend_items',
-      contract: 'contracts',
-      capex_item: 'capex_items',
+    const tableMap: Record<string, { table: string; nameColumn: string }> = {
+      project: { table: 'portfolio_projects', nameColumn: 'name' },
+      spend_item: { table: 'spend_items', nameColumn: 'product_name' },
+      contract: { table: 'contracts', nameColumn: 'name' },
+      capex_item: { table: 'capex_items', nameColumn: 'description' },
     };
 
     // First pass: normalize enum values
@@ -559,20 +559,21 @@ export const taskCsvConfig: CsvEntityConfig = {
 
     // Resolve names to IDs for each type
     for (const [type, items] of byType.entries()) {
-      const table = tableMap[type];
-      if (!table) continue;
+      const mapping = tableMap[type];
+      if (!mapping) continue;
 
+      const { table, nameColumn } = mapping;
       const names = items.map((i) => i.name.toLowerCase());
 
       const rows = await context.manager.query(
-        `SELECT id, name FROM ${table} WHERE tenant_id = $1 AND LOWER(name) = ANY($2)`,
+        `SELECT id, ${nameColumn} FROM ${table} WHERE tenant_id = $1 AND LOWER(${nameColumn}) = ANY($2)`,
         [context.tenantId, names],
       );
 
       // Build lookup map
       const idByName = new Map<string, string>();
       for (const row of rows) {
-        idByName.set(String(row.name).toLowerCase(), row.id);
+        idByName.set(String(row[nameColumn]).toLowerCase(), row.id);
       }
 
       // Resolve each entity

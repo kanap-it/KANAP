@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Autocomplete, Box, Chip, CircularProgress, IconButton, Stack, TextField, Typography,
+  Autocomplete, CircularProgress, Divider, IconButton, Stack, TextField, Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../api';
+import { useAuth } from '../../auth/AuthContext';
 
 interface TeamMember {
   user_id: string;
@@ -37,6 +38,8 @@ export default function TeamMemberMultiSelect({
   disabled,
 }: TeamMemberMultiSelectProps) {
   const [loading, setLoading] = useState(false);
+  const { profile } = useAuth();
+  const myId = profile?.id ?? null;
 
   // Fetch all users
   const { data: users, isLoading: loadingUsers } = useQuery({
@@ -54,8 +57,20 @@ export default function TeamMemberMultiSelect({
 
   const availableUsers = useMemo(() => {
     if (!users) return [];
-    return users.filter((u) => !selectedUserIds.has(u.id));
-  }, [users, selectedUserIds]);
+    const list = users.filter((u) => !selectedUserIds.has(u.id));
+    const sortKey = (u: User) => {
+      const ln = (u.last_name || '').trim().toLowerCase();
+      const fn = (u.first_name || '').trim().toLowerCase();
+      return ln ? `${ln}\0${fn}` : (fn || u.email.toLowerCase());
+    };
+    list.sort((a, b) => sortKey(a).localeCompare(sortKey(b), undefined, { sensitivity: 'base' }));
+    // Pin current user first
+    if (myId) {
+      const idx = list.findIndex((u) => u.id === myId);
+      if (idx > 0) list.unshift(...list.splice(idx, 1));
+    }
+    return list;
+  }, [users, selectedUserIds, myId]);
 
   // Get display name for a team member
   const getDisplayName = useCallback((m: TeamMember) => {
@@ -63,10 +78,6 @@ export default function TeamMemberMultiSelect({
     if (m.display_name) return m.display_name;
     if (m.first_name || m.last_name) return `${m.first_name || ''} ${m.last_name || ''}`.trim();
     return m.user_email || m.email || m.user_id;
-  }, []);
-
-  const getEmail = useCallback((m: TeamMember) => {
-    return m.user_email || m.email || '';
   }, []);
 
   // Format user name from first_name/last_name
@@ -121,18 +132,15 @@ export default function TeamMemberMultiSelect({
         }}
         renderOption={(props, option) => {
           const { key, ...other } = props as any;
-          const name = formatUserName(option);
           return (
-            <li {...other} key={option.id}>
-              <Box>
-                <Typography variant="body2">{name}</Typography>
-                {name !== option.email && (
-                  <Typography variant="caption" color="text.secondary">
-                    {option.email}
-                  </Typography>
-                )}
-              </Box>
-            </li>
+            <Fragment key={option.id}>
+              <li {...other}>
+                <Typography variant="body2" fontWeight={500}>
+                  {formatUserName(option)}{option.id === myId ? ' (me)' : ''}
+                </Typography>
+              </li>
+              {option.id === myId && <Divider />}
+            </Fragment>
           );
         }}
         renderInput={(params) => (
@@ -168,9 +176,6 @@ export default function TeamMemberMultiSelect({
             >
               <Typography variant="body2" sx={{ flex: 1 }}>
                 {getDisplayName(m)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {getEmail(m)}
               </Typography>
               {!disabled && (
                 <IconButton
