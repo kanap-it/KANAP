@@ -18,8 +18,7 @@ IT departments juggle budgets across spreadsheets, track applications in wikis, 
 
 KANAP replaces that patchwork with a single platform where costs link to applications, applications link to projects, and projects link back to budgets. One source of truth, zero complexity theater.
 
-<!-- TODO: Add a screenshot of the dashboard here -->
-<!-- ![KANAP Dashboard](docs/assets/screenshot.png) -->
+![KANAP Dashboard](doc/assets/dashboard.png)
 
 ## What it does
 
