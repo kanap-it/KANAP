@@ -39,7 +39,7 @@
           "name": "How does the free trial work?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Every paid cloud plan starts with a 14-day free trial. No credit card required. You get full access to all features during the trial period."
+            "text": "Every paid cloud plan starts with a 14-day free trial. No credit card required. You get full access to all features during the trial period, plus one free 60-minute activation session per company if booked during the trial."
           }
         },
         {
@@ -52,23 +52,31 @@
         },
         {
           "@type": "Question",
+          "name": "What is the free trial activation session?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Each trial includes one free 60-minute activation session per company. After subscription, we email you to book the call. The session is delivered as a video call and focuses on first-value milestones based on your main objectives."
+          }
+        },
+        {
+          "@type": "Question",
           "name": "What's the difference between cloud and self-hosted?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Cloud hosting means we run everything for you — updates, backups, infrastructure. Self-hosted means you run KANAP on your own servers. Paid cloud plans include cloud hosting; the free tier is self-hosted only."
+            "text": "Cloud hosting means we run everything for you — updates, backups, infrastructure. Self-hosted means you run KANAP on your own servers. Paid cloud plans include cloud hosting; the free tier is self-hosted only. You can purchase Self-Hosted Support for self-hosted installations."
           }
         },
         {
           "@type": "Question",
-          "name": "What is Enterprise Support?",
+          "name": "What is Self-Hosted Support?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Enterprise Support is a professional support add-on for self-hosted installations. It includes email support and a 20% discount on consulting services. Priced at €2,490/yr."
+            "text": "Self-Hosted Support is a professional support add-on for self-hosted installations. It includes priority email support and a 20% discount on consulting services. Priced at €2,490/yr."
           }
         },
         {
           "@type": "Question",
-          "name": "How does enterprise support work?",
+          "name": "How does priority support work?",
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "For paying subscribers, email us about operational issues and we'll respond within 24h and fix your problem. It's best-effort, no SLA — but we're real humans who actually read and respond to every message."
@@ -79,7 +87,7 @@
           "name": "Can I pay by invoice?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Invoice payment (bank transfer) is available for subscriptions above €1,000. That means Standard annual, Max annual, and Enterprise Support. Subscriptions at or below €1,000 are paid by card. Invoices are NET30."
+            "text": "Invoice payment (bank transfer) is available for subscriptions above €1,000 for EUR customers only. That means Standard annual, Max annual, and Self-Hosted Support. Subscriptions at or below €1,000 are paid by card. Invoices are NET30."
           }
         },
         {
@@ -123,7 +131,7 @@
         { "@type": "Offer", "name": "Starter", "price": "49", "priceCurrency": "EUR" },
         { "@type": "Offer", "name": "Standard", "price": "149", "priceCurrency": "EUR" },
         { "@type": "Offer", "name": "Max", "price": "249", "priceCurrency": "EUR" },
-        { "@type": "Offer", "name": "Enterprise Support", "price": "2490", "priceCurrency": "EUR" }
+        { "@type": "Offer", "name": "Self-Hosted Support", "price": "2490", "priceCurrency": "EUR" }
       ],
       "publisher": {
         "@type": "Organization",
@@ -274,26 +282,35 @@
         align-items: baseline;
         gap: 0.25rem;
         margin-bottom: 0.25rem;
+        color: var(--primary);
+        font-weight: 800;
       }
-      .tier-price-amount {
-        font-size: 3rem;
+      .tier-price .tier-price-amount {
+        font-size: 2.4rem;
         font-weight: 800;
         color: var(--primary);
         line-height: 1;
+        display: inline;
+        margin-top: 0;
       }
-      .tier-price-currency {
+      .tier-price .tier-price-currency {
         font-size: 1.25rem;
-        font-weight: 600;
+        font-weight: 800;
         color: var(--primary);
+        display: inline;
+        margin-top: 0;
       }
-      .tier-price-period {
+      .tier-price .tier-price-period {
         font-size: 1rem;
-        color: var(--muted);
+        color: var(--primary);
+        font-weight: 700;
+        display: inline;
+        margin-top: 0;
       }
       .tier-annual {
         font-size: 0.85rem;
         color: var(--success);
-        font-weight: 500;
+        font-weight: 700;
         margin-bottom: 1.5rem;
         min-height: 1.25rem;
       }
@@ -385,59 +402,45 @@
         text-decoration: underline;
       }
 
-      /* Feature Comparison */
-      .comparison-section {
+      /* How To Choose */
+      .how-to-choose {
         max-width: 1100px;
         margin: 4rem auto 0;
       }
-      .comparison-section h2 {
+      .how-to-choose h2 {
         text-align: center;
-        margin-bottom: 2rem;
+        margin-bottom: 0.75rem;
       }
-      .comparison-table {
-        width: 100%;
-        border-collapse: collapse;
-        background: var(--surface);
-        border-radius: 16px;
-        overflow: hidden;
-        border: 1px solid var(--border);
-      }
-      .comparison-table th,
-      .comparison-table td {
-        padding: 1rem 1.25rem;
-        text-align: left;
-        border-bottom: 1px solid var(--border);
-      }
-      .comparison-table th {
-        background: var(--background);
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-      .comparison-table th:not(:first-child) {
+      .how-to-choose > p {
         text-align: center;
-      }
-      .comparison-table td:not(:first-child) {
-        text-align: center;
-      }
-      .comparison-table tr:last-child td {
-        border-bottom: none;
-      }
-      .comparison-table .feature-name {
-        font-weight: 500;
-      }
-      .check-icon {
-        color: var(--success);
-      }
-      .dash-icon {
         color: var(--muted);
+        margin: 0 auto 2rem;
+        max-width: 760px;
       }
-      @media (max-width: 600px) {
-        .comparison-table {
-          font-size: 0.85rem;
-        }
-        .comparison-table th,
-        .comparison-table td {
-          padding: 0.75rem;
+      .choice-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.25rem;
+      }
+      .choice-card {
+        background: var(--surface);
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: 1.35rem;
+      }
+      .choice-card h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.05rem;
+      }
+      .choice-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.5;
+      }
+      @media (max-width: 900px) {
+        .choice-grid {
+          grid-template-columns: 1fr;
         }
       }
 
@@ -669,11 +672,166 @@
         <!-- Tier Cards -->
         <section class="pricing-main">
           <div class="container">
-            <!-- On Premise -->
+            <!-- Cloud Hosted -->
             <div class="tier-group">
               <div class="tier-group-header">
-                <h2>On Premise</h2>
-                <p>Self-host KANAP on your own infrastructure</p>
+                <h2>Cloud Hosted</h2>
+                <p>Platform, hosting, updates, and support &mdash; we handle everything</p>
+              </div>
+              <div class="tier-grid tier-grid--cloud">
+                <!-- Starter Tier -->
+                <div class="tier-card">
+                  <span class="tier-badge">Get started fast</span>
+                  <h3 class="tier-name">Starter</h3>
+                  <p class="tier-target">Up to 5 contributors</p>
+                  <div class="tier-price">
+                    <span class="tier-price-currency">€</span>
+                    <span class="tier-price-amount">49</span>
+                    <span class="tier-price-period">/mo</span>
+                  </div>
+                  <p class="tier-annual">€490/yr (2 months free)</p>
+                  <ul class="tier-features">
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>All features included</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Cloud hosting</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Automatic updates</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Unlimited read-only users</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Priority email support</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>20% consulting discount</span>
+                    </li>
+                  </ul>
+                  <div class="tier-cta">
+                    <button class="button button--primary" data-open-trial>Start free trial</button>
+                    <p class="tier-microcopy">Includes one free 60-minute activation session</p>
+                  </div>
+                </div>
+
+                <!-- Standard Tier -->
+                <div class="tier-card">
+                  <span class="tier-badge">Cross-team governance</span>
+                  <h3 class="tier-name">Standard</h3>
+                  <p class="tier-target">Up to 25 contributors</p>
+                  <div class="tier-price">
+                    <span class="tier-price-currency">€</span>
+                    <span class="tier-price-amount">149</span>
+                    <span class="tier-price-period">/mo</span>
+                  </div>
+                  <p class="tier-annual">€1,490/yr (2 months free)</p>
+                  <ul class="tier-features">
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>All features included</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Cloud hosting</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Automatic updates</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Unlimited read-only users</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Priority email support</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>20% consulting discount</span>
+                    </li>
+                  </ul>
+                  <div class="tier-cta">
+                    <button class="button button--primary" data-open-trial>Start free trial</button>
+                    <p class="tier-microcopy">Includes one free 60-minute activation session</p>
+                  </div>
+                </div>
+
+                <!-- Max Tier -->
+                <div class="tier-card">
+                  <span class="tier-badge">Org-wide rollout</span>
+                  <h3 class="tier-name">Max</h3>
+                  <p class="tier-target">Unlimited contributors</p>
+                  <div class="tier-price">
+                    <span class="tier-price-currency">€</span>
+                    <span class="tier-price-amount">249</span>
+                    <span class="tier-price-period">/mo</span>
+                  </div>
+                  <p class="tier-annual">€2,490/yr (2 months free)</p>
+                  <ul class="tier-features">
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>All features included</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Cloud hosting</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Automatic updates</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Unlimited read-only users</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Priority email support</span>
+                    </li>
+                    <li>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>20% consulting discount</span>
+                    </li>
+                  </ul>
+                  <div class="tier-cta">
+                    <button class="button button--primary" data-open-trial>Start free trial</button>
+                    <p class="tier-microcopy">Includes one free 60-minute activation session</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Open Code Banner -->
+            <div class="open-code-banner">
+              <div class="open-code-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
+                </svg>
+              </div>
+              <div class="open-code-content">
+                <h3>Open Code under the O'Saasy License</h3>
+                <p>
+                  KANAP's source code is publicly available. Inspect it, self-host it, improve it!
+                  The O'Saasy license allows free use while preventing SaaS competition.
+                  <a href="https://github.com/kanap-it/kanap/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Read the license</a>.
+                </p>
+              </div>
+            </div>
+
+            <!-- Self-Hosted -->
+            <div class="tier-group">
+              <div class="tier-group-header">
+                <h2>Self-Hosted</h2>
+                <p>Run KANAP on your infrastructure, with optional support</p>
               </div>
               <div class="tier-grid tier-grid--onprem">
                 <!-- Free Tier -->
@@ -705,14 +863,14 @@
                     </li>
                   </ul>
                   <div class="tier-cta">
-                    <a href="https://github.com/kanap-it/kanap" class="button button--ghost" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+                    <a href="https://github.com/kanap-it/kanap" class="button button--ghost" target="_blank" rel="noopener noreferrer">Deploy from GitHub</a>
                   </div>
                 </div>
 
-                <!-- Enterprise Support Tier -->
+                <!-- Self-Hosted Support Tier -->
                 <div class="tier-card">
-                  <span class="tier-badge">Professional support</span>
-                  <h3 class="tier-name">Enterprise Support</h3>
+                  <span class="tier-badge">For compliance &amp; control</span>
+                  <h3 class="tier-name">Self-Hosted Support</h3>
                   <p class="tier-target">Self-hosted, unlimited users</p>
                   <div class="tier-price">
                     <span class="tier-price-currency">€</span>
@@ -731,7 +889,7 @@
                     </li>
                     <li>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Enterprise support</span>
+                      <span>Priority email support</span>
                     </li>
                     <li>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
@@ -743,269 +901,33 @@
                     </li>
                   </ul>
                   <div class="tier-cta">
-                    <button class="button button--primary" type="button" data-open-enterprise-invoice>Subscribe now</button>
+                    <button class="button button--primary" type="button" data-open-enterprise-invoice>Subscribe</button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Open Code Banner -->
-            <div class="open-code-banner">
-              <div class="open-code-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
-                </svg>
-              </div>
-              <div class="open-code-content">
-                <h3>Open Code under the O'Saasy License</h3>
-                <p>
-                  KANAP's source code is publicly available. Inspect it, self-host it, improve it!
-                  The O'Saasy license allows free use while preventing SaaS competition.
-                  <a href="https://github.com/kanap-it/kanap/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Read the license</a>.
-                </p>
-              </div>
-            </div>
-
-            <!-- Cloud Hosted -->
-            <div class="tier-group">
-              <div class="tier-group-header">
-                <h2>Cloud Hosted</h2>
-                <p>We handle hosting, updates, and backups</p>
-              </div>
-              <div class="tier-grid tier-grid--cloud">
-                <!-- Starter Tier -->
-                <div class="tier-card">
-                  <span class="tier-badge">Peace of mind</span>
-                  <h3 class="tier-name">Starter</h3>
-                  <p class="tier-target">Up to 5 contributors</p>
-                  <div class="tier-price">
-                    <span class="tier-price-currency">€</span>
-                    <span class="tier-price-amount">49</span>
-                    <span class="tier-price-period">/mo</span>
-                  </div>
-                  <p class="tier-annual">€490/yr (2 months free)</p>
-                  <ul class="tier-features">
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>All features included</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Cloud hosting</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Automatic updates</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Unlimited read-only users</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Enterprise support</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>20% consulting discount</span>
-                    </li>
-                  </ul>
-                  <div class="tier-cta">
-                    <button class="button button--primary" data-open-trial>Start 14-day free trial</button>
-                  </div>
+            <!-- How to Choose -->
+            <div class="how-to-choose">
+              <h2>How to choose</h2>
+              <p>
+                Choose based on deployment model and support level.
+                All plans include all product features.
+              </p>
+              <div class="choice-grid">
+                <div class="choice-card">
+                  <h3>Cloud Hosted</h3>
+                  <p>Best when you want the fastest path to value with zero infrastructure operations.</p>
                 </div>
-
-                <!-- Standard Tier -->
-                <div class="tier-card">
-                  <span class="tier-badge">Room to grow</span>
-                  <h3 class="tier-name">Standard</h3>
-                  <p class="tier-target">Up to 25 contributors</p>
-                  <div class="tier-price">
-                    <span class="tier-price-currency">€</span>
-                    <span class="tier-price-amount">149</span>
-                    <span class="tier-price-period">/mo</span>
-                  </div>
-                  <p class="tier-annual">€1,490/yr (2 months free)</p>
-                  <ul class="tier-features">
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>All features included</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Cloud hosting</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Automatic updates</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Unlimited read-only users</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Enterprise support</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>20% consulting discount</span>
-                    </li>
-                  </ul>
-                  <div class="tier-cta">
-                    <button class="button button--primary" data-open-trial>Start 14-day free trial</button>
-                  </div>
+                <div class="choice-card">
+                  <h3>Self-Hosted Free</h3>
+                  <p>Best when you need full control and can operate the platform with your own team.</p>
                 </div>
-
-                <!-- Max Tier -->
-                <div class="tier-card">
-                  <span class="tier-badge">No limits</span>
-                  <h3 class="tier-name">Max</h3>
-                  <p class="tier-target">Unlimited contributors</p>
-                  <div class="tier-price">
-                    <span class="tier-price-currency">€</span>
-                    <span class="tier-price-amount">249</span>
-                    <span class="tier-price-period">/mo</span>
-                  </div>
-                  <p class="tier-annual">€2,490/yr (2 months free)</p>
-                  <ul class="tier-features">
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>All features included</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Cloud hosting</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Automatic updates</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Unlimited read-only users</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>Enterprise support</span>
-                    </li>
-                    <li>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                      <span>20% consulting discount</span>
-                    </li>
-                  </ul>
-                  <div class="tier-cta">
-                    <button class="button button--primary" data-open-trial>Start 14-day free trial</button>
-                  </div>
+                <div class="choice-card">
+                  <h3>Self-Hosted Support</h3>
+                  <p>Best for compliance and privacy-driven deployments that still need priority support.</p>
                 </div>
               </div>
-            </div>
-
-            <!-- Feature Comparison Table -->
-            <div class="comparison-section">
-              <h2>Feature comparison</h2>
-              <table class="comparison-table">
-                <thead>
-                  <tr>
-                    <th>Feature</th>
-                    <th>Free</th>
-                    <th>Ent. Support</th>
-                    <th>Starter</th>
-                    <th>Standard</th>
-                    <th>Max</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="feature-name">Budget Management</td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                  </tr>
-                  <tr>
-                    <td class="feature-name">IT Operations</td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                  </tr>
-                  <tr>
-                    <td class="feature-name">Portfolio Management</td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                  </tr>
-                  <tr>
-                    <td class="feature-name">Unlimited read-only users</td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                  </tr>
-                  <tr>
-                    <td class="feature-name">RBAC & Audit trail</td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                  </tr>
-                  <tr>
-                    <td class="feature-name">Contributors</td>
-                    <td>Unlimited</td>
-                    <td>Unlimited</td>
-                    <td>Up to 5</td>
-                    <td>Up to 25</td>
-                    <td>Unlimited</td>
-                  </tr>
-                  <tr>
-                    <td class="feature-name">On premise</td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><span class="dash-icon">&mdash;</span></td>
-                    <td><span class="dash-icon">&mdash;</span></td>
-                    <td><span class="dash-icon">&mdash;</span></td>
-                  </tr>
-                  <tr>
-                    <td class="feature-name">Cloud hosting</td>
-                    <td><span class="dash-icon">&mdash;</span></td>
-                    <td><span class="dash-icon">&mdash;</span></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                  </tr>
-                  <tr>
-                    <td class="feature-name">Automatic updates</td>
-                    <td><span class="dash-icon">&mdash;</span></td>
-                    <td><span class="dash-icon">&mdash;</span></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                  </tr>
-                  <tr>
-                    <td class="feature-name">Enterprise support</td>
-                    <td><span class="dash-icon">&mdash;</span></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                    <td><svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></td>
-                  </tr>
-                  <tr>
-                    <td class="feature-name">Consulting discount</td>
-                    <td><span class="dash-icon">&mdash;</span></td>
-                    <td>20%</td>
-                    <td>20%</td>
-                    <td>20%</td>
-                    <td>20%</td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
 
             <!-- Support vs Consulting -->
@@ -1014,7 +936,7 @@
               <p>Different needs, different services.</p>
               <div class="support-grid">
                 <div class="support-card">
-                  <h3>Enterprise Support <span class="badge">Included</span></h3>
+                  <h3>Priority Support <span class="badge">Included</span></h3>
                   <p>Keep it running and smooth. For paying subscribers via dedicated email and chat.</p>
                   <ul>
                     <li>Bugs, errors, outages, access issues</li>
@@ -1052,20 +974,20 @@
                   <tr>
                     <td>1 hour</td>
                     <td>Troubleshooting, specific questions, quick advice</td>
-                    <td class="rate">€150</td>
-                    <td class="subscriber-price">€120</td>
+                    <td class="rate">€190</td>
+                    <td class="subscriber-price">€150</td>
                   </tr>
                   <tr>
                     <td>Half day (4h)</td>
                     <td>Onboarding, training, configuration workshop</td>
-                    <td class="rate">€550</td>
-                    <td class="subscriber-price">€440</td>
+                    <td class="rate">€690</td>
+                    <td class="subscriber-price">€550</td>
                   </tr>
                   <tr>
                     <td>Full day (8h)</td>
                     <td>Large team training, in-depth consulting, CIO Advisory</td>
-                    <td class="rate">€1,000</td>
-                    <td class="subscriber-price">€800</td>
+                    <td class="rate">€1,250</td>
+                    <td class="subscriber-price">€1,000</td>
                   </tr>
                 </tbody>
               </table>
@@ -1081,27 +1003,31 @@
                 </div>
                 <div class="faq-item">
                   <h3>How does the free trial work?</h3>
-                  <p>Every paid cloud plan starts with a 14-day free trial. No credit card required. You get full access to all features during the trial period.</p>
+                  <p>Every paid cloud plan starts with a 14-day free trial. No credit card required. You get full access to all features during the trial period, plus one free 60-minute activation session per company if booked during the trial.</p>
                 </div>
                 <div class="faq-item">
                   <h3>What happens after my trial?</h3>
                   <p>After your 14-day trial, you must choose a paid plan to continue. Your tenant will remain available for 30 more days with limited access. After this 30-day period your tenant will be deleted.</p>
                 </div>
                 <div class="faq-item">
+                  <h3>What is the free trial activation session?</h3>
+                  <p>Each trial includes one free 60-minute activation session per company. After subscription, we'll send you an email to book the call. The session happens over video call and is focused on first-value milestones based on your main objectives.</p>
+                </div>
+                <div class="faq-item">
                   <h3>What's the difference between cloud and self-hosted?</h3>
-                  <p>Cloud hosting means we run everything for you &mdash; updates, backups, infrastructure. Self-hosted means you run KANAP on your own servers. Paid cloud plans (Starter, Standard, Max) include cloud hosting; the free tier is self-hosted only. You can purchase Enterprise Support for self-hosted installations.</p>
+                  <p>Cloud hosting means we run everything for you &mdash; updates, backups, infrastructure. Self-hosted means you run KANAP on your own servers. Paid cloud plans (Starter, Standard, Max) include cloud hosting; the free tier is self-hosted only. You can purchase Self-Hosted Support for self-hosted installations.</p>
                 </div>
                 <div class="faq-item">
-                  <h3>What is Enterprise Support?</h3>
-                  <p>Enterprise Support is a professional support add-on for self-hosted installations. It includes email support and a 20% discount on consulting services. Priced at €2,490/yr.</p>
+                  <h3>What is Self-Hosted Support?</h3>
+                  <p>Self-Hosted Support is a professional support add-on for self-hosted installations. It includes priority email support and a 20% discount on consulting services. Priced at €2,490/yr.</p>
                 </div>
                 <div class="faq-item">
-                  <h3>How does enterprise support work?</h3>
+                  <h3>How does priority support work?</h3>
                   <p>For paying subscribers, email us about operational issues and we'll respond within 24h and fix your problem. It's best-effort, no SLA &mdash; but we're real humans who actually read and respond to every message. We'll get it done!</p>
                 </div>
                 <div class="faq-item">
                   <h3>Can I pay by invoice?</h3>
-                  <p>Invoice payment (bank transfer) is available for subscriptions above €1,000. Today, that means Standard annual, Max annual, and Enterprise Support. Subscriptions at or below €1,000 are paid by card. Invoices are NET30.</p>
+                  <p>Invoice payment (bank transfer) is available for subscriptions above €1,000 for EUR customers only. Today, that means Standard annual, Max annual, and Self-Hosted Support. Subscriptions at or below €1,000 are paid by card. Invoices are NET30.</p>
                 </div>
                 <div class="faq-item">
                   <h3>Can I upgrade or downgrade?</h3>
@@ -1121,7 +1047,7 @@
             <!-- Final CTA -->
             <div class="pricing-final-cta">
               <h2>Ready to get started?</h2>
-              <p>Start free with self-hosting, or let us handle everything from €49/mo.</p>
+              <p>Start free with self-hosting, or start a cloud trial from €49/mo with a free 60-minute activation session.</p>
               <button class="button button--primary button--large" data-open-trial>Create your workspace</button>
             </div>
 
@@ -1153,7 +1079,7 @@
           <p class="eyebrow" id="trial-title">Get Started</p>
           <h2 style="margin: 0 0 0.5rem;">Create your workspace</h2>
           <p style="color: var(--muted); margin: 0;">
-            Provision your workspace in minutes. We'll email the activation link to your admin.
+            Provision your workspace in minutes. We'll email the activation link to your admin. Every trial includes one free 60-minute activation session per company.
           </p>
         </div>
         <form class="form-grid" data-trial-form>
@@ -1183,10 +1109,10 @@
           &times;
         </button>
         <div>
-          <p class="eyebrow" id="enterprise-invoice-title">Enterprise Support</p>
+          <p class="eyebrow" id="enterprise-invoice-title">Self-Hosted Support</p>
           <h2 style="margin: 0 0 0.5rem;">Request your invoice</h2>
           <p style="color: var(--muted); margin: 0;">
-            We will create your annual Enterprise Support invoice (NET30) and send it to your billing email.
+            We will create your annual Self-Hosted Support invoice (NET30) and send it to your billing email.
             Upon payment, you'll get access to our professional support services.
           </p>
         </div>
