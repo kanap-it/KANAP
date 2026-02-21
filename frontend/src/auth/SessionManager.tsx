@@ -26,37 +26,43 @@ export function SessionManager({ children }: SessionManagerProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const isRefreshingRef = useRef(false);
+  const isExpiringRef = useRef(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lastActivityAt, setLastActivityAt] = useState<number | null>(() => getLastActivityAt());
   const [refreshTtlMs, setRefreshTtlMs] = useState<number | null>(() => getRefreshTtlMs());
+  const [idleStateReady, setIdleStateReady] = useState(false);
 
   // Skip session management on public pages
   const isPublicPage = ['/login', '/forgot-password', '/reset-password', '/signup'].some(
     (path) => location.pathname.startsWith(path)
   );
 
-  const handleSessionExpired = useCallback(() => {
-    if (!isPublicPage) {
-      void logout();
+  const handleSessionExpired = useCallback(async () => {
+    if (isPublicPage || isExpiringRef.current) return;
+    isExpiringRef.current = true;
+    try {
+      await logout();
       navigate('/login?sessionExpired=true', { replace: true });
+    } finally {
+      isExpiringRef.current = false;
     }
   }, [logout, navigate, isPublicPage]);
 
   const handleTokenRefresh = useCallback(async () => {
-    if (isRefreshingRef.current || !token) return;
+    if (isRefreshingRef.current || !token || !idleStateReady) return;
     if (refreshTtlMs && lastActivityAt && Date.now() - lastActivityAt >= refreshTtlMs) {
-      handleSessionExpired();
+      void handleSessionExpired();
       return;
     }
 
     isRefreshingRef.current = true;
     try {
       const success = await refreshAccessToken();
-      if (!success) handleSessionExpired();
+      if (!success) void handleSessionExpired();
     } finally {
       isRefreshingRef.current = false;
     }
-  }, [token, refreshAccessToken, refreshTtlMs, lastActivityAt, handleSessionExpired]);
+  }, [token, refreshAccessToken, refreshTtlMs, lastActivityAt, handleSessionExpired, idleStateReady]);
 
   // Monitor token expiration
   useSessionTimer({
@@ -78,7 +84,7 @@ export function SessionManager({ children }: SessionManagerProps) {
       if (!tokenExpiresAt) return;
       const timeUntilExpiry = tokenExpiresAt - Date.now();
       // Refresh if less than 5 minutes until expiry (more aggressive than timer)
-      if (timeUntilExpiry < 5 * 60 * 1000 && timeUntilExpiry > 0) {
+      if (idleStateReady && timeUntilExpiry < 5 * 60 * 1000 && timeUntilExpiry > 0) {
         void handleTokenRefresh();
       }
     },
@@ -97,18 +103,23 @@ export function SessionManager({ children }: SessionManagerProps) {
   }, [token, tokenExpiresAt, handleTokenRefresh, isPublicPage]);
 
   useEffect(() => {
-    if (!token || isPublicPage) return;
-    setLastActivityAt(getLastActivityAt());
-    setRefreshTtlMs(getRefreshTtlMs());
-  }, [token, isPublicPage]);
-
-  useEffect(() => {
-    if (!token || isPublicPage) return;
-    if (!lastActivityAt) {
+    if (!token || isPublicPage) {
+      setIdleStateReady(false);
+      setLastActivityAt(null);
+      setRefreshTtlMs(null);
+      return;
+    }
+    const storedLastActivityAt = getLastActivityAt();
+    const storedRefreshTtlMs = getRefreshTtlMs();
+    setRefreshTtlMs(storedRefreshTtlMs);
+    if (storedLastActivityAt) {
+      setLastActivityAt(storedLastActivityAt);
+    } else {
       const now = touchLastActivity();
       setLastActivityAt(now);
     }
-  }, [token, isPublicPage, lastActivityAt]);
+    setIdleStateReady(true);
+  }, [token, isPublicPage]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -130,15 +141,15 @@ export function SessionManager({ children }: SessionManagerProps) {
       clearTimeout(idleTimerRef.current);
       idleTimerRef.current = null;
     }
-    if (!token || isPublicPage || !refreshTtlMs || !lastActivityAt) return;
+    if (!token || isPublicPage || !idleStateReady || !refreshTtlMs || !lastActivityAt) return;
 
     const timeUntilIdle = lastActivityAt + refreshTtlMs - Date.now();
     if (timeUntilIdle <= 0) {
-      handleSessionExpired();
+      void handleSessionExpired();
       return;
     }
     idleTimerRef.current = setTimeout(() => {
-      handleSessionExpired();
+      void handleSessionExpired();
     }, timeUntilIdle);
     return () => {
       if (idleTimerRef.current) {
@@ -146,7 +157,7 @@ export function SessionManager({ children }: SessionManagerProps) {
         idleTimerRef.current = null;
       }
     };
-  }, [token, isPublicPage, refreshTtlMs, lastActivityAt, handleSessionExpired]);
+  }, [token, isPublicPage, idleStateReady, refreshTtlMs, lastActivityAt, handleSessionExpired]);
 
   return <>{children}</>;
 }
