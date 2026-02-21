@@ -49,6 +49,18 @@
           "name": "Standard",
           "price": "149",
           "priceCurrency": "EUR"
+        },
+        {
+          "@type": "Offer",
+          "name": "Max",
+          "price": "249",
+          "priceCurrency": "EUR"
+        },
+        {
+          "@type": "Offer",
+          "name": "Enterprise Support",
+          "price": "2490",
+          "priceCurrency": "EUR"
         }
       ],
       "description": "Open code IT management platform for budget control, enterprise architecture, and portfolio management. O'Saasy licensed.",
@@ -81,7 +93,17 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-JNTR8JXN1Q');
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        analytics_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied'
+      });
+      gtag('config', 'G-JNTR8JXN1Q', {
+        anonymize_ip: true,
+        allow_google_signals: false,
+        send_page_view: false
+      });
     </script>
 
     <link rel="stylesheet" href="assets/styles.css?v=20260219c" />
@@ -120,17 +142,17 @@
           <div class="container hero-grid">
             <div class="hero-content">
               <p class="eyebrow">IT Management Platform</p>
-              <h1>The IT management platform built for clarity</h1>
+              <h1>Clarity for your IT department.</h1>
               <p class="hero-subtitle">
-                Budget control. Application portfolio. Project pipeline.<br />
-                One integrated platform for your entire IT department.
+                Built by a CIO. Made for your team.<br />
+                Budget, architecture, and projects in one integrated platform.
               </p>
               <div class="cta-buttons">
                 <a class="button button--primary" href="offer.html">Get started</a>
               </div>
             </div>
             <div class="hero-visual">
-              <img src="/assets/screenshots/dashboard.png" alt="KANAP Dashboard" class="screenshot-img">
+              <img src="/assets/screenshots/dashboard.png" alt="KANAP Dashboard" class="screenshot-img" loading="eager" fetchpriority="high" decoding="async">
             </div>
           </div>
         </section>

@@ -29,7 +29,17 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-JNTR8JXN1Q');
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        analytics_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied'
+      });
+      gtag('config', 'G-JNTR8JXN1Q', {
+        anonymize_ip: true,
+        allow_google_signals: false,
+        send_page_view: false
+      });
     </script>
 
     <link rel="stylesheet" href="assets/styles.css?v=20260219c" />
@@ -203,7 +213,9 @@
               <li><strong>Analytics cookies:</strong> To understand how visitors use the site and improve user experience.</li>
             </ul>
             <p>
-              You can manage your cookie preferences through your browser settings. Note that disabling essential cookies may affect the functionality of the Platform.
+              You can manage your cookie preferences via the cookie banner displayed on the website
+              and through your browser settings. Note that disabling essential cookies may affect
+              the functionality of the Platform.
             </p>
 
             <h2>11. Modifications to the Policy</h2>

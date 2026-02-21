@@ -1519,6 +1519,7 @@ footer {
   footer,
   .trial-modal,
   .enterprise-invoice-modal,
+  .cookie-banner,
   .cta-buttons {
     display: none !important;
   }
@@ -1585,4 +1586,66 @@ footer {
 
 .module-cross-links a:hover {
   text-decoration: underline;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Cookie Consent Banner
+   ───────────────────────────────────────────────────────────── */
+
+.cookie-banner {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.cookie-banner__content {
+  width: min(920px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.24);
+  padding: 1rem;
+  pointer-events: auto;
+}
+
+.cookie-banner__title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.cookie-banner__text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.cookie-banner__actions {
+  margin-top: 0.9rem;
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.cookie-banner__btn {
+  min-width: 120px;
+}
+
+.cookie-banner__link {
+  margin-top: 0.6rem;
+  display: inline-block;
+  color: var(--primary);
+  font-size: 0.88rem;
+}
+
+@media (min-width: 760px) {
+  .cookie-banner__content {
+    padding: 1rem 1.2rem;
+  }
 }

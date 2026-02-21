@@ -40,7 +40,17 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-JNTR8JXN1Q');
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        analytics_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied'
+      });
+      gtag('config', 'G-JNTR8JXN1Q', {
+        anonymize_ip: true,
+        allow_google_signals: false,
+        send_page_view: false
+      });
     </script>
 
     <link rel="stylesheet" href="../assets/styles.css?v=20260219c" />
@@ -106,7 +116,7 @@
                 </ul>
               </div>
               <div class="hero-visual">
-                <img src="/assets/screenshots/application-grid.png" alt="Application Grid" class="screenshot-img">
+                <img src="/assets/screenshots/application-grid.png" alt="Application Grid" class="screenshot-img" loading="lazy" decoding="async">
               </div>
             </div>
           </div>
@@ -132,7 +142,7 @@
                 </ul>
               </div>
               <div class="hero-visual">
-                <img src="/assets/screenshots/interface-workspace.png" alt="Interface Workspace" class="screenshot-img">
+                <img src="/assets/screenshots/interface-workspace.png" alt="Interface Workspace" class="screenshot-img" loading="lazy" decoding="async">
               </div>
             </div>
           </div>
@@ -158,7 +168,7 @@
                 </ul>
               </div>
               <div class="hero-visual">
-                <img src="/assets/screenshots/server-grid.png" alt="Server Grid" class="screenshot-img">
+                <img src="/assets/screenshots/server-grid.png" alt="Server Grid" class="screenshot-img" loading="lazy" decoding="async">
               </div>
             </div>
           </div>
@@ -183,7 +193,7 @@
                 </ul>
               </div>
               <div class="hero-visual">
-                <img src="/assets/screenshots/interface-map-detail.png" alt="Interface Map" class="screenshot-img">
+                <img src="/assets/screenshots/interface-map-detail.png" alt="Interface Map" class="screenshot-img" loading="lazy" decoding="async">
               </div>
             </div>
           </div>

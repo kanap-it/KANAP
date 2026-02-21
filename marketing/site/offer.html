@@ -110,6 +110,29 @@
     }
     </script>
 
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "KANAP",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "url": "https://kanap.net/offer.html",
+      "offers": [
+        { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "EUR" },
+        { "@type": "Offer", "name": "Starter", "price": "49", "priceCurrency": "EUR" },
+        { "@type": "Offer", "name": "Standard", "price": "149", "priceCurrency": "EUR" },
+        { "@type": "Offer", "name": "Max", "price": "249", "priceCurrency": "EUR" },
+        { "@type": "Offer", "name": "Enterprise Support", "price": "2490", "priceCurrency": "EUR" }
+      ],
+      "publisher": {
+        "@type": "Organization",
+        "name": "Kanap",
+        "url": "https://kanap.net"
+      }
+    }
+    </script>
+
     <link rel="preconnect" href="https://www.googletagmanager.com" />
     <!-- Google Analytics 4 -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-JNTR8JXN1Q"></script>
@@ -117,7 +140,17 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-JNTR8JXN1Q');
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        analytics_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied'
+      });
+      gtag('config', 'G-JNTR8JXN1Q', {
+        anonymize_ip: true,
+        allow_google_signals: false,
+        send_page_view: false
+      });
     </script>
 
     <link rel="stylesheet" href="assets/styles.css?v=20260219c" />

@@ -279,6 +279,226 @@ ZW|Zimbabwe`;
     populateCountrySelects();
   }
 
+  const CONSENT_STORAGE_KEY = 'kanap_cookie_consent_v1';
+  const ATTRIBUTION_STORAGE_KEY = 'kanap_marketing_attribution_v1';
+  const ATTRIBUTION_KEYS = [
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_term',
+    'utm_content',
+    'gclid',
+    'msclkid',
+    'fbclid',
+  ];
+
+  let pageViewSent = false;
+
+  function getStorageValue(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  function setStorageValue(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // Ignore storage errors (private mode/restricted browser settings).
+    }
+  }
+
+  function getReferrerHost() {
+    try {
+      if (!document.referrer) return '';
+      return new URL(document.referrer).hostname || '';
+    } catch {
+      return '';
+    }
+  }
+
+  function buildTouchFromLocation() {
+    const params = new URLSearchParams(window.location.search || '');
+    const touch = {};
+
+    ATTRIBUTION_KEYS.forEach((key) => {
+      const value = String(params.get(key) || '').trim();
+      if (value) touch[key] = value;
+    });
+
+    const landingPath = window.location.pathname || '/';
+    const referrerHost = getReferrerHost();
+    const nowIso = new Date().toISOString();
+    const hasQueryAttribution = ATTRIBUTION_KEYS.some((key) => !!touch[key]);
+
+    touch.landing_path = landingPath;
+    touch.referrer_host = referrerHost || '(direct)';
+    touch.timestamp = nowIso;
+    touch.source_type = hasQueryAttribution ? 'campaign' : (referrerHost ? 'referral' : 'direct');
+    return touch;
+  }
+
+  function initializeAttribution() {
+    const latestTouch = buildTouchFromLocation();
+    let existing = {};
+    const raw = getStorageValue(ATTRIBUTION_STORAGE_KEY);
+
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          existing = parsed;
+        }
+      } catch {
+        existing = {};
+      }
+    }
+
+    const firstTouch = existing.first_touch && typeof existing.first_touch === 'object'
+      ? existing.first_touch
+      : latestTouch;
+
+    const next = {
+      first_touch: firstTouch,
+      latest_touch: latestTouch,
+    };
+    setStorageValue(ATTRIBUTION_STORAGE_KEY, JSON.stringify(next));
+    return next;
+  }
+
+  function getAttribution() {
+    const raw = getStorageValue(ATTRIBUTION_STORAGE_KEY);
+    if (!raw) return initializeAttribution();
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch {
+      // Reinitialize below.
+    }
+    return initializeAttribution();
+  }
+
+  function getEventAttributionParams() {
+    const attribution = getAttribution();
+    const first = attribution.first_touch || {};
+    const latest = attribution.latest_touch || {};
+
+    return {
+      first_source: first.utm_source || first.source_type || '(direct)',
+      first_medium: first.utm_medium || '(none)',
+      first_campaign: first.utm_campaign || '(none)',
+      latest_source: latest.utm_source || latest.source_type || '(direct)',
+      latest_medium: latest.utm_medium || '(none)',
+      latest_campaign: latest.utm_campaign || '(none)',
+      landing_path: first.landing_path || window.location.pathname || '/',
+      referrer_host: latest.referrer_host || first.referrer_host || '(direct)',
+    };
+  }
+
+  function getAttributionPayload() {
+    return getAttribution();
+  }
+
+  function gtagAvailable() {
+    return typeof window.gtag === 'function';
+  }
+
+  function hasAnalyticsConsent() {
+    return getStorageValue(CONSENT_STORAGE_KEY) === 'accepted';
+  }
+
+  function sendPageView() {
+    if (!gtagAvailable() || !hasAnalyticsConsent() || pageViewSent) return;
+    window.gtag('event', 'page_view', {
+      page_title: document.title,
+      page_location: window.location.href,
+      page_path: window.location.pathname,
+      ...getEventAttributionParams(),
+    });
+    pageViewSent = true;
+  }
+
+  function updateConsentState(granted) {
+    if (gtagAvailable()) {
+      window.gtag('consent', 'update', {
+        ad_storage: granted ? 'denied' : 'denied',
+        analytics_storage: granted ? 'granted' : 'denied',
+        ad_user_data: granted ? 'denied' : 'denied',
+        ad_personalization: granted ? 'denied' : 'denied',
+      });
+    }
+    if (granted) {
+      sendPageView();
+    }
+  }
+
+  function trackEvent(name, params) {
+    if (!gtagAvailable() || !hasAnalyticsConsent()) return;
+    window.gtag('event', name, {
+      ...getEventAttributionParams(),
+      ...(params || {}),
+    });
+  }
+
+  function renderCookieBanner() {
+    const stored = getStorageValue(CONSENT_STORAGE_KEY);
+    if (stored === 'accepted' || stored === 'rejected') {
+      updateConsentState(stored === 'accepted');
+      return;
+    }
+
+    const banner = document.createElement('div');
+    banner.className = 'cookie-banner';
+    banner.setAttribute('role', 'dialog');
+    banner.setAttribute('aria-live', 'polite');
+    banner.innerHTML = `
+      <div class="cookie-banner__content">
+        <p class="cookie-banner__title">Analytics cookies</p>
+        <p class="cookie-banner__text">
+          We use analytics cookies to understand product interest and improve the site.
+          You can accept or reject non-essential tracking.
+        </p>
+        <div class="cookie-banner__actions">
+          <button type="button" class="button button--ghost cookie-banner__btn" data-cookie-reject>Reject</button>
+          <button type="button" class="button button--primary cookie-banner__btn" data-cookie-accept>Accept</button>
+        </div>
+        <a class="cookie-banner__link" href="/privacy.html">Read privacy policy</a>
+      </div>
+    `;
+
+    const onAccept = () => {
+      setStorageValue(CONSENT_STORAGE_KEY, 'accepted');
+      updateConsentState(true);
+      trackEvent('cookie_consent_accept', { consent_action: 'accept' });
+      banner.remove();
+    };
+    const onReject = () => {
+      setStorageValue(CONSENT_STORAGE_KEY, 'rejected');
+      updateConsentState(false);
+      if (gtagAvailable()) {
+        window.gtag('event', 'cookie_consent_reject', { consent_action: 'reject' });
+      }
+      banner.remove();
+    };
+
+    banner.querySelector('[data-cookie-accept]')?.addEventListener('click', onAccept);
+    banner.querySelector('[data-cookie-reject]')?.addEventListener('click', onReject);
+    document.body.appendChild(banner);
+  }
+
+  function initAttributionAndConsent() {
+    initializeAttribution();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderCookieBanner);
+    } else {
+      renderCookieBanner();
+    }
+  }
+
+  initAttributionAndConsent();
+
   const captchaState = {
     configPromise: null,
     scriptPromise: null,
@@ -585,6 +805,7 @@ ZW|Zimbabwe`;
     function openModal() {
       modal.classList.add('open');
       body.style.overflow = 'hidden';
+      trackEvent('trial_modal_open', { form_name: 'start_trial' });
       const orgInput = modal.querySelector('#org');
       if (orgInput) orgInput.focus();
       if (trialForm && trialStatus) {
@@ -651,8 +872,10 @@ ZW|Zimbabwe`;
           slug: trialForm.slug.value.trim(),
           email: trialForm.email.value.trim(),
           country_iso: (trialForm.country_iso?.value || '').toString().toUpperCase().trim(),
+          attribution: getAttributionPayload(),
           captchaToken: captcha.token || undefined,
         };
+        trackEvent('trial_submit', { form_name: 'start_trial' });
 
         try {
           const response = await fetch('/api/public/start-trial', {
@@ -681,6 +904,7 @@ ZW|Zimbabwe`;
               });
             }
             if (data.activation_url) {
+              trackEvent('trial_success', { activation_delivery: 'manual_link' });
               trialStatus.innerHTML =
                 '<span class="alert">Email service is not configured. Use the link below to activate your workspace manually.</span>';
               const manual = document.createElement('p');
@@ -688,6 +912,7 @@ ZW|Zimbabwe`;
               manual.innerHTML = `Activation link: <a href="${data.activation_url}">${data.activation_url}</a>`;
               trialStatus.appendChild(manual);
             } else {
+              trackEvent('trial_success', { activation_delivery: 'email' });
               trialStatus.innerHTML = '<span class="alert">Check your inbox to activate your workspace.</span>';
             }
             return;
@@ -703,6 +928,11 @@ ZW|Zimbabwe`;
           } else {
             trialStatus.textContent = resolveTrialSignupErrorMessage(detail, code, status);
           }
+          trackEvent('trial_error', {
+            form_name: 'start_trial',
+            error_code: code || 'unknown',
+            error_status: status || 0,
+          });
           resetCaptcha(trialForm);
           if (submitBtn) {
             submitBtn.removeAttribute('disabled');
@@ -731,6 +961,7 @@ ZW|Zimbabwe`;
     const openEnterpriseModal = () => {
       enterpriseModal.classList.add('open');
       body.style.overflow = 'hidden';
+      trackEvent('invoice_modal_open', { form_name: 'support_invoice' });
       const companyInput = enterpriseModal.querySelector('#enterprise_company_name');
       if (companyInput) companyInput.focus();
       if (enterpriseForm && enterpriseStatus) {
@@ -811,8 +1042,10 @@ ZW|Zimbabwe`;
           address_line2: optionalValue('address_line2'),
           city: optionalValue('city'),
           postal_code: optionalValue('postal_code'),
+          attribution: getAttributionPayload(),
           captchaToken: captcha.token || undefined,
         };
+        trackEvent('invoice_submit', { form_name: 'support_invoice' });
 
         try {
           const response = await fetch('/api/public/request-support-invoice', {
@@ -837,9 +1070,11 @@ ZW|Zimbabwe`;
             });
             const hostedInvoiceUrl = typeof data.hosted_invoice_url === 'string' ? data.hosted_invoice_url : '';
             if (hostedInvoiceUrl) {
+              trackEvent('invoice_success', { invoice_url: 'present' });
               enterpriseStatus.innerHTML =
                 `<span class="alert">Invoice request submitted. We sent it to your billing email. <a href="${hostedInvoiceUrl}" target="_blank" rel="noopener noreferrer">Open invoice</a>.</span>`;
             } else {
+              trackEvent('invoice_success', { invoice_url: 'absent' });
               enterpriseStatus.innerHTML =
                 '<span class="alert">Invoice request submitted. Please check your billing email for invoice details.</span>';
             }
@@ -856,6 +1091,7 @@ ZW|Zimbabwe`;
           } else {
             enterpriseStatus.textContent = 'We could not submit your invoice request. Please try again or contact support@kanap.net.';
           }
+          trackEvent('invoice_error', { form_name: 'support_invoice' });
           resetCaptcha(enterpriseForm);
           if (submitBtn) submitBtn.removeAttribute('disabled');
         }
@@ -889,8 +1125,10 @@ ZW|Zimbabwe`;
         email: contactForm.email.value.trim(),
         company: contactForm.company.value.trim(),
         message: contactForm.message.value.trim(),
+        attribution: getAttributionPayload(),
         captchaToken: captcha.token || undefined,
       };
+      trackEvent('contact_submit', { form_name: 'contact' });
 
       try {
         const response = await fetch('/api/public/contact', {
@@ -908,6 +1146,7 @@ ZW|Zimbabwe`;
 
         const data = await response.json();
         if (data && data.ok) {
+          trackEvent('contact_success', { form_name: 'contact' });
           contactStatus.innerHTML =
             '<span class="alert">Thank you! We will reply within one business day.</span>';
           contactForm.reset();
@@ -922,6 +1161,7 @@ ZW|Zimbabwe`;
         } else {
           contactStatus.textContent = 'We could not send your message. Please try again or email support@kanap.net directly.';
         }
+        trackEvent('contact_error', { form_name: 'contact' });
         resetCaptcha(contactForm);
       } finally {
         if (submitBtn) submitBtn.removeAttribute('disabled');
@@ -957,6 +1197,7 @@ ZW|Zimbabwe`;
 
     document.querySelectorAll('.screenshot-img').forEach(function (el) {
       el.addEventListener('click', function () {
+        trackEvent('screenshot_open', { alt_text: el.alt || 'unknown' });
         img.src = el.src;
         img.alt = el.alt;
         overlay.style.display = 'flex';
@@ -1029,4 +1270,18 @@ ZW|Zimbabwe`;
       }
     })();
   }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+    const offerLink = target.closest('a[href$=\"offer.html\"]');
+    if (offerLink) {
+      trackEvent('pricing_cta_click', { cta_type: 'offer_link' });
+      return;
+    }
+    const contactLink = target.closest('a[href$=\"contact.html\"]');
+    if (contactLink) {
+      trackEvent('contact_cta_click', { cta_type: 'contact_link' });
+    }
+  });
 })();
