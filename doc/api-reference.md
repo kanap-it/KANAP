@@ -4,7 +4,7 @@ Metadata
 - Purpose: Quick reference for core endpoints and allocation/metrics model
 - Audience: Engineers, integrators
 - Status: current
-- Last Updated: 2026-02-14
+- Last Updated: 2026-02-21
 
 ## Auth
 
@@ -32,15 +32,15 @@ Rate limiting (default enabled):
   - Returns both tokens; `expires_in` is access token lifetime in seconds
   - `refresh_expires_in` is the refresh-token TTL in seconds (idle timeout window)
   - Use header `Authorization: Bearer <access_token>` for protected routes
-  - Store `refresh_token` securely for session refresh
+  - Backend also sets `refresh_token` as an `HttpOnly` cookie (primary transport for refresh/logout)
 
 - POST `/auth/refresh` → `{ access_token, expires_in, refresh_expires_in }`
-  - Body: `{ refresh_token: string }`
+  - Body: `{ refresh_token?: string }` (optional when `refresh_token` cookie is present)
   - Validates the refresh token, extends its expiration (sliding window), returns new access token
   - Returns 401 if refresh token is invalid or expired
 
 - POST `/auth/logout` → `{ ok: true }`
-  - Body: `{ refresh_token: string }`
+  - Body: `{ refresh_token?: string }` (optional when `refresh_token` cookie is present)
   - Revokes the refresh token (logout from current device)
   - Always returns success even if token was already revoked
 

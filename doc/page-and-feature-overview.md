@@ -74,8 +74,8 @@ Behavior
 | `/admin/tenants` | `frontend/src/pages/admin/AdminTenantsPage.tsx` | Platform host console: tenant list, freeze/unfreeze, plan updates, synchronous deletion. | Platform admin only (host guard). |
 
 ### Public/Auth Pages
-- `/login` (public) now surfaces both the email/password form and a **Sign in with Microsoft** CTA on tenant hosts. The CTA sends browsers to `/auth/entra/login?redirectTo=…`, which in turn redirects to Microsoft and eventually lands at `/login/callback` with a `token` query parameter.
-- `/login/callback` (public) is a thin bridge that calls `AuthContext.login(token)` and navigates to the requested route with history replacement so JWTs never linger in the back/forward stack. If the token is missing or invalid it redirects back to `/login` with error state.
+- `/login` (public) surfaces both the email/password form and a **Sign in with Microsoft** CTA on tenant hosts. When redirected back with `?sessionExpired=true`, it shows “Your session has expired. Please sign in again.” once, and clears that state on a new sign-in attempt.
+- `/login/callback` (public) reads auth payload from the URL fragment (`#token=...&refreshToken=...&expiresIn=...`) and calls `AuthContext.login(...)`, then navigates with history replacement so token fragments do not remain in browser history. If the payload is missing or invalid it redirects back to `/login` with error state.
 
 Supporting infrastructure:
 - `frontend/src/components/Layout.tsx` drives the Budget Management/Admin workspace toggle, left navigation, and permission-aware menu (`hasLevel`).

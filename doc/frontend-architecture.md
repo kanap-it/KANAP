@@ -69,22 +69,23 @@ The frontend implements automatic session management with sliding expiration:
 - The frontend proactively refreshes tokens 1 minute before expiry
 - User activity (with 30-second debounce) triggers token refresh when < 5 minutes until expiry
 - SessionManager tracks last user activity (synced across tabs) and enforces the refresh TTL as an inactivity timeout
+- After login, SessionManager rehydrates idle state from storage before evaluating expiration to avoid stale-state redirects during the token transition from `/login` to protected routes
+- On expiry, SessionManager awaits logout completion before redirecting to `/login?sessionExpired=true` to avoid token-clear races
 - The idle window is sourced from `refresh_expires_in` and stored as `refresh_ttl_ms`
 - If the refresh token expires (4 hours of inactivity by default), users are **silently redirected** to `/login?sessionExpired=true`
 - No warning dialogs - the redirect is immediate and automatic
 
 **Token Storage:**
-- `localStorage.token`: Current access token
-- `localStorage.refresh_token`: Refresh token for session extension
-- `localStorage.token_expires_at`: Unix timestamp (ms) when access token expires
+- `accessTokenStore` (`src/auth/accessTokenStore.ts`): in-memory access token for the current tab
+- `HttpOnly` `refresh_token` cookie (set by backend): refresh token transport for `/auth/refresh` and `/auth/logout`
 - `localStorage.refresh_ttl_ms`: Refresh token TTL in milliseconds (idle timeout window, supplied by backend)
 - `localStorage.last_activity_at`: Unix timestamp (ms) of the most recent user activity (shared across tabs)
+- Legacy localStorage keys (`token`, `refresh_token`, `token_expires_at`) are cleared on bootstrap/login and are no longer part of the active auth model
 
 **API Client Integration:**
-The Axios client (`src/api/client.ts`) automatically handles 401 responses:
-1. Attempts to refresh the token using the stored refresh token
-2. Retries the original request with the new access token
-3. If refresh fails or the idle window has elapsed, clears all tokens and redirects to login
+- The app-wide Axios instance is `src/api.ts`; it injects the in-memory access token into `Authorization` headers.
+- `AuthContext` performs startup refresh (`POST /auth/refresh`) and loads claims via `GET /auth/me`.
+- `SessionManager` orchestrates expiry detection, refresh attempts, and redirect-on-expiry behavior.
 - `/admin/auth` (Admin workspace) surfaces current SSO status and CTA buttons:
   - “Connect/Reconnect Microsoft Entra” → `api.post('/auth/entra/setup/start')` (requires JWT). On success, the browser navigates to the returned Microsoft consent URL.
   - “Test Microsoft sign-in” → redirects to `/auth/entra/login?redirectTo=/admin/auth` so admins can validate the tenant’s Entra connection end-to-end.
