@@ -7,7 +7,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     restart: unless-stopped
     # Default CMD runs migrations then starts API
 
@@ -21,7 +21,7 @@ services:
     depends_on:
       - api
     ports:
-      - "8081:80"
+      - "127.0.0.1:8081:80"
     restart: unless-stopped
     # nginx serves SPA; proxy /api to api service
 
@@ -30,5 +30,5 @@ services:
       context: ../marketing
       dockerfile: Dockerfile
     ports:
-      - "8082:80"
+      - "127.0.0.1:8082:80"
     restart: unless-stopped
