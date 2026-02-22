@@ -411,12 +411,6 @@ export default function ConnectionMapGraph({
             (el as HTMLElement).style.filter = 'none';
           });
 
-          // Remove label strokes that can leave faint anti-aliased seams on export
-          clonedSvg.querySelectorAll('text').forEach((el) => {
-            el.removeAttribute('stroke');
-            el.removeAttribute('stroke-width');
-            el.removeAttribute('paint-order');
-          });
 
           // Remove markers/defs to prevent canvas marker glitches
           clonedSvg.querySelectorAll('path[marker-end]').forEach((el) => {
@@ -446,20 +440,10 @@ export default function ConnectionMapGraph({
           const canvasScale = Math.max(1, Math.ceil(window.devicePixelRatio || 1));
           const canvasWidth = exportWidth * canvasScale;
           const canvasHeight = exportHeight * canvasScale;
-
-          // Try OffscreenCanvas if available, otherwise regular canvas
-          let canvas: HTMLCanvasElement | OffscreenCanvas;
-          let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
-
-          if (typeof OffscreenCanvas !== 'undefined') {
-            canvas = new OffscreenCanvas(canvasWidth, canvasHeight);
-            ctx = canvas.getContext('2d');
-          } else {
-            canvas = document.createElement('canvas');
-            canvas.width = canvasWidth;
-            canvas.height = canvasHeight;
-            ctx = canvas.getContext('2d');
-          }
+          const canvas = document.createElement('canvas');
+          canvas.width = canvasWidth;
+          canvas.height = canvasHeight;
+          const ctx = canvas.getContext('2d');
 
           if (!ctx) return;
           (ctx as any).imageSmoothingEnabled = false;
@@ -479,9 +463,8 @@ export default function ConnectionMapGraph({
             ctx!.drawImage(img, 0, 0);
             ctx!.restore();
 
-            // Export
-            if (canvas instanceof OffscreenCanvas) {
-              canvas.convertToBlob({ type: 'image/png' }).then((blob) => {
+            canvas.toBlob((blob) => {
+              if (blob) {
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
@@ -490,16 +473,17 @@ export default function ConnectionMapGraph({
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
-              });
-            } else {
-              const pngUrl = canvas.toDataURL('image/png');
-              const link = document.createElement('a');
-              link.href = pngUrl;
-              link.download = 'connection-map.png';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }
+              } else {
+                const pngUrl = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.href = pngUrl;
+                link.download = 'connection-map.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }
+            }, 'image/png');
+            URL.revokeObjectURL(dataUrl);
           };
 
           img.onerror = (err) => {

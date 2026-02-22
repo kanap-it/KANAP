@@ -1,7 +1,7 @@
 # Accounts and Charts of Accounts (Tenant + Platform Admin)
 
 Status: current (merged CoA+Accounts page implemented; legacy accounts list route redirected)
-Last Updated: 2026-02-16
+Last Updated: 2026-02-22
 
 This document explains the functional model and APIs for Charts of Accounts (CoA) and Accounts, including tenant flows, platform-admin templates, CSV import/export, the native account name capability, and CoA filtering in OPEX/CAPEX workspaces.
 
@@ -9,9 +9,10 @@ This document explains the functional model and APIs for Charts of Accounts (CoA
 
 - Chart of Accounts (CoA): A named set of accounts in a tenant. One default CoA can be set per country. Companies link to a CoA via `companies.coa_id`. Accounts link to a CoA via `accounts.coa_id` (NOT NULL).
 - Platform Templates: A catalog of per-country CoA templates managed by platform admins. Tenants can load a template into a CoA (copy), then edit accounts freely.
+- Seed Templates: 20 pre-configured templates (10 standards × 2 versions) are seeded automatically via migration. See [Seed Templates](#seed-templates) for the full catalog.
 - CSV alignment: Accounts CSV import/export is CoA-aware. Global accounts CSV includes a `coa_code` column. CoA-scoped CSV uses the CoA route.
 - Native account name: Each account can optionally carry a `native_name` (original local-language name). The UI shows it as a tooltip over the English name and exposes a hidden "Native Name" column.
- - Global templates: When loading a platform template marked global, country input is not required; the CoA is created with scope `GLOBAL` (no country). A tenant may mark one CoA as the Global Default; setting a Global Default also assigns it to all companies in the tenant where `companies.coa_id` is NULL.
+- Global templates: When loading a platform template marked global, country input is not required; the CoA is created with scope `GLOBAL` (no country). A tenant may mark one CoA as the Global Default; setting a Global Default also assigns it to all companies in the tenant where `companies.coa_id` is NULL.
 
 ## CoA Filtering Logic (Accounts by Company)
 
@@ -302,13 +303,117 @@ Account create/edit:
 - Workspace: `/admin/standard-accounts/:templateId/:accountNumber/overview` with prev/next navigation
 - Isolation: This UI only edits the template CSV; tenant `accounts` are unaffected until a tenant loads the template into their CoA
 
+## Seed Templates
+
+### Overview
+
+KANAP ships with **20 pre-configured CoA templates** covering 10 accounting standards, each in two versions:
+
+| Code | Country | Standard | v1.0 Accounts | v2.0 Accounts |
+|------|---------|----------|---------------|---------------|
+| `IFRS` | Global | IFRS | 14 | ~30 |
+| `FR-PCG` | FR | Plan Comptable General | 20 | ~31 |
+| `DE-SKR03` | DE | Standardkontenrahmen 03 | 20 | ~32 |
+| `GB-UKGAAP` | GB | UK GAAP | 20 | ~31 |
+| `ES-PGC` | ES | Plan General de Contabilidad | 20 | ~31 |
+| `IT-PDC` | IT | Piano dei Conti | 20 | ~31 |
+| `NL-RGS` | NL | Rekeningschema (RGS) | 20 | ~31 |
+| `BE-PCMN` | BE | Plan Comptable Minimum Normalise | 20 | ~31 |
+| `CH-KMU` | CH | Kontenrahmen KMU | 20 | ~31 |
+| `US-USGAAP` | US | US GAAP | 20 | ~32 |
+
+**v1.0 (Simple)**: IT-focused accounts using real country-standard account numbers. Covers the essential cost categories: CAPEX (hardware, software), OPEX (licenses, cloud, telecom, consulting, staff, training, etc.).
+
+**v2.0 (Detailed)**: All v1.0 accounts plus granular sub-accounts (e.g., Purchased vs. Internally Developed Software, Network Equipment, SaaS vs. Perpetual Licenses, Mobile Communications, IT Bonuses, IT Insurance).
+
+**IFRS v1.0** is special: it contains the 14 consolidation accounts themselves, each self-referencing as its own consolidation target. It is marked `loaded_by_default=true` and auto-provisioned to new tenants.
+
+### Consolidation Mapping
+
+All templates map every account to one of 14 IFRS consolidation accounts:
+
+| # | Account | Category |
+|---|---------|----------|
+| 1000 | Tangible Assets (CAPEX) | Physical IT equipment — IAS 16 |
+| 1100 | Intangible Assets (CAPEX) | Capitalized software and rights — IAS 38 |
+| 1200 | Depreciation & Amortization | Expense for PPE and intangibles — IAS 16/38 |
+| 1300 | Impairments & Write-offs | Impairment of assets — IAS 36 |
+| 2000 | Software Licenses (OPEX) | Recurring licenses and subscriptions |
+| 2100 | Cloud & Hosting Services | IaaS/PaaS/SaaS usage and hosting |
+| 2200 | Telecommunications & Network | Internet, mobile, lines, VPN |
+| 2300 | Maintenance & Support | Software/hardware maintenance contracts |
+| 2400 | IT Consulting & External Services | Professional services, integration, contractors |
+| 2500 | IT Staff Costs | Salaries, benefits — IAS 19 |
+| 2600 | Training & Certification | Staff training and certifications |
+| 2700 | Workplace IT (Non-capitalized) | End-user devices/peripherals not capitalized |
+| 2800 | Travel & Mobility (IT Projects) | Project-related travel costs |
+| 2900 | Other IT Operating Expenses | Miscellaneous IT OPEX |
+
+### File Structure
+
+Templates are stored as TypeScript string constants in `backend/src/seed/coa-templates/`:
+
+```
+backend/src/seed/coa-templates/
+  index.ts              # TemplateDefinition[] registry — metadata + CSV imports
+  ifrs-v1.ts            # IFRS v1.0 (14 self-referencing consolidation accounts)
+  ifrs-v2.ts            # IFRS v2.0 (14 parents + ~16 sub-accounts)
+  fr-pcg-v1.ts          # France v1.0 (6-digit PCG numbers)
+  fr-pcg-v2.ts          # France v2.0
+  de-skr03-v1.ts        # Germany v1.0 (SKR03 ranges)
+  de-skr03-v2.ts        # Germany v2.0
+  gb-ukgaap-v1.ts       # UK v1.0
+  gb-ukgaap-v2.ts       # UK v2.0
+  es-pgc-v1.ts          # Spain v1.0
+  es-pgc-v2.ts          # Spain v2.0
+  it-pdc-v1.ts          # Italy v1.0
+  it-pdc-v2.ts          # Italy v2.0
+  nl-rgs-v1.ts          # Netherlands v1.0
+  nl-rgs-v2.ts          # Netherlands v2.0
+  be-pcmn-v1.ts         # Belgium v1.0
+  be-pcmn-v2.ts         # Belgium v2.0
+  ch-kmu-v1.ts          # Switzerland v1.0
+  ch-kmu-v2.ts          # Switzerland v2.0
+  us-usgaap-v1.ts       # US v1.0
+  us-usgaap-v2.ts       # US v2.0
+```
+
+Each file exports a `csv` string constant with BOM prefix (`\ufeff`) and semicolon delimiter, matching the `encodeTemplateRows` convention in `admin-coa-templates.service.ts`. TypeScript string exports were chosen over `.csv` files to avoid adding `copyfiles` to the build pipeline.
+
+### Migration
+
+**File**: `backend/src/migrations/1826000000000-seed-coa-templates.ts`
+
+**`up()` logic** (destructive replacement — intentional):
+1. Validates all CSV payloads (header schema, integer account numbers, valid status values)
+2. `DELETE FROM coa_templates` — replaces all existing templates
+3. Inserts all 20 templates from the `TEMPLATES` registry
+4. Asserts exactly one `loaded_by_default=true` global template exists (IFRS v1.0)
+
+**`down()` logic**: Deletes seeded templates by matching `(template_code, version, is_global, country_iso)` 4-tuple. Does not restore previously deleted manual templates.
+
+**Note**: The migration is explicitly destructive. Tenant CoAs copied from previous templates are unaffected (no FK dependency between `coa_templates` and tenant `accounts`).
+
+### Native Names
+
+Country templates include `native_name` in the local language:
+- FR: `Logiciels informatiques`, `Hebergement cloud et IaaS`
+- DE: `EDV-Software`, `Cloud-Hosting und IaaS`
+- IT: `Licenze software`, `Hosting cloud e IaaS`
+- NL: `Softwarelicenties`, `Cloudhosting en IaaS`
+- BE: `Logiciels informatiques`, `Hebergement cloud et IaaS`
+- CH: `Software`, `Cloud-Hosting und IaaS`
+- ES: `Licencias de software`, `Alojamiento cloud e IaaS`
+- GB/US: No native names (English is the primary language)
+
 ## Security & RLS
 - All tenant resources apply RLS using `app.current_tenant()`
 - Platform admin APIs are only accessible on the platform host with platform admin privileges
 
 ## Migrations & Ops
 - Run migrations: `cd backend && npm run typeorm -- migration:run`
-  - Includes: initial CoA, CoA templates, `accounts.native_name`, Legacy CoA backfill, `accounts.coa_id` NOT NULL, and CoA `scope` migration (GLOBAL vs COUNTRY with constraints)
+  - Includes: initial CoA, CoA templates, `accounts.native_name`, Legacy CoA backfill, `accounts.coa_id` NOT NULL, CoA `scope` migration (GLOBAL vs COUNTRY with constraints), and seed CoA templates (20 templates)
+- Seed templates migration (`1826000000000-seed-coa-templates`): replaces all `coa_templates` rows with the 20 seed templates. Revert + re-run is safe. Tenant CoAs are unaffected.
 - Backend build: `cd backend && npm run build`
 - Frontend: `cd frontend && npm run build` or `npm run dev`
 

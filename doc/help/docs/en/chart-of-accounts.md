@@ -62,13 +62,63 @@ Templates are standard account sets managed by platform administrators. They can
   - The system shows a preflight report (how many accounts will be inserted/updated)
   - Confirm to copy accounts into your CoA
 
-**What gets copied**: Account numbers, names, descriptions, consolidation mappings, and status. The accounts become yours to edit—changes to the platform template won't affect your CoA unless you explicitly reload it.
+**What gets copied**: Account numbers, names, native names (local language), descriptions, consolidation mappings, and status. The accounts become yours to edit—changes to the platform template won't affect your CoA unless you explicitly reload it.
 
 **Tip**: After loading a template, you can add company-specific accounts, rename entries, or disable unused accounts. Templates provide a starting point, not a locked structure.
 
+### Available templates
+
+KANAP ships with **20 pre-configured templates** covering 10 accounting standards. Each standard comes in two versions:
+
+- **v1.0 (Simple)**: A focused set of ~20 IT-relevant accounts — software licenses, cloud hosting, cybersecurity, telecom, consulting, staff costs, training, and more. Best for organizations that want a lean starting point.
+- **v2.0 (Detailed)**: Everything in v1.0 plus additional granular sub-accounts (~30 accounts). Adds breakdowns like Purchased vs. Internally Developed Software, Network Equipment, SaaS vs. Perpetual Licenses, Mobile Communications, IT Bonuses, IT Insurance, and more. Best for organizations that need finer cost tracking.
+
+Both versions use **real account numbers from each country's official accounting standard** and include native names in the local language.
+
+| Template Code | Country | Standard | Accounts (v1 / v2) |
+|---------------|---------|----------|---------------------|
+| **IFRS** | Global | International Financial Reporting Standards | 14 / 30 |
+| **FR-PCG** | France | Plan Comptable General | 20 / 31 |
+| **DE-SKR03** | Germany | Standardkontenrahmen 03 | 20 / 32 |
+| **GB-UKGAAP** | United Kingdom | UK GAAP | 20 / 31 |
+| **ES-PGC** | Spain | Plan General de Contabilidad | 20 / 31 |
+| **IT-PDC** | Italy | Piano dei Conti | 20 / 31 |
+| **NL-RGS** | Netherlands | Rekeningschema (RGS) | 20 / 31 |
+| **BE-PCMN** | Belgium | Plan Comptable Minimum Normalise | 20 / 31 |
+| **CH-KMU** | Switzerland | Kontenrahmen KMU | 20 / 31 |
+| **US-USGAAP** | United States | US GAAP | 20 / 32 |
+
+**Choosing a version**:
+
+  - Start with **v1.0** if you want a clean, minimal chart that covers the essential IT cost categories. You can always add accounts later.
+  - Choose **v2.0** if your organization tracks IT spending at a granular level (e.g., distinguishing SaaS subscriptions from perpetual licenses, or splitting IT salaries from bonuses).
+
+### IFRS consolidation built in
+
+All templates — regardless of country — map every account to one of **14 standardized IFRS consolidation accounts**. This means group-level reporting works out of the box, even across different local standards.
+
+| # | Consolidation Account | What it covers |
+|---|-----------------------|----------------|
+| 1000 | Tangible Assets (CAPEX) | Physical IT equipment — servers, workstations, network gear |
+| 1100 | Intangible Assets (CAPEX) | Capitalized software and development costs |
+| 1200 | Depreciation & Amortization | Depreciation of hardware and software |
+| 1300 | Impairments & Write-offs | Asset impairments and write-downs |
+| 2000 | Software Licenses (OPEX) | Perpetual licenses, SaaS subscriptions, open-source support |
+| 2100 | Cloud & Hosting Services | IaaS, PaaS, monitoring, cybersecurity tools |
+| 2200 | Telecommunications & Network | Internet, mobile, WAN/LAN |
+| 2300 | Maintenance & Support | Hardware and software maintenance contracts |
+| 2400 | IT Consulting & External Services | Advisory, systems integration, contractors |
+| 2500 | IT Staff Costs | Salaries, bonuses, social charges, pensions |
+| 2600 | Training & Certification | Training programs, certifications, conferences |
+| 2700 | Workplace IT (Non-capitalized) | End-user devices below capitalization threshold |
+| 2800 | Travel & Mobility (IT Projects) | Project-related travel |
+| 2900 | Other IT Operating Expenses | Miscellaneous IT costs, cyber insurance |
+
+**Example**: Your French subsidiary loads **FR-PCG v1.0** and your German subsidiary loads **DE-SKR03 v1.0**. Both use different local account numbers and native names, but every account maps to the same IFRS consolidation structure. Group-level reports aggregate seamlessly without any manual mapping work.
+
 ### Global Default CoA (Provisioning)
 
-New workspaces can be provisioned with a preloaded CoA (for example, “IFRS‑Basic”) when a platform global template is marked “Loaded by default”. This CoA is created with scope `GLOBAL` (no country) and set as the tenant’s Global Default so that companies without a country default can use it immediately. You can edit or delete the preloaded accounts/CoA later as needed (subject to standard guardrails).
+New workspaces are automatically provisioned with the **IFRS v1.0** template. This creates a `GLOBAL`‑scoped CoA containing the 14 IFRS consolidation accounts and sets it as the tenant’s Global Default, so companies can use it immediately without any setup. You can edit or delete the preloaded accounts/CoA later as needed (subject to standard guardrails).
 
 Global CoAs are shown with scope metadata in the **Manage** modal, with no country value for `GLOBAL` entries. Only `GLOBAL` CoAs can be marked as the Global Default, and only `COUNTRY` CoAs can be set as a per-country default.
 
@@ -149,8 +199,8 @@ All three local accounts map to the same IFRS consolidation account `6200`, enab
 
 ### Setting up consolidation mappings
 
-**Option 1: Templates**
-If you load accounts from platform templates, consolidation mappings may already be included (depending on the template). Check the consolidation columns after loading.
+**Option 1: Templates (recommended)**
+All built-in templates include IFRS consolidation mappings on every account. Load any country template and the consolidation columns are already filled in — no manual mapping needed. See [Available templates](#available-templates) for the full list.
 
 **Option 2: CSV import**
 When importing accounts, include the consolidation fields in your CSV:
@@ -167,8 +217,8 @@ Edit accounts individually and fill in the consolidation fields in the account w
 
 ### Best practices
 
-  - **Use a common standard**: IFRS is typical for European groups; US GAAP for American companies
-  - **Maintain a consolidation chart**: Keep a separate reference document listing your consolidation accounts and what they represent
+  - **Use a common standard**: IFRS is typical for European groups; US GAAP for American companies. All built-in templates already map to the same 14 IFRS consolidation accounts (see [IFRS consolidation built in](#ifrs-consolidation-built-in))
+  - **Maintain a consolidation chart**: Keep a reference document listing your consolidation accounts and what they represent. If you use the built-in templates, the 14 IFRS accounts serve as this reference
   - **Map at the right granularity**: Don't consolidate too broadly (loses insight) or too narrowly (too complex)
   - **Involve finance**: Consolidation account mappings should align with your group's financial reporting requirements
   - **Update systematically**: When you add local accounts, immediately map them to consolidation accounts
@@ -297,7 +347,7 @@ account_number;account_name;native_name;description;consolidation_account_number
 
 ## Tips
 
-  - **Start with templates**: If your country has a template, load it instead of building from scratch. You can always customize after loading.
+  - **Start with templates**: KANAP ships with templates for 9 countries plus IFRS. Load one instead of building from scratch — you get proper account numbers, native names, and IFRS consolidation mappings out of the box. Start with v1.0 (Simple) if unsure; upgrade to v2.0 (Detailed) if you need more granularity.
   - **One default per country**: Set a default CoA for each country so new companies are automatically assigned to the right account structure.
   - **Native names for compliance**: Use the Native Name field if local regulations require accounts in the local language.
   - **Migrate gradually**: You don't have to convert everything at once. Companies without CoAs continue to work with legacy accounts.
@@ -305,7 +355,7 @@ account_number;account_name;native_name;description;consolidation_account_number
   - **Disable over delete**: Disabling accounts preserves history. Only delete accounts that were created by mistake and have never been used.
   - **CSV imports are additive**: Importing accounts adds new ones and updates existing ones (matched by coa_code + account_number). It doesn't delete accounts not in the file.
   - **Consolidation accounts are key for groups**: If you operate in multiple countries, set up consolidation mappings from day one. This makes group-level reporting effortless and keeps local users working with familiar accounts.
-  - **IFRS as consolidation standard**: Most European groups use IFRS for consolidation. Define your IFRS chart once, then map each local account to its IFRS equivalent.
+  - **IFRS as consolidation standard**: Most European groups use IFRS for consolidation. All built-in templates already map to the same 14 IFRS consolidation accounts, so group reporting works across countries with no extra setup.
 
 ## Common scenarios
 
@@ -314,10 +364,11 @@ account_number;account_name;native_name;description;consolidation_account_number
 You have subsidiaries in France, UK, and Germany, each following local accounting standards.
 
 **Setup**:
-  1. Create three CoAs: `FR-PCG`, `UK-GAAP`, `DE-HGB` (or load from templates)
+  1. Load three templates: **FR-PCG v1.0**, **GB-UKGAAP v1.0**, **DE-SKR03 v1.0** (or v2.0 for more granularity)
   2. Set each as the default for its country
   3. Assign companies to their respective CoAs
   4. New companies automatically get the right CoA; account selection is filtered accordingly
+  5. Consolidation mappings are already in place — group reports work immediately
 
 ### Scenario 2: Migrating from legacy to CoA
 
@@ -347,29 +398,24 @@ Your UK subsidiary switches from UK GAAP to IFRS.
 Your group has subsidiaries in France, UK, and Germany. Each country uses its local accounting standard, but you need consolidated IFRS reporting.
 
 **Setup**:
-  1. Define your IFRS consolidation chart (e.g., `6000-6999` for IT costs)
-      - `6100` - Hardware and infrastructure
-      - `6200` - IT services and software
-      - `6300` - Telecommunications
-      - `6400` - IT personnel costs
+  1. Load country templates with built-in IFRS consolidation:
+      - **FR-PCG v1.0** — French Plan Comptable General (20 accounts)
+      - **GB-UKGAAP v1.0** — UK GAAP (20 accounts)
+      - **DE-SKR03 v1.0** — Standardkontenrahmen 03 (20 accounts)
 
-  2. Create or load local CoAs for each country:
-      - `FR-PCG` (French Plan Comptable Général)
-      - `UK-GAAP` (UK Generally Accepted Accounting Principles)
-      - `DE-HGB` (German Handelsgesetzbuch)
+  2. Every account in these templates already maps to one of the 14 IFRS consolidation accounts. For example:
+      - FR-PCG `205000` (Logiciels informatiques) → IFRS `1100` (Intangible Assets)
+      - GB-UKGAAP `510` (Capitalized Software) → IFRS `1100` (Intangible Assets)
+      - DE-SKR03 `27` (EDV-Software) → IFRS `1100` (Intangible Assets)
 
-  3. Map local accounts to IFRS consolidation accounts:
-      - FR-PCG `6183` (Matériel informatique) → IFRS `6100` (Hardware and infrastructure)
-      - UK-GAAP `4200` (Computer equipment) → IFRS `6100` (Hardware and infrastructure)
-      - DE-HGB `4855` (IT-Ausrüstung) → IFRS `6100` (Hardware and infrastructure)
-
-  4. Import mappings via CSV or set them up in each account's workspace
+  3. Set each CoA as the default for its country and assign companies
 
 **Result**:
-  - French users work with French PCG accounts in their daily tasks
+  - French users work with French PCG accounts and native names in their daily tasks
   - UK users work with UK GAAP accounts
-  - German users work with HGB accounts
+  - German users work with SKR03 accounts and German native names
   - Group finance runs reports by consolidation account to see total spend in IFRS categories
+  - No manual mapping work needed — the templates handle it all
   - Both local statutory reporting and group IFRS reporting work seamlessly from the same data
 
 ## Frequently asked questions
@@ -387,7 +433,10 @@ A: Yes, in the account's workspace. Changing the account number updates all refe
 A: Open **Manage** on the Charts of Accounts page, select the CoA, and check **Linked Companies** in the details panel. You can also filter the Companies page by CoA.
 
 **Q: What if my country doesn't have a template?**
-A: Create a CoA from scratch and add accounts manually or via CSV import. If you have a standard account list from a reliable source, you can import it directly.
+A: KANAP includes templates for 9 countries (FR, DE, GB, ES, IT, NL, BE, CH, US) plus IFRS as a global standard. If your country isn't covered, create a CoA from scratch and add accounts manually or via CSV import. You can still use the IFRS consolidation account numbers (1000–2900) in your consolidation mappings to stay compatible with the built-in templates.
+
+**Q: What's the difference between v1.0 and v2.0 templates?**
+A: **v1.0 (Simple)** has ~20 IT-focused accounts covering essential cost categories. **v2.0 (Detailed)** adds ~10 more granular sub-accounts for finer tracking (e.g., splitting SaaS subscriptions from perpetual licenses, or IT salaries from bonuses). Both versions use the same consolidation mappings. Start with v1.0 and switch to v2.0 if you need more detail.
 
 **Q: Can I edit accounts that came from a template?**
 A: Yes. Once you load a template, the accounts are copied into your CoA and become fully editable. Changes to the platform template don't affect your CoA unless you explicitly reload it (which overwrites your changes if you choose "overwrite" mode).

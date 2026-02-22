@@ -25,6 +25,7 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-02-22 | `chart-of-accounts.md` | Added Available Templates catalog (20 templates, 10 standards × 2 versions), IFRS consolidation reference table, v1.0 vs v2.0 guidance, updated scenarios and FAQ |
 | 2026-02-16 | Multiple files | Dissolved My Workspace: Dashboard promoted to home page (`/`), Tasks moved to Portfolio section, My Workspace tab removed, legacy routes redirect |
 | 2026-02-15 | Multiple files | Navigation restructure: renamed "Apps & Services" → "Applications", "Budget Operations" → "Budget Administration", "Master Data Operations" → "Master Data Administration", "Analytics Categories" → "Analytics Dimensions", "Dashboard" → "Overview"; added sidebar grouping to IT Ops and Master Data doc nav |
 | 2026-02-14 | `my-dashboard.md` | New documentation for My Dashboard (tiles, quick actions, settings, customisation) |
