@@ -21,6 +21,8 @@ import { isProductionEnv, parseBoolean, parseCorsPatterns, matchesCorsOrigin, re
 import { shouldTrustProxyForRateLimit } from './common/rate-limit';
 import { Features } from './config/features';
 import { TenantsService } from './tenants/tenants.service';
+import { OpsMetricsStore } from './admin/ops/ops-metrics.store';
+import { createRequestMetricsMiddleware } from './admin/ops/request-metrics.middleware';
 
 function validateStartupEnv() {
   requireEnv('DATABASE_URL');
@@ -79,6 +81,10 @@ async function bootstrap() {
   app.use('/stripe/webhook', express.raw({ type: '*/*' }));
   app.use(express.json({ limit: '20mb', verify: rawBodySaver }));
   app.use(express.urlencoded({ limit: '20mb', verify: rawBodySaver, extended: true }));
+  // Ops metrics middleware — must be registered before tenancy so it wraps the full pipeline
+  const opsMetricsStore = app.get(OpsMetricsStore);
+  app.use(createRequestMetricsMiddleware(opsMetricsStore));
+
   // Use both ValidationPipe (for class-validator DTOs) and ZodValidationPipe (for Zod DTOs)
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true }),

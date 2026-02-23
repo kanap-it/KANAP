@@ -77,6 +77,7 @@ import BusinessProcessesPage from './pages/BusinessProcessesPage';
 import BusinessProcessWorkspacePage from './pages/business-processes/BusinessProcessWorkspacePage';
 import LoginCallbackPage from './pages/LoginCallbackPage';
 import AdminAuthPage from './pages/admin/AdminAuthPage';
+import OpsDashboardPage from './pages/admin/OpsDashboardPage';
 import PortfolioRequestsPage from './pages/portfolio/RequestsPage';
 import PortfolioRequestWorkspacePage from './pages/portfolio/RequestWorkspacePage';
 import PortfolioProjectsPage from './pages/portfolio/ProjectsPage';
@@ -214,6 +215,7 @@ function AppRoutes() {
           {config.features.billing && <Route path="/admin/billing" element={<BillingCenter />} />}
           {config.features.billing && <Route path="/admin/choose-plan" element={<Navigate to="/admin/billing" replace />} />}
           {config.features.sso && <Route path="/admin/auth" element={<AdminAuthPage />} />}
+          <Route path="/admin/ops-dashboard" element={<OpsDashboardPage />} />
           {!isSingleTenant && <Route path="/admin/tenants" element={<AdminTenantsPage />} />}
           {!isSingleTenant && <Route path="/admin/coa-templates" element={<AdminCoaTemplatesPage />} />}
           {!isSingleTenant && <Route path="/admin/standard-accounts" element={<AdminStandardAccountsPage />} />}

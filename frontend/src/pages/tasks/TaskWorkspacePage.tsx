@@ -210,8 +210,8 @@ export default function TaskWorkspacePage() {
       try {
         const isProject = task?.related_object_type === 'project';
         const endpoint = isProject
-          ? `/portfolio/projects/${task?.related_object_id}/tasks/${id}/time-entries/sum`
-          : `/tasks/${id}/time-entries/sum`;
+          ? `/portfolio/projects/${task?.related_object_id}/tasks/${task?.id}/time-entries/sum`
+          : `/tasks/${task?.id}/time-entries/sum`;
         const res = await api.get<{ total: number }>(endpoint);
         return res.data.total;
       } catch {

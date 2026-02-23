@@ -31,7 +31,10 @@ export default function AdminLanding() {
   ];
 
   const cards: CardLink[] = isPlatformHost
-    ? [{ title: 'Tenants', description: 'Tenant lifecycle controls and metrics', to: '/admin/tenants', requirePlatformAdmin: true }]
+    ? [
+        { title: 'Tenants', description: 'Tenant lifecycle controls and metrics', to: '/admin/tenants', requirePlatformAdmin: true },
+        { title: 'Ops Dashboard', description: 'API traffic, DB health, and process metrics', to: '/admin/ops-dashboard', requirePlatformAdmin: true },
+      ]
     : baseCards;
 
   const visible = cards.filter((c) => {

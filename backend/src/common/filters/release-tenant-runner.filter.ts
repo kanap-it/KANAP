@@ -1,6 +1,7 @@
 import { ArgumentsHost, Catch } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import { QueryRunner } from 'typeorm';
+import { attachErrorToResponse } from '../../admin/ops/request-metrics.middleware';
 
 @Catch()
 export class ReleaseTenantRunnerFilter extends BaseExceptionFilter {
@@ -11,7 +12,11 @@ export class ReleaseTenantRunnerFilter extends BaseExceptionFilter {
     try {
       const ctx = host.switchToHttp();
       const req: any = ctx.getRequest();
+      const res: any = ctx.getResponse();
       const runner: QueryRunner | undefined = req?.queryRunner;
+
+      // Attach error details for the ops metrics middleware to pick up
+      if (res && exception) attachErrorToResponse(res, exception);
       const already = !!req?._tenantRunnerReleased;
       if (runner && !already) {
         try {

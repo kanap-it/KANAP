@@ -35,12 +35,25 @@ export class TaskTimeEntriesService {
     private readonly userTimeAggregateService: UserTimeAggregateService,
   ) {}
 
-  async listForTask(taskId: string, opts?: { manager?: EntityManager }): Promise<TaskTimeEntry[]> {
-    const repo = (opts?.manager ?? this.repo.manager).getRepository(TaskTimeEntry);
-    return repo.find({
-      where: { task_id: taskId },
-      order: { logged_at: 'DESC' },
-    });
+  async listForTask(taskId: string, opts?: { manager?: EntityManager }): Promise<any[]> {
+    const manager = opts?.manager ?? this.repo.manager;
+    const result = await manager.query(
+      `SELECT tte.*,
+              u.email as user_email, u.first_name as user_first_name, u.last_name as user_last_name,
+              lb.email as logged_by_email, lb.first_name as logged_by_first_name, lb.last_name as logged_by_last_name
+       FROM task_time_entries tte
+       LEFT JOIN users u ON u.id = tte.user_id
+       LEFT JOIN users lb ON lb.id = tte.logged_by_id
+       WHERE tte.task_id = $1
+       ORDER BY tte.logged_at DESC`,
+      [taskId],
+    );
+
+    return result.map((row: any) => ({
+      ...row,
+      user_name: [row.user_first_name, row.user_last_name].filter(Boolean).join(' ').trim() || null,
+      logged_by_name: [row.logged_by_first_name, row.logged_by_last_name].filter(Boolean).join(' ').trim() || null,
+    }));
   }
 
   async sumForTask(taskId: string, opts?: { manager?: EntityManager }): Promise<number> {

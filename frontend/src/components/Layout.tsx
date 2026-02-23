@@ -31,6 +31,7 @@ import InboxIcon from '@mui/icons-material/Inbox';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import HistoryIcon from '@mui/icons-material/History';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import { useAuth } from '../auth/AuthContext';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -112,6 +113,8 @@ const platformAdminNav: NavEntry[] = [
   { to: '/admin/tenants', label: 'Tenants', icon: <ApartmentIcon /> },
   { to: '/admin/coa-templates', label: 'CoA Templates', icon: <StorageIcon /> },
   { to: '/admin/standard-accounts', label: 'Standard Accounts', icon: <AccountBalanceIcon /> },
+  { divider: '' },
+  { to: '/admin/ops-dashboard', label: 'Ops Dashboard', icon: <MonitorHeartIcon /> },
 ];
 
 // Helper to extract resource strings from a nav array (filtering out dividers)
