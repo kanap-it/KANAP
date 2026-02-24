@@ -129,7 +129,7 @@ flowchart LR
 - This means platform admin operates with a **real tenant context** (the `platform-admin` tenant) rather than a null context. RLS policies apply normally, allowing admin users to authenticate and access platform routes without bypassing tenant isolation.
 - The request also sets `req.isPlatformHost = true` so guards can distinguish platform admin routes from regular tenant routes.
 - `/public/tenant-info` returns `{ platform: true }`, `{ slug, name }`, or `{ marketing: true }`, letting the SPA swap navigation shells (platform console vs tenant workspace) without shipping a separate bundle.
-- The platform module owns endpoints for tenant stats, freeze/unfreeze, plan management, and synchronous deletion; future features (Stripe billing sync, backups, log viewer) can extend the same module and rely on the host guard.
+- The platform module owns endpoints for tenant stats, freeze/unfreeze, plan management, synchronous deletion, and ops monitoring (`GET /admin/ops/snapshot` — API traffic, DB health, process metrics). Future features (Stripe billing sync, backups) can extend the same module and rely on the host guard.
 
 **System Tenant Protections:**
 - The `platform-admin` tenant is marked with `is_system_tenant = true` and cannot be deleted, frozen, or modified.

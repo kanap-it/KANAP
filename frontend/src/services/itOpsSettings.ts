@@ -22,6 +22,16 @@ export type AssetKindOption = ItOpsEnumOption & {
   is_physical?: boolean;
 };
 
+export type GraphTier = 'top' | 'upper' | 'center' | 'lower' | 'bottom';
+
+export type ServerRoleOption = ItOpsEnumOption & {
+  graph_tier?: GraphTier;
+};
+
+export type EntityOption = ItOpsEnumOption & {
+  graph_tier?: GraphTier;
+};
+
 export type DomainOption = {
   code: string;
   label: string;
@@ -47,10 +57,10 @@ export type ItOpsSettings = {
   applicationCategories: ItOpsEnumOption[];
   dataClasses: ItOpsEnumOption[];
   networkSegments: ItOpsEnumOption[];
-  entities: ItOpsEnumOption[];
+  entities: EntityOption[];
   serverKinds: AssetKindOption[];
   serverProviders: ItOpsEnumOption[];
-  serverRoles: ItOpsEnumOption[];
+  serverRoles: ServerRoleOption[];
   hostingTypes: ItOpsEnumOption[];
   lifecycleStates: ItOpsEnumOption[];
   interfaceProtocols: ItOpsEnumOption[];

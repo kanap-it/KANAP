@@ -1,11 +1,12 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PlatformAdminGuard } from '../../auth/platform-admin.guard';
+import { MultiTenantOnlyGuard } from '../../common/feature-gates';
 import { OpsMetricsStore } from './ops-metrics.store';
 import { DbMetricsService } from './db-metrics.service';
 import type { OpsSnapshotDto } from './dto/ops-snapshot.dto';
 
-@UseGuards(JwtAuthGuard, PlatformAdminGuard)
+@UseGuards(MultiTenantOnlyGuard, JwtAuthGuard, PlatformAdminGuard)
 @Controller('admin/ops')
 export class AdminOpsController {
   constructor(

@@ -20,8 +20,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '../../components/PageHeader';
 import DateEUField from '../../components/fields/DateEUField';
 import { SettingsSection, SettingsControls, SettingsGroup } from '../../components/settings';
-import { EnumEditor, HostingTypeEditor, AssetKindEditor } from '../../components/settings';
-import type { EnumItem, EnumEditorColumn, HostingTypeItem, AssetKindItem } from '../../components/settings';
+import { EnumEditor, HostingTypeEditor, AssetKindEditor, ServerRoleEditor, EntityEditor } from '../../components/settings';
+import type {
+  HostingTypeItem,
+  AssetKindItem,
+  ServerRoleItem,
+  EntityItem,
+} from '../../components/settings';
 import useItOpsSettings from '../../hooks/useItOpsSettings';
 import { useVirtualRows } from '../../hooks/useVirtualRows';
 import api from '../../api';
@@ -91,6 +96,7 @@ const listsEqual = (a: ItOpsEnumOption[], b: ItOpsEnumOption[]): boolean => {
     if (left.code !== right.code || left.label !== right.label) return false;
     if (!!left.deprecated !== !!right.deprecated) return false;
     if ((left.category || undefined) !== (right.category || undefined)) return false;
+    if (((left as any).graph_tier || undefined) !== ((right as any).graph_tier || undefined)) return false;
     if (((left as any).typicalPorts || undefined) !== ((right as any).typicalPorts || undefined)) return false;
   }
   return true;
@@ -183,7 +189,7 @@ type EnumSectionConfig = {
   description: string;
   group: GroupId;
   lockedCodes?: string[];
-  kind?: 'enum' | 'hosting' | 'serverKind';
+  kind?: 'enum' | 'hosting' | 'serverKind' | 'serverRole' | 'entity';
 };
 
 const enumSections: EnumSectionConfig[] = [
@@ -191,10 +197,10 @@ const enumSections: EnumSectionConfig[] = [
   { id: 'applicationCategories', title: 'Application Categories', description: 'Categories that describe the primary purpose of each application or service.', group: 'appsInterfaces' },
   { id: 'dataClasses', title: 'Data Classes', description: 'Tenant-wide data classification levels used by Applications and Interfaces.', group: 'appsInterfaces' },
   { id: 'networkSegments', title: 'Network Zones', description: 'Network zones used to categorize subnets and describe connectivity.', group: 'serversConnections' },
-  { id: 'entities', title: 'Entities', description: 'Source/target entities for flows or access.', group: 'serversConnections' },
+  { id: 'entities', title: 'Entities', description: 'Source/target entities for flows or access.', group: 'serversConnections', kind: 'entity' },
   { id: 'ipAddressTypes', title: 'IP Address Types', description: 'Types of IP addresses for assets.', group: 'serversConnections' },
   { id: 'serverKinds', title: 'Asset Types', description: 'Logical types for servers and infrastructure assets.', group: 'serversConnections', kind: 'serverKind' },
-  { id: 'serverRoles', title: 'Server Roles', description: 'Roles you can assign to servers when linking them to application instances.', group: 'serversConnections' },
+  { id: 'serverRoles', title: 'Server Roles', description: 'Roles you can assign to servers when linking them to application instances.', group: 'serversConnections', kind: 'serverRole' },
   { id: 'hostingTypes', title: 'Hosting Types', description: 'Location hosting models available when creating Locations.', group: 'locations', kind: 'hosting' },
   { id: 'serverProviders', title: 'Cloud Providers', description: 'Cloud providers used by Servers and Locations.', group: 'locations' },
   { id: 'lifecycleStates', title: 'Lifecycle statuses', description: 'Shared lifecycle options for applications, app instances, interfaces, interface bindings, and servers.', group: 'appsInterfaces', lockedCodes: ['proposed', 'active', 'deprecated', 'retired'] },
@@ -882,6 +888,8 @@ export default function ItOperationsSettingsPage() {
   const makeEmptyEnumRow = (id: EnumListId): ItOpsEnumOption => {
     if (id === 'hostingTypes') return { code: '', label: '', category: 'cloud', deprecated: false };
     if (id === 'serverKinds') return { code: '', label: '', is_physical: false, deprecated: false } as any;
+    if (id === 'serverRoles') return { code: '', label: '', graph_tier: 'center', deprecated: false } as any;
+    if (id === 'entities') return { code: '', label: '', graph_tier: 'top', deprecated: false } as any;
     return { code: '', label: '', deprecated: false };
   };
 
@@ -991,6 +999,10 @@ export default function ItOperationsSettingsPage() {
                       <HostingTypeEditor items={items as HostingTypeItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton />
                     ) : enumSection.kind === 'serverKind' ? (
                       <AssetKindEditor items={items as AssetKindItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton />
+                    ) : enumSection.kind === 'serverRole' ? (
+                      <ServerRoleEditor items={items as ServerRoleItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton />
+                    ) : enumSection.kind === 'entity' ? (
+                      <EntityEditor items={items as EntityItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton />
                     ) : (
                       <EnumEditor title={enumSection.title} description={enumSection.description} items={items} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} lockedCodes={enumSection.lockedCodes} hideAddButton />
                     )}

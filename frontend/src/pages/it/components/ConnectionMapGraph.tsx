@@ -10,6 +10,7 @@ export type ConnectionMapNode = {
   environment: string | null;
   networkSegment: string | null;
   hostingCategory: 'on_prem' | 'cloud' | null;
+  graphTier?: string | null;
   x?: number;
   y?: number;
   fx?: number | null;
@@ -61,6 +62,7 @@ type Props = {
   selectedLinkId?: string | null;
   frozen?: boolean;
   autoCenter?: boolean;
+  roleTierEnabled?: boolean;
   onSelectNode?: (nodeId: string | null) => void;
   onSelectLink?: (linkId: string | null) => void;
   onClearSelection?: () => void;
@@ -73,6 +75,13 @@ const SERVER_HEIGHT = 48;
 const ENTITY_WIDTH = 130;
 const ENTITY_HEIGHT = 40;
 const LINK_SPACING = 10;
+const TIER_Y_FRACTIONS: Record<string, number> = {
+  top: 0.1,
+  upper: 0.3,
+  center: 0.5,
+  lower: 0.7,
+  bottom: 0.9,
+};
 
 const getNodeBox = (node: any) => {
   if (node.kind === 'entity') {
@@ -164,6 +173,7 @@ export default function ConnectionMapGraph({
   selectedLinkId,
   frozen = false,
   autoCenter = true,
+  roleTierEnabled = true,
   onSelectNode,
   onSelectLink,
   onClearSelection,
@@ -268,6 +278,16 @@ export default function ConnectionMapGraph({
     // Add cluster grouping force if there are memberships
     if (clusterMemberships.length > 0) {
       simulation.force('clusterGroup', forceClusterGroup(clusterMemberships, nodeById));
+    }
+
+    if (roleTierEnabled) {
+      simulation.force('roleTier', (alpha: number) => {
+        for (const node of nodesData) {
+          const tier = node.graphTier || 'center';
+          const targetY = height * (TIER_Y_FRACTIONS[tier] ?? 0.5);
+          node.vy += (targetY - node.y) * 0.4 * alpha;
+        }
+      });
     }
 
     simulationRef.current = simulation;
@@ -794,7 +814,7 @@ export default function ConnectionMapGraph({
       d.fx = null;
       d.fy = null;
     }
-  }, [nodes, links, dimensions, clusterMemberships]);
+  }, [nodes, links, dimensions, clusterMemberships, roleTierEnabled]);
 
   useEffect(() => {
     if (!svgRef.current) return;

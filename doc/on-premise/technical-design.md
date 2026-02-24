@@ -217,6 +217,7 @@ Fail fast with a clear error if missing.
 | `public.controller.ts` | 373 | `POST /public/activate-trial` | 404 |
 | `admin-tenants.controller.ts` | 10 | All `/admin/tenants/*` | 404 via `MultiTenantOnlyGuard` |
 | `admin-coa-templates.controller.ts` | 11 | All `/admin/coa-templates/*` | 404 via `MultiTenantOnlyGuard` |
+| `admin-ops.controller.ts` | 11 | All `/admin/ops/*` | 404 via `MultiTenantOnlyGuard` |
 | `billing.service.ts` | 1281 | `ensureSubscription()` fallback | Defaults to On-Prem / 1000 seats instead of Starter / 5 |
 | `url.ts` | 163 | `resolveNotificationBaseUrl()` | Uses `APP_BASE_URL` directly (no subdomain substitution) |
 | `portfolio-status-change-report.controller.ts` | 134 | Export base URL | Delegates to `resolveNotificationBaseUrl()` |
@@ -265,7 +266,7 @@ All gates read from `useFeatures()` hook (provided by `FeaturesContext.tsx`).
 | 109 | `config.features.email` | `/forgot-password` — redirects to `/login` if email off |
 | 181–182 | `config.features.billing` | `/admin/billing`, `/admin/choose-plan` — not rendered |
 | 183 | `config.features.sso` | `/admin/auth` — not rendered |
-| 184–189 | `!isSingleTenant` | `/admin/tenants`, `/admin/coa-templates`, `/admin/standard-accounts/*` — not rendered |
+| 184–189 | `!isSingleTenant` | `/admin/tenants`, `/admin/coa-templates`, `/admin/standard-accounts/*`, `/admin/ops-dashboard` — not rendered |
 
 #### Navigation gating (`Layout.tsx`)
 

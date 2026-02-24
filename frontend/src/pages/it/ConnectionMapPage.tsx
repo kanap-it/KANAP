@@ -44,6 +44,7 @@ type ApiConnectionMapNode = {
   environment: string | null;
   network_segment: string | null;
   hosting_category: 'on_prem' | 'cloud' | null;
+  graph_tier?: string | null;
   member_server_ids?: string[];
 };
 
@@ -163,6 +164,7 @@ function toGraphNodes(nodes: ApiConnectionMapNode[]): ConnectionMapNode[] {
       environment: n.environment,
       networkSegment: n.network_segment,
       hostingCategory: n.hosting_category,
+      graphTier: n.graph_tier || null,
     } as ConnectionMapNode;
   });
 }
@@ -291,6 +293,7 @@ export default function ConnectionMapPage() {
   const [isFrozen, setIsFrozen] = React.useState<boolean>(false);
   const [autoCenterEnabled, setAutoCenterEnabled] = React.useState<boolean>(true);
   const [showLayers, setShowLayers] = React.useState<boolean>(true);
+  const [roleTierEnabled, setRoleTierEnabled] = React.useState<boolean>(true);
   const zoomApiRef = React.useRef<{ zoomIn: () => void; zoomOut: () => void } | null>(null);
   const graphControlsRef = React.useRef<GraphControlsApi | null>(null);
   const [linkedInterfaces, setLinkedInterfaces] = React.useState<LinkedInterfaceBinding[]>([]);
@@ -942,6 +945,16 @@ export default function ConnectionMapPage() {
           )}
           label="Show connection layers"
         />
+        <FormControlLabel
+          control={(
+            <Switch
+              color="primary"
+              checked={roleTierEnabled}
+              onChange={(e) => setRoleTierEnabled(e.target.checked)}
+            />
+          )}
+          label="Role-based placement"
+        />
         {isFetching && <Chip label="Updating…" size="small" color="default" />}
       </Stack>
     </Stack>
@@ -1081,6 +1094,7 @@ export default function ConnectionMapPage() {
               selectedLinkId={selectedLinkId}
               frozen={isFrozen}
               autoCenter={autoCenterEnabled}
+              roleTierEnabled={roleTierEnabled}
               onSelectNode={(id) => {
                 setSelectedNodeId(id);
                 setSelectedLinkId(null);

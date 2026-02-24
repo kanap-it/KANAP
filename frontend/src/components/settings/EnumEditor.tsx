@@ -4,6 +4,7 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
+  MenuItem,
   Paper,
   Radio,
   RadioGroup,
@@ -524,6 +525,164 @@ export function AssetKindEditor({
       onAddRequest={onAddRequest}
       addRequestToken={addRequestToken}
       emptyMessage="No asset types defined."
+    />
+  );
+}
+
+type GraphTier = 'top' | 'upper' | 'center' | 'lower' | 'bottom';
+
+const GRAPH_TIER_OPTIONS: Array<{ value: GraphTier; label: string }> = [
+  { value: 'top', label: 'Top' },
+  { value: 'upper', label: 'Upper' },
+  { value: 'center', label: 'Center' },
+  { value: 'lower', label: 'Lower' },
+  { value: 'bottom', label: 'Bottom' },
+];
+
+export interface ServerRoleItem extends EnumItem {
+  graph_tier?: GraphTier;
+}
+
+export interface EntityItem extends EnumItem {
+  graph_tier?: GraphTier;
+}
+
+const buildTieredColumns = <T extends EnumItem & { graph_tier?: GraphTier }>(
+  defaultTier: GraphTier,
+): EnumEditorColumn<T>[] => [
+  {
+    key: 'label',
+    header: 'Label',
+    width: '30%',
+    render: (item, onChange, isLocked, isFocused, focusRef) => (
+      <TextField
+        value={item.label}
+        onChange={(e) => onChange({ label: e.target.value } as Partial<T>)}
+        size="small"
+        fullWidth
+        placeholder="Display label"
+        disabled={isLocked}
+        inputRef={isFocused ? focusRef : undefined}
+      />
+    ),
+  },
+  {
+    key: 'code',
+    header: 'Code',
+    width: '24%',
+    render: (item, onChange, isLocked) => (
+      <TextField
+        value={item.code}
+        onChange={(e) => onChange({ code: e.target.value } as Partial<T>)}
+        size="small"
+        fullWidth
+        placeholder="code"
+        disabled={isLocked}
+      />
+    ),
+  },
+  {
+    key: 'graph_tier',
+    header: 'Graph tier',
+    width: '22%',
+    render: (item, onChange, isLocked) => (
+      <TextField
+        select
+        value={item.graph_tier || defaultTier}
+        onChange={(e) => onChange({ graph_tier: e.target.value as GraphTier } as Partial<T>)}
+        size="small"
+        fullWidth
+        disabled={isLocked}
+      >
+        {GRAPH_TIER_OPTIONS.map((opt) => (
+          <MenuItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </MenuItem>
+        ))}
+      </TextField>
+    ),
+  },
+  {
+    key: 'deprecated',
+    header: 'Deprecated',
+    width: '14%',
+    render: (item, onChange, isLocked) => (
+      <FormControlLabel
+        control={
+          <Checkbox
+            size="small"
+            checked={!!item.deprecated}
+            onChange={(e) => onChange({ deprecated: e.target.checked } as Partial<T>)}
+            disabled={isLocked}
+          />
+        }
+        label="Deprecated"
+      />
+    ),
+  },
+];
+
+const serverRoleColumns = buildTieredColumns<ServerRoleItem>('center');
+const entityColumns = buildTieredColumns<EntityItem>('top');
+
+export interface ServerRoleEditorProps {
+  items: ServerRoleItem[];
+  onChange: (items: ServerRoleItem[]) => void;
+  hideAddButton?: boolean;
+  onAddRequest?: () => void;
+  addRequestToken?: number;
+}
+
+export function ServerRoleEditor({
+  items,
+  onChange,
+  hideAddButton,
+  onAddRequest,
+  addRequestToken,
+}: ServerRoleEditorProps) {
+  return (
+    <EnumEditor<ServerRoleItem>
+      title="Server Roles"
+      description="Roles assigned to servers when linking app instances. Graph tier influences connection map placement."
+      items={items}
+      onChange={onChange}
+      columns={serverRoleColumns}
+      hideAddButton={hideAddButton}
+      addButtonLabel="Add server role"
+      onAddRequest={onAddRequest}
+      addRequestToken={addRequestToken}
+      emptyMessage="No server roles defined."
+    />
+  );
+}
+
+export interface EntityEditorProps {
+  items: EntityItem[];
+  onChange: (items: EntityItem[]) => void;
+  hideAddButton?: boolean;
+  onAddRequest?: () => void;
+  addRequestToken?: number;
+}
+
+export function EntityEditor({
+  items,
+  onChange,
+  hideAddButton,
+  onAddRequest,
+  addRequestToken,
+}: EntityEditorProps) {
+  return (
+    <EnumEditor<EntityItem>
+      title="Entities"
+      description="Endpoints used in connections and maps. Graph tier influences default map placement."
+      items={items}
+      onChange={onChange}
+      columns={entityColumns}
+      hideAddButton={hideAddButton}
+      addButtonLabel="Add entity"
+      onAddRequest={onAddRequest}
+      addRequestToken={addRequestToken}
+      emptyMessage="No entities defined."
     />
   );
 }

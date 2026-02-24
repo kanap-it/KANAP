@@ -68,6 +68,7 @@ export class ItOpsSettingsController {
         code: String(row?.code ?? '').trim().toLowerCase(),
         label: String(row?.label ?? '').trim(),
         deprecated: !!row?.deprecated,
+        graph_tier: row?.graph_tier,
       }));
     }
 
@@ -92,6 +93,7 @@ export class ItOpsSettingsController {
         code: String(row?.code ?? '').trim().toLowerCase(),
         label: String(row?.label ?? '').trim(),
         deprecated: !!row?.deprecated,
+        graph_tier: row?.graph_tier,
       }));
     }
 

@@ -359,6 +359,19 @@ export class ConnectionsListService extends ConnectionsBaseService {
     const settings = await this.itOpsSettings.getSettings(tenant, { manager: mg });
     const allowedLifecycles = (settings.lifecycleStates || []).map((item) => item.code);
     const lifecycles = this.normalizeLifecycleFilters(query?.lifecycles, allowedLifecycles);
+    const TIER_PRIORITY: Record<string, number> = { top: 0, upper: 1, center: 2, lower: 3, bottom: 4 };
+    const roleTierMap = new Map<string, string>(
+      (settings.serverRoles || []).map((r: any) => [
+        String(r.code || '').trim().toLowerCase(),
+        String(r.graph_tier || 'center').trim().toLowerCase() || 'center',
+      ]),
+    );
+    const entityTierMap = new Map<string, string>(
+      (settings.entities || []).map((e: any) => [
+        String(e.code || '').trim().toLowerCase(),
+        String(e.graph_tier || 'top').trim().toLowerCase() || 'top',
+      ]),
+    );
 
     const rows: Array<any> = await mg.query(
       `SELECT
@@ -516,12 +529,47 @@ export class ConnectionsListService extends ConnectionsBaseService {
           )
         : [];
 
+    const assetRoleRows: Array<{ asset_id: string; role: string }> =
+      assetIds.size > 0
+        ? await mg.query(
+            `SELECT DISTINCT aaa.asset_id, aaa.role
+             FROM app_asset_assignments aaa
+             JOIN app_instances ai ON ai.id = aaa.app_instance_id
+             WHERE aaa.tenant_id = $1
+               AND aaa.asset_id = ANY($2::uuid[])
+               AND ai.environment = $3`,
+            [tenant, Array.from(assetIds), environment],
+          )
+        : [];
+
+    const assetTierMap = new Map<string, string>();
+    for (const row of assetRoleRows) {
+      const roleCode = String(row.role || '').trim().toLowerCase();
+      const tier = roleTierMap.get(roleCode) || 'center';
+      const existing = assetTierMap.get(row.asset_id);
+      if (!existing || (TIER_PRIORITY[tier] ?? 2) < (TIER_PRIORITY[existing] ?? 2)) {
+        assetTierMap.set(row.asset_id, tier);
+      }
+    }
+
     // Build a map of cluster_id -> member asset IDs
     const clusterMembersMap = new Map<string, string[]>();
     for (const row of clusterMemberRows) {
       const members = clusterMembersMap.get(row.cluster_id) || [];
       members.push(row.asset_id);
       clusterMembersMap.set(row.cluster_id, members);
+    }
+
+    // Clusters cannot be assigned roles directly, so inherit the highest tier from members.
+    for (const [clusterId, memberIds] of clusterMembersMap) {
+      let bestTier = 'center';
+      for (const memberId of memberIds) {
+        const memberTier = assetTierMap.get(memberId);
+        if (memberTier && (TIER_PRIORITY[memberTier] ?? 2) < (TIER_PRIORITY[bestTier] ?? 2)) {
+          bestTier = memberTier;
+        }
+      }
+      assetTierMap.set(clusterId, bestTier);
     }
 
     const assetNodes = assetRows.map((row) => ({
@@ -531,6 +579,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
       is_cluster: !!row.is_cluster,
       environment: row.environment || null,
       hosting_category: deriveHostingCategory(row),
+      graph_tier: assetTierMap.get(row.id) || null,
       member_server_ids: row.is_cluster ? (clusterMembersMap.get(row.id) || []) : undefined,
     }));
 
@@ -545,6 +594,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
       kind: 'entity' as const,
       environment: null,
       hosting_category: null,
+      graph_tier: entityTierMap.get(code) || 'top',
     }));
 
     const riskBases = rows.map((row) => ({

@@ -24,6 +24,16 @@ export type AssetKindOption = ItOpsEnumOption & {
   is_physical?: boolean;
 };
 
+export type GraphTier = 'top' | 'upper' | 'center' | 'lower' | 'bottom';
+
+export type ServerRoleOption = ItOpsEnumOption & {
+  graph_tier?: GraphTier;
+};
+
+export type EntityOption = ItOpsEnumOption & {
+  graph_tier?: GraphTier;
+};
+
 export type DomainOption = {
   code: string;
   label: string;
@@ -45,10 +55,10 @@ export type ItOpsSettings = {
   applicationCategories: ItOpsEnumOption[];
   dataClasses: ItOpsEnumOption[];
   networkSegments: ItOpsEnumOption[];
-  entities: ItOpsEnumOption[];
+  entities: EntityOption[];
   serverKinds: AssetKindOption[];
   serverProviders: ItOpsEnumOption[];
-  serverRoles: ItOpsEnumOption[];
+  serverRoles: ServerRoleOption[];
   hostingTypes: ItOpsEnumOption[];
   lifecycleStates: ItOpsEnumOption[];
   interfaceProtocols: ItOpsEnumOption[];
@@ -69,10 +79,10 @@ type ItOpsMetadataShape = {
   application_categories?: ItOpsEnumOption[];
   data_classes?: ItOpsEnumOption[];
   network_segments?: ItOpsEnumOption[];
-  entities?: ItOpsEnumOption[];
+  entities?: EntityOption[];
   server_kinds?: ItOpsEnumOption[];
   server_providers?: ItOpsEnumOption[];
-  server_roles?: ItOpsEnumOption[];
+  server_roles?: ServerRoleOption[];
   hosting_types?: ItOpsEnumOption[];
   lifecycle_states?: ItOpsEnumOption[];
   interface_protocols?: ItOpsEnumOption[];
@@ -131,12 +141,12 @@ export class ItOpsSettingsService {
     { code: 'vpn', label: 'VPN' },
   ];
 
-  private readonly defaultEntities: ItOpsEnumOption[] = [
-    { code: 'internal_users', label: 'Internal Users' },
-    { code: 'external_users', label: 'External Users' },
-    { code: 'internet', label: 'Internet' },
-    { code: 'customers', label: 'Customers' },
-    { code: 'partner_networks', label: 'Partner Networks' },
+  private readonly defaultEntities: EntityOption[] = [
+    { code: 'internal_users', label: 'Internal Users', graph_tier: 'top' },
+    { code: 'external_users', label: 'External Users', graph_tier: 'top' },
+    { code: 'internet', label: 'Internet', graph_tier: 'top' },
+    { code: 'customers', label: 'Customers', graph_tier: 'top' },
+    { code: 'partner_networks', label: 'Partner Networks', graph_tier: 'top' },
   ];
 
   private readonly defaultServerKinds: AssetKindOption[] = [
@@ -169,21 +179,21 @@ export class ItOpsSettingsService {
     { code: 'other', label: 'Other' },
   ];
 
-  private readonly defaultServerRoles: ItOpsEnumOption[] = [
-    { code: 'app', label: 'Application server' },
-    { code: 'backup', label: 'Backup server' },
-    { code: 'cloud-service', label: 'Cloud service' },
-    { code: 'db', label: 'Database server' },
-    { code: 'domain-controller', label: 'Domain controller' },
-    { code: 'file', label: 'File server' },
-    { code: 'mail', label: 'Mail / messaging' },
-    { code: 'monitoring', label: 'Monitoring server' },
-    { code: 'other', label: 'Other' },
-    { code: 'print', label: 'Print server' },
-    { code: 'proxy', label: 'Proxy / gateway' },
-    { code: 'remote-desktop', label: 'Remote desktop' },
-    { code: 'virtualization', label: 'Virtualization host' },
-    { code: 'web', label: 'Web server' },
+  private readonly defaultServerRoles: ServerRoleOption[] = [
+    { code: 'app', label: 'Application server', graph_tier: 'upper' },
+    { code: 'backup', label: 'Backup server', graph_tier: 'lower' },
+    { code: 'cloud-service', label: 'Cloud service', graph_tier: 'upper' },
+    { code: 'db', label: 'Database server', graph_tier: 'bottom' },
+    { code: 'domain-controller', label: 'Domain controller', graph_tier: 'lower' },
+    { code: 'file', label: 'File server', graph_tier: 'center' },
+    { code: 'mail', label: 'Mail / messaging', graph_tier: 'center' },
+    { code: 'monitoring', label: 'Monitoring server', graph_tier: 'center' },
+    { code: 'other', label: 'Other', graph_tier: 'center' },
+    { code: 'print', label: 'Print server', graph_tier: 'center' },
+    { code: 'proxy', label: 'Proxy / gateway', graph_tier: 'top' },
+    { code: 'remote-desktop', label: 'Remote desktop', graph_tier: 'center' },
+    { code: 'virtualization', label: 'Virtualization host', graph_tier: 'lower' },
+    { code: 'web', label: 'Web server', graph_tier: 'top' },
   ];
 
   private readonly defaultHostingTypes: ItOpsEnumOption[] = [
@@ -449,6 +459,41 @@ export class ItOpsSettingsService {
         deprecated,
         ...(category ? { category } : {}),
       });
+    }
+
+    return Array.from(byCode.values());
+  }
+
+  private normalizeTieredList<T extends ItOpsEnumOption & { graph_tier?: GraphTier }>(
+    list: unknown,
+    defaults: T[],
+  ): T[] {
+    const validTiers = new Set<GraphTier>(['top', 'upper', 'center', 'lower', 'bottom']);
+    const defaultTierByCode = new Map<string, GraphTier>(
+      defaults.map((d) => [d.code, d.graph_tier || 'center']),
+    );
+    const byCode = new Map<string, T>();
+
+    // If no tenant-specific list is provided, fall back to defaults
+    const source: any[] | undefined = Array.isArray(list) ? (list as any[]) : defaults;
+
+    for (const raw of source || []) {
+      const code = this.normalizeCode(raw?.code ?? raw?.value);
+      const label = this.normalizeLabel(raw?.label, code);
+      const deprecated = !!raw?.deprecated;
+      const rawTier = String(raw?.graph_tier ?? '')
+        .trim()
+        .toLowerCase() as GraphTier;
+      const graph_tier = validTiers.has(rawTier)
+        ? rawTier
+        : defaultTierByCode.get(code) || 'center';
+
+      byCode.set(code, {
+        code,
+        label,
+        deprecated,
+        graph_tier,
+      } as T);
     }
 
     return Array.from(byCode.values());
@@ -749,10 +794,10 @@ export class ItOpsSettingsService {
     const applicationCategories = this.normalizeList(raw.application_categories, this.defaultApplicationCategories);
     const dataClasses = this.normalizeList(raw.data_classes, this.defaultDataClasses);
     const networkSegments = this.normalizeNetworkZones(raw.network_segments, this.defaultNetworkSegments);
-    const entities = this.normalizeList(raw.entities, this.defaultEntities);
+    const entities = this.normalizeTieredList(raw.entities, this.defaultEntities);
     const serverKinds = this.normalizeAssetKinds(raw.server_kinds, this.defaultServerKinds);
     const serverProviders = this.normalizeList(raw.server_providers, this.defaultServerProviders);
-    const serverRoles = this.normalizeList(raw.server_roles, this.defaultServerRoles);
+    const serverRoles = this.normalizeTieredList(raw.server_roles, this.defaultServerRoles);
     const hostingTypes = this.normalizeHostingTypes(raw.hosting_types, this.defaultHostingTypes);
     const lifecycleStates = this.normalizeLifecycleStates(raw.lifecycle_states, this.defaultLifecycleStates);
     const interfaceProtocols = this.normalizeList(raw.interface_protocols, this.defaultInterfaceProtocols);
@@ -866,7 +911,7 @@ export class ItOpsSettingsService {
       );
     }
     if (patch.entities) {
-      next.entities = this.normalizeList(
+      next.entities = this.normalizeTieredList(
         patch.entities,
         this.defaultEntities,
       );
@@ -884,7 +929,7 @@ export class ItOpsSettingsService {
       );
     }
     if (patch.serverRoles) {
-      next.serverRoles = this.normalizeList(
+      next.serverRoles = this.normalizeTieredList(
         patch.serverRoles,
         this.defaultServerRoles,
       );

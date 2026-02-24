@@ -50,6 +50,12 @@ Pages
 - `/admin/standard-accounts/:templateId/:id/:tab?` → `frontend/src/pages/admin/AdminStandardAccountWorkspacePage.tsx`
   - Workspace to create/edit a standard account; prev/next across the current filtered/sorted list
 
+- `/admin/ops-dashboard` → `frontend/src/pages/admin/OpsDashboardPage.tsx`
+  - Platform-admin-only ops monitoring (multi-tenant cloud only, gated by `MultiTenantOnlyGuard`)
+  - Backend: Express middleware (`request-metrics.middleware.ts`) captures every request's timing + status before tenancy pipeline; in-memory store (`ops-metrics.store.ts`) retains 15 minutes of samples; DB metrics service (`db-metrics.service.ts`) queries `pg_stat_activity` and `pg_stat_database` with 10s cache
+  - Single endpoint: `GET /admin/ops/snapshot` returns traffic windows (1m/5m/15m), auth stats, top-30 route latencies (P50/P95/P99), recent errors (top-15), DB pool/activity stats, and Node.js process metrics (memory, event loop lag, CPU, uptime)
+  - Frontend polls every 15s with `refetchIntervalInBackground: false`; threshold coloring on key cards (5xx, 429, pool utilization, event loop lag)
+
 Behavior
 - Standard accounts operate exclusively on the template CSV payload; they do not touch tenant data.
 - Tenant CoAs can load from a template via `/chart-of-accounts/:id/load-template` (supports preflight), creating/updating tenant `accounts` scoped to the target CoA.
@@ -72,6 +78,7 @@ Behavior
 | `/admin/billing` | `frontend/src/pages/admin/BillingCenter.tsx` | Subscription summary, seat usage, plan updates. | `billing` |
 | `/admin/auth` | `frontend/src/pages/admin/AdminAuthPage.tsx` | Tenant SSO settings: shows current Microsoft Entra connection, “Connect/Reconnect Microsoft Entra” (calls `POST /auth/entra/setup/start`), and “Test Microsoft sign-in” (hits `/auth/entra/login?redirectTo=/admin/auth`). | `users` (admin level) |
 | `/admin/tenants` | `frontend/src/pages/admin/AdminTenantsPage.tsx` | Platform host console: tenant list, freeze/unfreeze, plan updates, synchronous deletion. | Platform admin only (host guard). |
+| `/admin/ops-dashboard` | `frontend/src/pages/admin/OpsDashboardPage.tsx` | Ops monitoring dashboard: API traffic counters (1m/5m/15m windows), rate-limit (429) and auth pressure, DB connection/pool stats (pg_stat_activity + TypeORM pool), Node.js process metrics (memory, event loop lag, CPU), endpoint latency table (P50/P95/P99 by route group), and recent errors list. Polls every 15s, pauses when tab hidden. Backend: `GET /admin/ops/snapshot` aggregates in-memory request metrics store + cached DB snapshot (10s TTL). Multi-tenant only (cloud). | Platform admin only (host guard + `MultiTenantOnlyGuard`). |
 
 ### Public/Auth Pages
 - `/login` (public) surfaces both the email/password form and a **Sign in with Microsoft** CTA on tenant hosts. When redirected back with `?sessionExpired=true`, it shows “Your session has expired. Please sign in again.” once, and clears that state on a new sign-in attempt.
