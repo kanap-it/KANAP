@@ -4,7 +4,7 @@ Metadata
 - Purpose: Document tenant-scoped settings for the IT Operations workspace
 - Audience: Engineers, QA, product
 - Status: draft
-- Last Updated: 2026-01-25
+- Last Updated: 2026-02-25
 
 ## Overview
 
@@ -14,9 +14,9 @@ IT Operations Settings let each tenant configure the enum-like values used acros
 - **Application Categories** – categories that describe the primary purpose of each application or service.
 - **Data Classes** – sensitivity levels for Applications and Interfaces.
 - **Network Segments** – network zones used by Servers (e.g., LAN, DMZ, WiFi, Public Cloud).
-- **Entities** – source/target entities for flows or connectivity (e.g., Internal Users, Internet, Partner Networks).
+- **Entities** – source/target entities for flows or connectivity (e.g., Internal Users, Internet, Partner Networks), including optional `graph_tier` for Connection Map placement.
 - **Server Types** – types of infrastructure assets in the Servers workspace.
-- **Server Roles** – roles assigned when linking Servers to Applications (e.g., Web, Database, Backup).
+- **Server Roles** – roles assigned when linking Servers to Applications (e.g., Web, Database, Backup), including optional `graph_tier` for Connection Map placement.
 - **Hosting Types** – configurable Location hosting models (e.g., On‑prem, Colocation, Public Cloud, SaaS) with a category flag that drives UI + backend validation.
 - **Cloud Providers** – hosting providers for servers and Locations (cloud vendors + "other").
 - **Interface Protocols** – allowed protocols for Interface Bindings.
@@ -44,14 +44,24 @@ type ItOpsEnumOption = {
   category?: string;   // Hosting Types use 'on_prem' | 'cloud'; free-form for Connection Types
 };
 
+type GraphTier = 'top' | 'upper' | 'center' | 'lower' | 'bottom';
+
+type EntityOption = ItOpsEnumOption & {
+  graph_tier?: GraphTier; // vertical placement hint for Connection Map nodes
+};
+
+type ServerRoleOption = ItOpsEnumOption & {
+  graph_tier?: GraphTier; // vertical placement hint for servers linked with this role
+};
+
 type ItOpsSettings = {
   accessMethods: ItOpsEnumOption[];     // how users access applications
   applicationCategories: ItOpsEnumOption[];
   dataClasses: ItOpsEnumOption[];
   networkSegments: ItOpsEnumOption[];
-  entities: ItOpsEnumOption[];
+  entities: EntityOption[];
   serverKinds: ItOpsEnumOption[];
-  serverRoles: ItOpsEnumOption[];
+  serverRoles: ServerRoleOption[];
   hostingTypes: ItOpsEnumOption[];
   serverProviders: ItOpsEnumOption[]; // exposed as Cloud Providers in the UI
   lifecycleStates: ItOpsEnumOption[];
@@ -101,11 +111,15 @@ Defaults are applied in memory when reading settings:
 - **Network Zones** (formerly Network Segments):
   - `lan`, `dmz`, `industrial_lan`, `wifi`, `public_cloud`, `guest`, `management`, `storage`, `vpn`
 - **Entities**:
-  - `internal_users`, `external_users`, `internet`, `customers`, `partner_networks`
+  - Defaults are all `graph_tier: top`: `internal_users`, `external_users`, `internet`, `customers`, `partner_networks`
 - **Server Types** (builtin, locked):
   - `physical_server`, `virtual_machine`, `container`, `serverless`, `appliance`, `other`
 - **Server Roles** (builtin, locked, sorted alphabetically in the UI):
-  - `app` _(Application server)_, `backup`, `cloud-service`, `db`, `domain-controller`, `file`, `mail`, `monitoring`, `other`, `print`, `proxy`, `remote-desktop`, `virtualization`, `web`
+  - `top`: `web`, `proxy`
+  - `upper`: `app`, `cloud-service`
+  - `center`: `file`, `mail`, `monitoring`, `other`, `print`, `remote-desktop`
+  - `lower`: `backup`, `domain-controller`, `virtualization`
+  - `bottom`: `db`
 - **Hosting Types** (builtin, locked — drives Locations UI/validation):
   - `on_prem` _(category: on_prem)_, `colocation` _(on_prem)_, `public_cloud` _(cloud)_, `private_cloud` _(cloud)_, `saas` _(cloud)_
 - **Cloud Providers** (stored as `serverProviders`, builtin, locked):
@@ -163,6 +177,9 @@ Tenants can override labels and add new codes. Built‑in codes always exist and
 - **Reset** restores that list to the last saved server state (not factory defaults).
 - Each accordion header shows a short **usage hint** (e.g., “Servers / Technical tab”) so users know where the list is consumed.
 - Per-row inputs are locally keyed (`localId`) to prevent focus loss and React remount churn; this pattern should be reused for new lists.
+- Tiered lists (**Entities**, **Server Roles**) add a `Graph tier` select column (`top|upper|center|lower|bottom`).
+  - New-row defaults: Entities -> `top`; Server Roles -> `center`.
+  - Dirty detection explicitly compares `graph_tier` so tier-only edits enable Save.
 
 ## Frontend architecture (2025-12 refactor)
 
@@ -171,6 +188,7 @@ File: `frontend/src/pages/it/ItOperationsSettingsPage.tsx`
 Key implementation details:
 - **Reducer, not 15 states**: All lists live in a single `useReducer` state (`enums`, `operatingSystems`, `connectionTypes`, `dirty`, `pending`, `baseline`). Dirty is O(1) per list and saved separately.
 - **Config-driven sections + grouping**: Lists are defined in `enumSections` (id, title, description, locked codes, kind, group, usage). Groups: Locations; Servers & Connections; Apps/Interfaces. Operating Systems and Connection Types are injected into the Servers & Connections group.
+- **Specialized editors for tiered enums**: `kind: 'entity' | 'serverRole'` routes to `EntityEditor` / `ServerRoleEditor`, each rendering a `Graph tier` dropdown.
 - **Usage hints in headers**: Each `ListSection` renders a caption line with `usage` text (e.g., “Connections / Protocol selector”).
 - **Lazy mount per accordion**: `ListSection` renders its body only after the accordion is first expanded. All accordions start collapsed by default to keep initial render light.
 - **Virtualized tables**: `useVirtualRows` enables row virtualization when length > threshold (25). Tables show ~20 visible rows (`maxHeight` derived from row height), with sticky headers and spacer rows. Threshold/row heights: enums (52px), operating systems (64px), connection types (60px). Disable by raising the threshold if needed.
@@ -204,6 +222,10 @@ Operational guidance:
     - Normalizes codes (lowercase, non‑empty) and labels (falls back to `code.toUpperCase()`).
     - Preserves built‑in `code`, `builtin`, and `locked` flags; allows overriding labels and `deprecated`.
     - Writes the updated arrays back to `tenant.metadata.it_ops` and saves the tenant.
+  - Tiered enums (`entities`, `serverRoles`) use `normalizeTieredList(...)`:
+    - Validates `graph_tier` against `top|upper|center|lower|bottom`.
+    - Falls back to default tier by code (or `center` if unknown).
+    - Follows regular list semantics (no forced reinsertion of removed defaults).
   - Hosting Types use a dedicated `normalizeHostingTypes` path that preserves/derives the `category` flag (`'on_prem'` vs `'cloud'`). When tenants forget to set the category, the service defaults `on_prem`/`colocation` to `'on_prem'` and treats everything else as `'cloud'`. Consumers (Locations, Servers) rely on this flag to decide which fields to show/clear.
   - The former “Server Providers” list remains exposed as `serverProviders` for backward compatibility, but defaults/labels now represent cloud providers only. The UI surfaces it as **Cloud Providers**, and backend validation still references `settings.serverProviders`.
 
@@ -227,12 +249,26 @@ Endpoints:
      ```json
      {
        \"dataClasses\": [{ \"code\": \"internal\", \"label\": \"Internal\", \"deprecated\": false }],
+       \"entities\": [{ \"code\": \"internet\", \"label\": \"Internet\", \"graph_tier\": \"top\" }],
        \"serverKinds\": [{ \"code\": \"vm\", \"label\": \"Virtual machine\" }],
+       \"serverRoles\": [{ \"code\": \"db\", \"label\": \"Database server\", \"graph_tier\": \"bottom\" }],
        \"serverProviders\": [{ \"code\": \"on_prem\", \"label\": \"On-prem\" }],
        \"interfaceProtocols\": [{ \"code\": \"http\", \"label\": \"HTTP\" }]
      }
      ```
    - Normalizes codes/labels and persists them via `ItOpsSettingsService.updateSettings`.
+   - `graph_tier` accepted values: `top`, `upper`, `center`, `lower`, `bottom`.
+
+### Connection Map Integration (Tiered Placement)
+
+- The Connection Map backend reads `settings.serverRoles[].graph_tier` and `settings.entities[].graph_tier` to derive each node's vertical band.
+- Server tiers are calculated from app assignments in the selected environment (`app_asset_assignments` joined with `app_instances` filtered by `environment`).
+- Multi-role servers select the highest user-facing tier (`top < upper < center < lower < bottom`).
+- Clusters inherit the best tier among member servers.
+- Fallbacks are deterministic:
+  - Unassigned servers/clusters -> `center`
+  - Entities with missing/invalid tier -> `top`
+- Result is returned via `GET /connections/map` in each node's `graph_tier`, so the frontend only consumes metadata and applies a soft placement force.
 
 ### Integration with IT Ops Entities
 
@@ -317,6 +353,7 @@ The settings drive validation for several tenant-scoped tables.
 - Per-section controls (top-right): **Add item**, **Save changes**, **Reset** — act only on that list and PATCH a partial payload.
 - Editors:
   - Standard enums: Label, Code, Deprecated, Actions.
+  - Tiered enums (Entities, Server Roles): Label, Code, Graph tier, Deprecated, Actions.
   - Hosting Types: Label, Code, Category (On‑prem/Colocation vs Cloud/SaaS), Deprecated, Actions.
   - Operating Systems: Name, Code, Standard Support, Extended Support, Deprecated, Actions.
   - Connection Types: Category, Label, Code, Typical ports, Deprecated, Actions.
@@ -327,7 +364,7 @@ The settings drive validation for several tenant-scoped tables.
 - Deprecated values are hidden for new selections but preserved for existing records across the app.
 - Section order in UI (grouped and sorted alphabetically within groups):
   - **Locations group**: Cloud Providers, Hosting Types
-  - **Assets & Connections group**: Asset Roles, Asset Types, Connection Types, Domains, Entities, IP Address Types, Network Zones, Operating Systems, Subnets
+  - **Servers & Connections group**: Server Roles, Asset Types, Connection Types, Domains, Entities, IP Address Types, Network Zones, Operating Systems, Subnets
   - **Apps/Interfaces group**: Access Methods, Application Categories, Data Classes, Integration Patterns, Interface Auth Modes, Interface Data Categories, Interface Data Formats, Interface Protocols, Interface Trigger Types, Lifecycle Statuses
 - Virtualized tables: turn on when a list has >25 rows. Scroll area shows ~20 visible rows with sticky headers; spacer rows preserve total height.
 

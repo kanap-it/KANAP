@@ -392,7 +392,7 @@ export default function TaskWorkspacePage() {
           .then((res) => {
             setCreateRelation({
               type: 'project',
-              id: projectId,
+              id: res.data.id || projectId,
               name: res.data.name || 'Project',
             });
             setInitialized(true);
@@ -405,7 +405,7 @@ export default function TaskWorkspacePage() {
           .then((res) => {
             setCreateRelation({
               type: 'spend_item',
-              id: spendItemId,
+              id: res.data.id || spendItemId,
               name: res.data.product_name || 'Spend Item',
             });
             setInitialized(true);
@@ -418,7 +418,7 @@ export default function TaskWorkspacePage() {
           .then((res) => {
             setCreateRelation({
               type: 'capex_item',
-              id: capexItemId,
+              id: res.data.id || capexItemId,
               name: res.data.description || 'CAPEX Item',
             });
             setInitialized(true);
@@ -431,7 +431,7 @@ export default function TaskWorkspacePage() {
           .then((res) => {
             setCreateRelation({
               type: 'contract',
-              id: contractId,
+              id: res.data.id || contractId,
               name: res.data.name || 'Contract',
             });
             setInitialized(true);
@@ -451,6 +451,23 @@ export default function TaskWorkspacePage() {
       setForm(prev => ({ ...prev, task_type_id: defaultTaskTypeId }));
     }
   }, [isCreate, defaultTaskTypeId, form.task_type_id]);
+
+  // Pre-fill classification when a project is selected in create mode
+  React.useEffect(() => {
+    if (isCreate && createRelation.type === 'project' && createRelation.id) {
+      api.get(`/portfolio/projects/${createRelation.id}`)
+        .then((res) => {
+          setForm(prev => ({
+            ...prev,
+            source_id: res.data.source_id ?? null,
+            category_id: res.data.category_id ?? null,
+            stream_id: res.data.stream_id ?? null,
+            company_id: res.data.company_id ?? null,
+          }));
+        })
+        .catch(() => {});
+    }
+  }, [isCreate, createRelation.type, createRelation.id]);
 
   const handleFieldChange = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -475,9 +492,9 @@ export default function TaskWorkspacePage() {
         ...form,
       };
 
-      // Strip classification fields for non-standalone tasks
-      // These fields are either inherited from the parent object or not applicable
-      if (!isStandalone) {
+      // Strip classification fields for non-standalone, non-project tasks
+      const canEditClassification = isStandalone || isProject;
+      if (!canEditClassification) {
         delete payload.source_id;
         delete payload.company_id;
         delete payload.category_id;
@@ -587,13 +604,12 @@ export default function TaskWorkspacePage() {
         phase_id: form.phase_id || null,
         viewer_ids: form.viewer_ids || [],
         task_type_id: (form as any).task_type_id || null,
-        // Classification fields (only for standalone tasks)
-        ...(isStandaloneCreate && {
-          source_id: (form as any).source_id || null,
-          category_id: (form as any).category_id || null,
-          stream_id: (form as any).stream_id || null,
-          company_id: (form as any).company_id || null,
-        }),
+        // Classification fields (for standalone and project tasks)
+        // Only include fields the user has touched (incl. explicit null); omitted fields let backend default from project
+        ...((isStandaloneCreate || createRelation.type === 'project') && (form as any).source_id !== undefined ? { source_id: (form as any).source_id } : {}),
+        ...((isStandaloneCreate || createRelation.type === 'project') && (form as any).category_id !== undefined ? { category_id: (form as any).category_id } : {}),
+        ...((isStandaloneCreate || createRelation.type === 'project') && (form as any).stream_id !== undefined ? { stream_id: (form as any).stream_id } : {}),
+        ...((isStandaloneCreate || createRelation.type === 'project') && (form as any).company_id !== undefined ? { company_id: (form as any).company_id } : {}),
       };
 
       // Determine endpoint based on relation type

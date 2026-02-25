@@ -53,7 +53,7 @@ export class Task {
   @Column('uuid', { nullable: true })
   task_type_id!: string | null;
 
-  // Classification fields for standalone tasks
+  // Classification fields
   @Column('uuid', { nullable: true })
   source_id!: string | null;
 

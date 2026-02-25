@@ -62,17 +62,23 @@ export class TasksUnifiedService {
       if (!phase) throw new BadRequestException('Phase does not belong to specified project');
     }
 
-    // Validate classification fields - only allowed for standalone tasks
-    if (!isStandalone) {
-      if (payload.source_id !== undefined || payload.company_id !== undefined) {
-        throw new BadRequestException('source_id and company_id can only be set on standalone tasks');
+    // Validate classification fields - only allowed for standalone and project tasks
+    const canEditClassification = isStandalone || target.type === 'project';
+    if (!canEditClassification) {
+      if (payload.source_id !== undefined || payload.company_id !== undefined ||
+          payload.category_id !== undefined || payload.stream_id !== undefined) {
+        throw new BadRequestException('Classification fields can only be set on standalone or project tasks');
       }
-      // For project tasks, category_id/stream_id are inherited from project
-      if (target.type === 'project') {
-        if (payload.category_id !== undefined || payload.stream_id !== undefined) {
-          throw new BadRequestException('Category and stream are inherited from project for project tasks');
-        }
-      }
+    }
+
+    // Default classification from project if not explicitly provided
+    let defaults = { source_id: null as any, category_id: null as any, stream_id: null as any, company_id: null as any };
+    if (target.type === 'project' && target.id) {
+      const [project] = await manager.query(
+        'SELECT source_id, category_id, stream_id, company_id FROM portfolio_projects WHERE id = $1',
+        [target.id],
+      );
+      if (project) defaults = project;
     }
 
     // Build entity with new fields
@@ -91,11 +97,11 @@ export class TasksUnifiedService {
       priority_level: (payload.priority_level ?? 'normal') as TaskPriorityLevel,
       start_date: (payload.start_date ?? null) as any,
       labels: payload.labels ?? [],
-      // Classification fields (only populated for standalone tasks)
-      source_id: isStandalone ? (payload.source_id ?? null) as any : null,
-      category_id: isStandalone ? (payload.category_id ?? null) as any : null,
-      stream_id: isStandalone ? (payload.stream_id ?? null) as any : null,
-      company_id: isStandalone ? (payload.company_id ?? null) as any : null,
+      // Classification fields (populated for standalone and project tasks)
+      source_id: canEditClassification ? (payload.source_id !== undefined ? payload.source_id : defaults.source_id) as any : null,
+      category_id: canEditClassification ? (payload.category_id !== undefined ? payload.category_id : defaults.category_id) as any : null,
+      stream_id: canEditClassification ? (payload.stream_id !== undefined ? payload.stream_id : defaults.stream_id) as any : null,
+      company_id: canEditClassification ? (payload.company_id !== undefined ? payload.company_id : defaults.company_id) as any : null,
       creator_id: (payload.creator_id ?? userId ?? null) as any,
       owner_ids: payload.owner_ids ?? [],
       viewer_ids: payload.viewer_ids ?? [],
@@ -129,15 +135,13 @@ export class TasksUnifiedService {
       }
     }
 
-    // Strip classification fields for non-standalone tasks (defense in depth)
-    // These fields should not be set on linked tasks - they're either inherited or N/A
-    if (!isStandalone) {
+    // Strip classification fields for non-standalone, non-project tasks (defense in depth)
+    const canEditClassification = isStandalone || existing.related_object_type === 'project';
+    if (!canEditClassification) {
       delete payload.source_id;
       delete payload.company_id;
-      if (existing.related_object_type === 'project') {
-        delete payload.category_id;
-        delete payload.stream_id;
-      }
+      delete payload.category_id;
+      delete payload.stream_id;
     }
 
     // Validate phase belongs to project for project tasks
@@ -222,15 +226,13 @@ export class TasksUnifiedService {
 
     const isStandalone = existing.related_object_type === null;
 
-    // Strip classification fields for non-standalone tasks (defense in depth)
-    // These fields should not be set on linked tasks - they're either inherited or N/A
-    if (!isStandalone) {
+    // Strip classification fields for non-standalone, non-project tasks (defense in depth)
+    const canEditClassification = isStandalone || existing.related_object_type === 'project';
+    if (!canEditClassification) {
       delete payload.source_id;
       delete payload.company_id;
-      if (existing.related_object_type === 'project') {
-        delete payload.category_id;
-        delete payload.stream_id;
-      }
+      delete payload.category_id;
+      delete payload.stream_id;
     }
 
     // Validate phase if updating project task

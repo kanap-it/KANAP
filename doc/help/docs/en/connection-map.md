@@ -17,6 +17,7 @@ The map uses a force-directed graph layout where:
 - **Edges** represent connections between infrastructure components
 - **Node shape** distinguishes regular assets from clusters
 - **Colors** indicate hosting type (on-premises vs cloud) or status
+- **Role-based placement** (when enabled) guides nodes into top-to-bottom bands based on role/entity tiers
 
 ### Node types
 
@@ -65,13 +66,27 @@ This filter is automatically set when you select assets via the Applications or 
 
 ## Display options
 
-### Show multi-asset connections
+### Show multi-server connections
 
-Toggle visibility of multi-asset connections (connections involving more than two assets in a mesh topology).
+Toggle visibility of multi-server connections (connections involving more than two assets in a mesh topology).
 
 ### Show connection layers
 
 When enabled, displays individual connection legs as separate edges. This shows how a multi-leg connection routes through intermediate points. When disabled, connections are shown as simple source-to-destination edges.
+
+### Role-based placement
+
+When enabled (default), the map keeps its force layout but adds vertical tier guidance:
+
+- **Top / Upper / Center / Lower / Bottom** bands
+- **Servers** use the role assignments from the selected environment
+- **Entities** use their configured Graph Tier (default is Top)
+- **Unassigned servers** fall back to Center
+- **Clusters** inherit the highest user-facing tier from their members
+
+Use this toggle when you want a topology view that reads like architecture tiers (edge-facing components at top, data stores lower).
+
+This toggle is session-only (it resets when you reload the page).
 
 ---
 
@@ -169,11 +184,23 @@ Member assets inherit the cluster's connections while maintaining their individu
 
 ---
 
+## Configure graph tiers
+
+You can control where nodes tend to appear by editing tiers in **IT Operations → Settings**:
+
+- **Server Roles** list: set Graph Tier for each role (for example, Web = Top, DB = Bottom)
+- **Entities** list: set Graph Tier for each entity type (default entities are Top)
+
+Tier changes take effect the next time the map data is loaded.
+
+---
+
 ## Tips
 
   - **Start from applications**: Use the Applications filter to find assets for a specific application, then explore their connections with depth=1.
   - **Use depth=0 for focused views**: When you only want to see connections between specific assets, select them and set depth to 0.
   - **Export for architecture docs**: Use the SVG export to create network diagrams for documentation or security reviews.
   - **Enable layers for troubleshooting**: Turn on "Show connection layers" to see exactly how multi-leg connections route through your infrastructure.
+  - **Use role tiers for architecture views**: Keep "Role-based placement" on when presenting layered architecture diagrams.
   - **Cross-reference with Interface Map**: Use the "View in Interface Map" button in the connection panel to see which business interfaces depend on each infrastructure connection.
   - **Snap for clarity**: After positioning nodes, use Snap to Grid for cleaner, more aligned layouts.

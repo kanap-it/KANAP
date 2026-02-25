@@ -43,6 +43,18 @@ interface ClassificationCategory {
   streams?: ClassificationStream[];
 }
 
+type SelectOption = { label: string; value: string };
+
+function withCurrentOption(
+  options: SelectOption[],
+  currentId?: string | null,
+  currentLabel?: string | null,
+): SelectOption[] {
+  if (!currentId) return options;
+  if (options.some((o) => o.value === currentId)) return options;
+  return [...options, { value: currentId, label: currentLabel || currentId }];
+}
+
 const STATUS_OPTIONS = [
   { label: 'Open', value: 'open' },
   { label: 'In Progress', value: 'in_progress' },
@@ -126,6 +138,7 @@ export default function TaskSidebar({
 
   const isProjectTask = task.related_object_type === 'project';
   const isStandalone = !task.related_object_type;
+  const canEditClassification = isStandalone || isProjectTask;
 
   // Fetch task types from classification API
   const { data: taskTypesData } = useQuery({
@@ -135,10 +148,12 @@ export default function TaskSidebar({
       return res.data as TaskType[];
     },
   });
-  const taskTypeOptions = React.useMemo(() =>
-    (taskTypesData || []).filter(t => t.is_active).map(t => ({ label: t.name, value: t.id })),
-    [taskTypesData]
-  );
+  const taskTypeOptions = React.useMemo(() => {
+    const activeOptions = (taskTypesData || [])
+      .filter((t) => t.is_active)
+      .map((t) => ({ label: t.name, value: t.id }));
+    return withCurrentOption(activeOptions, task.task_type_id, task.task_type_name);
+  }, [taskTypesData, task.task_type_id, task.task_type_name]);
 
   // Fetch classification data (sources, categories, streams) for standalone tasks
   const { data: classificationData } = useQuery({
@@ -151,7 +166,7 @@ export default function TaskSidebar({
         streams: ClassificationStream[];
       };
     },
-    enabled: isStandalone && !readOnly,
+    enabled: canEditClassification && !readOnly,
   });
 
   const sources = classificationData?.sources?.filter((s) => s.is_active) || [];
@@ -164,20 +179,20 @@ export default function TaskSidebar({
     return streams.filter((s) => s.category_id === task.category_id);
   }, [streams, task.category_id]);
 
-  const sourceOptions = React.useMemo(() =>
-    sources.map((s) => ({ label: s.name, value: s.id })),
-    [sources]
-  );
+  const sourceOptions = React.useMemo(() => {
+    const options = sources.map((s) => ({ label: s.name, value: s.id }));
+    return withCurrentOption(options, task.source_id, task.source_name);
+  }, [sources, task.source_id, task.source_name]);
 
-  const categoryOptions = React.useMemo(() =>
-    categories.map((c) => ({ label: c.name, value: c.id })),
-    [categories]
-  );
+  const categoryOptions = React.useMemo(() => {
+    const options = categories.map((c) => ({ label: c.name, value: c.id }));
+    return withCurrentOption(options, task.category_id, task.category_name);
+  }, [categories, task.category_id, task.category_name]);
 
-  const streamOptions = React.useMemo(() =>
-    filteredStreams.map((s) => ({ label: s.name, value: s.id })),
-    [filteredStreams]
-  );
+  const streamOptions = React.useMemo(() => {
+    const options = filteredStreams.map((s) => ({ label: s.name, value: s.id }));
+    return withCurrentOption(options, task.stream_id, task.stream_name);
+  }, [filteredStreams, task.stream_id, task.stream_name]);
 
   // Fetch phases for the project (if task is project-related and has a valid project ID)
   const { data: phases = [] } = useQuery({
@@ -231,6 +246,7 @@ export default function TaskSidebar({
               <RelatedObjectSelect
                 relationType={task.related_object_type as RelatedObjectType}
                 relationId={task.related_object_id || null}
+                relationName={task.related_object_name || null}
                 onChangeType={(type) => onRelationChange({ type, id: null, name: null })}
                 onChangeId={(id, name) =>
                   onRelationChange({ type: task.related_object_type as RelatedObjectType, id, name })
@@ -332,46 +348,8 @@ export default function TaskSidebar({
               />
             )}
 
-            {/* Classification fields for project tasks (inherited, read-only) */}
-            {isProjectTask && (task.category_name || task.stream_name || task.source_name || task.company_name) && (
-              <>
-                {task.source_name && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-                      Source <Typography component="span" variant="caption" color="text.disabled">(from project)</Typography>
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.source_name}</Typography>
-                  </Box>
-                )}
-                {task.category_name && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-                      Classification <Typography component="span" variant="caption" color="text.disabled">(from project)</Typography>
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.category_name}</Typography>
-                  </Box>
-                )}
-                {task.stream_name && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-                      Stream <Typography component="span" variant="caption" color="text.disabled">(from project)</Typography>
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.stream_name}</Typography>
-                  </Box>
-                )}
-                {task.company_name && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-                      Company <Typography component="span" variant="caption" color="text.disabled">(from project)</Typography>
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.company_name}</Typography>
-                  </Box>
-                )}
-              </>
-            )}
-
-            {/* Classification fields for standalone tasks - EDITABLE */}
-            {isStandalone && !readOnly && (
+            {/* Classification fields - EDITABLE (standalone + project tasks) */}
+            {canEditClassification && !readOnly && (
               <>
                 <EnumAutocomplete
                   label="Source"
@@ -415,8 +393,8 @@ export default function TaskSidebar({
               </>
             )}
 
-            {/* Classification fields for standalone tasks - READ-ONLY */}
-            {isStandalone && readOnly && (task.category_name || task.stream_name || task.source_name || task.company_name) && (
+            {/* Classification fields - READ-ONLY (standalone + project tasks) */}
+            {canEditClassification && readOnly && (task.category_name || task.stream_name || task.source_name || task.company_name) && (
               <>
                 {task.source_name && (
                   <Box>

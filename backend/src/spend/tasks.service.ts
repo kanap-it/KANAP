@@ -26,7 +26,7 @@ export interface TaskListItem {
   priority_level: string;
   priority_score: number;
   labels: string[];
-  // Classification fields (resolved from standalone task or inherited from project)
+  // Classification fields (stored directly on the task)
   source_id: string | null;
   source_name: string | null;
   category_id: string | null;
@@ -296,27 +296,11 @@ export class TasksService {
       LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
       LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
       LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
-      -- Classification JOINs
-      LEFT JOIN portfolio_sources ps ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.source_id
-             WHEN t.related_object_type = 'project' THEN pp.source_id
-             ELSE NULL END
-      ) = ps.id
-      LEFT JOIN portfolio_categories pc ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.category_id
-             WHEN t.related_object_type = 'project' THEN pp.category_id
-             ELSE NULL END
-      ) = pc.id
-      LEFT JOIN portfolio_streams pst ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.stream_id
-             WHEN t.related_object_type = 'project' THEN pp.stream_id
-             ELSE NULL END
-      ) = pst.id
-      LEFT JOIN companies comp ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.company_id
-             WHEN t.related_object_type = 'project' THEN pp.company_id
-             ELSE NULL END
-      ) = comp.id
+      -- Classification JOINs (COALESCE: task value wins, falls back to project)
+      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
+      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
+      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
+      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
       WHERE ${whereConditions}
     `;
     const countResult = await manager.query(countQuery, params);
@@ -396,27 +380,11 @@ export class TasksService {
             END
         END as priority_score,
         t.labels,
-        -- Classification: from task for standalone, from project for project tasks
-        CASE
-          WHEN t.related_object_type IS NULL THEN t.source_id
-          WHEN t.related_object_type = 'project' THEN pp.source_id
-          ELSE NULL
-        END as source_id,
-        CASE
-          WHEN t.related_object_type IS NULL THEN t.category_id
-          WHEN t.related_object_type = 'project' THEN pp.category_id
-          ELSE NULL
-        END as category_id,
-        CASE
-          WHEN t.related_object_type IS NULL THEN t.stream_id
-          WHEN t.related_object_type = 'project' THEN pp.stream_id
-          ELSE NULL
-        END as stream_id,
-        CASE
-          WHEN t.related_object_type IS NULL THEN t.company_id
-          WHEN t.related_object_type = 'project' THEN pp.company_id
-          ELSE NULL
-        END as company_id,
+        -- Classification (task value wins, falls back to project)
+        COALESCE(t.source_id, pp.source_id) as source_id,
+        COALESCE(t.category_id, pp.category_id) as category_id,
+        COALESCE(t.stream_id, pp.stream_id) as stream_id,
+        COALESCE(t.company_id, pp.company_id) as company_id,
         -- Resolved classification names
         ps.name as source_name,
         pc.name as category_name,
@@ -433,27 +401,11 @@ export class TasksService {
       LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
       LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
       LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
-      -- Classification JOINs
-      LEFT JOIN portfolio_sources ps ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.source_id
-             WHEN t.related_object_type = 'project' THEN pp.source_id
-             ELSE NULL END
-      ) = ps.id
-      LEFT JOIN portfolio_categories pc ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.category_id
-             WHEN t.related_object_type = 'project' THEN pp.category_id
-             ELSE NULL END
-      ) = pc.id
-      LEFT JOIN portfolio_streams pst ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.stream_id
-             WHEN t.related_object_type = 'project' THEN pp.stream_id
-             ELSE NULL END
-      ) = pst.id
-      LEFT JOIN companies comp ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.company_id
-             WHEN t.related_object_type = 'project' THEN pp.company_id
-             ELSE NULL END
-      ) = comp.id
+      -- Classification JOINs (COALESCE: task value wins, falls back to project)
+      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
+      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
+      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
+      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
       WHERE ${whereConditions}
       ORDER BY ${sortField} ${sort.direction}
       LIMIT ${limit} OFFSET ${skip}
@@ -522,27 +474,11 @@ export class TasksService {
       LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
       LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
       LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
-      -- Classification JOINs
-      LEFT JOIN portfolio_sources ps ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.source_id
-             WHEN t.related_object_type = 'project' THEN pp.source_id
-             ELSE NULL END
-      ) = ps.id
-      LEFT JOIN portfolio_categories pc ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.category_id
-             WHEN t.related_object_type = 'project' THEN pp.category_id
-             ELSE NULL END
-      ) = pc.id
-      LEFT JOIN portfolio_streams pst ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.stream_id
-             WHEN t.related_object_type = 'project' THEN pp.stream_id
-             ELSE NULL END
-      ) = pst.id
-      LEFT JOIN companies comp ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.company_id
-             WHEN t.related_object_type = 'project' THEN pp.company_id
-             ELSE NULL END
-      ) = comp.id
+      -- Classification JOINs (COALESCE: task value wins, falls back to project)
+      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
+      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
+      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
+      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
       WHERE ${whereConditions}
       ORDER BY ${sortField} ${sort.direction}
       LIMIT 10000
@@ -587,27 +523,11 @@ export class TasksService {
         LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
         LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
         LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
-        -- Classification JOINs
-        LEFT JOIN portfolio_sources ps ON (
-          CASE WHEN t.related_object_type IS NULL THEN t.source_id
-               WHEN t.related_object_type = 'project' THEN pp.source_id
-               ELSE NULL END
-        ) = ps.id
-        LEFT JOIN portfolio_categories pc ON (
-          CASE WHEN t.related_object_type IS NULL THEN t.category_id
-               WHEN t.related_object_type = 'project' THEN pp.category_id
-               ELSE NULL END
-        ) = pc.id
-        LEFT JOIN portfolio_streams pst ON (
-          CASE WHEN t.related_object_type IS NULL THEN t.stream_id
-               WHEN t.related_object_type = 'project' THEN pp.stream_id
-               ELSE NULL END
-        ) = pst.id
-        LEFT JOIN companies comp ON (
-          CASE WHEN t.related_object_type IS NULL THEN t.company_id
-               WHEN t.related_object_type = 'project' THEN pp.company_id
-               ELSE NULL END
-        ) = comp.id
+        -- Classification JOINs (COALESCE: task value wins, falls back to project)
+        LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
+        LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
+        LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
+        LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
         WHERE ${whereConditions}
         ORDER BY value ASC
       `;
@@ -672,27 +592,11 @@ export class TasksService {
             END
         END as priority_score,
         t.labels,
-        -- Classification: from task for standalone, from project for project tasks
-        CASE
-          WHEN t.related_object_type IS NULL THEN t.source_id
-          WHEN t.related_object_type = 'project' THEN pp.source_id
-          ELSE NULL
-        END as source_id,
-        CASE
-          WHEN t.related_object_type IS NULL THEN t.category_id
-          WHEN t.related_object_type = 'project' THEN pp.category_id
-          ELSE NULL
-        END as category_id,
-        CASE
-          WHEN t.related_object_type IS NULL THEN t.stream_id
-          WHEN t.related_object_type = 'project' THEN pp.stream_id
-          ELSE NULL
-        END as stream_id,
-        CASE
-          WHEN t.related_object_type IS NULL THEN t.company_id
-          WHEN t.related_object_type = 'project' THEN pp.company_id
-          ELSE NULL
-        END as company_id,
+        -- Classification (task value wins, falls back to project)
+        COALESCE(t.source_id, pp.source_id) as source_id,
+        COALESCE(t.category_id, pp.category_id) as category_id,
+        COALESCE(t.stream_id, pp.stream_id) as stream_id,
+        COALESCE(t.company_id, pp.company_id) as company_id,
         -- Resolved classification names
         ps.name as source_name,
         pc.name as category_name,
@@ -709,27 +613,11 @@ export class TasksService {
       LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
       LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
       LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
-      -- Classification JOINs
-      LEFT JOIN portfolio_sources ps ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.source_id
-             WHEN t.related_object_type = 'project' THEN pp.source_id
-             ELSE NULL END
-      ) = ps.id
-      LEFT JOIN portfolio_categories pc ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.category_id
-             WHEN t.related_object_type = 'project' THEN pp.category_id
-             ELSE NULL END
-      ) = pc.id
-      LEFT JOIN portfolio_streams pst ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.stream_id
-             WHEN t.related_object_type = 'project' THEN pp.stream_id
-             ELSE NULL END
-      ) = pst.id
-      LEFT JOIN companies comp ON (
-        CASE WHEN t.related_object_type IS NULL THEN t.company_id
-             WHEN t.related_object_type = 'project' THEN pp.company_id
-             ELSE NULL END
-      ) = comp.id
+      -- Classification JOINs (COALESCE: task value wins, falls back to project)
+      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
+      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
+      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
+      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
       WHERE t.id = $1
       LIMIT 1
     `;

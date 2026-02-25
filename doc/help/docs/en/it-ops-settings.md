@@ -2,6 +2,8 @@
 
 The **IT Operations Settings** page lets you customize the dropdown values used throughout IT Operations. These lists control what options appear when users create or edit Applications, Interfaces, Assets, Connections, and Locations. Changes here apply to all users in your workspace.
 
+For map readability, **Entities** and **Server Roles** also include a **Graph Tier** field used by the Connection Map's role-based placement.
+
 ## Where to find it
 
 - Workspace: **IT Operations**
@@ -17,7 +19,7 @@ If you don't see the **Settings** entry in the IT Operations drawer, ask your ad
 Settings are grouped into three collapsible sections:
 
 1. **Locations** - Lists used when creating or editing Locations.
-2. **Assets & Connections** - Lists for Assets, Connections, and related infrastructure data.
+2. **Servers & Connections** - Lists for Servers, Connections, and related infrastructure data.
 3. **Apps, Services & Interfaces** - Lists used across Applications, App Instances, Interfaces, and Bindings.
 
 Each list appears as an expandable panel. Click a panel header to expand it and see the values. Only one section loads its content when you first expand it, which keeps the page fast even when you have many lists.
@@ -61,7 +63,7 @@ The category determines which fields appear when editing a Location:
 
 ---
 
-## Assets & Connections
+## Servers & Connections
 
 ### Connection Types
 
@@ -98,11 +100,21 @@ Active Directory or DNS domains that assets can belong to. Used to compute the f
 
 Source and target entities for data flows and access patterns (e.g., Internal Users, Internet, Partner Networks, External Systems).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Label, Code, Graph Tier, Deprecated flag
 
 **Where used**:
 - Connections workspace → **Source Entity** and **Target Entity** fields
-- Connection Map → entities appear as flow endpoints
+- Connection Map → entities appear as flow endpoints and use Graph Tier for vertical placement (default entities are Top)
+
+### Graph Tier values
+
+Graph Tier controls the preferred vertical band in Connection Map when **Role-based placement** is enabled:
+
+- **Top**: Most user-facing or external endpoints
+- **Upper**: Upper application/service layer
+- **Center**: Neutral/default middle layer
+- **Lower**: Supporting infrastructure
+- **Bottom**: Data/storage-heavy endpoints
 
 ### IP Address Types
 
@@ -159,14 +171,20 @@ Dates are stored as `YYYY-MM-DD` but displayed and edited as `DD/MM/YYYY`.
 
 Default entries include Windows Server versions, Ubuntu LTS, RHEL, Debian, and SLES with appropriate support dates.
 
-### Asset Roles
+### Server Roles
 
 Roles assigned to assets when linking them to application instances (e.g., Web server, Database server, Worker).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Label, Code, Graph Tier, Deprecated flag
 
 **Where used**:
 - Applications workspace → Servers tab → **Role** dropdown when linking an asset to an instance
+- Connection Map → role-derived placement band for servers and clusters
+
+Default built-in examples:
+- `web`, `proxy` → **Top**
+- `app`, `cloud-service` → **Upper**
+- `db` → **Bottom**
 
 ### Asset Types
 
@@ -311,7 +329,7 @@ This approach lets you evolve your taxonomy over time without breaking existing 
 | **Connection Types** | Connections (Connection Type) |
 | **Data Classes** | Applications (Compliance tab), Interfaces (Overview), Applications list |
 | **Domains** | Assets (Technical tab → Domain, FQDN) |
-| **Entities** | Connections (Source/Target Entity), Connection Map |
+| **Entities** | Connections (Source/Target Entity), Connection Map (Graph Tier placement) |
 | **Hosting Types** | Locations (Overview) |
 | **Integration Patterns** | Interface legs (Pattern) |
 | **Interface Auth Modes** | Interface bindings (Auth Mode) |
@@ -324,7 +342,7 @@ This approach lets you evolve your taxonomy over time without breaking existing 
 | **Network Zones** | Subnets (Network Zone), Assets (auto-populated from subnet) |
 | **Operating Systems** | Assets (Technical tab) |
 | **Subnets** | Assets (Technical tab → IP Addresses → Subnet selector) |
-| **Asset Roles** | Applications → Servers tab (role when linking asset to app) |
+| **Server Roles** | Applications → Servers tab (role when linking asset to app), Connection Map (Graph Tier placement) |
 | **Asset Types** | Assets (Overview → Type) |
 
 ---
@@ -335,3 +353,4 @@ This approach lets you evolve your taxonomy over time without breaking existing 
 - **Deprecate gradually** - When transitioning away from a value, mark it deprecated rather than deleting it. This keeps historical data intact while steering users toward new options.
 - **Coordinate Data Classes with security** - Changes to Data Classes should align with your information security policies. Discuss with compliance before adding or renaming classification levels.
 - **Use typical ports as documentation** - The Connection Types "Typical ports" field is informational. Fill it in to help users understand what ports each connection type commonly uses.
+- **Tune map readability with tiers** - Keep Entities and Server Roles Graph Tiers aligned with your architecture layers (edge, app, data) for clearer Connection Map layouts.

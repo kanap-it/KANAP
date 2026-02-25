@@ -380,7 +380,7 @@ Notes
   - `PUT /connections/:id/legs` → replace legs (array of up to 3) with `order_index 1..3`, `layer_type`, one source + one destination (server or entity per side), `protocol_codes[]` (from Connection Types), optional `port_override`, `notes`.
   - `DELETE /connections/:id`
   - `DELETE /connections/bulk` (admin only) with body `{ ids: string[] }`
-  - `GET /connections/map?environment=prod&lifecycles=active` → returns `{ environment, lifecycles, nodes: [{ id, name, kind:'server'|'entity', environment?, network_segment?, hosting_category? }], connections: [{ id, connection_id, name, topology, lifecycle, criticality, data_class, contains_pii, protocol_codes, protocol_labels, source_server_id, source_entity_code, destination_server_id, destination_entity_code, server_ids: string[], legs?: [{ id, order_index, layer_type, source_server_id, source_entity_code, destination_server_id, destination_entity_code, protocol_codes, protocol_labels, port_override, notes }] }] }`. `criticality`, `data_class`, and `contains_pii` on the map payload reflect effective (aggregated) risk where `risk_mode = 'derived'`. When legs exist, clients render one edge per leg; otherwise they use the S2S/mesh fallback. Nodes are limited to participants; multi-server edges are expanded client-side when the toggle is enabled.
+  - `GET /connections/map?environment=prod&lifecycles=active` → returns `{ environment, lifecycles, nodes: [{ id, name, kind:'server'|'cluster'|'entity', is_cluster?, environment?, hosting_category?, graph_tier?, member_server_ids? }], connections: [{ id, connection_id, name, topology, lifecycle, criticality, data_class, contains_pii, protocol_codes, protocol_labels, source_server_id, source_entity_code, destination_server_id, destination_entity_code, server_ids: string[], legs?: [{ id, order_index, layer_type, source_server_id, source_entity_code, destination_server_id, destination_entity_code, protocol_codes, protocol_labels, port_override, notes }] }], clusterMemberships: [{ cluster_id, server_id }] }`. `criticality`, `data_class`, and `contains_pii` on the map payload reflect effective (aggregated) risk where `risk_mode = 'derived'`. When legs exist, clients render one edge per leg; otherwise they use the S2S/mesh fallback. Nodes are limited to participants; multi-server edges are expanded client-side when the toggle is enabled. Tier semantics: servers/clusters use environment-scoped app role assignments (highest user-facing priority wins for multi-role assets), entities use IT Ops `entities.graph_tier`; fallback is `center` for unassigned servers/clusters and `top` for entities.
 - RBAC: uses `applications` resource (`reader` list/detail; `manager` create/update/delete; `admin` bulk delete).
 
 ### Assets & App Server Assignments
@@ -432,7 +432,8 @@ Tenant-scoped configuration for IT Operations dropdowns and enums.
 
 - GET `/it-ops/settings`
   - Guards: `JwtAuthGuard`, `PermissionGuard`, `@RequireLevel('settings', 'reader')`
-  - Returns merged settings with defaults: `{ dataClasses, networkSegments, entities, serverKinds, serverProviders, serverRoles, hostingTypes, lifecycleStates, interfaceProtocols, interfaceDataCategories, interfaceTriggerTypes, interfacePatterns, interfaceFormats, interfaceAuthModes, operatingSystems, connectionTypes, subnets, domains, ipAddressTypes }`
+  - Returns merged settings with defaults: `{ dataClasses, networkSegments, entities, serverKinds, serverProviders, serverRoles, hostingTypes, lifecycleStates, interfaceProtocols, interfaceDataCategories, interfaceTriggerTypes, interfacePatterns, interfaceFormats, interfaceAuthModes, operatingSystems, connectionTypes, subnets, domains, ipAddressTypes, accessMethods }`
+  - `entities[]` and `serverRoles[]` include optional `graph_tier` (`top|upper|center|lower|bottom`) used by Connection Map role-based placement.
 
 - PATCH `/it-ops/settings`
   - Guards: `JwtAuthGuard`, `PermissionGuard`, `@RequireLevel('settings', 'admin')`
@@ -441,10 +442,13 @@ Tenant-scoped configuration for IT Operations dropdowns and enums.
     ```json
     {
       "networkSegments": [{ "code": "lan", "label": "LAN" }],
+      "entities": [{ "code": "internet", "label": "Internet", "graph_tier": "top" }],
+      "serverRoles": [{ "code": "db", "label": "Database server", "graph_tier": "bottom" }],
       "subnets": [{ "location_id": "uuid", "cidr": "192.168.1.0/24", "vlan_number": 100, "network_zone": "lan", "description": "Office network" }],
       "domains": [{ "code": "corp-ad", "label": "Corporate AD", "dns_suffix": "corp.example.com" }]
     }
     ```
+  - `graph_tier` values outside `top|upper|center|lower|bottom` are normalized to the default tier for that code (or `center` if unknown).
   - Subnets validation:
     - `location_id`: required, must reference valid location
     - `cidr`: required, valid IPv4 CIDR (e.g., `192.168.1.0/24`)

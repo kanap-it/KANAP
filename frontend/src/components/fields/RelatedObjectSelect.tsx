@@ -9,6 +9,7 @@ export type RelatedObjectType = 'project' | 'spend_item' | 'contract' | 'capex_i
 interface RelatedObjectSelectProps {
   relationType: RelatedObjectType;
   relationId: string | null;
+  relationName?: string | null;
   onChangeType: (type: RelatedObjectType) => void;
   onChangeId: (id: string | null, name: string | null) => void;
   disabled?: boolean;
@@ -30,6 +31,7 @@ const TYPE_OPTIONS = [
 export default function RelatedObjectSelect({
   relationType,
   relationId,
+  relationName = null,
   onChangeType,
   onChangeId,
   disabled = false,
@@ -83,9 +85,13 @@ export default function RelatedObjectSelect({
 
   // Find selected item from items list
   const selectedItem = React.useMemo(() => {
-    if (!relationId || !items) return null;
-    return items.find((i) => i.id === relationId) || null;
-  }, [relationId, items]);
+    if (!relationId) return null;
+    if (items && items.length > 0) {
+      const match = items.find((i) => i.id === relationId);
+      if (match) return match;
+    }
+    return relationName ? { id: relationId, name: relationName } : null;
+  }, [relationId, relationName, items]);
 
   const handleTypeChange = (value: string) => {
     const newType = value ? (value as RelatedObjectType) : null;
@@ -115,7 +121,6 @@ export default function RelatedObjectSelect({
           options={items || []}
           value={selectedItem}
           onChange={handleItemChange}
-          inputValue={inputValue}
           onInputChange={(_, val) => setInputValue(val)}
           getOptionLabel={(option) => option?.name || ''}
           isOptionEqualToValue={(option, value) => option?.id === value?.id}
