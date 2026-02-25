@@ -14,6 +14,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
@@ -673,6 +674,7 @@ export default function TaskWorkspacePage() {
   // Check if create form is valid for enabling save button
   // Title is required. Relation is optional (standalone tasks are allowed).
   const isCreateValid = Boolean(title.trim());
+  const isCreateTitleMissing = !title.trim();
 
   // Create mode UI - full workspace layout
   if (isCreate) {
@@ -708,17 +710,45 @@ export default function TaskWorkspacePage() {
 
           {/* Title input */}
           <Stack spacing={0.5} sx={{ mt: 2 }}>
-            <TextField
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              variant="standard"
-              fullWidth
-              placeholder="Task title"
-              InputProps={{
-                disableUnderline: true,
-                sx: { fontSize: '1.5rem', fontWeight: 600 },
+            <Typography
+              variant="caption"
+              sx={{
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+                fontWeight: 700,
+                color: 'text.primary',
               }}
-            />
+            >
+              Task title
+            </Typography>
+            <Box
+              sx={{
+                px: 1.5,
+                py: 0.75,
+                borderRadius: 1.5,
+                border: 1,
+                borderColor: isCreateTitleMissing
+                  ? alpha(theme.palette.info.main, 0.25)
+                  : 'divider',
+                bgcolor: isCreateTitleMissing
+                  ? alpha(theme.palette.info.main, 0.08)
+                  : 'background.paper',
+                transition: 'border-color 120ms ease, background-color 120ms ease',
+              }}
+            >
+              <TextField
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                variant="standard"
+                fullWidth
+                autoFocus
+                placeholder="Task title"
+                InputProps={{
+                  disableUnderline: true,
+                  sx: { fontSize: '1.5rem', fontWeight: 600 },
+                }}
+              />
+            </Box>
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
                 label={STATUS_LABELS[form.status as string] || 'Open'}

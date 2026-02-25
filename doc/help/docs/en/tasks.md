@@ -21,7 +21,7 @@ When you click **New**, the full task workspace opens. To create a task:
    - **Task Type**: Select a category for the work (e.g., Task, Bug, Problem, Incident). Defaults to "Task" if available
    - **Description**: Add detailed information using the rich text editor (supports formatting, lists, links, images)
    - **Phase**: For project tasks, select a phase or leave as "Project-level"
-   - **Classification** (standalone tasks only): Set Source, Category, Stream, and Company
+   - **Classification** (standalone and project tasks): Set Source, Category, Stream, and Company. For project tasks, these default from the parent project but can be changed independently
    - **Status**: Defaults to "Open"
    - **Priority**: Defaults to "Normal"
    - **Dates**: Set start and due dates
@@ -132,7 +132,7 @@ The collapsible sidebar contains:
   - Priority level
   - **Classification** (for standalone and project tasks only):
     - **Standalone tasks**: Editable dropdowns for Source, Category, Stream, and Company
-    - **Project tasks**: Read-only display with "(from project)" labels showing inherited values
+    - **Project tasks**: Editable dropdowns for Source, Category, Stream, and Company. When a project task is created, these default from the parent project but can be changed independently to reflect the task's own classification
     - **OPEX/Contract/CAPEX tasks**: Classification section is hidden
 
 **Dates**:
@@ -293,9 +293,9 @@ Standalone tasks are independent work items not linked to any specific project, 
 4. Fill in the title, description, and other details
 5. Click **Create**
 
-### Classification for standalone tasks
+### Classification fields
 
-Standalone tasks have editable classification fields that help organize work by portfolio dimensions:
+Standalone tasks and project tasks have editable classification fields that help organize work by portfolio dimensions:
 
 - **Source**: Where the work originated (e.g., Business Request, IT Initiative)
 - **Category**: The portfolio category for the work
@@ -303,6 +303,8 @@ Standalone tasks have editable classification fields that help organize work by 
 - **Company**: The company this work relates to
 
 These fields appear in the Context section of the sidebar and can be edited at any time.
+
+For **project tasks**, classification defaults from the parent project when the task is created but can be changed independently. This allows, for example, an infrastructure task to exist within a business project, or a compliance task within an IT project. If a task's classification is not explicitly set, it inherits and displays the project's classification.
 
 ### Priority scoring
 
@@ -323,6 +325,8 @@ Blocker tasks score 110 to ensure they always rank above even the highest-priori
 ## Project tasks
 
 Project tasks have additional features compared to regular tasks:
+
+**Independent classification**: Project tasks have their own Source, Category, Stream, and Company fields. When a task is created within a project, these default from the project's classification for convenience. However, each task's classification can be edited independently — for example, an infrastructure task can exist within a business project, or a compliance task within an IT project. If a task's classification field is not explicitly set, it inherits and displays the project's value.
 
 **Priority score**: Project tasks display a calculated priority score that combines:
 - The parent project's priority score
@@ -407,12 +411,12 @@ Three export modes are available:
 | `related_object_name` | Entity name | Conditional | Required if linked task and `related_object_id` not provided |
 | `phase_name` | Project phase | No | Must match existing phase name (project tasks only) |
 | `priority_level` | Task priority | No | Accepts code or label |
-| `source_name` | Source | No | Portfolio source (standalone tasks only) |
-| `category_name` | Category | No | Portfolio category (standalone tasks only) |
-| `stream_name` | Stream | No | Portfolio stream (standalone tasks only) |
-| `company_name` | Company | No | Company (standalone tasks only) |
+| `source_name` | Source | No | Portfolio source (standalone and project tasks) |
+| `category_name` | Category | No | Portfolio category (standalone and project tasks) |
+| `stream_name` | Stream | No | Portfolio stream (standalone and project tasks) |
+| `company_name` | Company | No | Company (standalone and project tasks) |
 
-**Standalone tasks**: Leave `related_object_type`, `related_object_id`, and `related_object_name` empty. You can set classification fields (`source_name`, `category_name`, `stream_name`, `company_name`) for standalone tasks.
+**Standalone tasks**: Leave `related_object_type`, `related_object_id`, and `related_object_name` empty. You can set classification fields (`source_name`, `category_name`, `stream_name`, `company_name`) for standalone and project tasks. For project tasks, omitted classification fields default from the parent project.
 
 **Tip**: For new linked task imports, use `related_object_name` instead of `related_object_id`—it's much easier to work with. The system resolves the name to the correct ID based on `related_object_type`. For round-trip imports (export → edit → re-import), both fields are included so matching works correctly.
 
@@ -496,7 +500,7 @@ These fields are included in **Full Export** for reporting purposes but excluded
 ### Limitations
 
   - **Maximum 4 viewers/owners**: Tasks support up to 4 viewer emails and 4 owner emails via CSV
-  - **Classification for standalone only**: Source, Category, Stream, and Company can only be set on standalone tasks
+  - **Classification for standalone and project tasks only**: Source, Category, Stream, and Company can be set on standalone and project tasks (not on OPEX, Contract, or CAPEX tasks)
   - **Phase requires project**: Phase assignment only works for project tasks
   - **Comments not included**: Task comments and history must be managed in the workspace
   - **Time log not included**: Time entries must be logged in the workspace

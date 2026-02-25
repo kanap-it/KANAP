@@ -250,13 +250,13 @@ The frontend implements automatic session management with sliding expiration:
       - Priority dropdown
       - **Classification fields** (behavior varies by task type):
         - **Standalone tasks**: Editable dropdowns for Source, Category, Stream (filtered by category), Company
-        - **Project tasks**: Read-only display with "(from project)" labels showing inherited values
+        - **Project tasks**: Editable dropdowns for Source, Category, Stream, Company. Defaults from parent project at creation; can be edited independently per task. Falls back to project value if not explicitly set
         - **OPEX/Contract/CAPEX tasks**: Classification section hidden
     - PEOPLE section: Assignee, Creator, Viewers (multi-select via `UserMultiSelect` component)
     - TIME section: "Log Time" button above time spent display (hidden for Contract/OPEX/CAPEX tasks)
     - Components: `TaskSidebar.tsx`, `TaskActivity.tsx`, `TaskAttachments.tsx`, `TaskComments.tsx`, `TaskHistory.tsx`, `TaskWorkLog.tsx`, `TaskLogTimeDialog.tsx`
     - Features: File attachments (drag-and-drop or browse, 20MB limit), time logging with hours/days, comment threads with edit capability (author-only), change history, status validation (cannot mark "Done" without logged time for project tasks)
-  - Create mode: Related object selection is optional; leaving it empty creates a standalone task. Classification fields are editable for standalone tasks during creation.
+  - Create mode: Related object selection is optional; leaving it empty creates a standalone task. Classification fields are editable for standalone and project tasks during creation; for project tasks, classification defaults from the parent project.
   - Routes: `/portfolio/tasks` (list), `/portfolio/tasks/:id/:tab` (workspace with overview tab), `/portfolio/tasks/new/:tab` (create)
   - Permissions: `tasks:reader` (view), `tasks:member` (create/edit), `tasks:admin` (bulk delete)
 

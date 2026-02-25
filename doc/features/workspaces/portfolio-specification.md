@@ -707,6 +707,12 @@ The Tasks tab provides Jira-style task management within the project context:
 - [+] button in Timeline tab creates tasks with phase pre-selected
 - Click-through to full task workspace
 
+**Task classification:**
+- Project tasks store classification (Source, Category, Stream, Company) directly on the task
+- When a task is created, classification defaults from the parent project
+- Each task's classification can be edited independently (e.g., an infrastructure task within a business project)
+- If a task's classification field is not explicitly set, the project's value is displayed as a fallback
+
 **Task time integration:**
 - Time logged to tasks contributes to project actual effort
 - Progress tab shows breakdown: Project Overhead vs Task Time

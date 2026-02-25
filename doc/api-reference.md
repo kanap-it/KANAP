@@ -742,7 +742,7 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
     - Set filters: `{ filterType: 'set', values: string[] }` (empty array = match nothing)
   - Status: `open|in_progress|done|cancelled`; Types: `spend_item|contract|capex_item|project` (or `null` for standalone)
   - Priority score: All tasks have scores; project tasks use `project.score + adjustment`, non-project use fixed mapping (Blocker=110, High=90, Normal=70, Low=50, Optional=30)
-  - Classification: For standalone tasks, returns direct values; for project tasks, returns inherited values from project; for other types, returns null
+  - Classification: For standalone and project tasks, returns the task's own values (with fallback to the parent project if not explicitly set); for other types, returns null
   - Permissions: `tasks:reader` auto-granted when any operations resource has access
 
 - GET `/tasks/ids?sort=...&q=...&filters=...` — ordered ids for workspace navigation **[Requires: tasks:reader]**
@@ -752,7 +752,7 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
 - GET `/tasks/:id` — single task with joined names **[Requires: tasks:reader]**
 - PATCH `/tasks/:id` — update standalone task **[Requires: tasks:manager]**
   - Body: `{ title?, description?, status?, priority_level?, start_date?, due_date?, assignee_user_id?, task_type_id?, source_id?, category_id?, stream_id?, company_id? }`
-  - Classification fields (`source_id`, `category_id`, `stream_id`, `company_id`) only allowed for standalone tasks; rejected for linked tasks
+  - Classification fields (`source_id`, `category_id`, `stream_id`, `company_id`) allowed for standalone and project tasks; rejected for OPEX/Contract/CAPEX tasks
 - PATCH `/tasks/:id/move` — change related object `{ related_object_type, related_object_id }` **[Requires: tasks:manager]**
 - DELETE `/tasks/bulk` — bulk delete `{ ids: string[] }` → `{ deleted: string[], failed: { id, name, reason }[] }` **[Requires: tasks:admin]**
 
