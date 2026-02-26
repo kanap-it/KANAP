@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import ProfileTab from './ProfileTab';
 import NotificationsTab from './NotificationsTab';
+import AppearanceTab from './AppearanceTab';
 
-const tabSlugs = ['profile', 'notifications'] as const;
+const tabSlugs = ['profile', 'notifications', 'appearance'] as const;
 
 export default function SettingsPage() {
   const { tab } = useParams<{ tab: string }>();
@@ -23,10 +24,12 @@ export default function SettingsPage() {
         <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3 }}>
           <Tab label="Profile" />
           <Tab label="Notifications" />
+          <Tab label="Appearance" />
         </Tabs>
 
         {activeTab === 0 && <ProfileTab />}
         {activeTab === 1 && <NotificationsTab />}
+        {activeTab === 2 && <AppearanceTab />}
       </Box>
     </>
   );

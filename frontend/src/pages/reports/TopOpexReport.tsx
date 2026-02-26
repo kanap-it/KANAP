@@ -3,6 +3,7 @@ import { Autocomplete, Box, Checkbox, ListItemText, MenuItem, Paper, Stack, Text
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, SummaryRow, pickYearSlot } from './useOpexSummary';
 import { metricLabels, MetricKey } from './reportMetrics';
@@ -366,7 +367,7 @@ export default function TopOpexReport() {
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>Key Table</Typography>
-          <Box className="ag-theme-quartz">
+          <Box component={AgGridBox}>
             <AgGridReact
               rowData={processed}
               columnDefs={columns}

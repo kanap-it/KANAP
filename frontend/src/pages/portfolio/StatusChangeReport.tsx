@@ -17,6 +17,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import api from '../../api';
 
 type StatusChangeItemType = 'task' | 'request' | 'project';
@@ -542,7 +543,7 @@ export default function StatusChangeReport() {
             </Typography>
             {(isLoading || isFetching) && <CircularProgress size={18} />}
           </Stack>
-          <Box className="ag-theme-quartz" sx={{ width: '100%', height: 560 }}>
+          <Box component={AgGridBox} sx={{ width: '100%', height: 560 }}>
             <AgGridReact<StatusChangeRow>
               rowData={rows}
               columnDefs={columns}

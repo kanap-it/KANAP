@@ -23,6 +23,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import TodayIcon from '@mui/icons-material/Today';
 import PageHeader from '../../components/PageHeader';
+import LightModeIsland from '../../components/LightModeIsland';
 import api from '../../api';
 import { PortfolioGantt } from './components/PortfolioGantt';
 import RoadmapGenerator from './components/RoadmapGenerator';
@@ -268,7 +269,7 @@ export default function PlanningPage() {
             )}
 
             {!isLoading && !error && timelineData && (
-              <Box sx={{ height: 'calc(100vh - 320px)', minHeight: 320, overflow: 'hidden' }}>
+              <LightModeIsland sx={{ height: 'calc(100vh - 320px)', minHeight: 320, overflow: 'hidden' }}>
                 <PortfolioGantt
                   projects={timelineData.projects ?? []}
                   dependencies={timelineData.dependencies ?? []}
@@ -277,7 +278,7 @@ export default function PlanningPage() {
                   months={months}
                   monthOffset={monthOffset}
                 />
-              </Box>
+              </LightModeIsland>
             )}
           </Box>
         </>

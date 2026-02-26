@@ -21,6 +21,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import api from '../../api';
 import { metricLabels, MetricKey } from './reportMetrics';
@@ -569,7 +570,7 @@ export default function GlobalChargebackReport() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Consolidated chargeback amount per company.
               </Typography>
-              <Box className="ag-theme-quartz">
+              <Box component={AgGridBox}>
                 <AgGridReact
                   rowData={companyRows}
                   columnDefs={companyColumns}
@@ -597,7 +598,7 @@ export default function GlobalChargebackReport() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Allocation per company and department with subtotal rows per company. Rows labelled "Common Costs" represent residual company costs without department assignment.
             </Typography>
-            <Box className="ag-theme-quartz">
+            <Box component={AgGridBox}>
               <AgGridReact
                 rowData={groupedDetailedRows}
                 columnDefs={detailedColumns}
@@ -622,7 +623,7 @@ export default function GlobalChargebackReport() {
               Netted payer → consumer flows by company pair; self-consumption is excluded.
             </Typography>
             {nettedFlows.length > 0 ? (
-              <Box className="ag-theme-quartz">
+              <Box component={AgGridBox}>
                 <AgGridReact
                   rowData={nettedFlows}
                   columnDefs={flowsColumns}

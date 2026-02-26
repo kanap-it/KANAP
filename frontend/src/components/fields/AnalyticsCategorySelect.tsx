@@ -1,5 +1,5 @@
 import React from 'react';
-import { Autocomplete, CircularProgress, TextField } from '@mui/material';
+import { Autocomplete, Box, CircularProgress, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
 
@@ -62,19 +62,19 @@ export default function AnalyticsCategorySelect({ value, onChange, label = 'Anal
       getOptionLabel={(option) => option.name}
       renderOption={(props, option) => (
         <li {...props} key={option.id}>
-          <div>
-            <div style={{ fontWeight: 500 }}>{option.name}</div>
+          <Box>
+            <Box sx={{ fontWeight: 500 }}>{option.name}</Box>
             {option.description && (
-              <div style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.6)' }}>
+              <Box sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
                 {option.description}
-              </div>
+              </Box>
             )}
             {option.status === 'disabled' && (
-              <div style={{ fontSize: '0.75rem', color: '#ed6c02' }}>
+              <Box sx={{ fontSize: '0.75rem', color: 'warning.main' }}>
                 Disabled
-              </div>
+              </Box>
             )}
-          </div>
+          </Box>
         </li>
       )}
       renderInput={(params) => (

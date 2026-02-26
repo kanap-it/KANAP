@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import { useQuery } from '@tanstack/react-query';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import api from '../../api';
 import { useOpexSummaryAll, pickYearSlot, SummaryRow } from './useOpexSummary';
@@ -349,7 +350,7 @@ export default function ConsolidationReport() {
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>Summary Table</Typography>
-          <Box className="ag-theme-quartz" sx={{ height: 520 }}>
+          <Box component={AgGridBox} sx={{ height: 520 }}>
             <AgGridReact
               rowData={tableRows}
               columnDefs={columns}

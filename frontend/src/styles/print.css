@@ -20,7 +20,8 @@
     max-width: 100% !important;
   }
   .capacity-heatmap-print .ag-root-wrapper,
-  .capacity-heatmap-print .ag-theme-quartz {
+  .capacity-heatmap-print .ag-theme-quartz,
+  .capacity-heatmap-print .ag-theme-quartz-dark {
     width: 100% !important;
   }
   .capacity-heatmap-print .ag-header-cell,

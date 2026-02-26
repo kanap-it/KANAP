@@ -532,7 +532,7 @@ export function RichTextEditor({
             },
             '& a': { color: 'primary.main', textDecoration: 'underline' },
             '& mark': {
-              bgcolor: '#ffff00',
+              bgcolor: (theme) => (theme.palette.mode === 'dark' ? '#665600' : '#ffff00'),
               color: 'inherit',
               px: 0.25,
               borderRadius: 0.25,

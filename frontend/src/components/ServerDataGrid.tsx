@@ -31,6 +31,7 @@ import ClearableColumnFloatingFilter from './ClearableColumnFloatingFilter';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useTenant } from '../tenant/TenantContext';
+import { useThemeMode } from '../config/ThemeContext';
 
 type ServerResponse<T> = { items: T[]; total: number; page: number; limit: number };
 
@@ -243,6 +244,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
 }: ServerDataGridProps<T>) {
   const { profile } = useAuth();
   const { tenantSlug } = useTenant();
+  const { resolvedMode } = useThemeMode();
 
   // Process columns to move custom properties to context to avoid AG Grid warnings
   const processedColumns = useMemo(() => {
@@ -869,7 +871,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
           overflow: 'hidden', // contain grid overflow; grid manages its own scrollbars
           paddingBottom: showAuxHorizontalScrollbar ? 14 : 0, // reserve space only when sticky aux scroller is shown
         }}
-        className="ag-theme-quartz"
+        className={resolvedMode === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'}
         ref={gridDivRef}
       >
         <AgGridReact<T>

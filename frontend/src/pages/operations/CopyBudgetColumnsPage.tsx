@@ -10,10 +10,12 @@ import {
   Switch,
   FormControlLabel,
   Alert,
+  useTheme,
 } from '@mui/material';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import { useOpexSummaryAll, SummaryRow, pickYearSlot } from '../reports/useOpexSummary';
 import { useQueryClient } from '@tanstack/react-query';
 import { copyBudgetColumn, BudgetColumn, BudgetOperationResult } from '../../services/budgetOperations';
@@ -51,6 +53,7 @@ const budgetToFreezeColumn: Record<BudgetColumn, FreezeColumn> = {
 };
 
 export default function CopyBudgetColumnsPage() {
+  const theme = useTheme();
   const queryClient = useQueryClient();
   const now = new Date();
   const Y = now.getFullYear();
@@ -205,7 +208,7 @@ Errors: ${result.summary.errors} items`);
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {showPreview && willBeSkipped && (
-                <span style={{ fontSize: '12px', color: '#e65100', fontWeight: 'bold' }}>
+                <span style={{ fontSize: '12px', color: theme.palette.warning.dark, fontWeight: 'bold' }}>
                   [SKIP]
                 </span>
               )}
@@ -240,16 +243,20 @@ Errors: ${result.summary.errors} items`);
         cellStyle: (params) => {
           const willBeSkipped = params.data?.willBeSkipped;
           return {
-            backgroundColor: willBeSkipped ? '#fff3e0' : '#e3f2fd',
+            backgroundColor: willBeSkipped
+              ? (theme.palette.warning[50] || theme.palette.action.hover)
+              : theme.palette.mode === 'dark'
+                ? 'rgba(25, 118, 210, 0.12)'
+                : '#e3f2fd',
             fontWeight: 'bold',
-            color: willBeSkipped ? '#e65100' : 'inherit',
+            color: willBeSkipped ? theme.palette.warning.dark : 'inherit',
           };
         },
       });
     }
 
     return baseColumns;
-  }, [sourceYear, sourceColumn, destinationYear, destinationColumn, showPreview]);
+  }, [sourceYear, sourceColumn, destinationYear, destinationColumn, showPreview, theme]);
 
   const gridApiRef = useRef<any>(null);
 
@@ -420,7 +427,7 @@ Errors: ${result.summary.errors} items`);
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
             Data Preview
           </Typography>
-          <Box className="ag-theme-quartz">
+          <Box component={AgGridBox}>
             <AgGridReact
               rowData={displayData}
               columnDefs={columns}

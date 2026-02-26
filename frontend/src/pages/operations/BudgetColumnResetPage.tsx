@@ -13,10 +13,12 @@ import {
   DialogContent,
   DialogActions,
   DialogContentText,
+  useTheme,
 } from '@mui/material';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import { useOpexSummaryAll, SummaryRow, pickYearSlot } from '../reports/useOpexSummary';
 import { useQueryClient } from '@tanstack/react-query';
 import { clearBudgetColumn, BudgetColumn } from '../../services/budgetOperations';
@@ -51,6 +53,7 @@ const budgetToFreezeColumn: Record<BudgetColumn, FreezeColumn> = {
 };
 
 export default function BudgetColumnResetPage() {
+  const theme = useTheme();
   const queryClient = useQueryClient();
   const now = new Date();
   const Y = now.getFullYear();
@@ -117,14 +120,14 @@ export default function BudgetColumnResetPage() {
         cellStyle: (params) => {
           const hasData = params.value !== 0;
           return {
-            backgroundColor: hasData ? '#ffebee' : 'inherit',
+            backgroundColor: hasData ? (theme.palette.error[50] || theme.palette.action.hover) : 'inherit',
             fontWeight: hasData ? 'bold' : 'normal',
-            color: hasData ? '#c62828' : 'inherit',
+            color: hasData ? theme.palette.error.dark : 'inherit',
           };
         },
       },
     ];
-  }, [year, column]);
+  }, [year, column, theme]);
 
   const gridApiRef = useRef<any>(null);
 
@@ -240,7 +243,7 @@ Errors: ${result.summary.errors} items`);
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
             Data Preview
           </Typography>
-          <Box className="ag-theme-quartz">
+          <Box component={AgGridBox}>
             <AgGridReact
               rowData={processedData}
               columnDefs={columns}

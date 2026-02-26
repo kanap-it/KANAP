@@ -35,8 +35,12 @@ import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import { useAuth } from '../auth/AuthContext';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
+import BrightnessAutoIcon from '@mui/icons-material/BrightnessAuto';
 import { useTenant } from '../tenant/TenantContext';
 import { useFeatures } from '../config/FeaturesContext';
+import { useThemeMode } from '../config/ThemeContext';
 import { getDocUrl } from '../utils/docUrls';
 import SubscriptionBanner from './SubscriptionBanner';
 
@@ -139,6 +143,7 @@ export default function Layout() {
   const { logout, token, hasLevel, claims, profile } = useAuth();
   const { isPlatformHost } = useTenant();
   const { config } = useFeatures();
+  const { mode, setMode } = useThemeMode();
   const isSingleTenant = config.deploymentMode === 'single-tenant';
   const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
   const openMenu = (e: React.MouseEvent<HTMLElement>) => setMenuAnchor(e.currentTarget);
@@ -183,6 +188,13 @@ export default function Layout() {
       window.localStorage.setItem('navOpen', String(navOpen));
     } catch {}
   }, [navOpen]);
+
+  const themeModeLabel = mode === 'system' ? 'System' : mode === 'dark' ? 'Dark' : 'Light';
+  const themeModeIcon = mode === 'dark'
+    ? <DarkModeOutlinedIcon />
+    : mode === 'light'
+      ? <LightModeOutlinedIcon />
+      : <BrightnessAutoIcon />;
 
   // workspace is derived from route; no sync to localStorage required
 
@@ -247,6 +259,16 @@ export default function Layout() {
               >
                 <HelpOutlineIcon />
               </IconButton>
+              <Tooltip title={`Theme: ${themeModeLabel} (click to switch)`}>
+                <IconButton
+                  color="inherit"
+                  size="small"
+                  onClick={() => setMode(mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light')}
+                  aria-label={`Theme: ${themeModeLabel}`}
+                >
+                  {themeModeIcon}
+                </IconButton>
+              </Tooltip>
               <IconButton color="inherit" onClick={openMenu} size="small" title="Account">
                 <AccountCircleIcon />
               </IconButton>

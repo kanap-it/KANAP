@@ -54,7 +54,7 @@ export function RichTextContent({ content, variant = 'default' }: RichTextConten
         },
         '& a': { color: 'primary.main' },
         '& mark': {
-          bgcolor: '#ffff00',
+          bgcolor: (theme) => (theme.palette.mode === 'dark' ? '#665600' : '#ffff00'),
           color: 'inherit',
           px: 0.25,
           borderRadius: 0.25,

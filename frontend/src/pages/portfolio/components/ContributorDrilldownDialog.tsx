@@ -6,6 +6,7 @@ import type { ColDef } from 'ag-grid-community';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../api';
+import AgGridBox from '../../../components/AgGridBox';
 
 type ProjectBreakdownRow = {
   projectId: string;
@@ -119,7 +120,7 @@ export default function ContributorDrilldownDialog({
         </IconButton>
       </DialogTitle>
       <DialogContent sx={{ pt: 1.5 }}>
-        <Box className="ag-theme-quartz" sx={{ height: 360, width: '100%' }}>
+        <Box component={AgGridBox} sx={{ height: 360, width: '100%' }}>
           <AgGridReact
             rowData={rows}
             columnDefs={columns}

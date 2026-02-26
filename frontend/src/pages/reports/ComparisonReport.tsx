@@ -3,6 +3,7 @@ import { Box, MenuItem, Paper, Stack, TextField, Typography } from '@mui/materia
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, pickYearSlot } from './useOpexSummary';
 
@@ -137,7 +138,7 @@ export default function ComparisonReport() {
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>Key Table</Typography>
-          <Box className="ag-theme-quartz" sx={{ height: 360 }}>
+          <Box component={AgGridBox} sx={{ height: 360 }}>
             <AgGridReact
               rowData={tableRows}
               columnDefs={columns}

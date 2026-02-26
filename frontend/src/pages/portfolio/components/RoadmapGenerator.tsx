@@ -46,6 +46,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import api from '../../../api';
+import LightModeIsland from '../../../components/LightModeIsland';
 import { PortfolioGantt } from './PortfolioGantt';
 import { computeInactiveSegments } from './roadmap-inactive-segments';
 
@@ -2270,16 +2271,18 @@ export default function RoadmapGenerator({ onApplied }: Props) {
             <Typography variant="caption" color="text.secondary" sx={{ px: 1, pb: 0.5, display: 'block' }}>
               Solid bar shows active scheduled work. Dashed lead-in marks earlier historical start with pause before resumed work. Hatched bars are capacity reservations. Dotted overlay marks scheduling gaps; diagonal gray overlay marks on-hold periods.
             </Typography>
-            <Box sx={{ height: `${ganttHeight}px` }}>
-              <PortfolioGantt
-                projects={ganttProjects}
-                dependencies={ganttDependencies}
-                milestones={[]}
-                readOnly
-                months={monthsForGantt}
-                monthOffset={monthOffsetForGantt}
-              />
-            </Box>
+            <LightModeIsland sx={{ p: 1 }}>
+              <Box sx={{ height: `${ganttHeight}px` }}>
+                <PortfolioGantt
+                  projects={ganttProjects}
+                  dependencies={ganttDependencies}
+                  milestones={[]}
+                  readOnly
+                  months={monthsForGantt}
+                  monthOffset={monthOffsetForGantt}
+                />
+              </Box>
+            </LightModeIsland>
           </Paper>
 
           <Paper variant="outlined" sx={{ p: 2 }}>

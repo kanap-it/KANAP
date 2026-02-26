@@ -10,11 +10,13 @@ import {
   Switch,
   TextField,
   Typography,
+  useTheme,
 } from '@mui/material';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import { useQueryClient } from '@tanstack/react-query';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import {
   AllocationCopyOperation,
   AllocationCopyResult,
@@ -40,6 +42,7 @@ function formatActionLabel(action: AllocationCopyResult['action']) {
 }
 
 export default function CopyAllocationsPage() {
+  const theme = useTheme();
   const now = new Date();
   const currentYear = now.getFullYear();
   const years = useMemo(() => Array.from({ length: 7 }, (_, i) => currentYear - 1 + i), [currentYear]);
@@ -102,12 +105,12 @@ export default function CopyAllocationsPage() {
       cellStyle: (params) => {
         const action = params.data?.action as AllocationCopyResult['action'];
         if (action === 'copy') {
-          return { color: '#2e7d32', fontWeight: '600' };
+          return { color: theme.palette.success.dark, fontWeight: '600' };
         }
         if (action === 'error') {
-          return { color: '#c62828', fontWeight: '600' };
+          return { color: theme.palette.error.dark, fontWeight: '600' };
         }
-        return { color: '#6d4c41', fontWeight: '500' };
+        return { color: theme.palette.text.secondary, fontWeight: '500' };
       },
     },
     {
@@ -128,7 +131,7 @@ export default function CopyAllocationsPage() {
       width: 200,
       valueGetter: (params) => params.data?.resultMethodLabel || '—',
     },
-  ], [destinationYear, sourceYear]);
+  ], [destinationYear, sourceYear, theme]);
 
   const handleDryRun = async () => {
     const payload: AllocationCopyOperation = {
@@ -273,7 +276,7 @@ export default function CopyAllocationsPage() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               Showing {stats.total.toLocaleString()} items. {stats.toCopy.toLocaleString()} will be copied, {stats.skipped.toLocaleString()} skipped, {stats.errors.toLocaleString()} errors.
             </Typography>
-            <Box className="ag-theme-quartz">
+            <Box component={AgGridBox}>
               <AgGridReact
                 rowData={previewData}
                 columnDefs={columns}

@@ -21,6 +21,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import CompanySelect from '../../components/fields/CompanySelect';
 import api from '../../api';
@@ -494,7 +495,7 @@ export default function CompanyChargebackReport() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Consolidated chargeback per department. "Common Costs" aggregates allocations without a specific department.
               </Typography>
-              <Box className="ag-theme-quartz">
+              <Box component={AgGridBox}>
                 <AgGridReact
                   rowData={departments}
                   columnDefs={departmentColumns}
@@ -534,7 +535,7 @@ export default function CompanyChargebackReport() {
               Itemised spend contributing to the company chargeback, including the allocation method and share of the total amount.
             </Typography>
             {items.length > 0 ? (
-              <Box className="ag-theme-quartz">
+              <Box component={AgGridBox}>
                 <AgGridReact
                   rowData={items}
                   columnDefs={itemColumns}
@@ -556,7 +557,7 @@ export default function CompanyChargebackReport() {
               Partner companies with receivables (you paid for them), payables (they paid for you), and the net total. Self-consumption excluded.
             </Typography>
             {intercompanyRows.length > 0 ? (
-              <Box className="ag-theme-quartz">
+              <Box component={AgGridBox}>
                 <AgGridReact
                   rowData={intercompanyRows}
                   columnDefs={intercompanyColumns}

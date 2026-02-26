@@ -29,6 +29,7 @@ import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import PageHeader from '../../components/PageHeader';
+import LightModeIsland from '../../components/LightModeIsland';
 import api from '../../api';
 import InterfaceMapGraph, { GraphControlsApi, MapGraphLink, MapGraphNode } from './components/InterfaceMapGraph';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
@@ -674,7 +675,7 @@ export default function InterfaceMapPage() {
         </Alert>
       )}
 	      {!isLoading && !isError && filteredGraph.nodes.length > 0 && (
-	        <Box
+	        <LightModeIsland
 	          sx={{
 	            height: 'calc(100vh - 220px)',
 	            minHeight: 400,
@@ -1123,10 +1124,10 @@ export default function InterfaceMapPage() {
                   </Box>
                 </Stack>
               )}
-            </Box>
-          )}
-        </Box>
-      )}
-    </Box>
-  );
+	            </Box>
+	          )}
+	        </LightModeIsland>
+	      )}
+	    </Box>
+	  );
 }

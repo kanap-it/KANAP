@@ -18,6 +18,7 @@ import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, CellStyle } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import api from '../../api';
 import ContributorDrilldownDialog from './components/ContributorDrilldownDialog';
 
@@ -129,6 +130,14 @@ const exportElementAsPng = async (node: HTMLElement, fileName: string) => {
   const serializer = new XMLSerializer();
   const cloned = node.cloneNode(true) as HTMLElement;
   cloned.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+  if (cloned.classList.contains('ag-theme-quartz-dark')) {
+    cloned.classList.remove('ag-theme-quartz-dark');
+    cloned.classList.add('ag-theme-quartz');
+  }
+  cloned.querySelectorAll('.ag-theme-quartz-dark').forEach((gridNode) => {
+    gridNode.classList.remove('ag-theme-quartz-dark');
+    gridNode.classList.add('ag-theme-quartz');
+  });
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <style>${cssText}</style>
@@ -383,7 +392,7 @@ export default function CapacityHeatmapReport() {
               {groupBy === 'team' ? 'Team Capacity' : 'Contributor Capacity'}
             </Typography>
             <Box ref={heatmapExportRef} sx={{ width: '100%' }}>
-              <Box className="ag-theme-quartz" sx={{ height: 420 }}>
+              <Box component={AgGridBox} sx={{ height: 420 }}>
                 <AgGridReact
                   rowData={rows}
                   columnDefs={groupBy === 'team' ? teamColumns : contributorColumns}
@@ -421,7 +430,7 @@ export default function CapacityHeatmapReport() {
             </Stack>
             <Collapse in={unassignedOpen}>
               <Box sx={{ mt: 2 }}>
-                <Box className="ag-theme-quartz" sx={{ height: 300 }}>
+                <Box component={AgGridBox} sx={{ height: 300 }}>
                   <AgGridReact
                     rowData={unassigned}
                     columnDefs={unassignedColumns}

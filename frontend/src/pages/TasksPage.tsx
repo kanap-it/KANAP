@@ -112,7 +112,7 @@ function TaskTypeCellRenderer(props: any) {
   const typeName = props.value;
 
   if (!typeName) {
-    return <span style={{ color: '#999' }}>-</span>;
+    return <Box component="span" sx={{ color: 'text.disabled' }}>-</Box>;
   }
 
   // Simple color mapping based on common task type names
@@ -137,7 +137,7 @@ function ScoreCellRenderer(props: any) {
   const score = props.value;
 
   if (score === null || score === undefined) {
-    return <span style={{ color: '#999' }}>-</span>;
+    return <Box component="span" sx={{ color: 'text.disabled' }}>-</Box>;
   }
 
   return (

@@ -17,6 +17,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import ReportLayout from '../../components/reports/ReportLayout';
+import AgGridBox from '../../components/AgGridBox';
 import api from '../../api';
 
 type WeeklyProjectRow = {
@@ -736,7 +737,7 @@ export default function WeeklyReport() {
 
         <Paper variant="outlined" sx={{ p: 1.5 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Project Updates</Typography>
-          <Box className="ag-theme-quartz" sx={{ width: '100%' }}>
+          <Box component={AgGridBox} sx={{ width: '100%' }}>
             <AgGridReact<WeeklyProjectRow>
               rowData={projects}
               columnDefs={projectColumns}
@@ -756,7 +757,7 @@ export default function WeeklyReport() {
 
         <Paper variant="outlined" sx={{ p: 1.5 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Closed Tasks</Typography>
-          <Box className="ag-theme-quartz" sx={{ width: '100%' }}>
+          <Box component={AgGridBox} sx={{ width: '100%' }}>
             <AgGridReact<WeeklyTaskRow>
               rowData={tasks}
               columnDefs={taskColumns}
@@ -776,7 +777,7 @@ export default function WeeklyReport() {
 
         <Paper variant="outlined" sx={{ p: 1.5 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Request Updates</Typography>
-          <Box className="ag-theme-quartz" sx={{ width: '100%' }}>
+          <Box component={AgGridBox} sx={{ width: '100%' }}>
             <AgGridReact<WeeklyRequestRow>
               rowData={requests}
               columnDefs={requestColumns}

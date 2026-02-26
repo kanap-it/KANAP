@@ -14,10 +14,12 @@ import {
   Stack,
   TextField,
   Typography,
+  useTheme,
 } from '@mui/material';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, CellStyle } from 'ag-grid-community';
 import ReportLayout from '../../../components/reports/ReportLayout';
+import AgGridBox from '../../../components/AgGridBox';
 import {
   copyMasterData,
   MasterDataCopyError,
@@ -59,6 +61,7 @@ function formatValue(value: number | null, metric: MasterDataMetric) {
 }
 
 export default function MasterDataCopyPage() {
+  const theme = useTheme();
   const years = useYearOptions();
   const { hasLevel } = useAuth();
   const canManageCompanies = hasLevel('companies', 'admin') || hasLevel('budget_ops', 'admin');
@@ -112,21 +115,21 @@ export default function MasterDataCopyPage() {
       headerName: 'Type',
       width: 120,
       valueFormatter: (params) => (params.value === 'company' ? 'Company' : 'Department'),
-      cellStyle: (params) => params.data?.skipped ? { color: '#e65100' } : undefined,
+      cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : undefined,
     },
     {
       field: 'entityName',
       headerName: 'Name',
       flex: 1,
       minWidth: 220,
-      cellStyle: (params) => params.data?.skipped ? { color: '#e65100' } : undefined,
+      cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : undefined,
     },
     {
       field: 'metric',
       headerName: 'Metric',
       width: 160,
       valueFormatter: (params) => metricLabel(params.value as MasterDataMetric),
-      cellStyle: (params) => params.data?.skipped ? { color: '#e65100' } : undefined,
+      cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : undefined,
     },
     {
       field: 'sourceValue',
@@ -134,7 +137,7 @@ export default function MasterDataCopyPage() {
       width: 160,
       type: 'rightAligned',
       valueFormatter: (params) => formatValue(params.value ?? null, params.data.metric),
-      cellStyle: (params) => params.data?.skipped ? { color: '#e65100' } : undefined,
+      cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : undefined,
     },
     {
       field: 'destinationValue',
@@ -142,7 +145,7 @@ export default function MasterDataCopyPage() {
       width: 180,
       type: 'rightAligned',
       valueFormatter: (params) => formatValue(params.value ?? null, params.data.metric),
-      cellStyle: (params) => params.data?.skipped ? { color: '#e65100' } : undefined,
+      cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : undefined,
     },
     {
       field: 'newValue',
@@ -152,7 +155,11 @@ export default function MasterDataCopyPage() {
       valueFormatter: (params) => formatValue(params.value ?? null, params.data.metric),
       cellStyle: (params): CellStyle => {
         if (params.data?.skipped) {
-          return { color: '#e65100', backgroundColor: '#fff3e0', fontWeight: '600' };
+          return {
+            color: theme.palette.warning.dark,
+            backgroundColor: theme.palette.warning[50] || theme.palette.action.hover,
+            fontWeight: '600',
+          };
         }
         return { fontWeight: '600' };
       },
@@ -168,9 +175,9 @@ export default function MasterDataCopyPage() {
         }
         return 'Ready to copy';
       },
-      cellStyle: (params) => params.data?.skipped ? { color: '#e65100' } : { color: '#1b5e20' },
+      cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : { color: theme.palette.success.dark },
     },
-  ], []);
+  ], [theme]);
 
   const disabledScopes: Record<ScopeOption, boolean> = React.useMemo(() => ({
     companies: !canManageCompanies,
@@ -379,7 +386,7 @@ export default function MasterDataCopyPage() {
         )}
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Data Preview</Typography>
-          <Box className="ag-theme-quartz">
+          <Box component={AgGridBox}>
             <AgGridReact
               rowData={previewData}
               columnDefs={columns}

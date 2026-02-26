@@ -1,53 +1,21 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
+import { CssBaseline, ThemeProvider } from '@mui/material'
 import App from './App'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import { SessionManager } from './auth/SessionManager'
 import { WithQueryClient } from './lib/queryClient'
+import { ThemeModeProvider, createAppTheme, useThemeMode } from './config/ThemeContext'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
 import './styles/print.css'
 
-// Create a theme with default props for TextField labels to always appear shrunk (top-left)
-const theme = createTheme({
-  components: {
-    MuiTextField: {
-      defaultProps: {
-        InputLabelProps: {
-          shrink: true,
-        },
-      },
-    },
-    MuiInputLabel: {
-      defaultProps: {
-        shrink: true,
-      },
-      styleOverrides: {
-        root: {
-          // Add background to label so it properly "cuts" the border when shrunk
-          backgroundColor: '#fff',
-          paddingLeft: 4,
-          paddingRight: 4,
-        },
-      },
-    },
-    MuiOutlinedInput: {
-      styleOverrides: {
-        notchedOutline: {
-          // Ensure the legend (notch) is visible
-          '& legend': {
-            maxWidth: '100%',
-          },
-        },
-      },
-    },
-  },
-});
+function AppShell() {
+  const { resolvedMode } = useThemeMode()
+  const theme = React.useMemo(() => createAppTheme(resolvedMode), [resolvedMode])
 
-createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+  return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
@@ -60,5 +28,13 @@ createRoot(document.getElementById('root')!).render(
         </WithQueryClient>
       </BrowserRouter>
     </ThemeProvider>
+  )
+}
+
+createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <ThemeModeProvider>
+      <AppShell />
+    </ThemeModeProvider>
   </React.StrictMode>
 )
