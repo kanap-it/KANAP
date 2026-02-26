@@ -241,6 +241,7 @@ export class TasksController {
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
+    const isAdmin = req?.isAdmin === true;
     return this.timeEntriesSvc.create(
       id,
       {
@@ -251,6 +252,7 @@ export class TasksController {
         category: body.category,
       },
       req.user?.sub ?? null,
+      isAdmin,
       { manager: req?.queryRunner?.manager },
     );
   }
@@ -264,6 +266,7 @@ export class TasksController {
     @Body() body: { user_id?: string; hours?: number; notes?: string; logged_at?: string; category?: 'it' | 'business' },
     @Req() req: any,
   ) {
+    const isAdmin = req?.isAdmin === true;
     return this.timeEntriesSvc.update(
       entryId,
       {
@@ -274,6 +277,7 @@ export class TasksController {
         category: body.category,
       },
       req.user?.sub ?? null,
+      isAdmin,
       { manager: req?.queryRunner?.manager },
     );
   }
@@ -286,7 +290,10 @@ export class TasksController {
     @Param('entryId') entryId: string,
     @Req() req: any,
   ) {
-    await this.timeEntriesSvc.delete(entryId, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+    await this.timeEntriesSvc.delete(entryId, req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+      isAdmin: req?.isAdmin === true,
+    });
     return { success: true };
   }
 

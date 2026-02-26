@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { PortfolioProject } from '../portfolio-project.entity';
@@ -113,7 +113,7 @@ export class PortfolioTimesheetService extends PortfolioProjectsBaseService {
       notes?: string;
     },
     userId: string | null,
-    isManager: boolean,
+    isAdmin: boolean,
     opts?: ServiceOpts,
   ) {
     const mg = this.getManager(opts);
@@ -122,9 +122,13 @@ export class PortfolioTimesheetService extends PortfolioProjectsBaseService {
     const entry = await timeEntryRepo.findOne({ where: { id: entryId } });
     if (!entry) throw new NotFoundException('Time entry not found');
 
-    // Permission check: must be owner or manager
-    if (entry.logged_by_id !== userId && !isManager) {
-      throw new BadRequestException('You can only edit your own time entries');
+    // Permission check: admin OR logger OR target user
+    const canEdit =
+      isAdmin
+      || entry.logged_by_id === userId
+      || (entry.user_id != null && entry.user_id === userId);
+    if (!canEdit) {
+      throw new ForbiddenException('You can only edit your own or assigned time entries');
     }
 
     const before = { ...entry };
@@ -181,7 +185,7 @@ export class PortfolioTimesheetService extends PortfolioProjectsBaseService {
   async deleteTimeEntry(
     entryId: string,
     userId: string | null,
-    isManager: boolean,
+    isAdmin: boolean,
     opts?: ServiceOpts,
   ) {
     const mg = this.getManager(opts);
@@ -190,9 +194,13 @@ export class PortfolioTimesheetService extends PortfolioProjectsBaseService {
     const entry = await timeEntryRepo.findOne({ where: { id: entryId } });
     if (!entry) throw new NotFoundException('Time entry not found');
 
-    // Permission check: must be owner or manager
-    if (entry.logged_by_id !== userId && !isManager) {
-      throw new BadRequestException('You can only delete your own time entries');
+    // Permission check: admin OR logger OR target user
+    const canDelete =
+      isAdmin
+      || entry.logged_by_id === userId
+      || (entry.user_id != null && entry.user_id === userId);
+    if (!canDelete) {
+      throw new ForbiddenException('You can only delete your own or assigned time entries');
     }
 
     const projectId = entry.project_id;

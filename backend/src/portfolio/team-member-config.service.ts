@@ -268,6 +268,71 @@ export class TeamMemberConfigService {
     };
   }
 
+  async listTimeEntries(id: string, opts?: { manager?: EntityManager }) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const repo = mg.getRepository(TeamMemberConfig);
+
+    const config = await repo.findOne({ where: { id } });
+    if (!config) throw new NotFoundException('Team member config not found');
+
+    const rows = await mg.query(
+      `SELECT *
+       FROM (
+         SELECT
+           tte.id,
+           'task'::text AS source_type,
+           tte.task_id,
+           CASE WHEN t.related_object_type = 'project' THEN t.related_object_id ELSE NULL END AS project_id,
+           COALESCE(NULLIF(t.title, ''), 'Task') AS source_label,
+           tte.category,
+           tte.hours,
+           tte.user_id,
+           TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS user_name,
+           u.email AS user_email,
+           tte.logged_by_id,
+           TRIM(COALESCE(lb.first_name, '') || ' ' || COALESCE(lb.last_name, '')) AS logged_by_name,
+           lb.email AS logged_by_email,
+           tte.notes,
+           tte.logged_at
+         FROM task_time_entries tte
+         JOIN tasks t ON t.id = tte.task_id
+         LEFT JOIN users u ON u.id = tte.user_id
+         LEFT JOIN users lb ON lb.id = tte.logged_by_id
+         WHERE tte.tenant_id = $1
+           AND tte.user_id = $2
+
+         UNION ALL
+
+         SELECT
+           pte.id,
+           'project'::text AS source_type,
+           NULL::uuid AS task_id,
+           pte.project_id,
+           COALESCE(NULLIF(pp.name, ''), 'Project Overhead') AS source_label,
+           pte.category,
+           pte.hours::numeric AS hours,
+           pte.user_id,
+           TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS user_name,
+           u.email AS user_email,
+           pte.logged_by_id,
+           TRIM(COALESCE(lb.first_name, '') || ' ' || COALESCE(lb.last_name, '')) AS logged_by_name,
+           lb.email AS logged_by_email,
+           pte.notes,
+           pte.logged_at
+         FROM portfolio_project_time_entries pte
+         LEFT JOIN portfolio_projects pp ON pp.id = pte.project_id
+         LEFT JOIN users u ON u.id = pte.user_id
+         LEFT JOIN users lb ON lb.id = pte.logged_by_id
+         WHERE pte.tenant_id = $1
+           AND pte.user_id = $2
+       ) all_entries
+       ORDER BY all_entries.logged_at DESC, all_entries.id DESC`,
+      [config.tenant_id, config.user_id],
+    );
+
+    return rows;
+  }
+
   async getAllTimeStats(tenantId: string, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
     const currentMonth = this.getCurrentMonthStartUtc();

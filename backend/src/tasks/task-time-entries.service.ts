@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { TaskTimeEntry, TaskTimeEntryCategory } from './task-time-entry.entity';
@@ -143,6 +143,7 @@ export class TaskTimeEntriesService {
     taskId: string,
     dto: CreateTimeEntryDto,
     userId?: string,
+    isAdmin = false,
     opts?: { manager?: EntityManager },
   ): Promise<TaskTimeEntry> {
     const manager = opts?.manager ?? this.repo.manager;
@@ -153,8 +154,9 @@ export class TaskTimeEntriesService {
     const task = await taskRepo.findOne({ where: { id: taskId } });
     if (!task) throw new NotFoundException('Task not found');
 
-    if (!dto.hours || dto.hours <= 0) {
-      throw new BadRequestException('Hours must be greater than 0');
+    const hours = Number(dto.hours);
+    if (!Number.isInteger(hours) || hours <= 0) {
+      throw new BadRequestException('hours must be a positive integer');
     }
 
     // Validate category if provided
@@ -163,10 +165,15 @@ export class TaskTimeEntriesService {
       throw new BadRequestException('category must be "it" or "business"');
     }
 
+    const targetUserId = dto.user_id ?? userId ?? null;
+    if (!isAdmin && (!userId || targetUserId !== userId)) {
+      throw new ForbiddenException('You can only create time entries for yourself');
+    }
+
     const entity = repo.create({
       task_id: taskId,
-      user_id: dto.user_id ?? userId ?? null,
-      hours: dto.hours,
+      user_id: targetUserId,
+      hours,
       category,
       notes: dto.notes ?? null,
       logged_by_id: userId ?? null,
@@ -192,6 +199,7 @@ export class TaskTimeEntriesService {
     entryId: string,
     dto: UpdateTimeEntryDto,
     userId?: string,
+    isAdmin = false,
     opts?: { manager?: EntityManager },
   ): Promise<TaskTimeEntry> {
     const manager = opts?.manager ?? this.repo.manager;
@@ -200,8 +208,18 @@ export class TaskTimeEntriesService {
     const existing = await repo.findOne({ where: { id: entryId } });
     if (!existing) throw new NotFoundException('Time entry not found');
 
-    if (dto.hours !== undefined && dto.hours <= 0) {
-      throw new BadRequestException('Hours must be greater than 0');
+    if (!isAdmin) {
+      if (!userId || existing.user_id !== userId) {
+        throw new ForbiddenException('You can only edit your own time entries');
+      }
+      if (dto.user_id !== undefined && dto.user_id !== userId) {
+        throw new ForbiddenException('You can only edit your own time entries');
+      }
+    }
+
+    const normalizedHours = dto.hours !== undefined ? Number(dto.hours) : undefined;
+    if (normalizedHours !== undefined && (!Number.isInteger(normalizedHours) || normalizedHours <= 0)) {
+      throw new BadRequestException('hours must be a positive integer');
     }
 
     // Validate category if provided
@@ -212,7 +230,7 @@ export class TaskTimeEntriesService {
     const next = {
       ...existing,
       ...(dto.user_id !== undefined && { user_id: dto.user_id }),
-      ...(dto.hours !== undefined && { hours: dto.hours }),
+      ...(normalizedHours !== undefined && { hours: normalizedHours }),
       ...(dto.notes !== undefined && { notes: dto.notes }),
       ...(dto.logged_at !== undefined && { logged_at: dto.logged_at }),
       ...(dto.category !== undefined && { category: dto.category }),
@@ -234,12 +252,21 @@ export class TaskTimeEntriesService {
     return saved;
   }
 
-  async delete(entryId: string, userId?: string, opts?: { manager?: EntityManager }): Promise<void> {
+  async delete(
+    entryId: string,
+    userId?: string,
+    opts?: { manager?: EntityManager; isAdmin?: boolean },
+  ): Promise<void> {
     const manager = opts?.manager ?? this.repo.manager;
     const repo = manager.getRepository(TaskTimeEntry);
 
     const existing = await repo.findOne({ where: { id: entryId } });
     if (!existing) throw new NotFoundException('Time entry not found');
+
+    const isAdmin = opts?.isAdmin ?? false;
+    if (!isAdmin && (!userId || existing.user_id !== userId)) {
+      throw new ForbiddenException('You can only delete your own time entries');
+    }
 
     // Get project ID before deleting
     const projectId = await this.getProjectIdForTask(existing.task_id, { manager });

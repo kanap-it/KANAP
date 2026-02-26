@@ -52,6 +52,13 @@ export class TeamMemberConfigController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_settings', 'reader')
+  @Get(':id/time-entries')
+  listTimeEntries(@Param('id') id: string, @Req() req: any) {
+    return this.svc.listTimeEntries(id, { manager: req?.queryRunner?.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_settings', 'reader')
   @Get(':id')
   get(@Param('id') id: string, @Req() req: any) {
     return this.svc.get(id, { manager: req?.queryRunner?.manager });

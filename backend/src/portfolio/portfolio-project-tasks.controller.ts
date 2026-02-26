@@ -119,6 +119,7 @@ export class PortfolioProjectTasksController {
     @Req() req: any,
   ) {
     const taskId = await this.resolveTaskId(taskIdOrRef, req);
+    const isAdmin = req?.isAdmin === true;
     return this.timeEntriesSvc.create(
       taskId,
       {
@@ -129,6 +130,7 @@ export class PortfolioProjectTasksController {
         category: body.category,
       },
       req.user?.sub ?? null,
+      isAdmin,
       { manager: req?.queryRunner?.manager },
     );
   }
@@ -149,6 +151,7 @@ export class PortfolioProjectTasksController {
       throw new BadRequestException('Time entry does not belong to this task');
     }
 
+    const isAdmin = req?.isAdmin === true;
     return this.timeEntriesSvc.update(
       entryId,
       {
@@ -159,6 +162,7 @@ export class PortfolioProjectTasksController {
         category: body.category,
       },
       req.user?.sub ?? null,
+      isAdmin,
       { manager: req?.queryRunner?.manager },
     );
   }
@@ -178,7 +182,10 @@ export class PortfolioProjectTasksController {
       throw new BadRequestException('Time entry does not belong to this task');
     }
 
-    await this.timeEntriesSvc.delete(entryId, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+    await this.timeEntriesSvc.delete(entryId, req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+      isAdmin: req?.isAdmin === true,
+    });
     return { success: true };
   }
 

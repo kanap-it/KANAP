@@ -48,8 +48,12 @@ const TIME_LOGGING_EXCLUDED_TYPES = ['contract', 'spend_item', 'capex_item'];
 
 export default function TaskWorkLog({ taskId, projectId, readOnly = false, relatedObjectType }: TaskWorkLogProps) {
   const queryClient = useQueryClient();
-  const { hasLevel } = useAuth();
-  const canManage = hasLevel('tasks', 'member');
+  const { hasLevel, profile } = useAuth();
+  const canManageStandaloneEntries = hasLevel('tasks', 'member');
+  const canManageProjectEntries = hasLevel('portfolio_projects', 'contributor');
+  const isStandaloneAdmin = hasLevel('tasks', 'admin');
+  const isProjectAdmin = hasLevel('portfolio_projects', 'admin');
+  const canManageForContext = projectId ? canManageProjectEntries : canManageStandaloneEntries;
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editEntry, setEditEntry] = React.useState<TaskTimeEntryData | undefined>(undefined);
@@ -116,6 +120,12 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
     setDialogOpen(true);
   };
 
+  const canEditEntry = React.useCallback((entry: TimeEntry) => {
+    if (!canManageForContext) return false;
+    if (projectId ? isProjectAdmin : isStandaloneAdmin) return true;
+    return entry.user_id === profile?.id;
+  }, [canManageForContext, isProjectAdmin, isStandaloneAdmin, profile?.id, projectId]);
+
   const handleSuccess = () => {
     refetch();
     queryClient.invalidateQueries({ queryKey: ['task-time-entries-sum', taskId] });
@@ -150,7 +160,7 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
         <Typography variant="subtitle2" color="text.secondary">
           Total: {formatHours(totalHours)} ({(Number(totalHours) / 8).toFixed(1)} MD)
         </Typography>
-        {canManage && !readOnly && !TIME_LOGGING_EXCLUDED_TYPES.includes(relatedObjectType || '') && (
+        {canManageForContext && !readOnly && !TIME_LOGGING_EXCLUDED_TYPES.includes(relatedObjectType || '') && (
           <Button startIcon={<AddIcon />} size="small" onClick={handleAdd}>
             Log Time
           </Button>
@@ -177,7 +187,7 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
                 <TableCell>Person</TableCell>
                 <TableCell align="right">Time</TableCell>
                 <TableCell>Notes</TableCell>
-                {canManage && !readOnly && <TableCell align="right">Actions</TableCell>}
+                {canManageForContext && !readOnly && <TableCell align="right">Actions</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -209,14 +219,18 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
                       {entry.notes || '-'}
                     </Typography>
                   </TableCell>
-                  {canManage && !readOnly && (
+                  {canManageForContext && !readOnly && (
                     <TableCell align="right">
-                      <IconButton size="small" onClick={() => handleEdit(entry)} title="Edit">
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" onClick={() => handleDelete(entry.id)} title="Delete">
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
+                      {canEditEntry(entry) && (
+                        <>
+                          <IconButton size="small" onClick={() => handleEdit(entry)} title="Edit">
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => handleDelete(entry.id)} title="Delete">
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      )}
                     </TableCell>
                   )}
                 </TableRow>

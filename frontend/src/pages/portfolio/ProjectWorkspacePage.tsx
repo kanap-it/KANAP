@@ -598,6 +598,8 @@ export default function ProjectWorkspacePage() {
   };
 
   const canManage = hasLevel('portfolio_projects', 'manager');
+  const canContributeToProject = hasLevel('portfolio_projects', 'contributor');
+  const canProjectAdmin = hasLevel('portfolio_projects', 'admin');
   const saveDisabled = (!dirty && !scoringDirty && !relationsDirty) || !canManage;
 
   // Drag-and-drop sensors for phase reordering
@@ -1457,7 +1459,7 @@ export default function ProjectWorkspacePage() {
                     setEditingTimeEntry(undefined);
                     setLogTimeDialogOpen(true);
                   }}
-                  disabled={!canManage}
+                  disabled={!canContributeToProject}
                 >
                   Log Time
                 </Button>
@@ -1584,7 +1586,13 @@ export default function ProjectWorkspacePage() {
                     </TableHead>
                     <TableBody>
                       {allEntries.map((entry: any) => {
-                        const canEditEntry = entry.source === 'project' && (canManage || entry.logged_by_id === profile?.id);
+                        const canEditEntry = entry.source === 'project'
+                          && canContributeToProject
+                          && (
+                            canProjectAdmin
+                            || entry.logged_by_id === profile?.id
+                            || entry.user_id === profile?.id
+                          );
                         const personName = [entry.user_first_name, entry.user_last_name].filter(Boolean).join(' ') || entry.user_email || '-';
                         return (
                           <TableRow key={`${entry.source}-${entry.id}`}>

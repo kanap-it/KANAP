@@ -365,19 +365,19 @@ export class PortfolioProjectsService {
       notes?: string;
     },
     userId: string | null,
-    isManager: boolean,
+    isAdmin: boolean,
     opts?: ServiceOpts,
   ) {
-    return this.timesheetService.updateTimeEntry(entryId, body, userId, isManager, opts);
+    return this.timesheetService.updateTimeEntry(entryId, body, userId, isAdmin, opts);
   }
 
   deleteTimeEntry(
     entryId: string,
     userId: string | null,
-    isManager: boolean,
+    isAdmin: boolean,
     opts?: ServiceOpts,
   ) {
-    return this.timesheetService.deleteTimeEntry(entryId, userId, isManager, opts);
+    return this.timesheetService.deleteTimeEntry(entryId, userId, isAdmin, opts);
   }
 
   recalculateActualEffort(projectId: string, mg: EntityManager) {

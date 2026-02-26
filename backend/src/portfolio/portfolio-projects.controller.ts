@@ -768,12 +768,11 @@ export class PortfolioProjectsController {
       hours?: number;
       notes?: string;
     },
-    @Req() req: { permissionLevel?: string },
+    @Req() req: { isAdmin?: boolean },
     @Tenant() ctx: TenantRequest,
   ) {
-    // Check if user has manager-level access for permission override
-    const isManager = req?.permissionLevel === 'manager';
-    return this.svc.updateTimeEntry(entryId, body, ctx.userId || null, isManager, {
+    const isAdmin = req?.isAdmin === true;
+    return this.svc.updateTimeEntry(entryId, body, ctx.userId || null, isAdmin, {
       manager: ctx.manager,
     });
   }
@@ -783,12 +782,11 @@ export class PortfolioProjectsController {
   @Delete(':id/time-entries/:entryId')
   deleteTimeEntry(
     @Param('entryId') entryId: string,
-    @Req() req: { permissionLevel?: string },
+    @Req() req: { isAdmin?: boolean },
     @Tenant() ctx: TenantRequest,
   ) {
-    // Check if user has manager-level access for permission override
-    const isManager = req?.permissionLevel === 'manager';
-    return this.svc.deleteTimeEntry(entryId, ctx.userId || null, isManager, {
+    const isAdmin = req?.isAdmin === true;
+    return this.svc.deleteTimeEntry(entryId, ctx.userId || null, isAdmin, {
       manager: ctx.manager,
     });
   }

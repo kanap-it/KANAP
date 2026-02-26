@@ -48,8 +48,11 @@ export default function TaskLogTimeDialog({
   onSuccess,
   editEntry,
 }: TaskLogTimeDialogProps) {
-  const { profile } = useAuth();
+  const { profile, hasLevel } = useAuth();
   const isEdit = !!editEntry;
+  const canAssignUser = projectId
+    ? hasLevel('portfolio_projects', 'admin')
+    : hasLevel('tasks', 'admin');
 
   const [category, setCategory] = React.useState<TimeEntryCategory>('it');
   const [userId, setUserId] = React.useState<string | null>(null);
@@ -69,7 +72,7 @@ export default function TaskLogTimeDialog({
     if (open) {
       if (editEntry) {
         setCategory(editEntry.category || 'it');
-        setUserId(editEntry.user_id);
+        setUserId(canAssignUser ? editEntry.user_id : (profile?.id || null));
         const total = editEntry.hours;
         const d = Math.floor(total / 8);
         const h = Math.round(total % 8);
@@ -87,7 +90,7 @@ export default function TaskLogTimeDialog({
       }
       setError(null);
     }
-  }, [open, editEntry, profile?.id]);
+  }, [open, editEntry, profile?.id, canAssignUser]);
 
   const totalHours = daysNum * 8 + hoursNum;
 
@@ -96,7 +99,9 @@ export default function TaskLogTimeDialog({
       setError('Minimum loggable time is 1 hour');
       return;
     }
-    if (!userId) {
+    const effectiveUserId = canAssignUser ? userId : (profile?.id || null);
+
+    if (!effectiveUserId) {
       setError('Please select a person');
       return;
     }
@@ -116,7 +121,7 @@ export default function TaskLogTimeDialog({
       if (isEdit && editEntry) {
         await api.patch(`${endpoint}/${editEntry.id}`, {
           category,
-          user_id: userId,
+          user_id: effectiveUserId,
           hours: totalHours,
           notes: notes.trim() || null,
           logged_at: loggedAt,
@@ -124,7 +129,7 @@ export default function TaskLogTimeDialog({
       } else {
         await api.post(endpoint, {
           category,
-          user_id: userId,
+          user_id: effectiveUserId,
           hours: totalHours,
           notes: notes.trim() || null,
           logged_at: loggedAt,
@@ -170,6 +175,7 @@ export default function TaskLogTimeDialog({
             onChange={setUserId}
             placeholder="Search users..."
             required
+            disabled={!canAssignUser}
           />
 
           <DateEUField
@@ -242,7 +248,7 @@ export default function TaskLogTimeDialog({
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={saving || totalHours < 1 || !userId || !loggedAt}
+          disabled={saving || totalHours < 1 || !(canAssignUser ? userId : profile?.id) || !loggedAt}
         >
           {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Log Time'}
         </Button>

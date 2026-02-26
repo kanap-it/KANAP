@@ -54,13 +54,19 @@ export class PermissionGuard implements CanActivate {
     if (user.role?.role_name) roleNames.push(user.role.role_name.toLowerCase());
     const isAdmin = roleNames.includes('administrator');
 
+    let currentLevel: string | undefined = isAdmin ? 'admin' : undefined;
+
     // If not administrator, check role-based permissions
     if (!isAdmin) {
       const map = await this.perms.listForRoles(Array.from(roleIds), { manager });
       const current = map.get(meta.resource);
       if (!current) return false;
       if ((RANK[current] ?? 0) < (RANK[meta.level] ?? 99)) return false;
+      currentLevel = current;
     }
+
+    req.isAdmin = isAdmin;
+    req.permissionLevel = currentLevel;
 
     // --- Freeze enforcement ---
     await this.enforceFreezeIfNeeded(context, req, user, meta, manager);

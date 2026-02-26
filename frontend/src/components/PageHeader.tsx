@@ -4,6 +4,19 @@ import { Link, useLocation } from 'react-router-dom';
 
 type Crumb = { label: string; to?: string };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(value: string): boolean {
+  return UUID_RE.test(value);
+}
+
+function humanizeSegment(value: string): string {
+  return value
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
 function useBreadcrumbs(): Crumb[] {
   const location = useLocation();
   const path = location.pathname;
@@ -18,6 +31,8 @@ function useBreadcrumbs(): Crumb[] {
       case 'opex': return 'OPEX';
       case 'capex': return 'CAPEX';
       case 'projects': return 'Projects';
+      case 'contributors': return 'Contributors';
+      case 'team-members': return 'Team Members';
       case 'companies': return 'Companies';
       case 'departments': return 'Departments';
       case 'suppliers': return 'Suppliers';
@@ -68,10 +83,24 @@ export default function PageHeader({
 }) {
   let crumbs = useBreadcrumbs();
 
+  // For /:id/:tab routes, replace UUID breadcrumb with tab label.
+  if (crumbs.length >= 2) {
+    const idCrumb = crumbs[crumbs.length - 2];
+    const tabCrumb = crumbs[crumbs.length - 1];
+    if (isUuid(idCrumb.label)) {
+      crumbs = [
+        ...crumbs.slice(0, -2),
+        { ...idCrumb, label: humanizeSegment(tabCrumb.label) },
+        tabCrumb,
+      ];
+    }
+  }
+
   // Override last breadcrumb label if provided
   if (breadcrumbTitle && crumbs.length > 0) {
-    crumbs = [...crumbs.slice(0, -1), { ...crumbs[crumbs.length - 1], label: breadcrumbTitle }];
+    crumbs = [...crumbs.slice(0, -1), { ...crumbs[crumbs.length - 1], label: breadcrumbTitle, to: undefined }];
   }
+
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
   return (

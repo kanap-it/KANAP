@@ -21,6 +21,7 @@ import UserMultiSelect from '../../../components/fields/UserMultiSelect';
 import RelatedObjectSelect, { RelatedObjectType } from '../../../components/fields/RelatedObjectSelect';
 import CompanySelect from '../../../components/fields/CompanySelect';
 import TaskLogTimeDialog from './TaskLogTimeDialog';
+import { useAuth } from '../../../auth/AuthContext';
 
 // Classification types
 interface ClassificationSource {
@@ -132,6 +133,7 @@ export default function TaskSidebar({
   isCreate = false,
   onRelationChange,
 }: TaskSidebarProps) {
+  const { hasLevel } = useAuth();
   const queryClient = useQueryClient();
   const [logTimeOpen, setLogTimeOpen] = React.useState(false);
   const [expanded, setExpanded] = React.useState<string[]>(['context', 'status', 'dates', 'people', 'time', 'classification']);
@@ -139,6 +141,9 @@ export default function TaskSidebar({
   const isProjectTask = task.related_object_type === 'project';
   const isStandalone = !task.related_object_type;
   const canEditClassification = isStandalone || isProjectTask;
+  const canManageStandaloneEntries = hasLevel('tasks', 'member');
+  const canManageProjectEntries = hasLevel('portfolio_projects', 'contributor');
+  const canLogTime = isProjectTask ? canManageProjectEntries : canManageStandaloneEntries;
 
   // Fetch task types from classification API
   const { data: taskTypesData } = useQuery({
@@ -484,7 +489,7 @@ export default function TaskSidebar({
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0 }}>
               <Stack spacing={1.5}>
-                {!readOnly && supportsTimeLogging && (
+                {!readOnly && supportsTimeLogging && canLogTime && (
                   <Button
                     startIcon={<AddIcon />}
                     size="small"

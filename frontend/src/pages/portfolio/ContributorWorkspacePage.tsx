@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -13,6 +13,7 @@ import PageHeader from '../../components/PageHeader';
 import ChartCard from '../../components/reports/ChartCard';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
+import ContributorTimeLog from './components/ContributorTimeLog';
 
 interface SkillProficiency {
   skill_id: string;
@@ -77,15 +78,25 @@ const formatMonth = (yearMonth: string) => {
   return date.toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
 };
 
+type ContributorTabKey = 'general' | 'skills' | 'time-logged';
+
+const CONTRIBUTOR_TABS: Array<{ key: ContributorTabKey; label: string }> = [
+  { key: 'general', label: 'General' },
+  { key: 'skills', label: 'Skills' },
+  { key: 'time-logged', label: 'Time Logged' },
+];
+
+const isContributorTab = (value: string | undefined): value is ContributorTabKey =>
+  value === 'general' || value === 'skills' || value === 'time-logged';
+
 export default function ContributorWorkspacePage() {
-  const { id } = useParams<{ id: string }>();
+  const { id, tab } = useParams<{ id: string; tab?: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { hasLevel } = useAuth();
   const canEdit = hasLevel('portfolio_settings', 'member');
   const canDelete = hasLevel('portfolio_settings', 'admin');
 
-  const [activeTab, setActiveTab] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,6 +106,12 @@ export default function ContributorWorkspacePage() {
   const [teamId, setTeamId] = useState<string>('');
   const [selectedSkills, setSelectedSkills] = useState<SkillProficiency[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const activeTab: ContributorTabKey = isContributorTab(tab) ? tab : 'general';
+
+  const handleTabChange = useCallback((_: React.SyntheticEvent, nextValue: ContributorTabKey) => {
+    if (!id) return;
+    navigate(`/portfolio/contributors/${id}/${nextValue}`);
+  }, [id, navigate]);
 
   // Fetch contributor
   const { data: member, isLoading } = useQuery({
@@ -301,13 +318,14 @@ export default function ContributorWorkspacePage() {
           </Alert>
         )}
 
-        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 3 }}>
-          <Tab label="General" />
-          <Tab label="Skills" />
+        <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3 }}>
+          {CONTRIBUTOR_TABS.map((tabDef) => (
+            <Tab key={tabDef.key} value={tabDef.key} label={tabDef.label} />
+          ))}
         </Tabs>
 
         {/* General Tab */}
-        {activeTab === 0 && (
+        {activeTab === 'general' && (
           <Stack spacing={3}>
             <Card>
               <CardContent>
@@ -419,7 +437,7 @@ export default function ContributorWorkspacePage() {
         )}
 
         {/* Skills Tab */}
-        {activeTab === 1 && (
+        {activeTab === 'skills' && (
           <Stack spacing={3}>
             <Card>
               <CardContent>
@@ -528,6 +546,8 @@ export default function ContributorWorkspacePage() {
             })}
           </Stack>
         )}
+
+        {activeTab === 'time-logged' && id && <ContributorTimeLog contributorId={id} />}
       </Box>
     </>
   );
