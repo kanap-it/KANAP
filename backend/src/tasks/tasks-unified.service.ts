@@ -11,6 +11,12 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 
 export type RelatedType = 'spend_item' | 'contract' | 'capex_item' | 'project' | null;
+type ProjectDefaults = {
+  source_id: string | null;
+  category_id: string | null;
+  stream_id: string | null;
+  company_id: string | null;
+};
 
 @Injectable()
 export class TasksUnifiedService {
@@ -30,6 +36,58 @@ export class TasksUnifiedService {
     const repo = manager.getRepository(TaskTimeEntry);
     const count = await repo.count({ where: { task_id: taskId } });
     return count > 0;
+  }
+
+  private isNonProjectLinked(type: RelatedType): type is 'spend_item' | 'contract' | 'capex_item' {
+    return type === 'spend_item' || type === 'contract' || type === 'capex_item';
+  }
+
+  private hasOwn(payload: Partial<Task>, key: keyof Task): boolean {
+    return Object.prototype.hasOwnProperty.call(payload, key);
+  }
+
+  private async resolveTargetContext(
+    target: { type: RelatedType; id: string | null },
+    manager: EntityManager,
+  ): Promise<{ type: RelatedType; id: string | null; projectDefaults?: ProjectDefaults }> {
+    if (target.type === null) {
+      if (target.id !== null) {
+        throw new BadRequestException('related_object_id must be null when related_object_type is null');
+      }
+      return { type: null, id: null };
+    }
+
+    if (!target.id) {
+      throw new BadRequestException('related_object_id is required when related_object_type is set');
+    }
+
+    if (target.type === 'project') {
+      const [project] = await manager.query(
+        'SELECT id, source_id, category_id, stream_id, company_id FROM portfolio_projects WHERE id = $1 LIMIT 1',
+        [target.id],
+      );
+      if (!project) throw new NotFoundException('Project not found');
+      return {
+        type: 'project',
+        id: target.id,
+        projectDefaults: {
+          source_id: project.source_id ?? null,
+          category_id: project.category_id ?? null,
+          stream_id: project.stream_id ?? null,
+          company_id: project.company_id ?? null,
+        },
+      };
+    }
+
+    const tableByType: Record<'spend_item' | 'contract' | 'capex_item', { table: string; label: string }> = {
+      spend_item: { table: 'spend_items', label: 'Spend item' },
+      contract: { table: 'contracts', label: 'Contract' },
+      capex_item: { table: 'capex_items', label: 'CAPEX item' },
+    };
+    const targetMeta = tableByType[target.type];
+    const [row] = await manager.query(`SELECT id FROM ${targetMeta.table} WHERE id = $1 LIMIT 1`, [target.id]);
+    if (!row) throw new NotFoundException(`${targetMeta.label} not found`);
+    return { type: target.type, id: target.id };
   }
 
   listForTarget(target: { type: RelatedType; id: string | null }, opts?: { manager?: EntityManager }) {
@@ -224,35 +282,112 @@ export class TasksUnifiedService {
     // Capture "before" state for notification comparison
     const before = { ...existing };
 
-    const isStandalone = existing.related_object_type === null;
+    const nextPayload = { ...payload } as Partial<Task>;
+    const hasRelatedType = this.hasOwn(nextPayload, 'related_object_type');
+    const hasRelatedId = this.hasOwn(nextPayload, 'related_object_id');
+    if (hasRelatedType !== hasRelatedId) {
+      throw new BadRequestException('related_object_type and related_object_id must be provided together');
+    }
+
+    const resolvedTarget = await this.resolveTargetContext(
+      hasRelatedType
+        ? {
+            type: (nextPayload.related_object_type ?? null) as RelatedType,
+            id: (nextPayload.related_object_id ?? null) as string | null,
+          }
+        : {
+            type: existing.related_object_type,
+            id: existing.related_object_id,
+          },
+      manager,
+    );
+    const relationChanged =
+      resolvedTarget.type !== existing.related_object_type ||
+      resolvedTarget.id !== existing.related_object_id;
+
+    delete nextPayload.related_object_type;
+    delete nextPayload.related_object_id;
 
     // Strip classification fields for non-standalone, non-project tasks (defense in depth)
-    const canEditClassification = isStandalone || existing.related_object_type === 'project';
+    const canEditClassification = resolvedTarget.type === null || resolvedTarget.type === 'project';
     if (!canEditClassification) {
-      delete payload.source_id;
-      delete payload.company_id;
-      delete payload.category_id;
-      delete payload.stream_id;
+      delete nextPayload.source_id;
+      delete nextPayload.company_id;
+      delete nextPayload.category_id;
+      delete nextPayload.stream_id;
+    }
+
+    if (relationChanged) {
+      if (existing.related_object_type === 'project' && resolvedTarget.type !== 'project') {
+        nextPayload.phase_id = null;
+      }
+
+      if (resolvedTarget.type === null) {
+        nextPayload.phase_id = null;
+      }
+
+      if (this.isNonProjectLinked(resolvedTarget.type)) {
+        nextPayload.phase_id = null;
+        nextPayload.source_id = null;
+        nextPayload.category_id = null;
+        nextPayload.stream_id = null;
+        nextPayload.company_id = null;
+      }
+
+      if (resolvedTarget.type === 'project' && resolvedTarget.id) {
+        const defaults = resolvedTarget.projectDefaults ?? {
+          source_id: null,
+          category_id: null,
+          stream_id: null,
+          company_id: null,
+        };
+        const isDifferentProject = existing.related_object_type !== 'project' || existing.related_object_id !== resolvedTarget.id;
+        if (isDifferentProject && nextPayload.phase_id === undefined) {
+          nextPayload.phase_id = null;
+        }
+
+        const classificationKeys: Array<'source_id' | 'category_id' | 'stream_id' | 'company_id'> = [
+          'source_id', 'category_id', 'stream_id', 'company_id',
+        ];
+        for (const key of classificationKeys) {
+          if ((nextPayload as any)[key] !== undefined) continue;
+          const currentValue = (existing as any)[key];
+          if (currentValue !== null && currentValue !== undefined) continue;
+          const defaultValue = (defaults as any)[key];
+          if (defaultValue !== null && defaultValue !== undefined) {
+            (nextPayload as any)[key] = defaultValue;
+          }
+        }
+      }
     }
 
     // Validate phase if updating project task
-    if (existing.related_object_type === 'project' && existing.related_object_id && payload.phase_id !== undefined && payload.phase_id !== null) {
+    if (resolvedTarget.type === 'project' && resolvedTarget.id && nextPayload.phase_id !== undefined && nextPayload.phase_id !== null) {
       const phaseRepo = manager.getRepository(PortfolioProjectPhase);
-      const phase = await phaseRepo.findOne({ where: { id: payload.phase_id, project_id: existing.related_object_id } });
+      const phase = await phaseRepo.findOne({ where: { id: nextPayload.phase_id, project_id: resolvedTarget.id } });
       if (!phase) throw new BadRequestException('Phase does not belong to specified project');
     }
 
     // Validate: Cannot mark task as "done" without time logged (only for project tasks)
-    if (existing.related_object_type === 'project' && payload.status === 'done' && existing.status !== 'done') {
+    if (resolvedTarget.type === 'project' && nextPayload.status === 'done' && existing.status !== 'done') {
       const hasTime = await this.hasTimeLogged(taskId, manager);
       if (!hasTime) {
         throw new BadRequestException('Cannot mark task as done without logging time');
       }
     }
 
-    const next = { ...existing, ...payload } as Task;
+    const next = {
+      ...existing,
+      ...nextPayload,
+      related_object_type: resolvedTarget.type,
+      related_object_id: resolvedTarget.id,
+    } as Task;
     const saved = await repo.save(next);
     await this.audit.log({ table: 'tasks', recordId: saved.id, action: 'update', before: existing, after: saved, userId }, { manager });
+
+    if (relationChanged) {
+      await this.userTimeAggregateService.recalculateForTask(saved.id, manager);
+    }
 
     // Fire-and-forget notifications
     if (tenantId) {
@@ -307,19 +442,15 @@ export class TasksUnifiedService {
     userId?: string | null,
     opts?: { manager?: EntityManager },
   ) {
-    const repo = (opts?.manager ?? this.repo.manager).getRepository(Task);
-    const existing = await repo.findOne({ where: { id: params.id } });
-    if (!existing) throw new NotFoundException('Task not found');
-    const before = { ...existing };
-    existing.related_object_type = params.next.type;
-    existing.related_object_id = params.next.id;
-    const saved = await repo.save(existing);
-    await this.audit.log(
-      { table: 'tasks', recordId: saved.id, action: 'update', before, after: saved, userId: userId ?? undefined },
+    return this.updateById(
+      params.id,
+      {
+        related_object_type: params.next.type as any,
+        related_object_id: params.next.id,
+      } as Partial<Task>,
+      userId ?? undefined,
       { manager: opts?.manager ?? this.repo.manager },
     );
-    await this.userTimeAggregateService.recalculateForTask(saved.id, opts?.manager ?? this.repo.manager);
-    return saved;
   }
 
   async share(taskId: string, dto: ShareItemDto, tenantId: string, userId: string, opts?: { manager?: EntityManager }) {

@@ -247,7 +247,7 @@ export default function TaskSidebar({
         <AccordionDetails sx={{ pt: 0 }}>
           <Stack spacing={1.5}>
             {/* Related Object (Context card) - FIRST */}
-            {isCreate && onRelationChange ? (
+            {onRelationChange && !readOnly ? (
               <RelatedObjectSelect
                 relationType={task.related_object_type as RelatedObjectType}
                 relationId={task.related_object_id || null}

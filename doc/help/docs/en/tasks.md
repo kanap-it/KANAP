@@ -13,9 +13,9 @@ When you click **New**, the full task workspace opens. To create a task:
 1. **Enter the title** (required):
    - Type the task title in the text field at the top
 
-2. **Choose task type** (optional):
-   - **Standalone task**: Leave "Related To" empty to create an independent task not linked to any entity
-   - **Linked task**: Select a type (Project, OPEX, Contract, or CAPEX) and then the specific item
+2. **Choose context**:
+   - **Standalone task** (default): Keep "Related To" as **Standalone**
+   - **Linked task**: Select **Project**, **OPEX**, **Contract**, or **CAPEX**, then pick the specific item
 
 3. **Fill in optional details**:
    - **Task Type**: Select a category for the work (e.g., Task, Bug, Problem, Incident). Defaults to "Task" if available
@@ -48,7 +48,8 @@ When you click **New**, the full task workspace opens. To create a task:
 - Path: **Portfolio → Tasks**
 - Permissions:
   - You need at least `tasks:reader` to view tasks
-  - You need `tasks:member` to create and edit tasks
+  - You need `tasks:member` to create tasks and edit tasks in standalone/OPEX/Contract/CAPEX contexts
+  - You need `portfolio_projects:contributor` to save a task when the target context is a project
   - You need `tasks:admin` for bulk deletion
 
 If you don't see Tasks in the menu, ask your administrator to grant you the appropriate permissions.
@@ -126,14 +127,25 @@ The collapsible sidebar contains:
 **Context**:
   - Task Type dropdown (e.g., Task, Bug, Problem, Incident)
   - Related object (Project, OPEX item, Contract, CAPEX item, or "Standalone Task")
-    - During creation: optional dropdowns to select type and item (leave empty for standalone)
-    - After creation: read-only link (relation cannot be changed)
+    - During creation: defaults to **Standalone**, or select type + item
+    - After creation (if you can edit): context remains editable and is applied when you click **Save**
   - Phase (for project tasks only; appears after selecting a project)
   - Priority level
   - **Classification** (for standalone and project tasks only):
     - **Standalone tasks**: Editable dropdowns for Source, Category, Stream, and Company
     - **Project tasks**: Editable dropdowns for Source, Category, Stream, and Company. When a project task is created, these default from the parent project but can be changed independently to reflect the task's own classification
     - **OPEX/Contract/CAPEX tasks**: Classification section is hidden
+
+### Changing task context
+
+When you change a task context and save, KANAP applies the change in one operation (context + other edited fields together).
+
+- **Project → Standalone**: `Phase` is cleared, classification is kept
+- **Project → OPEX/Contract/CAPEX**: `Phase` and classification are cleared
+- **Any → Project**:
+  - Project permission is required (`portfolio_projects:contributor`)
+  - `Phase` resets to project-level unless you choose a valid phase for that project
+  - Existing classification is kept; missing values are auto-filled from project defaults
 
 **Dates**:
   - Start date

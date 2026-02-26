@@ -176,16 +176,35 @@ export class TasksController {
   @Patch(':id/move')
   async move(
     @Param('id') idOrRef: string,
-    @Body() body: { related_object_type: 'spend_item' | 'contract'; related_object_id: string },
+    @Body() body: { related_object_type: 'spend_item' | 'contract' | 'capex_item' | 'project' | null; related_object_id: string | null },
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
-    if (!body?.related_object_type || !body?.related_object_id) {
+    const hasType = Object.prototype.hasOwnProperty.call(body ?? {}, 'related_object_type');
+    const hasId = Object.prototype.hasOwnProperty.call(body ?? {}, 'related_object_id');
+    if (!hasType || !hasId) {
       const { BadRequestException } = await import('@nestjs/common');
       throw new BadRequestException('related_object_type and related_object_id are required');
     }
+
+    const nextType = (body?.related_object_type ?? null) as RelatedType;
+    const nextId = (body?.related_object_id ?? null) as string | null;
+    const allowed: RelatedType[] = ['spend_item', 'contract', 'capex_item', null];
+    if (!allowed.includes(nextType)) {
+      const { BadRequestException } = await import('@nestjs/common');
+      throw new BadRequestException('Invalid related_object_type');
+    }
+    if (nextType === null && nextId !== null) {
+      const { BadRequestException } = await import('@nestjs/common');
+      throw new BadRequestException('related_object_id must be null when related_object_type is null');
+    }
+    if (nextType !== null && !nextId) {
+      const { BadRequestException } = await import('@nestjs/common');
+      throw new BadRequestException('related_object_id is required when related_object_type is set');
+    }
+
     return this.unified.moveTask(
-      { id, next: { type: body.related_object_type, id: body.related_object_id } },
+      { id, next: { type: nextType, id: nextId } },
       req.user?.sub ?? null,
       { manager: req?.queryRunner?.manager },
     );
@@ -195,6 +214,10 @@ export class TasksController {
   @RequireLevel('tasks', 'member')
   @Patch(':id')
   async updateTask(@Param('id') idOrRef: string, @Body() body: any, @Req() req: any) {
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, 'related_object_type') && body?.related_object_type === 'project') {
+      const { BadRequestException } = await import('@nestjs/common');
+      throw new BadRequestException('Use /portfolio/projects/:projectId/tasks/:taskId to target a project');
+    }
     const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.unified.updateById(id, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager, tenantId });

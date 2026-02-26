@@ -245,20 +245,25 @@ The frontend implements automatic session management with sliding expiration:
     - Section order: CONTEXT → STATUS → DATES → PEOPLE → TIME (all expanded by default, separated by dividers)
     - CONTEXT section:
       - Task Type dropdown (from portfolio task types)
-      - Related object card (e.g., "**Project** : Project Name" with link, or "**Standalone Task**" for unlinked tasks)
+      - Related object selector (editable in writable mode): `Standalone`, `Project`, `Budget (OPEX)`, `Contract`, `CAPEX`
+      - Selecting `Standalone` hides the entity picker and stores `(related_object_type, related_object_id) = (null, null)`
+      - Read-only mode shows the context card (e.g., "**Project** : Project Name" with link, or "**Standalone Task**")
       - Phase dropdown (project tasks only)
       - Priority dropdown
       - **Classification fields** (behavior varies by task type):
         - **Standalone tasks**: Editable dropdowns for Source, Category, Stream (filtered by category), Company
         - **Project tasks**: Editable dropdowns for Source, Category, Stream, Company. Defaults from parent project at creation; can be edited independently per task. Falls back to project value if not explicitly set
         - **OPEX/Contract/CAPEX tasks**: Classification section hidden
+      - Save behavior: context change and field edits are persisted in a single PATCH call (atomic)
+        - Targeting project context uses `PATCH /portfolio/projects/:projectId/tasks/:taskId`
+        - Other contexts use `PATCH /tasks/:id`
     - PEOPLE section: Assignee, Creator, Viewers (multi-select via `UserMultiSelect` component)
     - TIME section: "Log Time" button above time spent display (hidden for Contract/OPEX/CAPEX tasks)
     - Components: `TaskSidebar.tsx`, `TaskActivity.tsx`, `TaskAttachments.tsx`, `TaskComments.tsx`, `TaskHistory.tsx`, `TaskWorkLog.tsx`, `TaskLogTimeDialog.tsx`
     - Features: File attachments (drag-and-drop or browse, 20MB limit), time logging with hours/days, comment threads with edit capability (author-only), change history, status validation (cannot mark "Done" without logged time for project tasks)
-  - Create mode: Related object selection is optional; leaving it empty creates a standalone task. Classification fields are editable for standalone and project tasks during creation; for project tasks, classification defaults from the parent project.
+  - Create mode: Related object defaults to `Standalone`; users can switch to Project/OPEX/Contract/CAPEX. Classification fields are editable for standalone and project tasks during creation; for project tasks, classification defaults from the parent project.
   - Routes: `/portfolio/tasks` (list), `/portfolio/tasks/:id/:tab` (workspace with overview tab), `/portfolio/tasks/new/:tab` (create)
-  - Permissions: `tasks:reader` (view), `tasks:member` (create/edit), `tasks:admin` (bulk delete)
+  - Permissions: `tasks:reader` (view), `tasks:member` (create/edit in non-project contexts), `portfolio_projects:contributor` (save when target context is project), `tasks:admin` (bulk delete)
 
 ### Account Menu
 - Avatar menu in the AppBar provides quick access based on permissions:

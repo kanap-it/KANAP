@@ -21,7 +21,10 @@ interface RelatedOption {
   name: string;
 }
 
+const STANDALONE_VALUE = '__standalone__';
+
 const TYPE_OPTIONS = [
+  { label: 'Standalone', value: STANDALONE_VALUE },
   { label: 'Project', value: 'project' },
   { label: 'Budget (OPEX)', value: 'spend_item' },
   { label: 'Contract', value: 'contract' },
@@ -94,7 +97,7 @@ export default function RelatedObjectSelect({
   }, [relationId, relationName, items]);
 
   const handleTypeChange = (value: string) => {
-    const newType = value ? (value as RelatedObjectType) : null;
+    const newType = value === STANDALONE_VALUE || value === '' ? null : (value as RelatedObjectType);
     // onChangeType already passes id: null, name: null to clear the selection
     // Do NOT call onChangeId here - it would use stale task.related_object_type from closure
     onChangeType(newType);
@@ -109,9 +112,9 @@ export default function RelatedObjectSelect({
     <Stack spacing={1.5}>
       <EnumAutocomplete
         label="Related To"
-        value={relationType || ''}
+        value={relationType ?? STANDALONE_VALUE}
         onChange={handleTypeChange}
-        options={[{ label: 'Select type...', value: '' }, ...TYPE_OPTIONS]}
+        options={TYPE_OPTIONS}
         size={size}
         disabled={disabled}
       />

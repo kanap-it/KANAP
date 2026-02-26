@@ -93,8 +93,13 @@ export class PortfolioProjectTasksController {
     const projectId = await this.resolveProjectId(projectIdOrRef, req);
     const taskId = await this.resolveTaskId(taskIdOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
-    return this.tasksSvc.updateForTarget(
-      { type: 'project', id: projectId, payload: { ...body, id: taskId } },
+    return this.tasksSvc.updateById(
+      taskId,
+      {
+        ...body,
+        related_object_type: 'project',
+        related_object_id: projectId,
+      },
       req.user?.sub ?? null,
       { manager: req?.queryRunner?.manager, tenantId },
     );

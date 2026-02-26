@@ -131,6 +131,12 @@ export default function TaskWorkspacePage() {
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [initialized, setInitialized] = React.useState(false);
+  const classificationTouchedRef = React.useRef({
+    source_id: false,
+    category_id: false,
+    stream_id: false,
+    company_id: false,
+  });
 
   // Sidebar width state with localStorage persistence
   const SIDEBAR_STORAGE_KEY = 'taskSidebarWidth';
@@ -335,6 +341,9 @@ export default function TaskWorkspacePage() {
         phase_id: task.phase_id,
         labels: task.labels,
         viewer_ids: task.viewer_ids,
+        related_object_type: task.related_object_type,
+        related_object_id: task.related_object_id,
+        related_object_name: task.related_object_name,
         // Classification fields (for standalone tasks)
         source_id: task.source_id,
         category_id: task.category_id,
@@ -343,6 +352,12 @@ export default function TaskWorkspacePage() {
       });
       setDirty(false);
       setInitialized(true);
+      classificationTouchedRef.current = {
+        source_id: false,
+        category_id: false,
+        stream_id: false,
+        company_id: false,
+      };
     }
   }, [task]);
 
@@ -386,6 +401,12 @@ export default function TaskWorkspacePage() {
       });
       setTitle('');
       setDescription('');
+      classificationTouchedRef.current = {
+        source_id: false,
+        category_id: false,
+        stream_id: false,
+        company_id: false,
+      };
 
       // Pre-fill relation based on URL params
       if (projectId) {
@@ -472,8 +493,29 @@ export default function TaskWorkspacePage() {
 
   const handleFieldChange = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
+    if (field === 'source_id' || field === 'category_id' || field === 'stream_id' || field === 'company_id') {
+      const key = field as 'source_id' | 'category_id' | 'stream_id' | 'company_id';
+      classificationTouchedRef.current = {
+        ...classificationTouchedRef.current,
+        [key]: true,
+      };
+    }
     setDirty(true);
   };
+
+  const handleRelationChange = React.useCallback((params: { type: RelatedObjectType; id: string | null; name: string | null }) => {
+    setForm(prev => {
+      const relationChanged = prev.related_object_type !== params.type || prev.related_object_id !== params.id;
+      return {
+        ...prev,
+        related_object_type: params.type,
+        related_object_id: params.id,
+        related_object_name: params.name,
+        ...(params.type !== 'project' || relationChanged ? { phase_id: null } : {}),
+      };
+    });
+    setDirty(true);
+  }, []);
 
   const handleSave = async () => {
     if (!task || saving) return;
@@ -481,33 +523,73 @@ export default function TaskWorkspacePage() {
     setError(null);
 
     try {
-      const isProject = task.related_object_type === 'project';
-      const isStandalone = task.related_object_type === null;
-      const endpoint = isProject
-        ? `/portfolio/projects/${task.related_object_id}/tasks/${task.id}`
+      const currentType = task.related_object_type;
+      const currentId = task.related_object_id;
+      const nextType = (form.related_object_type !== undefined ? form.related_object_type : currentType) as RelatedObjectType;
+      const nextId = (form.related_object_id !== undefined ? form.related_object_id : currentId) as string | null;
+      const relationChanged = nextType !== currentType || nextId !== currentId;
+
+      if (nextType === null && nextId !== null) {
+        throw new Error('Standalone tasks must not have a related item');
+      }
+      if (nextType !== null && !nextId) {
+        throw new Error('Please select a related item');
+      }
+
+      const endpoint = nextType === 'project'
+        ? `/portfolio/projects/${nextId}/tasks/${task.id}`
         : `/tasks/${task.id}`;
 
       const payload: Record<string, any> = {
         title: title.trim(),
         description: description.trim() || null,
-        ...form,
       };
 
-      // Strip classification fields for non-standalone, non-project tasks
-      const canEditClassification = isStandalone || isProject;
-      if (!canEditClassification) {
-        delete payload.source_id;
-        delete payload.company_id;
-        delete payload.category_id;
-        delete payload.stream_id;
+      const editableFields = [
+        'status',
+        'task_type_id',
+        'priority_level',
+        'start_date',
+        'due_date',
+        'assignee_user_id',
+        'creator_id',
+        'phase_id',
+        'labels',
+        'viewer_ids',
+      ] as const;
+      for (const field of editableFields) {
+        if ((form as any)[field] !== undefined) {
+          payload[field] = (form as any)[field];
+        }
+      }
+
+      if (relationChanged) {
+        payload.related_object_type = nextType;
+        payload.related_object_id = nextId;
+      }
+
+      const canEditClassification = nextType === null || nextType === 'project';
+      if (canEditClassification) {
+        const classificationFields = ['source_id', 'category_id', 'stream_id', 'company_id'] as const;
+        for (const field of classificationFields) {
+          if ((form as any)[field] === undefined) continue;
+          if (relationChanged && nextType === 'project' && !classificationTouchedRef.current[field]) continue;
+          payload[field] = (form as any)[field];
+        }
       }
 
       await api.patch(endpoint, payload);
       setDirty(false);
+      classificationTouchedRef.current = {
+        source_id: false,
+        category_id: false,
+        stream_id: false,
+        company_id: false,
+      };
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save task');
+      setError(e?.response?.data?.message || e?.message || 'Failed to save task');
     } finally {
       setSaving(false);
     }
@@ -562,6 +644,12 @@ export default function TaskWorkspacePage() {
           setDescription(task.description || '');
           setForm({ ...task });
         }
+        classificationTouchedRef.current = {
+          source_id: false,
+          category_id: false,
+          stream_id: false,
+          company_id: false,
+        };
         setDirty(false);
       }
     }
@@ -1102,9 +1190,9 @@ export default function TaskWorkspacePage() {
               owner_ids: task.owner_ids || [],
               viewer_ids: form.viewer_ids !== undefined ? form.viewer_ids : (task.viewer_ids || []),
               labels: form.labels || task.labels || [],
-              related_object_type: task.related_object_type,
-              related_object_id: task.related_object_id,
-              related_object_name: task.related_object_name,
+              related_object_type: form.related_object_type !== undefined ? form.related_object_type : task.related_object_type,
+              related_object_id: form.related_object_id !== undefined ? form.related_object_id : task.related_object_id,
+              related_object_name: form.related_object_name !== undefined ? form.related_object_name : task.related_object_name,
               phase_id: form.phase_id !== undefined ? form.phase_id : task.phase_id,
               phase_name: task.phase_name,
               source_id: form.source_id !== undefined ? form.source_id : task.source_id,
@@ -1119,6 +1207,7 @@ export default function TaskWorkspacePage() {
             onChange={handleFieldChange}
             readOnly={!canManage}
             totalTimeHours={totalTimeHours}
+            onRelationChange={handleRelationChange}
           />
         </Box>
 

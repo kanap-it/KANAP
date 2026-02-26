@@ -422,7 +422,7 @@ CAPEX access is controlled by three levels:
 - **Admin**: All manager rights + CSV import, budget operations (freeze, copy, reset), bulk delete
 
 Additionally:
-- **Tasks** have separate permissions (tasks:manager to create/edit tasks on CAPEX items)
+- **Tasks** have separate permissions (`tasks:member` to create/edit tasks on CAPEX items)
 - **Users with tasks:reader** can view tasks but not create or edit them
 
 If you can't perform an action (e.g., Import CSV button is missing), check with your workspace admin to review your role permissions.

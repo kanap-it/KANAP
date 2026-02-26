@@ -750,10 +750,25 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
   - Response: `{ fieldA: Array<string | null>, fieldB: Array<string | null> }`
   - `filters` should be the current AG Grid filterModel JSON; the caller should remove the column’s own filter so values stay discoverable.
 - GET `/tasks/:id` — single task with joined names **[Requires: tasks:reader]**
-- PATCH `/tasks/:id` — update standalone task **[Requires: tasks:manager]**
-  - Body: `{ title?, description?, status?, priority_level?, start_date?, due_date?, assignee_user_id?, task_type_id?, source_id?, category_id?, stream_id?, company_id? }`
-  - Classification fields (`source_id`, `category_id`, `stream_id`, `company_id`) allowed for standalone and project tasks; rejected for OPEX/Contract/CAPEX tasks
-- PATCH `/tasks/:id/move` — change related object `{ related_object_type, related_object_id }` **[Requires: tasks:manager]**
+- PATCH `/tasks/:id` — update task by id (non-project target route) **[Requires: tasks:member]**
+  - Body: `{ title?, description?, status?, priority_level?, start_date?, due_date?, assignee_user_id?, task_type_id?, phase_id?, source_id?, category_id?, stream_id?, company_id?, related_object_type?, related_object_id? }`
+  - Context change is supported when `related_object_type` and `related_object_id` are provided together.
+  - Allowed targets on this route:
+    - `(related_object_type, related_object_id) = (null, null)` → standalone
+    - `(spend_item|contract|capex_item, <uuid>)` → linked non-project task
+  - Targeting `project` on this route is rejected; use `PATCH /portfolio/projects/:projectId/tasks/:taskId`.
+  - Atomic behavior: relation change + field updates are saved in one transaction.
+  - Context cleanup rules:
+    - project → standalone: `phase_id` cleared, classification kept
+    - project → spend_item|contract|capex_item: `phase_id` + classification cleared
+    - any → spend_item|contract|capex_item: classification cleared
+    - any → standalone: `phase_id` cleared
+- PATCH `/tasks/:id/move` — context-only convenience move **[Requires: tasks:member]**
+  - Body: `{ related_object_type: 'spend_item'|'contract'|'capex_item'|null, related_object_id: string|null }`
+  - Same pair validation as `PATCH /tasks/:id`; `project` target is not allowed.
+- PATCH `/portfolio/projects/:projectId/tasks/:taskId` — update task and force/move context to the specified project **[Requires: portfolio_projects:contributor]**
+  - Use this route for any save where the target context is a project.
+  - Body uses the same editable task fields as `PATCH /tasks/:id`; project context comes from the path.
 - DELETE `/tasks/bulk` — bulk delete `{ ids: string[] }` → `{ deleted: string[], failed: { id, name, reason }[] }` **[Requires: tasks:admin]**
 
 ## Portfolio Requests
@@ -885,23 +900,23 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
 
 ### OPEX Task Management
 - GET `/spend-items/:id/tasks` → list tasks for specific OPEX item (sorted by creation date DESC) **[Requires: tasks:reader]**
-- POST `/spend-items/:id/tasks` → create task **[Requires: tasks:manager]**
+- POST `/spend-items/:id/tasks` → create task **[Requires: tasks:member]**
   - Body: `{ title: string, description?: string, status?: string, due_date?: string (YYYY-MM-DD), assignee_user_id?: string }`
   - `title` is required and cannot be empty
   - `description` is optional (nullable)
   - Status defaults to `open` if not provided
-  - Note: Tasks are independent objects; OPEX manager without tasks:manager cannot create tasks
-- PATCH `/spend-items/:id/tasks` → update task **[Requires: tasks:manager]**
+  - Note: Tasks are independent objects; OPEX permissions alone do not grant task create/edit rights
+- PATCH `/spend-items/:id/tasks` → update task **[Requires: tasks:member]**
   - Body: `{ id: string, title?: string, description?: string, status?: string, due_date?: string, assignee_user_id?: string }`
   - Requires task `id` in body; validates task belongs to specified item
   - `title` cannot be empty if provided
   - `description` can be null or omitted
-  - Note: OPEX manager without tasks:manager cannot edit tasks
+  - Note: OPEX permissions alone do not grant task create/edit rights
 
 ### Contracts Task Management
 - GET `/contracts/:id/tasks` → list tasks for specific Contract (sorted by creation date DESC) **[Requires: tasks:reader]**
-- POST `/contracts/:id/tasks` → create task **[Requires: tasks:manager]**
-- PATCH `/contracts/:id/tasks` → update task **[Requires: tasks:manager]**
+- POST `/contracts/:id/tasks` → create task **[Requires: tasks:member]**
+- PATCH `/contracts/:id/tasks` → update task **[Requires: tasks:member]**
   - Same body/validation semantics as OPEX tasks (title required, description optional, unified statuses)
 
 ### Contracts CSV

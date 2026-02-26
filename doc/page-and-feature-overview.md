@@ -1,6 +1,6 @@
 # Page & Platform Feature Overview
 
- _Last updated: 2026-02-16_
+ _Last updated: 2026-02-26_
 
 This document summarizes the current tenant-facing and platform-facing page structure alongside the backend features that support multi-tenancy, permissions, and tenant lifecycle operations.
 
@@ -13,7 +13,7 @@ This document summarizes the current tenant-facing and platform-facing page stru
 | `/ops/capex` | `frontend/src/pages/CapexPage.tsx` | CAPEX grid mirroring the OPEX workspace. Rows open `/ops/capex/:id/:tab` with tabs: overview, budget, allocations, tasks, relations. The grid has an optional “Task” column deep-linking to the Tasks tab. | `capex` |
 | `/ops/projects` | `frontend/src/pages/ProjectsPage.tsx` | Projects list with create/edit modal; links to spend. | `projects` |
 | `/ops/contracts` | `frontend/src/pages/ContractsPage.tsx` | Contract registry. Inline actions for attachments, tasks, and spend linking. | `contracts` |
-| `/ops/tasks` | `frontend/src/pages/TasksPage.tsx` | Task management grid with ServerDataGrid. Shows all tasks across OPEX and Contracts with advanced filtering, quick search, status tracking (open, in_progress, done, cancelled), and responsible person assignment. Default filter shows open tasks sorted by creation date descending. Scope filter (My/Team/All) persisted per user via `useGridScopePreference`. | Requires `reader` on `tasks`; auto-granted when any operations resource (opex, contracts) has access |
+| `/portfolio/tasks` | `frontend/src/pages/TasksPage.tsx` | Task management grid with ServerDataGrid. Shows all tasks across standalone, OPEX, Contracts, CAPEX, and Projects with advanced filtering, quick search, status tracking (open, in_progress, done, cancelled), and assignee management. Default filter hides completed tasks. Scope filter (My/Team/All) persisted per user via `useGridScopePreference`. | Requires `reader` on `tasks`; auto-granted when any operations resource (opex, capex, projects, contracts) has access |
 | `/ops/operations` | `frontend/src/pages/operations/BudgetOperationsLandingPage.tsx` | Budget operations landing page with cards linking to freeze, column initialization, allocation copy, and column reset tools. | Requires `opex:reader` (landing) |
 | `/ops/operations/freeze` | `frontend/src/pages/operations/BudgetFreezePage.tsx` | Freeze / Unfreeze Data tool for budget scopes (OPEX, CAPEX). Supports per-column locking, status cards, and requires admin confirmation. | `budget_ops:admin` |
 | `/ops/operations/copy-budget-columns` (alias: `/ops/operations/column-init`) | `frontend/src/pages/operations/CopyBudgetColumnsPage.tsx` | Copy Budget Columns tool for copying budget data between years and columns with percentage adjustments, overwrite control, and dry run preview. Shows complete data preview with skip indicators and preserves source data integrity. | Requires `opex:admin` for execution |
@@ -103,9 +103,10 @@ The OPEX workspace (`frontend/src/pages/OpexListPage.tsx`) bundles the spend lif
 ## Task Management
 
 The Task Management system (frontend `TasksPage` + workspace and backend `TasksService`) provides cross-platform task tracking:
-- Frontend list: ServerDataGrid-based interface at `/ops/tasks` with columns for title, related entry (OPEX/Contract), status, responsible person, creation date, due date, and description. Cells are clickable and open the task workspace.
-- Workspace UX: Clicking a row opens `/ops/tasks/:id/overview`. Creation uses `/ops/tasks/new/overview`. The workspace has explicit Save/Reset controls, Prev/Next navigation based on the current list context (sort, filters, search), and a Close action that returns to the list with the same query state.
-- Related item move: In the workspace, the “Related item” field is an editable Autocomplete (OPEX and Contracts, grouped). Changing it marks the editor dirty; saving performs a server-side move to the new target and then persists other fields. Changes are only applied after Save or dirty-navigation confirmation.
+- Frontend list: ServerDataGrid-based interface at `/portfolio/tasks` with cross-context columns (Project/OPEX/Contract/CAPEX/Standalone), status, assignee, score, phase, due date, and description. Cells are clickable and open the task workspace.
+- Workspace UX: Clicking a row opens `/portfolio/tasks/:id/overview`. Creation uses `/portfolio/tasks/new/overview`. The workspace has explicit Save controls, Prev/Next navigation based on current list context (sort, filters, search, scope), and a Close action that returns to the list with the same query state.
+- Related context editing: In writable mode, the Context section exposes a selector (`Standalone`, `Project`, `Budget (OPEX)`, `Contract`, `CAPEX`) plus entity picker when applicable. Changes are applied only on Save.
+- Save model: context changes and field edits persist atomically in one PATCH call (no split move-then-update flow).
 - Filtering & search: Default filter shows only open tasks; supports quick search across all fields and column-specific filtering via AG Grid floating filters.
 - Status workflow: Four states (open, in_progress, done, cancelled) with color-coded status chips.
 - Selection & deletion: Admins can multi-select rows and use “Delete Selected,” which calls `DELETE /tasks/bulk`. Success clears selection and refreshes the grid.
@@ -113,13 +114,15 @@ The Task Management system (frontend `TasksPage` + workspace and backend `TasksS
   - Aggregated list: `GET /tasks` (reader), mirrors grid filters/sort with pagination.
   - Navigation: `GET /tasks/ids` (reader) returns ordered ids for Prev/Next.
   - Single task: `GET /tasks/:id` (reader) returns a task with `related_object_name` and `assignee_name`.
-  - Move: `PATCH /tasks/:id/move` (manager) updates `related_object_type` and `related_object_id`.
+  - Generic update route: `PATCH /tasks/:id` (`tasks:member`) supports field updates and context targets `standalone|spend_item|contract|capex_item`.
+  - Project-target update route: `PATCH /portfolio/projects/:projectId/tasks/:taskId` (`portfolio_projects:contributor`) is required for any save where the target context is project.
+  - Move convenience: `PATCH /tasks/:id/move` (`tasks:member`) supports context-only changes for `standalone|spend_item|contract|capex_item`.
   - Bulk delete: `DELETE /tasks/bulk` (admin) returns `{ deleted: string[]; failed: { id, name, reason }[] }`.
-  - Object-scoped create/update: `POST/PATCH /spend-items/:id/tasks` and `/contracts/:id/tasks` (manager) remain the persistence endpoints for non-relational fields.
-- Permissions: `tasks:reader` shows all tasks in the tenant (auto-granted when any operations resource has access). `tasks:manager` allows create/edit/move. `tasks:admin` is required for bulk delete.
+  - Object-scoped create/update: `POST/PATCH /spend-items/:id/tasks`, `/contracts/:id/tasks`, and `/capex-items/:id/tasks` (`tasks:member`) remain available.
+- Permissions: `tasks:reader` shows all tasks in the tenant (auto-granted when any operations resource has access). `tasks:member` allows create/edit/move for non-project contexts. Project-target saves require `portfolio_projects:contributor`. `tasks:admin` is required for bulk delete.
 - Multi-tenant model: The unified `tasks` table includes `tenant_id` with enforced RLS.
 - Schema: `tasks` fields include id, tenant_id, title (NOT NULL), description (nullable HTML), status, priority_level, start_date, due_date, assignee_user_id, creator_id, related_object_type (`'project'|'spend_item'|'contract'|'capex_item'`), related_object_id, phase_id (project tasks only), source_id, category_id, stream_id, company_id (classification — editable for standalone and project tasks; for project tasks defaults from parent project at creation, can be overridden independently), labels (JSONB), viewer_ids (JSONB), created_at, updated_at.
-- Create mode: Full workspace at `/portfolio/tasks/new/overview` with two-dropdown relation selector (type → item). Relation is mandatory and locked after creation.
+- Create mode: Full workspace at `/portfolio/tasks/new/overview` with context selector. `Standalone` is valid (and default), or users can select Project/OPEX/Contract/CAPEX + item.
 - Project task creation: From Projects workspace (Tasks tab or Timeline "Add Task" button), navigation redirects to `/portfolio/tasks/new/overview?projectId=...&phaseId=...` to pre-fill the relation.
 - **Send link**: A "Send link" button in the workspace header (to the left of prev/next arrows) lets any reader quickly email a link to the current task. The dialog (`ShareDialog`) supports selecting existing platform users and/or typing arbitrary email addresses (freeSolo Autocomplete), with an optional personal message and a copy-link shortcut. Backend: `POST /tasks/:id/share` (reader permission).
 
@@ -256,7 +259,9 @@ Portfolio workspaces use a shared activity system (modeled after Tasks):
 ### Permissions
 - `portfolio_requests`: reader/member/admin for request management
 - `portfolio_projects`: reader/contributor/member/admin for project management. The `contributor` level can edit existing projects, add comments/attachments, manage phases/milestones/dependencies, and work on project tasks, but cannot create new projects (requires `member`) or import/export CSV (requires `admin`)
-- Tasks inherit permissions from their related object (project tasks use `portfolio_projects` at `contributor` level)
+- Tasks use mixed permission enforcement:
+  - `tasks:*` controls global tasks list and non-project task edits
+  - `portfolio_projects:contributor` is required for saves that target project context (including moving a task into a project)
 
 ## Backend Multi-Tenancy & RLS
 
