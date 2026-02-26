@@ -8,6 +8,7 @@ import {
   Tooltip,
   Skeleton,
   Card,
+  Paper,
   Typography,
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -70,75 +71,87 @@ export default function WorkspaceDashboardPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight={600} sx={{ mb: 1 }}>
-          Welcome back, {userName}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Here's an overview of your work
-        </Typography>
-      </Box>
+      <Paper
+        variant="outlined"
+        sx={{
+          mb: 3,
+          p: 2.5,
+          borderRadius: 2,
+          background: (theme) => theme.palette.mode === 'dark'
+            ? 'linear-gradient(135deg, rgba(25,34,49,0.95) 0%, rgba(34,47,66,0.92) 100%)'
+            : 'linear-gradient(135deg, #f7f9fc 0%, #eef3fa 100%)',
+        }}
+      >
+        {/* Header */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h5" fontWeight={600} sx={{ mb: 1 }}>
+            Welcome back, {userName}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Here's an overview of your work
+          </Typography>
+        </Box>
 
-      {/* Quick Actions */}
-      <Stack direction="row" spacing={2} sx={{ mb: 3 }} alignItems="center">
-        {canCreateTask && (
-          <Button
-            variant="outlined"
-            startIcon={<AddTaskIcon />}
-            onClick={() => navigate('/portfolio/tasks/new/overview')}
-            size="small"
-          >
-            Create Task
-          </Button>
-        )}
-        {canLogTime && (
-          <Button
-            variant="outlined"
-            startIcon={<AccessTimeIcon />}
-            onClick={() => setLogTimeOpen(true)}
-            size="small"
-          >
-            Log Time
-          </Button>
-        )}
-        {canCreateRequest && (
-          <Button
-            variant="outlined"
-            startIcon={<InboxIcon />}
-            onClick={() => navigate('/portfolio/requests/new/overview')}
-            size="small"
-          >
-            New Request
-          </Button>
-        )}
-        {canCreateApp && (
-          <Button
-            variant="outlined"
-            startIcon={<WorkOutlineIcon />}
-            onClick={() => navigate('/it/applications/new/overview')}
-            size="small"
-          >
-            New Application
-          </Button>
-        )}
-        {canCreateAsset && (
-          <Button
-            variant="outlined"
-            startIcon={<DnsIcon />}
-            onClick={() => navigate('/it/assets/new/overview')}
-            size="small"
-          >
-            New Asset
-          </Button>
-        )}
-        <Box flex={1} />
-        <Tooltip title="Dashboard Settings">
-          <IconButton onClick={() => setSettingsOpen(true)} size="small">
-            <SettingsIcon />
-          </IconButton>
-        </Tooltip>
-      </Stack>
+        {/* Quick Actions */}
+        <Stack direction="row" spacing={1.5} alignItems="center" useFlexGap flexWrap="wrap">
+          {canCreateTask && (
+            <Button
+              variant="outlined"
+              startIcon={<AddTaskIcon />}
+              onClick={() => navigate('/portfolio/tasks/new/overview')}
+              size="small"
+            >
+              Create Task
+            </Button>
+          )}
+          {canLogTime && (
+            <Button
+              variant="outlined"
+              startIcon={<AccessTimeIcon />}
+              onClick={() => setLogTimeOpen(true)}
+              size="small"
+            >
+              Log Time
+            </Button>
+          )}
+          {canCreateRequest && (
+            <Button
+              variant="outlined"
+              startIcon={<InboxIcon />}
+              onClick={() => navigate('/portfolio/requests/new/overview')}
+              size="small"
+            >
+              New Request
+            </Button>
+          )}
+          {canCreateApp && (
+            <Button
+              variant="outlined"
+              startIcon={<WorkOutlineIcon />}
+              onClick={() => navigate('/it/applications/new/overview')}
+              size="small"
+            >
+              New Application
+            </Button>
+          )}
+          {canCreateAsset && (
+            <Button
+              variant="outlined"
+              startIcon={<DnsIcon />}
+              onClick={() => navigate('/it/assets/new/overview')}
+              size="small"
+            >
+              New Asset
+            </Button>
+          )}
+          <Box flex={1} />
+          <Tooltip title="Dashboard Settings">
+            <IconButton onClick={() => setSettingsOpen(true)} size="small">
+              <SettingsIcon />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Paper>
 
       {/* Tile Grid */}
       {configLoading ? (

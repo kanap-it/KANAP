@@ -77,9 +77,9 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
     component: Placeholder,
     title: 'Recently Viewed',
     icon: 'History',
-    defaultConfig: { limit: 10 },
+    defaultConfig: { limit: 5 },
     configSchema: {
-      limit: { type: 'number', label: 'Max items', min: 5, max: 20 },
+      limit: { type: 'number', label: 'Max items', min: 1, max: 5 },
     },
     // No requiredPermissions - always visible
   },

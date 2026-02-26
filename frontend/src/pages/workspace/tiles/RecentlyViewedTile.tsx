@@ -42,7 +42,7 @@ export default function RecentlyViewedTile({ config }: RecentlyViewedTileProps) 
   const navigate = useNavigate();
   const { items, clearRecent } = useRecentlyViewed();
   const { hasLevel } = useAuth();
-  const limit = (config.limit as number) || 10;
+  const limit = Math.min((config.limit as number) || 5, 5);
 
   // Filter items by permission
   const visibleItems = items

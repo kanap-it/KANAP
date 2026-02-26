@@ -172,6 +172,7 @@ export default function Layout() {
     if (p.startsWith('/master-data')) return 'master-data';
     if (p.startsWith('/portfolio')) return 'portfolio';
     if (p.startsWith('/it')) return 'it';
+    if (p.startsWith('/settings')) return 'home';
     return 'ops';
   }, [location.pathname, isPlatformHost]);
   const [navOpen, setNavOpen] = React.useState<boolean>(() => {

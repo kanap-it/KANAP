@@ -2,7 +2,7 @@ import { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../../../auth/AuthContext';
 import { useTenant } from '../../../tenant/TenantContext';
 
-const MAX_ITEMS = 20;
+const MAX_ITEMS = 5;
 
 export type RecentEntityType =
   | 'project'
@@ -30,7 +30,8 @@ function getStorageKey(tenantSlug: string, userId: string): string {
 function loadFromStorage(storageKey: string): RecentItem[] {
   try {
     const stored = localStorage.getItem(storageKey);
-    return stored ? JSON.parse(stored) : [];
+    const parsed = stored ? (JSON.parse(stored) as RecentItem[]) : [];
+    return parsed.slice(0, MAX_ITEMS);
   } catch {
     return [];
   }

@@ -61,7 +61,26 @@ export default function DashboardTile({
   const IconComponent = ICON_MAP[icon] || TaskIcon;
 
   return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Card
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: 2,
+        border: (theme) => `1px solid ${theme.palette.divider}`,
+        boxShadow: (theme) => theme.palette.mode === 'dark'
+          ? '0 8px 24px rgba(0,0,0,0.24)'
+          : '0 8px 20px rgba(17,24,39,0.08)',
+        transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: (theme) => theme.palette.mode === 'dark'
+            ? '0 12px 28px rgba(0,0,0,0.32)'
+            : '0 12px 28px rgba(17,24,39,0.14)',
+          borderColor: 'primary.main',
+        },
+      }}
+    >
       <CardHeader
         avatar={<IconComponent sx={{ color: 'primary.main' }} />}
         title={
