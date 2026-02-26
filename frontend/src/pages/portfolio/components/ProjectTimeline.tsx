@@ -10,6 +10,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import { Gantt } from '@svar-ui/react-gantt';
 import '@svar-ui/react-gantt/style.css';
 import api from '../../../api';
+import LightModeIsland from '../../../components/LightModeIsland';
 
 interface ProjectPhase {
   id: string;
@@ -142,34 +143,36 @@ export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableV
 
       {/* Gantt View */}
       {viewMode === 'gantt' && (
-        <Box sx={{ height: 400 }}>
-          {ganttTasks.length === 0 ? (
-            <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-              <Typography variant="body1">No phases with planned dates</Typography>
-              <Typography variant="body2">
-                Set planned start and end dates on phases to see them on the Gantt chart.
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={{ height: '100%' }}>
-              <Gantt
-                tasks={ganttTasks}
-                scales={[
-                  { unit: 'month', step: 1, format: 'MMM yyyy' },
-                  { unit: 'week', step: 1, format: 'w' },
-                ]}
-                cellWidth={40}
-                cellHeight={38}
-                columns={[
-                  { id: 'text', header: 'Phase', width: 180, flexgrow: 1 },
-                ]}
-                taskTemplate={taskTemplate}
-                readonly={!canManage}
-                onupdatetask={handleGanttUpdate}
-              />
-            </Box>
-          )}
-        </Box>
+        <LightModeIsland sx={{ p: 0 }}>
+          <Box sx={{ height: 400 }}>
+            {ganttTasks.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
+                <Typography variant="body1">No phases with planned dates</Typography>
+                <Typography variant="body2">
+                  Set planned start and end dates on phases to see them on the Gantt chart.
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ height: '100%' }}>
+                <Gantt
+                  tasks={ganttTasks}
+                  scales={[
+                    { unit: 'month', step: 1, format: 'MMM yyyy' },
+                    { unit: 'week', step: 1, format: 'w' },
+                  ]}
+                  cellWidth={40}
+                  cellHeight={38}
+                  columns={[
+                    { id: 'text', header: 'Phase', width: 180, flexgrow: 1 },
+                  ]}
+                  taskTemplate={taskTemplate}
+                  readonly={!canManage}
+                  onupdatetask={handleGanttUpdate}
+                />
+              </Box>
+            )}
+          </Box>
+        </LightModeIsland>
       )}
     </Box>
   );

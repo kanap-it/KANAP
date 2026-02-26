@@ -57,7 +57,6 @@ import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
 import { formatItemRef } from '../../utils/item-ref';
 import ShareDialog from '../../components/ShareDialog';
-import LightModeIsland from '../../components/LightModeIsland';
 
 type TabKey = 'overview' | 'scoring' | 'timeline' | 'effort' | 'tasks' | 'team' | 'relations' | 'activity';
 
@@ -1069,64 +1068,62 @@ export default function ProjectWorkspacePage() {
                       </Button>
                     </Stack>
                   </Stack>
-                  <LightModeIsland>
-                    <ProjectTimeline
-                      projectId={id!}
-                      phases={(form?.phases || []).map((p: any) => ({
-                        id: p.id,
-                        name: p.name,
-                        planned_start: p.planned_start,
-                        planned_end: p.planned_end,
-                        status: p.status || 'pending',
-                        sequence: p.sequence,
-                      }))}
-                      onUpdate={refetch}
-                      canManage={canManage}
-                      tableView={
-                        <DndContext
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={handlePhaseDragEnd}
-                        >
-                          <Table size="small">
-                            <TableHead>
-                              <TableRow>
-                                <TableCell sx={{ width: 56 }}>#</TableCell>
-                                <TableCell>Name</TableCell>
-                                <TableCell sx={{ width: 140 }}>Start</TableCell>
-                                <TableCell sx={{ width: 140 }}>End</TableCell>
-                                <TableCell sx={{ width: 130 }}>Status</TableCell>
-                                <TableCell sx={{ width: 80, textAlign: 'center' }}>Milestone</TableCell>
-                                <TableCell sx={{ width: 50 }}></TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <SortableContext
-                              items={(form?.phases || []).sort((a: any, b: any) => a.sequence - b.sequence).map((p: any) => p.id)}
-                              strategy={verticalListSortingStrategy}
-                            >
-                              <TableBody>
-                                {(form?.phases || []).sort((a: any, b: any) => a.sequence - b.sequence).map((phase: any, idx: number) => (
-                                  <SortablePhaseRow
-                                    key={phase.id}
-                                    phase={phase}
-                                    index={idx}
-                                    canManage={canManage}
-                                    form={form}
-                                    setForm={setForm}
-                                    projectId={id!}
-                                    milestones={form?.milestones || []}
-                                    onRefetch={refetch}
-                                    onError={setSaveError}
-                                    onNavigate={navigate}
-                                  />
-                                ))}
-                              </TableBody>
-                            </SortableContext>
-                          </Table>
-                        </DndContext>
-                      }
-                    />
-                  </LightModeIsland>
+                  <ProjectTimeline
+                    projectId={id!}
+                    phases={(form?.phases || []).map((p: any) => ({
+                      id: p.id,
+                      name: p.name,
+                      planned_start: p.planned_start,
+                      planned_end: p.planned_end,
+                      status: p.status || 'pending',
+                      sequence: p.sequence,
+                    }))}
+                    onUpdate={refetch}
+                    canManage={canManage}
+                    tableView={
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handlePhaseDragEnd}
+                      >
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell sx={{ width: 56 }}>#</TableCell>
+                              <TableCell>Name</TableCell>
+                              <TableCell sx={{ width: 140 }}>Start</TableCell>
+                              <TableCell sx={{ width: 140 }}>End</TableCell>
+                              <TableCell sx={{ width: 130 }}>Status</TableCell>
+                              <TableCell sx={{ width: 80, textAlign: 'center' }}>Milestone</TableCell>
+                              <TableCell sx={{ width: 50 }}></TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <SortableContext
+                            items={(form?.phases || []).sort((a: any, b: any) => a.sequence - b.sequence).map((p: any) => p.id)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <TableBody>
+                              {(form?.phases || []).sort((a: any, b: any) => a.sequence - b.sequence).map((phase: any, idx: number) => (
+                                <SortablePhaseRow
+                                  key={phase.id}
+                                  phase={phase}
+                                  index={idx}
+                                  canManage={canManage}
+                                  form={form}
+                                  setForm={setForm}
+                                  projectId={id!}
+                                  milestones={form?.milestones || []}
+                                  onRefetch={refetch}
+                                  onError={setSaveError}
+                                  onNavigate={navigate}
+                                />
+                              ))}
+                            </TableBody>
+                          </SortableContext>
+                        </Table>
+                      </DndContext>
+                    }
+                  />
                 </Box>
               )}
 
