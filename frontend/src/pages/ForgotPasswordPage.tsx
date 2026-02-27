@@ -10,7 +10,7 @@ export default function ForgotPasswordPage() {
 
   if (!config.features.email) {
     return (
-      <AuthFrame heading="Reset your password">
+      <AuthFrame>
         <Paper
           elevation={4}
           sx={{
@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <AuthFrame heading="Reset your password">
+    <AuthFrame>
       <Paper
         component="form"
         onSubmit={onSubmit}

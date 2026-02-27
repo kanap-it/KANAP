@@ -71,7 +71,7 @@ export default function AcceptInvitePage() {
   };
 
   return (
-    <AuthFrame heading="Welcome to KANAP">
+    <AuthFrame>
       <Paper
         component="form"
         onSubmit={onSubmit}

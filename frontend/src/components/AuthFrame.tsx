@@ -1,58 +1,66 @@
-import { Box, Typography } from '@mui/material';
+import { AppBar, Box, IconButton, Toolbar, Tooltip, Typography } from '@mui/material';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
+import BrightnessAutoIcon from '@mui/icons-material/BrightnessAuto';
 import { ReactNode } from 'react';
-import logoSrc from '../assets/cioAssistantLogo.svg';
+import { useThemeMode } from '../config/ThemeContext';
 
 interface AuthFrameProps {
-  heading?: string;
   children: ReactNode;
 }
 
-export default function AuthFrame({ heading = 'Welcome back!', children }: AuthFrameProps) {
+export default function AuthFrame({ children }: AuthFrameProps) {
+  const { mode, setMode } = useThemeMode();
+
+  const themeModeLabel = mode === 'system' ? 'System' : mode === 'dark' ? 'Dark' : 'Light';
+  const themeModeIcon = mode === 'dark'
+    ? <DarkModeOutlinedIcon />
+    : mode === 'light'
+      ? <LightModeOutlinedIcon />
+      : <BrightnessAutoIcon />;
+
   return (
     <Box
       sx={{
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
-        bgcolor: (theme) => theme.palette.grey[100],
+        bgcolor: 'background.default',
       }}
     >
-      <Box
-        component="header"
-        sx={{
-          bgcolor: (theme) => theme.palette.primary.main,
-          color: (theme) => theme.palette.primary.contrastText,
-          height: 100,
-          display: 'flex',
-          alignItems: 'center',
-          position: 'relative',
-          px: { xs: 2.5, sm: 4 },
-        }}
-      >
-        <Box
-          component="img"
-          src={logoSrc}
-          alt="cio-assistant"
+      <AppBar position="static">
+        <Toolbar
           sx={{
-            width: 80,
-            height: 80,
-            objectFit: 'contain',
-          }}
-        />
-        <Typography
-          variant="h5"
-          fontWeight={600}
-          sx={{
-            textAlign: 'center',
-            fontSize: { xs: '1.35rem', md: '1.6rem' },
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
+            px: { xs: 2, sm: 3 },
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
-          {heading}
-        </Typography>
-      </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              component="img"
+              src="/icon-192.png"
+              alt="KANAP"
+              sx={{ width: 32, height: 32 }}
+            />
+            <Typography variant="h6" fontWeight={700} color="inherit">
+              KANAP
+            </Typography>
+          </Box>
+
+          <Tooltip title={`Theme: ${themeModeLabel} (click to switch)`}>
+            <IconButton
+              size="small"
+              color="inherit"
+              onClick={() => setMode(mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light')}
+              aria-label={`Theme: ${themeModeLabel}`}
+            >
+              {themeModeIcon}
+            </IconButton>
+          </Tooltip>
+        </Toolbar>
+      </AppBar>
 
       <Box
         sx={{

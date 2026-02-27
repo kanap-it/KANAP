@@ -71,7 +71,7 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <AuthFrame heading="Choose a new password">
+    <AuthFrame>
       <Paper
         component="form"
         onSubmit={onSubmit}
