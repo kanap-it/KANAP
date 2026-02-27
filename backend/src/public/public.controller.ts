@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, InternalServerErrorException, Logger, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, InternalServerErrorException, Logger, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Features } from '../config/features';
 import { throwNotAvailableInMode } from '../common/feature-gates';
 import { Throttle } from '@nestjs/throttler';
@@ -22,6 +22,8 @@ import { Subscription, SubscriptionStatus } from '../billing/subscription.entity
 import { TRIAL_PERIOD_DAYS } from '../billing/plans.config';
 import { StripeClientService } from '../billing/stripe';
 import { isReservedTenantSlug, normalizeTenantSlug } from '../tenants/tenant-slug-policy';
+import { StorageService } from '../common/storage/storage.service';
+import { Response } from 'express';
 
 const STRIPE_EU_BANK_TRANSFER_COUNTRIES = new Set<string>(['BE', 'DE', 'ES', 'FR', 'IE', 'NL']);
 const STRIPE_DEFAULT_EU_BANK_TRANSFER_COUNTRY = 'FR';
@@ -130,6 +132,7 @@ export class PublicController {
     private readonly coas: ChartOfAccountsService,
     private readonly turnstile: TurnstileService,
     private readonly stripeClient: StripeClientService,
+    private readonly storage: StorageService,
   ) {}
 
   @Get('tenant-info')
@@ -140,9 +143,55 @@ export class PublicController {
     const tenant = req?.tenant;
     if (tenant?.id) {
       const detail = await this.tenants.findById(tenant.id);
-      return { slug: tenant.slug, name: detail?.name ?? tenant.slug };
+      const branding = this.normalizeBrandingPayload(detail?.branding);
+      return {
+        slug: tenant.slug,
+        name: detail?.name ?? tenant.slug,
+        logoPath: branding.logo_storage_path ? '/public/branding/logo' : null,
+        logoVersion: branding.logo_storage_path ? branding.logo_version : null,
+        useLogoInDark: branding.use_logo_in_dark,
+        primaryColorLight: branding.primary_color_light,
+        primaryColorDark: branding.primary_color_dark,
+      };
     }
     return { marketing: true };
+  }
+
+  @Get('branding/logo')
+  async serveBrandingLogo(@Req() req: any, @Res() res: Response): Promise<void> {
+    if (req?.isPlatformHost) {
+      res.status(404).send('Not found');
+      return;
+    }
+
+    const tenantMeta = req?.tenant;
+    if (!tenantMeta?.id) {
+      res.status(404).send('Not found');
+      return;
+    }
+
+    const tenant = await this.tenants.findById(tenantMeta.id);
+    const branding = this.normalizeBrandingPayload(tenant?.branding);
+    if (!branding.logo_storage_path) {
+      res.status(404).send('Not found');
+      return;
+    }
+
+    try {
+      const obj = await this.storage.getObjectStream(branding.logo_storage_path);
+      res.setHeader('Content-Type', obj.contentType || 'application/octet-stream');
+      if (obj.contentLength != null) {
+        res.setHeader('Content-Length', String(obj.contentLength));
+      }
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      obj.stream.pipe(res);
+    } catch (error: any) {
+      if (this.isStorageNotFoundError(error)) {
+        res.status(404).send('Not found');
+        return;
+      }
+      throw error;
+    }
   }
 
   @Get('captcha-config')
@@ -667,6 +716,33 @@ export class PublicController {
       return source;
     }
     return STRIPE_DEFAULT_EU_BANK_TRANSFER_COUNTRY;
+  }
+
+  private normalizeBrandingPayload(raw: Record<string, any> | null | undefined): {
+    logo_storage_path?: string;
+    logo_version: number;
+    use_logo_in_dark: boolean;
+    primary_color_light: string | null;
+    primary_color_dark: string | null;
+  } {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const logoVersion = Number(source.logo_version);
+    return {
+      logo_storage_path: typeof source.logo_storage_path === 'string' ? source.logo_storage_path : undefined,
+      logo_version: Number.isFinite(logoVersion) && logoVersion >= 0 ? logoVersion : 0,
+      use_logo_in_dark: source.use_logo_in_dark !== false,
+      primary_color_light: typeof source.primary_color_light === 'string' ? source.primary_color_light : null,
+      primary_color_dark: typeof source.primary_color_dark === 'string' ? source.primary_color_dark : null,
+    };
+  }
+
+  private isStorageNotFoundError(error: any): boolean {
+    const message = String(error?.message || '').toLowerCase();
+    return (
+      message.includes('nosuchkey')
+      || message.includes('notfound')
+      || message.includes('(404)')
+    );
   }
 
   private throwSupportInvoiceStripeError(error: any): never {

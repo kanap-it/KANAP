@@ -319,6 +319,8 @@ export default function TaskSidebar({
               )
             )}
 
+            <Divider sx={{ opacity: 0.4 }} />
+
             {/* Task Type - THIRD */}
             {readOnly ? (
               <Box>
@@ -352,6 +354,8 @@ export default function TaskSidebar({
                 size="small"
               />
             )}
+
+            <Divider sx={{ opacity: 0.4 }} />
 
             {/* Classification fields - EDITABLE (standalone + project tasks) */}
             {canEditClassification && !readOnly && (
@@ -397,6 +401,8 @@ export default function TaskSidebar({
                 />
               </>
             )}
+
+            <Divider sx={{ opacity: 0.4 }} />
 
             {/* Classification fields - READ-ONLY (standalone + project tasks) */}
             {canEditClassification && readOnly && (task.category_name || task.stream_name || task.source_name || task.company_name) && (

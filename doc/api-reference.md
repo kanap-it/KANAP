@@ -4,7 +4,7 @@ Metadata
 - Purpose: Quick reference for core endpoints and allocation/metrics model
 - Audience: Engineers, integrators
 - Status: current
-- Last Updated: 2026-02-21
+- Last Updated: 2026-02-27
 
 ## Auth
 
@@ -82,9 +82,20 @@ Rate limiting (default enabled):
 ## Public Utilities
 - GET `/public/tenant-info`
   - Resolves tenant metadata for the current host.
-  - Returns `{ slug, name }` for valid tenant subdomains.
+  - Returns branding-aware tenant metadata for valid tenant hosts:
+    - `{ slug, name, logoPath, logoVersion, useLogoInDark, primaryColorLight, primaryColorDark }`
+    - `logoPath` is a relative API path (`/public/branding/logo`) or `null`.
+    - `logoVersion` is a numeric cache-busting counter or `null` when no logo exists.
+    - `useLogoInDark` controls whether the tenant logo is shown on dark headers/login.
+    - `primaryColorLight`/`primaryColorDark` are `#RRGGBB` or `null`.
   - Returns `{ platform: true }` when called on `PLATFORM_ADMIN_HOST` (no tenant context).
+  - Returns `{ marketing: true }` when called on marketing/apex hosts (no tenant context).
   - Responds `404 { error: 'TENANT_NOT_FOUND', marketingUrl }` for unknown slugs so the SPA can redirect users back to marketing.
+
+- GET `/public/branding/logo`
+  - Public logo stream for the current tenant (no JWT).
+  - Returns `404` on platform host, unknown tenant context, or when no logo is configured.
+  - Response headers include `Cache-Control: public, max-age=300`.
 
 - GET `/public/captcha-config`
   - Returns current CAPTCHA client configuration for the marketing forms:
@@ -116,6 +127,41 @@ Rate limiting (default enabled):
     - Provisions the default global CoA into the tenant if a platform template is marked `loaded_by_default`.
     - Issues a password-reset token so the owner can set credentials inside the tenant.
     - Sends a non-blocking notification email to `admin@kanap.net` with the tenant name, slug, registered email, and `country_iso`. This notification does not affect the response if delivery fails.
+
+## Admin Branding (Tenant)
+These endpoints are tenant-scoped and require:
+- JWT authentication
+- `users:admin` permission
+- tenant host context (platform host is blocked)
+
+- GET `/admin/branding/settings`
+  - Returns:
+    - `{ has_logo, logo_version, use_logo_in_dark, primary_color_light, primary_color_dark }`
+
+- POST `/admin/branding/logo`
+  - Multipart upload (`file` field) for tenant logo.
+  - Allowed formats: `PNG`, `JPG/JPEG`, `GIF`, `WEBP`.
+  - Max file size: 20 MB.
+  - Replaces previous logo if present.
+  - Returns `{ ok, has_logo, logo_version, use_logo_in_dark }`.
+
+- DELETE `/admin/branding/logo`
+  - Deletes the current tenant logo (idempotent).
+  - Increments `logo_version` to invalidate cached logo URLs.
+  - Returns `{ ok, has_logo, logo_version, use_logo_in_dark }`.
+
+- PATCH `/admin/branding/settings`
+  - Body (partial):
+    - `{ primary_color_light?: '#RRGGBB'|null, primary_color_dark?: '#RRGGBB'|null, use_logo_in_dark?: boolean }`
+  - Returns merged settings payload:
+    - `{ ok, has_logo, logo_version, use_logo_in_dark, primary_color_light, primary_color_dark }`.
+
+- POST `/admin/branding/reset`
+  - Restores defaults:
+    - remove logo
+    - `use_logo_in_dark = true`
+    - clear both primary colors
+  - Returns `{ ok, has_logo, logo_version, use_logo_in_dark, primary_color_light, primary_color_dark }`.
 
 ## Billing
 - GET `/billing/subscription` → `{ plan_name, seat_limit, seats_used }`

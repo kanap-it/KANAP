@@ -57,7 +57,7 @@ export default function TaskActivity({ taskId, projectId, readOnly = false, rela
           {supportsTimeLogging && (
             <ToggleButton value="worklog">
               <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
-              Work Log
+              Time Log
             </ToggleButton>
           )}
         </ToggleButtonGroup>

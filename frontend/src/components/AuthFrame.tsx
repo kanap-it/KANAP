@@ -4,13 +4,15 @@ import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import BrightnessAutoIcon from '@mui/icons-material/BrightnessAuto';
 import { ReactNode } from 'react';
 import { useThemeMode } from '../config/ThemeContext';
+import { useTenant } from '../tenant/TenantContext';
 
 interface AuthFrameProps {
   children: ReactNode;
 }
 
 export default function AuthFrame({ children }: AuthFrameProps) {
-  const { mode, setMode } = useThemeMode();
+  const { mode, resolvedMode, setMode } = useThemeMode();
+  const { logoUrl, tenantName, useLogoInDark } = useTenant();
 
   const themeModeLabel = mode === 'system' ? 'System' : mode === 'dark' ? 'Dark' : 'Light';
   const themeModeIcon = mode === 'dark'
@@ -18,6 +20,7 @@ export default function AuthFrame({ children }: AuthFrameProps) {
     : mode === 'light'
       ? <LightModeOutlinedIcon />
       : <BrightnessAutoIcon />;
+  const showLogo = !!logoUrl && (resolvedMode !== 'dark' || useLogoInDark);
 
   return (
     <Box
@@ -38,15 +41,26 @@ export default function AuthFrame({ children }: AuthFrameProps) {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box
-              component="img"
-              src="/icon-192.png"
-              alt="KANAP"
-              sx={{ width: 32, height: 32 }}
-            />
-            <Typography variant="h6" fontWeight={700} color="inherit">
-              KANAP
-            </Typography>
+            {showLogo ? (
+              <Box
+                component="img"
+                src={logoUrl || undefined}
+                alt={tenantName || 'Logo'}
+                sx={{ height: 32, maxWidth: 140, objectFit: 'contain' }}
+              />
+            ) : (
+              <Box
+                component="img"
+                src="/icon-192.png"
+                alt="KANAP"
+                sx={{ width: 32, height: 32 }}
+              />
+            )}
+            {!showLogo && (
+              <Typography variant="h6" fontWeight={700} color="inherit">
+                KANAP
+              </Typography>
+            )}
           </Box>
 
           <Tooltip title={`Theme: ${themeModeLabel} (click to switch)`}>

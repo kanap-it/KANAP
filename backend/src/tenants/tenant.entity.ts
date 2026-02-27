@@ -7,6 +7,14 @@ export enum TenantStatus {
   DELETED = 'deleted',
 }
 
+export type TenantBranding = {
+  logo_storage_path?: string;
+  logo_version?: number;
+  use_logo_in_dark?: boolean;
+  primary_color_light?: string | null;
+  primary_color_dark?: string | null;
+};
+
 @Entity('tenants')
 export class Tenant {
   @PrimaryGeneratedColumn('uuid')
@@ -89,6 +97,9 @@ export class Tenant {
 
   @Column('jsonb', { nullable: true, default: () => `'{}'::jsonb` })
   entra_metadata!: Record<string, any> | null;
+
+  @Column('jsonb', { default: () => `'{"logo_version":0,"use_logo_in_dark":true}'::jsonb` })
+  branding!: TenantBranding;
 
   @Column('timestamptz', { default: () => 'now()' })
   created_at!: Date;

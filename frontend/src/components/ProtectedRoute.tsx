@@ -55,7 +55,13 @@ export default function ProtectedRoute() {
     }
     
     let resource: string | null = null;
-    const adminAliases: Record<string, string> = { roles: 'users' };
+    const adminAliases: Record<string, string> = {
+      roles: 'users',
+      auth: 'users',
+      branding: 'users',
+      'audit-logs': 'users',
+      'choose-plan': 'billing',
+    };
     const opsAliases: Record<string, string> = { reports: 'reporting', servers: 'infrastructure', operations: 'opex' };
     const itAliases: Record<string, string> = {
       locations: 'locations',

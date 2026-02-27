@@ -5,7 +5,7 @@ Metadata
 - Audience: Engineers, architects, product, operations
 - Status: current
 - Owner: TBD
-- Last Updated: 2026-02-08
+- Last Updated: 2026-02-27
 
 ## Summary
 High-level overview of the system, major components, and how data flows between them. The core runtime uses four containers: PostgreSQL 15 (`db`), NestJS on Node 20 (`api`), Vite React+TS (`web`), and a static marketing bundle (`marketing`).
@@ -75,6 +75,7 @@ flowchart LR
 - All attachments (“files”) are stored in S3-compatible object storage (Hetzner) using a backend `StorageService` backed by AWS SDK v3 (`@aws-sdk/client-s3`).
 - Buckets per environment: `cio-dev`, `cio-qa`, `cio-prod`; location `nbg1` with endpoint `https://nbg1.your-objectstorage.com`.
 - Object keys are tenant-scoped and recorded in the database `storage_path` fields; the API streams downloads directly from S3.
+- Tenant branding logos are stored in the same bucket under `files/<tenant-id>/branding/logo.<ext>` and served through `GET /public/branding/logo` so login/app-shell rendering works without JWT.
 - Transport is protected with TLS. Explicit per-request SSE headers are used where supported; when a provider rejects them, uploads fall back to bucket-default encryption behavior.
 - Configuration via env: `FILES_STORAGE=s3`, `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
 
@@ -106,6 +107,7 @@ flowchart LR
 - Provisioning flow: marketing POSTs to `/api/public/start-trial` (body includes `org`, `slug`, `email`, required `country_iso`, and `captchaToken`). The API verifies Turnstile (mode: `off|monitor|enforce`), records the request in `trial_signups`, emails an activation link, and `/api/public/activate-trial` provisions the tenant + admin account once the link is confirmed. The activation endpoint immediately issues a password-reset token so the admin can set credentials inside the tenant web app.
 - Tenant slug reservation policy is centralized in `backend/src/tenants/tenant-slug-policy.ts` and enforced in both `POST /public/start-trial` and `TenantsService.createTenant`/`TenantsService.updateTenant` to prevent bypass through alternate creation paths. Unavailable slugs return `400` with code `SUBDOMAIN_NOT_AVAILABLE`.
 - Default CoA provisioning: during `/public/activate-trial`, after the API sets `app.current_tenant`, it checks the platform CoA templates for a single global template marked `loaded_by_default` and, when present, creates a `GLOBAL`‑scoped CoA in the new tenant using that template (accounts are copied) and marks it as the tenant’s Global Default CoA. The initial company is created using the submitted `country_iso`; it auto‑assigns to that country's default CoA when available, otherwise falls back to the tenant’s Global Default CoA.
+- Tenant branding is stored on `tenants.branding` (`jsonb`) with logo storage path/version, light/dark primary colors, and a dark-mode logo toggle. This column lives on the tenant record (no per-table `tenant_id`) and is guarded by host + permission checks in application code.
 - Activity comment notifications: rich-text comment bodies are sanitized before email rendering. Inline images are embedded as CID attachments when possible, with absolute URL fallback for clients or payload limits that prevent embedding.
 
 ### Notifications Module
@@ -128,7 +130,8 @@ flowchart LR
 - `PLATFORM_ADMIN_HOST` identifies requests to the platform admin console. Unlike regular tenant hosts, the slug is not extracted from the subdomain—instead, the middleware explicitly looks up the `platform-admin` **system tenant** and attaches it to the request context.
 - This means platform admin operates with a **real tenant context** (the `platform-admin` tenant) rather than a null context. RLS policies apply normally, allowing admin users to authenticate and access platform routes without bypassing tenant isolation.
 - The request also sets `req.isPlatformHost = true` so guards can distinguish platform admin routes from regular tenant routes.
-- `/public/tenant-info` returns `{ platform: true }`, `{ slug, name }`, or `{ marketing: true }`, letting the SPA swap navigation shells (platform console vs tenant workspace) without shipping a separate bundle.
+- `/public/tenant-info` returns `{ platform: true }`, tenant metadata + branding payload (`slug`, `name`, `logoPath`, `logoVersion`, `useLogoInDark`, `primaryColorLight`, `primaryColorDark`), or `{ marketing: true }`, letting the SPA swap shells and apply tenant branding without a separate bundle.
+- Branding administration endpoints (`/admin/branding/*`) are tenant-only (`users:admin`) and explicitly reject platform-host requests.
 - The platform module owns endpoints for tenant stats, freeze/unfreeze, plan management, synchronous deletion, and ops monitoring (`GET /admin/ops/snapshot` — API traffic, DB health, process metrics). Future features (Stripe billing sync, backups) can extend the same module and rely on the host guard.
 
 **System Tenant Protections:**

@@ -1,6 +1,6 @@
 # Administration
 
-The Admin section provides access to user management, role configuration, billing, authentication settings, and the audit log viewer. These pages are typically restricted to administrators.
+The Admin section provides access to user management, role configuration, billing, authentication settings, branding controls, and the audit log viewer. These pages are typically restricted to administrators.
 
 ## Where to find it
 
@@ -13,6 +13,7 @@ Navigate to **Admin** from the main menu to access the administration hub.
 - Audit Log: Requires `users:admin`
 - Billing: Requires billing admin role
 - Authentication: Requires `users:admin`
+- Branding: Requires `users:admin` (tenant host only)
 
 ---
 
@@ -30,6 +31,7 @@ The Admin landing page provides quick access to all administrative functions:
 | **Roles** | Define role permissions | `users:reader` |
 | **Audit Log** | Browse who changed what and when | `users:admin` |
 | **Billing** | Plan, seats and invoices | Billing admin |
+| **Branding** | Manage logo and primary light/dark colors | `users:admin` |
 
 ---
 
@@ -328,6 +330,24 @@ Connect KANAP to your Microsoft Entra ID tenant for SSO:
 | **Connect** | Start the Microsoft Entra setup flow |
 | **Test Sign-In** | Test SSO with your Microsoft account |
 | **Disconnect** | Remove SSO configuration (reverts to local auth) |
+
+---
+
+## Branding
+
+Use **Admin → Branding** to apply your company identity in KANAP.
+
+- Route: `/admin/branding`
+- Permission: `users:admin`
+- Scope: tenant hosts only (not available on platform-admin host)
+
+Branding lets you:
+- Upload or remove your tenant logo
+- Control whether the logo is shown in dark mode
+- Set separate primary colors for light and dark mode
+- Reset all branding back to default
+
+For full step-by-step instructions, see: [Branding](branding.md)
 
 ---
 

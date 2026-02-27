@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { Tenant, TenantStatus } from '../../tenants/tenant.entity';
+import { Tenant, TenantBranding, TenantStatus } from '../../tenants/tenant.entity';
 import { parsePagination } from '../../common/pagination';
 import { TenantStatsService } from './tenant-stats.service';
 import { BillingService } from '../../billing/billing.service';
@@ -225,7 +225,7 @@ export class AdminTenantsService {
 
     let purgeReport: Array<{ table: string; deleted: number }> = [];
     try {
-      purgeReport = await this.purgeTenantData(tenantId);
+      purgeReport = await this.purgeTenantData(tenantId, tenant.branding);
     } catch (error) {
       const beforeFail = this.serializeTenant(tenant);
       tenant.status = TenantStatus.FROZEN;
@@ -281,7 +281,7 @@ export class AdminTenantsService {
     });
   }
 
-  private async purgeTenantData(tenantId: string) {
+  private async purgeTenantData(tenantId: string, branding?: TenantBranding | Record<string, any> | null) {
     const tablesInOrder = [
       // Portfolio: purge in FK order (children before parents)
       'portfolio_project_time_entries',
@@ -445,6 +445,22 @@ export class AdminTenantsService {
         const count = Number(res?.[0]?.count ?? 0);
         report.push({ table, deleted: count });
       };
+
+      // Branding logo lives on tenants.branding (no tenant_id column), so clean it explicitly.
+      const brandingLogoPath = typeof (branding as any)?.logo_storage_path === 'string'
+        ? (branding as any).logo_storage_path as string
+        : null;
+      if (brandingLogoPath) {
+        try {
+          await this.storage.deleteObject(brandingLogoPath);
+          report.push({ table: 'tenant_branding_logo', deleted: 1 });
+        } catch {
+          // Keep purge resilient if object is already missing.
+          report.push({ table: 'tenant_branding_logo', deleted: 0 });
+        }
+      } else {
+        report.push({ table: 'tenant_branding_logo', deleted: 0 });
+      }
 
       // For attachment tables, delete remote S3 objects first
       const attachmentTables = new Set([

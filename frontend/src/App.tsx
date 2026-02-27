@@ -57,7 +57,7 @@ import MasterDataOperationsPage from './pages/admin/MasterDataOperationsPage';
 import MasterDataFreezePage from './pages/admin/master-data/MasterDataFreezePage';
 import MasterDataCopyPage from './pages/admin/master-data/MasterDataCopyPage';
 import MasterDataHomePage from './pages/admin/MasterDataHomePage';
-import { TenantProvider, useTenant } from './tenant/TenantContext';
+import { useTenant } from './tenant/TenantContext';
 import { FeaturesProvider, useFeatures } from './config/FeaturesContext';
 import CoaPage from './pages/coa/CoaPage';
 import ApplicationsPage from './pages/it/ApplicationsPage';
@@ -92,6 +92,7 @@ import PortfolioContributorsPage from './pages/portfolio/ContributorsPage';
 import PortfolioContributorWorkspacePage from './pages/portfolio/ContributorWorkspacePage';
 import { WorkspaceDashboardPage } from './pages/workspace';
 import SettingsPage from './pages/settings/SettingsPage';
+import AdminBrandingPage from './pages/admin/AdminBrandingPage';
 
 function HomeRoute() {
   const { isPlatformHost } = useTenant();
@@ -215,6 +216,7 @@ function AppRoutes() {
           {config.features.billing && <Route path="/admin/billing" element={<BillingCenter />} />}
           {config.features.billing && <Route path="/admin/choose-plan" element={<Navigate to="/admin/billing" replace />} />}
           {config.features.sso && <Route path="/admin/auth" element={<AdminAuthPage />} />}
+          <Route path="/admin/branding" element={<AdminBrandingPage />} />
           {!isSingleTenant && <Route path="/admin/ops-dashboard" element={<OpsDashboardPage />} />}
           {!isSingleTenant && <Route path="/admin/tenants" element={<AdminTenantsPage />} />}
           {!isSingleTenant && <Route path="/admin/coa-templates" element={<AdminCoaTemplatesPage />} />}
@@ -278,10 +280,8 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <TenantProvider>
-      <FeaturesProvider>
-        <AppRoutes />
-      </FeaturesProvider>
-    </TenantProvider>
+    <FeaturesProvider>
+      <AppRoutes />
+    </FeaturesProvider>
   );
 }

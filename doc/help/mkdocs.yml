@@ -144,6 +144,7 @@ nav:
 
   - Administration:
     - Admin & Users: admin.md
+    - Branding: branding.md
     - Master Data Administration: master-data-operations.md
     - Budget Overview: operations-dashboard.md
 

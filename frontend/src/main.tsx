@@ -7,13 +7,18 @@ import { AuthProvider } from './auth/AuthContext'
 import { SessionManager } from './auth/SessionManager'
 import { WithQueryClient } from './lib/queryClient'
 import { ThemeModeProvider, createAppTheme, useThemeMode } from './config/ThemeContext'
+import { TenantProvider, useTenant } from './tenant/TenantContext'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
 import './styles/print.css'
 
 function AppShell() {
   const { resolvedMode } = useThemeMode()
-  const theme = React.useMemo(() => createAppTheme(resolvedMode), [resolvedMode])
+  const { primaryColorLight, primaryColorDark } = useTenant()
+  const theme = React.useMemo(
+    () => createAppTheme(resolvedMode, { light: primaryColorLight, dark: primaryColorDark }),
+    [resolvedMode, primaryColorDark, primaryColorLight],
+  )
 
   return (
     <ThemeProvider theme={theme}>
@@ -34,7 +39,9 @@ function AppShell() {
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeModeProvider>
-      <AppShell />
+      <TenantProvider>
+        <AppShell />
+      </TenantProvider>
     </ThemeModeProvider>
   </React.StrictMode>
 )

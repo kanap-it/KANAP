@@ -6,6 +6,19 @@ const THEME_MODE_STORAGE_KEY = 'themeMode';
 
 export type ThemeModePreference = 'light' | 'dark' | 'system';
 type PaletteMode = 'light' | 'dark';
+type BrandingPrimaryColors = {
+  light?: string | null;
+  dark?: string | null;
+};
+
+const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
+
+function normalizeHexColor(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  if (!HEX_COLOR_RE.test(text)) return null;
+  return text.toUpperCase();
+}
 
 type ThemeModeContextValue = {
   mode: ThemeModePreference;
@@ -45,9 +58,18 @@ export const baseThemeComponents: ThemeOptions['components'] = {
   },
 };
 
-export function createAppTheme(mode: PaletteMode) {
+export function createAppTheme(mode: PaletteMode, brandingPrimaryColors?: BrandingPrimaryColors) {
+  const lightPrimary = normalizeHexColor(brandingPrimaryColors?.light);
+  const darkPrimary = normalizeHexColor(brandingPrimaryColors?.dark);
+  const primaryMain = mode === 'dark'
+    ? (darkPrimary ?? lightPrimary)
+    : (lightPrimary ?? darkPrimary);
+
   const baseTheme = createTheme({
-    palette: { mode },
+    palette: {
+      mode,
+      ...(primaryMain ? { primary: { main: primaryMain } } : {}),
+    },
     components: baseThemeComponents,
   });
 

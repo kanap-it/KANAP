@@ -28,6 +28,7 @@ import { CurrencyModule } from './currency/currency.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { AdminCoaTemplatesModule } from './admin/coa-templates/admin-coa-templates.module';
 import { AdminOpsModule } from './admin/ops/admin-ops.module';
+import { AdminBrandingModule } from './admin/branding/admin-branding.module';
 import { StorageModule } from './common/storage/storage.module';
 import { TenancyModule } from './common/tenancy';
 import { ApplicationsModule } from './applications/applications.module';
@@ -102,6 +103,7 @@ import { ConfigController } from './config/config.controller';
     AdminTenantsModule,
     AdminCoaTemplatesModule,
     AdminOpsModule,
+    AdminBrandingModule,
     FreezeModule,
     CurrencyModule,
     ContactsModule,

@@ -32,6 +32,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import HistoryIcon from '@mui/icons-material/History';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import BrushIcon from '@mui/icons-material/Brush';
 import { useAuth } from '../auth/AuthContext';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -111,6 +112,7 @@ const tenantAdminNav: NavEntry[] = [
   { to: '/admin/audit-logs', label: 'Audit Log', icon: <HistoryIcon />, resource: 'users' },
   { to: '/admin/billing', label: 'Billing', icon: <CreditCardIcon />, resource: 'billing' },
   { to: '/admin/auth', label: 'Authentication', icon: <AdminPanelSettingsIcon />, resource: 'users' },
+  { to: '/admin/branding', label: 'Branding', icon: <BrushIcon />, resource: 'users' },
 ];
 
 const platformAdminNav: NavEntry[] = [
@@ -141,9 +143,9 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, token, hasLevel, claims, profile } = useAuth();
-  const { isPlatformHost } = useTenant();
+  const { isPlatformHost, tenantName, logoUrl, useLogoInDark } = useTenant();
   const { config } = useFeatures();
-  const { mode, setMode } = useThemeMode();
+  const { mode, resolvedMode, setMode } = useThemeMode();
   const isSingleTenant = config.deploymentMode === 'single-tenant';
   const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
   const openMenu = (e: React.MouseEvent<HTMLElement>) => setMenuAnchor(e.currentTarget);
@@ -196,6 +198,7 @@ export default function Layout() {
     : mode === 'light'
       ? <LightModeOutlinedIcon />
       : <BrightnessAutoIcon />;
+  const showHeaderLogo = !!logoUrl && (resolvedMode !== 'dark' || useLogoInDark);
 
   // workspace is derived from route; no sync to localStorage required
 
@@ -213,7 +216,29 @@ export default function Layout() {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" component={Link} to="/" sx={{ mr: 3, textDecoration: 'none', color: 'inherit' }}>KANAP</Typography>
+          {showHeaderLogo ? (
+            <Box
+              component={Link}
+              to="/"
+              sx={{ display: 'flex', alignItems: 'center', mr: 3, textDecoration: 'none' }}
+            >
+              <Box
+                component="img"
+                src={logoUrl || undefined}
+                alt={tenantName || 'Logo'}
+                sx={{ height: 36, maxWidth: 140, objectFit: 'contain' }}
+              />
+            </Box>
+          ) : (
+            <Typography
+              variant="h6"
+              component={Link}
+              to="/"
+              sx={{ mr: 3, textDecoration: 'none', color: 'inherit' }}
+            >
+              KANAP
+            </Typography>
+          )}
           {!isPlatformHost && visibleWorkspaces.length > 0 && (
             <Tabs
               value={workspace === 'home' ? false : (visibleWorkspaces.includes(workspace) ? workspace : visibleWorkspaces[0])}

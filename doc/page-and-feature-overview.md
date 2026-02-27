@@ -1,6 +1,6 @@
 # Page & Platform Feature Overview
 
- _Last updated: 2026-02-26_
+ _Last updated: 2026-02-27_
 
 This document summarizes the current tenant-facing and platform-facing page structure alongside the backend features that support multi-tenancy, permissions, and tenant lifecycle operations.
 
@@ -77,6 +77,7 @@ Behavior
 | `/admin/roles` | `frontend/src/pages/admin/RolesPage.tsx` | RBAC editor for page-level permissions. | `users` (aliased in guard). |
 | `/admin/billing` | `frontend/src/pages/admin/BillingCenter.tsx` | Subscription summary, seat usage, plan updates. | `billing` |
 | `/admin/auth` | `frontend/src/pages/admin/AdminAuthPage.tsx` | Tenant SSO settings: shows current Microsoft Entra connection, “Connect/Reconnect Microsoft Entra” (calls `POST /auth/entra/setup/start`), and “Test Microsoft sign-in” (hits `/auth/entra/login?redirectTo=/admin/auth`). | `users` (admin level) |
+| `/admin/branding` | `frontend/src/pages/admin/AdminBrandingPage.tsx` | Tenant branding workspace: logo upload/removal (with dark-mode visibility toggle), light/dark primary color inputs, color picker + presets, contrast warning, dirty-state save/discard, and one-click reset to defaults. Uses `/admin/branding/*` endpoints and refreshes tenant context without full page reload. Blocked on platform host. | `users` (admin level, tenant host only) |
 | `/admin/tenants` | `frontend/src/pages/admin/AdminTenantsPage.tsx` | Platform host console: tenant list, freeze/unfreeze, plan updates, synchronous deletion. | Platform admin only (host guard). |
 | `/admin/ops-dashboard` | `frontend/src/pages/admin/OpsDashboardPage.tsx` | Ops monitoring dashboard: API traffic counters (1m/5m/15m windows), rate-limit (429) and auth pressure, DB connection/pool stats (pg_stat_activity + TypeORM pool), Node.js process metrics (memory, event loop lag, CPU), endpoint latency table (P50/P95/P99 by route group), and recent errors list. Polls every 15s, pauses when tab hidden. Backend: `GET /admin/ops/snapshot` aggregates in-memory request metrics store + cached DB snapshot (10s TTL). Multi-tenant only (cloud). | Platform admin only (host guard + `MultiTenantOnlyGuard`). |
 
@@ -87,7 +88,8 @@ Behavior
 Supporting infrastructure:
 - `frontend/src/components/Layout.tsx` drives the Budget Management/Admin workspace toggle, left navigation, and permission-aware menu (`hasLevel`).
 - `frontend/src/components/ProtectedRoute.tsx` enforces minimum `reader` level per resource and redirects to `/403` when the JWT claims lack access.
-- `frontend/src/tenant/TenantContext.tsx` resolves the tenant slug, handles platform-host shells, and redirects unknown tenants back to marketing.
+- `frontend/src/tenant/TenantContext.tsx` resolves host context, exposes tenant branding (`logoUrl`, `useLogoInDark`, `primaryColorLight`, `primaryColorDark`), and redirects unknown tenants back to marketing.
+- `frontend/src/config/ThemeContext.tsx` consumes tenant branding colors and applies mode-aware primary color overrides (`light`/`dark`) in `createAppTheme(...)`.
 
 ## OPEX Experience Highlights
 
@@ -286,7 +288,7 @@ Platform admins operate through `AdminTenantsService` (`backend/src/admin/tenant
 - List/search tenants with aggregated stats (`TenantStatsService`) and billing snapshot (`BillingService`).
 - Freeze/unfreeze flips `TenantStatus` and records audit entries via `AuditService`.
 - Plan updates run inside `withTenant` to respect RLS while touching per-tenant subscriptions.
-- Synchronous deletion (`deleteTenant`) validates confirmation slug, transitions status to `deleting`, purges tenant data across spend, contracts, CAPEX, RBAC, audit, and accounting master data (including `chart_of_accounts` and `accounts`), then marks the record `deleted`. The tenant slug is cleared for reuse by assigning a unique `deleted-<slug>-<timestamp>` marker. Failures revert to `frozen` with an audit trail.
+- Synchronous deletion (`deleteTenant`) validates confirmation slug, transitions status to `deleting`, purges tenant data across spend, contracts, CAPEX, RBAC, audit, accounting master data (including `chart_of_accounts` and `accounts`), and branding storage objects (tenant logo), then marks the record `deleted`. The tenant slug is cleared for reuse by assigning a unique `deleted-<slug>-<timestamp>` marker. Failures revert to `frozen` with an audit trail.
 
 ## Audit & Compliance
 
