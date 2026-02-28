@@ -1,6 +1,6 @@
 # User Manual Documentation Inventory
 
-_Generated: 2026-02-15_
+_Generated: 2026-02-28_
 
 This document tracks documentation coverage for the KANAP user manual.
 
@@ -12,10 +12,10 @@ This document tracks documentation coverage for the KANAP user manual.
 | Dashboard & Operations | 9 | 9 | 0 |
 | IT Operations | 8 | 8 | 0 |
 | Master Data | 8 | 8 | 0 |
-| Admin & Settings | 7 | 7 | 0 |
+| Admin & Settings | 9 | 9 | 0 |
 | Reports | 10 | 10 | 0 |
-| Portfolio | 8 | 8 | 0 |
-| **TOTAL** | **51** | **51** | **0** |
+| Portfolio | 9 | 9 | 0 |
+| **TOTAL** | **53** | **53** | **0** |
 
 _Note: Portfolio Planning is a placeholder (coming soon) and excluded from counts._
 
@@ -25,6 +25,13 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-02-28 | `portfolio-reporting.md` | Added Weekly Report section (filters, three tables, exports) |
+| 2026-02-28 | `portfolio-projects.md` | Added item number (#) column in list and workspace header |
+| 2026-02-28 | `portfolio-requests.md` | Added item number (#) column in list and workspace header |
+| 2026-02-28 | `portfolio-team-members.md` | Added Time Logged tab documentation (view, edit, delete time entries) |
+| 2026-02-28 | `tasks.md` | Added "Converting a task to a request" section |
+| 2026-02-28 | `_documentation-inventory.md` | Added branding, settings, weekly report routes; updated counts and triggers |
+| 2026-02-27 | `branding.md` | New documentation for Branding page (logo, colors, favicon) |
 | 2026-02-22 | `chart-of-accounts.md` | Added Available Templates catalog (20 templates, 10 standards × 2 versions), IFRS consolidation reference table, v1.0 vs v2.0 guidance, updated scenarios and FAQ |
 | 2026-02-16 | Multiple files | Dissolved My Workspace: Dashboard promoted to home page (`/`), Tasks moved to Portfolio section, My Workspace tab removed, legacy routes redirect |
 | 2026-02-15 | Multiple files | Navigation restructure: renamed "Apps & Services" → "Applications", "Budget Operations" → "Budget Administration", "Master Data Operations" → "Master Data Administration", "Analytics Categories" → "Analytics Dimensions", "Dashboard" → "Overview"; added sidebar grouping to IT Ops and Master Data doc nav |
@@ -152,6 +159,8 @@ _Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect t
 | `/admin/audit-logs` | AuditLogsPage | **DOCUMENTED** | `admin.md` |
 | `/admin/billing` | BillingCenter | **DOCUMENTED** | `admin.md` |
 | `/admin/auth` | AdminAuthPage | **DOCUMENTED** | `admin.md` |
+| `/admin/branding` | AdminBrandingPage | **DOCUMENTED** | `branding.md` |
+| `/settings` | SettingsPage | **DOCUMENTED** | (in admin.md or standalone) |
 | `/master-data/operations` | MasterDataOperationsPage | **DOCUMENTED** | `master-data-operations.md` |
 | `/master-data/operations/freeze` | MasterDataFreezePage | **DOCUMENTED** | (in master-data-operations) |
 | `/master-data/operations/copy` | MasterDataCopyPage | **DOCUMENTED** | (in master-data-operations) |
@@ -183,6 +192,7 @@ _Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect t
 | `/portfolio/reports` | ReportsPage | **DOCUMENTED** | `portfolio-reporting.md` |
 | `/portfolio/reports/status-change` | StatusChangeReport | **DOCUMENTED** | `portfolio-reporting.md` |
 | `/portfolio/reports/capacity-heatmap` | CapacityHeatmapReport | **DOCUMENTED** | `portfolio-reporting.md` |
+| `/portfolio/reports/weekly` | WeeklyReport | **DOCUMENTED** | `portfolio-reporting.md` |
 | `/portfolio/planning` | PlanningPage | **PLACEHOLDER** | Coming soon (Phases 08-10) |
 
 ### Excluded (Work in Progress or Platform Admin)
@@ -250,6 +260,10 @@ When these files change, the corresponding documentation may need updates:
 | `frontend/src/pages/portfolio/ReportsPage.tsx` | `portfolio-reporting.md` |
 | `frontend/src/pages/portfolio/StatusChangeReport.tsx` | `portfolio-reporting.md` |
 | `frontend/src/pages/portfolio/CapacityHeatmapReport.tsx` | `portfolio-reporting.md` |
+| `frontend/src/pages/portfolio/WeeklyReport.tsx` | `portfolio-reporting.md` |
+| `frontend/src/pages/admin/AdminBrandingPage.tsx` | `branding.md` |
+| `frontend/src/pages/settings/SettingsPage.tsx` | (settings doc) |
+| `frontend/src/pages/portfolio/ContributorTimeLog.tsx` | `portfolio-team-members.md` |
 | `frontend/src/pages/portfolio/SettingsPage.tsx` | `portfolio-settings.md` |
 | `frontend/src/pages/portfolio/ContributorsPage.tsx` | `portfolio-team-members.md` |
 | `frontend/src/pages/portfolio/ContributorWorkspacePage.tsx` | `portfolio-team-members.md` |

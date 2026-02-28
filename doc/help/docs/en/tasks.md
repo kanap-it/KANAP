@@ -579,6 +579,46 @@ Schedule kickoff;spend_item;770e8400-e29b-41d4-a716-446655440002;open;low;2026-0
 
 ---
 
+## Converting a task to a request
+
+You can promote a task into a portfolio request when the work deserves formal evaluation, prioritization, or eventually its own project. The conversion is available from the task workspace header.
+
+### How to convert
+
+1. Open the task workspace
+2. Click **Convert to Request** in the header toolbar (next to **Send link**)
+3. In the dialog:
+   - **Request Name**: Defaults to the task title — edit if needed
+   - **Purpose Preview**: Shows the task description, which becomes the request's purpose
+   - **Close the original task after conversion**: Check this option if you want the task status set to "Done" automatically
+4. Click **Convert to Request**
+
+After conversion, KANAP navigates you to the newly created request workspace.
+
+### What gets carried over
+
+The new request inherits the following from the original task:
+
+| Task field | Request field |
+|------------|--------------|
+| Title | Name |
+| Description | Purpose |
+| Due Date | Target Delivery Date |
+| Source, Category, Stream, Company | Source, Category, Stream, Company |
+| Attachments | Attachments (copied) |
+
+The request is created with a status of **Pending Review** and is linked back to the originating task. A history entry is recorded on both the task ("Converted To Request") and the request ("Created from Task" with a link to the original task).
+
+### Conditions
+
+- **Permissions**: You need both `tasks:member` and `portfolio_requests:member`
+- **One-time conversion**: Each task can only be converted once. After conversion, the **Convert to Request** button is disabled and shows the linked request reference (e.g., "Already converted to REQ-42")
+- **Task remains**: The original task is not deleted. Unless you check the close option, it stays in its current status and can still be updated independently
+
+**Tip**: This feature is useful when a task reveals a larger initiative that needs its own request lifecycle — criteria scoring, approval workflow, and eventual conversion to a project.
+
+---
+
 ## Sending a link
 
 You can quickly email a link to any task to colleagues or external contacts.

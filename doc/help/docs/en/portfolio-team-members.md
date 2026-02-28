@@ -48,7 +48,7 @@ Click any contributor card to open their workspace.
 
 ## The Contributor workspace
 
-Click a contributor card to open their workspace. It has 2 tabs:
+Click a contributor card to open their workspace. It has 3 tabs:
 
 ### General
 
@@ -102,6 +102,36 @@ Click the delete icon next to any skill to remove it from the contributor's prof
 
 **Skill categories**
 Skills are organized into collapsible categories. Click a category header to expand or collapse it.
+
+---
+
+### Time Logged
+
+View and manage all time entries for this contributor in one place. This tab consolidates time logged from both project overhead entries and task time entries, giving you a complete picture of how the contributor spends their time.
+
+**Viewing entries**
+The table shows all time entries sorted by date, with the following columns:
+- **Date**: When the time was logged
+- **Source**: Where the time was logged—either a task name or project name
+- **Category**: Whether the entry is classified as **IT** or **Business**, shown as a color-coded label
+- **Time**: Duration in hours or days (e.g., "4h", "1d 2h")
+- **Notes**: Any notes attached to the entry
+
+If no entries exist yet, a message is displayed instead of the table.
+
+**Editing entries**
+Click the **edit icon** next to a time entry to open the edit dialog. The dialog that opens depends on the entry type:
+- **Task entries** open the task time-logging dialog, where you can adjust the hours, date, category, and notes
+- **Project entries** open the project time-logging dialog, where you can adjust the hours, category, user, and notes
+
+**Deleting entries**
+Click the **delete icon** next to a time entry to remove it. You will be asked to confirm before the entry is deleted. Deleting an entry also updates the contributor's time statistics on the **General** tab.
+
+**Permissions for time entry actions**
+- To see the **Actions** column, you need at least `tasks:member` or `portfolio_projects:contributor`
+- Non-admin users can only edit or delete entries they created or are assigned to
+- Users with `tasks:admin` can edit or delete any standalone task entry
+- Users with `portfolio_projects:admin` can edit or delete any project task entry or project overhead entry
 
 ---
 

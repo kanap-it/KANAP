@@ -46,6 +46,7 @@ The projects list shows all portfolio projects with execution status at a glance
   - Your selection is remembered across sessions — returning to the page restores your last choice
 
 **Default columns**:
+  - **#**: The item number in `PRJ-{number}` format (e.g., PRJ-1, PRJ-42). This is a unique, sequential identifier assigned automatically when a project is created. Click to open the workspace.
   - **Project Name**: The initiative title (click to open workspace)
   - **Priority**: Score carried from request or scored separately
   - **Status**: Current execution state
@@ -71,6 +72,8 @@ Click any row to open the workspace. It has 8 tabs:
 ### Overview
 
 Core information about the project.
+
+**Item number**: The workspace header displays the project's item number as a chip (e.g., **PRJ-42**) next to the project name. Click the chip to copy the reference to your clipboard. The browser tab also shows this reference for easy identification. URLs use the human-readable reference (e.g., `/portfolio/projects/PRJ-42/overview`) instead of internal IDs.
 
 **What you can edit**:
   - **Project Name**: The title

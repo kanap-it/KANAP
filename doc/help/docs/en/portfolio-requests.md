@@ -45,6 +45,7 @@ The requests list shows all portfolio requests with key information at a glance.
   - Your selection is remembered across sessions — returning to the page restores your last choice
 
 **Default columns**:
+  - **#**: The item number (e.g., `REQ-1`, `REQ-42`) — a stable, human-readable identifier assigned automatically when the request is created. Click to open the workspace.
   - **Request Name**: The initiative title (click to open workspace)
   - **Priority**: Calculated score based on scoring criteria
   - **Status**: Current workflow state
@@ -66,7 +67,9 @@ The requests list shows all portfolio requests with key information at a glance.
 
 ## The Request workspace
 
-Click any row to open the workspace. It has 6 tabs:
+Click any row to open the workspace. It has 6 tabs.
+
+The workspace header displays the request's **item number** as a chip (e.g., `REQ-42`) next to the request name. Click the chip to copy the reference to your clipboard. The item number also appears in the browser tab title and in the page URL, making it easy to share and bookmark specific requests.
 
 ### Overview
 

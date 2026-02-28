@@ -20,6 +20,7 @@ The Portfolio Reporting landing page lists available portfolio reports as cards.
 Currently available:
 - **Status Change Report**
 - **Capacity Heatmap**
+- **Weekly Report**
 
 ---
 
@@ -113,7 +114,47 @@ Click a contributor row to open a project breakdown:
 
 ---
 
+## Weekly Report
+
+Use this report to produce a weekly stakeholder summary covering project updates, closed tasks, and request changes over a selected period.
+
+### What it shows
+
+The report is split into three tables:
+
+- **Project Updates** — projects whose status changed during the period.
+- **Closed Tasks** — standalone tasks that were closed during the period.
+- **Request Updates** — requests whose status changed during the period.
+
+A summary line above the tables shows the count for each section.
+
+### Filters
+
+- **Start Date** and **End Date** (defaults to the last 7 days)
+- **Source** (multi-select)
+- **Category** (multi-select)
+- **Stream** (multi-select; scoped to selected categories)
+- **Task Types** (multi-select; applies to the Closed Tasks table)
+
+### Table columns
+
+**Project Updates**: Project Name (clickable), Priority, Source, Category, Stream, Progress, Status
+
+**Closed Tasks**: Task Name (clickable), Task Type, Priority, Source, Category, Stream, Status
+
+**Request Updates**: Request Name (clickable), Source, Category, Stream, Status
+
+Default sort is by **Priority** (highest first). Clicking a name opens the item.
+
+### Exports
+
+- **CSV** export
+- **XLSX** export
+
+---
+
 ## Tips
 - **Keep contributor profiles updated**: Capacity is based on contributor availability and historical time stats.
 - **Use team filters**: Scope the report to a department or function.
 - **Check unassigned work**: Helps surface projects with missing allocations or missing leads.
+- **Weekly Report for stand-ups**: Export the Weekly Report as XLSX and share it with stakeholders for status meetings.
