@@ -2,7 +2,9 @@ import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
 
 export type TaskRelatedObjectType = 'spend_item' | 'contract' | 'capex_item' | 'project' | null;
 export type TaskPriorityLevel = 'blocker' | 'high' | 'normal' | 'low' | 'optional';
-export type TaskStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
+export type TaskStatus = 'open' | 'in_progress' | 'pending' | 'in_testing' | 'done' | 'cancelled';
+export const TASK_STATUSES: TaskStatus[] = ['open', 'in_progress', 'pending', 'in_testing', 'done', 'cancelled'];
+export const ACTIVE_TASK_STATUSES: TaskStatus[] = ['open', 'in_progress', 'pending', 'in_testing'];
 
 export const PRIORITY_LEVELS: Record<TaskPriorityLevel, { label: string; adjustment: number }> = {
   blocker:  { label: 'Blocker',  adjustment: 10 },

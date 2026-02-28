@@ -32,20 +32,12 @@ import { RelatedObjectType } from '../../components/fields/RelatedObjectSelect';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
-
-const STATUS_LABELS: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  done: 'Done',
-  cancelled: 'Cancelled',
-};
-
-const STATUS_COLORS: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
-  open: 'default',
-  in_progress: 'warning',
-  done: 'success',
-  cancelled: 'error',
-};
+import {
+  TASK_STATUS_COLORS,
+  TASK_STATUS_LABELS,
+  TASK_STATUS_OPTIONS,
+} from './task.constants';
+import type { TaskStatus } from './task.constants';
 
 const PRIORITY_LABELS: Record<string, string> = {
   blocker: 'Blocker',
@@ -68,7 +60,7 @@ interface TaskData {
   item_number: number | null;
   title: string | null;
   description: string | null;
-  status: 'open' | 'in_progress' | 'done' | 'cancelled';
+  status: TaskStatus;
   task_type_id: string | null;
   task_type_name: string | null;
   priority_level: 'blocker' | 'high' | 'normal' | 'low' | 'optional';
@@ -105,6 +97,12 @@ export default function TaskWorkspacePage() {
   const location = useLocation();
   const params = useParams();
   const [searchParams] = useSearchParams();
+  const cleanedSearchParams = React.useMemo(() => {
+    const next = new URLSearchParams(location.search);
+    next.delete('action');
+    next.delete('status');
+    return next;
+  }, [location.search]);
   const queryClient = useQueryClient();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -115,6 +113,28 @@ export default function TaskWorkspacePage() {
   const isCreate = id === 'new';
   const canManage = hasLevel('tasks', 'member');
   const canDelete = hasLevel('tasks', 'admin');
+  const originProjectId = cleanedSearchParams.get('projectId');
+  const projectTasksPath = originProjectId ? `/portfolio/projects/${originProjectId}/tasks` : null;
+  const validTaskStatuses = React.useMemo(
+    () => new Set<TaskStatus>(TASK_STATUS_OPTIONS.map((option) => option.value)),
+    [],
+  );
+  const [deepLinkStatus, setDeepLinkStatus] = React.useState<TaskStatus | null>(() => {
+    const actionParam = searchParams.get('action');
+    const statusParam = searchParams.get('status');
+    if (actionParam !== 'set_status' || !statusParam) return null;
+    return statusParam as TaskStatus;
+  });
+
+  React.useEffect(() => {
+    const actionParam = searchParams.get('action');
+    const statusParam = searchParams.get('status');
+    if (actionParam === 'set_status' && statusParam) {
+      setDeepLinkStatus(statusParam as TaskStatus);
+      return;
+    }
+    setDeepLinkStatus(null);
+  }, [id]);
 
   // Create mode state for relation (type can be null for standalone tasks)
   const [createRelation, setCreateRelation] = React.useState<{
@@ -137,6 +157,11 @@ export default function TaskWorkspacePage() {
     stream_id: false,
     company_id: false,
   });
+  const [descriptionFocusNonce, setDescriptionFocusNonce] = React.useState(0);
+  const [commentFocusNonce, setCommentFocusNonce] = React.useState(0);
+  const pendingDescriptionFocusRef = React.useRef(false);
+  const autoCommentFocusTaskRef = React.useRef<string | null>(null);
+  const [isContentScrolled, setIsContentScrolled] = React.useState(false);
 
   // Sidebar width state with localStorage persistence
   const SIDEBAR_STORAGE_KEY = 'taskSidebarWidth';
@@ -240,6 +265,22 @@ export default function TaskWorkspacePage() {
     },
     enabled: !!id && !isCreate,
   });
+
+  React.useEffect(() => {
+    if (!location.search.includes('action=') && !location.search.includes('status=')) return;
+    const next = new URLSearchParams(location.search);
+    next.delete('action');
+    next.delete('status');
+    const qs = next.toString();
+    window.history.replaceState({}, '', `${location.pathname}${qs ? `?${qs}` : ''}${location.hash || ''}`);
+  }, [location.pathname, location.search, location.hash]);
+
+  const initialStatus = React.useMemo<TaskStatus | null>(() => {
+    if (!task || !deepLinkStatus) return null;
+    if (!validTaskStatuses.has(deepLinkStatus)) return null;
+    if (deepLinkStatus === task.status) return null;
+    return deepLinkStatus;
+  }, [task, deepLinkStatus, validTaskStatuses]);
 
   const handleUploadAttachment = async (file: File) => {
     const formData = new FormData();
@@ -381,11 +422,11 @@ export default function TaskWorkspacePage() {
   // Initialize defaults for create mode (including pre-filled entity from URL params)
   React.useEffect(() => {
     if (isCreate && profile?.id) {
-      const projectId = searchParams.get('projectId');
-      const spendItemId = searchParams.get('spendItemId');
-      const capexItemId = searchParams.get('capexItemId');
-      const contractId = searchParams.get('contractId');
-      const phaseId = searchParams.get('phaseId');
+      const projectId = cleanedSearchParams.get('projectId');
+      const spendItemId = cleanedSearchParams.get('spendItemId');
+      const capexItemId = cleanedSearchParams.get('capexItemId');
+      const contractId = cleanedSearchParams.get('contractId');
+      const phaseId = cleanedSearchParams.get('phaseId');
 
       setForm({
         status: 'open',
@@ -465,7 +506,24 @@ export default function TaskWorkspacePage() {
         setInitialized(true);
       }
     }
-  }, [isCreate, profile?.id, searchParams]);
+  }, [isCreate, profile?.id, cleanedSearchParams]);
+
+  React.useEffect(() => {
+    if (!isCreate || !initialized || !pendingDescriptionFocusRef.current) return;
+    pendingDescriptionFocusRef.current = false;
+    setDescriptionFocusNonce((prev) => prev + 1);
+  }, [isCreate, initialized]);
+
+  React.useEffect(() => {
+    if (isCreate || !initialized) return;
+    if (autoCommentFocusTaskRef.current === id) return;
+    autoCommentFocusTaskRef.current = id;
+    setCommentFocusNonce((prev) => prev + 1);
+  }, [id, isCreate, initialized]);
+
+  React.useEffect(() => {
+    setIsContentScrolled(false);
+  }, [id, isCreate]);
 
   // Set default task type when task types data loads (separate effect to avoid resetting form)
   React.useEffect(() => {
@@ -607,17 +665,21 @@ export default function TaskWorkspacePage() {
   };
 
   const handleBack = () => {
-    const qs = searchParams.toString();
+    if (projectTasksPath) {
+      navigate(projectTasksPath);
+      return;
+    }
+    const qs = cleanedSearchParams.toString();
     navigate(`/portfolio/tasks${qs ? `?${qs}` : ''}`);
   };
 
   // Navigation for prev/next
-  const sort = searchParams.get('sort') || 'created_at:DESC';
-  const q = searchParams.get('q') || '';
-  const filters = searchParams.get('filters') || '';
+  const sort = cleanedSearchParams.get('sort') || 'created_at:DESC';
+  const q = cleanedSearchParams.get('q') || '';
+  const filters = cleanedSearchParams.get('filters') || '';
   // Read scope params for filtered navigation
-  const assigneeUserId = searchParams.get('assigneeUserId') || undefined;
-  const teamId = searchParams.get('teamId') || undefined;
+  const assigneeUserId = cleanedSearchParams.get('assigneeUserId') || undefined;
+  const teamId = cleanedSearchParams.get('teamId') || undefined;
   const navExtraParams = React.useMemo(() => {
     const params: Record<string, string | undefined> = {};
     if (assigneeUserId) params.assigneeUserId = assigneeUserId;
@@ -653,9 +715,9 @@ export default function TaskWorkspacePage() {
         setDirty(false);
       }
     }
-    const qs = searchParams.toString();
+    const qs = cleanedSearchParams.toString();
     navigate(`/portfolio/tasks/${targetId}${qs ? `?${qs}` : ''}`);
-  }, [dirty, task, searchParams, navigate, handleSave]);
+  }, [dirty, task, cleanedSearchParams, navigate, handleSave]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('en-GB', {
@@ -749,7 +811,12 @@ export default function TaskWorkspacePage() {
         }
 
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
-        const qs = searchParams.toString();
+        if (originProjectId) {
+          queryClient.invalidateQueries({ queryKey: ['project-tasks', originProjectId] });
+          navigate(`/portfolio/projects/${originProjectId}/tasks`, { replace: true });
+          return;
+        }
+        const qs = cleanedSearchParams.toString();
         navigate(`/portfolio/tasks/${newId}/overview${qs ? `?${qs}` : ''}`, { replace: true });
       }
     } catch (e: any) {
@@ -762,7 +829,51 @@ export default function TaskWorkspacePage() {
   // Check if create form is valid for enabling save button
   // Title is required. Relation is optional (standalone tasks are allowed).
   const isCreateValid = Boolean(title.trim());
-  const isCreateTitleMissing = !title.trim();
+  const contentSpacing = {
+    section: 3,
+    sectionLarge: 4,
+  } as const;
+  const headerShadow = isContentScrolled
+    ? `0 4px 12px ${alpha(theme.palette.common.black, theme.palette.mode === 'dark' ? 0.35 : 0.08)}`
+    : 'none';
+  const isTitleMissing = !title.trim();
+  const titleBarSx = {
+    px: 1.5,
+    py: 0.75,
+    borderRadius: 1.5,
+    border: 1,
+    borderColor: isTitleMissing
+      ? alpha(theme.palette.info.main, 0.25)
+      : 'divider',
+    bgcolor: isTitleMissing
+      ? alpha(theme.palette.info.main, 0.08)
+      : 'background.paper',
+    transition: 'border-color 120ms ease, background-color 120ms ease',
+  } as const;
+  const handleMainContentScroll = React.useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const nextScrolled = event.currentTarget.scrollTop > 4;
+    setIsContentScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
+  }, []);
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 's') return;
+      event.preventDefault();
+      if (!canManage) return;
+
+      if (isCreate) {
+        if (!isCreateValid || createSaving) return;
+        void handleCreateSave();
+        return;
+      }
+
+      if (!dirty || saving) return;
+      void handleSave();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canManage, isCreate, isCreateValid, createSaving, dirty, saving, handleCreateSave, handleSave]);
 
   // Create mode UI - full workspace layout
   if (isCreate) {
@@ -771,7 +882,16 @@ export default function TaskWorkspacePage() {
     return (
       <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
-        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Box
+          sx={{
+            p: 2,
+            borderBottom: 1,
+            borderColor: 'divider',
+            boxShadow: headerShadow,
+            transition: 'box-shadow 140ms ease',
+            zIndex: 2,
+          }}
+        >
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Stack direction="row" alignItems="center" spacing={1}>
               <IconButton onClick={handleBack} size="small">
@@ -809,24 +929,20 @@ export default function TaskWorkspacePage() {
             >
               Task title
             </Typography>
-            <Box
-              sx={{
-                px: 1.5,
-                py: 0.75,
-                borderRadius: 1.5,
-                border: 1,
-                borderColor: isCreateTitleMissing
-                  ? alpha(theme.palette.info.main, 0.25)
-                  : 'divider',
-                bgcolor: isCreateTitleMissing
-                  ? alpha(theme.palette.info.main, 0.08)
-                  : 'background.paper',
-                transition: 'border-color 120ms ease, background-color 120ms ease',
-              }}
-            >
+            <Box sx={titleBarSx}>
               <TextField
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Tab' && !event.shiftKey) {
+                    event.preventDefault();
+                    if (initialized) {
+                      setDescriptionFocusNonce((prev) => prev + 1);
+                    } else {
+                      pendingDescriptionFocusRef.current = true;
+                    }
+                  }
+                }}
                 variant="standard"
                 fullWidth
                 autoFocus
@@ -839,8 +955,8 @@ export default function TaskWorkspacePage() {
             </Box>
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
-                label={STATUS_LABELS[form.status as string] || 'Open'}
-                color={STATUS_COLORS[form.status as string] || 'default'}
+                label={TASK_STATUS_LABELS[(form.status as TaskStatus) || 'open'] || 'Open'}
+                color={TASK_STATUS_COLORS[(form.status as TaskStatus) || 'open'] || 'default'}
                 size="small"
               />
               <Chip
@@ -937,9 +1053,9 @@ export default function TaskWorkspacePage() {
           </Box>
 
           {/* Main content area */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+          <Box sx={{ flex: 1, overflow: 'auto', p: 3 }} onScroll={handleMainContentScroll}>
             {/* Description */}
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: contentSpacing.sectionLarge }}>
               <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
                 Description
               </Typography>
@@ -950,6 +1066,7 @@ export default function TaskWorkspacePage() {
                   placeholder="Add a description..."
                   minRows={8}
                   maxRows={24}
+                  focusNonce={descriptionFocusNonce}
                 />
               ) : (
                 <Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
@@ -985,7 +1102,16 @@ export default function TaskWorkspacePage() {
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+      <Box
+        sx={{
+          p: 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+          boxShadow: headerShadow,
+          transition: 'box-shadow 140ms ease',
+          zIndex: 2,
+        }}
+      >
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Stack direction="row" alignItems="center" spacing={1}>
             <IconButton onClick={handleBack} size="small">
@@ -1074,39 +1200,47 @@ export default function TaskWorkspacePage() {
             </Box>
           )}
           <Stack spacing={0.5} sx={{ flex: 1 }}>
-            <Stack direction="row" alignItems="center">
+            <Stack direction="row" alignItems="center" spacing={1}>
               {task?.item_number && (
                 <Chip
                   label={`T-${task.item_number}`}
                   size="small"
                   variant="outlined"
-                  sx={{ fontFamily: 'monospace', mr: 1 }}
+                  sx={{ fontFamily: 'monospace' }}
                   onClick={() => navigator.clipboard.writeText(`T-${task.item_number}`)}
                   title="Click to copy reference"
                 />
               )}
-              {canManage ? (
-                <TextField
-                  value={title}
-                  onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
-                  variant="standard"
-                  fullWidth
-                  placeholder="Task title"
-                  InputProps={{
-                    disableUnderline: true,
-                    sx: { fontSize: '1.5rem', fontWeight: 600 },
-                  }}
-                />
-              ) : (
-                <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                  {title || 'Untitled Task'}
-                </Typography>
-              )}
+              <Box sx={{ ...titleBarSx, flex: 1 }}>
+                {canManage ? (
+                  <TextField
+                    value={title}
+                    onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Tab' && !event.shiftKey) {
+                        event.preventDefault();
+                        setCommentFocusNonce((prev) => prev + 1);
+                      }
+                    }}
+                    variant="standard"
+                    fullWidth
+                    placeholder="Task title"
+                    InputProps={{
+                      disableUnderline: true,
+                      sx: { fontSize: '1.5rem', fontWeight: 600 },
+                    }}
+                  />
+                ) : (
+                  <Typography variant="h5" sx={{ fontWeight: 600, py: 0.4 }}>
+                    {title || 'Untitled Task'}
+                  </Typography>
+                )}
+              </Box>
             </Stack>
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
-                label={STATUS_LABELS[form.status || task.status] || task.status}
-                color={STATUS_COLORS[form.status || task.status] || 'default'}
+                label={TASK_STATUS_LABELS[(form.status || task.status) as TaskStatus] || (form.status || task.status)}
+                color={TASK_STATUS_COLORS[(form.status || task.status) as TaskStatus] || 'default'}
                 size="small"
               />
               <Chip
@@ -1212,9 +1346,9 @@ export default function TaskWorkspacePage() {
         </Box>
 
         {/* Main content area */}
-        <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+        <Box sx={{ flex: 1, overflow: 'auto', p: 3 }} onScroll={handleMainContentScroll}>
           {/* Description */}
-          <Box sx={{ mb: 4 }}>
+          <Box sx={{ mb: contentSpacing.sectionLarge }}>
             <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
               Description
             </Typography>
@@ -1236,7 +1370,7 @@ export default function TaskWorkspacePage() {
           </Box>
 
           {/* Attachments */}
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: contentSpacing.section }}>
             <TaskAttachments
               taskId={task.id}
               attachments={attachments}
@@ -1247,7 +1381,7 @@ export default function TaskWorkspacePage() {
             />
           </Box>
 
-          <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: contentSpacing.section }} />
 
           {/* Activity Section */}
           <TaskActivity
@@ -1255,6 +1389,10 @@ export default function TaskWorkspacePage() {
             projectId={isProjectTask && task.related_object_id ? task.related_object_id : undefined}
             readOnly={!canManage}
             relatedObjectType={task.related_object_type ?? undefined}
+            currentStatus={task.status}
+            totalTimeHours={totalTimeHours}
+            initialStatus={initialStatus}
+            commentFocusNonce={commentFocusNonce}
           />
         </Box>
       </Box>

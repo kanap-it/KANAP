@@ -22,6 +22,7 @@ import RelatedObjectSelect, { RelatedObjectType } from '../../../components/fiel
 import CompanySelect from '../../../components/fields/CompanySelect';
 import TaskLogTimeDialog from './TaskLogTimeDialog';
 import { useAuth } from '../../../auth/AuthContext';
+import { TASK_STATUS_OPTIONS } from '../task.constants';
 
 // Classification types
 interface ClassificationSource {
@@ -55,13 +56,6 @@ function withCurrentOption(
   if (options.some((o) => o.value === currentId)) return options;
   return [...options, { value: currentId, label: currentLabel || currentId }];
 }
-
-const STATUS_OPTIONS = [
-  { label: 'Open', value: 'open' },
-  { label: 'In Progress', value: 'in_progress' },
-  { label: 'Done', value: 'done' },
-  { label: 'Cancelled', value: 'cancelled' },
-];
 
 const PRIORITY_OPTIONS = [
   { label: 'Blocker (+10)', value: 'blocker' },
@@ -136,7 +130,11 @@ export default function TaskSidebar({
   const { hasLevel } = useAuth();
   const queryClient = useQueryClient();
   const [logTimeOpen, setLogTimeOpen] = React.useState(false);
-  const [expanded, setExpanded] = React.useState<string[]>(['context', 'status', 'dates', 'people', 'time', 'classification']);
+  const [expanded, setExpanded] = React.useState<string[]>(() => (
+    isCreate
+      ? ['context', 'details', 'classification', 'people', 'dates']
+      : ['context', 'details', 'time', 'people', 'dates']
+  ));
 
   const isProjectTask = task.related_object_type === 'project';
   const isStandalone = !task.related_object_type;
@@ -230,6 +228,8 @@ export default function TaskSidebar({
   // Task types that don't support time logging
   const timeLoggingExcludedTypes = ['contract', 'spend_item', 'capex_item'];
   const supportsTimeLogging = isStandalone || !timeLoggingExcludedTypes.includes(task.related_object_type || '');
+  const hasClassificationValues = Boolean(task.source_name || task.category_name || task.stream_name || task.company_name);
+  const showClassificationSection = canEditClassification || hasClassificationValues;
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -246,7 +246,6 @@ export default function TaskSidebar({
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
           <Stack spacing={1.5}>
-            {/* Related Object (Context card) - FIRST */}
             {onRelationChange && !readOnly ? (
               <RelatedObjectSelect
                 relationType={task.related_object_type as RelatedObjectType}
@@ -259,46 +258,39 @@ export default function TaskSidebar({
                 size="small"
               />
             ) : isStandalone ? (
-              <Box
-                sx={{
-                  bgcolor: 'action.hover',
-                  borderRadius: 1,
-                  p: 1.5,
-                }}
-              >
-                <Typography component="span" fontWeight="bold">
-                  Standalone Task
+              <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                  Related To
                 </Typography>
+                <Typography sx={{ mt: 0.25, fontWeight: 600 }}>Standalone task</Typography>
               </Box>
             ) : (
-              <Box
-                sx={{
-                  bgcolor: 'action.hover',
-                  borderRadius: 1,
-                  p: 1.5,
-                }}
-              >
-                <Typography component="span" fontWeight="bold">
-                  {isProjectTask ? 'Project' : task.related_object_type === 'spend_item' ? 'Budget' :
-                   task.related_object_type === 'contract' ? 'Contract' :
-                   task.related_object_type === 'capex_item' ? 'CAPEX' : 'Related'}
+              <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                  Related To
                 </Typography>
-                <Typography component="span"> : </Typography>
-                <Typography
-                  component={Link}
-                  to={isProjectTask ? `/portfolio/projects/${task.related_object_id}` :
-                      task.related_object_type === 'spend_item' ? `/ops/opex/${task.related_object_id}` :
-                      task.related_object_type === 'contract' ? `/ops/contracts/${task.related_object_id}` :
-                      task.related_object_type === 'capex_item' ? `/ops/capex/${task.related_object_id}` :
-                      '#'}
-                  sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
-                >
-                  {task.related_object_name || 'Unknown'}
-                </Typography>
+                <Box sx={{ mt: 0.25 }}>
+                  <Typography component="span" fontWeight="bold">
+                    {isProjectTask ? 'Project' : task.related_object_type === 'spend_item' ? 'Budget' :
+                     task.related_object_type === 'contract' ? 'Contract' :
+                     task.related_object_type === 'capex_item' ? 'CAPEX' : 'Related'}
+                  </Typography>
+                  <Typography component="span"> : </Typography>
+                  <Typography
+                    component={Link}
+                    to={isProjectTask ? `/portfolio/projects/${task.related_object_id}` :
+                        task.related_object_type === 'spend_item' ? `/ops/opex/${task.related_object_id}` :
+                        task.related_object_type === 'contract' ? `/ops/contracts/${task.related_object_id}` :
+                        task.related_object_type === 'capex_item' ? `/ops/capex/${task.related_object_id}` :
+                        '#'}
+                    sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                  >
+                    {task.related_object_name || 'Unknown'}
+                  </Typography>
+                </Box>
               </Box>
             )}
 
-            {/* Phase (only for project tasks) - SECOND for projects */}
             {isProjectTask && (
               readOnly ? (
                 <Box>
@@ -312,21 +304,36 @@ export default function TaskSidebar({
                   onChange={(v) => onChange('phase_id', v || null)}
                   options={[
                     { label: 'Project-level', value: '' },
-                    ...phases.map(p => ({ label: p.name, value: p.id })),
+                    ...phases.map((p) => ({ label: p.name, value: p.id })),
                   ]}
                   size="small"
                 />
               )
             )}
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
 
-            <Divider sx={{ opacity: 0.4 }} />
+      <Divider />
 
-            {/* Task Type - THIRD */}
+      {/* TASK DETAILS - Second */}
+      <Accordion
+        expanded={expanded.includes('details')}
+        onChange={handleAccordionChange('details')}
+        disableGutters
+        elevation={0}
+        sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography variant="subtitle2" fontWeight="bold">Task Details</Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ pt: 0 }}>
+          <Stack spacing={1.5}>
             {readOnly ? (
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Task Type</Typography>
                 <Typography sx={{ mt: 0.25 }}>
-                  {task.task_type_name || taskTypeOptions.find(o => o.value === task.task_type_id)?.label || '-'}
+                  {task.task_type_name || taskTypeOptions.find((o) => o.value === task.task_type_id)?.label || '-'}
                 </Typography>
               </Box>
             ) : (
@@ -339,11 +346,12 @@ export default function TaskSidebar({
               />
             )}
 
-            {/* Priority dropdown - FOURTH */}
             {readOnly ? (
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Priority</Typography>
-                <Typography sx={{ mt: 0.25 }}>{PRIORITY_OPTIONS.find(o => o.value === task.priority_level)?.label || task.priority_level}</Typography>
+                <Typography sx={{ mt: 0.25 }}>
+                  {PRIORITY_OPTIONS.find((o) => o.value === task.priority_level)?.label || task.priority_level}
+                </Typography>
               </Box>
             ) : (
               <EnumAutocomplete
@@ -355,108 +363,16 @@ export default function TaskSidebar({
               />
             )}
 
-            <Divider sx={{ opacity: 0.4 }} />
-
-            {/* Classification fields - EDITABLE (standalone + project tasks) */}
-            {canEditClassification && !readOnly && (
-              <>
-                <EnumAutocomplete
-                  label="Source"
-                  value={task.source_id || ''}
-                  onChange={(v) => onChange('source_id', v || null)}
-                  options={sourceOptions}
-                  size="small"
-                />
-                <EnumAutocomplete
-                  label="Category"
-                  value={task.category_id || ''}
-                  onChange={(v) => {
-                    onChange('category_id', v || null);
-                    // Clear stream if it doesn't belong to the new category
-                    if (v && task.stream_id) {
-                      const streamBelongsToCategory = streams.some(
-                        (s) => s.id === task.stream_id && s.category_id === v
-                      );
-                      if (!streamBelongsToCategory) {
-                        onChange('stream_id', null);
-                      }
-                    }
-                  }}
-                  options={categoryOptions}
-                  size="small"
-                />
-                <EnumAutocomplete
-                  label="Stream"
-                  value={task.stream_id || ''}
-                  onChange={(v) => onChange('stream_id', v || null)}
-                  options={streamOptions}
-                  size="small"
-                  disabled={!task.category_id}
-                />
-                <CompanySelect
-                  label="Company"
-                  value={task.company_id || null}
-                  onChange={(v) => onChange('company_id', v)}
-                  size="small"
-                />
-              </>
-            )}
-
-            <Divider sx={{ opacity: 0.4 }} />
-
-            {/* Classification fields - READ-ONLY (standalone + project tasks) */}
-            {canEditClassification && readOnly && (task.category_name || task.stream_name || task.source_name || task.company_name) && (
-              <>
-                {task.source_name && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Source</Typography>
-                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.source_name}</Typography>
-                  </Box>
-                )}
-                {task.category_name && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Category</Typography>
-                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.category_name}</Typography>
-                  </Box>
-                )}
-                {task.stream_name && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Stream</Typography>
-                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.stream_name}</Typography>
-                  </Box>
-                )}
-                {task.company_name && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Company</Typography>
-                    <Typography variant="body2" sx={{ mt: 0.25 }}>{task.company_name}</Typography>
-                  </Box>
-                )}
-              </>
-            )}
-          </Stack>
-        </AccordionDetails>
-      </Accordion>
-
-      <Divider />
-
-      {/* STATUS - Second */}
-      <Accordion
-        expanded={expanded.includes('status')}
-        onChange={handleAccordionChange('status')}
-        disableGutters
-        elevation={0}
-        sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
-      >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography variant="subtitle2" fontWeight="bold">Status</Typography>
-        </AccordionSummary>
-        <AccordionDetails sx={{ pt: 0 }}>
-          <Stack spacing={1.5}>
             {readOnly ? (
-              <Typography>{STATUS_OPTIONS.find(o => o.value === task.status)?.label || task.status}</Typography>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Status</Typography>
+                <Typography sx={{ mt: 0.25 }}>
+                  {TASK_STATUS_OPTIONS.find((o) => o.value === task.status)?.label || task.status}
+                </Typography>
+              </Box>
             ) : (
               <EnumAutocomplete
-                label="Change status"
+                label="Status"
                 value={task.status}
                 onChange={(v) => {
                   if (v === 'done' && isProjectTask && totalTimeHours === 0) {
@@ -465,7 +381,7 @@ export default function TaskSidebar({
                   }
                   onChange('status', v);
                 }}
-                options={STATUS_OPTIONS.map(opt => ({
+                options={TASK_STATUS_OPTIONS.map((opt) => ({
                   ...opt,
                   label: opt.value === 'done' && isProjectTask && totalTimeHours === 0
                     ? `${opt.label} (requires time)`
@@ -478,7 +394,105 @@ export default function TaskSidebar({
         </AccordionDetails>
       </Accordion>
 
-      {/* TIME - Third (hidden in create mode and for task types that don't support time logging) */}
+      {showClassificationSection && (
+        <>
+          <Divider />
+
+          {/* CLASSIFICATION - Third */}
+          <Accordion
+            expanded={expanded.includes('classification')}
+            onChange={handleAccordionChange('classification')}
+            disableGutters
+            elevation={0}
+            sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle2" fontWeight="bold">Classification</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ pt: 0 }}>
+              <Stack spacing={1.5}>
+                {canEditClassification && !readOnly ? (
+                  <>
+                    <EnumAutocomplete
+                      label="Source"
+                      value={task.source_id || ''}
+                      onChange={(v) => onChange('source_id', v || null)}
+                      options={sourceOptions}
+                      size="small"
+                    />
+                    <EnumAutocomplete
+                      label="Category"
+                      value={task.category_id || ''}
+                      onChange={(v) => {
+                        onChange('category_id', v || null);
+                        // Clear stream if it doesn't belong to the new category
+                        if (v && task.stream_id) {
+                          const streamBelongsToCategory = streams.some(
+                            (s) => s.id === task.stream_id && s.category_id === v,
+                          );
+                          if (!streamBelongsToCategory) {
+                            onChange('stream_id', null);
+                          }
+                        }
+                      }}
+                      options={categoryOptions}
+                      size="small"
+                    />
+                    <EnumAutocomplete
+                      label="Stream"
+                      value={task.stream_id || ''}
+                      onChange={(v) => onChange('stream_id', v || null)}
+                      options={streamOptions}
+                      size="small"
+                      disabled={!task.category_id}
+                    />
+                    <CompanySelect
+                      label="Company"
+                      value={task.company_id || null}
+                      onChange={(v) => onChange('company_id', v)}
+                      size="small"
+                    />
+                  </>
+                ) : (
+                  <>
+                    {task.source_name && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Source</Typography>
+                        <Typography variant="body2" sx={{ mt: 0.25 }}>{task.source_name}</Typography>
+                      </Box>
+                    )}
+                    {task.category_name && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Category</Typography>
+                        <Typography variant="body2" sx={{ mt: 0.25 }}>{task.category_name}</Typography>
+                      </Box>
+                    )}
+                    {task.stream_name && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Stream</Typography>
+                        <Typography variant="body2" sx={{ mt: 0.25 }}>{task.stream_name}</Typography>
+                      </Box>
+                    )}
+                    {task.company_name && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Company</Typography>
+                        <Typography variant="body2" sx={{ mt: 0.25 }}>{task.company_name}</Typography>
+                      </Box>
+                    )}
+                    {!hasClassificationValues && (
+                      <Typography variant="body2" color="text.secondary">
+                        No classification set.
+                      </Typography>
+                    )}
+                  </>
+                )}
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+        </>
+      )}
+
+      {/* TIME - Fourth (hidden in create mode and for task types that don't support time logging) */}
       {!isCreate && supportsTimeLogging && (
         <>
           <Divider />
@@ -534,7 +548,7 @@ export default function TaskSidebar({
 
       <Divider />
 
-      {/* PEOPLE - Fourth */}
+      {/* PEOPLE - Fifth */}
       <Accordion
         expanded={expanded.includes('people')}
         onChange={handleAccordionChange('people')}
@@ -548,7 +562,7 @@ export default function TaskSidebar({
         <AccordionDetails sx={{ pt: 0 }}>
           <Stack spacing={1.5}>
             <UserSelect
-              label="Creator"
+              label="Requestor"
               value={task.creator_id}
               onChange={(v) => onChange('creator_id', v)}
               disabled={readOnly}
@@ -574,7 +588,7 @@ export default function TaskSidebar({
 
       <Divider />
 
-      {/* DATES - Fifth (Last) */}
+      {/* DATES - Sixth (Last) */}
       <Accordion
         expanded={expanded.includes('dates')}
         onChange={handleAccordionChange('dates')}

@@ -78,10 +78,12 @@ The Tasks grid shows all tasks across your organization.
   - **Due Date**: When the task is due
 
 **Status colors**:
-  - **Open**: Blue
-  - **In Progress**: Yellow
+  - **Open**: Gray
+  - **In Progress**: Orange
+  - **Pending**: Blue
+  - **In Testing**: Purple
   - **Done**: Green
-  - **Cancelled**: Gray
+  - **Cancelled**: Red
 
 **Priority colors**:
   - **Blocker**: Red
@@ -90,7 +92,7 @@ The Tasks grid shows all tasks across your organization.
   - **Low**: Blue
   - **Optional**: Green
 
-**Default filter**: Completed tasks are hidden by default. Clear the Status filter to see all tasks.
+**Default filter**: Active tasks are shown by default (`Open`, `In Progress`, `Pending`, `In Testing`). Include `Done` and `Cancelled` in the Status filter to see closed tasks.
 
 **Actions**:
   - **New**: Create a standalone task (requires `tasks:member`)
@@ -111,7 +113,7 @@ Click any row to open the task workspace. The workspace uses a Jira-inspired sid
 **Description**: Click "Click to add description" to enter edit mode. The description supports rich text formatting.
 
 **Activity Section**: Toggle between three views:
-  - **Comments**: Add comments and view the comment thread
+  - **Comments**: Unified activity form (comment + optional status change + optional time log in one submit) plus the comment thread
   - **History**: View all changes to the task with timestamps
   - **Work Log**: View and manage time entries
 
@@ -121,7 +123,7 @@ The collapsible sidebar contains:
 
 **Status**:
   - Current status displayed as a colored chip
-  - Change status dropdown (if not read-only)
+  - Change status dropdown (if not read-only) — this remains available alongside the unified activity form in Comments
   - Note: Cannot change to "Done" without logging time first
 
 **Context**:
@@ -153,7 +155,7 @@ When you change a task context and save, KANAP applies the change in one operati
 
 **People**:
   - Assignee
-  - Creator (for project tasks)
+  - Requestor (stored internally as `creator_id`)
 
 **Time**:
   - Total time spent (displayed as hours and man-days)
@@ -167,6 +169,8 @@ When you change a task context and save, KANAP applies the change in one operati
 |--------|---------|-------------|
 | **Open** | Not yet started | Default for new tasks |
 | **In Progress** | Work has begun | When someone starts working on it |
+| **Pending** | Waiting on someone else | When the assignee is blocked and needs input/decision |
+| **In Testing** | Ready for validation | When implementation is complete and awaiting review/testing |
 | **Done** | Completed successfully | When the work is finished (requires time logged) |
 | **Cancelled** | No longer needed | When the task becomes irrelevant |
 
@@ -245,9 +249,20 @@ Attachments are visible to anyone who can view the task.
 ### Adding comments
 
 1. Select the **Comments** tab in the activity section
-2. Optionally add a context (e.g., "Weekly standup")
-3. Type your comment
-4. Click **Add Comment**
+2. Type your comment in the rich text editor
+3. Optionally set a new status in the status dropdown
+4. Optionally log time with the slider (`0` means no time entry)
+5. Click **Submit** (the button label updates based on your selected actions)
+
+### Unified activity form behavior
+
+- You can submit any combination of:
+  - Comment only
+  - Status change only
+  - Time log only
+  - Comment + status + time together
+- For project tasks, setting status to **Done** requires logged time (existing + newly added).
+- The sidebar status dropdown still works independently if you prefer that flow.
 
 ### Viewing history
 
@@ -255,6 +270,17 @@ The **History** tab shows all changes to the task:
   - Status changes
   - Field modifications
   - Who made each change and when
+
+### Email notifications and quick actions
+
+When task notifications are enabled, status and comment updates can trigger email notifications.
+
+- If a status change and comment are submitted together, recipients may receive a merged email (depending on their notification preferences).
+- Status emails can include quick action buttons:
+  - **Pending**: `Respond & Set In Progress`, `Mark Done`
+  - **In Testing**: `Approve` (sets `Done`), `Set In Progress`
+  - **Done**: `Reopen` (sets `Open`)
+- Clicking an action button opens the task page with the status preselected in the unified activity form.
 
 ---
 
@@ -445,7 +471,7 @@ Three export modes are available:
 | CSV Column | Description | Notes |
 |------------|-------------|-------|
 | `assignee_email` | Responsible person | Must match existing user email |
-| `creator_email` | Task creator | Export only |
+| `creator_email` | Requestor email | Export only (shown as **Requestor Email** in field metadata) |
 | `viewer_email_1` through `_4` | Viewers | Must match existing user emails |
 | `owner_email_1` through `_4` | Owners | Must match existing user emails |
 
@@ -465,6 +491,8 @@ For **status**, **priority_level**, and **related_object_type** fields, you can 
 |------|-----------------|
 | `open` | `Open` |
 | `in_progress` | `In Progress`, `Active`, `Working` |
+| `pending` | `Pending` |
+| `in_testing` | `In Testing`, `Testing` |
 | `done` | `Done`, `Completed`, `Complete`, `Finished`, `Closed` |
 | `cancelled` | `Cancelled`, `Canceled` |
 
@@ -505,7 +533,7 @@ Some fields appear in exports but cannot be imported. These are system-managed f
 
 | Field | Why it's export-only |
 |-------|---------------------|
-| `creator_email` | Automatically set to the user who creates the task. Allowing import would compromise audit trail integrity—you shouldn't be able to falsify who created a task. For new tasks, the system sets this to the importing user; for existing tasks, the original creator is preserved. |
+| `creator_email` (Requestor) | Automatically set to the user who creates the task. Allowing import would compromise audit trail integrity—you shouldn't be able to falsify who requested/created a task. For new tasks, the system sets this to the importing user; for existing tasks, the original requestor is preserved. |
 
 These fields are included in **Full Export** for reporting purposes but excluded from **Template** and **Data Enrichment** exports since they cannot be modified during import.
 
@@ -574,7 +602,7 @@ Recipients receive an email with your name, the task title, a direct link, and y
   - **Use due dates**: Set realistic due dates to track deadlines effectively.
   - **Assign owners**: Every task should have an assignee for accountability.
   - **Log time regularly**: Time tracking helps with future project estimation.
-  - **Filter by status**: The default filter hides completed tasks—clear it to see historical tasks.
+  - **Filter by status**: The default filter shows active statuses only (`Open`, `In Progress`, `Pending`, `In Testing`)—include `Done` and `Cancelled` when reviewing historical tasks.
   - **Create from context**: Creating tasks from within workspaces automatically links them.
   - **Use priority wisely**: Reserve "Blocker" for genuinely blocking issues.
-  - **Add context to comments**: The context field helps track where discussions happened (e.g., "Sprint Review").
+  - **Use single-submit updates**: In the Comments tab, combine comment + status + time in one action to keep history and notifications aligned.

@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { ACTIVE_TASK_STATUSES } from '../../tasks/task.constants';
 
 interface Task {
   id: string;
@@ -73,7 +74,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
           sort: 'due_date:ASC',
           include: 'project',
           filters: JSON.stringify({
-            status: { filterType: 'set', values: ['open', 'in_progress'] },
+            status: { filterType: 'set', values: ACTIVE_TASK_STATUSES },
           }),
         },
       });

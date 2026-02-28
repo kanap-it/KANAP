@@ -7,7 +7,9 @@ import { resolveNotificationBaseUrl } from '../common/url';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { NotificationPreferencesData, WorkspaceSettings } from './notifications.constants';
 import {
+  ActionButton,
   buildStatusChangeEmail,
+  buildStatusChangeWithCommentEmail,
   buildTeamAddedEmail,
   buildTeamMemberAddedEmail,
   buildCommentEmail,
@@ -499,6 +501,37 @@ export class NotificationsService {
     }
   }
 
+  private withTaskStatusAction(taskUrl: string, status: string): string {
+    try {
+      const next = new URL(taskUrl);
+      next.searchParams.set('action', 'set_status');
+      next.searchParams.set('status', status);
+      return next.toString();
+    } catch {
+      const sep = taskUrl.includes('?') ? '&' : '?';
+      return `${taskUrl}${sep}action=set_status&status=${encodeURIComponent(status)}`;
+    }
+  }
+
+  private buildTaskStatusActionButtons(taskUrl: string, newStatus: string): ActionButton[] {
+    switch (newStatus) {
+      case 'pending':
+        return [
+          { label: 'Respond & Set In Progress', url: this.withTaskStatusAction(taskUrl, 'in_progress') },
+          { label: 'Mark Done', url: this.withTaskStatusAction(taskUrl, 'done') },
+        ];
+      case 'in_testing':
+        return [
+          { label: 'Approve', url: this.withTaskStatusAction(taskUrl, 'done') },
+          { label: 'Set In Progress', url: this.withTaskStatusAction(taskUrl, 'in_progress') },
+        ];
+      case 'done':
+        return [{ label: 'Reopen', url: this.withTaskStatusAction(taskUrl, 'open') }];
+      default:
+        return [{ label: 'View Task', url: taskUrl }];
+    }
+  }
+
   // ============================================
   // PUBLIC NOTIFICATION METHODS
   // ============================================
@@ -515,16 +548,20 @@ export class NotificationsService {
     recipients: NotificationRecipient[];
     tenantId: string;
     excludeUserId?: string;
+    actionButtons?: ActionButton[];
     manager?: EntityManager;
   }): Promise<void> {
     const workspace = this.getWorkspaceForItemType(params.itemType);
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
+    const actionButtons = params.actionButtons
+      ?? (params.itemType === 'task' ? this.buildTaskStatusActionButtons(itemUrl, params.newStatus) : undefined);
     const content = buildStatusChangeEmail({
       itemType: params.itemType,
       itemName: params.itemName,
       itemUrl,
       oldStatus: params.oldStatus,
       newStatus: params.newStatus,
+      actionButtons,
     });
 
     for (const recipient of params.recipients) {
@@ -541,6 +578,135 @@ export class NotificationsService {
       if (!this.checkPreferences(prefs, workspace, 'status_change')) continue;
 
       this.sendNotification(recipient.email, content);
+    }
+  }
+
+  /**
+   * Notify task recipients about a unified action (comment + status change in one flow).
+   * Delivers merged or split emails per recipient preferences.
+   */
+  async notifyUnifiedAction(params: {
+    taskId: string;
+    taskTitle: string;
+    oldStatus?: string;
+    newStatus?: string;
+    authorId: string;
+    authorName: string;
+    commentContent?: string;
+    recipients: Array<NotificationRecipient & { role: 'assignee' | 'requestor' | 'owner' | 'viewer' }>;
+    tenantId: string;
+    manager?: EntityManager;
+  }): Promise<void> {
+    const taskUrl = await this.buildItemUrl('task', params.taskId, params.tenantId, params.manager);
+    const statusChanged = Boolean(
+      params.oldStatus
+      && params.newStatus
+      && params.oldStatus !== params.newStatus,
+    );
+    const trimmedComment = params.commentContent?.trim() ?? '';
+    const hasComment = trimmedComment.length > 0;
+
+    if (!statusChanged && !hasComment) return;
+
+    const actionButtons = statusChanged && params.newStatus
+      ? this.buildTaskStatusActionButtons(taskUrl, params.newStatus)
+      : undefined;
+
+    let statusContent: EmailContent | null = null;
+    let commentContent: EmailContent | null = null;
+    let mergedContent: EmailContent | null = null;
+
+    if (statusChanged && params.oldStatus && params.newStatus) {
+      statusContent = buildStatusChangeEmail({
+        itemType: 'task',
+        itemName: params.taskTitle,
+        itemUrl: taskUrl,
+        oldStatus: params.oldStatus,
+        newStatus: params.newStatus,
+        actionButtons,
+      });
+    }
+
+    if (hasComment) {
+      const tenantSlug = await this.getTenantSlug(params.tenantId);
+      const tenantBaseUrl = this.buildTenantBaseUrl(tenantSlug);
+      const renderedComment = renderCommentForEmail({
+        commentHtml: trimmedComment,
+        tenantBaseUrl,
+        tenantSlug,
+      });
+      const embeddedComment = await this.embedInlineImagesForComment({
+        itemType: 'task',
+        itemId: params.taskId,
+        tenantId: params.tenantId,
+        commentHtml: renderedComment.html,
+      });
+
+      commentContent = buildCommentEmail({
+        itemType: 'task',
+        itemName: params.taskTitle,
+        itemUrl: taskUrl,
+        authorName: params.authorName,
+        commentHtml: embeddedComment.html,
+        commentTextPreview: renderedComment.textPreview,
+      });
+      commentContent.attachments = embeddedComment.attachments;
+
+      if (statusChanged && params.oldStatus && params.newStatus) {
+        mergedContent = buildStatusChangeWithCommentEmail({
+          itemType: 'task',
+          itemName: params.taskTitle,
+          itemUrl: taskUrl,
+          oldStatus: params.oldStatus,
+          newStatus: params.newStatus,
+          authorName: params.authorName,
+          commentHtml: embeddedComment.html,
+          commentTextPreview: renderedComment.textPreview,
+          actionButtons,
+        });
+        mergedContent.attachments = embeddedComment.attachments;
+      }
+    }
+
+    for (const recipient of params.recipients) {
+      if (recipient.userId === params.authorId) continue;
+
+      const prefs = await this.preferencesService.getForUser(
+        recipient.userId,
+        params.tenantId,
+      );
+      const wantsStatus = statusChanged && this.checkPreferences(prefs, 'tasks', 'status_change');
+      const wantsComment = hasComment && this.checkPreferences(prefs, 'tasks', 'comment');
+
+      const canSendStatus = wantsStatus
+        && this.shouldNotify(recipient.userId, 'task', params.taskId, 'status_change');
+      const canSendComment = wantsComment
+        && this.shouldNotify(recipient.userId, 'task', params.taskId, 'comment');
+
+      if (statusChanged && hasComment) {
+        if (canSendStatus && canSendComment && mergedContent) {
+          this.sendNotification(recipient.email, mergedContent);
+          continue;
+        }
+        if (canSendStatus && statusContent) {
+          this.sendNotification(recipient.email, statusContent);
+          continue;
+        }
+        if (canSendComment && commentContent) {
+          this.sendNotification(recipient.email, commentContent);
+          continue;
+        }
+        continue;
+      }
+
+      if (statusChanged && canSendStatus && statusContent) {
+        this.sendNotification(recipient.email, statusContent);
+        continue;
+      }
+
+      if (hasComment && canSendComment && commentContent) {
+        this.sendNotification(recipient.email, commentContent);
+      }
     }
   }
 

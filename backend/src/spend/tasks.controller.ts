@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UseGuards, UseInterceptors, UploadedFile, ParseUUIDPipe, BadRequestException } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -8,7 +8,7 @@ import { Public } from '../auth/public.decorator';
 import { TasksService } from './tasks.service';
 import { TasksDeleteService } from '../tasks/tasks-delete.service';
 import { TasksUnifiedService, RelatedType } from '../tasks/tasks-unified.service';
-import { TaskActivitiesService, CreateTaskActivityDto } from '../tasks/task-activities.service';
+import { TaskActivitiesService, ActivityBodyDto } from '../tasks/task-activities.service';
 import { TaskAttachmentsService } from '../tasks/task-attachments.service';
 import { TaskTimeEntriesService } from '../tasks/task-time-entries.service';
 import { TasksCsvService } from '../tasks/tasks-csv.service';
@@ -140,7 +140,6 @@ export class TasksController {
   @Post('standalone')
   async createStandalone(@Body() body: any, @Req() req: any) {
     if (!body?.title || !body.title.toString().trim()) {
-      const { BadRequestException } = await import('@nestjs/common');
       throw new BadRequestException('title is required');
     }
     return this.unified.createForTarget(
@@ -183,7 +182,6 @@ export class TasksController {
     const hasType = Object.prototype.hasOwnProperty.call(body ?? {}, 'related_object_type');
     const hasId = Object.prototype.hasOwnProperty.call(body ?? {}, 'related_object_id');
     if (!hasType || !hasId) {
-      const { BadRequestException } = await import('@nestjs/common');
       throw new BadRequestException('related_object_type and related_object_id are required');
     }
 
@@ -191,15 +189,12 @@ export class TasksController {
     const nextId = (body?.related_object_id ?? null) as string | null;
     const allowed: RelatedType[] = ['spend_item', 'contract', 'capex_item', null];
     if (!allowed.includes(nextType)) {
-      const { BadRequestException } = await import('@nestjs/common');
       throw new BadRequestException('Invalid related_object_type');
     }
     if (nextType === null && nextId !== null) {
-      const { BadRequestException } = await import('@nestjs/common');
       throw new BadRequestException('related_object_id must be null when related_object_type is null');
     }
     if (nextType !== null && !nextId) {
-      const { BadRequestException } = await import('@nestjs/common');
       throw new BadRequestException('related_object_id is required when related_object_type is set');
     }
 
@@ -215,7 +210,6 @@ export class TasksController {
   @Patch(':id')
   async updateTask(@Param('id') idOrRef: string, @Body() body: any, @Req() req: any) {
     if (Object.prototype.hasOwnProperty.call(body ?? {}, 'related_object_type') && body?.related_object_type === 'project') {
-      const { BadRequestException } = await import('@nestjs/common');
       throw new BadRequestException('Use /portfolio/projects/:projectId/tasks/:taskId to target a project');
     }
     const id = await this.resolve(idOrRef, req);
@@ -335,12 +329,37 @@ export class TasksController {
   @Post(':id/activities')
   async createActivity(
     @Param('id') idOrRef: string,
-    @Body() body: CreateTaskActivityDto,
+    @Body() body: ActivityBodyDto,
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
+    if (body.type === 'unified') {
+      return this.activitiesSvc.createUnified(id, body, tenantId, req.user?.sub ?? null, {
+        manager: req?.queryRunner?.manager,
+        isAdmin: req?.isAdmin === true,
+      });
+    }
     return this.activitiesSvc.create(id, body, tenantId, req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('tasks', 'member')
+  @Patch(':id/activities/:activityId')
+  async updateActivity(
+    @Param('id') idOrRef: string,
+    @Param('activityId', ParseUUIDPipe) activityId: string,
+    @Body() body: { content: string },
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    const userId = req.user?.sub;
+    if (!userId) {
+      throw new BadRequestException('User ID required');
+    }
+    return this.activitiesSvc.updateComment(id, activityId, body?.content ?? '', userId, {
       manager: req?.queryRunner?.manager,
     });
   }

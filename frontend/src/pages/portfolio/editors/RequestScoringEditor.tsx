@@ -276,7 +276,15 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
         {error && <Alert severity="error">{error}</Alert>}
 
         {/* Score Display */}
-        <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.100', borderRadius: 2 }}>
+        <Box
+          sx={{
+            textAlign: 'center',
+            p: 2,
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+          }}
+        >
           <Typography variant="h2" fontWeight="bold">
             {displayScore != null && !isNaN(displayScore) ? Math.round(displayScore) : '-'}
           </Typography>

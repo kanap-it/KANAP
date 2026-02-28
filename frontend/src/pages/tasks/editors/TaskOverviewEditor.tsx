@@ -7,6 +7,8 @@ import api from '../../../api';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import DateEUField from '../../../components/fields/DateEUField';
 import UserSelect from '../../../components/fields/UserSelect';
+import { TASK_STATUS_OPTIONS } from '../task.constants';
+import type { TaskStatus } from '../task.constants';
 
 export type TaskOverviewEditorHandle = {
   isDirty: () => boolean;
@@ -24,7 +26,7 @@ type TaskData = {
   id: string;
   title: string | null;
   description: string | null;
-  status: 'open' | 'in_progress' | 'done' | 'cancelled';
+  status: TaskStatus;
   due_date: string | null;
   start_date: string | null;
   assignee_user_id: string | null;
@@ -51,7 +53,7 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
 
   const [title, setTitle] = React.useState('');
   const [description, setDescription] = React.useState('');
-  const [status, setStatus] = React.useState<'open' | 'in_progress' | 'done' | 'cancelled'>('open');
+  const [status, setStatus] = React.useState<TaskStatus>('open');
   const [dueDate, setDueDate] = React.useState('');
   const [startDate, setStartDate] = React.useState('');
   const [assigneeId, setAssigneeId] = React.useState<string | null>(null);
@@ -297,12 +299,7 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
         label="Status"
         value={status}
         onChange={(v) => setStatus(v as any)}
-        options={[
-          { label: 'Open', value: 'open' },
-          { label: 'In Progress', value: 'in_progress' },
-          { label: 'Done', value: 'done' },
-          { label: 'Cancelled', value: 'cancelled' },
-        ]}
+        options={TASK_STATUS_OPTIONS}
       />
 
       <EnumAutocomplete

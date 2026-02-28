@@ -780,13 +780,13 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
 
 ## Tasks (Cross-Platform)
 
-- GET `/tasks?status=open|in_progress|done|cancelled&page=1&limit=50&sort=created_at:DESC&q&filters` — list all tasks (aggregated) **[Requires: tasks:reader]**
+- GET `/tasks?status=open|in_progress|pending|in_testing|done|cancelled&page=1&limit=50&sort=created_at:DESC&q&filters` — list all tasks (aggregated) **[Requires: tasks:reader]**
   - Response: `{ items: TaskRow[], total, page, limit }`
   - TaskRow: `{ id, tenant_id, title, description, status, due_date, created_at, assignee_user_id, assignee_name, related_object_type, related_object_id, related_object_name, priority_level, priority_score, task_type_id, task_type_name, source_id, source_name, category_id, category_name, stream_id, stream_name, company_id, company_name }`
   - Filtering: supports AG Grid filter model via `filters` JSON and `q` quick search; default sort `created_at:DESC`
     - Text filters: `{ filterType: 'text', type: 'contains' | 'equals' | ... , filter: string }`
     - Set filters: `{ filterType: 'set', values: string[] }` (empty array = match nothing)
-  - Status: `open|in_progress|done|cancelled`; Types: `spend_item|contract|capex_item|project` (or `null` for standalone)
+  - Status: `open|in_progress|pending|in_testing|done|cancelled`; Types: `spend_item|contract|capex_item|project` (or `null` for standalone)
   - Priority score: All tasks have scores; project tasks use `project.score + adjustment`, non-project use fixed mapping (Blocker=110, High=90, Normal=70, Low=50, Optional=30)
   - Classification: For standalone and project tasks, returns the task's own values (with fallback to the parent project if not explicitly set); for other types, returns null
   - Permissions: `tasks:reader` auto-granted when any operations resource has access
@@ -815,6 +815,34 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
 - PATCH `/portfolio/projects/:projectId/tasks/:taskId` — update task and force/move context to the specified project **[Requires: portfolio_projects:contributor]**
   - Use this route for any save where the target context is a project.
   - Body uses the same editable task fields as `PATCH /tasks/:id`; project context comes from the path.
+- GET `/tasks/:id/activities` — list task activity feed (comments + changes) **[Requires: tasks:reader]**
+- GET `/portfolio/projects/:projectId/tasks/:taskId/activities` — list task activity feed in project context **[Requires: portfolio_projects:reader]**
+- POST `/tasks/:id/activities` — create task activity **[Requires: tasks:member]**
+- POST `/portfolio/projects/:projectId/tasks/:taskId/activities` — create task activity in project context **[Requires: portfolio_projects:contributor]**
+  - Supported payloads:
+    - Comment: `{ type: 'comment', content: string }`
+    - Change: `{ type: 'change', changed_fields: Record<string, [unknown, unknown]> }`
+    - Unified action: `{ type: 'unified', content?, status?, time_hours?, time_category? }`
+      - `status` accepts task statuses listed above.
+      - `time_hours`: integer `0..8` (`0` = no time entry).
+      - For project tasks, setting status to `done` requires logged time (existing + submitted).
+      - Notification behavior: when `status` and `content` are submitted together, recipients receive preference-aware emails (merged or split based on status/comment notification settings).
+      - Task status emails can include deep-link action buttons:
+        - `pending`: set `in_progress` or `done`
+        - `in_testing`: set `done` or `in_progress`
+        - `done`: set `open`
+- PATCH `/tasks/:id/activities/:activityId` — edit task comment (author-only) **[Requires: tasks:member]**
+- PATCH `/portfolio/projects/:projectId/tasks/:taskId/activities/:activityId` — edit task comment (author-only) **[Requires: portfolio_projects:contributor]**
+- GET `/tasks/:id/time-entries` — list time entries for a task **[Requires: tasks:reader]**
+- GET `/tasks/:id/time-entries/sum` — get total logged hours for a task **[Requires: tasks:reader]**
+- POST `/tasks/:id/time-entries` — create time entry **[Requires: tasks:member]**
+- PATCH `/tasks/:id/time-entries/:entryId` — update time entry **[Requires: tasks:member]**
+- DELETE `/tasks/:id/time-entries/:entryId` — delete time entry **[Requires: tasks:member]**
+- GET `/portfolio/projects/:projectId/tasks/:taskId/time-entries` — list project-task time entries **[Requires: portfolio_projects:reader]**
+- GET `/portfolio/projects/:projectId/tasks/:taskId/time-entries/sum` — get total logged hours for a project task **[Requires: portfolio_projects:reader]**
+- POST `/portfolio/projects/:projectId/tasks/:taskId/time-entries` — create project-task time entry **[Requires: portfolio_projects:contributor]**
+- PATCH `/portfolio/projects/:projectId/tasks/:taskId/time-entries/:entryId` — update project-task time entry **[Requires: portfolio_projects:contributor]**
+- DELETE `/portfolio/projects/:projectId/tasks/:taskId/time-entries/:entryId` — delete project-task time entry **[Requires: portfolio_projects:contributor]**
 - DELETE `/tasks/bulk` — bulk delete `{ ids: string[] }` → `{ deleted: string[], failed: { id, name, reason }[] }` **[Requires: tasks:admin]**
 
 ## Portfolio Requests

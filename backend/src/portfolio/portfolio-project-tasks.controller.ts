@@ -6,7 +6,7 @@ import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { TasksUnifiedService } from '../tasks/tasks-unified.service';
 import { TaskTimeEntriesService } from '../tasks/task-time-entries.service';
-import { TaskActivitiesService, CreateTaskActivityDto } from '../tasks/task-activities.service';
+import { TaskActivitiesService, ActivityBodyDto } from '../tasks/task-activities.service';
 import { Task } from '../tasks/task.entity';
 import { TaskTimeEntryCategory } from '../tasks/task-time-entry.entity';
 import { resolveToUuid } from '../common/resolve-item-id';
@@ -218,11 +218,17 @@ export class PortfolioProjectTasksController {
   @Post(':taskId/activities')
   async createActivity(
     @Param('taskId') taskIdOrRef: string,
-    @Body() body: CreateTaskActivityDto,
+    @Body() body: ActivityBodyDto,
     @Req() req: any,
   ) {
     const taskId = await this.resolveTaskId(taskIdOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
+    if (body.type === 'unified') {
+      return this.activitiesSvc.createUnified(taskId, body, tenantId, req.user?.sub ?? null, {
+        manager: req?.queryRunner?.manager,
+        isAdmin: req?.isAdmin === true,
+      });
+    }
     return this.activitiesSvc.create(taskId, body, tenantId, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });

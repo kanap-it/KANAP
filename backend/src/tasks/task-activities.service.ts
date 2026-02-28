@@ -2,9 +2,10 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { PortfolioActivity, ActivityType } from '../portfolio/portfolio-activity.entity';
-import { Task } from './task.entity';
-import { User } from '../users/user.entity';
+import { Task, TaskStatus, TASK_STATUSES } from './task.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TaskTimeEntriesService } from './task-time-entries.service';
+import { AuditService } from '../audit/audit.service';
 
 export interface TaskActivityItem {
   id: string;
@@ -27,6 +28,16 @@ export interface CreateTaskActivityDto {
   changed_fields?: Record<string, [unknown, unknown]>;
 }
 
+export interface CreateUnifiedActivityDto {
+  type: 'unified';
+  content?: string;
+  status?: TaskStatus;
+  time_hours?: number;
+  time_category?: 'it' | 'business';
+}
+
+export type ActivityBodyDto = CreateTaskActivityDto | CreateUnifiedActivityDto;
+
 @Injectable()
 export class TaskActivitiesService {
   constructor(
@@ -35,6 +46,8 @@ export class TaskActivitiesService {
     @InjectRepository(Task)
     private readonly taskRepo: Repository<Task>,
     private readonly notifications: NotificationsService,
+    private readonly timeEntriesSvc: TaskTimeEntriesService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -132,6 +145,157 @@ export class TaskActivitiesService {
     }
 
     return saved;
+  }
+
+  /**
+   * Create a unified activity action (comment + status + time entry)
+   */
+  async createUnified(
+    taskId: string,
+    dto: CreateUnifiedActivityDto,
+    tenantId: string,
+    userId: string | null,
+    opts?: { manager?: EntityManager; isAdmin?: boolean },
+  ): Promise<PortfolioActivity> {
+    const mg = opts?.manager ?? this.activityRepo.manager;
+    const taskRepo = mg.getRepository(Task);
+    const activityRepo = mg.getRepository(PortfolioActivity);
+
+    const task = await taskRepo.findOne({ where: { id: taskId } });
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    if (dto.status !== undefined && !TASK_STATUSES.includes(dto.status)) {
+      throw new BadRequestException(`Invalid status. Allowed values: ${TASK_STATUSES.join(', ')}`);
+    }
+
+    const trimmedContent = dto.content?.trim() ?? '';
+    const hasComment = trimmedContent.length > 0;
+
+    const normalizedHours = dto.time_hours == null ? 0 : Number(dto.time_hours);
+    if (!Number.isInteger(normalizedHours) || normalizedHours < 0 || normalizedHours > 8) {
+      throw new BadRequestException('time_hours must be an integer between 0 and 8');
+    }
+    if (dto.time_category !== undefined && dto.time_category !== 'it' && dto.time_category !== 'business') {
+      throw new BadRequestException('time_category must be "it" or "business"');
+    }
+    const hasTimeEntry = normalizedHours > 0;
+
+    const hasStatusChange = dto.status !== undefined && dto.status !== task.status;
+    if (!hasComment && !hasStatusChange && !hasTimeEntry) {
+      throw new BadRequestException('At least one action is required (comment, status change, or time log)');
+    }
+
+    let changeActivity: PortfolioActivity | null = null;
+    let commentActivity: PortfolioActivity | null = null;
+    let oldStatus: string | undefined;
+    let newStatus: string | undefined;
+
+    if (hasStatusChange && dto.status) {
+      if (dto.status === 'done' && task.related_object_type === 'project') {
+        const existingTime = await this.timeEntriesSvc.sumForTask(task.id, { manager: mg });
+        if (existingTime + normalizedHours <= 0) {
+          throw new BadRequestException('Cannot mark task as done without logging time');
+        }
+      }
+
+      const before = { ...task };
+      oldStatus = task.status;
+      task.status = dto.status;
+      const savedTask = await taskRepo.save(task);
+      newStatus = savedTask.status;
+
+      await this.audit.log(
+        {
+          table: 'tasks',
+          recordId: savedTask.id,
+          action: 'update',
+          before,
+          after: savedTask,
+          userId,
+        },
+        { manager: mg },
+      );
+
+      changeActivity = await activityRepo.save(
+        activityRepo.create({
+          task_id: taskId,
+          tenant_id: tenantId,
+          author_id: userId,
+          type: 'change',
+          changed_fields: { status: [oldStatus, newStatus] },
+          content: null,
+          context: null,
+        }),
+      );
+    }
+
+    if (hasTimeEntry) {
+      await this.timeEntriesSvc.create(
+        taskId,
+        {
+          hours: normalizedHours,
+          category: dto.time_category ?? 'it',
+          logged_at: new Date(),
+          user_id: userId,
+        },
+        userId ?? undefined,
+        opts?.isAdmin === true,
+        { manager: mg },
+      );
+    }
+
+    if (hasComment) {
+      commentActivity = await activityRepo.save(
+        activityRepo.create({
+          task_id: taskId,
+          tenant_id: tenantId,
+          author_id: userId,
+          type: 'comment',
+          content: trimmedContent,
+          context: null,
+          changed_fields: null,
+        }),
+      );
+    }
+
+    if (tenantId && userId && (hasStatusChange || hasComment)) {
+      const recipients = await this.notifications.getTaskRecipients(taskId, mg);
+      const author = await mg.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+      const authorName = author.length > 0
+        ? `${author[0].first_name} ${author[0].last_name}`.trim() || 'Someone'
+        : 'Someone';
+
+      this.notifications.notifyUnifiedAction({
+        taskId,
+        taskTitle: task.title,
+        oldStatus,
+        newStatus,
+        authorId: userId,
+        authorName,
+        commentContent: hasComment ? trimmedContent : undefined,
+        recipients,
+        tenantId,
+        manager: mg,
+      });
+    }
+
+    if (commentActivity) return commentActivity;
+    if (changeActivity) return changeActivity;
+
+    // Time-only submit: persist a standard change activity for a consistent response shape.
+    return activityRepo.save(
+      activityRepo.create({
+        task_id: taskId,
+        tenant_id: tenantId,
+        author_id: userId,
+        type: 'change',
+        changed_fields: { time_hours: [0, normalizedHours] },
+        content: null,
+        context: 'unified_time_log',
+      }),
+    );
   }
 
   /**

@@ -9,6 +9,7 @@ import { NotificationPreferencesService } from './notification-preferences.servi
 import { NotificationsService } from './notifications.service';
 import { buildWeeklyReviewEmail } from './notification-templates';
 import { resolveNotificationBaseUrl } from '../common/url';
+import { ACTIVE_TASK_STATUSES } from '../tasks/task.entity';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -624,7 +625,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
       `SELECT t.id, t.title, t.due_date as "dueDate", t.priority_level as priority
        FROM tasks t
        WHERE t.tenant_id = $1
-         AND t.status IN ('open', 'in_progress')
+         AND t.status = ANY($3)
          AND (
            t.assignee_user_id = $2
            OR t.creator_id = $2
@@ -640,7 +641,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
          END,
          t.due_date NULLS LAST
        LIMIT 10`,
-      [tenantId, userId],
+      [tenantId, userId, ACTIVE_TASK_STATUSES],
     );
 
     // Query 5: Top priority projects as lead

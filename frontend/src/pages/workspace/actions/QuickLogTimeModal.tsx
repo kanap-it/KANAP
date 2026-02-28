@@ -20,6 +20,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
+import { ACTIVE_TASK_STATUSES } from '../../tasks/task.constants';
 
 interface QuickLogTimeModalProps {
   open: boolean;
@@ -78,7 +79,7 @@ export default function QuickLogTimeModal({
           limit: 200,
           sort: 'title:ASC',
           assigneeUserId: profile?.id,
-          filters: JSON.stringify({ status: { filterType: 'set', values: ['open', 'in_progress'] } }),
+          filters: JSON.stringify({ status: { filterType: 'set', values: ACTIVE_TASK_STATUSES } }),
         },
       });
       const items = res.data.items as Task[];

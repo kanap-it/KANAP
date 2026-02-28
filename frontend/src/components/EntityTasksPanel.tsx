@@ -11,12 +11,14 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { TASK_STATUS_COLORS, TASK_STATUS_LABELS } from '../pages/tasks/task.constants';
+import type { TaskStatus } from '../pages/tasks/task.constants';
 
 type Task = {
   id: string;
   title: string;
   description: string | null;
-  status: 'open' | 'in_progress' | 'done' | 'cancelled';
+  status: TaskStatus;
   due_date: string | null;
   start_date: string | null;
   priority_level: string;
@@ -33,19 +35,8 @@ type Props = {
   disabled?: boolean;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  done: 'Done',
-  cancelled: 'Cancelled',
-};
-
-const STATUS_COLORS: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
-  open: 'default',
-  in_progress: 'warning',
-  done: 'success',
-  cancelled: 'error',
-};
+const STATUS_LABELS = TASK_STATUS_LABELS as Record<string, string>;
+const STATUS_COLORS = TASK_STATUS_COLORS as Record<string, 'default' | 'warning' | 'info' | 'secondary' | 'success' | 'error'>;
 
 const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' | 'success'> = {
   blocker: 'error',
@@ -75,6 +66,16 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isProject = entityType === 'project';
+  const taskWorkspaceContextQuery = React.useMemo(() => {
+    if (!isProject) return '';
+    const sp = new URLSearchParams();
+    sp.set('projectId', entityId);
+    return sp.toString();
+  }, [isProject, entityId]);
+  const buildTaskWorkspacePath = React.useCallback(
+    (taskId: string) => `/portfolio/tasks/${taskId}${taskWorkspaceContextQuery ? `?${taskWorkspaceContextQuery}` : ''}`,
+    [taskWorkspaceContextQuery],
+  );
 
   // Filter state
   const [filterStatus, setFilterStatus] = React.useState<string>('active');
@@ -187,6 +188,8 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
               <MenuItem value="active">Active (not done)</MenuItem>
               <MenuItem value="open">Open</MenuItem>
               <MenuItem value="in_progress">In Progress</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
+              <MenuItem value="in_testing">In Testing</MenuItem>
               <MenuItem value="done">Done</MenuItem>
               <MenuItem value="cancelled">Cancelled</MenuItem>
             </Select>
@@ -239,7 +242,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                   <Typography
                     variant="body2"
                     component="a"
-                    onClick={() => navigate(`/portfolio/tasks/${task.id}`)}
+                    onClick={() => navigate(buildTaskWorkspacePath(task.id))}
                     sx={{
                       cursor: 'pointer',
                       color: 'primary.main',
@@ -279,7 +282,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                   <IconButton
                     size="small"
                     title="Open task"
-                    onClick={() => navigate(`/portfolio/tasks/${task.id}`)}
+                    onClick={() => navigate(buildTaskWorkspacePath(task.id))}
                   >
                     <OpenInNewIcon fontSize="small" />
                   </IconButton>

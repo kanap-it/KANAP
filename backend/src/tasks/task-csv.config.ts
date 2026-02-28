@@ -182,7 +182,7 @@ export const taskCsvConfig: CsvEntityConfig = {
       csvColumn: 'status',
       entityProperty: 'status',
       type: CsvFieldType.ENUM,
-      enumValues: ['open', 'in_progress', 'done', 'cancelled'],
+      enumValues: ['open', 'in_progress', 'pending', 'in_testing', 'done', 'cancelled'],
       required: false,
       defaultExport: true,
       label: 'Status',
@@ -229,7 +229,7 @@ export const taskCsvConfig: CsvEntityConfig = {
       exportable: true,
       importable: false,
       defaultExport: true,
-      label: 'Creator Email',
+      label: 'Requestor Email',
       group: 'People',
       exportFn: (entity: any, context: CsvExportContext) => {
         if (!entity.creator_id) return '';
@@ -457,12 +457,16 @@ export const taskCsvConfig: CsvEntityConfig = {
       // Codes map to themselves
       ['open', 'open'],
       ['in_progress', 'in_progress'],
+      ['pending', 'pending'],
+      ['in_testing', 'in_testing'],
       ['done', 'done'],
       ['cancelled', 'cancelled'],
       // Common labels
       ['in progress', 'in_progress'],
       ['active', 'in_progress'],
       ['working', 'in_progress'],
+      ['in testing', 'in_testing'],
+      ['testing', 'in_testing'],
       ['completed', 'done'],
       ['complete', 'done'],
       ['finished', 'done'],

@@ -7,6 +7,8 @@ import {
   Typography,
 } from '@mui/material';
 import api from '../../../api';
+import { TASK_STATUS_LABELS } from '../task.constants';
+import type { TaskStatus } from '../task.constants';
 
 interface Activity {
   id: string;
@@ -24,13 +26,6 @@ interface TaskHistoryProps {
   taskId: string;
   projectId?: string;
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  done: 'Done',
-  cancelled: 'Cancelled',
-};
 
 const PRIORITY_LABELS: Record<string, string> = {
   blocker: 'Blocker',
@@ -69,12 +64,17 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
 
   const formatFieldValue = (field: string, value: unknown): string => {
     if (value === null || value === undefined) return '(empty)';
-    if (field === 'status') return STATUS_LABELS[String(value)] || String(value);
+    if (field === 'status') return TASK_STATUS_LABELS[String(value) as TaskStatus] || String(value);
     if (field === 'priority_level') return PRIORITY_LABELS[String(value)] || String(value);
     if (field === 'due_date' || field === 'start_date') {
       return value ? new Date(String(value)).toLocaleDateString('en-GB') : '(none)';
     }
     return String(value);
+  };
+
+  const formatFieldLabel = (field: string): string => {
+    if (field === 'creator_id') return 'Requestor';
+    return field.replace(/_/g, ' ');
   };
 
   const getActivityDescription = (activity: Activity): string => {
@@ -86,7 +86,7 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
       if (fields.length === 1) {
         const field = fields[0];
         const [oldVal, newVal] = activity.changed_fields[field];
-        return `Changed ${field.replace(/_/g, ' ')}: ${formatFieldValue(field, oldVal)} → ${formatFieldValue(field, newVal)}`;
+        return `Changed ${formatFieldLabel(field)}: ${formatFieldValue(field, oldVal)} → ${formatFieldValue(field, newVal)}`;
       }
       return `Updated: ${fields.join(', ')}`;
     }

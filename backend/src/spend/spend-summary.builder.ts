@@ -10,6 +10,7 @@ import { AnalyticsCategory } from '../analytics/analytics-category.entity';
 import { User } from '../users/user.entity';
 import { AllocationCalculatorService, AllocationComputation } from './allocation-calculator.service';
 import { FxRateService, FxLookupKey, FxResolvedRate } from '../currency/fx-rate.service';
+import { ACTIVE_TASK_STATUSES } from '../tasks/task.entity';
 
 export type SpendSummaryRow = SpendItem & {
   analytics_category_id: string | null;
@@ -93,8 +94,6 @@ export interface VersionReportingTotals extends VersionAnnualTotals {
   fx_rate_set_id: string | null;
   captured_at: Date | null;
 }
-
-const DISPLAY_TASK_STATUSES = ['open', 'in_progress'];
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -321,7 +320,7 @@ export async function buildSpendSummaryRows(params: SpendSummaryBuildParams): Pr
            WHERE related_object_type = 'spend_item'
              AND related_object_id = ANY($1)
              AND status = ANY($2)
-           ORDER BY related_object_id, created_at DESC`, [itemIds, DISPLAY_TASK_STATUSES])
+           ORDER BY related_object_id, created_at DESC`, [itemIds, ACTIVE_TASK_STATUSES])
       : [];
     latestTaskByItem = new Map<string, { id: string; title: string | null; description: string | null; status: string; created_at: Date }>();
     for (const task of tasks) {

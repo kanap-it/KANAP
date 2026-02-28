@@ -14,6 +14,7 @@ import api from '../api';
 import CheckboxSetFilter from '../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../components/CheckboxSetFloatingFilter';
 import { useGridScopePreference } from '../hooks/useGridScopePreference';
+import { ACTIVE_TASK_STATUSES, TASK_STATUS_COLORS, TASK_STATUS_LABELS } from './tasks/task.constants';
 
 type TaskRow = {
   id: string;
@@ -47,19 +48,9 @@ type TaskRow = {
   company_name: string | null;
 };
 
-const STATUS_LABEL_MAP: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  done: 'Done',
-  cancelled: 'Cancelled',
-};
+const STATUS_LABEL_MAP: Record<string, string> = TASK_STATUS_LABELS as Record<string, string>;
 
-const STATUS_COLOR_MAP: Record<string, 'default' | 'primary' | 'success' | 'error' | 'warning'> = {
-  open: 'primary',
-  in_progress: 'warning',
-  done: 'success',
-  cancelled: 'default',
-};
+const STATUS_COLOR_MAP: Record<string, 'default' | 'warning' | 'info' | 'secondary' | 'success' | 'error'> = TASK_STATUS_COLORS as Record<string, 'default' | 'warning' | 'info' | 'secondary' | 'success' | 'error'>;
 
 const CONTEXT_LABEL_MAP: Record<string, string> = {
   project: 'Project',
@@ -209,7 +200,7 @@ export default function TasksPage() {
 
   // Use URL filters if present (backend already excludes done/cancelled by default)
   const defaultFilterModel = useMemo(() => ({
-    status: { filterType: 'set', values: ['open', 'in_progress'] },
+    status: { filterType: 'set', values: ACTIVE_TASK_STATUSES },
   }), []);
 
   const initialFilterModel = useMemo(() => {
@@ -438,7 +429,7 @@ export default function TasksPage() {
       filterParams: {
         getValues: getTaskFilterValues('status', {
           labelMap: STATUS_LABEL_MAP,
-          order: ['open', 'in_progress', 'done', 'cancelled'],
+          order: ['open', 'in_progress', 'pending', 'in_testing', 'done', 'cancelled'],
         }),
         searchable: false,
       },

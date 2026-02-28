@@ -11,6 +11,11 @@ export interface EmailContent {
   attachments?: EmailAttachment[];
 }
 
+export interface ActionButton {
+  label: string;
+  url: string;
+}
+
 // Helper functions
 function formatStatus(status: string): string {
   return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -32,6 +37,16 @@ function escapeHtml(text: string): string {
 function getBaseUrl(url: string): string {
   const match = url.match(/^(https?:\/\/[^/]+)/);
   return match ? match[1] : '';
+}
+
+function buildActionButtons(buttons: ActionButton[] | undefined): string {
+  if (!buttons || buttons.length === 0) return '';
+  const rendered = buttons
+    .map((button) => (
+      `<a href="${button.url}" style="display:inline-block;background-color:#2D69E0;color:#ffffff;text-decoration:none;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:600;margin-right:8px;margin-bottom:8px;">${escapeHtml(button.label)}</a>`
+    ))
+    .join('');
+  return `<div style="margin-top:20px;">${rendered}</div>`;
 }
 
 /**
@@ -87,6 +102,7 @@ export function buildStatusChangeEmail(params: {
   itemUrl: string;
   oldStatus: string;
   newStatus: string;
+  actionButtons?: ActionButton[];
 }): EmailContent {
   const typeLabel = {
     request: 'Request',
@@ -98,19 +114,73 @@ export function buildStatusChangeEmail(params: {
 
   const subject = `${typeLabel} "${params.itemName}" status updated`;
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
+  const actionButtons = params.actionButtons && params.actionButtons.length > 0
+    ? params.actionButtons
+    : [{ label: `View ${typeLabel}`, url: params.itemUrl }];
 
   const body = `
     <h2 style="margin:0 0 16px 0;color:#111827;">${typeLabel} Status Update</h2>
     <p>The ${typeLabel.toLowerCase()} <strong>${escapeHtml(params.itemName)}</strong> has been updated.</p>
     <p>Status changed from <strong>${formatStatus(params.oldStatus)}</strong>
        to <strong>${formatStatus(params.newStatus)}</strong>.</p>
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:#2D69E0;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">View ${typeLabel}</a></p>
+    ${buildActionButtons(actionButtons)}
   `;
   const html = emailWrapper(body, { preferencesUrl });
 
+  const actionText = actionButtons.map((b) => `${b.label}: ${b.url}`).join('\n');
   const text =
     `${typeLabel} "${params.itemName}" status changed from ${formatStatus(params.oldStatus)} to ${formatStatus(params.newStatus)}.\n` +
-    `View: ${params.itemUrl}\n\n` +
+    `${actionText}\n\n` +
+    `Manage notification preferences: ${preferencesUrl}`;
+
+  return { subject, html, text };
+}
+
+// Template: Status Change with Comment
+export function buildStatusChangeWithCommentEmail(params: {
+  itemType: 'request' | 'project' | 'task' | 'contract' | 'opex';
+  itemName: string;
+  itemUrl: string;
+  oldStatus: string;
+  newStatus: string;
+  authorName: string;
+  commentHtml: string;
+  commentTextPreview: string;
+  actionButtons?: ActionButton[];
+}): EmailContent {
+  const typeLabel = {
+    request: 'Request',
+    project: 'Project',
+    task: 'Task',
+    contract: 'Contract',
+    opex: 'OPEX Item',
+  }[params.itemType];
+
+  const subject = `${typeLabel} "${params.itemName}": status changed to ${formatStatus(params.newStatus)}`;
+  const safeHtml = params.commentHtml || '<p>(No comment content)</p>';
+  const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
+  const actionButtons = params.actionButtons && params.actionButtons.length > 0
+    ? params.actionButtons
+    : [{ label: `View ${typeLabel}`, url: params.itemUrl }];
+
+  const body = `
+    <h2 style="margin:0 0 16px 0;color:#111827;">${typeLabel} Status Update</h2>
+    <p>The ${typeLabel.toLowerCase()} <strong>${escapeHtml(params.itemName)}</strong> has been updated.</p>
+    <p>Status changed from <strong>${formatStatus(params.oldStatus)}</strong>
+       to <strong>${formatStatus(params.newStatus)}</strong>.</p>
+    <p style="margin:18px 0 8px 0;color:#111827;"><strong>${escapeHtml(params.authorName)}</strong> added a comment:</p>
+    <div style="border-left:3px solid #2D69E0;padding:12px 16px;background-color:#f9fafb;border-radius:0 4px 4px 0;margin:8px 0 16px 0;color:#374151;">
+      ${safeHtml}
+    </div>
+    ${buildActionButtons(actionButtons)}
+  `;
+  const html = emailWrapper(body, { preferencesUrl });
+
+  const actionText = actionButtons.map((b) => `${b.label}: ${b.url}`).join('\n');
+  const text =
+    `${typeLabel} "${params.itemName}" status changed from ${formatStatus(params.oldStatus)} to ${formatStatus(params.newStatus)}.\n` +
+    `${params.authorName} commented: "${params.commentTextPreview}".\n` +
+    `${actionText}\n\n` +
     `Manage notification preferences: ${preferencesUrl}`;
 
   return { subject, html, text };
@@ -363,6 +433,7 @@ function statusBadge(status: string): string {
   const colors: Record<string, { bg: string; text: string }> = {
     planned: { bg: '#dbeafe', text: '#1e40af' },
     in_progress: { bg: '#fef3c7', text: '#92400e' },
+    pending: { bg: '#fff7ed', text: '#9a3412' },
     in_testing: { bg: '#ede9fe', text: '#5b21b6' },
     completed: { bg: '#d1fae5', text: '#065f46' },
     done: { bg: '#d1fae5', text: '#065f46' },

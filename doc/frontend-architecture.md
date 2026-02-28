@@ -232,7 +232,7 @@ The frontend implements automatic session management with sliding expiration:
 - Drawer entry under Portfolio, after Projects
 - Purpose: Centralized view for tasks across all entities (OPEX, Contracts, CAPEX, Projects) plus standalone tasks
 - **Tasks**
-  - List: `frontend/src/pages/TasksPage.tsx` uses `ServerDataGrid` with Type, Phase, Priority, Score, Status columns. Default filter hides completed tasks. Score column shows calculated priority score for all tasks (project: `project.score + adjustment`; non-project: fixed mapping from priority level). Type column shows "Standalone" for tasks without a related object.
+  - List: `frontend/src/pages/TasksPage.tsx` uses `ServerDataGrid` with Type, Phase, Priority, Score, Status columns. Default filter shows active statuses (`open`, `in_progress`, `pending`, `in_testing`) and hides closed statuses by default. Score column shows calculated priority score for all tasks (project: `project.score + adjustment`; non-project: fixed mapping from priority level). Type column shows "Standalone" for tasks without a related object.
   - **Scope filter**: Radio buttons for "My tasks" (default), "My team's tasks", "All tasks". Scope is persisted per user via `useGridScopePreference` hook (localStorage key `kanap-grid-scope:{tenantSlug}:{userId}:tasks`), so returning to the page restores the last selection. URL params take priority when returning from workspace (scope is preserved in URL via `taskScope`, `assigneeUserId`, `teamId`). If the persisted scope is `team` but the user has no team, it falls back to `my`. Prev/Next navigation in workspace respects the selected scope.
   - Workspace: `frontend/src/pages/tasks/TaskWorkspacePage.tsx` — Jira-inspired sidebar layout
     - Header: Priority score badge (project tasks only, 56×56 circular, primary color, left of title), inline-editable title, status chip, priority chip, "Attach files" button (toggles upload area)
@@ -240,9 +240,12 @@ The frontend implements automatic session management with sliding expiration:
       - Project tasks: `ROUND(CLAMP(project.priority_score + adjustment, 0, 100))`
       - Non-project tasks: Fixed mapping (Blocker=110, High=90, Normal=70, Low=50, Optional=30)
     - Main content: Click-to-edit description, attachments section (below description), activity section with Comments/History/Work Log tabs
+      - Comments tab uses `UnifiedActivityForm.tsx`:
+        - One submit can include comment, status change, and optional time logging (`0..8h`) together.
+        - Deep-link query params (`?action=set_status&status=...`) preselect status in the form, then URL params are cleaned from browser history state.
     - Attachments: `TaskAttachments.tsx` component with drag-and-drop upload area (shown when "Attach files" clicked), file chips with download (click) and delete (×) actions
     - Sidebar: Resizable (drag handle on right edge, 240-400px range, persisted to localStorage), collapsible accordion sections
-    - Section order: CONTEXT → STATUS → DATES → PEOPLE → TIME (all expanded by default, separated by dividers)
+    - Section order: CONTEXT → STATUS → TIME → PEOPLE → DATES (all expanded by default, separated by dividers)
     - CONTEXT section:
       - Task Type dropdown (from portfolio task types)
       - Related object selector (editable in writable mode): `Standalone`, `Project`, `Budget (OPEX)`, `Contract`, `CAPEX`
@@ -257,10 +260,10 @@ The frontend implements automatic session management with sliding expiration:
       - Save behavior: context change and field edits are persisted in a single PATCH call (atomic)
         - Targeting project context uses `PATCH /portfolio/projects/:projectId/tasks/:taskId`
         - Other contexts use `PATCH /tasks/:id`
-    - PEOPLE section: Assignee, Creator, Viewers (multi-select via `UserMultiSelect` component)
+    - PEOPLE section: Assignee, Requestor (`creator_id`), Viewers (multi-select via `UserMultiSelect` component)
     - TIME section: "Log Time" button above time spent display (hidden for Contract/OPEX/CAPEX tasks)
-    - Components: `TaskSidebar.tsx`, `TaskActivity.tsx`, `TaskAttachments.tsx`, `TaskComments.tsx`, `TaskHistory.tsx`, `TaskWorkLog.tsx`, `TaskLogTimeDialog.tsx`
-    - Features: File attachments (drag-and-drop or browse, 20MB limit), time logging with hours/days, comment threads with edit capability (author-only), change history, status validation (cannot mark "Done" without logged time for project tasks)
+    - Components: `TaskSidebar.tsx`, `TaskActivity.tsx`, `TaskAttachments.tsx`, `TaskComments.tsx`, `UnifiedActivityForm.tsx`, `TaskHistory.tsx`, `TaskWorkLog.tsx`, `TaskLogTimeDialog.tsx`
+    - Features: File attachments (drag-and-drop or browse, 20MB limit), time logging with hours/days, unified activity submit flow, comment edit capability (author-only), change history, status validation (cannot mark "Done" without logged time for project tasks)
   - Create mode: Related object defaults to `Standalone`; users can switch to Project/OPEX/Contract/CAPEX. Classification fields are editable for standalone and project tasks during creation; for project tasks, classification defaults from the parent project.
   - Routes: `/portfolio/tasks` (list), `/portfolio/tasks/:id/:tab` (workspace with overview tab), `/portfolio/tasks/new/:tab` (create)
   - Permissions: `tasks:reader` (view), `tasks:member` (create/edit in non-project contexts), `portfolio_projects:contributor` (save when target context is project), `tasks:admin` (bulk delete)

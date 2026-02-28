@@ -16,6 +16,8 @@ import { useAuth } from '../../../auth/AuthContext';
 import { RichTextEditor } from '../../../components/RichTextEditor';
 import { RichTextContent } from '../../../components/RichTextContent';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../../utils/inlineImageUrls';
+import UnifiedActivityForm from './UnifiedActivityForm';
+import type { TaskStatus } from '../task.constants';
 
 interface Activity {
   id: string;
@@ -34,15 +36,27 @@ interface TaskCommentsProps {
   taskId: string;
   projectId?: string;
   readOnly?: boolean;
+  currentStatus: TaskStatus;
+  relatedObjectType?: string;
+  totalTimeHours?: number;
+  initialStatus?: TaskStatus | null;
+  commentFocusNonce?: number;
 }
 
-export default function TaskComments({ taskId, projectId, readOnly = false }: TaskCommentsProps) {
+export default function TaskComments({
+  taskId,
+  projectId,
+  readOnly = false,
+  currentStatus,
+  relatedObjectType,
+  totalTimeHours = 0,
+  initialStatus = null,
+  commentFocusNonce = 0,
+}: TaskCommentsProps) {
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
   const canComment = hasLevel('tasks', 'member');
 
-  const [newComment, setNewComment] = React.useState('');
-  const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   // Editing state
@@ -77,28 +91,6 @@ export default function TaskComments({ taskId, projectId, readOnly = false }: Ta
   });
 
   const comments = activities.filter(a => a.type === 'comment');
-
-  const handleSubmit = async () => {
-    if (!newComment.trim() || !canComment || readOnly) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const endpoint = projectId
-        ? `/portfolio/projects/${projectId}/tasks/${taskId}/activities`
-        : `/tasks/${taskId}/activities`;
-      await api.post(endpoint, {
-        type: 'comment',
-        content: newComment.trim(),
-      });
-      setNewComment('');
-      await refetch();
-      queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to add comment');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleStartEdit = (comment: Activity) => {
     setEditingId(comment.id);
@@ -164,27 +156,21 @@ export default function TaskComments({ taskId, projectId, readOnly = false }: Ta
     <Stack spacing={2}>
       {/* Comment Input */}
       {canComment && !readOnly && (
-        <Box>
-          <RichTextEditor
-            value={newComment}
-            onChange={setNewComment}
-            placeholder="Write a comment..."
-            minRows={6}
-            maxRows={18}
-            disabled={submitting}
-            onImageUpload={handleUploadImage}
-          />
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleSubmit}
-              disabled={submitting || !newComment.trim()}
-            >
-              {submitting ? 'Adding...' : 'Add Comment'}
-            </Button>
-          </Box>
-        </Box>
+        <UnifiedActivityForm
+          taskId={taskId}
+          projectId={projectId}
+          currentStatus={currentStatus}
+          readOnly={readOnly}
+          relatedObjectType={relatedObjectType}
+          totalTimeHours={totalTimeHours}
+          initialStatus={initialStatus}
+          focusNonce={commentFocusNonce}
+          onSuccess={async () => {
+            await refetch();
+            queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+          }}
+          onImageUpload={handleUploadImage}
+        />
       )}
 
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}

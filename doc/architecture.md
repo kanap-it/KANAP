@@ -113,6 +113,8 @@ flowchart LR
 ### Notifications Module
 - **NotificationsModule** provides event-driven and scheduled email notifications with per-user preference control.
 - **Event-driven triggers**: status changes (portfolio items), team additions, team changes (as lead), comments (portfolio/tasks), task assignments, expiration warnings (contracts/OPEX). Recipients are computed per event based on role (assignee, requestor, viewer, lead, team member).
+- **Task unified-activity notifications**: task status+comment submissions are evaluated per recipient preferences. Recipients who enabled both status and comments get a merged email; status-only/comment-only preferences receive the corresponding single-purpose email.
+- **Task status email action buttons**: task status notifications can include deep-link quick actions (`?action=set_status&status=...`) for common transitions (for example `pending` → `in_progress`/`done`, `in_testing` → `done`/`in_progress`).
 - **Deduplication**: 5-minute in-memory window prevents duplicate emails for the same event/recipient.
 - **Preferences**: `user_notification_preferences` table (RLS-protected) stores per-user, per-tenant settings. Three workspace groups (portfolio, tasks, budget) each with a master toggle and per-category switches. Global `emails_enabled` master toggle. Weekly review schedule (day, hour, timezone).
 - **Scheduled jobs** (via `@nestjs/schedule` `ScheduleModule`):

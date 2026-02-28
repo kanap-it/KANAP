@@ -13,6 +13,8 @@ import api from '../../../api';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import DateEUField from '../../../components/fields/DateEUField';
 import UserSelect from '../../../components/fields/UserSelect';
+import { TASK_STATUS_OPTIONS } from '../task.constants';
+import type { TaskStatus } from '../task.constants';
 
 export type TaskCreateEditorHandle = {
   isDirty: () => boolean;
@@ -30,7 +32,7 @@ type RelatedOption = { id: string; label: string; type: RelatedType };
 const DEFAULTS = {
   title: '',
   description: '',
-  status: 'open' as 'open' | 'in_progress' | 'done' | 'cancelled',
+  status: 'open' as TaskStatus,
   due_date: '' as string,
   assignee_user_id: null as string | null,
 };
@@ -44,7 +46,7 @@ export default forwardRef<TaskCreateEditorHandle, Props>(function TaskCreateEdit
   const [relatedSearch, setRelatedSearch] = React.useState('');
   const [selectedRelated, setSelectedRelated] = React.useState<RelatedOption | null>(null);
   const [description, setDescription] = React.useState('');
-  const [status, setStatus] = React.useState<'open' | 'in_progress' | 'done' | 'cancelled'>('open');
+  const [status, setStatus] = React.useState<TaskStatus>('open');
   const [dueDate, setDueDate] = React.useState('');
   const [assigneeId, setAssigneeId] = React.useState<string | null>(null);
 
@@ -192,12 +194,7 @@ export default forwardRef<TaskCreateEditorHandle, Props>(function TaskCreateEdit
         label="Status"
         value={status}
         onChange={(v) => setStatus(v as any)}
-        options={[
-          { label: 'Open', value: 'open' },
-          { label: 'In Progress', value: 'in_progress' },
-          { label: 'Done', value: 'done' },
-          { label: 'Cancelled', value: 'cancelled' },
-        ]}
+        options={TASK_STATUS_OPTIONS}
       />
 
       <DateEUField label="Due Date" valueYmd={dueDate} onChangeYmd={setDueDate} />

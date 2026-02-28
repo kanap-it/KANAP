@@ -32,6 +32,7 @@ import { PortfolioProjectCapex } from '../portfolio/portfolio-project-capex.enti
 import { PortfolioProject } from '../portfolio/portfolio-project.entity';
 import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
+import { ACTIVE_TASK_STATUSES } from '../tasks/task.entity';
 
 const activeDisabledAtCondition = () => Raw((alias) => `${alias} IS NULL OR ${alias} > NOW()`);
 const inactiveDisabledAtCondition = () => Raw((alias) => `${alias} IS NOT NULL AND ${alias} <= NOW()`);
@@ -396,7 +397,7 @@ export class CapexItemsService {
              AND related_object_id = ANY($1)
              AND status = ANY($2)
            ORDER BY related_object_id, created_at DESC`,
-          [itemIds, ['open', 'in_progress']],
+          [itemIds, ACTIVE_TASK_STATUSES],
         )
       : [];
     const latestTaskByItem = new Map<string, { id: string; title: string | null; description: string | null; status: string; created_at: Date }>();

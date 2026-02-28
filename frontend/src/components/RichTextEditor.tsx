@@ -56,6 +56,8 @@ interface RichTextEditorProps {
   minRows?: number;
   maxRows?: number;
   disabled?: boolean;
+  /** Increment to request focusing the editor content area. */
+  focusNonce?: number;
   /** Optional callback to upload pasted images. Returns the URL to use. If not provided, images are stored as base64. */
   onImageUpload?: (file: File) => Promise<string>;
 }
@@ -67,6 +69,7 @@ export function RichTextEditor({
   minRows = 8,
   maxRows = 16,
   disabled = false,
+  focusNonce,
   onImageUpload,
 }: RichTextEditorProps) {
   const minHeight = minRows * 24;
@@ -209,6 +212,12 @@ export function RichTextEditor({
       editor.setEditable(!disabled);
     }
   }, [disabled, editor]);
+
+  // Focus editor when parent requests it.
+  useEffect(() => {
+    if (!editor || disabled || focusNonce === undefined || focusNonce < 1) return;
+    editor.chain().focus('end').run();
+  }, [focusNonce, editor, disabled]);
 
   if (!editor) return null;
 

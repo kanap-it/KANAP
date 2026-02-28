@@ -1,6 +1,6 @@
 # Page & Platform Feature Overview
 
- _Last updated: 2026-02-27_
+ _Last updated: 2026-02-28_
 
 This document summarizes the current tenant-facing and platform-facing page structure alongside the backend features that support multi-tenancy, permissions, and tenant lifecycle operations.
 
@@ -13,7 +13,7 @@ This document summarizes the current tenant-facing and platform-facing page stru
 | `/ops/capex` | `frontend/src/pages/CapexPage.tsx` | CAPEX grid mirroring the OPEX workspace. Rows open `/ops/capex/:id/:tab` with tabs: overview, budget, allocations, tasks, relations. The grid has an optional “Task” column deep-linking to the Tasks tab. | `capex` |
 | `/ops/projects` | `frontend/src/pages/ProjectsPage.tsx` | Projects list with create/edit modal; links to spend. | `projects` |
 | `/ops/contracts` | `frontend/src/pages/ContractsPage.tsx` | Contract registry. Inline actions for attachments, tasks, and spend linking. | `contracts` |
-| `/portfolio/tasks` | `frontend/src/pages/TasksPage.tsx` | Task management grid with ServerDataGrid. Shows all tasks across standalone, OPEX, Contracts, CAPEX, and Projects with advanced filtering, quick search, status tracking (open, in_progress, done, cancelled), and assignee management. Default filter hides completed tasks. Scope filter (My/Team/All) persisted per user via `useGridScopePreference`. | Requires `reader` on `tasks`; auto-granted when any operations resource (opex, capex, projects, contracts) has access |
+| `/portfolio/tasks` | `frontend/src/pages/TasksPage.tsx` | Task management grid with ServerDataGrid. Shows all tasks across standalone, OPEX, Contracts, CAPEX, and Projects with advanced filtering, quick search, status tracking (`open`, `in_progress`, `pending`, `in_testing`, `done`, `cancelled`), and assignee management. Default filter shows active statuses and hides closed statuses by default. Scope filter (My/Team/All) persisted per user via `useGridScopePreference`. | Requires `reader` on `tasks`; auto-granted when any operations resource (opex, capex, projects, contracts) has access |
 | `/ops/operations` | `frontend/src/pages/operations/BudgetOperationsLandingPage.tsx` | Budget operations landing page with cards linking to freeze, column initialization, allocation copy, and column reset tools. | Requires `opex:reader` (landing) |
 | `/ops/operations/freeze` | `frontend/src/pages/operations/BudgetFreezePage.tsx` | Freeze / Unfreeze Data tool for budget scopes (OPEX, CAPEX). Supports per-column locking, status cards, and requires admin confirmation. | `budget_ops:admin` |
 | `/ops/operations/copy-budget-columns` (alias: `/ops/operations/column-init`) | `frontend/src/pages/operations/CopyBudgetColumnsPage.tsx` | Copy Budget Columns tool for copying budget data between years and columns with percentage adjustments, overwrite control, and dry run preview. Shows complete data preview with skip indicators and preserves source data integrity. | Requires `opex:admin` for execution |
@@ -97,7 +97,7 @@ The OPEX workspace (`frontend/src/pages/OpexListPage.tsx`) bundles the spend lif
 - Server-driven AG Grid (`ServerDataGrid`) over `/spend-items/summary` with persistent column state, column chooser, and pinned totals.
 - Spend workspace: list clicks route to `/ops/opex/:id/:tab` (overview, budget, allocations, tasks, relations) with explicit save/reset and prev/next navigation embedded in the workspace instead of layered modals.
 - Allocations editor mirrors budget navigation (year tabs + prev/next arrows with unsaved-change guard) and always recomputes manual company/department rows using the latest per-year metrics; manual department mode seeds one row per company on first entry for quicker editing.
-- Tasks panel includes optional title field, responsible person dropdown (UserSelect), status tracking (open, in_progress, done, cancelled), and due date management.
+- Tasks panel includes optional title field, responsible person dropdown (UserSelect), status tracking (`open`, `in_progress`, `pending`, `in_testing`, `done`, `cancelled`), and due date management.
 - Analytics column surfaces the admin-defined category; the workspace overview uses `AnalyticsCategorySelect` tied to `/analytics-categories`.
 - Column renderers resolve owners via cached `/users` lookups and surface quick links to contracts/projects.
 - Grids default to showing records active as of today (derived from `disabled_at`). Editors expose a `StatusLifecycleField` with an Enabled toggle and a Disabled Date; the date controls the actual lifecycle.
@@ -109,8 +109,9 @@ The Task Management system (frontend `TasksPage` + workspace and backend `TasksS
 - Workspace UX: Clicking a row opens `/portfolio/tasks/:id/overview`. Creation uses `/portfolio/tasks/new/overview`. The workspace has explicit Save controls, Prev/Next navigation based on current list context (sort, filters, search, scope), and a Close action that returns to the list with the same query state.
 - Related context editing: In writable mode, the Context section exposes a selector (`Standalone`, `Project`, `Budget (OPEX)`, `Contract`, `CAPEX`) plus entity picker when applicable. Changes are applied only on Save.
 - Save model: context changes and field edits persist atomically in one PATCH call (no split move-then-update flow).
-- Filtering & search: Default filter shows only open tasks; supports quick search across all fields and column-specific filtering via AG Grid floating filters.
-- Status workflow: Four states (open, in_progress, done, cancelled) with color-coded status chips.
+- Filtering & search: Default filter shows active tasks (`open`, `in_progress`, `pending`, `in_testing`); supports quick search across all fields and column-specific filtering via AG Grid floating filters.
+- Status workflow: Six states (`open`, `in_progress`, `pending`, `in_testing`, `done`, `cancelled`) with color-coded status chips.
+- Activity workflow: Comments tab includes a unified action form where comment, status change, and optional time logging can be submitted in one action (`type: 'unified'`).
 - Selection & deletion: Admins can multi-select rows and use “Delete Selected,” which calls `DELETE /tasks/bulk`. Success clears selection and refreshes the grid.
 - Backend APIs:
   - Aggregated list: `GET /tasks` (reader), mirrors grid filters/sort with pagination.
@@ -119,6 +120,9 @@ The Task Management system (frontend `TasksPage` + workspace and backend `TasksS
   - Generic update route: `PATCH /tasks/:id` (`tasks:member`) supports field updates and context targets `standalone|spend_item|contract|capex_item`.
   - Project-target update route: `PATCH /portfolio/projects/:projectId/tasks/:taskId` (`portfolio_projects:contributor`) is required for any save where the target context is project.
   - Move convenience: `PATCH /tasks/:id/move` (`tasks:member`) supports context-only changes for `standalone|spend_item|contract|capex_item`.
+  - Activities: `GET/POST /tasks/:id/activities` and `GET/POST /portfolio/projects/:projectId/tasks/:taskId/activities`; POST supports standard comment/change payloads and unified payloads (`type: 'unified'`).
+  - Activity comment editing: `PATCH /tasks/:id/activities/:activityId` and `PATCH /portfolio/projects/:projectId/tasks/:taskId/activities/:activityId`.
+  - Time entries: `GET/POST/PATCH/DELETE` task time-entry routes exist for both standalone and project-task paths.
   - Bulk delete: `DELETE /tasks/bulk` (admin) returns `{ deleted: string[]; failed: { id, name, reason }[] }`.
   - Object-scoped create/update: `POST/PATCH /spend-items/:id/tasks`, `/contracts/:id/tasks`, and `/capex-items/:id/tasks` (`tasks:member`) remain available.
 - Permissions: `tasks:reader` shows all tasks in the tenant (auto-granted when any operations resource has access). `tasks:member` allows create/edit/move for non-project contexts. Project-target saves require `portfolio_projects:contributor`. `tasks:admin` is required for bulk delete.
