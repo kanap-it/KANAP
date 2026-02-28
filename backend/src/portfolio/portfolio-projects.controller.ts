@@ -405,6 +405,7 @@ export class PortfolioProjectsController {
     const id = await this.resolve(idOrRef, ctx);
     return this.svc.bulkReplaceCapex(id, body?.capex_ids ?? [], {
       manager: ctx.manager,
+      userId: ctx.userId ?? null,
     });
   }
 
@@ -421,6 +422,7 @@ export class PortfolioProjectsController {
     const id = await this.resolve(idOrRef, ctx);
     return this.svc.bulkReplaceOpex(id, body?.opex_ids ?? [], {
       manager: ctx.manager,
+      userId: ctx.userId ?? null,
     });
   }
 
@@ -437,6 +439,7 @@ export class PortfolioProjectsController {
     const id = await this.resolve(idOrRef, ctx);
     return this.svc.addDependency(id, body.target_type, body.target_id, ctx.tenantId, {
       manager: ctx.manager,
+      userId: ctx.userId ?? null,
     });
   }
 
@@ -452,6 +455,7 @@ export class PortfolioProjectsController {
     const id = await this.resolve(idOrRef, ctx);
     return this.svc.removeDependency(id, targetType, targetId, {
       manager: ctx.manager,
+      userId: ctx.userId ?? null,
     });
   }
 

@@ -35,6 +35,48 @@ const PRIORITY_LABELS: Record<string, string> = {
   optional: 'Optional',
 };
 
+const FIELD_LABELS: Record<string, string> = {
+  title: 'Title',
+  description: 'Description',
+  status: 'Status',
+  task_type_id: 'Task Type',
+  priority_level: 'Priority',
+  creator_id: 'Requestor',
+  assignee_user_id: 'Assignee',
+  due_date: 'Due Date',
+  start_date: 'Start Date',
+  labels: 'Labels',
+  phase_id: 'Phase',
+  source_id: 'Source',
+  category_id: 'Category',
+  stream_id: 'Stream',
+  company_id: 'Company',
+  related_to: 'Related To',
+  time_hours: 'Time Logged',
+};
+
+const humanize = (field: string) =>
+  field
+    .replace(/\./g, ' ')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (s) => s.toUpperCase());
+
+const toPlainText = (value: string): string => {
+  if (!value) return '';
+  const doc = new DOMParser().parseFromString(value, 'text/html');
+  return (doc.body.textContent || '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const toCommentPreview = (value: string, maxLen = 150): string => {
+  const text = toPlainText(value);
+  if (!text) return '';
+  if (text.length <= maxLen) return text;
+  return `${text.substring(0, maxLen)}...`;
+};
+
 export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ['task-activities', taskId],
@@ -66,6 +108,10 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
     if (value === null || value === undefined) return '(empty)';
     if (field === 'status') return TASK_STATUS_LABELS[String(value) as TaskStatus] || String(value);
     if (field === 'priority_level') return PRIORITY_LABELS[String(value)] || String(value);
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '(empty)';
+      return value.map((entry) => String(entry)).join(', ');
+    }
     if (field === 'due_date' || field === 'start_date') {
       return value ? new Date(String(value)).toLocaleDateString('en-GB') : '(none)';
     }
@@ -73,8 +119,7 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
   };
 
   const formatFieldLabel = (field: string): string => {
-    if (field === 'creator_id') return 'Requestor';
-    return field.replace(/_/g, ' ');
+    return FIELD_LABELS[field] || humanize(field);
   };
 
   const getActivityDescription = (activity: Activity): string => {
@@ -82,13 +127,16 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
       return 'Added a comment';
     }
     if (activity.type === 'change' && activity.changed_fields) {
-      const fields = Object.keys(activity.changed_fields);
-      if (fields.length === 1) {
-        const field = fields[0];
-        const [oldVal, newVal] = activity.changed_fields[field];
+      const entries = Object.entries(activity.changed_fields);
+      if (entries.length === 1) {
+        const [field, [oldVal, newVal]] = entries[0];
         return `Changed ${formatFieldLabel(field)}: ${formatFieldValue(field, oldVal)} → ${formatFieldValue(field, newVal)}`;
       }
-      return `Updated: ${fields.join(', ')}`;
+      return `Changed ${entries
+        .map(([field, [oldVal, newVal]]) =>
+          `${formatFieldLabel(field)}: ${formatFieldValue(field, oldVal)} → ${formatFieldValue(field, newVal)}`
+        )
+        .join(' | ')}`;
     }
     return 'Activity recorded';
   };
@@ -152,13 +200,12 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
               sx={{
                 mt: 0.5,
                 pl: 1,
-                whiteSpace: 'pre-wrap',
-                maxHeight: 60,
+                whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}
             >
-              {activity.content.substring(0, 150)}{activity.content.length > 150 ? '...' : ''}
+              {toCommentPreview(activity.content, 180)}
             </Typography>
           )}
         </Box>

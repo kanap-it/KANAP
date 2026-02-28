@@ -201,7 +201,7 @@ export class TasksController {
     return this.unified.moveTask(
       { id, next: { type: nextType, id: nextId } },
       req.user?.sub ?? null,
-      { manager: req?.queryRunner?.manager },
+      { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id ?? '' },
     );
   }
 

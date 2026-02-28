@@ -112,6 +112,10 @@ The Task Management system (frontend `TasksPage` + workspace and backend `TasksS
 - Filtering & search: Default filter shows active tasks (`open`, `in_progress`, `pending`, `in_testing`); supports quick search across all fields and column-specific filtering via AG Grid floating filters.
 - Status workflow: Six states (`open`, `in_progress`, `pending`, `in_testing`, `done`, `cancelled`) with color-coded status chips.
 - Activity workflow: Comments tab includes a unified action form where comment, status change, and optional time logging can be submitted in one action (`type: 'unified'`).
+- Change-history workflow: standard task saves (`PATCH /tasks/:id` and `PATCH /portfolio/projects/:projectId/tasks/:taskId`) also auto-write `type='change'` activity rows using shared backend diff detection (beyond unified form status/time entries).
+- History snapshots: `changed_fields` stores historical old/new values at write time, with FK display names resolved before persistence where possible (for example assignee/user or classification names).
+- Live updates: task write paths invalidate `task-activities` cache (`save`, `unified activity`, and task time-entry mutations), so the History tab updates without full page reload.
+- History comment preview: history cards render one-line plain-text previews (HTML stripped) by design; full rich text remains in the Comments tab.
 - Selection & deletion: Admins can multi-select rows and use “Delete Selected,” which calls `DELETE /tasks/bulk`. Success clears selection and refreshes the grid.
 - Backend APIs:
   - Aggregated list: `GET /tasks` (reader), mirrors grid filters/sort with pagination.
@@ -149,6 +153,8 @@ The Portfolio Management module (`/portfolio/*`) provides end-to-end IT portfoli
   - Analysis recommendation is submitted as a formal decision in Activity with context `Analysis Recommendation`, and the Analysis tab shows a latest-recommendation summary card with "View in Activity"
   - Legacy `current_situation` / `expected_benefits` are shown read-only in a collapsed "Previous Analysis" accordion when historical data exists
   - Activity tab: Unified view combining comments and audit history
+  - History now includes overview/analysis field updates and sub-entity diffs (team, dependencies, CAPEX/OPEX links, scoring override fields) with display-name snapshots.
+  - Opening the Activity tab triggers a fresh fetch so newly logged history entries appear without manual page reload.
 - Conversion: Approved requests can be converted to projects via `POST /portfolio/requests/:id/convert`
 
 ### Projects (`/portfolio/projects`)
@@ -158,6 +164,8 @@ The Portfolio Management module (`/portfolio/*`) provides end-to-end IT portfoli
   - Tab order: Overview, Activity, Timeline, Progress, Tasks, Team, Scoring, Relations
   - Rich text: `purpose` field using RichTextEditor
   - Activity tab: Unified view with Comments/History subtabs
+  - History now includes overview/timeline/progress updates plus sub-entity diffs (team, dependencies, CAPEX/OPEX links, phases, scoring override fields, project task creation).
+  - Opening the Activity tab triggers a fresh fetch so newly logged history entries appear without manual page reload.
   - Tasks tab: `ProjectTasksPanel.tsx` with status/phase filtering, navigation-based task creation
   - Timeline tab: Phase/milestone management with "Add Task" button per phase
   - Progress tab: Effort tracking with IT/Business split, time log showing project overhead and task time
@@ -229,6 +237,9 @@ Portfolio workspaces use a shared activity system (modeled after Tasks):
   - **Editable comments**: Authors can edit their own comments (type=comment only, not decisions/changes)
   - Shows "(edited)" indicator when a comment has been modified (`updated_at` is set)
 - `PortfolioHistory.tsx`: Audit trail showing field changes and decisions
+  - Multi-field entries render per-field deltas; null/add/remove transitions are shown explicitly.
+  - Phase keys (`phase.<phaseId>.<field>`) are formatted for readability in the UI.
+  - Comment entries in History use one-line plain-text previews (HTML stripped).
 
 ### Rich Text & Inline Images
 - All description fields use RichTextEditor with 6/12 min/max rows
@@ -243,6 +254,7 @@ Portfolio workspaces use a shared activity system (modeled after Tasks):
 | POST | /portfolio/requests/:id/convert | Convert request to project |
 | POST | /portfolio/requests/:id/attachments/inline | Upload inline image |
 | GET | /portfolio/requests/inline/:tenantSlug/:attachmentId | View inline image |
+| GET | /portfolio/requests/:id?include=activities | Load request including activity history |
 | PATCH | /portfolio/requests/:id/comments/:activityId | Edit comment (author-only) |
 | GET | /portfolio/projects | List projects with filters |
 | GET | /portfolio/projects/planning/timeline | Planning timeline data (projects, dependencies, milestones) |
@@ -251,10 +263,10 @@ Portfolio workspaces use a shared activity system (modeled after Tasks):
 | GET | /portfolio/projects/:id/tasks | List project tasks |
 | POST | /portfolio/projects/:id/attachments/inline | Upload inline image |
 | GET | /portfolio/projects/inline/:tenantSlug/:attachmentId | View inline image |
+| GET | /portfolio/projects/:id?include=activities | Load project including activity history |
 | PATCH | /portfolio/projects/:id/comments/:activityId | Edit comment (author-only) |
 | POST | /portfolio/requests/:id/share | Send link email for a request |
 | POST | /portfolio/projects/:id/share | Send link email for a project |
-| POST | /portfolio/activities | Add comment/decision to request or project |
 | PATCH | /portfolio/projects/:projectId/tasks/:taskId/activities/:activityId | Edit task comment (author-only) |
 | GET | /portfolio/reports/status-change | Portfolio status change report (final status per item in selected period) |
 | GET | /portfolio/reports/status-change/filter-values | Distinct filter values for status change report (status/type/source/category/stream) |
@@ -277,6 +289,7 @@ Tenant isolation combines request-scoped transactions with Postgres row-level se
 - Tenancy metadata lives in `backend/src/tenants/tenant.entity.ts`; the slug is resolved at request bootstrap and attached to `req.tenant`.
 - Tenant slug reservation/normalization is centralized in `backend/src/tenants/tenant-slug-policy.ts` and enforced at both public signup (`backend/src/public/public.controller.ts`) and tenant service creation/update (`backend/src/tenants/tenants.service.ts`). Unavailable slugs return `SUBDOMAIN_NOT_AVAILABLE`.
 - RLS policies are applied to every tenant-owned table via migrations `backend/src/migrations/1756687500000-rls-enable-initial.ts`, `...7700000-rls-add-with-check.ts`, `...7900000-rls-enable-spend-contracts.ts`, etc. Each table includes `tenant_id` with default `app_current_tenant()` and `FORCE ROW LEVEL SECURITY` to prevent bypass.
+- `portfolio_activities` has canonical enforced RLS (`1830000000000-portfolio-activities-rls-canonical.ts`) and request/project activity queries add explicit tenant predicates (`a.tenant_id = app_current_tenant()`) as defense in depth.
 
 ## Permissions & RBAC
 

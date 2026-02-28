@@ -390,7 +390,7 @@ Shared model for Request, Project, and Task activity tracking. Provides unified 
 
 The Activity model supports three entry types:
 
-- **Change:** Auto-logged when scoring or status changes. Includes field-level diff.
+- **Change:** Auto-logged for field and relation changes. Includes field-level diff.
 - **Comment:** Manual entry by any authorized user. Authors can edit their own comments at any time.
 - **Decision:** Formal CAB decision with structured outcome and rationale. The Context field captures the meeting reference (e.g., "CAB Meeting 2024-12-15").
 
@@ -402,6 +402,23 @@ The Activity model supports three entry types:
 - No time limit on editing
 
 **Task activities:** When associated with a task, activities appear in the task's Comments/History tabs rather than the project activity feed.
+
+**Auto-logged change categories (current implementation):**
+
+- **Tasks:** `title`, `description`, `status`, `task_type_id`, `priority_level`, `creator_id`, `assignee_user_id`, `start_date`, `due_date`, `labels`, `phase_id`, `source_id`, `category_id`, `stream_id`, `company_id`, plus synthetic `related_to` on context change.
+- **Requests:** `name`, `purpose`, `requestor_id`, `target_delivery_date`, classification/org fields, sponsors/leads, analysis fields (`current_situation`, `expected_benefits`, `risks`, `feasibility_review`), and sub-entity diffs (`business_team`, `it_team`, `dependency`, `capex_items`, `opex_items`).
+- **Projects:** `name`, `purpose`, classification/org fields, sponsors/leads, `planned_start`, `planned_end`, `execution_progress`, effort fields, effort-allocation mode fields, and sub-entity diffs (`business_team`, `it_team`, `dependency`, `capex_items`, `opex_items`, `phase`, `phase.<phaseId>.<field>`, `task_created`).
+- **Scoring overrides (requests/projects):** `priority_override`, `override_value`, `override_justification`, `priority_score`.
+
+**Snapshot semantics:**
+
+- `changed_fields` is stored as JSONB with structure `{ "<field>": [oldValue, newValue] }`.
+- Foreign-key values are resolved to human-readable labels at write time where possible (for example user names), preserving historical readability even if related records are later renamed.
+
+**Tenant safety:**
+
+- Requests, projects, and tasks share the same `portfolio_activities` table.
+- `portfolio_activities` is tenant-isolated with enforced RLS (`FORCE ROW LEVEL SECURITY`) and canonical policy `tenant_id = app_current_tenant()`.
 
 ---
 

@@ -199,6 +199,7 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
       onDirtyChange?.(false);
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks', id] });
+      queryClient.invalidateQueries({ queryKey: ['task-activities', id] });
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || 'Failed to save task';
       setServerError(msg);

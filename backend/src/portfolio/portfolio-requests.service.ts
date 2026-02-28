@@ -39,6 +39,7 @@ import {
 import { PortfolioCriteriaService } from './portfolio-criteria.service';
 import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
+import { detectChanges, REQUEST_TRACKED_FIELDS, resolveDisplayNames } from '../common/change-detection';
 
 type InvolvementScope = { involvedUserId?: string; involvedTeamId?: string };
 
@@ -760,6 +761,7 @@ export class PortfolioRequestsService {
          FROM portfolio_activities a
          LEFT JOIN users u ON u.id = a.author_id
          WHERE a.request_id = $1
+           AND a.tenant_id = app_current_tenant()
          ORDER BY a.created_at DESC`,
         [id]
       );
@@ -1008,30 +1010,19 @@ export class PortfolioRequestsService {
       }
     }
 
-    // Log analysis field changes as activity
-    const analysisChanges: Record<string, [unknown, unknown]> = {};
-    if (before.current_situation !== saved.current_situation) {
-      analysisChanges.current_situation = [before.current_situation, saved.current_situation];
-    }
-    if (before.expected_benefits !== saved.expected_benefits) {
-      analysisChanges.expected_benefits = [before.expected_benefits, saved.expected_benefits];
-    }
-    if (before.risks !== saved.risks) {
-      analysisChanges.risks = [before.risks, saved.risks];
-    }
-    if (!this.isSameFeasibilityReview(before.feasibility_review, saved.feasibility_review)) {
-      analysisChanges.feasibility_review = [
-        this.normalizeFeasibilityReview(before.feasibility_review),
-        this.normalizeFeasibilityReview(saved.feasibility_review),
-      ];
-    }
-    if (Object.keys(analysisChanges).length > 0) {
+    const changes = detectChanges(
+      before as unknown as Record<string, unknown>,
+      saved as unknown as Record<string, unknown>,
+      REQUEST_TRACKED_FIELDS,
+    );
+    if (changes.length > 0) {
+      const changedFields = await resolveDisplayNames(changes, REQUEST_TRACKED_FIELDS, mg);
       await this.logActivity(mg, {
         request_id: id,
         tenant_id: tenantId,
         author_id: userId,
         type: 'change',
-        changed_fields: analysisChanges,
+        changed_fields: changedFields,
       });
     }
 
@@ -1064,9 +1055,11 @@ export class PortfolioRequestsService {
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequestTeam);
+    const actorId = this.requireActivityAuthor(opts?.userId);
 
     const unique = Array.from(new Set((userIds || []).filter(Boolean)));
     const existing = await repo.find({ where: { request_id: requestId, role } });
+    const beforeIds = Array.from(new Set(existing.map((e) => e.user_id)));
 
     const toDelete = existing.filter((e) => !unique.includes(e.user_id));
     const existingSet = new Set(existing.map((e) => e.user_id));
@@ -1114,11 +1107,28 @@ export class PortfolioRequestsService {
           addedUserName,
           role,
           itLeadId: request.it_lead_id,
-          actorId: opts?.userId ?? null,
+          actorId,
           addedUserId: user.id,
           tenantId: request.tenant_id,
         });
       }
+    }
+
+    const afterIds = Array.from(new Set(unique));
+    const beforeSorted = [...beforeIds].sort();
+    const afterSorted = [...afterIds].sort();
+    if (JSON.stringify(beforeSorted) !== JSON.stringify(afterSorted)) {
+      const [beforeNames, afterNames] = await Promise.all([
+        this.resolveUserNamesByIds(mg, beforeSorted),
+        this.resolveUserNamesByIds(mg, afterSorted),
+      ]);
+      await this.logActivity(mg, {
+        request_id: requestId,
+        tenant_id: request.tenant_id,
+        author_id: actorId,
+        type: 'change',
+        changed_fields: { [role]: [beforeNames, afterNames] },
+      });
     }
 
     return { ok: true, added: toInsert.length, removed: toDelete.length };
@@ -1159,13 +1169,15 @@ export class PortfolioRequestsService {
   async bulkReplaceCapex(
     requestId: string,
     capexIds: string[],
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; userId?: string | null },
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequestCapex);
+    const actorId = this.requireActivityAuthor(opts?.userId);
 
     const unique = Array.from(new Set((capexIds || []).filter(Boolean)));
     const existing = await repo.find({ where: { request_id: requestId } });
+    const beforeIds = Array.from(new Set(existing.map((e) => e.capex_id)));
 
     const toDelete = existing.filter((e) => !unique.includes(e.capex_id));
     const existingSet = new Set(existing.map((e) => e.capex_id));
@@ -1183,6 +1195,23 @@ export class PortfolioRequestsService {
     if (toDelete.length > 0) await repo.remove(toDelete);
     if (toInsert.length > 0) await repo.save(toInsert);
 
+    const afterIds = Array.from(new Set(unique));
+    const beforeSorted = [...beforeIds].sort();
+    const afterSorted = [...afterIds].sort();
+    if (JSON.stringify(beforeSorted) !== JSON.stringify(afterSorted)) {
+      const [beforeLabels, afterLabels] = await Promise.all([
+        this.resolveCapexLabelsByIds(mg, beforeSorted),
+        this.resolveCapexLabelsByIds(mg, afterSorted),
+      ]);
+      await this.logActivity(mg, {
+        request_id: requestId,
+        tenant_id: request.tenant_id,
+        author_id: actorId,
+        type: 'change',
+        changed_fields: { capex_items: [beforeLabels, afterLabels] },
+      });
+    }
+
     return { ok: true, added: toInsert.length, removed: toDelete.length };
   }
 
@@ -1190,13 +1219,15 @@ export class PortfolioRequestsService {
   async bulkReplaceOpex(
     requestId: string,
     opexIds: string[],
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; userId?: string | null },
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequestOpex);
+    const actorId = this.requireActivityAuthor(opts?.userId);
 
     const unique = Array.from(new Set((opexIds || []).filter(Boolean)));
     const existing = await repo.find({ where: { request_id: requestId } });
+    const beforeIds = Array.from(new Set(existing.map((e) => e.opex_id)));
 
     const toDelete = existing.filter((e) => !unique.includes(e.opex_id));
     const existingSet = new Set(existing.map((e) => e.opex_id));
@@ -1213,6 +1244,23 @@ export class PortfolioRequestsService {
 
     if (toDelete.length > 0) await repo.remove(toDelete);
     if (toInsert.length > 0) await repo.save(toInsert);
+
+    const afterIds = Array.from(new Set(unique));
+    const beforeSorted = [...beforeIds].sort();
+    const afterSorted = [...afterIds].sort();
+    if (JSON.stringify(beforeSorted) !== JSON.stringify(afterSorted)) {
+      const [beforeLabels, afterLabels] = await Promise.all([
+        this.resolveOpexLabelsByIds(mg, beforeSorted),
+        this.resolveOpexLabelsByIds(mg, afterSorted),
+      ]);
+      await this.logActivity(mg, {
+        request_id: requestId,
+        tenant_id: request.tenant_id,
+        author_id: actorId,
+        type: 'change',
+        changed_fields: { opex_items: [beforeLabels, afterLabels] },
+      });
+    }
 
     return { ok: true, added: toInsert.length, removed: toDelete.length };
   }
@@ -1254,9 +1302,10 @@ export class PortfolioRequestsService {
     targetType: 'request' | 'project',
     targetId: string,
     tenantId: string,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; userId?: string | null },
   ) {
     const mg = opts?.manager ?? this.repo.manager;
+    const actorId = this.requireActivityAuthor(opts?.userId);
 
     const request = await this.getRequestOrThrow(requestId, mg);
 
@@ -1290,6 +1339,16 @@ export class PortfolioRequestsService {
     });
     await repo.save(entity);
 
+    await this.logActivity(mg, {
+      request_id: requestId,
+      tenant_id: request.tenant_id,
+      author_id: actorId,
+      type: 'change',
+      changed_fields: {
+        dependency: [null, await this.resolveDependencyTargetLabel(targetType, targetId, mg)],
+      },
+    });
+
     return { ok: true };
   }
 
@@ -1297,16 +1356,31 @@ export class PortfolioRequestsService {
     requestId: string,
     targetType: 'request' | 'project',
     targetId: string,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; userId?: string | null },
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequestDependency);
+    const actorId = this.requireActivityAuthor(opts?.userId);
+    const request = await this.getRequestOrThrow(requestId, mg);
 
     const whereClause = targetType === 'request'
       ? { request_id: requestId, depends_on_request_id: targetId }
       : { request_id: requestId, depends_on_project_id: targetId };
 
+    const existing = await repo.findOne({ where: whereClause });
+    if (!existing) return { ok: true };
+
     await repo.delete(whereClause);
+
+    await this.logActivity(mg, {
+      request_id: requestId,
+      tenant_id: request.tenant_id,
+      author_id: actorId,
+      type: 'change',
+      changed_fields: {
+        dependency: [await this.resolveDependencyTargetLabel(targetType, targetId, mg), null],
+      },
+    });
 
     return { ok: true };
   }
@@ -1536,6 +1610,81 @@ export class PortfolioRequestsService {
     await this.cleanupOrphanedImages(requestId, 'comment', oldContent, saved.content, { manager: mg });
 
     return saved;
+  }
+
+  private requireActivityAuthor(userId?: string | null): string {
+    if (!userId) throw new BadRequestException('userId is required for change activity logging');
+    return userId;
+  }
+
+  private async resolveUserNamesByIds(mg: EntityManager, userIds: string[]): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    const rows = await mg.query<Array<{ id: string; first_name: string | null; last_name: string | null; email: string | null }>>(
+      `SELECT id, first_name, last_name, email
+       FROM users
+       WHERE id = ANY($1::uuid[])`,
+      [userIds],
+    );
+    const byId = new Map<string, string>();
+    for (const row of rows) {
+      const fullName = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
+      byId.set(row.id, fullName || row.email || row.id);
+    }
+    return userIds.map((id) => byId.get(id) ?? id).sort((a, b) => a.localeCompare(b));
+  }
+
+  private async resolveCapexLabelsByIds(mg: EntityManager, capexIds: string[]): Promise<string[]> {
+    if (capexIds.length === 0) return [];
+    const rows = await mg.query<Array<{ id: string; description: string | null }>>(
+      `SELECT id, description
+       FROM capex_items
+       WHERE id = ANY($1::uuid[])`,
+      [capexIds],
+    );
+    const byId = new Map<string, string>();
+    for (const row of rows) {
+      byId.set(row.id, row.description || row.id);
+    }
+    return capexIds.map((id) => byId.get(id) ?? id).sort((a, b) => a.localeCompare(b));
+  }
+
+  private async resolveOpexLabelsByIds(mg: EntityManager, opexIds: string[]): Promise<string[]> {
+    if (opexIds.length === 0) return [];
+    const rows = await mg.query<Array<{ id: string; product_name: string | null; description: string | null }>>(
+      `SELECT id, product_name, description
+       FROM spend_items
+       WHERE id = ANY($1::uuid[])`,
+      [opexIds],
+    );
+    const byId = new Map<string, string>();
+    for (const row of rows) {
+      byId.set(row.id, row.product_name || row.description || row.id);
+    }
+    return opexIds.map((id) => byId.get(id) ?? id).sort((a, b) => a.localeCompare(b));
+  }
+
+  private async resolveDependencyTargetLabel(
+    targetType: 'request' | 'project',
+    targetId: string,
+    mg: EntityManager,
+  ): Promise<string> {
+    if (targetType === 'request') {
+      const [row] = await mg.query<Array<{ item_number: number | null; name: string | null }>>(
+        'SELECT item_number, name FROM portfolio_requests WHERE id = $1 LIMIT 1',
+        [targetId],
+      );
+      if (!row) return targetId;
+      const prefix = row.item_number ? `REQ-${row.item_number}: ` : 'Request: ';
+      return `${prefix}${row.name || targetId}`;
+    }
+
+    const [row] = await mg.query<Array<{ item_number: number | null; name: string | null }>>(
+      'SELECT item_number, name FROM portfolio_projects WHERE id = $1 LIMIT 1',
+      [targetId],
+    );
+    if (!row) return targetId;
+    const prefix = row.item_number ? `PRJ-${row.item_number}: ` : 'Project: ';
+    return `${prefix}${row.name || targetId}`;
   }
 
   private async logActivity(

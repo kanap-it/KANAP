@@ -537,6 +537,7 @@ export default function TaskSidebar({
               queryClient.invalidateQueries({ queryKey: ['task-time-entries-sum', task.id] });
               queryClient.invalidateQueries({ queryKey: ['task-time-entries', task.id] });
               queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
+              queryClient.invalidateQueries({ queryKey: ['task-activities', task.id] });
               if (isProjectTask && task.related_object_id) {
                 queryClient.invalidateQueries({ queryKey: ['project', task.related_object_id] });
                 queryClient.invalidateQueries({ queryKey: ['project-tasks-time-summary', task.related_object_id] });

@@ -93,6 +93,7 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
       await api.delete(endpoint);
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['task-time-entries-sum', taskId] });
+      queryClient.invalidateQueries({ queryKey: ['task-activities', taskId] });
       // Invalidate project queries so Progress tab updates with new actual effort
       if (projectId) {
         queryClient.invalidateQueries({ queryKey: ['project', projectId] });
@@ -130,6 +131,7 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
     refetch();
     queryClient.invalidateQueries({ queryKey: ['task-time-entries-sum', taskId] });
     queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+    queryClient.invalidateQueries({ queryKey: ['task-activities', taskId] });
     // Invalidate project queries so Progress tab updates with new actual effort
     if (projectId) {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });

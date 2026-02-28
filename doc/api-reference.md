@@ -833,6 +833,11 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
         - `done`: set `open`
 - PATCH `/tasks/:id/activities/:activityId` — edit task comment (author-only) **[Requires: tasks:member]**
 - PATCH `/portfolio/projects/:projectId/tasks/:taskId/activities/:activityId` — edit task comment (author-only) **[Requires: portfolio_projects:contributor]**
+  - History notes:
+    - Task field changes are also auto-written as `type='change'` activity rows during normal task saves (`PATCH /tasks/:id` and `PATCH /portfolio/projects/:projectId/tasks/:taskId`).
+    - `changed_fields` uses historical snapshots with human-readable FK values (not UUIDs) where possible.
+    - Common auto-generated keys: `title`, `description`, `status`, `task_type_id`, `priority_level`, `creator_id`, `assignee_user_id`, `start_date`, `due_date`, `labels`, `phase_id`, `source_id`, `category_id`, `stream_id`, `company_id`, plus synthetic `related_to` when context changes.
+    - Creating a task under a project also writes a project history change key: `task_created: [null, <task title>]`.
 - GET `/tasks/:id/time-entries` — list time entries for a task **[Requires: tasks:reader]**
 - GET `/tasks/:id/time-entries/sum` — get total logged hours for a task **[Requires: tasks:reader]**
 - POST `/tasks/:id/time-entries` — create time entry **[Requires: tasks:member]**
@@ -846,6 +851,20 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
 - DELETE `/tasks/bulk` — bulk delete `{ ids: string[] }` → `{ deleted: string[], failed: { id, name, reason }[] }` **[Requires: tasks:admin]**
 
 ## Portfolio Requests
+- GET `/portfolio/requests/:id?include=activities` — load request (include activity feed via `include=activities`) **[Requires: portfolio_requests:reader]**
+  - Activity rows are ordered newest-first and tenant-scoped in SQL (`a.tenant_id = app_current_tenant()`).
+- PATCH `/portfolio/requests/:id` — update request **[Requires: portfolio_requests:member]**
+  - Auto-writes `type='change'` history for tracked fields.
+  - Tracked keys: `name`, `purpose`, `requestor_id`, `target_delivery_date`, `source_id`, `category_id`, `stream_id`, `company_id`, `department_id`, `business_sponsor_id`, `business_lead_id`, `it_sponsor_id`, `it_lead_id`, `current_situation`, `expected_benefits`, `risks`, `feasibility_review`.
+  - Status is still written via the dedicated status/decision flow (`changed_fields.status`), preserving existing decision/notification behavior.
+- POST `/portfolio/requests/:id/comments` — add request comment or formal decision **[Requires: portfolio_requests:member]**
+- PATCH `/portfolio/requests/:id/comments/:activityId` — edit request comment (author-only; comment type only) **[Requires: portfolio_requests:member]**
+- POST `/portfolio/requests/:id/business-team/bulk-replace` — replace business contributors (logs `business_team` diff) **[Requires: portfolio_requests:member]**
+- POST `/portfolio/requests/:id/it-team/bulk-replace` — replace IT contributors (logs `it_team` diff) **[Requires: portfolio_requests:member]**
+- POST `/portfolio/requests/:id/capex/bulk-replace` — replace CAPEX links (logs `capex_items` diff) **[Requires: portfolio_requests:member]**
+- POST `/portfolio/requests/:id/opex/bulk-replace` — replace OPEX links (logs `opex_items` diff) **[Requires: portfolio_requests:member]**
+- POST `/portfolio/requests/:id/dependencies` — add dependency (logs `dependency: [null, label]`) **[Requires: portfolio_requests:member]**
+- DELETE `/portfolio/requests/:id/dependencies/:targetType/:targetId` — remove dependency (logs `dependency: [label, null]`) **[Requires: portfolio_requests:member]**
 - GET `/portfolio/requests/filter-values?fields=fieldA,fieldB&q&filters` — distinct filter values for closed-choice columns **[Requires: portfolio_requests:reader]**
   - Response: `{ fieldA: Array<string | null>, fieldB: Array<string | null> }`
   - Caller should remove the column's own filter so values stay discoverable.
@@ -922,6 +941,25 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
     - For already started projects (past `actual_start`, fallback eligible past `planned_start`), the historical start is preserved while remaining effort is simulated forward.
 
 ## Portfolio Projects
+- GET `/portfolio/projects/:id?include=activities` — load project (include activity feed via `include=activities`) **[Requires: portfolio_projects:reader]**
+  - Activity rows are ordered newest-first and tenant-scoped in SQL (`a.tenant_id = app_current_tenant()`).
+- PATCH `/portfolio/projects/:id` — update project **[Requires: portfolio_projects:contributor]**
+  - Auto-writes `type='change'` history for tracked fields.
+  - Tracked keys: `name`, `purpose`, `source_id`, `category_id`, `stream_id`, `company_id`, `department_id`, `business_sponsor_id`, `business_lead_id`, `it_sponsor_id`, `it_lead_id`, `planned_start`, `planned_end`, `execution_progress`, `estimated_effort_it`, `estimated_effort_business`, `actual_effort_it`, `actual_effort_business`, `it_effort_allocation_mode`, `business_effort_allocation_mode`.
+  - Status is still written via the dedicated status/decision flow (`changed_fields.status`), preserving existing decision/notification behavior.
+- POST `/portfolio/projects/:id/comments` — add project comment or formal decision **[Requires: portfolio_projects:contributor]**
+- PATCH `/portfolio/projects/:id/comments/:activityId` — edit project comment (author-only; comment type only) **[Requires: portfolio_projects:contributor]**
+- POST `/portfolio/projects/:id/business-team/bulk-replace` — replace business contributors (logs `business_team` diff) **[Requires: portfolio_projects:contributor]**
+- POST `/portfolio/projects/:id/it-team/bulk-replace` — replace IT contributors (logs `it_team` diff) **[Requires: portfolio_projects:contributor]**
+- POST `/portfolio/projects/:id/capex/bulk-replace` — replace CAPEX links (logs `capex_items` diff) **[Requires: portfolio_projects:contributor]**
+- POST `/portfolio/projects/:id/opex/bulk-replace` — replace OPEX links (logs `opex_items` diff) **[Requires: portfolio_projects:contributor]**
+- POST `/portfolio/projects/:id/dependencies` — add dependency (logs `dependency: [null, "PRJ-<n>: <name>"]`) **[Requires: portfolio_projects:contributor]**
+- DELETE `/portfolio/projects/:id/dependencies/:targetType/:targetId` — remove dependency (logs `dependency: [label, null]`) **[Requires: portfolio_projects:contributor]**
+- POST `/portfolio/projects/:id/phases` — create phase (logs `phase: [null, <name>]`) **[Requires: portfolio_projects:contributor]**
+- PATCH `/portfolio/projects/:id/phases/:phaseId` — update phase (logs `phase.<phaseId>.name|planned_start|planned_end|status`) **[Requires: portfolio_projects:contributor]**
+- DELETE `/portfolio/projects/:id/phases/:phaseId` — delete phase (logs `phase: [<name>, null]`) **[Requires: portfolio_projects:contributor]**
+- Priority override history:
+  - `POST /portfolio/criteria/requests/:requestId/override` **[Requires: portfolio_requests:admin]** and `POST /portfolio/criteria/projects/:projectId/override` **[Requires: portfolio_projects:admin]** write `priority_override`, `override_value`, `override_justification`, and `priority_score` changes into activity history.
 - GET `/portfolio/projects/filter-values?fields=fieldA,fieldB&q&filters` — distinct filter values for closed-choice columns **[Requires: portfolio_projects:reader]**
   - Response: `{ fieldA: Array<string | null>, fieldB: Array<string | null> }`
   - Caller should remove the column's own filter so values stay discoverable.

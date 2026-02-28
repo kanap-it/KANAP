@@ -5,7 +5,6 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { RichTextContent } from '../../../components/RichTextContent';
 
 const DECISION_OUTCOME_LABELS: Record<string, string> = {
   go: 'Go',
@@ -75,8 +74,44 @@ const FIELD_LABELS: Record<string, string> = {
   planned_end: 'Planned End',
   estimated_effort_it: 'IT Effort',
   estimated_effort_business: 'Business Effort',
+  actual_effort_it: 'Actual IT Effort',
+  actual_effort_business: 'Actual Business Effort',
   execution_progress: 'Progress',
   priority_score: 'Priority Score',
+  priority_override: 'Priority Override',
+  override_value: 'Override Value',
+  override_justification: 'Override Justification',
+  business_team: 'Business Team',
+  it_team: 'IT Team',
+  dependency: 'Dependency',
+  capex_items: 'CAPEX Items',
+  opex_items: 'OPEX Items',
+  phase: 'Phase',
+  task_created: 'Task Created',
+  it_effort_allocation_mode: 'IT Effort Allocation Mode',
+  business_effort_allocation_mode: 'Business Effort Allocation Mode',
+};
+
+const humanize = (field: string) =>
+  field
+    .replace(/\./g, ' ')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (s) => s.toUpperCase());
+
+const toPlainText = (value: string): string => {
+  if (!value) return '';
+  const doc = new DOMParser().parseFromString(value, 'text/html');
+  return (doc.body.textContent || '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const toCommentPreview = (value: string, maxLen = 180): string => {
+  const text = toPlainText(value);
+  if (!text) return '';
+  if (text.length <= maxLen) return text;
+  return `${text.substring(0, maxLen)}...`;
 };
 
 export default function PortfolioHistory({
@@ -112,6 +147,10 @@ export default function PortfolioHistory({
   const formatFieldValue = (field: string, value: unknown): string => {
     if (value === null || value === undefined) return '(empty)';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '(empty)';
+      return value.map((entry) => String(entry)).join(', ');
+    }
     if (field === 'feasibility_review') {
       return formatFeasibilitySummary(value);
     }
@@ -129,6 +168,21 @@ export default function PortfolioHistory({
     return String(value);
   };
 
+  const formatFieldLabel = (field: string): string => {
+    if (field.startsWith('phase.')) {
+      const parts = field.split('.');
+      if (parts.length >= 3) {
+        const phaseIdOrName = parts[1];
+        const phaseField = parts.slice(2).join('.');
+        if (phaseIdOrName.length >= 8 && phaseIdOrName.includes('-')) {
+          return `Phase ${phaseIdOrName.slice(0, 8)} ${humanize(phaseField)}`;
+        }
+        return `Phase "${phaseIdOrName}" ${humanize(phaseField)}`;
+      }
+    }
+    return FIELD_LABELS[field] || humanize(field);
+  };
+
   const getActivityDescription = (activity: Activity): React.ReactNode => {
     if (activity.type === 'comment') {
       return 'Added a comment';
@@ -144,11 +198,16 @@ export default function PortfolioHistory({
       );
     }
     if (activity.type === 'change' && activity.changed_fields) {
-      const fields = Object.keys(activity.changed_fields);
-      if (fields.length === 1) {
-        const field = fields[0];
-        const [oldVal, newVal] = activity.changed_fields[field];
-        const fieldLabel = FIELD_LABELS[field] || field.replace(/_/g, ' ');
+      const entries = Object.entries(activity.changed_fields);
+      if (entries.length === 1) {
+        const [field, [oldVal, newVal]] = entries[0];
+        const fieldLabel = formatFieldLabel(field);
+        if ((oldVal === null || oldVal === undefined) && (newVal !== null && newVal !== undefined)) {
+          return <>Added {fieldLabel}: {formatFieldValue(field, newVal)}</>;
+        }
+        if ((oldVal !== null && oldVal !== undefined) && (newVal === null || newVal === undefined)) {
+          return <>Removed {fieldLabel}: {formatFieldValue(field, oldVal)}</>;
+        }
         return (
           <>
             {fieldLabel}: {formatFieldValue(field, oldVal)} &rarr;{' '}
@@ -156,15 +215,16 @@ export default function PortfolioHistory({
           </>
         );
       }
-      // Multiple fields changed
-      const analysisFields = ['current_situation', 'expected_benefits', 'risks', 'purpose', 'feasibility_review'];
-      const isAnalysisUpdate = fields.every((f) => analysisFields.includes(f));
-      if (isAnalysisUpdate) {
-        const labels = fields.map((f) => FIELD_LABELS[f] || f.replace(/_/g, ' '));
-        return `Analysis updated: ${labels.join(', ')}`;
-      }
-      const labels = fields.map((f) => FIELD_LABELS[f] || f.replace(/_/g, ' '));
-      return `Updated: ${labels.join(', ')}`;
+      return `Updated: ${entries.map(([field, [oldVal, newVal]]) => {
+        const label = formatFieldLabel(field);
+        if ((oldVal === null || oldVal === undefined) && (newVal !== null && newVal !== undefined)) {
+          return `Added ${label}: ${formatFieldValue(field, newVal)}`;
+        }
+        if ((oldVal !== null && oldVal !== undefined) && (newVal === null || newVal === undefined)) {
+          return `Removed ${label}: ${formatFieldValue(field, oldVal)}`;
+        }
+        return `${label}: ${formatFieldValue(field, oldVal)} → ${formatFieldValue(field, newVal)}`;
+      }).join(' | ')}`;
     }
     return 'Activity recorded';
   };
@@ -234,16 +294,19 @@ export default function PortfolioHistory({
             </Typography>
           )}
           {activity.type === 'comment' && activity.content && (
-            <Box
+            <Typography
+              variant="body2"
+              color="text.secondary"
               sx={{
                 mt: 0.5,
                 pl: 1,
-                maxHeight: 60,
+                whiteSpace: 'nowrap',
                 overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
-              <RichTextContent content={activity.content} variant="compact" />
-            </Box>
+              {toCommentPreview(activity.content)}
+            </Typography>
           )}
         </Box>
       ))}

@@ -646,6 +646,7 @@ export default function TaskWorkspacePage() {
       };
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['task-activities', task.id] });
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || 'Failed to save task');
     } finally {

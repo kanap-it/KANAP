@@ -21,6 +21,16 @@ export class PortfolioDependenciesService extends PortfolioProjectsBaseService {
     super(projectRepo);
   }
 
+  private requireActivityAuthor(userId?: string | null): string {
+    if (!userId) throw new BadRequestException('userId is required for change activity logging');
+    return userId;
+  }
+
+  private formatProjectLabel(target: { item_number: number | null; name: string | null }, fallbackId: string): string {
+    const prefix = target.item_number ? `PRJ-${target.item_number}: ` : 'Project: ';
+    return `${prefix}${target.name || fallbackId}`;
+  }
+
   /**
    * Link a source request to a project.
    */
@@ -108,6 +118,7 @@ export class PortfolioDependenciesService extends PortfolioProjectsBaseService {
     opts?: ServiceOpts,
   ) {
     const mg = this.getManager(opts);
+    const actorId = this.requireActivityAuthor(opts?.userId);
 
     // Projects can only depend on other projects
     if (targetType !== 'project') {
@@ -139,6 +150,16 @@ export class PortfolioDependenciesService extends PortfolioProjectsBaseService {
     });
     await repo.save(entity);
 
+    await this.logActivity(mg, {
+      project_id: projectId,
+      tenant_id: project.tenant_id,
+      author_id: actorId,
+      type: 'change',
+      changed_fields: {
+        dependency: [null, this.formatProjectLabel(target, targetId)],
+      },
+    });
+
     return { ok: true };
   }
 
@@ -153,15 +174,38 @@ export class PortfolioDependenciesService extends PortfolioProjectsBaseService {
   ) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(PortfolioProjectDependency);
+    const actorId = this.requireActivityAuthor(opts?.userId);
+    const project = await this.ensureProject(projectId, mg);
 
     // Projects can only depend on other projects
     if (targetType !== 'project') {
       return { ok: true };
     }
 
+    const existing = await repo.findOne({
+      where: {
+        project_id: projectId,
+        depends_on_project_id: targetId,
+      },
+    });
+    if (!existing) return { ok: true };
+
+    const target = await mg.getRepository(PortfolioProject).findOne({ where: { id: targetId } });
+    const targetLabel = target ? this.formatProjectLabel(target, targetId) : targetId;
+
     await repo.delete({
       project_id: projectId,
       depends_on_project_id: targetId,
+    });
+
+    await this.logActivity(mg, {
+      project_id: projectId,
+      tenant_id: project.tenant_id,
+      author_id: actorId,
+      type: 'change',
+      changed_fields: {
+        dependency: [targetLabel, null],
+      },
     });
 
     return { ok: true };

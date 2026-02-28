@@ -229,6 +229,11 @@ export default function RequestWorkspacePage() {
   }, [data, isCreate]);
 
   React.useEffect(() => {
+    if (isCreate || routeTab !== 'activity') return;
+    void refetch();
+  }, [isCreate, routeTab, refetch]);
+
+  React.useEffect(() => {
     if (!highlightLatestRecommendation) return;
     const timer = window.setTimeout(() => setHighlightLatestRecommendation(false), 4500);
     return () => window.clearTimeout(timer);

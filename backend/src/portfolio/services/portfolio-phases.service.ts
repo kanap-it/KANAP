@@ -46,6 +46,7 @@ export class PortfolioPhasesService extends PortfolioProjectsBaseService {
   ) {
     const mg = this.getManager(opts);
     const phaseRepo = mg.getRepository(PortfolioProjectPhase);
+    if (!userId) throw new BadRequestException('userId is required for change activity logging');
 
     const project = await this.ensureProject(projectId, mg);
 
@@ -83,6 +84,16 @@ export class PortfolioPhasesService extends PortfolioProjectsBaseService {
       { manager: mg },
     );
 
+    await this.logActivity(mg, {
+      project_id: projectId,
+      tenant_id: project.tenant_id,
+      author_id: userId,
+      type: 'change',
+      changed_fields: {
+        phase: [null, saved.name],
+      },
+    });
+
     return saved;
   }
 
@@ -98,6 +109,7 @@ export class PortfolioPhasesService extends PortfolioProjectsBaseService {
     const mg = this.getManager(opts);
     const phaseRepo = mg.getRepository(PortfolioProjectPhase);
     const milestoneRepo = mg.getRepository(PortfolioProjectMilestone);
+    if (!userId) throw new BadRequestException('userId is required for change activity logging');
 
     const phase = await phaseRepo.findOne({ where: { id: phaseId } });
     if (!phase) throw new NotFoundException('Phase not found');
@@ -172,6 +184,26 @@ export class PortfolioPhasesService extends PortfolioProjectsBaseService {
       { manager: mg },
     );
 
+    const changedFields: Record<string, [unknown, unknown]> = {};
+    const prefix = `phase.${saved.id}`;
+    if (before.name !== saved.name) changedFields[`${prefix}.name`] = [before.name, saved.name];
+    if (toYmd(before.planned_start) !== toYmd(saved.planned_start)) {
+      changedFields[`${prefix}.planned_start`] = [toYmd(before.planned_start) || null, toYmd(saved.planned_start) || null];
+    }
+    if (toYmd(before.planned_end) !== toYmd(saved.planned_end)) {
+      changedFields[`${prefix}.planned_end`] = [toYmd(before.planned_end) || null, toYmd(saved.planned_end) || null];
+    }
+    if (before.status !== saved.status) changedFields[`${prefix}.status`] = [before.status, saved.status];
+    if (Object.keys(changedFields).length > 0) {
+      await this.logActivity(mg, {
+        project_id: saved.project_id,
+        tenant_id: saved.tenant_id,
+        author_id: userId,
+        type: 'change',
+        changed_fields: changedFields,
+      });
+    }
+
     return saved;
   }
 
@@ -185,6 +217,7 @@ export class PortfolioPhasesService extends PortfolioProjectsBaseService {
   ) {
     const mg = this.getManager(opts);
     const phaseRepo = mg.getRepository(PortfolioProjectPhase);
+    if (!userId) throw new BadRequestException('userId is required for change activity logging');
 
     const phase = await phaseRepo.findOne({ where: { id: phaseId } });
     if (!phase) throw new NotFoundException('Phase not found');
@@ -203,6 +236,16 @@ export class PortfolioPhasesService extends PortfolioProjectsBaseService {
       },
       { manager: mg },
     );
+
+    await this.logActivity(mg, {
+      project_id: phase.project_id,
+      tenant_id: phase.tenant_id,
+      author_id: userId,
+      type: 'change',
+      changed_fields: {
+        phase: [phase.name, null],
+      },
+    });
 
     return { ok: true };
   }

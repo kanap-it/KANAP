@@ -666,6 +666,7 @@ export class PortfolioCriteriaService {
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const requestRepo = mg.getRepository(PortfolioRequest);
+    if (!userId) throw new BadRequestException('userId is required for change activity logging');
 
     const request = await requestRepo.findOne({ where: { id: requestId } });
     if (!request) throw new NotFoundException('Request not found');
@@ -713,6 +714,29 @@ export class PortfolioCriteriaService {
 
     request.updated_at = new Date();
     const saved = await requestRepo.save(request);
+
+    const changedFields: Record<string, [unknown, unknown]> = {};
+    if (before.priority_override !== saved.priority_override) {
+      changedFields.priority_override = [before.priority_override, saved.priority_override];
+    }
+    if (before.override_value !== saved.override_value) {
+      changedFields.override_value = [before.override_value, saved.override_value];
+    }
+    if (before.override_justification !== saved.override_justification) {
+      changedFields.override_justification = [before.override_justification, saved.override_justification];
+    }
+    if (before.priority_score !== saved.priority_score) {
+      changedFields.priority_score = [before.priority_score, saved.priority_score];
+    }
+    if (Object.keys(changedFields).length > 0) {
+      await mg.getRepository(PortfolioActivity).save({
+        request_id: requestId,
+        tenant_id: tenantId,
+        author_id: userId,
+        type: 'change',
+        changed_fields: changedFields,
+      });
+    }
 
     await this.audit.log({
       table: 'portfolio_requests',
@@ -908,6 +932,7 @@ export class PortfolioCriteriaService {
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const projectRepo = mg.getRepository(PortfolioProject);
+    if (!userId) throw new BadRequestException('userId is required for change activity logging');
 
     const project = await projectRepo.findOne({ where: { id: projectId } });
     if (!project) throw new NotFoundException('Project not found');
@@ -960,6 +985,29 @@ export class PortfolioCriteriaService {
 
     project.updated_at = new Date();
     const saved = await projectRepo.save(project);
+
+    const changedFields: Record<string, [unknown, unknown]> = {};
+    if (before.priority_override !== saved.priority_override) {
+      changedFields.priority_override = [before.priority_override, saved.priority_override];
+    }
+    if (before.override_value !== saved.override_value) {
+      changedFields.override_value = [before.override_value, saved.override_value];
+    }
+    if (before.override_justification !== saved.override_justification) {
+      changedFields.override_justification = [before.override_justification, saved.override_justification];
+    }
+    if (before.priority_score !== saved.priority_score) {
+      changedFields.priority_score = [before.priority_score, saved.priority_score];
+    }
+    if (Object.keys(changedFields).length > 0) {
+      await mg.getRepository(PortfolioActivity).save({
+        project_id: projectId,
+        tenant_id: tenantId,
+        author_id: userId,
+        type: 'change',
+        changed_fields: changedFields,
+      });
+    }
 
     await this.audit.log({
       table: 'portfolio_projects',

@@ -153,6 +153,7 @@ flowchart LR
 - Spend: spend_items, spend_versions, spend_amounts, spend_allocations.
 - Contracts: contracts, contract_spend_items, contract_attachments, contract_links.
 - Tasks: tasks (unified across OPEX and Contracts; easily extensible to other object types via `related_object_type` + `related_object_id`).
+- Portfolio: requests/projects/team/dependencies/phases/milestones/criteria tables plus shared `portfolio_activities` (request/project/task history rows).
 - CAPEX: capex_items, capex_versions, capex_amounts, capex_allocations.
 - RBAC & Billing: roles, role_permissions, user_roles, subscriptions. Role permissions use `tenant_id` to scope under RLS; migration `1778000000000` ensures `role_permissions.tenant_id` matches the parent role's tenant.
 - Audit: audit_log (writes use the request-scoped EntityManager).
@@ -164,6 +165,8 @@ Notes
 - Permission checks (PermissionGuard) and RBAC services execute using the request-scoped EntityManager so RLS applies to permission reads as well.
 - **Multi-role support**: PermissionGuard queries the `user_roles` junction table and computes union permissions across all assigned roles using `PermissionsService.listForRoles()`. This matches the `/auth/me` endpoint behavior and supports users with multiple role assignments.
 - AuditService writes via the request-scoped EntityManager, ensuring audit rows carry the tenant_id and pass RLS policies.
+- `portfolio_activities` has canonical tenant RLS (`FORCE ROW LEVEL SECURITY`) with `USING`/`WITH CHECK` policy `tenant_id = app_current_tenant()` (migration `1830000000000-portfolio-activities-rls-canonical.ts`).
+- Request/project history reads additionally enforce explicit tenant predicates (`a.tenant_id = app_current_tenant()`) in SQL queries as defense in depth.
 
 ### Frontend Permission Gating
 - `ProtectedRoute.tsx` enforces route-level access control by extracting path segments and mapping them to permission resources.

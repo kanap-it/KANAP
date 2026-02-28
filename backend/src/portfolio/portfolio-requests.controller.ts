@@ -308,6 +308,7 @@ export class PortfolioRequestsController {
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.addDependency(id, body.target_type, body.target_id, tenantId, {
       manager: req?.queryRunner?.manager,
+      userId: req.user?.sub ?? null,
     });
   }
 
@@ -323,6 +324,7 @@ export class PortfolioRequestsController {
     const id = await this.resolve(idOrRef, req);
     return this.svc.removeDependency(id, targetType, targetId, {
       manager: req?.queryRunner?.manager,
+      userId: req.user?.sub ?? null,
     });
   }
 
@@ -339,6 +341,7 @@ export class PortfolioRequestsController {
     const id = await this.resolve(idOrRef, req);
     return this.svc.bulkReplaceCapex(id, body?.capex_ids ?? [], {
       manager: req?.queryRunner?.manager,
+      userId: req.user?.sub ?? null,
     });
   }
 
@@ -355,6 +358,7 @@ export class PortfolioRequestsController {
     const id = await this.resolve(idOrRef, req);
     return this.svc.bulkReplaceOpex(id, body?.opex_ids ?? [], {
       manager: req?.queryRunner?.manager,
+      userId: req.user?.sub ?? null,
     });
   }
 

@@ -153,6 +153,7 @@ The frontend implements automatic session management with sliding expiration:
     - Latest recommendation summary card with outcome chip, author/time, rationale preview, status-change preview, and "View in Activity"
     - Legacy `current_situation` and `expected_benefits` render read-only under a collapsed "Previous Analysis" accordion when present
   - Activity tab: Unified view with Comments/History subtabs using PortfolioActivity component
+  - Activity refresh model: entering the Activity tab triggers `refetch()` so freshly written history appears without full page reload
 
 **Projects**
 - List: `frontend/src/pages/portfolio/ProjectsPage.tsx` uses `ServerDataGrid` with progress bar column
@@ -160,6 +161,7 @@ The frontend implements automatic session management with sliding expiration:
   - Tab order: Overview, Activity, Timeline, Progress, Tasks, Team, Scoring, Relations
   - Overview: Rich text purpose field using RichTextEditor
   - Activity tab: Unified view with Comments/History subtabs
+  - Activity refresh model: entering the Activity tab triggers `refetch()` so freshly written history appears without full page reload
   - Tasks tab: `ProjectTasksPanel.tsx` with filtering and navigation-based task creation
   - Timeline tab: Phase/milestone management with "Add Task" button per phase
 
@@ -227,6 +229,9 @@ The frontend implements automatic session management with sliding expiration:
   - Edit functionality: Authors can edit their own comments (not decisions/changes)
   - Shows "(edited)" indicator when comment has been modified
 - `PortfolioHistory.tsx` - Audit trail of field changes and decisions
+  - Renders multi-field diffs with explicit add/remove semantics (`null -> value`, `value -> null`)
+  - Handles phase keys (`phase.<phaseId>.<field>`) with readable labels
+  - Comment cards in History use one-line plain-text previews (HTML stripped); rich text remains in Comments
 
 ### Tasks (Portfolio)
 - Drawer entry under Portfolio, after Projects
@@ -263,7 +268,9 @@ The frontend implements automatic session management with sliding expiration:
     - PEOPLE section: Assignee, Requestor (`creator_id`), Viewers (multi-select via `UserMultiSelect` component)
     - TIME section: "Log Time" button above time spent display (hidden for Contract/OPEX/CAPEX tasks)
     - Components: `TaskSidebar.tsx`, `TaskActivity.tsx`, `TaskAttachments.tsx`, `TaskComments.tsx`, `UnifiedActivityForm.tsx`, `TaskHistory.tsx`, `TaskWorkLog.tsx`, `TaskLogTimeDialog.tsx`
-    - Features: File attachments (drag-and-drop or browse, 20MB limit), time logging with hours/days, unified activity submit flow, comment edit capability (author-only), change history, status validation (cannot mark "Done" without logged time for project tasks)
+    - Features: File attachments (drag-and-drop or browse, 20MB limit), time logging with hours/days, unified activity submit flow, comment edit capability (author-only), expanded change history, status validation (cannot mark "Done" without logged time for project tasks)
+    - Task history refresh model: task mutations invalidate `task-activities` React Query cache (task save, unified submit, and time-entry mutations), so history updates live without full page reload
+    - Task history preview model: comment entries are rendered as one-line plain-text previews (HTML stripped)
   - Create mode: Related object defaults to `Standalone`; users can switch to Project/OPEX/Contract/CAPEX. Classification fields are editable for standalone and project tasks during creation; for project tasks, classification defaults from the parent project.
   - Routes: `/portfolio/tasks` (list), `/portfolio/tasks/:id/:tab` (workspace with overview tab), `/portfolio/tasks/new/:tab` (create)
   - Permissions: `tasks:reader` (view), `tasks:member` (create/edit in non-project contexts), `portfolio_projects:contributor` (save when target context is project), `tasks:admin` (bulk delete)

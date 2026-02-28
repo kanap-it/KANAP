@@ -6,9 +6,12 @@ import { TaskTimeEntry } from './task-time-entry.entity';
 import { AuditService } from '../audit/audit.service';
 import { ItemNumberService } from '../common/item-number.service';
 import { PortfolioProjectPhase } from '../portfolio/portfolio-project-phase.entity';
+import { PortfolioActivity } from '../portfolio/portfolio-activity.entity';
 import { UserTimeAggregateService } from '../portfolio/services/user-time-aggregate.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
+import { TaskActivitiesService } from './task-activities.service';
+import { detectChanges, resolveDisplayNames, TASK_TRACKED_FIELDS, FieldConfig } from '../common/change-detection';
 
 export type RelatedType = 'spend_item' | 'contract' | 'capex_item' | 'project' | null;
 type ProjectDefaults = {
@@ -27,6 +30,7 @@ export class TasksUnifiedService {
     private readonly userTimeAggregateService: UserTimeAggregateService,
     private readonly notifications: NotificationsService,
     private readonly itemNumberService: ItemNumberService,
+    private readonly taskActivitiesSvc: TaskActivitiesService,
   ) {}
 
   /**
@@ -44,6 +48,53 @@ export class TasksUnifiedService {
 
   private hasOwn(payload: Partial<Task>, key: keyof Task): boolean {
     return Object.prototype.hasOwnProperty.call(payload, key);
+  }
+
+  private async resolveRelatedObjectName(
+    type: RelatedType,
+    id: string | null,
+    manager: EntityManager,
+  ): Promise<string | null> {
+    if (!type || !id) return null;
+
+    if (type === 'project') {
+      const [row] = await manager.query(
+        'SELECT item_number, name FROM portfolio_projects WHERE id = $1 LIMIT 1',
+        [id],
+      );
+      if (!row) return id;
+      const prefix = row.item_number ? `PRJ-${row.item_number}: ` : '';
+      return `${prefix}${row.name}`;
+    }
+
+    if (type === 'spend_item') {
+      const [row] = await manager.query(
+        'SELECT product_name FROM spend_items WHERE id = $1 LIMIT 1',
+        [id],
+      );
+      if (!row) return id;
+      return `Spend: ${row.product_name}`;
+    }
+
+    if (type === 'contract') {
+      const [row] = await manager.query(
+        'SELECT name FROM contracts WHERE id = $1 LIMIT 1',
+        [id],
+      );
+      if (!row) return id;
+      return `Contract: ${row.name}`;
+    }
+
+    if (type === 'capex_item') {
+      const [row] = await manager.query(
+        'SELECT description FROM capex_items WHERE id = $1 LIMIT 1',
+        [id],
+      );
+      if (!row) return id;
+      return `CAPEX: ${row.description}`;
+    }
+
+    return id;
   }
 
   private async resolveTargetContext(
@@ -169,6 +220,19 @@ export class TasksUnifiedService {
     }
     const saved = await repo.save(entity);
     await this.audit.log({ table: 'tasks', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager });
+
+    if (target.type === 'project' && target.id) {
+      if (!opts?.tenantId) throw new BadRequestException('tenantId is required for project task activity logging');
+      if (!userId) throw new BadRequestException('userId is required for project task activity logging');
+      await manager.getRepository(PortfolioActivity).save({
+        project_id: target.id,
+        tenant_id: opts.tenantId,
+        author_id: userId,
+        type: 'change',
+        changed_fields: { task_created: [null, saved.title] },
+      });
+    }
+
     return saved;
   }
 
@@ -220,6 +284,14 @@ export class TasksUnifiedService {
     const next = { ...existing, ...payload } as Task;
     const saved = await repo.save(next);
     await this.audit.log({ table: 'tasks', recordId: saved.id, action: 'update', before: existing, after: saved, userId }, { manager });
+
+    const changes = detectChanges(before as unknown as Record<string, unknown>, saved as unknown as Record<string, unknown>, TASK_TRACKED_FIELDS);
+    if (changes.length > 0) {
+      if (!tenantId) throw new BadRequestException('tenantId is required for task change activity logging');
+      if (!userId) throw new BadRequestException('userId is required for task change activity logging');
+      const changedFields = await resolveDisplayNames(changes, TASK_TRACKED_FIELDS, manager);
+      await this.taskActivitiesSvc.logChange(saved.id, changedFields, tenantId, userId, { manager });
+    }
 
     // Fire-and-forget notifications
     if (tenantId) {
@@ -385,6 +457,22 @@ export class TasksUnifiedService {
     const saved = await repo.save(next);
     await this.audit.log({ table: 'tasks', recordId: saved.id, action: 'update', before: existing, after: saved, userId }, { manager });
 
+    const changes = detectChanges(before as unknown as Record<string, unknown>, saved as unknown as Record<string, unknown>, TASK_TRACKED_FIELDS);
+    if (relationChanged) {
+      const oldRelated = await this.resolveRelatedObjectName(before.related_object_type as RelatedType, before.related_object_id, manager);
+      const newRelated = await this.resolveRelatedObjectName(saved.related_object_type as RelatedType, saved.related_object_id, manager);
+      if (oldRelated !== newRelated) {
+        changes.push({ field: 'related_to', before: oldRelated, after: newRelated });
+      }
+    }
+    if (changes.length > 0) {
+      if (!tenantId) throw new BadRequestException('tenantId is required for task change activity logging');
+      if (!userId) throw new BadRequestException('userId is required for task change activity logging');
+      const taskChangeFields: FieldConfig[] = [...TASK_TRACKED_FIELDS, { field: 'related_to' }];
+      const changedFields = await resolveDisplayNames(changes, taskChangeFields, manager);
+      await this.taskActivitiesSvc.logChange(saved.id, changedFields, tenantId, userId, { manager });
+    }
+
     if (relationChanged) {
       await this.userTimeAggregateService.recalculateForTask(saved.id, manager);
     }
@@ -440,7 +528,7 @@ export class TasksUnifiedService {
   async moveTask(
     params: { id: string; next: { type: RelatedType; id: string | null } },
     userId?: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; tenantId?: string },
   ) {
     return this.updateById(
       params.id,
@@ -449,7 +537,7 @@ export class TasksUnifiedService {
         related_object_id: params.next.id,
       } as Partial<Task>,
       userId ?? undefined,
-      { manager: opts?.manager ?? this.repo.manager },
+      { manager: opts?.manager ?? this.repo.manager, tenantId: opts?.tenantId },
     );
   }
 

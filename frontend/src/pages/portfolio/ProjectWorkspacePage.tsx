@@ -195,6 +195,7 @@ function SortablePhaseRow({
           onBlur={async () => {
             try {
               await api.patch(`/portfolio/projects/${projectId}/phases/${phase.id}`, { name: phase.name });
+              await onRefetch();
             } catch {}
           }}
         />
@@ -211,6 +212,7 @@ function SortablePhaseRow({
             setForm({ ...form, phases: newPhases });
             try {
               await api.patch(`/portfolio/projects/${projectId}/phases/${phase.id}`, { planned_start: v || null });
+              await onRefetch();
             } catch {}
           }}
         />
@@ -245,6 +247,7 @@ function SortablePhaseRow({
             setForm({ ...form, phases: newPhases });
             try {
               await api.patch(`/portfolio/projects/${projectId}/phases/${phase.id}`, { status: e.target.value });
+              await onRefetch();
             } catch {}
           }}
         >
@@ -460,6 +463,11 @@ export default function ProjectWorkspacePage() {
       setForm({ ...data });
     }
   }, [data, isCreate]);
+
+  React.useEffect(() => {
+    if (isCreate || routeTab !== 'activity') return;
+    void refetch();
+  }, [isCreate, routeTab, refetch]);
 
   const update = React.useCallback((patch: any) => {
     setDirty(true);
