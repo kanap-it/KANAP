@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res,
+  Body, Controller, Delete, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res,
   UploadedFile, UseGuards, UseInterceptors,
 } from '@nestjs/common';
 import { Response } from 'express';
@@ -16,6 +16,14 @@ import { attachmentMulterOptions, inlineImageMulterOptions } from '../common/upl
 import { contentDisposition } from '../common/content-disposition';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { resolveToUuid } from '../common/resolve-item-id';
+import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
+
+const RANK: Record<PermissionLevel, number> = {
+  reader: 1,
+  contributor: 2,
+  member: 3,
+  admin: 4,
+};
 
 @UseGuards(JwtAuthGuard)
 @Controller('portfolio/requests')
@@ -25,10 +33,45 @@ export class PortfolioRequestsController {
     private readonly csvSvc: PortfolioRequestsCsvService,
     private readonly projectsSvc: PortfolioProjectsService,
     private readonly storage: StorageService,
+    private readonly permissionsSvc: PermissionsService,
   ) {}
 
   private resolve(idOrRef: string, req: any): Promise<string> {
     return resolveToUuid(idOrRef, 'request', req.queryRunner.manager);
+  }
+
+  private async ensureTasksMemberPermission(req: any): Promise<void> {
+    if (req?.isAdmin === true) return;
+
+    const userId = req?.user?.sub;
+    const manager = req?.queryRunner?.manager;
+    if (!userId || !manager) {
+      throw new ForbiddenException('Task conversion permission check failed');
+    }
+
+    const userRows = await manager.query(
+      'SELECT role_id FROM users WHERE id = $1 LIMIT 1',
+      [userId],
+    ) as Array<{ role_id: string | null }>;
+    const userRow = userRows[0];
+    if (!userRow) {
+      throw new ForbiddenException('User not found');
+    }
+
+    const extraRoleRows = await manager.query(
+      'SELECT role_id FROM user_roles WHERE user_id = $1',
+      [userId],
+    ) as Array<{ role_id: string | null }>;
+    const roleIds = Array.from(new Set([
+      userRow.role_id,
+      ...extraRoleRows.map((row) => row.role_id),
+    ].filter(Boolean) as string[]));
+
+    const permissions = await this.permissionsSvc.listForRoles(roleIds, { manager });
+    const tasksLevel = permissions.get('tasks');
+    if (!tasksLevel || RANK[tasksLevel] < RANK.member) {
+      throw new ForbiddenException('tasks:member permission is required');
+    }
   }
 
   // ==================== CRUD ====================
@@ -519,6 +562,22 @@ export class PortfolioRequestsController {
     const id = await this.resolve(idOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.projectsSvc.convertFromRequest(id, body, tenantId, req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Post('from-task/:taskId')
+  async convertFromTask(
+    @Param('taskId') taskIdOrRef: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    await this.ensureTasksMemberPermission(req);
+    const taskId = await resolveToUuid(taskIdOrRef, 'task', req.queryRunner.manager);
+    const tenantId = req?.tenant?.id ?? '';
+    return this.svc.convertFromTask(taskId, body ?? {}, tenantId, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
   }

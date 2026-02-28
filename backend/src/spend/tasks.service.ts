@@ -38,6 +38,8 @@ export interface TaskListItem {
   creator_id: string | null;
   owner_ids: string[];
   viewer_ids: string[];
+  converted_request_id?: string | null;
+  converted_request_item_number?: number | null;
 }
 
 function parsePagination(query: any) {
@@ -294,6 +296,7 @@ export class TasksService {
       LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
       LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
       LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
+      LEFT JOIN portfolio_requests pr_origin ON pr_origin.origin_task_id = t.id
       LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
       LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
       -- Classification JOINs (COALESCE: task value wins, falls back to project)
@@ -392,13 +395,16 @@ export class TasksService {
         comp.name as company_name,
         t.creator_id,
         t.owner_ids,
-        t.viewer_ids
+        t.viewer_ids,
+        pr_origin.id as converted_request_id,
+        pr_origin.item_number as converted_request_item_number
       FROM tasks t
       LEFT JOIN users u ON t.assignee_user_id = u.id
       LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
       LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
       LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
       LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
+      LEFT JOIN portfolio_requests pr_origin ON pr_origin.origin_task_id = t.id
       LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
       LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
       -- Classification JOINs (COALESCE: task value wins, falls back to project)
@@ -604,13 +610,16 @@ export class TasksService {
         comp.name as company_name,
         t.creator_id,
         t.owner_ids,
-        t.viewer_ids
+        t.viewer_ids,
+        pr_origin.id as converted_request_id,
+        pr_origin.item_number as converted_request_item_number
       FROM tasks t
       LEFT JOIN users u ON t.assignee_user_id = u.id
       LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
       LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
       LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
       LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
+      LEFT JOIN portfolio_requests pr_origin ON pr_origin.origin_task_id = t.id
       LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
       LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
       -- Classification JOINs (COALESCE: task value wins, falls back to project)

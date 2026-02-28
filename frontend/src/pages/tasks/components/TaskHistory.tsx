@@ -52,6 +52,7 @@ const FIELD_LABELS: Record<string, string> = {
   stream_id: 'Stream',
   company_id: 'Company',
   related_to: 'Related To',
+  converted_to_request: 'Converted To Request',
   time_hours: 'Time Logged',
 };
 

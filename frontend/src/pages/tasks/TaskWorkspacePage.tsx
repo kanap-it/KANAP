@@ -32,6 +32,7 @@ import { RelatedObjectType } from '../../components/fields/RelatedObjectSelect';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
+import ConvertToRequestDialog from './components/ConvertToRequestDialog';
 import {
   TASK_STATUS_COLORS,
   TASK_STATUS_LABELS,
@@ -88,6 +89,8 @@ interface TaskData {
   stream_name: string | null;
   company_id: string | null;
   company_name: string | null;
+  converted_request_id?: string | null;
+  converted_request_item_number?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -113,6 +116,7 @@ export default function TaskWorkspacePage() {
   const isCreate = id === 'new';
   const canManage = hasLevel('tasks', 'member');
   const canDelete = hasLevel('tasks', 'admin');
+  const canCreateRequest = hasLevel('portfolio_requests', 'member');
   const originProjectId = cleanedSearchParams.get('projectId');
   const projectTasksPath = originProjectId ? `/portfolio/projects/${originProjectId}/tasks` : null;
   const validTaskStatuses = React.useMemo(
@@ -254,6 +258,7 @@ export default function TaskWorkspacePage() {
   });
 
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
+  const [convertToRequestOpen, setConvertToRequestOpen] = React.useState(false);
 
   // Attachments
   const [showUploadArea, setShowUploadArea] = React.useState(false);
@@ -1099,6 +1104,8 @@ export default function TaskWorkspacePage() {
   }
 
   const isProjectTask = task.related_object_type === 'project';
+  const hasConvertedRequest = Boolean(task.converted_request_id);
+  const canConvertToRequest = canManage && canCreateRequest;
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -1134,6 +1141,20 @@ export default function TaskWorkspacePage() {
               size="small"
             >
               Send link
+            </Button>
+            <Button
+              onClick={() => setConvertToRequestOpen(true)}
+              disabled={!canConvertToRequest || hasConvertedRequest}
+              size="small"
+              title={
+                hasConvertedRequest
+                  ? (task.converted_request_item_number
+                    ? `Already converted to REQ-${task.converted_request_item_number}`
+                    : 'Already converted to a request')
+                  : (!canCreateRequest ? 'Requires portfolio_requests:member permission' : undefined)
+              }
+            >
+              Convert to Request
             </Button>
             <IconButton
               aria-label="Previous"
@@ -1413,6 +1434,26 @@ export default function TaskWorkspacePage() {
         itemId={id}
         itemName={title || 'Untitled Task'}
         itemNumber={task?.item_number}
+      />
+      <ConvertToRequestDialog
+        open={convertToRequestOpen}
+        onClose={() => setConvertToRequestOpen(false)}
+        task={{
+          id: task.id,
+          item_number: task.item_number,
+          title: task.title,
+          description: task.description,
+        }}
+        onSuccess={(requestId) => {
+          setConvertToRequestOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+          if (requestId) {
+            navigate(`/portfolio/requests/${requestId}/overview`);
+            return;
+          }
+          void refetch();
+        }}
       />
     </Box>
   );

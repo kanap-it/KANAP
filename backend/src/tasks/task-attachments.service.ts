@@ -113,10 +113,19 @@ export class TaskAttachmentsService {
     const found = await attachRepo.findOne({ where: { id: attachmentId } });
     if (!found) throw new NotFoundException('Attachment not found');
 
-    try {
-      await this.storage.deleteObject(found.storage_path);
-    } catch {
-      // Ignore storage errors during delete
+    const refs = await mg.query<Array<{ exists: number }>>(
+      `SELECT 1 AS exists
+       FROM portfolio_request_attachments
+       WHERE storage_path = $1
+       LIMIT 1`,
+      [found.storage_path],
+    );
+    if (refs.length === 0) {
+      try {
+        await this.storage.deleteObject(found.storage_path);
+      } catch {
+        // Ignore storage errors during delete
+      }
     }
 
     await attachRepo.remove(found);

@@ -4,6 +4,7 @@ export type CompareMode = 'default' | 'date' | 'json' | 'array' | 'number';
 
 type FkTable =
   | 'users'
+  | 'tasks'
   | 'portfolio_task_types'
   | 'portfolio_project_phases'
   | 'portfolio_sources'
@@ -37,6 +38,10 @@ const FK = {
   taskType: {
     table: 'portfolio_task_types' as const,
     expr: 'name',
+  },
+  task: {
+    table: 'tasks' as const,
+    expr: `CONCAT('T-', item_number::text, ': ', COALESCE(title, id::text))`,
   },
   phase: {
     table: 'portfolio_project_phases' as const,
@@ -243,6 +248,7 @@ export const REQUEST_TRACKED_FIELDS: FieldConfig[] = [
   { field: 'purpose' },
   { field: 'requestor_id', fk: FK.user },
   { field: 'target_delivery_date', compare: 'date' },
+  { field: 'origin_task_id', fk: FK.task },
   { field: 'source_id', fk: FK.source },
   { field: 'category_id', fk: FK.category },
   { field: 'stream_id', fk: FK.stream },
@@ -280,4 +286,3 @@ export const PROJECT_TRACKED_FIELDS: FieldConfig[] = [
   { field: 'it_effort_allocation_mode' },
   { field: 'business_effort_allocation_mode' },
 ];
-

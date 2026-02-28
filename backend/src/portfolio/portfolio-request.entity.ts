@@ -77,6 +77,9 @@ export class PortfolioRequest {
   @Column('uuid', { nullable: true })
   department_id!: string | null;
 
+  @Column('uuid', { nullable: true })
+  origin_task_id!: string | null;
+
   @Column('date', { nullable: true })
   target_delivery_date!: Date | null;
 

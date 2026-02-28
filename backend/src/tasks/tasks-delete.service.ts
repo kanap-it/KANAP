@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { Task } from './task.entity';
@@ -32,6 +32,22 @@ export class TasksDeleteService extends BaseDeleteService<Task> {
     const repo = this.getRepo(manager);
     const existing = await repo.findOne({ where: { id: taskId } as any });
     if (!existing) return; // idempotent - no error if not found
+
+    const linkedRequests = await manager.query<Array<{ id: string; item_number: number | null }>>(
+      `SELECT id, item_number
+       FROM portfolio_requests
+       WHERE origin_task_id = $1
+       LIMIT 1`,
+      [taskId],
+    );
+    if (linkedRequests.length > 0) {
+      const requestRef = linkedRequests[0].item_number
+        ? `REQ-${linkedRequests[0].item_number}`
+        : linkedRequests[0].id;
+      throw new ConflictException(
+        `Cannot delete task because it is the origin of request ${requestRef}`,
+      );
+    }
 
     const rows = await manager.query(
       `SELECT DISTINCT user_id,\n              date_trunc('month', logged_at AT TIME ZONE 'UTC')::date AS year_month\n       FROM task_time_entries\n       WHERE task_id = $1\n         AND user_id IS NOT NULL`,

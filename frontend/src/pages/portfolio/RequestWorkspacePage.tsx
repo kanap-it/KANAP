@@ -135,7 +135,7 @@ export default function RequestWorkspacePage() {
   const { data, error, refetch } = useQuery({
     queryKey: ['portfolio-request', id],
     queryFn: async () => {
-      const include = 'team,sponsors,contacts,urls,attachments,activities,company,department,financials,projects,dependencies,business_processes';
+      const include = 'team,sponsors,contacts,urls,attachments,activities,company,department,financials,projects,dependencies,business_processes,origin_task';
       const res = await api.get(`/portfolio/requests/${id}`, { params: { include } });
       return res.data;
     },
@@ -566,6 +566,20 @@ export default function RequestWorkspacePage() {
               <Stack direction="row" spacing={1} alignItems="center">
                 {form?.status && (
                   <Chip label={statusLabel} color={statusColor} size="small" />
+                )}
+                {form?.origin_task?.id && (
+                  <Chip
+                    label={
+                      form.origin_task.item_number
+                        ? `Origin: T-${form.origin_task.item_number}`
+                        : 'Origin: Task'
+                    }
+                    size="small"
+                    variant="outlined"
+                    onClick={() => navigate(`/portfolio/tasks/${form.origin_task.id}/overview`)}
+                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                    title={`Created from task: ${form.origin_task.title || form.origin_task.id}`}
+                  />
                 )}
                 {total > 0 && (
                   <Typography variant="body2" color="text.secondary">

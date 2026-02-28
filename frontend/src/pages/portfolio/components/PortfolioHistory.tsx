@@ -64,6 +64,7 @@ const FIELD_LABELS: Record<string, string> = {
   stream_id: 'Stream',
   requestor_id: 'Requestor',
   target_delivery_date: 'Target Delivery Date',
+  origin_task_id: 'Origin Task',
   company_id: 'Company',
   department_id: 'Department',
   business_sponsor_id: 'Business Sponsor',
@@ -88,6 +89,8 @@ const FIELD_LABELS: Record<string, string> = {
   opex_items: 'OPEX Items',
   phase: 'Phase',
   task_created: 'Task Created',
+  created_from_task: 'Created From Task',
+  converted_to_request: 'Converted To Request',
   it_effort_allocation_mode: 'IT Effort Allocation Mode',
   business_effort_allocation_mode: 'Business Effort Allocation Mode',
 };

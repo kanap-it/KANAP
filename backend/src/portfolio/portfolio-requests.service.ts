@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, EntityManager, ILike, In, Repository, SelectQueryBuilder } from 'typeorm';
+import { Brackets, EntityManager, ILike, In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
 import {
@@ -40,8 +40,18 @@ import { PortfolioCriteriaService } from './portfolio-criteria.service';
 import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
 import { detectChanges, REQUEST_TRACKED_FIELDS, resolveDisplayNames } from '../common/change-detection';
+import { Task } from '../tasks/task.entity';
+import { TaskAttachment } from '../tasks/task-attachment.entity';
+import { TaskActivitiesService } from '../tasks/task-activities.service';
 
 type InvolvementScope = { involvedUserId?: string; involvedTeamId?: string };
+type ConvertFromTaskOverrides = {
+  name?: string;
+  purpose?: string;
+  requestor_id?: string | null;
+  close_task?: boolean;
+  origin_task_url?: string;
+};
 
 const normalizeScopeValue = (value: unknown): string | undefined => {
   if (value === null || value === undefined) return undefined;
@@ -119,6 +129,8 @@ export class PortfolioRequestsService {
     private readonly storage: StorageService,
     @Inject(forwardRef(() => PortfolioCriteriaService))
     private readonly criteriaService: PortfolioCriteriaService,
+    @Inject(forwardRef(() => TaskActivitiesService))
+    private readonly taskActivitiesSvc: TaskActivitiesService,
     private readonly notifications: NotificationsService,
     private readonly itemNumberService: ItemNumberService,
   ) {}
@@ -666,6 +678,24 @@ export class PortfolioRequestsService {
       result.department = departments[0] || null;
     }
 
+    if (include.has('origin_task') && request.origin_task_id) {
+      const originTasks = await mg.query<Array<{
+        id: string;
+        item_number: number | null;
+        title: string | null;
+        task_type_id: string | null;
+        task_type_name: string | null;
+      }>>(
+        `SELECT t.id, t.item_number, t.title, t.task_type_id, tt.name AS task_type_name
+         FROM tasks t
+         LEFT JOIN portfolio_task_types tt ON tt.id = t.task_type_id
+         WHERE t.id = $1
+         LIMIT 1`,
+        [request.origin_task_id],
+      );
+      result.origin_task = originTasks[0] || null;
+    }
+
     // Load URLs
     if (include.has('urls')) {
       result.urls = await mg.query(
@@ -853,6 +883,153 @@ export class PortfolioRequestsService {
     }, { manager: mg });
 
     return saved;
+  }
+
+  async convertFromTask(
+    taskId: string,
+    overrides: ConvertFromTaskOverrides,
+    tenantId: string,
+    userId: string | null,
+    opts?: { manager?: EntityManager },
+  ) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const requestRepo = mg.getRepository(PortfolioRequest);
+    const taskRepo = mg.getRepository(Task);
+    const requestAttachmentRepo = mg.getRepository(PortfolioRequestAttachment);
+    const taskAttachmentRepo = mg.getRepository(TaskAttachment);
+
+    if (!tenantId) throw new BadRequestException('Tenant context is required');
+
+    const task = await taskRepo.findOne({ where: { id: taskId } });
+    if (!task || task.tenant_id !== tenantId) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const existingRequest = await requestRepo.findOne({ where: { origin_task_id: taskId } });
+    if (existingRequest) {
+      const requestRef = existingRequest.item_number ? `REQ-${existingRequest.item_number}` : existingRequest.id;
+      throw new BadRequestException(`Task is already linked to request ${requestRef}`);
+    }
+
+    const hasNameOverride = Object.prototype.hasOwnProperty.call(overrides || {}, 'name');
+    const name = String(hasNameOverride ? (overrides?.name || '') : (task.title || '')).trim();
+    if (!name) throw new BadRequestException('name is required');
+
+    const hasPurposeOverride = Object.prototype.hasOwnProperty.call(overrides || {}, 'purpose');
+    const hasRequestorOverride = Object.prototype.hasOwnProperty.call(overrides || {}, 'requestor_id');
+
+    const request = requestRepo.create({
+      tenant_id: tenantId,
+      name,
+      purpose: hasPurposeOverride
+        ? this.normalizeNullable(overrides?.purpose)
+        : this.normalizeNullable(task.description),
+      requestor_id: hasRequestorOverride ? (overrides?.requestor_id || null) : (userId || task.creator_id || null),
+      source_id: task.source_id || null,
+      category_id: task.category_id || null,
+      stream_id: task.stream_id || null,
+      company_id: task.company_id || null,
+      department_id: null,
+      target_delivery_date: task.due_date || null,
+      status: 'pending_review' as RequestStatus,
+      current_situation: null,
+      expected_benefits: null,
+      risks: null,
+      feasibility_review: this.normalizeFeasibilityReview(null),
+      criteria_values: {},
+      created_by_id: userId,
+      origin_task_id: task.id,
+    });
+
+    request.item_number = await this.itemNumberService.nextItemNumber('request', tenantId, mg);
+    const savedRequest = await requestRepo.save(request);
+
+    await this.audit.log({
+      table: 'portfolio_requests',
+      recordId: savedRequest.id,
+      action: 'create',
+      before: null,
+      after: savedRequest,
+      userId,
+    }, { manager: mg });
+
+    const taskAttachments = await taskAttachmentRepo.find({
+      where: { task_id: task.id, source_field: IsNull() },
+      order: { uploaded_at: 'ASC' },
+    });
+    if (taskAttachments.length > 0) {
+      const toInsert = taskAttachments.map((att) => requestAttachmentRepo.create({
+        tenant_id: tenantId,
+        request_id: savedRequest.id,
+        original_filename: att.original_filename,
+        stored_filename: att.stored_filename,
+        mime_type: att.mime_type,
+        size: att.size,
+        storage_path: att.storage_path,
+        source_field: null,
+      }));
+      await requestAttachmentRepo.save(toInsert);
+    }
+
+    const taskLabel = task.item_number
+      ? `T-${task.item_number}: ${task.title}`
+      : `${task.title || task.id}`;
+    const requestLabel = savedRequest.item_number
+      ? `REQ-${savedRequest.item_number}: ${savedRequest.name}`
+      : `${savedRequest.name || savedRequest.id}`;
+    const originTaskUrl = this.normalizeOriginTaskUrl(overrides?.origin_task_url, task.id, task.item_number);
+    const safeOriginTaskUrl = this.escapeHtml(originTaskUrl);
+
+    await this.logActivity(mg, {
+      request_id: savedRequest.id,
+      tenant_id: tenantId,
+      author_id: userId,
+      type: 'comment',
+      context: 'task_conversion',
+      content: `<p>Link to the originating task: <a href="${safeOriginTaskUrl}">${safeOriginTaskUrl}</a></p>`,
+    });
+
+    await this.logActivity(mg, {
+      request_id: savedRequest.id,
+      tenant_id: tenantId,
+      author_id: userId,
+      type: 'change',
+      changed_fields: { created_from_task: [null, taskLabel] },
+    });
+
+    await this.taskActivitiesSvc.logChange(
+      task.id,
+      { converted_to_request: [null, requestLabel] },
+      tenantId,
+      userId,
+      { manager: mg },
+    );
+
+    if (overrides?.close_task === true && task.status !== 'done') {
+      const beforeTask = { ...task };
+      task.status = 'done';
+      task.updated_at = new Date();
+      const savedTask = await taskRepo.save(task);
+
+      await this.audit.log({
+        table: 'tasks',
+        recordId: savedTask.id,
+        action: 'update',
+        before: beforeTask,
+        after: savedTask,
+        userId,
+      }, { manager: mg });
+
+      await this.taskActivitiesSvc.logChange(
+        task.id,
+        { status: [beforeTask.status, savedTask.status] },
+        tenantId,
+        userId,
+        { manager: mg },
+      );
+    }
+
+    return savedRequest;
   }
 
   // ==================== UPDATE ====================
@@ -1778,10 +1955,17 @@ export class PortfolioRequestsService {
     const attachment = await repo.findOne({ where: { id: attachmentId } });
     if (!attachment) throw new NotFoundException('Attachment not found');
 
-    try {
-      await this.storage.deleteObject(attachment.storage_path);
-    } catch (e) {
-      // Log but don't fail
+    const isReferencedElsewhere = await this.isStoragePathReferencedElsewhere(
+      mg,
+      attachment.storage_path,
+      [attachment.id],
+    );
+    if (!isReferencedElsewhere) {
+      try {
+        await this.storage.deleteObject(attachment.storage_path);
+      } catch (e) {
+        // Log but don't fail
+      }
     }
 
     await repo.delete({ id: attachmentId });
@@ -1924,10 +2108,88 @@ export class PortfolioRequestsService {
   }
 
   // ==================== HELPERS ====================
+  private async isStoragePathReferencedElsewhere(
+    mg: EntityManager,
+    storagePath: string,
+    excludedRequestAttachmentIds: string[] = [],
+  ): Promise<boolean> {
+    const requestRefs = excludedRequestAttachmentIds.length > 0
+      ? await mg.query<Array<{ exists: number }>>(
+          `SELECT 1 AS exists
+           FROM portfolio_request_attachments
+           WHERE storage_path = $1
+             AND id <> ALL($2::uuid[])
+           LIMIT 1`,
+          [storagePath, excludedRequestAttachmentIds],
+        )
+      : await mg.query<Array<{ exists: number }>>(
+          `SELECT 1 AS exists
+           FROM portfolio_request_attachments
+           WHERE storage_path = $1
+           LIMIT 1`,
+          [storagePath],
+        );
+    if (requestRefs.length > 0) return true;
+
+    const projectRefs = await mg.query<Array<{ exists: number }>>(
+      `SELECT 1 AS exists
+       FROM portfolio_project_attachments
+       WHERE storage_path = $1
+       LIMIT 1`,
+      [storagePath],
+    );
+    if (projectRefs.length > 0) return true;
+
+    const taskRefs = await mg.query<Array<{ exists: number }>>(
+      `SELECT 1 AS exists
+       FROM task_attachments
+       WHERE storage_path = $1
+       LIMIT 1`,
+      [storagePath],
+    );
+
+    return taskRefs.length > 0;
+  }
+
   private normalizeNullable(value: unknown): string | null {
     if (value == null) return null;
     const text = String(value).trim();
     return text.length === 0 ? null : text;
+  }
+
+  private normalizeOriginTaskUrl(
+    value: unknown,
+    taskId: string,
+    taskItemNumber: number | null,
+  ): string {
+    const taskLinkId = taskItemNumber ? `T-${taskItemNumber}` : taskId;
+    const fallback = `/portfolio/tasks/${taskLinkId}/overview`;
+    if (value == null) return fallback;
+
+    const text = String(value).trim();
+    if (!text) return fallback;
+
+    if (text.startsWith('/')) return text;
+
+    try {
+      const parsed = new URL(text);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return parsed.toString();
+      }
+    } catch {
+      return fallback;
+    }
+
+    return fallback;
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   private normalizeFeasibilityStatus(value: unknown): FeasibilityReviewStatus {
@@ -2014,11 +2276,20 @@ export class PortfolioRequestsService {
       .getRepository(PortfolioRequestAttachment)
       .find({ where: { request_id: id } });
 
+    const excludedRequestAttachmentIds = attachments.map((att) => att.id);
+
     for (const att of attachments) {
-      try {
-        await this.storage.deleteObject(att.storage_path);
-      } catch {
-        // Log but don't fail — orphaned S3 objects are preferable to a blocked delete
+      const isReferencedElsewhere = await this.isStoragePathReferencedElsewhere(
+        mg,
+        att.storage_path,
+        excludedRequestAttachmentIds,
+      );
+      if (!isReferencedElsewhere) {
+        try {
+          await this.storage.deleteObject(att.storage_path);
+        } catch {
+          // Log but don't fail — orphaned S3 objects are preferable to a blocked delete
+        }
       }
     }
 
