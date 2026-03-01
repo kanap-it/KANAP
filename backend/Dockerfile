@@ -1,4 +1,5 @@
 FROM node:20-alpine
+RUN apk add --no-cache pandoc typst font-noto
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci || npm install

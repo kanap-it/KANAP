@@ -39,6 +39,7 @@ import {
 import { PortfolioCriteriaService } from './portfolio-criteria.service';
 import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
+import { extractInlineImageUrls } from '../common/content-image-urls';
 import { detectChanges, REQUEST_TRACKED_FIELDS, resolveDisplayNames } from '../common/change-detection';
 import { Task } from '../tasks/task.entity';
 import { TaskAttachment } from '../tasks/task-attachment.entity';
@@ -978,7 +979,6 @@ export class PortfolioRequestsService {
       ? `REQ-${savedRequest.item_number}: ${savedRequest.name}`
       : `${savedRequest.name || savedRequest.id}`;
     const originTaskUrl = this.normalizeOriginTaskUrl(overrides?.origin_task_url, task.id, task.item_number);
-    const safeOriginTaskUrl = this.escapeHtml(originTaskUrl);
 
     await this.logActivity(mg, {
       request_id: savedRequest.id,
@@ -986,7 +986,7 @@ export class PortfolioRequestsService {
       author_id: userId,
       type: 'comment',
       context: 'task_conversion',
-      content: `<p>Link to the originating task: <a href="${safeOriginTaskUrl}">${safeOriginTaskUrl}</a></p>`,
+      content: `Link to the originating task: <${originTaskUrl}>`,
     });
 
     await this.logActivity(mg, {
@@ -2065,27 +2065,15 @@ export class PortfolioRequestsService {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequestAttachment);
 
-    // Extract image URLs from content
-    const extractImageUrls = (content: string | null): string[] => {
-      if (!content) return [];
-      const regex = /src="([^"]*\/inline\/[^"]+)"/g;
-      const urls: string[] = [];
-      let match;
-      while ((match = regex.exec(content)) !== null) {
-        urls.push(match[1]);
-      }
-      return urls;
-    };
-
-    const oldUrls = extractImageUrls(oldContent);
-    const newUrls = new Set(extractImageUrls(newContent));
+    const oldUrls = extractInlineImageUrls(oldContent);
+    const newUrls = new Set(extractInlineImageUrls(newContent));
 
     // Find URLs that were in old content but not in new content
     const removedUrls = oldUrls.filter(url => !newUrls.has(url));
 
     for (const url of removedUrls) {
       // Extract attachment ID from URL (pattern: /inline/{tenantSlug}/{attachmentId})
-      const match = url.match(/\/inline\/[^/]+\/([a-f0-9-]+)$/i);
+      const match = url.match(/\/inline\/[^/]+\/([a-f0-9-]+)\/?(?:\?.*)?$/i);
       if (match) {
         const attachmentId = match[1];
         try {

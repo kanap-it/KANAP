@@ -24,8 +24,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import api from '../../api';
 import { useTaskNav } from '../../hooks/useTaskNav';
 import { useClassificationDefaults } from '../../hooks/useClassificationDefaults';
-import { RichTextEditor } from '../../components/RichTextEditor';
 import { useAuth } from '../../auth/AuthContext';
+import ExportButton from '../../components/ExportButton';
 import TaskSidebar from './components/TaskSidebar';
 import TaskActivity from './components/TaskActivity';
 import TaskAttachments, { TaskAttachment } from './components/TaskAttachments';
@@ -33,6 +33,7 @@ import { RelatedObjectType } from '../../components/fields/RelatedObjectSelect';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
+import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
 import ConvertToRequestDialog from './components/ConvertToRequestDialog';
 import {
   TASK_STATUS_COLORS,
@@ -95,6 +96,8 @@ interface TaskData {
   created_at: string;
   updated_at: string;
 }
+
+const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
 export default function TaskWorkspacePage() {
   const navigate = useNavigate();
@@ -302,12 +305,8 @@ export default function TaskWorkspacePage() {
     formData.append('file', file);
     const res = await api.post<{ id: string }>(`/tasks/${id}/attachments`, formData);
     refetchAttachments();
-    // Use inline endpoint which redirects to presigned S3 URL
-    // Include tenant slug for ownership validation (extracted from hostname)
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-    const host = window.location.hostname;
-    const tenantSlug = host.split('.')[0]; // e.g., "lohr" from "lohr.local.cio-assistant.com"
-    return `${baseUrl}/tasks/attachments/${tenantSlug}/${res.data.id}/inline`;
+    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
+    return buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
   };
 
   const handleDeleteAttachment = async (attachmentId: string) => {
@@ -329,47 +328,30 @@ export default function TaskWorkspacePage() {
     return new File([u8arr], filename, { type: mime });
   };
 
-  // Process description to convert base64 images to S3 attachments
-  const convertBase64ImagesToS3 = async (taskId: string, html: string): Promise<string> => {
-    // Match all base64 image sources in the HTML
-    const base64Regex = /<img[^>]+src="(data:image\/[^;]+;base64,[^"]+)"[^>]*>/g;
-    const matches = [...html.matchAll(base64Regex)];
+  // Process description to convert base64 markdown images to S3 attachments
+  const convertBase64ImagesToS3 = async (taskId: string, markdown: string): Promise<string> => {
+    const base64Regex = /!\[[^\]]*\]\((data:image\/[^;]+;base64,[^)]+)\)/g;
+    const matches = [...markdown.matchAll(base64Regex)];
+    if (matches.length === 0) return markdown;
 
-    if (matches.length === 0) {
-      return html; // No base64 images to convert
-    }
-
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-    const host = window.location.hostname;
-    const tenantSlug = host.split('.')[0];
-
-    let updatedHtml = html;
+    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
+    let updatedMarkdown = markdown;
 
     for (let i = 0; i < matches.length; i++) {
-      const match = matches[i];
-      const base64Src = match[1];
-
+      const base64Src = matches[i][1];
       try {
-        // Convert base64 to File
-        const file = base64ToFile(base64Src, `image-${i + 1}.png`);
-
-        // Upload to S3
+        const file = base64ToFile(base64Src, `image-${Date.now()}-${i + 1}.png`);
         const formData = new FormData();
         formData.append('file', file);
         const res = await api.post<{ id: string }>(`/tasks/${taskId}/attachments`, formData);
-
-        // Build S3 URL
-        const s3Url = `${baseUrl}/tasks/attachments/${tenantSlug}/${res.data.id}/inline`;
-
-        // Replace base64 with S3 URL in HTML
-        updatedHtml = updatedHtml.replace(base64Src, s3Url);
+        const s3Url = buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
+        updatedMarkdown = updatedMarkdown.replace(base64Src, s3Url);
       } catch (err) {
         console.error('Failed to upload image to S3:', err);
-        // Keep base64 if upload fails
       }
     }
 
-    return updatedHtml;
+    return updatedMarkdown;
   };
 
   // Initialize form from task data
@@ -1118,18 +1100,27 @@ export default function TaskWorkspacePage() {
           <Box sx={{ flex: 1, overflow: 'auto', p: 3 }} onScroll={handleMainContentScroll}>
             {/* Description */}
             <Box sx={{ mb: contentSpacing.sectionLarge }}>
-              <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                Description
-              </Typography>
-              {initialized ? (
-                <RichTextEditor
-                  value={description}
-                  onChange={(val) => setDescription(val)}
-                  placeholder="Add a description..."
-                  minRows={8}
-                  maxRows={24}
-                  focusNonce={descriptionFocusNonce}
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  Description
+                </Typography>
+                <ExportButton
+                  content={description}
+                  title={title || 'task-description'}
+                  disabled={!description.trim()}
                 />
+              </Stack>
+              {initialized ? (
+                <React.Suspense fallback={<Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                  <MarkdownEditor
+                    value={description}
+                    onChange={(val) => setDescription(val)}
+                    placeholder="Add a description..."
+                    minRows={8}
+                    maxRows={24}
+                    focusNonce={descriptionFocusNonce}
+                  />
+                </React.Suspense>
               ) : (
                 <Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
                   <Typography color="text.secondary">Loading...</Typography>
@@ -1427,19 +1418,28 @@ export default function TaskWorkspacePage() {
         <Box sx={{ flex: 1, overflow: 'auto', p: 3 }} onScroll={handleMainContentScroll}>
           {/* Description */}
           <Box sx={{ mb: contentSpacing.sectionLarge }}>
-            <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-              Description
-            </Typography>
-            {initialized ? (
-              <RichTextEditor
-                value={description}
-                onChange={(val) => { setDescription(val); setDirty(true); }}
-                placeholder="Add a description..."
-                minRows={8}
-                maxRows={24}
-                disabled={!canManage}
-                onImageUpload={handleUploadImage}
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" fontWeight="bold">
+                Description
+              </Typography>
+              <ExportButton
+                content={description}
+                title={title || task.title || 'task-description'}
+                disabled={!description.trim()}
               />
+            </Stack>
+            {initialized ? (
+              <React.Suspense fallback={<Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                <MarkdownEditor
+                  value={description}
+                  onChange={(val) => { setDescription(val); setDirty(true); }}
+                  placeholder="Add a description..."
+                  minRows={8}
+                  maxRows={24}
+                  disabled={!canManage}
+                  onImageUpload={handleUploadImage}
+                />
+              </React.Suspense>
             ) : (
               <Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
                 <Typography color="text.secondary">Loading...</Typography>

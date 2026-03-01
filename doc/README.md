@@ -17,8 +17,8 @@ This folder hosts the project documentation. Files here are Markdown (`.md`) unl
 ## 🚀 Getting Started
 
 **New to the project?**
-1. Read [planning/product-vision.md](planning/product-vision.md) - High-level vision and goals
-2. Read [planning/v1-plan.md](planning/v1-plan.md) - Current implementation status and V1 scope
+1. Read [planning/product-vision.md](product-vision.md) - High-level vision and goals
+2. Read [planning/v1-plan.md](v1-plan.md) - Current implementation status and V1 scope
 3. Follow [setup/dev-setup.md](setup/dev-setup.md) - Set up your local environment
 4. Review [setup/contributing.md](setup/contributing.md) - Contribution guidelines
 
@@ -103,10 +103,10 @@ User-facing on-premise guides are in `/help/docs/en/on-premise/` (published to [
 - **[database-indexes.md](database/database-indexes.md)**: Performance indexes, monitoring, troubleshooting (consolidated guide with quick start)
 
 ### `/planning` - Product Planning & Vision
-- **[product-vision.md](planning/product-vision.md)**: Purpose, personas, outcomes, guiding principles
-- **[v1-plan.md](planning/v1-plan.md)**: V1 scope, timeline, implementation status, acceptance criteria (consolidated V1 spec + implementation plan)
-- **[requirements.md](planning/requirements.md)**: Functional requirements and constraints
-- **[roadmap.md](planning/roadmap.md)**: Near-term milestones and backlog themes
+- **[product-vision.md](product-vision.md)**: Purpose, personas, outcomes, guiding principles
+- **[v1-plan.md](v1-plan.md)**: V1 scope, timeline, implementation status, acceptance criteria (consolidated V1 spec + implementation plan)
+- **[requirements.md](requirements.md)**: Functional requirements and constraints
+- **[roadmap.md](roadmap.md)**: Near-term milestones and backlog themes
 - **[evaluation.md](planning/evaluation.md)**: Quality criteria and metrics
 - **[security.md](planning/security.md)**: Threat model, controls, authentication/authorization
 
@@ -262,7 +262,7 @@ Shared hooks and components for consistency:
 None - V1+ features complete
 
 ### Planned
-See [planning/roadmap.md](planning/roadmap.md)
+See [planning/roadmap.md](roadmap.md)
 
 ---
 

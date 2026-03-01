@@ -105,3 +105,7 @@ export type {
   CreateConnectionInput,
   UpdateConnectionInput,
 } from './endpoints/interfaces';
+
+// Document export
+export { exportDocument } from './endpoints/export';
+export type { DocumentExportFormat, ExportDocumentInput, ExportDocumentResult } from './endpoints/export';

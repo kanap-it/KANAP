@@ -22,8 +22,8 @@ import CompanySelect from '../../components/fields/CompanySelect';
 import DepartmentSelect from '../../components/fields/DepartmentSelect';
 import DateEUField from '../../components/fields/DateEUField';
 import EnumAutocomplete from '../../components/fields/EnumAutocomplete';
-import { RichTextEditor } from '../../components/RichTextEditor';
-import { RichTextContent } from '../../components/RichTextContent';
+import ExportButton from '../../components/ExportButton';
+import { MarkdownContent } from '../../components/MarkdownContent';
 import ConvertToProjectDialog from './components/ConvertToProjectDialog';
 import StatusChangeDialog from './components/StatusChangeDialog';
 import PortfolioActivity from './components/PortfolioActivity';
@@ -40,6 +40,8 @@ import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
 
 type TabKey = 'overview' | 'analysis' | 'scoring' | 'team' | 'relations' | 'activity';
+
+const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'overview', label: 'Overview' },
@@ -114,7 +116,10 @@ const DECISION_OUTCOME_COLORS: Record<string, 'default' | 'success' | 'error' | 
 
 const hasRichTextContent = (value: unknown): boolean => {
   if (value == null) return false;
-  const text = String(value).replace(/<[^>]*>/g, '').trim();
+  const text = String(value)
+    .replace(/<[^>]*>/g, '')
+    .replace(/[#*_~`>\-\[\]()!|]/g, '')
+    .trim();
   return text.length > 0;
 };
 
@@ -771,17 +776,26 @@ export default function RequestWorkspacePage() {
                 />
               )}
               <Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                  Purpose
-                </Typography>
-                <RichTextEditor
-                  value={form?.purpose || ''}
-                  onChange={(v) => update({ purpose: v })}
-                  placeholder="Describe the purpose of this request..."
-                  minRows={12}
-                  maxRows={24}
-                  onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'purpose') : undefined}
-                />
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Purpose
+                  </Typography>
+                  <ExportButton
+                    content={form?.purpose || ''}
+                    title={form?.name || 'request-purpose'}
+                    disabled={!String(form?.purpose || '').trim()}
+                  />
+                </Stack>
+                <React.Suspense fallback={<Box sx={{ minHeight: 12 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                  <MarkdownEditor
+                    value={form?.purpose || ''}
+                    onChange={(v) => update({ purpose: v })}
+                    placeholder="Describe the purpose of this request..."
+                    minRows={12}
+                    maxRows={24}
+                    onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'purpose') : undefined}
+                  />
+                </React.Suspense>
               </Box>
               <EnumAutocomplete
                 label="Source"
@@ -867,15 +881,17 @@ export default function RequestWorkspacePage() {
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                   Risks & Mitigations
                 </Typography>
-                <RichTextEditor
-                  value={form?.risks || ''}
-                  onChange={(v) => update({ risks: v })}
-                  placeholder="List key residual risks, mitigation actions, and responsible owners..."
-                  minRows={10}
-                  maxRows={22}
-                  disabled={!canManage}
-                  onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'risks') : undefined}
-                />
+                <React.Suspense fallback={<Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                  <MarkdownEditor
+                    value={form?.risks || ''}
+                    onChange={(v) => update({ risks: v })}
+                    placeholder="List key residual risks, mitigation actions, and responsible owners..."
+                    minRows={10}
+                    maxRows={22}
+                    disabled={!canManage}
+                    onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'risks') : undefined}
+                  />
+                </React.Suspense>
               </Box>
 
               <Box
@@ -949,7 +965,7 @@ export default function RequestWorkspacePage() {
                       )}
                       {hasRichTextContent(latestAnalysisRecommendation.content) && (
                         <Box sx={{ mt: 1, maxHeight: 140, overflow: 'hidden' }}>
-                          <RichTextContent content={latestAnalysisRecommendation.content} variant="compact" />
+                          <MarkdownContent content={latestAnalysisRecommendation.content} variant="compact" />
                         </Box>
                       )}
                     </Box>
@@ -973,7 +989,7 @@ export default function RequestWorkspacePage() {
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                             Current Situation
                           </Typography>
-                          <RichTextContent content={form?.current_situation} />
+                          <MarkdownContent content={form?.current_situation} />
                         </Box>
                       )}
                       {hasRichTextContent(form?.expected_benefits) && (
@@ -981,7 +997,7 @@ export default function RequestWorkspacePage() {
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                             Expected Benefits
                           </Typography>
-                          <RichTextContent content={form?.expected_benefits} />
+                          <MarkdownContent content={form?.expected_benefits} />
                         </Box>
                       )}
                     </Stack>

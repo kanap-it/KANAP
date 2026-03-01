@@ -2,10 +2,12 @@ import React from 'react';
 import { Alert, Box, Button, Slider, Stack, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../../../api';
-import { RichTextEditor } from '../../../components/RichTextEditor';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
+import { contentToPlainText } from '../../../utils/contentToPlainText';
 import { TASK_STATUS_LABELS, TASK_STATUS_OPTIONS } from '../task.constants';
 import type { TaskStatus } from '../task.constants';
+
+const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
 
 const TIME_LOGGING_EXCLUDED_TYPES = ['contract', 'spend_item', 'capex_item'];
 
@@ -20,12 +22,6 @@ interface UnifiedActivityFormProps {
   initialStatus?: TaskStatus | null;
   focusNonce?: number;
   onImageUpload?: (file: File) => Promise<string>;
-}
-
-function getRichTextPlainText(html: string): string {
-  if (!html) return '';
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return (doc.body.textContent || '').replace(/\u00a0/g, ' ').trim();
 }
 
 export default function UnifiedActivityForm({
@@ -69,7 +65,7 @@ export default function UnifiedActivityForm({
     initialAppliedRef.current = initialStatus;
   }, [initialStatus, currentStatus]);
 
-  const plainComment = getRichTextPlainText(comment);
+  const plainComment = contentToPlainText(comment);
   const hasComment = plainComment.length > 0;
   const hasStatusChange = !!status && status !== currentStatus;
   const hasTime = supportsTimeLogging && timeHours > 0;
@@ -144,16 +140,18 @@ export default function UnifiedActivityForm({
     <Stack spacing={1.5}>
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
 
-      <RichTextEditor
-        value={comment}
-        onChange={setComment}
-        placeholder="Write a comment..."
-        minRows={6}
-        maxRows={18}
-        disabled={submitting || readOnly}
-        focusNonce={focusNonce}
-        onImageUpload={onImageUpload}
-      />
+      <React.Suspense fallback={<Box sx={{ minHeight: 6 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+        <MarkdownEditor
+          value={comment}
+          onChange={setComment}
+          placeholder="Write a comment..."
+          minRows={6}
+          maxRows={18}
+          disabled={submitting || readOnly}
+          focusNonce={focusNonce}
+          onImageUpload={onImageUpload}
+        />
+      </React.Suspense>
 
       <Box
         sx={{

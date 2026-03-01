@@ -18,8 +18,9 @@ import {
   Typography,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
-import { RichTextEditor } from '../../../components/RichTextEditor';
-import { RichTextContent } from '../../../components/RichTextContent';
+import { MarkdownContent } from '../../../components/MarkdownContent';
+
+const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
 
 const DECISION_OUTCOME_LABELS: Record<string, string> = {
   go: 'Go',
@@ -136,7 +137,7 @@ export default function PortfolioComments({
       setIsDecision(false);
       setDecisionOutcome('');
       setNewStatus('');
-      setEditorKey((k) => k + 1); // Force RichTextEditor to re-render with empty content
+      setEditorKey((k) => k + 1); // Force editor remount with empty content
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || 'Failed to add comment');
     } finally {
@@ -297,20 +298,22 @@ export default function PortfolioComments({
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                 {isDecision ? 'Rationale / Notes' : 'Add a comment'}
               </Typography>
-              <RichTextEditor
-                key={editorKey}
-                value={commentContent}
-                onChange={setCommentContent}
-                placeholder={
-                  isDecision
-                    ? 'Explain the decision rationale...'
-                    : 'Share your thoughts, updates, or questions...'
-                }
-                minRows={6}
-                maxRows={12}
-                disabled={submitting}
-                onImageUpload={onImageUpload ? handleImageUpload : undefined}
-              />
+              <React.Suspense fallback={<Box sx={{ minHeight: 6 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                <MarkdownEditor
+                  key={editorKey}
+                  value={commentContent}
+                  onChange={setCommentContent}
+                  placeholder={
+                    isDecision
+                      ? 'Explain the decision rationale...'
+                      : 'Share your thoughts, updates, or questions...'
+                  }
+                  minRows={6}
+                  maxRows={12}
+                  disabled={submitting}
+                  onImageUpload={onImageUpload ? handleImageUpload : undefined}
+                />
+              </React.Suspense>
             </Box>
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -442,15 +445,17 @@ export default function PortfolioComments({
                   )}
                   {editingId === a.id ? (
                     <Box sx={{ mt: 1 }}>
-                      <RichTextEditor
-                        value={editContent}
-                        onChange={setEditContent}
-                        placeholder="Edit your comment..."
-                        minRows={4}
-                        maxRows={10}
-                        disabled={editSubmitting}
-                        onImageUpload={onImageUpload ? handleImageUpload : undefined}
-                      />
+                      <React.Suspense fallback={<Box sx={{ minHeight: 4 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                        <MarkdownEditor
+                          value={editContent}
+                          onChange={setEditContent}
+                          placeholder="Edit your comment..."
+                          minRows={4}
+                          maxRows={10}
+                          disabled={editSubmitting}
+                          onImageUpload={onImageUpload ? handleImageUpload : undefined}
+                        />
+                      </React.Suspense>
                       <Stack direction="row" spacing={1} sx={{ mt: 1, justifyContent: 'flex-end' }}>
                         <Button
                           size="small"
@@ -471,7 +476,7 @@ export default function PortfolioComments({
                     </Box>
                   ) : a.content ? (
                     <Box sx={{ mt: 0.5 }}>
-                      <RichTextContent content={a.content} variant="compact" />
+                      <MarkdownContent content={a.content} variant="compact" />
                     </Box>
                   ) : null}
                   {a.type === 'decision' && a.changed_fields?.status && (

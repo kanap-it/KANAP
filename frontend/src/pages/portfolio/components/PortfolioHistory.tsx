@@ -5,6 +5,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { contentToPlainText } from '../../../utils/contentToPlainText';
 
 const DECISION_OUTCOME_LABELS: Record<string, string> = {
   go: 'Go',
@@ -101,17 +102,8 @@ const humanize = (field: string) =>
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (s) => s.toUpperCase());
 
-const toPlainText = (value: string): string => {
-  if (!value) return '';
-  const doc = new DOMParser().parseFromString(value, 'text/html');
-  return (doc.body.textContent || '')
-    .replace(/\u00a0/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-};
-
 const toCommentPreview = (value: string, maxLen = 180): string => {
-  const text = toPlainText(value);
+  const text = contentToPlainText(value);
   if (!text) return '';
   if (text.length <= maxLen) return text;
   return `${text.substring(0, maxLen)}...`;
@@ -160,9 +152,9 @@ export default function PortfolioHistory({
     if (field.endsWith('_date') || field === 'planned_start' || field === 'planned_end') {
       return value ? new Date(String(value)).toLocaleDateString('en-GB') : '(none)';
     }
-    // For long HTML content, show truncated preview
-    if (typeof value === 'string' && value.startsWith('<')) {
-      const textOnly = value.replace(/<[^>]*>/g, '').trim();
+    // For rich text content, show truncated plain-text preview
+    if (typeof value === 'string') {
+      const textOnly = contentToPlainText(value);
       if (textOnly.length > 50) {
         return textOnly.substring(0, 50) + '...';
       }

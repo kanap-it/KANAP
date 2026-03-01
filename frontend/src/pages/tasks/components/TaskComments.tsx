@@ -13,11 +13,12 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
-import { RichTextEditor } from '../../../components/RichTextEditor';
-import { RichTextContent } from '../../../components/RichTextContent';
+import { MarkdownContent } from '../../../components/MarkdownContent';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../../utils/inlineImageUrls';
 import UnifiedActivityForm from './UnifiedActivityForm';
 import type { TaskStatus } from '../task.constants';
+
+const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
 
 interface Activity {
   id: string;
@@ -227,15 +228,17 @@ export default function TaskComments({
                 </Stack>
                 {editingId === comment.id ? (
                   <Box sx={{ mt: 1 }}>
-                    <RichTextEditor
-                      value={editContent}
-                      onChange={setEditContent}
-                      placeholder="Edit your comment..."
-                      minRows={4}
-                      maxRows={10}
-                      disabled={editSubmitting}
-                      onImageUpload={handleUploadImage}
-                    />
+                    <React.Suspense fallback={<Box sx={{ minHeight: 4 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                      <MarkdownEditor
+                        value={editContent}
+                        onChange={setEditContent}
+                        placeholder="Edit your comment..."
+                        minRows={4}
+                        maxRows={10}
+                        disabled={editSubmitting}
+                        onImageUpload={handleUploadImage}
+                      />
+                    </React.Suspense>
                     <Stack direction="row" spacing={1} sx={{ mt: 1, justifyContent: 'flex-end' }}>
                       <Button
                         size="small"
@@ -256,7 +259,7 @@ export default function TaskComments({
                   </Box>
                 ) : (
                   <Box sx={{ mt: 0.5 }}>
-                    <RichTextContent content={comment.content || ''} variant="compact" />
+                    <MarkdownContent content={comment.content || ''} variant="compact" />
                   </Box>
                 )}
               </Box>

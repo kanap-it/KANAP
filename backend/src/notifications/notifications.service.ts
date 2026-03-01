@@ -19,6 +19,7 @@ import {
   EmailContent,
 } from './notification-templates';
 import { renderCommentForEmail } from './comment-email-renderer';
+import { renderMarkdownToHtml } from '../common/markdown-to-html';
 
 type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex';
 type TriggerType = 'status_change' | 'team_added' | 'team_change_as_lead' | 'comment' | 'assignment' | 'expiration_warning';
@@ -630,8 +631,9 @@ export class NotificationsService {
     if (hasComment) {
       const tenantSlug = await this.getTenantSlug(params.tenantId);
       const tenantBaseUrl = this.buildTenantBaseUrl(tenantSlug);
+      const commentAsHtml = renderMarkdownToHtml(trimmedComment);
       const renderedComment = renderCommentForEmail({
-        commentHtml: trimmedComment,
+        commentHtml: commentAsHtml,
         tenantBaseUrl,
         tenantSlug,
       });
@@ -825,8 +827,9 @@ export class NotificationsService {
     const tenantSlug = await this.getTenantSlug(params.tenantId);
     const tenantBaseUrl = this.buildTenantBaseUrl(tenantSlug);
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
+    const commentAsHtml = renderMarkdownToHtml(params.commentContent);
     const renderedComment = renderCommentForEmail({
-      commentHtml: params.commentContent,
+      commentHtml: commentAsHtml,
       tenantBaseUrl,
       tenantSlug,
     });

@@ -7,6 +7,7 @@ import {
   Typography,
 } from '@mui/material';
 import api from '../../../api';
+import { contentToPlainText } from '../../../utils/contentToPlainText';
 import { TASK_STATUS_LABELS } from '../task.constants';
 import type { TaskStatus } from '../task.constants';
 
@@ -62,17 +63,8 @@ const humanize = (field: string) =>
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (s) => s.toUpperCase());
 
-const toPlainText = (value: string): string => {
-  if (!value) return '';
-  const doc = new DOMParser().parseFromString(value, 'text/html');
-  return (doc.body.textContent || '')
-    .replace(/\u00a0/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-};
-
 const toCommentPreview = (value: string, maxLen = 150): string => {
-  const text = toPlainText(value);
+  const text = contentToPlainText(value);
   if (!text) return '';
   if (text.length <= maxLen) return text;
   return `${text.substring(0, maxLen)}...`;

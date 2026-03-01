@@ -14,6 +14,7 @@ import {
   Typography,
 } from '@mui/material';
 import api from '../../../api';
+import { MarkdownContent } from '../../../components/MarkdownContent';
 
 interface ConvertToRequestDialogProps {
   open: boolean;
@@ -97,17 +98,10 @@ export default function ConvertToRequestDialog({
                 p: 1.5,
                 minHeight: 90,
                 bgcolor: 'action.hover',
-                '& p': { my: 0.5 },
-                '& h1': { fontSize: '1.5rem', fontWeight: 600, mt: 2, mb: 1 },
-                '& h2': { fontSize: '1.25rem', fontWeight: 600, mt: 1.5, mb: 0.75 },
-                '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 1, mb: 0.5 },
-                '& ul, & ol': { pl: 3, my: 0.5 },
-                '& li': { my: 0.25 },
-                '& a': { color: 'primary.main', textDecoration: 'underline' },
-                '& img': { maxWidth: '100%', borderRadius: 1, my: 1 },
               }}
-              dangerouslySetInnerHTML={{ __html: task.description || '<p>(No description)</p>' }}
-            />
+            >
+              <MarkdownContent content={task.description || '(No description)'} variant="compact" />
+            </Box>
           </Box>
 
           <FormControlLabel

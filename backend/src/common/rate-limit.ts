@@ -21,4 +21,5 @@ export const RATE_LIMITS = {
   publicStartTrial: { limit: 5, ttl: 10 * 60_000 },
   publicContact: { limit: 5, ttl: 10 * 60_000 },
   publicRequestSupportInvoice: { limit: 3, ttl: 10 * 60_000 },
+  documentExport: { limit: 5, ttl: 60_000 },
 };

@@ -41,7 +41,7 @@ import CompanySelect from '../../components/fields/CompanySelect';
 import DepartmentSelect from '../../components/fields/DepartmentSelect';
 import DateEUField from '../../components/fields/DateEUField';
 import EnumAutocomplete from '../../components/fields/EnumAutocomplete';
-import { RichTextEditor } from '../../components/RichTextEditor';
+import ExportButton from '../../components/ExportButton';
 import StatusChangeDialog from './components/StatusChangeDialog';
 import PortfolioActivity from './components/PortfolioActivity';
 import DependencySelector from './components/DependencySelector';
@@ -58,6 +58,8 @@ import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
 import { formatItemRef } from '../../utils/item-ref';
 import ShareDialog from '../../components/ShareDialog';
+
+const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
 type TabKey = 'overview' | 'scoring' | 'timeline' | 'effort' | 'tasks' | 'team' | 'relations' | 'activity';
 
@@ -967,17 +969,26 @@ export default function ProjectWorkspacePage() {
                 />
               )}
               <Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                  Purpose
-                </Typography>
-                <RichTextEditor
-                  value={form?.purpose || ''}
-                  onChange={(v) => update({ purpose: v })}
-                  placeholder="Describe the purpose of this project..."
-                  minRows={12}
-                  maxRows={24}
-                  onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'purpose') : undefined}
-                />
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Purpose
+                  </Typography>
+                  <ExportButton
+                    content={form?.purpose || ''}
+                    title={form?.name || 'project-purpose'}
+                    disabled={!String(form?.purpose || '').trim()}
+                  />
+                </Stack>
+                <React.Suspense fallback={<Box sx={{ minHeight: 12 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                  <MarkdownEditor
+                    value={form?.purpose || ''}
+                    onChange={(v) => update({ purpose: v })}
+                    placeholder="Describe the purpose of this project..."
+                    minRows={12}
+                    maxRows={24}
+                    onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'purpose') : undefined}
+                  />
+                </React.Suspense>
               </Box>
               {isCreate && (
                 <EnumAutocomplete

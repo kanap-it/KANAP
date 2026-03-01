@@ -10,6 +10,7 @@ import { StorageService } from '../../common/storage/storage.service';
 import { PortfolioProjectsBaseService, ServiceOpts } from './portfolio-projects-base.service';
 import { validateUploadedFile } from '../../common/upload-validation';
 import { fixMulterFilename } from '../../common/upload';
+import { extractInlineImageUrls } from '../../common/content-image-urls';
 
 /**
  * Service for managing project attachments.
@@ -268,27 +269,15 @@ export class PortfolioAttachmentsService extends PortfolioProjectsBaseService {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(PortfolioProjectAttachment);
 
-    // Extract image URLs from content
-    const extractImageUrls = (content: string | null): string[] => {
-      if (!content) return [];
-      const regex = /src="([^"]*\/inline\/[^"]+)"/g;
-      const urls: string[] = [];
-      let match;
-      while ((match = regex.exec(content)) !== null) {
-        urls.push(match[1]);
-      }
-      return urls;
-    };
-
-    const oldUrls = extractImageUrls(oldContent);
-    const newUrls = new Set(extractImageUrls(newContent));
+    const oldUrls = extractInlineImageUrls(oldContent);
+    const newUrls = new Set(extractInlineImageUrls(newContent));
 
     // Find URLs that were in old content but not in new content
     const removedUrls = oldUrls.filter(url => !newUrls.has(url));
 
     for (const url of removedUrls) {
       // Extract attachment ID from URL (pattern: /inline/{tenantSlug}/{attachmentId})
-      const match = url.match(/\/inline\/[^/]+\/([a-f0-9-]+)$/i);
+      const match = url.match(/\/inline\/[^/]+\/([a-f0-9-]+)\/?(?:\?.*)?$/i);
       if (match) {
         const attachmentId = match[1];
         try {

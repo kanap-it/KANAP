@@ -15,7 +15,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { RichTextEditor } from '../../../components/RichTextEditor';
+
+const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
 
 const ANALYSIS_RECOMMENDATION_CONTEXT = 'Analysis Recommendation';
 
@@ -160,16 +161,18 @@ export default function RecommendationDialog({
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
               Rationale
             </Typography>
-            <RichTextEditor
-              key={editorKey}
-              value={rationale}
-              onChange={setRationale}
-              placeholder="Summarize the recommendation, conditions, and key constraints..."
-              minRows={8}
-              maxRows={16}
-              disabled={submitting}
-              onImageUpload={onImageUpload ? handleImageUpload : undefined}
-            />
+            <React.Suspense fallback={<Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+              <MarkdownEditor
+                key={editorKey}
+                value={rationale}
+                onChange={setRationale}
+                placeholder="Summarize the recommendation, conditions, and key constraints..."
+                minRows={8}
+                maxRows={16}
+                disabled={submitting}
+                onImageUpload={onImageUpload ? handleImageUpload : undefined}
+              />
+            </React.Suspense>
           </Box>
 
           <Typography variant="caption" color="text.secondary">

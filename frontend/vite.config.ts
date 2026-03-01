@@ -9,4 +9,9 @@ export default defineConfig({
     // Allow all hosts (lvh.me wildcard + platform admin testing)
     allowedHosts: true,
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    globals: true,
+  },
 });
