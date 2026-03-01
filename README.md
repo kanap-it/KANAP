@@ -43,42 +43,21 @@ KANAP replaces that patchwork with a single platform where costs link to applica
 
 Multi-tenant by design &mdash; single database with RLS isolation, subdomain routing, and RBAC.
 
-## Quick start (development)
-
-**Prerequisites:** Docker and Docker Compose.
-
-```bash
-# Clone and start the dev environment
-git clone https://github.com/kanap-it/kanap.git
-cd kanap/infra
-docker compose up -d
-```
-
-Four services come up (including a local PostgreSQL for development):
-
-| Service | URL |
-|---------|-----|
-| Web (React, hot-reload) | http://localhost:5173 |
-| API (NestJS) | http://localhost:8080 |
-| Database (PostgreSQL, dev only) | localhost:5432 |
-| Marketing site | http://localhost:8082 |
-
-The API container runs database migrations automatically on startup.
-
-See [doc/setup/dev-setup.md](doc/setup/dev-setup.md) for environment configuration and subdomain testing.
-
 ## Self-hosted / on-premise
 
-KANAP supports single-tenant on-premise deployment. You provide your own PostgreSQL, S3-compatible storage, and reverse proxy:
+KANAP on-premise runs in single-tenant mode. You must provide:
+- PostgreSQL 16+ (with `citext`, `pgcrypto`, and `uuid-ossp`)
+- S3-compatible object storage
+- A TLS reverse proxy and domain/DNS
 
 ```bash
 # 1. Clone
 git clone https://github.com/kanap-it/kanap.git
 cd kanap
 
-# 2. Configure
+# 2. Configure before build/start
 cp infra/.env.onprem.example .env
-# Edit .env: set DATABASE_URL, S3 credentials, ADMIN_EMAIL, JWT_SECRET, APP_BASE_URL
+# Edit .env: DATABASE_URL, S3 settings, ADMIN_EMAIL, ADMIN_PASSWORD, JWT secrets, APP_BASE_URL
 
 # 3. Build
 docker build -t kanap-api:latest ./backend
@@ -86,9 +65,17 @@ docker build -t kanap-web:latest ./frontend
 
 # 4. Start
 docker compose -f infra/compose.onprem.yml up -d
+
+# 5. Verify API startup
+docker compose -f infra/compose.onprem.yml logs -f api
 ```
 
-The first boot auto-creates the tenant, admin user, and subscription. See the [on-premise installation guide](https://doc.kanap.net/on-premise/installation/) for full setup including reverse proxy configuration.
+On first boot, KANAP runs migrations and provisions the tenant and admin user from `.env`.
+Your reverse proxy must route `/api/*` to `api:8080` and `/*` to `web:80`, preserve `Host`, and set `X-Forwarded-Proto`.
+
+Full documentation:
+- [On-premise overview](https://doc.kanap.net/on-premise/)
+- [Installation guide](https://doc.kanap.net/on-premise/installation/)
 
 ## Project structure
 
