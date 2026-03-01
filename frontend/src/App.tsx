@@ -255,6 +255,8 @@ function AppRoutes() {
           <Route path="/portfolio/reports/status-change" element={<StatusChangeReport />} />
           <Route path="/portfolio/reports/weekly" element={<WeeklyReport />} />
           <Route path="/portfolio/contributors" element={<PortfolioContributorsPage />} />
+          <Route path="/portfolio/contributors/me" element={<PortfolioContributorWorkspacePage />} />
+          <Route path="/portfolio/contributors/me/:tab" element={<PortfolioContributorWorkspacePage />} />
           <Route path="/portfolio/contributors/:id" element={<PortfolioContributorWorkspacePage />} />
           <Route path="/portfolio/contributors/:id/:tab" element={<PortfolioContributorWorkspacePage />} />
           <Route path="/portfolio/settings" element={<PortfolioSettingsPage />} />

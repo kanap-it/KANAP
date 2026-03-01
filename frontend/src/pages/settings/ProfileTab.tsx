@@ -26,13 +26,8 @@ interface UserProfile {
   mobile_phone: string | null;
 }
 
-interface ContributorConfig {
-  id: string;
-  user_id: string;
-}
-
 export default function ProfileTab() {
-  const { profile } = useAuth();
+  const { hasLevel } = useAuth();
   const queryClient = useQueryClient();
 
   const [firstName, setFirstName] = useState('');
@@ -53,19 +48,14 @@ export default function ProfileTab() {
     },
   });
 
-  // Check if user is a contributor
-  const { data: contributorData } = useQuery({
-    queryKey: ['contributor-check', profile?.id],
-    queryFn: async () => {
-      const res = await api.get('/portfolio/team-members', {
-        params: { user_id: profile?.id },
-      });
-      const items = res.data?.items || [];
-      // Find the contributor config for the current user
-      return items.find((c: ContributorConfig) => c.user_id === profile?.id) as ContributorConfig | undefined;
-    },
-    enabled: !!profile?.id,
-  });
+  const hasAnyPortfolioReader = (
+    hasLevel('tasks', 'reader') ||
+    hasLevel('portfolio_requests', 'reader') ||
+    hasLevel('portfolio_projects', 'reader') ||
+    hasLevel('portfolio_planning', 'reader') ||
+    hasLevel('portfolio_reports', 'reader') ||
+    hasLevel('portfolio_settings', 'reader')
+  );
 
   // Initialize form from user data
   useEffect(() => {
@@ -191,20 +181,19 @@ export default function ProfileTab() {
         </Button>
       </Stack>
 
-      {contributorData && (
+      {hasAnyPortfolioReader && (
         <Card>
           <CardContent>
             <Typography variant="subtitle2" gutterBottom>
               Portfolio Contributor
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              You are registered as a contributor in the portfolio management system.
-              View your contributor profile to manage your skills and availability.
+              Manage your contributor profile, skills, availability, and classification defaults.
             </Typography>
             <Box>
               <Link
                 component={RouterLink}
-                to={`/portfolio/contributors/${contributorData.id}`}
+                to="/portfolio/contributors/me/defaults"
                 sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
               >
                 View Contributor Profile

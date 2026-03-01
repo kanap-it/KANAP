@@ -4,6 +4,42 @@ import { EntityManager, Repository } from 'typeorm';
 import { TeamMemberConfig, SkillProficiency } from './team-member-config.entity';
 import { AuditService } from '../audit/audit.service';
 
+type TeamMemberConfigCreateInput = {
+  user_id: string;
+  areas_of_expertise?: string[];
+  skills?: SkillProficiency[];
+  project_availability?: number;
+  notes?: string;
+  team_id?: string | null;
+  default_source_id?: string | null;
+  default_category_id?: string | null;
+  default_stream_id?: string | null;
+  default_company_id?: string | null;
+};
+
+type TeamMemberConfigUpdateInput = {
+  areas_of_expertise?: string[];
+  skills?: SkillProficiency[];
+  project_availability?: number;
+  notes?: string;
+  team_id?: string | null;
+  default_source_id?: string | null;
+  default_category_id?: string | null;
+  default_stream_id?: string | null;
+  default_company_id?: string | null;
+};
+
+type TeamMemberConfigSelfServiceInput = {
+  areas_of_expertise?: string[];
+  skills?: SkillProficiency[];
+  project_availability?: number;
+  notes?: string;
+  default_source_id?: string | null;
+  default_category_id?: string | null;
+  default_stream_id?: string | null;
+  default_company_id?: string | null;
+};
+
 @Injectable()
 export class TeamMemberConfigService {
   constructor(
@@ -83,16 +119,42 @@ export class TeamMemberConfigService {
     });
   }
 
+  async getMe(userId: string, tenantId: string, opts?: { manager?: EntityManager }) {
+    return this.getByUserId(userId, tenantId, opts);
+  }
+
+  async upsertMe(
+    currentUserId: string,
+    body: TeamMemberConfigSelfServiceInput,
+    tenantId: string,
+    actorUserId: string | null,
+    opts?: { manager?: EntityManager },
+  ) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const repo = mg.getRepository(TeamMemberConfig);
+
+    const existing = await repo.findOne({
+      where: { user_id: currentUserId, tenant_id: tenantId },
+    });
+
+    if (existing) {
+      return this.update(existing.id, body, actorUserId, opts);
+    }
+
+    return this.create(
+      {
+        user_id: currentUserId,
+        ...body,
+      },
+      tenantId,
+      actorUserId,
+      opts,
+    );
+  }
+
   // ==================== CREATE ====================
   async create(
-    body: {
-      user_id: string;
-      areas_of_expertise?: string[];
-      skills?: SkillProficiency[];
-      project_availability?: number;
-      notes?: string;
-      team_id?: string;
-    },
+    body: TeamMemberConfigCreateInput,
     tenantId: string,
     userId: string | null,
     opts?: { manager?: EntityManager },
@@ -107,7 +169,11 @@ export class TeamMemberConfigService {
       skills: body.skills || [],
       project_availability: body.project_availability ?? 5,
       notes: body.notes || null,
-      team_id: body.team_id || undefined,
+      team_id: body.team_id ?? undefined,
+      default_source_id: body.default_source_id ?? null,
+      default_category_id: body.default_category_id ?? null,
+      default_stream_id: body.default_stream_id ?? null,
+      default_company_id: body.default_company_id ?? null,
     });
 
     const saved = await repo.save(entity);
@@ -127,13 +193,7 @@ export class TeamMemberConfigService {
   // ==================== UPDATE ====================
   async update(
     id: string,
-    body: {
-      areas_of_expertise?: string[];
-      skills?: SkillProficiency[];
-      project_availability?: number;
-      notes?: string;
-      team_id?: string | null;
-    },
+    body: TeamMemberConfigUpdateInput,
     userId: string | null,
     opts?: { manager?: EntityManager },
   ) {
@@ -159,6 +219,18 @@ export class TeamMemberConfigService {
     }
     if (body.team_id !== undefined) {
       existing.team_id = body.team_id || undefined;
+    }
+    if (body.default_source_id !== undefined) {
+      existing.default_source_id = body.default_source_id ?? null;
+    }
+    if (body.default_category_id !== undefined) {
+      existing.default_category_id = body.default_category_id ?? null;
+    }
+    if (body.default_stream_id !== undefined) {
+      existing.default_stream_id = body.default_stream_id ?? null;
+    }
+    if (body.default_company_id !== undefined) {
+      existing.default_company_id = body.default_company_id ?? null;
     }
 
     existing.updated_at = new Date();
@@ -368,13 +440,7 @@ export class TeamMemberConfigService {
   // ==================== CREATE OR UPDATE BY USER ====================
   async upsertByUser(
     targetUserId: string,
-    body: {
-      areas_of_expertise?: string[];
-      skills?: SkillProficiency[];
-      project_availability?: number;
-      notes?: string;
-      team_id?: string | null;
-    },
+    body: TeamMemberConfigUpdateInput,
     tenantId: string,
     userId: string | null,
     opts?: { manager?: EntityManager },
@@ -382,7 +448,7 @@ export class TeamMemberConfigService {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(TeamMemberConfig);
 
-    let existing = await repo.findOne({
+    const existing = await repo.findOne({
       where: { user_id: targetUserId, tenant_id: tenantId },
     });
 

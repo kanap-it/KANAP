@@ -34,6 +34,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import api from '../../api';
 import { useProjectNav } from '../../hooks/useProjectNav';
+import { useClassificationDefaults } from '../../hooks/useClassificationDefaults';
 import { useAuth } from '../../auth/AuthContext';
 import UserSelect from '../../components/fields/UserSelect';
 import CompanySelect from '../../components/fields/CompanySelect';
@@ -432,6 +433,14 @@ export default function ProjectWorkspacePage() {
   const relationsPanelRef = React.useRef<ProjectRelationsPanelHandle>(null);
   const scoringEditorRef = React.useRef<ProjectScoringEditorHandle>(null);
   const [scoringDirty, setScoringDirty] = React.useState(false);
+  const classificationTouchedRef = React.useRef({
+    source_id: false,
+    category_id: false,
+    stream_id: false,
+    company_id: false,
+  });
+  const defaultsAppliedRef = React.useRef(false);
+  const { data: classificationDefaults, isLoading: classificationDefaultsLoading } = useClassificationDefaults();
 
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
 
@@ -469,10 +478,72 @@ export default function ProjectWorkspacePage() {
     void refetch();
   }, [isCreate, routeTab, refetch]);
 
+  React.useEffect(() => {
+    if (!isCreate) return;
+    classificationTouchedRef.current = {
+      source_id: false,
+      category_id: false,
+      stream_id: false,
+      company_id: false,
+    };
+    defaultsAppliedRef.current = false;
+  }, [isCreate, id]);
+
   const update = React.useCallback((patch: any) => {
     setDirty(true);
     setForm((prev: any) => ({ ...prev, ...patch }));
   }, []);
+
+  React.useEffect(() => {
+    if (!isCreate || defaultsAppliedRef.current || classificationDefaultsLoading) return;
+    if (!classificationData) return;
+
+    setForm((prev: any) => {
+      const next = { ...(prev || {}) } as any;
+      const isUnset = (value: any) => value === undefined || value === null || value === '';
+      let changed = false;
+
+      const applyField = (
+        field: 'source_id' | 'category_id' | 'company_id',
+        value: string | null,
+      ) => {
+        if (!value) return;
+        if (classificationTouchedRef.current[field]) return;
+        if (!isUnset(next[field])) return;
+        next[field] = value;
+        changed = true;
+      };
+
+      applyField('source_id', classificationDefaults?.source_id ?? null);
+      applyField('category_id', classificationDefaults?.category_id ?? null);
+      applyField('company_id', classificationDefaults?.company_id ?? null);
+
+      const defaultStreamId = classificationDefaults?.stream_id ?? null;
+      if (
+        defaultStreamId &&
+        !classificationTouchedRef.current.stream_id &&
+        isUnset(next.stream_id)
+      ) {
+        const effectiveCategory = isUnset(next.category_id) ? null : next.category_id;
+        const stream = streams.find((s) => s.id === defaultStreamId);
+        const matchesCategory = !stream || !effectiveCategory || stream.category_id === effectiveCategory;
+        if (matchesCategory) {
+          next.stream_id = defaultStreamId;
+          changed = true;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+
+    defaultsAppliedRef.current = true;
+  }, [
+    isCreate,
+    classificationDefaultsLoading,
+    classificationDefaults,
+    classificationData,
+    streams,
+  ]);
 
   const handleSave = async () => {
     setSaveError(null);
@@ -520,6 +591,13 @@ export default function ProjectWorkspacePage() {
     setSaveError(null);
     scoringEditorRef.current?.reset?.();
     relationsPanelRef.current?.reset();
+    classificationTouchedRef.current = {
+      source_id: false,
+      category_id: false,
+      stream_id: false,
+      company_id: false,
+    };
+    defaultsAppliedRef.current = false;
   };
 
   // Handle status change - show dialog for decision logging
@@ -920,19 +998,29 @@ export default function ProjectWorkspacePage() {
               <EnumAutocomplete
                 label="Source"
                 value={form?.source_id || ''}
-                onChange={(v) => update({ source_id: v })}
+                onChange={(v) => {
+                  classificationTouchedRef.current.source_id = true;
+                  update({ source_id: v });
+                }}
                 options={sources.map((t) => ({ value: t.id, label: t.name }))}
               />
               <EnumAutocomplete
                 label="Category"
                 value={form?.category_id || ''}
-                onChange={(v) => update({ category_id: v, stream_id: null })}
+                onChange={(v) => {
+                  classificationTouchedRef.current.category_id = true;
+                  classificationTouchedRef.current.stream_id = true;
+                  update({ category_id: v, stream_id: null });
+                }}
                 options={categories.map((c) => ({ value: c.id, label: c.name }))}
               />
               <EnumAutocomplete
                 label="Stream"
                 value={form?.stream_id || ''}
-                onChange={(v) => update({ stream_id: v })}
+                onChange={(v) => {
+                  classificationTouchedRef.current.stream_id = true;
+                  update({ stream_id: v });
+                }}
                 options={streams
                   .filter((s) => s.category_id === form?.category_id)
                   .map((s) => ({ value: s.id, label: s.name }))}
@@ -941,7 +1029,10 @@ export default function ProjectWorkspacePage() {
               <CompanySelect
                 label="Company"
                 value={form?.company_id || null}
-                onChange={(v) => update({ company_id: v })}
+                onChange={(v) => {
+                  classificationTouchedRef.current.company_id = true;
+                  update({ company_id: v });
+                }}
               />
               <DepartmentSelect
                 label="Department"

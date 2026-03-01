@@ -53,8 +53,12 @@ export default function ProtectedRoute() {
     if (claims.isPlatformAdmin) {
       return <Outlet />;
     }
-    
+
     let resource: string | null = null;
+    const isSelfContributorRoute = (
+      path === '/portfolio/contributors/me' ||
+      path.startsWith('/portfolio/contributors/me/')
+    );
     const adminAliases: Record<string, string> = {
       roles: 'users',
       auth: 'users',
@@ -95,7 +99,20 @@ export default function ProtectedRoute() {
       settings: 'portfolio_settings',
     };
 
-    if (path.startsWith('/admin/')) {
+    if (isSelfContributorRoute) {
+      const hasPortfolioReader = (
+        hasLevel('tasks', 'reader') ||
+        hasLevel('portfolio_requests', 'reader') ||
+        hasLevel('portfolio_projects', 'reader') ||
+        hasLevel('portfolio_planning', 'reader') ||
+        hasLevel('portfolio_reports', 'reader') ||
+        hasLevel('portfolio_settings', 'reader')
+      );
+      if (!hasPortfolioReader) {
+        return <Navigate to="/403" replace />;
+      }
+      resource = null;
+    } else if (path.startsWith('/admin/')) {
       const seg = path.split('/')[2] || null;
       resource = seg ? (adminAliases[seg] || seg) : null;
     } else if (path.startsWith('/ops/')) {

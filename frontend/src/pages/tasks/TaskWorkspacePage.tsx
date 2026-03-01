@@ -23,6 +23,7 @@ import ShareIcon from '@mui/icons-material/Share';
 import CloseIcon from '@mui/icons-material/Close';
 import api from '../../api';
 import { useTaskNav } from '../../hooks/useTaskNav';
+import { useClassificationDefaults } from '../../hooks/useClassificationDefaults';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { useAuth } from '../../auth/AuthContext';
 import TaskSidebar from './components/TaskSidebar';
@@ -182,6 +183,7 @@ export default function TaskWorkspacePage() {
   });
   const [isResizing, setIsResizing] = React.useState(false);
   const sidebarRef = React.useRef<HTMLDivElement>(null);
+  const { data: classificationDefaults, isLoading: classificationDefaultsLoading } = useClassificationDefaults();
 
   // Handle sidebar resize
   React.useEffect(() => {
@@ -553,6 +555,60 @@ export default function TaskWorkspacePage() {
         .catch(() => {});
     }
   }, [isCreate, createRelation.type, createRelation.id]);
+
+  React.useEffect(() => {
+    if (!isCreate || classificationDefaultsLoading) return;
+    const canEditClassification = !createRelation.type || createRelation.type === 'project';
+    if (!canEditClassification) return;
+
+    setForm((prev) => {
+      const next = { ...(prev || {}) } as any;
+      const isUnset = (value: any) => value === undefined || value === null || value === '';
+      let changed = false;
+
+      const applyField = (
+        field: 'source_id' | 'category_id' | 'company_id',
+        value: string | null,
+      ) => {
+        if (!value) return;
+        if (classificationTouchedRef.current[field]) return;
+        if (!isUnset(next[field])) return;
+        next[field] = value;
+        changed = true;
+      };
+
+      applyField('source_id', classificationDefaults?.source_id ?? null);
+      applyField('category_id', classificationDefaults?.category_id ?? null);
+      applyField('company_id', classificationDefaults?.company_id ?? null);
+
+      const defaultStreamId = classificationDefaults?.stream_id ?? null;
+      if (
+        defaultStreamId &&
+        !classificationTouchedRef.current.stream_id &&
+        isUnset(next.stream_id)
+      ) {
+        const currentCategory = isUnset(next.category_id) ? null : next.category_id;
+        const defaultCategory = classificationDefaults?.category_id ?? null;
+        const categoryMismatch = !!currentCategory && !!defaultCategory && currentCategory !== defaultCategory;
+        if (!categoryMismatch) {
+          next.stream_id = defaultStreamId;
+          changed = true;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [
+    isCreate,
+    classificationDefaultsLoading,
+    classificationDefaults,
+    createRelation.type,
+    createRelation.id,
+    form.source_id,
+    form.category_id,
+    form.stream_id,
+    form.company_id,
+  ]);
 
   const handleFieldChange = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));

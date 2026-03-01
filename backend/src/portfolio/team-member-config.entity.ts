@@ -38,6 +38,18 @@ export class TeamMemberConfig {
   @Column('uuid', { nullable: true })
   team_id?: string;
 
+  @Column('uuid', { nullable: true })
+  default_source_id?: string | null;
+
+  @Column('uuid', { nullable: true })
+  default_category_id?: string | null;
+
+  @Column('uuid', { nullable: true })
+  default_stream_id?: string | null;
+
+  @Column('uuid', { nullable: true })
+  default_company_id?: string | null;
+
   @Column('timestamptz', { default: () => 'now()' })
   created_at!: Date;
 

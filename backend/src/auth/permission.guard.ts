@@ -1,7 +1,12 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { DataSource } from 'typeorm';
-import { REQUIRE_LEVEL_KEY, RequireLevelMeta } from './require-level.decorator';
+import {
+  REQUIRE_LEVEL_KEY,
+  REQUIRE_ANY_LEVEL_KEY,
+  RequireAnyLevelMeta,
+  RequireLevelMeta,
+} from './require-level.decorator';
 import { UsersService } from '../users/users.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { UserRole } from '../users/user-role.entity';
@@ -23,11 +28,15 @@ export class PermissionGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const meta = this.reflector.getAllAndOverride<RequireLevelMeta | undefined>(REQUIRE_LEVEL_KEY, [
+    const requiredMeta = this.reflector.getAllAndOverride<RequireLevelMeta | undefined>(REQUIRE_LEVEL_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
-    if (!meta) return true; // no requirement specified
+    const anyMeta = this.reflector.getAllAndOverride<RequireAnyLevelMeta | undefined>(
+      REQUIRE_ANY_LEVEL_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (!requiredMeta && (!anyMeta || anyMeta.length === 0)) return true; // no requirement specified
 
     const req = context.switchToHttp().getRequest();
     const userJwt = req.user as { sub?: string; email?: string; role?: string } | undefined;
@@ -55,21 +64,43 @@ export class PermissionGuard implements CanActivate {
     const isAdmin = roleNames.includes('administrator');
 
     let currentLevel: string | undefined = isAdmin ? 'admin' : undefined;
+    let freezeMeta: RequireLevelMeta | undefined = requiredMeta;
+    if (isAdmin && !requiredMeta && anyMeta && anyMeta.length > 0) {
+      freezeMeta = anyMeta[0];
+    }
 
     // If not administrator, check role-based permissions
     if (!isAdmin) {
       const map = await this.perms.listForRoles(Array.from(roleIds), { manager });
-      const current = map.get(meta.resource);
-      if (!current) return false;
-      if ((RANK[current] ?? 0) < (RANK[meta.level] ?? 99)) return false;
-      currentLevel = current;
+      const hasRequiredLevel = (resource: string, level: string) => {
+        const current = map.get(resource);
+        if (!current) return false;
+        return (RANK[current] ?? 0) >= (RANK[level] ?? 99);
+      };
+
+      if (requiredMeta) {
+        if (!hasRequiredLevel(requiredMeta.resource, requiredMeta.level)) return false;
+        currentLevel = map.get(requiredMeta.resource);
+        freezeMeta = requiredMeta;
+      }
+
+      if (anyMeta && anyMeta.length > 0) {
+        const matchedAny = anyMeta.find((entry) => hasRequiredLevel(entry.resource, entry.level));
+        if (!matchedAny) return false;
+        if (!requiredMeta) {
+          currentLevel = map.get(matchedAny.resource);
+          freezeMeta = matchedAny;
+        }
+      }
     }
 
     req.isAdmin = isAdmin;
     req.permissionLevel = currentLevel;
 
     // --- Freeze enforcement ---
-    await this.enforceFreezeIfNeeded(context, req, user, meta, manager);
+    if (freezeMeta) {
+      await this.enforceFreezeIfNeeded(context, req, user, freezeMeta, manager);
+    }
 
     return true;
   }

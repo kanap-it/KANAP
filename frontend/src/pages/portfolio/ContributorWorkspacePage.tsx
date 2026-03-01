@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert, Autocomplete, Box, Button, Card, CardContent, Collapse, FormControl, IconButton,
@@ -11,6 +11,8 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import PageHeader from '../../components/PageHeader';
 import ChartCard from '../../components/reports/ChartCard';
+import EnumAutocomplete from '../../components/fields/EnumAutocomplete';
+import CompanySelect from '../../components/fields/CompanySelect';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import ContributorTimeLog from './components/ContributorTimeLog';
@@ -44,6 +46,29 @@ interface ContributorConfig {
   notes?: string;
   team_id?: string;
   team_name?: string;
+  default_source_id?: string | null;
+  default_category_id?: string | null;
+  default_stream_id?: string | null;
+  default_company_id?: string | null;
+}
+
+interface ClassificationType {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+interface ClassificationCategory {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+interface ClassificationStream {
+  id: string;
+  name: string;
+  category_id: string;
+  is_active: boolean;
 }
 
 interface TimeStats {
@@ -78,24 +103,43 @@ const formatMonth = (yearMonth: string) => {
   return date.toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
 };
 
-type ContributorTabKey = 'general' | 'skills' | 'time-logged';
+type ContributorTabKey = 'general' | 'skills' | 'time-logged' | 'defaults';
 
 const CONTRIBUTOR_TABS: Array<{ key: ContributorTabKey; label: string }> = [
   { key: 'general', label: 'General' },
   { key: 'skills', label: 'Skills' },
   { key: 'time-logged', label: 'Time Logged' },
+  { key: 'defaults', label: 'Defaults' },
 ];
 
 const isContributorTab = (value: string | undefined): value is ContributorTabKey =>
-  value === 'general' || value === 'skills' || value === 'time-logged';
+  value === 'general' || value === 'skills' || value === 'time-logged' || value === 'defaults';
 
 export default function ContributorWorkspacePage() {
-  const { id, tab } = useParams<{ id: string; tab?: string }>();
+  const location = useLocation();
+  const { id: idParam, tab } = useParams<{ id?: string; tab?: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { hasLevel } = useAuth();
-  const canEdit = hasLevel('portfolio_settings', 'member');
-  const canDelete = hasLevel('portfolio_settings', 'admin');
+  const { hasLevel, profile } = useAuth();
+  const contributorIdFromPath = useMemo(() => {
+    const segments = location.pathname.split('/').filter(Boolean);
+    return segments[2] || undefined;
+  }, [location.pathname]);
+  const contributorId = idParam ?? contributorIdFromPath;
+  const isSelfRoute = contributorId === 'me';
+  const contributorRouteId = contributorId || 'me';
+  const hasAnyPortfolioReader = (
+    hasLevel('tasks', 'reader') ||
+    hasLevel('portfolio_requests', 'reader') ||
+    hasLevel('portfolio_projects', 'reader') ||
+    hasLevel('portfolio_planning', 'reader') ||
+    hasLevel('portfolio_reports', 'reader') ||
+    hasLevel('portfolio_settings', 'reader')
+  );
+  const canEdit = isSelfRoute ? hasAnyPortfolioReader : hasLevel('portfolio_settings', 'member');
+  const canDelete = !isSelfRoute && hasLevel('portfolio_settings', 'admin');
+  const canManageTeams = !isSelfRoute && hasLevel('portfolio_settings', 'member');
+  const canViewTime = hasLevel('portfolio_settings', 'reader');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,31 +149,48 @@ export default function ContributorWorkspacePage() {
   const [notes, setNotes] = useState('');
   const [teamId, setTeamId] = useState<string>('');
   const [selectedSkills, setSelectedSkills] = useState<SkillProficiency[]>([]);
+  const [defaultSourceId, setDefaultSourceId] = useState('');
+  const [defaultCategoryId, setDefaultCategoryId] = useState('');
+  const [defaultStreamId, setDefaultStreamId] = useState('');
+  const [defaultCompanyId, setDefaultCompanyId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const activeTab: ContributorTabKey = isContributorTab(tab) ? tab : 'general';
+  const availableTabs = useMemo(
+    () => CONTRIBUTOR_TABS.filter((tabDef) => (tabDef.key === 'time-logged' ? canViewTime : true)),
+    [canViewTime],
+  );
+  const activeTab: ContributorTabKey = (
+    isContributorTab(tab) && availableTabs.some((tabDef) => tabDef.key === tab)
+  ) ? tab : 'general';
 
   const handleTabChange = useCallback((_: React.SyntheticEvent, nextValue: ContributorTabKey) => {
-    if (!id) return;
-    navigate(`/portfolio/contributors/${id}/${nextValue}`);
-  }, [id, navigate]);
+    navigate(`/portfolio/contributors/${contributorRouteId}/${nextValue}`);
+  }, [contributorRouteId, navigate]);
 
   // Fetch contributor
   const { data: member, isLoading } = useQuery({
-    queryKey: ['portfolio-contributor', id],
+    queryKey: ['portfolio-contributor', contributorRouteId],
     queryFn: async () => {
-      const res = await api.get(`/portfolio/team-members/${id}`);
-      return res.data as ContributorConfig;
+      try {
+        const endpoint = isSelfRoute
+          ? '/portfolio/team-members/me'
+          : `/portfolio/team-members/${contributorId}`;
+        const res = await api.get(endpoint);
+        return (res.data as ContributorConfig) || null;
+      } catch (e: any) {
+        if (isSelfRoute && e?.response?.status === 404) return null;
+        throw e;
+      }
     },
-    enabled: !!id,
+    enabled: isSelfRoute ? hasAnyPortfolioReader : !!contributorId,
   });
 
   const { data: timeStats } = useQuery({
-    queryKey: ['contributor-time-stats', id],
+    queryKey: ['contributor-time-stats', member?.id],
     queryFn: async () => {
-      const res = await api.get(`/portfolio/team-members/${id}/time-stats`);
+      const res = await api.get(`/portfolio/team-members/${member?.id}/time-stats`);
       return res.data as TimeStats;
     },
-    enabled: !!id,
+    enabled: canViewTime && !!member?.id,
   });
 
   // Fetch teams
@@ -139,6 +200,7 @@ export default function ContributorWorkspacePage() {
       const res = await api.get('/portfolio/teams');
       return res.data as Team[];
     },
+    enabled: canManageTeams,
   });
 
   const teams = teamsData || [];
@@ -150,9 +212,30 @@ export default function ContributorWorkspacePage() {
       const res = await api.get('/portfolio/skills');
       return res.data as { items: Skill[]; grouped: Record<string, Skill[]> };
     },
+    enabled: isSelfRoute ? hasAnyPortfolioReader : hasLevel('portfolio_settings', 'reader'),
+  });
+
+  const { data: classificationData } = useQuery({
+    queryKey: ['portfolio-classification'],
+    queryFn: async () => {
+      const res = await api.get('/portfolio/classification/all');
+      return res.data as {
+        sources: ClassificationType[];
+        categories: ClassificationCategory[];
+        streams: ClassificationStream[];
+      };
+    },
+    enabled: activeTab === 'defaults',
   });
 
   const allSkills = skillsData?.items || [];
+  const sources = classificationData?.sources?.filter((t) => t.is_active) || [];
+  const categories = classificationData?.categories?.filter((c) => c.is_active) || [];
+  const streams = classificationData?.streams?.filter((s) => s.is_active) || [];
+  const filteredDefaultStreams = useMemo(() => {
+    if (!defaultCategoryId) return [];
+    return streams.filter((s) => s.category_id === defaultCategoryId);
+  }, [streams, defaultCategoryId]);
 
   // Initialize form from member data
   useEffect(() => {
@@ -162,8 +245,21 @@ export default function ContributorWorkspacePage() {
       setNotes(member.notes || '');
       setTeamId(member.team_id || '');
       setSelectedSkills(member.skills || []);
+      setDefaultSourceId(member.default_source_id || '');
+      setDefaultCategoryId(member.default_category_id || '');
+      setDefaultStreamId(member.default_stream_id || '');
+      setDefaultCompanyId(member.default_company_id || null);
+    } else if (isSelfRoute) {
+      setProjectAvailability(5);
+      setNotes('');
+      setTeamId('');
+      setSelectedSkills([]);
+      setDefaultSourceId('');
+      setDefaultCategoryId('');
+      setDefaultStreamId('');
+      setDefaultCompanyId(null);
     }
-  }, [member]);
+  }, [member, isSelfRoute]);
 
   // Skills that are not yet selected
   const availableSkills = useMemo(() => {
@@ -207,6 +303,17 @@ export default function ContributorWorkspacePage() {
     });
   }, []);
 
+  const handleDefaultCategoryChange = useCallback((nextCategoryId: string) => {
+    setDefaultCategoryId(nextCategoryId);
+    if (!defaultStreamId) return;
+    const streamBelongsToCategory = streams.some(
+      (stream) => stream.id === defaultStreamId && stream.category_id === nextCategoryId,
+    );
+    if (!streamBelongsToCategory) {
+      setDefaultStreamId('');
+    }
+  }, [defaultStreamId, streams]);
+
   // Auto-expand all categories when skills are loaded
   useEffect(() => {
     if (selectedSkills.length > 0 && allSkills.length > 0) {
@@ -221,40 +328,71 @@ export default function ContributorWorkspacePage() {
 
   // Save handler
   const handleSave = useCallback(async () => {
-    if (!id) return;
+    if (!isSelfRoute && !contributorId) return;
     setSaving(true);
     setError(null);
 
     try {
-      await api.patch(`/portfolio/team-members/${id}`, {
+      const endpoint = isSelfRoute
+        ? '/portfolio/team-members/me'
+        : `/portfolio/team-members/${contributorId}`;
+      const payload: Record<string, unknown> = {
         project_availability: projectAvailability,
         notes: notes || null,
-        team_id: teamId || null,
         skills: selectedSkills,
-      });
-      queryClient.invalidateQueries({ queryKey: ['portfolio-contributor', id] });
-      queryClient.invalidateQueries({ queryKey: ['portfolio-contributors'] });
-      queryClient.invalidateQueries({ queryKey: ['portfolio-teams'] });
+        default_source_id: defaultSourceId || null,
+        default_category_id: defaultCategoryId || null,
+        default_stream_id: defaultStreamId || null,
+        default_company_id: defaultCompanyId || null,
+      };
+      if (!isSelfRoute) {
+        payload.team_id = teamId || null;
+      }
+
+      await api.patch(endpoint, payload);
+      queryClient.invalidateQueries({ queryKey: ['portfolio-contributor', contributorRouteId] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-contributor', 'me'] });
+      if (!isSelfRoute) {
+        queryClient.invalidateQueries({ queryKey: ['portfolio-contributors'] });
+        queryClient.invalidateQueries({ queryKey: ['portfolio-teams'] });
+      }
+      if (profile?.id) {
+        queryClient.invalidateQueries({ queryKey: ['classification-defaults', profile.id] });
+      }
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Failed to save');
     } finally {
       setSaving(false);
     }
-  }, [id, projectAvailability, notes, teamId, selectedSkills, queryClient]);
+  }, [
+    contributorId,
+    isSelfRoute,
+    contributorRouteId,
+    projectAvailability,
+    notes,
+    teamId,
+    selectedSkills,
+    defaultSourceId,
+    defaultCategoryId,
+    defaultStreamId,
+    defaultCompanyId,
+    profile?.id,
+    queryClient,
+  ]);
 
   // Delete handler
   const handleDelete = useCallback(async () => {
-    if (!id) return;
+    if (!contributorId || isSelfRoute) return;
     if (!confirm('Remove this contributor configuration?')) return;
 
     try {
-      await api.delete(`/portfolio/team-members/${id}`);
+      await api.delete(`/portfolio/team-members/${contributorId}`);
       queryClient.invalidateQueries({ queryKey: ['portfolio-contributors'] });
       navigate('/portfolio/contributors');
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Failed to delete');
     }
-  }, [id, navigate, queryClient]);
+  }, [contributorId, isSelfRoute, navigate, queryClient]);
 
   // Group selected skills by category
   const selectedSkillsByCategory = useMemo(() => {
@@ -273,13 +411,22 @@ export default function ContributorWorkspacePage() {
     return <Typography>Loading...</Typography>;
   }
 
-  if (!member) {
+  if (!member && !isSelfRoute) {
     return <Typography>Contributor not found</Typography>;
   }
 
+  const contributorTitle = (
+    member?.user_display_name ||
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim() ||
+    member?.user_email ||
+    profile?.email ||
+    'Contributor'
+  );
+  const backPath = isSelfRoute ? '/settings/profile' : '/portfolio/contributors';
+
   const actions = (
     <Stack direction="row" spacing={1}>
-      <IconButton onClick={() => navigate('/portfolio/contributors')} title="Back to list">
+      <IconButton onClick={() => navigate(backPath)} title={isSelfRoute ? 'Back to Settings' : 'Back to list'}>
         <ArrowBackIcon />
       </IconButton>
       {canEdit && (
@@ -306,8 +453,8 @@ export default function ContributorWorkspacePage() {
   return (
     <>
       <PageHeader
-        title={member.user_display_name || member.user_email}
-        breadcrumbTitle={member.user_display_name || member.user_email}
+        title={contributorTitle}
+        breadcrumbTitle={contributorTitle}
         actions={actions}
       />
 
@@ -319,7 +466,7 @@ export default function ContributorWorkspacePage() {
         )}
 
         <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3 }}>
-          {CONTRIBUTOR_TABS.map((tabDef) => (
+          {availableTabs.map((tabDef) => (
             <Tab key={tabDef.key} value={tabDef.key} label={tabDef.label} />
           ))}
         </Tabs>
@@ -327,32 +474,34 @@ export default function ContributorWorkspacePage() {
         {/* General Tab */}
         {activeTab === 'general' && (
           <Stack spacing={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle2" gutterBottom>Team</Typography>
-                <FormControl fullWidth size="small" sx={{ maxWidth: 400 }}>
-                  <InputLabel>Assign to Team</InputLabel>
-                  <Select
-                    value={teamId}
-                    label="Assign to Team"
-                    onChange={(e) => setTeamId(e.target.value)}
-                    disabled={!canEdit}
-                  >
-                    <MenuItem value="">
-                      <em>Unassigned</em>
-                    </MenuItem>
-                    {teams
-                      .filter((t) => t.is_active)
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map((team) => (
-                        <MenuItem key={team.id} value={team.id}>
-                          {team.name}
-                        </MenuItem>
-                      ))}
-                  </Select>
-                </FormControl>
-              </CardContent>
-            </Card>
+            {!isSelfRoute && (
+              <Card>
+                <CardContent>
+                  <Typography variant="subtitle2" gutterBottom>Team</Typography>
+                  <FormControl fullWidth size="small" sx={{ maxWidth: 400 }}>
+                    <InputLabel>Assign to Team</InputLabel>
+                    <Select
+                      value={teamId}
+                      label="Assign to Team"
+                      onChange={(e) => setTeamId(e.target.value)}
+                      disabled={!canManageTeams}
+                    >
+                      <MenuItem value="">
+                        <em>Unassigned</em>
+                      </MenuItem>
+                      {teams
+                        .filter((t) => t.is_active)
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((team) => (
+                          <MenuItem key={team.id} value={team.id}>
+                            {team.name}
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardContent>
@@ -377,47 +526,49 @@ export default function ContributorWorkspacePage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle2" gutterBottom>
-                  Time Statistics
-                </Typography>
-                <Typography variant="body1" sx={{ mb: 2 }}>
-                  Average monthly project effort (last 6 months):{' '}
-                  <strong>{timeStats?.averageProjectDays ?? 0} d/mo</strong>
-                </Typography>
-                {timeStats ? (
-                  timeStats.monthly.length ? (
-                    <ChartCard
-                      title="Monthly Effort (12 months)"
-                      height={280}
-                      options={{
-                        data: timeStats.monthly.map((m) => ({
-                          month: formatMonth(m.yearMonth),
-                          project: m.projectDays,
-                          other: m.otherDays,
-                          total: m.totalDays,
-                        })),
-                        series: [
-                          { type: 'line', xKey: 'month', yKey: 'total', yName: 'Total' },
-                          { type: 'line', xKey: 'month', yKey: 'project', yName: 'Project' },
-                          { type: 'line', xKey: 'month', yKey: 'other', yName: 'Other' },
-                        ],
-                        axes: [
-                          { type: 'category', position: 'bottom' },
-                          { type: 'number', position: 'left', title: { text: 'Man-days' } },
-                        ],
-                        legend: { enabled: true, position: 'bottom' },
-                      }}
-                    />
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      No time data available yet.
-                    </Typography>
-                  )
-                ) : null}
-              </CardContent>
-            </Card>
+            {canViewTime && (
+              <Card>
+                <CardContent>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Time Statistics
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    Average monthly project effort (last 6 months):{' '}
+                    <strong>{timeStats?.averageProjectDays ?? 0} d/mo</strong>
+                  </Typography>
+                  {timeStats ? (
+                    timeStats.monthly.length ? (
+                      <ChartCard
+                        title="Monthly Effort (12 months)"
+                        height={280}
+                        options={{
+                          data: timeStats.monthly.map((m) => ({
+                            month: formatMonth(m.yearMonth),
+                            project: m.projectDays,
+                            other: m.otherDays,
+                            total: m.totalDays,
+                          })),
+                          series: [
+                            { type: 'line', xKey: 'month', yKey: 'total', yName: 'Total' },
+                            { type: 'line', xKey: 'month', yKey: 'project', yName: 'Project' },
+                            { type: 'line', xKey: 'month', yKey: 'other', yName: 'Other' },
+                          ],
+                          axes: [
+                            { type: 'category', position: 'bottom' },
+                            { type: 'number', position: 'left', title: { text: 'Man-days' } },
+                          ],
+                          legend: { enabled: true, position: 'bottom' },
+                        }}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No time data available yet.
+                      </Typography>
+                    )
+                  ) : null}
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardContent>
@@ -547,7 +698,51 @@ export default function ContributorWorkspacePage() {
           </Stack>
         )}
 
-        {activeTab === 'time-logged' && id && <ContributorTimeLog contributorId={id} />}
+        {activeTab === 'defaults' && (
+          <Stack spacing={3}>
+            <Card>
+              <CardContent>
+                <Typography variant="subtitle2" gutterBottom>
+                  Classification Defaults
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  These defaults are used to pre-fill new tasks, requests, and projects when classification fields are still empty.
+                </Typography>
+                <Stack spacing={2} sx={{ maxWidth: 480 }}>
+                  <EnumAutocomplete
+                    label="Source"
+                    value={defaultSourceId}
+                    onChange={(value) => setDefaultSourceId(value)}
+                    options={sources.map((source) => ({ value: source.id, label: source.name }))}
+                    disabled={!canEdit}
+                  />
+                  <EnumAutocomplete
+                    label="Category"
+                    value={defaultCategoryId}
+                    onChange={handleDefaultCategoryChange}
+                    options={categories.map((category) => ({ value: category.id, label: category.name }))}
+                    disabled={!canEdit}
+                  />
+                  <EnumAutocomplete
+                    label="Stream"
+                    value={defaultStreamId}
+                    onChange={(value) => setDefaultStreamId(value)}
+                    options={filteredDefaultStreams.map((stream) => ({ value: stream.id, label: stream.name }))}
+                    disabled={!canEdit || !defaultCategoryId}
+                  />
+                  <CompanySelect
+                    label="Company"
+                    value={defaultCompanyId}
+                    onChange={(value) => setDefaultCompanyId(value)}
+                    disabled={!canEdit}
+                  />
+                </Stack>
+              </CardContent>
+            </Card>
+          </Stack>
+        )}
+
+        {activeTab === 'time-logged' && member?.id && <ContributorTimeLog contributorId={member.id} />}
       </Box>
     </>
   );
