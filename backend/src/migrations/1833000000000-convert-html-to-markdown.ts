@@ -19,24 +19,30 @@ export class ConvertHtmlToMarkdown1833000000000 implements MigrationInterface {
   name = 'ConvertHtmlToMarkdown1833000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    for (const table of TABLES) {
-      const whereAnyContent = table.columns
-        .map((col) => `("${col}" IS NOT NULL AND "${col}" <> '')`)
-        .join(' OR ');
-      const tenantRows = await queryRunner.query(
-        `SELECT DISTINCT tenant_id::text AS tenant_id
-         FROM "${table.table}"
-         WHERE tenant_id IS NOT NULL
-           AND (${whereAnyContent})
-         ORDER BY tenant_id`,
-      ) as Array<{ tenant_id: string }>;
+    const tenants = await queryRunner.query(
+      `SELECT id::text AS id, COALESCE(slug, '')::text AS slug
+       FROM tenants
+       ORDER BY slug`,
+    ) as Array<{ id: string; slug: string }>;
 
+    if (tenants.length === 0) {
+      // eslint-disable-next-line no-console
+      console.log('[migration:1833000000000] no tenants found, nothing to convert');
+      return;
+    }
+
+    for (const table of TABLES) {
       let tableUpdated = 0;
       let tableScanned = 0;
+      let tenantWithDataCount = 0;
 
-      for (const tenantRow of tenantRows) {
-        const tenantId = tenantRow.tenant_id;
+      for (const tenant of tenants) {
+        const tenantId = tenant.id;
+        await queryRunner.query(`SELECT set_config('app.current_tenant', $1, false)`, [tenantId]);
+        await queryRunner.query(`SELECT set_config('app.default_tenant_slug', $1, false)`, [tenant.slug || '']);
+
         let cursorId: string | null = null;
+        let tenantScanned = 0;
 
         while (true) {
           const selectColumns = table.columns.map((col) => `"${col}"`).join(', ');
@@ -57,6 +63,7 @@ export class ConvertHtmlToMarkdown1833000000000 implements MigrationInterface {
           if (rows.length === 0) break;
 
           for (const row of rows) {
+            tenantScanned += 1;
             tableScanned += 1;
             const updates: Array<{ column: string; value: string }> = [];
 
@@ -97,12 +104,16 @@ export class ConvertHtmlToMarkdown1833000000000 implements MigrationInterface {
 
           cursorId = String(rows[rows.length - 1].id);
         }
+
+        if (tenantScanned > 0) {
+          tenantWithDataCount += 1;
+        }
       }
 
       // Keep logs in migration output for rollout verification.
       // eslint-disable-next-line no-console
       console.log(
-        `[migration:1833000000000] ${table.table}: scanned=${tableScanned}, updated=${tableUpdated}, tenants=${tenantRows.length}`,
+        `[migration:1833000000000] ${table.table}: scanned=${tableScanned}, updated=${tableUpdated}, tenantsWithData=${tenantWithDataCount}`,
       );
     }
   }
@@ -111,4 +122,3 @@ export class ConvertHtmlToMarkdown1833000000000 implements MigrationInterface {
     // Irreversible by design: HTML formatting information is intentionally dropped.
   }
 }
-

@@ -9,6 +9,8 @@
     "start": "node dist/main.js",
     "start:migrate": "node ./scripts/migrate-and-start.js",
     "migrate:content:dryrun": "ts-node ./scripts/migrate-content-dryrun.ts",
+    "migrate:content:execute": "ts-node ./scripts/migrate-content-execute.ts",
+    "migrate:content:verify": "ts-node ./scripts/verify-rich-text-markdown.ts",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
     "test:rls": "ts-node ./scripts/rls-self-test.ts",
