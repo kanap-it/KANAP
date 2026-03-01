@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "start:migrate": "node ./scripts/migrate-and-start.js",
+    "migrate:content:dryrun": "ts-node ./scripts/migrate-content-dryrun.ts",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
     "test:rls": "ts-node ./scripts/rls-self-test.ts",
@@ -43,6 +44,7 @@
     "resend": "^6.1.0",
     "speakeasy": "^2.0.0",
     "stripe": "^20.3.1",
+    "turndown": "^7.2.1",
     "typeorm": "^0.3.20",
     "uuid": "^9.0.0",
     "zod": "^3.22.4"
@@ -52,6 +54,7 @@
     "@types/jsonwebtoken": "^9.0.2",
     "@types/multer": "^1.4.11",
     "@types/node": "^20.10.6",
+    "@types/turndown": "^5.0.5",
     "@types/uuid": "^9.0.6",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
