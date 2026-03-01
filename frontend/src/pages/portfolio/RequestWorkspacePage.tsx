@@ -114,7 +114,7 @@ const DECISION_OUTCOME_COLORS: Record<string, 'default' | 'success' | 'error' | 
   analysis_complete: 'info',
 };
 
-const hasRichTextContent = (value: unknown): boolean => {
+const hasContentValue = (value: unknown): boolean => {
   if (value == null) return false;
   const text = String(value)
     .replace(/<[^>]*>/g, '')
@@ -566,7 +566,7 @@ export default function RequestWorkspacePage() {
   const statusColor = STATUS_COLORS[form?.status] || 'default';
   const categoryName = classificationData?.categories?.find((c) => c.id === form?.category_id)?.name;
   const streamName = classificationData?.streams?.find((s) => s.id === form?.stream_id)?.name;
-  const hasLegacyAnalysis = hasRichTextContent(form?.current_situation) || hasRichTextContent(form?.expected_benefits);
+  const hasLegacyAnalysis = hasContentValue(form?.current_situation) || hasContentValue(form?.expected_benefits);
   const analysisRecommendations = React.useMemo(() => {
     const activities = Array.isArray(form?.activities) ? form.activities : [];
     return activities
@@ -786,13 +786,13 @@ export default function RequestWorkspacePage() {
                     disabled={!String(form?.purpose || '').trim()}
                   />
                 </Stack>
-                <React.Suspense fallback={<Box sx={{ minHeight: 12 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                <React.Suspense fallback={<Box sx={{ minHeight: 14 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                   <MarkdownEditor
                     value={form?.purpose || ''}
                     onChange={(v) => update({ purpose: v })}
                     placeholder="Describe the purpose of this request..."
-                    minRows={12}
-                    maxRows={24}
+                    minRows={14}
+                    maxRows={26}
                     onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'purpose') : undefined}
                   />
                 </React.Suspense>
@@ -881,13 +881,13 @@ export default function RequestWorkspacePage() {
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                   Risks & Mitigations
                 </Typography>
-                <React.Suspense fallback={<Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                <React.Suspense fallback={<Box sx={{ minHeight: 12 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                   <MarkdownEditor
                     value={form?.risks || ''}
                     onChange={(v) => update({ risks: v })}
                     placeholder="List key residual risks, mitigation actions, and responsible owners..."
-                    minRows={10}
-                    maxRows={22}
+                    minRows={12}
+                    maxRows={24}
                     disabled={!canManage}
                     onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'risks') : undefined}
                   />
@@ -963,7 +963,7 @@ export default function RequestWorkspacePage() {
                           Status changed: {String(latestRecommendationStatusChange[0] || '')} → {String(latestRecommendationStatusChange[1] || '')}
                         </Typography>
                       )}
-                      {hasRichTextContent(latestAnalysisRecommendation.content) && (
+                      {hasContentValue(latestAnalysisRecommendation.content) && (
                         <Box sx={{ mt: 1, maxHeight: 140, overflow: 'hidden' }}>
                           <MarkdownContent content={latestAnalysisRecommendation.content} variant="compact" />
                         </Box>
@@ -984,7 +984,7 @@ export default function RequestWorkspacePage() {
                   </AccordionSummary>
                   <AccordionDetails>
                     <Stack spacing={2}>
-                      {hasRichTextContent(form?.current_situation) && (
+                      {hasContentValue(form?.current_situation) && (
                         <Box>
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                             Current Situation
@@ -992,7 +992,7 @@ export default function RequestWorkspacePage() {
                           <MarkdownContent content={form?.current_situation} />
                         </Box>
                       )}
-                      {hasRichTextContent(form?.expected_benefits) && (
+                      {hasContentValue(form?.expected_benefits) && (
                         <Box>
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                             Expected Benefits

@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EntityManager, Repository } from 'typeorm';
 import { PortfolioProject, ProjectStatus, ProjectOrigin } from '../portfolio-project.entity';
 import { PortfolioActivity } from '../portfolio-activity.entity';
+import { normalizeMarkdownRichText } from '../../common/markdown-rich-text';
 
 /**
  * Common options for service methods.
@@ -46,9 +47,7 @@ export abstract class PortfolioProjectsBaseService {
   }
 
   protected normalizeNullable(value: unknown): string | null {
-    if (value == null) return null;
-    const text = String(value).trim();
-    return text.length === 0 ? null : text;
+    return normalizeMarkdownRichText(value);
   }
 
   protected normalizeOrigin(value: unknown): ProjectOrigin {

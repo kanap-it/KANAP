@@ -1,5 +1,5 @@
 FROM node:20-alpine
-RUN apk add --no-cache pandoc typst font-noto
+RUN apk add --no-cache pandoc typst fontconfig font-noto ttf-dejavu
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci || npm install

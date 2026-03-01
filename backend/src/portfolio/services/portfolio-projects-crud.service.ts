@@ -18,6 +18,7 @@ import { ShareItemDto } from '../../notifications/dto/share-item.dto';
 import { PortfolioProjectsBaseService, ServiceOpts } from './portfolio-projects-base.service';
 import { computeAutoAllocations } from '../utils/allocation-utils';
 import { detectChanges, PROJECT_TRACKED_FIELDS, resolveDisplayNames } from '../../common/change-detection';
+import { normalizeMarkdownRichText } from '../../common/markdown-rich-text';
 
 /**
  * Service for core CRUD operations on portfolio projects.
@@ -382,7 +383,9 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     const project = projectRepo.create({
       tenant_id: tenantId,
       name: overrides.name || request.name,
-      purpose: overrides.purpose ?? request.purpose,
+      purpose: Object.prototype.hasOwnProperty.call(overrides || {}, 'purpose')
+        ? this.normalizeNullable(overrides.purpose)
+        : this.normalizeNullable(request.purpose),
       source_id: overrides.source_id ?? request.source_id,
       category_id: overrides.category_id ?? request.category_id,
       stream_id: overrides.stream_id ?? request.stream_id,
@@ -571,7 +574,9 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
         tenant_id: tenantId,
         author_id: userId,
         type: isDecision ? 'decision' : 'change',
-        content: isDecision ? (body.decision_rationale || null) : null,
+        content: isDecision
+          ? normalizeMarkdownRichText(body.decision_rationale, { fieldName: 'decision_rationale' })
+          : null,
         context: isDecision ? (body.decision_context || null) : null,
         decision_outcome: isDecision ? (body.decision_outcome as any || null) : null,
         changed_fields: { status: [before.status, saved.status] },

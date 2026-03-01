@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, EntityManager } from 'typeorm';
+import { Repository, EntityManager, DataSource } from 'typeorm';
 import { NotificationPreferences } from './notification-preferences.entity';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -8,12 +8,14 @@ import {
   WorkspaceSettings,
 } from './notifications.constants';
 import { AuditService } from '../audit/audit.service';
+import { withTenant } from '../common/tenant-runner';
 
 @Injectable()
 export class NotificationPreferencesService {
   constructor(
     @InjectRepository(NotificationPreferences)
     private readonly repo: Repository<NotificationPreferences>,
+    private readonly dataSource: DataSource,
     private readonly audit: AuditService,
   ) {}
 
@@ -26,24 +28,15 @@ export class NotificationPreferencesService {
     tenantId: string,
     opts?: { manager?: EntityManager },
   ): Promise<NotificationPreferencesData> {
-    const mg = opts?.manager ?? this.repo.manager;
-    const prefs = await mg.findOne(NotificationPreferences, {
-      where: { user_id: userId, tenant_id: tenantId },
-    });
-
-    if (!prefs) {
-      return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    if (opts?.manager) {
+      const prefs = await this.findForUser(opts.manager, userId, tenantId);
+      return this.toData(prefs);
     }
 
-    // Merge with defaults to handle any missing fields (schema evolution)
-    return {
-      emails_enabled: prefs.emails_enabled,
-      workspace_settings: this.mergeWorkspaceSettings(prefs.workspace_settings),
-      weekly_review_enabled: prefs.weekly_review_enabled,
-      weekly_review_day: prefs.weekly_review_day,
-      weekly_review_hour: prefs.weekly_review_hour,
-      timezone: prefs.timezone,
-    };
+    return withTenant(this.dataSource, tenantId, async (manager) => {
+      const prefs = await this.findForUser(manager, userId, tenantId);
+      return this.toData(prefs);
+    });
   }
 
   /**
@@ -57,11 +50,15 @@ export class NotificationPreferencesService {
     actorUserId?: string | null,
     opts?: { manager?: EntityManager },
   ): Promise<NotificationPreferencesData> {
-    const mg = opts?.manager ?? this.repo.manager;
+    if (!opts?.manager) {
+      return withTenant(this.dataSource, tenantId, (manager) =>
+        this.updateForUser(userId, tenantId, updates, actorUserId, { manager }),
+      );
+    }
 
-    let prefs = await mg.findOne(NotificationPreferences, {
-      where: { user_id: userId, tenant_id: tenantId },
-    });
+    const mg = opts.manager;
+
+    let prefs = await this.findForUser(mg, userId, tenantId);
     const before = prefs ? { ...prefs } : null;
 
     if (!prefs) {
@@ -123,13 +120,43 @@ export class NotificationPreferencesService {
       { manager: mg },
     );
 
+    return this.toData(saved);
+  }
+
+  private async findForUser(
+    manager: EntityManager,
+    userId: string,
+    tenantId: string,
+  ): Promise<NotificationPreferences | null> {
+    return manager.findOne(NotificationPreferences, {
+      where: { user_id: userId, tenant_id: tenantId },
+    });
+  }
+
+  private toData(prefs: NotificationPreferences | null): NotificationPreferencesData {
+    if (!prefs) {
+      return this.defaultPreferences();
+    }
+
+    // Merge with defaults to handle any missing fields (schema evolution)
     return {
-      emails_enabled: saved.emails_enabled,
-      workspace_settings: this.mergeWorkspaceSettings(saved.workspace_settings),
-      weekly_review_enabled: saved.weekly_review_enabled,
-      weekly_review_day: saved.weekly_review_day,
-      weekly_review_hour: saved.weekly_review_hour,
-      timezone: saved.timezone,
+      emails_enabled: prefs.emails_enabled,
+      workspace_settings: this.mergeWorkspaceSettings(prefs.workspace_settings),
+      weekly_review_enabled: prefs.weekly_review_enabled,
+      weekly_review_day: prefs.weekly_review_day,
+      weekly_review_hour: prefs.weekly_review_hour,
+      timezone: prefs.timezone,
+    };
+  }
+
+  private defaultPreferences(): NotificationPreferencesData {
+    return {
+      emails_enabled: DEFAULT_NOTIFICATION_PREFERENCES.emails_enabled,
+      workspace_settings: this.mergeWorkspaceSettings(DEFAULT_NOTIFICATION_PREFERENCES.workspace_settings),
+      weekly_review_enabled: DEFAULT_NOTIFICATION_PREFERENCES.weekly_review_enabled,
+      weekly_review_day: DEFAULT_NOTIFICATION_PREFERENCES.weekly_review_day,
+      weekly_review_hour: DEFAULT_NOTIFICATION_PREFERENCES.weekly_review_hour,
+      timezone: DEFAULT_NOTIFICATION_PREFERENCES.timezone,
     };
   }
 

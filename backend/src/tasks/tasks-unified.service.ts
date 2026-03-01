@@ -12,6 +12,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { TaskActivitiesService } from './task-activities.service';
 import { detectChanges, resolveDisplayNames, TASK_TRACKED_FIELDS, FieldConfig } from '../common/change-detection';
+import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 
 export type RelatedType = 'spend_item' | 'contract' | 'capex_item' | 'project' | null;
 type ProjectDefaults = {
@@ -195,7 +196,7 @@ export class TasksUnifiedService {
       related_object_type: target.type,
       related_object_id: target.id,
       title: payload.title,
-      description: (payload.description ?? null) as any,
+      description: normalizeMarkdownRichText(payload.description, { fieldName: 'description' }) as any,
       status: ((payload.status as any) ?? 'open') as any,
       due_date: (payload.due_date ?? null) as any,
       assignee_user_id: (payload.assignee_user_id ?? null) as any,
@@ -245,6 +246,10 @@ export class TasksUnifiedService {
     const existing = await repo.findOne({ where: { id: payload.id } });
     if (!existing) throw new NotFoundException('Task not found');
 
+    const normalizedDescription = this.hasOwn(payload, 'description')
+      ? normalizeMarkdownRichText(payload.description, { fieldName: 'description' })
+      : undefined;
+
     // Capture "before" state for notification comparison
     const before = { ...existing };
 
@@ -282,6 +287,9 @@ export class TasksUnifiedService {
     }
 
     const next = { ...existing, ...payload } as Task;
+    if (this.hasOwn(payload, 'description')) {
+      next.description = normalizedDescription as any;
+    }
     const saved = await repo.save(next);
     await this.audit.log({ table: 'tasks', recordId: saved.id, action: 'update', before: existing, after: saved, userId }, { manager });
 
@@ -373,6 +381,11 @@ export class TasksUnifiedService {
           },
       manager,
     );
+
+    if (this.hasOwn(nextPayload, 'description')) {
+      nextPayload.description = normalizeMarkdownRichText(nextPayload.description, { fieldName: 'description' }) as any;
+    }
+
     const relationChanged =
       resolvedTarget.type !== existing.related_object_type ||
       resolvedTarget.id !== existing.related_object_id;

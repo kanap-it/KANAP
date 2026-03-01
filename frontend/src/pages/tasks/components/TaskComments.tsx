@@ -228,13 +228,13 @@ export default function TaskComments({
                 </Stack>
                 {editingId === comment.id ? (
                   <Box sx={{ mt: 1 }}>
-                    <React.Suspense fallback={<Box sx={{ minHeight: 4 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                    <React.Suspense fallback={<Box sx={{ minHeight: 6 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                       <MarkdownEditor
                         value={editContent}
                         onChange={setEditContent}
                         placeholder="Edit your comment..."
-                        minRows={4}
-                        maxRows={10}
+                        minRows={6}
+                        maxRows={12}
                         disabled={editSubmitting}
                         onImageUpload={handleUploadImage}
                       />

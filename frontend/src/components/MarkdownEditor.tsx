@@ -4,10 +4,15 @@ import { alpha, useTheme } from '@mui/material/styles';
 import {
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
+  ChangeCodeMirrorLanguage,
+  codeBlockPlugin,
+  codeMirrorPlugin,
   CodeToggle,
+  ConditionalContents,
   CreateLink,
   headingsPlugin,
   imagePlugin,
+  InsertCodeBlock,
   InsertImage,
   InsertThematicBreak,
   linkDialogPlugin,
@@ -18,13 +23,13 @@ import {
   MDXEditor,
   MDXEditorMethods,
   quotePlugin,
+  Separator,
   StrikeThroughSupSubToggles,
   thematicBreakPlugin,
   toolbarPlugin,
   UndoRedo,
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
-import { htmlToMarkdown, isHtml } from '../utils/htmlToMarkdown';
 
 interface MarkdownEditorProps {
   value: string;
@@ -41,8 +46,8 @@ export default function MarkdownEditor({
   value,
   onChange,
   placeholder = 'Start typing...',
-  minRows = 8,
-  maxRows = 16,
+  minRows = 10,
+  maxRows = 18,
   disabled = false,
   focusNonce,
   onImageUpload,
@@ -106,12 +111,34 @@ export default function MarkdownEditor({
     });
   }, [onImageUpload]);
 
-  const normalizeIncoming = React.useCallback((raw: string): string => {
-    const text = raw || '';
-    return isHtml(text) ? htmlToMarkdown(text) : text;
-  }, []);
+  const [initialMarkdown] = React.useState(() => value || '');
 
-  const [initialMarkdown] = React.useState(() => normalizeIncoming(value));
+  const codeBlockLanguages = React.useMemo<Record<string, string>>(
+    () => ({
+      txt: 'Plain text',
+      md: 'Markdown',
+      abap: 'ABAP (plain)',
+      powershell: 'PowerShell',
+      bash: 'Bash / Shell',
+      yml: 'YAML',
+      yaml: 'YAML',
+      json: 'JSON',
+      sql: 'SQL',
+      html: 'HTML',
+      css: 'CSS',
+      js: 'JavaScript',
+      jsx: 'JavaScript (React)',
+      ts: 'TypeScript',
+      tsx: 'TypeScript (React)',
+      py: 'Python',
+      java: 'Java',
+      go: 'Go',
+      rust: 'Rust',
+      xml: 'XML',
+      dockerfile: 'Dockerfile',
+    }),
+    [],
+  );
 
   const handleChange = React.useCallback(
     (markdown: string, initialMarkdownNormalize: boolean) => {
@@ -129,12 +156,12 @@ export default function MarkdownEditor({
       return;
     }
 
-    const incoming = normalizeIncoming(value);
+    const incoming = value || '';
     const current = mdxRef.current.getMarkdown();
     if (incoming !== current) {
       mdxRef.current.setMarkdown(incoming);
     }
-  }, [value, normalizeIncoming]);
+  }, [value]);
 
   React.useEffect(() => {
     if (!mdxRef.current || disabled || focusNonce === undefined || focusNonce < 1) return;
@@ -147,25 +174,54 @@ export default function MarkdownEditor({
         styles={{
           '.kanap-mdx-root.kanap-mdx-root': mdxThemeVariables,
           '.kanap-mdx-root.kanap-mdx-root *': mdxThemeVariablesImportant,
-          '.kanap-mdx-root .mdxeditor-select-content': {
+          '.mdxeditor-select-content, .kanap-mdx-root .mdxeditor-select-content': {
             backgroundColor: `${theme.palette.background.paper} !important`,
             color: `${theme.palette.text.primary} !important`,
             borderColor: `${theme.palette.divider} !important`,
+            width: 'min(92vw, 22rem) !important',
+            maxWidth: 'min(92vw, 22rem) !important',
+          },
+          '.mdxeditor-select-content [data-editor-dropdown], .kanap-mdx-root [data-editor-dropdown]': {
+            backgroundColor: `${theme.palette.background.paper} !important`,
+            color: `${theme.palette.text.primary} !important`,
+            maxHeight: 'min(55vh, 20rem)',
+            overflowY: 'auto',
+            overscrollBehavior: 'contain',
+          },
+          '.mdxeditor-select-content [data-highlighted], .kanap-mdx-root .mdxeditor-select-content [data-highlighted]': {
+            backgroundColor: `${alpha(theme.palette.action.selected, isDarkMode ? 0.32 : 0.22)} !important`,
+            color: `${theme.palette.text.primary} !important`,
           },
           '.kanap-mdx-root [role="dialog"]': {
             backgroundColor: `${theme.palette.background.paper} !important`,
             color: `${theme.palette.text.primary} !important`,
             borderColor: `${theme.palette.divider} !important`,
           },
-          '.kanap-mdx-root [data-editor-dropdown]': {
-            backgroundColor: `${theme.palette.background.paper} !important`,
-            color: `${theme.palette.text.primary} !important`,
-          },
           '.kanap-mdx-root [data-editor-dialog]': {
             color: `${theme.palette.text.primary} !important`,
           },
           '.kanap-mdx-root [data-editor-dialog]::placeholder': {
             color: `${theme.palette.text.secondary} !important`,
+          },
+          '.kanap-mdx-root.dark-theme .cm-editor': {
+            backgroundColor: `${alpha(theme.palette.background.default, 0.66)} !important`,
+            color: `${theme.palette.text.primary} !important`,
+          },
+          '.kanap-mdx-root.dark-theme .cm-gutters': {
+            backgroundColor: `${alpha(theme.palette.background.default, 0.52)} !important`,
+            color: `${theme.palette.text.secondary} !important`,
+            borderColor: `${theme.palette.divider} !important`,
+          },
+          '.kanap-mdx-root.dark-theme .cm-activeLine, .kanap-mdx-root.dark-theme .cm-activeLineGutter': {
+            backgroundColor: `${alpha(theme.palette.primary.main, 0.12)} !important`,
+          },
+          '.kanap-mdx-root.dark-theme .cm-tooltip, .kanap-mdx-root.dark-theme .cm-tooltip.cm-tooltip-autocomplete': {
+            backgroundColor: `${theme.palette.background.paper} !important`,
+            color: `${theme.palette.text.primary} !important`,
+            borderColor: `${theme.palette.divider} !important`,
+          },
+          '.kanap-mdx-root.dark-theme .cm-tooltip .cm-completionLabel, .kanap-mdx-root.dark-theme .cm-tooltip .cm-completionDetail': {
+            color: `${theme.palette.text.primary} !important`,
           },
         }}
       />
@@ -237,8 +293,6 @@ export default function MarkdownEditor({
             '& a': { color: 'primary.main', textDecoration: 'underline' },
             '& img': {
               maxWidth: '100%',
-              width: 'auto',
-              height: 'auto',
               borderRadius: 1,
               my: 1,
             },
@@ -261,21 +315,43 @@ export default function MarkdownEditor({
             linkDialogPlugin(),
             imagePlugin({ imageUploadHandler: fallbackImageUpload }),
             thematicBreakPlugin(),
+            codeBlockPlugin({ defaultCodeBlockLanguage: 'txt' }),
+            codeMirrorPlugin({ codeBlockLanguages }),
             markdownShortcutPlugin(),
             toolbarPlugin({
               toolbarClassName: 'kanap-mdx-toolbar',
               toolbarContents: () => (
-                <>
-                  <UndoRedo />
-                  <BlockTypeSelect />
-                  <BoldItalicUnderlineToggles options={['Bold', 'Italic']} />
-                  <StrikeThroughSupSubToggles options={['Strikethrough']} />
-                  <ListsToggle options={['bullet', 'number', 'check']} />
-                  <CreateLink />
-                  <InsertImage />
-                  <CodeToggle />
-                  <InsertThematicBreak />
-                </>
+                <ConditionalContents
+                  options={[
+                    {
+                      when: (editor) => editor?.editorType === 'codeblock',
+                      contents: () => (
+                        <>
+                          <ChangeCodeMirrorLanguage />
+                        </>
+                      ),
+                    },
+                    {
+                      fallback: () => (
+                        <>
+                          <UndoRedo />
+                          <Separator />
+                          <BlockTypeSelect />
+                          <BoldItalicUnderlineToggles options={['Bold', 'Italic']} />
+                          <StrikeThroughSupSubToggles options={['Strikethrough']} />
+                          <CodeToggle />
+                          <Separator />
+                          <ListsToggle options={['bullet', 'number', 'check']} />
+                          <Separator />
+                          <CreateLink />
+                          <InsertImage />
+                          <InsertCodeBlock />
+                          <InsertThematicBreak />
+                        </>
+                      ),
+                    },
+                  ]}
+                />
               ),
             }),
           ]}

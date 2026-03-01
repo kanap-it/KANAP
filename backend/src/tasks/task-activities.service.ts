@@ -6,6 +6,7 @@ import { Task, TaskStatus, TASK_STATUSES } from './task.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TaskTimeEntriesService } from './task-time-entries.service';
 import { AuditService } from '../audit/audit.service';
+import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 
 export interface TaskActivityItem {
   id: string;
@@ -114,12 +115,13 @@ export class TaskActivitiesService {
     }
 
     const repo = mg.getRepository(PortfolioActivity);
+    const normalizedContent = normalizeMarkdownRichText(dto.content, { fieldName: 'content' });
     const activity = repo.create({
       task_id: taskId,
       tenant_id: tenantId,
       author_id: userId,
       type: dto.type || 'comment',
-      content: dto.content?.trim() || null,
+      content: normalizedContent,
       context: dto.context?.trim() || null,
       changed_fields: dto.changed_fields || null,
     });
@@ -127,7 +129,7 @@ export class TaskActivitiesService {
     const saved = await repo.save(activity);
 
     // Fire-and-forget notification for comments
-    if (dto.type === 'comment' && dto.content && userId) {
+    if (dto.type === 'comment' && normalizedContent && userId) {
       const author = await mg.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
       const authorName = author.length > 0 ? `${author[0].first_name} ${author[0].last_name}`.trim() || 'Someone' : 'Someone';
       const recipients = await this.notifications.getTaskRecipients(taskId, mg);
@@ -137,7 +139,7 @@ export class TaskActivitiesService {
         itemName: task.title,
         authorId: userId,
         authorName,
-        commentContent: dto.content,
+        commentContent: normalizedContent,
         recipients: recipients.map(r => ({ userId: r.userId, email: r.email })),
         tenantId,
         manager: mg,
@@ -170,8 +172,8 @@ export class TaskActivitiesService {
       throw new BadRequestException(`Invalid status. Allowed values: ${TASK_STATUSES.join(', ')}`);
     }
 
-    const trimmedContent = dto.content?.trim() ?? '';
-    const hasComment = trimmedContent.length > 0;
+    const normalizedContent = normalizeMarkdownRichText(dto.content, { fieldName: 'content' }) ?? '';
+    const hasComment = normalizedContent.length > 0;
 
     const normalizedHours = dto.time_hours == null ? 0 : Number(dto.time_hours);
     if (!Number.isInteger(normalizedHours) || normalizedHours < 0 || normalizedHours > 8) {
@@ -253,7 +255,7 @@ export class TaskActivitiesService {
           tenant_id: tenantId,
           author_id: userId,
           type: 'comment',
-          content: trimmedContent,
+          content: normalizedContent,
           context: null,
           changed_fields: null,
         }),
@@ -274,7 +276,7 @@ export class TaskActivitiesService {
         newStatus,
         authorId: userId,
         authorName,
-        commentContent: hasComment ? trimmedContent : undefined,
+        commentContent: hasComment ? normalizedContent : undefined,
         recipients,
         tenantId,
         manager: mg,
@@ -349,7 +351,7 @@ export class TaskActivitiesService {
       throw new ForbiddenException('You can only edit your own comments');
     }
 
-    activity.content = content?.trim() || null;
+    activity.content = normalizeMarkdownRichText(content, { fieldName: 'content' });
     activity.updated_at = new Date();
 
     return repo.save(activity);

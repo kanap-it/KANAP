@@ -298,7 +298,7 @@ export default function PortfolioComments({
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                 {isDecision ? 'Rationale / Notes' : 'Add a comment'}
               </Typography>
-              <React.Suspense fallback={<Box sx={{ minHeight: 6 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+              <React.Suspense fallback={<Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                 <MarkdownEditor
                   key={editorKey}
                   value={commentContent}
@@ -308,8 +308,8 @@ export default function PortfolioComments({
                       ? 'Explain the decision rationale...'
                       : 'Share your thoughts, updates, or questions...'
                   }
-                  minRows={6}
-                  maxRows={12}
+                  minRows={8}
+                  maxRows={14}
                   disabled={submitting}
                   onImageUpload={onImageUpload ? handleImageUpload : undefined}
                 />
@@ -445,13 +445,13 @@ export default function PortfolioComments({
                   )}
                   {editingId === a.id ? (
                     <Box sx={{ mt: 1 }}>
-                      <React.Suspense fallback={<Box sx={{ minHeight: 4 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                      <React.Suspense fallback={<Box sx={{ minHeight: 6 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                         <MarkdownEditor
                           value={editContent}
                           onChange={setEditContent}
                           placeholder="Edit your comment..."
-                          minRows={4}
-                          maxRows={10}
+                          minRows={6}
+                          maxRows={12}
                           disabled={editSubmitting}
                           onImageUpload={onImageUpload ? handleImageUpload : undefined}
                         />

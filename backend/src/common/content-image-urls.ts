@@ -3,7 +3,7 @@ export function extractInlineImageUrls(content: string | null): string[] {
 
   const urls: string[] = [];
 
-  // HTML image sources
+  // Markdown may include raw <img ...> tags (e.g., resized images in MDXEditor).
   const htmlRe = /\bsrc\s*=\s*["']([^"']*\/inline(?:\/[^"']*)?)["']/gi;
   let htmlMatch: RegExpExecArray | null;
   while ((htmlMatch = htmlRe.exec(content)) !== null) {

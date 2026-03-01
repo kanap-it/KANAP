@@ -140,13 +140,13 @@ export default function UnifiedActivityForm({
     <Stack spacing={1.5}>
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
 
-      <React.Suspense fallback={<Box sx={{ minHeight: 6 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+      <React.Suspense fallback={<Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
         <MarkdownEditor
           value={comment}
           onChange={setComment}
           placeholder="Write a comment..."
-          minRows={6}
-          maxRows={18}
+          minRows={8}
+          maxRows={20}
           disabled={submitting || readOnly}
           focusNonce={focusNonce}
           onImageUpload={onImageUpload}

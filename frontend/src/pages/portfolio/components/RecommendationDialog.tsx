@@ -161,14 +161,14 @@ export default function RecommendationDialog({
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
               Rationale
             </Typography>
-            <React.Suspense fallback={<Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+            <React.Suspense fallback={<Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
               <MarkdownEditor
                 key={editorKey}
                 value={rationale}
                 onChange={setRationale}
                 placeholder="Summarize the recommendation, conditions, and key constraints..."
-                minRows={8}
-                maxRows={16}
+                minRows={10}
+                maxRows={18}
                 disabled={submitting}
                 onImageUpload={onImageUpload ? handleImageUpload : undefined}
               />

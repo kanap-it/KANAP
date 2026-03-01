@@ -979,13 +979,13 @@ export default function ProjectWorkspacePage() {
                     disabled={!String(form?.purpose || '').trim()}
                   />
                 </Stack>
-                <React.Suspense fallback={<Box sx={{ minHeight: 12 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                <React.Suspense fallback={<Box sx={{ minHeight: 14 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                   <MarkdownEditor
                     value={form?.purpose || ''}
                     onChange={(v) => update({ purpose: v })}
                     placeholder="Describe the purpose of this project..."
-                    minRows={12}
-                    maxRows={24}
+                    minRows={14}
+                    maxRows={26}
                     onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'purpose') : undefined}
                   />
                 </React.Suspense>

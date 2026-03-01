@@ -1111,18 +1111,18 @@ export default function TaskWorkspacePage() {
                 />
               </Stack>
               {initialized ? (
-                <React.Suspense fallback={<Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+                <React.Suspense fallback={<Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                   <MarkdownEditor
                     value={description}
                     onChange={(val) => setDescription(val)}
                     placeholder="Add a description..."
-                    minRows={8}
-                    maxRows={24}
+                    minRows={10}
+                    maxRows={26}
                     focusNonce={descriptionFocusNonce}
                   />
                 </React.Suspense>
               ) : (
-                <Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
+                <Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
                   <Typography color="text.secondary">Loading...</Typography>
                 </Box>
               )}
@@ -1429,19 +1429,19 @@ export default function TaskWorkspacePage() {
               />
             </Stack>
             {initialized ? (
-              <React.Suspense fallback={<Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
+              <React.Suspense fallback={<Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                 <MarkdownEditor
                   value={description}
                   onChange={(val) => { setDescription(val); setDirty(true); }}
                   placeholder="Add a description..."
-                  minRows={8}
-                  maxRows={24}
+                  minRows={10}
+                  maxRows={26}
                   disabled={!canManage}
                   onImageUpload={handleUploadImage}
                 />
               </React.Suspense>
             ) : (
-              <Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
+              <Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
                 <Typography color="text.secondary">Loading...</Typography>
               </Box>
             )}

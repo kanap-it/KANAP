@@ -3,7 +3,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import { isHtml } from '../utils/htmlToMarkdown';
 
 interface MarkdownContentProps {
   content: string;
@@ -15,7 +14,7 @@ const sanitizeSchema = {
   attributes: {
     ...defaultSchema.attributes,
     a: [...(defaultSchema.attributes?.a || []), 'target', 'rel'],
-    img: [...(defaultSchema.attributes?.img || []), 'src', 'alt', 'title'],
+    img: [...(defaultSchema.attributes?.img || []), 'src', 'alt', 'title', 'width', 'height'],
     input: [...(defaultSchema.attributes?.input || []), 'type', 'checked', 'disabled'],
     li: [...(defaultSchema.attributes?.li || []), 'className', 'data-type', 'data-checked'],
     ul: [...(defaultSchema.attributes?.ul || []), 'className', 'data-type'],
@@ -35,6 +34,7 @@ function sanitizeUrl(url: string, key?: string): string {
 
   if (key === 'src') {
     if (/^https?:/i.test(value)) return value;
+    if (value.startsWith('/')) return value;
     if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(value)) return value;
     return '';
   }
@@ -96,29 +96,23 @@ export function MarkdownContent({ content, variant = 'default' }: MarkdownConten
         '& a': { color: 'primary.main' },
         '& img': {
           maxWidth: '100%',
-          width: 'auto',
-          height: 'auto',
           borderRadius: 1,
           my: 1,
         },
       }}
     >
-      {isHtml(value) ? (
-        <Box dangerouslySetInnerHTML={{ __html: value }} />
-      ) : (
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema as any]]}
-          urlTransform={sanitizeUrl}
-          components={{
-            a: ({ node: _node, ...props }: any) => (
-              <a {...props} target="_blank" rel="noopener noreferrer" />
-            ),
-          }}
-        >
-          {value}
-        </ReactMarkdown>
-      )}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema as any]]}
+        urlTransform={sanitizeUrl}
+        components={{
+          a: ({ node: _node, ...props }: any) => (
+            <a {...props} target="_blank" rel="noopener noreferrer" />
+          ),
+        }}
+      >
+        {value}
+      </ReactMarkdown>
     </Box>
   );
 }

@@ -41,6 +41,7 @@ import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
 import { extractInlineImageUrls } from '../common/content-image-urls';
 import { detectChanges, REQUEST_TRACKED_FIELDS, resolveDisplayNames } from '../common/change-detection';
+import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { Task } from '../tasks/task.entity';
 import { TaskAttachment } from '../tasks/task-attachment.entity';
 import { TaskActivitiesService } from '../tasks/task-activities.service';
@@ -1121,7 +1122,9 @@ export class PortfolioRequestsService {
         tenant_id: tenantId,
         author_id: userId,
         type: isDecision ? 'decision' : 'change',
-        content: isDecision ? (body.decision_rationale || null) : null,
+        content: isDecision
+          ? normalizeMarkdownRichText(body.decision_rationale, { fieldName: 'decision_rationale' })
+          : null,
         context: isDecision ? (body.decision_context || null) : null,
         decision_outcome: isDecision ? (body.decision_outcome as any || null) : null,
         changed_fields: { status: [before.status, saved.status] },
@@ -1669,6 +1672,7 @@ export class PortfolioRequestsService {
     if (!request) throw new NotFoundException('Request not found');
 
     const isDecision = opts?.isDecision === true;
+    const normalizedContent = normalizeMarkdownRichText(content, { fieldName: 'content' });
     let changedFields: Record<string, [unknown, unknown]> | null = null;
     let oldStatus: string | null = null;
 
@@ -1704,7 +1708,7 @@ export class PortfolioRequestsService {
       tenant_id: tenantId,
       author_id: userId,
       type: isDecision ? 'decision' : 'comment',
-      content: String(content || '').trim() || null,
+      content: normalizedContent,
       context: context ? String(context).trim() : null,
       decision_outcome: isDecision ? (opts?.decisionOutcome as any || null) : null,
       changed_fields: changedFields,
@@ -1743,7 +1747,7 @@ export class PortfolioRequestsService {
         itemName: request.name,
         authorId: userId,
         authorName,
-        commentContent: String(content || '').trim(),
+        commentContent: normalizedContent || '',
         recipients,
         tenantId,
         manager: mg,
@@ -1778,7 +1782,7 @@ export class PortfolioRequestsService {
     }
 
     const oldContent = activity.content;
-    activity.content = String(content || '').trim() || null;
+    activity.content = normalizeMarkdownRichText(content, { fieldName: 'content' });
     activity.updated_at = new Date();
 
     const saved = await activityRepo.save(activity);
@@ -2140,9 +2144,7 @@ export class PortfolioRequestsService {
   }
 
   private normalizeNullable(value: unknown): string | null {
-    if (value == null) return null;
-    const text = String(value).trim();
-    return text.length === 0 ? null : text;
+    return normalizeMarkdownRichText(value);
   }
 
   private normalizeOriginTaskUrl(
