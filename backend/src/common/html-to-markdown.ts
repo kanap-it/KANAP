@@ -6,6 +6,7 @@ const MARKDOWN_AUTOLINK_REGEX_FALLBACK = /^<https?:\/\/[^>\s]+>$/i;
 const IMG_TAG_ONLY_REGEX = /^<img\b[\s\S]*\/?>$/i;
 const IMG_ATTR_REGEX = /([A-Za-z_:][\w:.-]*)\s*=\s*("([^"]*)"|'([^']*)')/g;
 const ALLOWED_IMG_ATTRS = new Set(['src', 'alt', 'title', 'width', 'height']);
+const DATA_IMAGE_URI_REGEX = /^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]+$/i;
 
 type MarkdownToken = {
   type?: string;
@@ -25,7 +26,22 @@ function isAllowedImageSrc(value: string): boolean {
   if (/^https?:\/\//i.test(src)) return true;
   if (/^\/\//.test(src)) return true;
   if (src.startsWith('/')) return true;
-  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(src)) return true;
+  return false;
+}
+
+function isDataImageUri(value: string): boolean {
+  return DATA_IMAGE_URI_REGEX.test(String(value || '').trim());
+}
+
+function hasDataImageInHtmlSnippet(snippet: string): boolean {
+  const value = normalizeSnippet(snippet);
+  if (!value || !/<img\b/i.test(value)) return false;
+  const imgRegex = /<img\b[^>]*\bsrc\s*=\s*("([^"]*)"|'([^']*)')[^>]*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = imgRegex.exec(value)) !== null) {
+    const src = match[2] ?? match[3] ?? '';
+    if (isDataImageUri(src)) return true;
+  }
   return false;
 }
 
@@ -140,6 +156,39 @@ export function findRawHtmlSnippets(content: string): string[] {
     const fallbackSnippet = normalizeSnippet(text);
     return fallbackSnippet ? [fallbackSnippet] : [];
   }
+}
+
+export function containsInlineDataImage(content: string): boolean {
+  const text = String(content || '').trim();
+  if (!text) return false;
+
+  const tokens = parseTokens(text);
+  if (tokens) {
+    let found = false;
+    for (const token of tokens) {
+      walkMarkedToken(token, (current) => {
+        if (found) return;
+        if (current.type === 'image') {
+          const href = String((current as any).href ?? '').trim();
+          if (isDataImageUri(href)) {
+            found = true;
+          }
+          return;
+        }
+        if (current.type === 'html') {
+          const snippet = normalizeSnippet(current.raw ?? current.text ?? '');
+          if (hasDataImageInHtmlSnippet(snippet)) {
+            found = true;
+          }
+        }
+      });
+      if (found) break;
+    }
+    return found;
+  }
+
+  return /!\[[^\]]*]\(\s*<?data:image\/[a-z0-9.+-]+;base64,[^)>\s]+>?/i.test(text)
+    || /<img\b[^>]*\bsrc\s*=\s*("data:image\/[a-z0-9.+-]+;base64,[^"]*"|'data:image\/[a-z0-9.+-]+;base64,[^']*')[^>]*>/i.test(text);
 }
 
 export function isHtmlContent(content: string): boolean {

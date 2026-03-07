@@ -28,6 +28,10 @@ type ExportConfig = {
   pandocTarget: 'pdf' | 'docx' | 'odt';
 };
 
+type ExportImageFetchOptions = {
+  imageFetchHeaders?: Record<string, string>;
+};
+
 @Injectable()
 export class DocumentExportService {
   private readonly logger = new Logger(DocumentExportService.name);
@@ -38,6 +42,7 @@ export class DocumentExportService {
     content: string,
     format: ExportFormat,
     title?: string,
+    opts?: ExportImageFetchOptions,
   ): Promise<{ buffer: Buffer; mimeType: string; extension: string; filename: string }> {
     const normalized = String(content || '');
     const sizeBytes = Buffer.byteLength(normalized, 'utf8');
@@ -56,7 +61,7 @@ export class DocumentExportService {
     const outputFile = path.join(tempDir, `output.${config.extension}`);
 
     try {
-      const markdown = await this.normalizeMarkdownImages(normalized, tempDir);
+      const markdown = await this.normalizeMarkdownImages(normalized, tempDir, opts);
       await fs.writeFile(inputFile, markdown, 'utf8');
 
       const args = [
@@ -141,11 +146,15 @@ export class DocumentExportService {
     }
   }
 
-  private async normalizeMarkdownImages(markdown: string, tempDir: string): Promise<string> {
+  private async normalizeMarkdownImages(
+    markdown: string,
+    tempDir: string,
+    opts?: ExportImageFetchOptions,
+  ): Promise<string> {
     const cache = new Map<string, string>();
     return this.transformOutsideFencedCode(markdown, async (chunk) => {
-      const withMarkdownImages = await this.localizeMarkdownImageSyntax(chunk, tempDir, cache);
-      return this.localizeHtmlImageTags(withMarkdownImages, tempDir, cache);
+      const withMarkdownImages = await this.localizeMarkdownImageSyntax(chunk, tempDir, cache, opts);
+      return this.localizeHtmlImageTags(withMarkdownImages, tempDir, cache, opts);
     });
   }
 
@@ -204,6 +213,7 @@ export class DocumentExportService {
     markdown: string,
     tempDir: string,
     cache: Map<string, string>,
+    opts?: ExportImageFetchOptions,
   ): Promise<string> {
     const regex = new RegExp(IMAGE_MARKDOWN_RE.source, 'g');
     let result = '';
@@ -216,7 +226,7 @@ export class DocumentExportService {
       result += markdown.slice(lastIndex, match.index);
       const { target, suffix } = this.splitMarkdownTarget(inner);
       const normalizedTarget = this.normalizeAndValidateImageTarget(target);
-      const localizedTarget = await this.materializeImageTarget(normalizedTarget, tempDir, cache);
+      const localizedTarget = await this.materializeImageTarget(normalizedTarget, tempDir, cache, opts);
       const targetForMarkdown = /[\s()]/.test(localizedTarget)
         ? `<${localizedTarget}>`
         : localizedTarget;
@@ -231,6 +241,7 @@ export class DocumentExportService {
     markdown: string,
     tempDir: string,
     cache: Map<string, string>,
+    opts?: ExportImageFetchOptions,
   ): Promise<string> {
     const regex = new RegExp(IMAGE_HTML_RE.source, 'gi');
     let result = '';
@@ -248,7 +259,7 @@ export class DocumentExportService {
       }
 
       const normalizedTarget = this.normalizeAndValidateImageTarget(rawSrc);
-      const localizedTarget = await this.materializeImageTarget(normalizedTarget, tempDir, cache);
+      const localizedTarget = await this.materializeImageTarget(normalizedTarget, tempDir, cache, opts);
       const rawAlt = this.readHtmlAttribute(wholeTag, 'alt') || '';
       const escapedAlt = this.escapeMarkdownAlt(rawAlt);
       const targetForMarkdown = /[\s()]/.test(localizedTarget)
@@ -280,6 +291,7 @@ export class DocumentExportService {
     normalizedTarget: string,
     tempDir: string,
     cache: Map<string, string>,
+    opts?: ExportImageFetchOptions,
   ): Promise<string> {
     if (cache.has(normalizedTarget)) {
       return cache.get(normalizedTarget)!;
@@ -289,7 +301,7 @@ export class DocumentExportService {
     if (DATA_IMAGE_RE.test(normalizedTarget)) {
       localPath = await this.materializeDataImageTarget(normalizedTarget, tempDir, cache.size + 1);
     } else {
-      localPath = await this.materializeHttpImageTarget(normalizedTarget, tempDir, cache.size + 1);
+      localPath = await this.materializeHttpImageTarget(normalizedTarget, tempDir, cache.size + 1, opts);
     }
 
     cache.set(normalizedTarget, localPath);
@@ -300,6 +312,7 @@ export class DocumentExportService {
     target: string,
     tempDir: string,
     index: number,
+    opts?: ExportImageFetchOptions,
   ): Promise<string> {
     const candidates = this.buildImageFetchCandidates(target);
     let lastError = '';
@@ -310,6 +323,7 @@ export class DocumentExportService {
         const parsed = new URL(candidate);
         this.assertAllowedImageHost(parsed.hostname);
         response = await fetch(candidate, {
+          headers: opts?.imageFetchHeaders,
           signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS),
         });
       } catch (error: any) {
@@ -571,7 +585,7 @@ export class DocumentExportService {
     }
 
     if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(target)) {
-      return target;
+      throw new BadRequestException('Inline base64 images are not supported. Upload image attachments first.');
     }
     if (/^data:/i.test(target)) {
       throw new BadRequestException('Unsupported image URI scheme');
@@ -601,7 +615,7 @@ export class DocumentExportService {
       return parsed.toString();
     }
 
-    throw new BadRequestException('Only absolute HTTP(S), data:image, or root-relative image URLs are allowed');
+    throw new BadRequestException('Only absolute HTTP(S) or root-relative image URLs are allowed');
   }
 
   private resolveMediaBaseUrl(): string | null {

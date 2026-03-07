@@ -42,6 +42,7 @@ import { fixMulterFilename } from '../common/upload';
 import { extractInlineImageUrls } from '../common/content-image-urls';
 import { detectChanges, REQUEST_TRACKED_FIELDS, resolveDisplayNames } from '../common/change-detection';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
+import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { Task } from '../tasks/task.entity';
 import { TaskAttachment } from '../tasks/task-attachment.entity';
 import { TaskActivitiesService } from '../tasks/task-activities.service';
@@ -135,6 +136,7 @@ export class PortfolioRequestsService {
     private readonly taskActivitiesSvc: TaskActivitiesService,
     private readonly notifications: NotificationsService,
     private readonly itemNumberService: ItemNumberService,
+    private readonly integratedDocuments: IntegratedDocumentsService,
   ) {}
 
   // ==================== LIST ====================
@@ -839,11 +841,12 @@ export class PortfolioRequestsService {
 
     const name = String(body.name || '').trim();
     if (!name) throw new BadRequestException('name is required');
+    const purposeContent = this.normalizeNullable(body.purpose);
+    const risksContent = this.normalizeNullable(body.risks);
 
     const entity = repo.create({
       tenant_id: tenantId,
       name,
-      purpose: this.normalizeNullable(body.purpose),
       requestor_id: body.requestor_id || userId,
       source_id: body.source_id || null,
       category_id: body.category_id || null,
@@ -858,7 +861,6 @@ export class PortfolioRequestsService {
       // Analysis
       current_situation: this.normalizeNullable(body.current_situation),
       expected_benefits: this.normalizeNullable(body.expected_benefits),
-      risks: this.normalizeNullable(body.risks),
       feasibility_review: this.normalizeFeasibilityReview(body.feasibility_review),
 
       // Team leads/sponsors
@@ -874,6 +876,21 @@ export class PortfolioRequestsService {
 
     entity.item_number = await this.itemNumberService.nextItemNumber('request', tenantId, mg);
     const saved = await repo.save(entity);
+
+    await this.integratedDocuments.provisionForRequest(
+      {
+        id: saved.id,
+        tenant_id: saved.tenant_id,
+        item_number: saved.item_number,
+        name: saved.name,
+      },
+      {
+        purpose: purposeContent,
+        risks_mitigations: risksContent,
+      },
+      userId,
+      { manager: mg },
+    );
 
     await this.audit.log({
       table: 'portfolio_requests',
@@ -919,13 +936,13 @@ export class PortfolioRequestsService {
 
     const hasPurposeOverride = Object.prototype.hasOwnProperty.call(overrides || {}, 'purpose');
     const hasRequestorOverride = Object.prototype.hasOwnProperty.call(overrides || {}, 'requestor_id');
+    const purposeContent = hasPurposeOverride
+      ? this.normalizeNullable(overrides?.purpose)
+      : this.normalizeNullable(task.description);
 
     const request = requestRepo.create({
       tenant_id: tenantId,
       name,
-      purpose: hasPurposeOverride
-        ? this.normalizeNullable(overrides?.purpose)
-        : this.normalizeNullable(task.description),
       requestor_id: hasRequestorOverride ? (overrides?.requestor_id || null) : (userId || task.creator_id || null),
       source_id: task.source_id || null,
       category_id: task.category_id || null,
@@ -936,7 +953,6 @@ export class PortfolioRequestsService {
       status: 'pending_review' as RequestStatus,
       current_situation: null,
       expected_benefits: null,
-      risks: null,
       feasibility_review: this.normalizeFeasibilityReview(null),
       criteria_values: {},
       created_by_id: userId,
@@ -945,6 +961,21 @@ export class PortfolioRequestsService {
 
     request.item_number = await this.itemNumberService.nextItemNumber('request', tenantId, mg);
     const savedRequest = await requestRepo.save(request);
+
+    await this.integratedDocuments.provisionForRequest(
+      {
+        id: savedRequest.id,
+        tenant_id: savedRequest.tenant_id,
+        item_number: savedRequest.item_number,
+        name: savedRequest.name,
+      },
+      {
+        purpose: purposeContent,
+        risks_mitigations: null,
+      },
+      userId,
+      { manager: mg },
+    );
 
     await this.audit.log({
       table: 'portfolio_requests',
@@ -1058,6 +1089,8 @@ export class PortfolioRequestsService {
 
     const before = { ...existing };
     const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key);
+    const nextPurpose = has('purpose') ? this.normalizeNullable(body.purpose) : undefined;
+    const nextRisks = has('risks') ? this.normalizeNullable(body.risks) : undefined;
 
     // Overview fields
     if (has('name')) {
@@ -1065,7 +1098,6 @@ export class PortfolioRequestsService {
       if (!name) throw new BadRequestException('name cannot be empty');
       existing.name = name;
     }
-    if (has('purpose')) existing.purpose = this.normalizeNullable(body.purpose);
     if (has('source_id')) existing.source_id = body.source_id || null;
     if (has('category_id')) {
       existing.category_id = body.category_id || null;
@@ -1099,7 +1131,6 @@ export class PortfolioRequestsService {
     // Analysis
     if (has('current_situation')) existing.current_situation = this.normalizeNullable(body.current_situation);
     if (has('expected_benefits')) existing.expected_benefits = this.normalizeNullable(body.expected_benefits);
-    if (has('risks')) existing.risks = this.normalizeNullable(body.risks);
     if (has('feasibility_review')) {
       existing.feasibility_review = this.normalizeFeasibilityReview(body.feasibility_review);
     }
@@ -1113,6 +1144,36 @@ export class PortfolioRequestsService {
     existing.updated_at = new Date();
 
     const saved = await repo.save(existing);
+    const sourceDescriptor = {
+      id: saved.id,
+      tenant_id: saved.tenant_id,
+      item_number: saved.item_number,
+      name: saved.name,
+    };
+
+    if (has('purpose')) {
+      await this.integratedDocuments.writeSourceSlotContent(
+        'requests',
+        sourceDescriptor,
+        'purpose',
+        nextPurpose,
+        userId,
+        { manager: mg, logSourceActivity: true },
+      );
+    }
+    if (has('risks')) {
+      await this.integratedDocuments.writeSourceSlotContent(
+        'requests',
+        sourceDescriptor,
+        'risks_mitigations',
+        nextRisks,
+        userId,
+        { manager: mg, logSourceActivity: true },
+      );
+    }
+    if (before.name !== saved.name) {
+      await this.integratedDocuments.syncTitles('requests', sourceDescriptor, userId, { manager: mg });
+    }
 
     // Log status change as activity (optionally as decision)
     if (has('status') && before.status !== saved.status) {
@@ -1216,7 +1277,7 @@ export class PortfolioRequestsService {
     }, { manager: mg });
 
     // Cleanup orphaned inline images for rich text fields
-    const richTextFields = ['purpose', 'current_situation', 'expected_benefits', 'risks'] as const;
+    const richTextFields = ['current_situation', 'expected_benefits'] as const;
     for (const field of richTextFields) {
       if (has(field) && before[field] !== saved[field]) {
         await this.cleanupOrphanedImages(id, field, before[field], saved[field], { manager: mg });
@@ -2132,6 +2193,15 @@ export class PortfolioRequestsService {
     );
     if (projectRefs.length > 0) return true;
 
+    const documentRefs = await mg.query<Array<{ exists: number }>>(
+      `SELECT 1 AS exists
+       FROM document_attachments
+       WHERE storage_path = $1
+       LIMIT 1`,
+      [storagePath],
+    );
+    if (documentRefs.length > 0) return true;
+
     const taskRefs = await mg.query<Array<{ exists: number }>>(
       `SELECT 1 AS exists
        FROM task_attachments
@@ -2260,6 +2330,8 @@ export class PortfolioRequestsService {
     if (request.status === 'converted') {
       throw new BadRequestException('Converted requests cannot be deleted');
     }
+
+    await this.integratedDocuments.deleteForEntity('requests', id, userId, { manager: mg });
 
     // Delete all attachment files from S3 before cascade removes DB rows
     const attachments: PortfolioRequestAttachment[] = await mg

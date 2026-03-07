@@ -12,7 +12,6 @@ interface ConvertToProjectDialogProps {
   request: {
     id: string;
     name: string;
-    purpose?: string | null;
     target_delivery_date?: string | null;
   };
   onSuccess: (projectId: string) => void;
@@ -30,18 +29,20 @@ export default function ConvertToProjectDialog({
   const [effortIt, setEffortIt] = useState<number | null>(null);
   const [effortBusiness, setEffortBusiness] = useState<number | null>(null);
   const [loadingEffort, setLoadingEffort] = useState(false);
+  const [loadingPurpose, setLoadingPurpose] = useState(false);
+  const [purposePreview, setPurposePreview] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load estimated effort from criteria values when dialog opens
+  // Load estimated effort and current managed purpose when dialog opens.
   useEffect(() => {
     if (open && request.id) {
       setName(request.name);
       setPlannedStart('');
       setPlannedEnd('');
       setError(null);
+      setPurposePreview('');
 
-      // Fetch estimated effort derived from Time estimation criteria
       const loadEffort = async () => {
         setLoadingEffort(true);
         try {
@@ -56,7 +57,22 @@ export default function ConvertToProjectDialog({
           setLoadingEffort(false);
         }
       };
+
+      const loadPurpose = async () => {
+        setLoadingPurpose(true);
+        try {
+          const res = await api.get(`/portfolio/requests/${request.id}/integrated-documents/purpose`);
+          setPurposePreview(res.data?.content_markdown || '');
+        } catch (e) {
+          console.error('Failed to load managed request purpose', e);
+          setPurposePreview('');
+        } finally {
+          setLoadingPurpose(false);
+        }
+      };
+
       loadEffort();
+      loadPurpose();
     }
   }, [open, request]);
 
@@ -67,7 +83,6 @@ export default function ConvertToProjectDialog({
     try {
       const body: any = {
         name: name.trim(),
-        purpose: request.purpose || null,
       };
       if (plannedStart) body.planned_start = plannedStart;
       if (plannedEnd) body.planned_end = plannedEnd;
@@ -82,7 +97,7 @@ export default function ConvertToProjectDialog({
     } finally {
       setSaving(false);
     }
-  }, [request.id, request.purpose, name, plannedStart, plannedEnd, effortIt, effortBusiness, onSuccess]);
+  }, [request.id, name, plannedStart, plannedEnd, effortIt, effortBusiness, onSuccess]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -99,7 +114,7 @@ export default function ConvertToProjectDialog({
             required
           />
 
-          {request.purpose && (
+          {(loadingPurpose || purposePreview) && (
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                 Purpose
@@ -115,7 +130,14 @@ export default function ConvertToProjectDialog({
                   bgcolor: 'action.hover',
                 }}
               >
-                <MarkdownContent content={request.purpose} variant="compact" />
+                {loadingPurpose ? (
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <CircularProgress size={16} />
+                    <span>Loading current purpose...</span>
+                  </Stack>
+                ) : (
+                  <MarkdownContent content={purposePreview} variant="compact" />
+                )}
               </Box>
             </Box>
           )}

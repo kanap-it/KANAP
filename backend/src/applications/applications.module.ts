@@ -23,6 +23,7 @@ import { StorageModule } from '../common/storage/storage.module';
 import { ItOpsSettingsModule } from '../it-ops-settings/it-ops-settings.module';
 import { CsvModule } from '../common/csv';
 import { PortfolioProject } from '../portfolio/portfolio-project.entity';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
 
 // Decomposed services
 import {
@@ -60,6 +61,7 @@ import {
     StorageModule,
     ItOpsSettingsModule,
     CsvModule,
+    KnowledgeModule,
   ],
   providers: [
     // Decomposed services (order matters for DI)

@@ -7,8 +7,9 @@ import { Role } from '../roles/role.entity';
 import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
 import { isReservedTenantSlug, normalizeTenantSlug } from './tenant-slug-policy';
 import { DEFAULT_TASK_TYPES } from '../portfolio/portfolio-task-type.entity';
+import { seedManagedDocsKnowledgeAssets } from '../knowledge/integrated-document-seed';
 
-// Built-in roles configuration (shared with migration 1776000000000)
+// Built-in roles configuration for newly created tenants.
 const BUILT_IN_ROLES: Array<{
   name: string;
   description: string;
@@ -146,6 +147,22 @@ const BUILT_IN_ROLES: Array<{
       contacts: 'reader', accounts: 'reader', business_processes: 'reader'
     }
   },
+  // Knowledge Roles
+  {
+    name: 'Knowledge Administrator',
+    description: 'Full control over knowledge documents, libraries, types, and folders',
+    permissions: { knowledge: 'admin' }
+  },
+  {
+    name: 'Knowledge Member',
+    description: 'Can create, edit, and relate knowledge documents',
+    permissions: { knowledge: 'member' }
+  },
+  {
+    name: 'Knowledge Reader',
+    description: 'Read-only access to knowledge documents',
+    permissions: { knowledge: 'reader' }
+  },
   // Tasks Roles
   {
     name: 'Tasks Administrator',
@@ -241,12 +258,15 @@ export class TenantsService {
     const existing = await repo.findOne({ where: { slug, deleted_at: null } });
     if (existing) {
       await this.ensureSystemRoles(manager, existing.id);
+      await this.seedDefaultTaskTypes(manager, existing.id);
+      await this.seedDefaultDocumentLibraries(manager, existing.id);
       return existing;
     }
     const tenant = repo.create({ slug, name: params.name, status: TenantStatus.ACTIVE });
     const saved = await repo.save(tenant);
     await this.ensureSystemRoles(manager, saved.id);
     await this.seedDefaultTaskTypes(manager, saved.id);
+    await this.seedDefaultDocumentLibraries(manager, saved.id);
     return saved;
   }
 
@@ -259,6 +279,10 @@ export class TenantsService {
         [tenantId, def.name, def.description ?? null, def.display_order, def.is_system ?? false],
       );
     }
+  }
+
+  private async seedDefaultDocumentLibraries(manager: EntityManager, tenantId: string) {
+    await seedManagedDocsKnowledgeAssets(manager, tenantId);
   }
 
   private async ensureSystemRoles(manager: EntityManager, tenantId: string) {

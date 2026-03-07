@@ -21,6 +21,8 @@ import {
   ListProjectsQueryInput,
 } from './dto';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
+import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('portfolio/projects')
@@ -29,6 +31,8 @@ export class PortfolioProjectsController {
     private readonly svc: PortfolioProjectsService,
     private readonly csvSvc: PortfolioProjectsCsvService,
     private readonly storage: StorageService,
+    private readonly knowledge: KnowledgeService,
+    private readonly integratedDocuments: IntegratedDocumentsService,
   ) {}
 
   private resolve(idOrRef: string, ctx: TenantRequest): Promise<string> {
@@ -199,6 +203,168 @@ export class PortfolioProjectsController {
   ) {
     const id = await this.resolve(idOrRef, ctx);
     return this.svc.get(id, query, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'reader')
+  @Get(':id/knowledge')
+  async listDocuments(
+    @Param('id') idOrRef: string,
+    @Tenant() ctx: TenantRequest,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.knowledge.listDocumentsForEntity('projects', id, {
+      manager: ctx.manager,
+      userId: req?.user?.sub ?? null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'reader')
+  @Get(':id/integrated-documents/:slotKey')
+  async getIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.integratedDocuments.getBySource('projects', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @Post(':id/integrated-documents/:slotKey/locks')
+  async acquireIntegratedDocumentLock(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.integratedDocuments.acquireLockBySource('projects', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @Post(':id/integrated-documents/:slotKey/locks/heartbeat')
+  async heartbeatIntegratedDocumentLock(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.integratedDocuments.heartbeatLockBySource(
+      'projects',
+      id,
+      slotKey,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @Delete(':id/integrated-documents/:slotKey/locks')
+  async releaseIntegratedDocumentLock(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.integratedDocuments.releaseLockBySource(
+      'projects',
+      id,
+      slotKey,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @Patch(':id/integrated-documents/:slotKey')
+  async updateIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Body() body: any,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.integratedDocuments.updateBySource(
+      'projects',
+      id,
+      slotKey,
+      body,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @Post(':id/integrated-documents/:slotKey/attachments/inline')
+  @UseInterceptors(FileInterceptor('file', inlineImageMulterOptions))
+  async uploadIntegratedDocumentInlineAttachment(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.integratedDocuments.uploadInlineAttachmentBySource(
+      'projects',
+      id,
+      slotKey,
+      file,
+      ctx.userId || null,
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'reader')
+  @Get(':id/integrated-documents/:slotKey/versions')
+  async listIntegratedDocumentVersions(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.integratedDocuments.listVersionsBySource('projects', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @Post(':id/integrated-documents/:slotKey/revert/:versionNumber')
+  async revertIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Param('versionNumber') versionNumber: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.integratedDocuments.revertBySource(
+      'projects',
+      id,
+      slotKey,
+      Number(versionNumber),
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
   }
 
   @UseGuards(PermissionGuard)

@@ -17,6 +17,7 @@ import { resolveToUuid } from '../common/resolve-item-id';
 import { attachmentMulterOptions, csvImportMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
@@ -30,6 +31,7 @@ export class TasksController {
     private readonly timeEntriesSvc: TaskTimeEntriesService,
     private readonly csvSvc: TasksCsvService,
     private readonly storage: StorageService,
+    private readonly knowledge: KnowledgeService,
   ) {}
 
   private resolve(idOrRef: string, req: any): Promise<string> {
@@ -160,6 +162,17 @@ export class TasksController {
       throw new NotFoundException('Task not found');
     }
     return res;
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('tasks', 'reader')
+  @Get(':id/knowledge')
+  async listDocuments(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
+    return this.knowledge.listDocumentsForEntity('tasks', id, {
+      manager: req?.queryRunner?.manager,
+      userId: req?.user?.sub ?? null,
+    });
   }
 
   @UseGuards(PermissionGuard)
@@ -464,9 +477,13 @@ export class TasksController {
   async uploadAttachment(
     @Param('id') idOrRef: string,
     @UploadedFile() file: Express.Multer.File,
+    @Body() body: { source_field?: string },
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
-    return this.attachmentsSvc.uploadAttachment(id, file, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+    return this.attachmentsSvc.uploadAttachment(id, file, req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+      sourceField: body?.source_field || null,
+    });
   }
 }

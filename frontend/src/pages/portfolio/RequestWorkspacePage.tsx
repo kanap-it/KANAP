@@ -22,7 +22,6 @@ import CompanySelect from '../../components/fields/CompanySelect';
 import DepartmentSelect from '../../components/fields/DepartmentSelect';
 import DateEUField from '../../components/fields/DateEUField';
 import EnumAutocomplete from '../../components/fields/EnumAutocomplete';
-import ExportButton from '../../components/ExportButton';
 import { MarkdownContent } from '../../components/MarkdownContent';
 import ConvertToProjectDialog from './components/ConvertToProjectDialog';
 import StatusChangeDialog from './components/StatusChangeDialog';
@@ -38,10 +37,10 @@ import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
 import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
+import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
+import IntegratedDocumentEditor, { IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
 
-type TabKey = 'overview' | 'analysis' | 'scoring' | 'team' | 'relations' | 'activity';
-
-const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
+type TabKey = 'overview' | 'analysis' | 'scoring' | 'team' | 'relations' | 'knowledge' | 'activity';
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'overview', label: 'Overview' },
@@ -50,6 +49,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'scoring', label: 'Scoring' },
   { key: 'team', label: 'Team' },
   { key: 'relations', label: 'Relations' },
+  { key: 'knowledge', label: 'Knowledge' },
 ];
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -214,12 +214,21 @@ export default function RequestWorkspacePage() {
   const [pendingStatus, setPendingStatus] = React.useState<string | null>(null);
   const scoringEditorRef = React.useRef<RequestScoringEditorHandle>(null);
   const relationsPanelRef = React.useRef<RequestRelationsPanelHandle>(null);
+  const purposeEditorRef = React.useRef<IntegratedDocumentEditorHandle>(null);
+  const risksEditorRef = React.useRef<IntegratedDocumentEditorHandle>(null);
   const savedScoreRef = React.useRef<number | null>(null);
   const canManage = hasLevel('portfolio_requests', 'manager');
+  const canEditManagedDocs = hasLevel('portfolio_requests', 'member');
   const canAdmin = hasLevel('portfolio_requests', 'admin');
   const [scoringDirty, setScoringDirty] = React.useState(false);
   const [relationsDirty, setRelationsDirty] = React.useState(false);
-  const saveDisabled = (!dirty && !scoringDirty && !relationsDirty) || !canManage;
+  const [purposeDirty, setPurposeDirty] = React.useState(false);
+  const [risksDirty, setRisksDirty] = React.useState(false);
+  const hasPageDirtyChanges = dirty || scoringDirty || relationsDirty;
+  const hasManagedDocumentChanges = purposeDirty || risksDirty;
+  const hasUnsavedChanges = hasPageDirtyChanges || hasManagedDocumentChanges;
+  const canSaveManagedDocsOnly = !hasPageDirtyChanges && hasManagedDocumentChanges && canEditManagedDocs;
+  const saveDisabled = !hasUnsavedChanges || (!canManage && !canSaveManagedDocsOnly);
   const classificationTouchedRef = React.useRef({
     source_id: false,
     category_id: false,
@@ -333,33 +342,51 @@ export default function RequestWorkspacePage() {
         }
         return false;
       } else {
-        // Only send the actual request fields, not loaded relations
-        const requestPayload: Record<string, any> = {};
-        const editableFields = [
-          'name', 'purpose', 'source_id', 'category_id', 'stream_id', 'requestor_id', 'company_id', 'department_id',
-          'target_delivery_date', 'status', 'feasibility_review', 'risks',
-          // Note: sponsor/lead fields are saved immediately on change, not with the main form
-        ];
-        for (const field of editableFields) {
-          if (Object.prototype.hasOwnProperty.call(form, field)) {
-            requestPayload[field] = form[field];
+        if (!canManage && hasPageDirtyChanges) {
+          setSaveError('You do not have permission to save request form changes from this workspace.');
+          return false;
+        }
+
+        if (canManage) {
+          // Only send the actual request fields, not loaded relations.
+          const requestPayload: Record<string, any> = {};
+          const editableFields = [
+            'name', 'source_id', 'category_id', 'stream_id', 'requestor_id', 'company_id', 'department_id',
+            'target_delivery_date', 'status', 'feasibility_review',
+            // Note: sponsor/lead fields are saved immediately on change, not with the main form.
+          ];
+          for (const field of editableFields) {
+            if (Object.prototype.hasOwnProperty.call(form, field)) {
+              requestPayload[field] = form[field];
+            }
+          }
+          await api.patch(`/portfolio/requests/${id}`, requestPayload);
+
+          // Save scoring data if the editor is dirty and store the score for the useEffect.
+          if (scoringEditorRef.current?.isDirty()) {
+            savedScoreRef.current = await scoringEditorRef.current.save();
+          }
+
+          // Save relations panel data if dirty.
+          if (relationsPanelRef.current?.isDirty()) {
+            await relationsPanelRef.current.save();
           }
         }
-        await api.patch(`/portfolio/requests/${id}`, requestPayload);
 
-        // Save scoring data if the editor is dirty and store the score for the useEffect
-        if (scoringEditorRef.current?.isDirty()) {
-          savedScoreRef.current = await scoringEditorRef.current.save();
+        if (purposeEditorRef.current?.isDirty()) {
+          const ok = await purposeEditorRef.current.save();
+          if (!ok) return false;
         }
-
-        // Save relations panel data if dirty
-        if (relationsPanelRef.current?.isDirty()) {
-          await relationsPanelRef.current.save();
+        if (risksEditorRef.current?.isDirty()) {
+          const ok = await risksEditorRef.current.save();
+          if (!ok) return false;
         }
 
         setDirty(false);
         setScoringDirty(false);
         setRelationsDirty(false);
+        setPurposeDirty(false);
+        setRisksDirty(false);
         await refetch();
 
         queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
@@ -371,7 +398,7 @@ export default function RequestWorkspacePage() {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (data) {
       setForm({ ...data });
     } else {
@@ -380,9 +407,15 @@ export default function RequestWorkspacePage() {
     setDirty(false);
     setScoringDirty(false);
     setRelationsDirty(false);
+    setPurposeDirty(false);
+    setRisksDirty(false);
     setSaveError(null);
     scoringEditorRef.current?.reset?.();
     relationsPanelRef.current?.reset();
+    await Promise.all([
+      purposeEditorRef.current?.reset?.(),
+      risksEditorRef.current?.reset?.(),
+    ]);
     classificationTouchedRef.current = {
       source_id: false,
       category_id: false,
@@ -462,14 +495,14 @@ export default function RequestWorkspacePage() {
   }, [id, refetch, queryClient]);
 
   const handleOpenRecommendationDialog = React.useCallback(async () => {
-    if (dirty || scoringDirty || relationsDirty) {
+    if (hasUnsavedChanges) {
       const proceed = window.confirm('You have unsaved changes. Save before submitting an analysis recommendation?');
       if (!proceed) return;
       const ok = await handleSave();
       if (!ok) return;
     }
     setRecommendationDialogOpen(true);
-  }, [dirty, scoringDirty, relationsDirty, handleSave]);
+  }, [handleSave, hasUnsavedChanges]);
 
   const handleSubmitRecommendation = React.useCallback(async (payload: {
     content: string;
@@ -499,7 +532,7 @@ export default function RequestWorkspacePage() {
 
   const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
-    if (dirty || scoringDirty || relationsDirty) {
+    if (hasUnsavedChanges) {
       const proceed = window.confirm('You have unsaved changes. Save before switching tabs?');
       if (proceed) {
         void handleSave().then((ok) => {
@@ -507,7 +540,7 @@ export default function RequestWorkspacePage() {
         });
         return;
       } else {
-        handleReset();
+        void handleReset();
       }
     }
     navigate(`/portfolio/requests/${id}/${nextValue}?${searchParams.toString()}`);
@@ -549,18 +582,18 @@ export default function RequestWorkspacePage() {
 
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
-    if (dirty || scoringDirty || relationsDirty) {
+    if (hasUnsavedChanges) {
       const proceed = window.confirm('You have unsaved changes. Save before navigating?');
       if (proceed) {
         const ok = await handleSave();
         if (!ok) return;
       } else {
-        handleReset();
+        await handleReset();
       }
     }
     const qs = listContextParams.toString();
     navigate(`/portfolio/requests/${targetId}/${routeTab}${qs ? `?${qs}` : ''}`);
-  }, [dirty, scoringDirty, relationsDirty, handleSave, handleReset, listContextParams, navigate, routeTab]);
+  }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab]);
 
   const statusLabel = STATUS_OPTIONS.find((s) => s.value === form?.status)?.label || form?.status || '';
   const statusColor = STATUS_COLORS[form?.status] || 'default';
@@ -720,7 +753,7 @@ export default function RequestWorkspacePage() {
               Convert to Project
             </Button>
           )}
-          <Button onClick={handleReset} disabled={!dirty}>Reset</Button>
+          <Button onClick={() => { void handleReset(); }} disabled={!hasUnsavedChanges}>Reset</Button>
           <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>Save</Button>
           <IconButton
             aria-label="Close"
@@ -775,28 +808,20 @@ export default function RequestWorkspacePage() {
                   options={STATUS_OPTIONS}
                 />
               )}
-              <Box>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Purpose
-                  </Typography>
-                  <ExportButton
-                    content={form?.purpose || ''}
-                    title={form?.name || 'request-purpose'}
-                    disabled={!String(form?.purpose || '').trim()}
-                  />
-                </Stack>
-                <React.Suspense fallback={<Box sx={{ minHeight: 14 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
-                  <MarkdownEditor
-                    value={form?.purpose || ''}
-                    onChange={(v) => update({ purpose: v })}
-                    placeholder="Describe the purpose of this request..."
-                    minRows={14}
-                    maxRows={26}
-                    onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'purpose') : undefined}
-                  />
-                </React.Suspense>
-              </Box>
+              <IntegratedDocumentEditor
+                ref={purposeEditorRef}
+                entityType="requests"
+                entityId={isCreate ? null : id}
+                slotKey="purpose"
+                label="Purpose"
+                placeholder="Describe the purpose of this request..."
+                minRows={14}
+                maxRows={26}
+                disabled={!canEditManagedDocs}
+                draftValue={form?.purpose || ''}
+                onDraftChange={(value) => update({ purpose: value })}
+                onDirtyChange={setPurposeDirty}
+              />
               <EnumAutocomplete
                 label="Source"
                 value={form?.source_id || ''}
@@ -878,20 +903,20 @@ export default function RequestWorkspacePage() {
                 streamName={streamName}
               />
               <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Risks & Mitigations
-                </Typography>
-                <React.Suspense fallback={<Box sx={{ minHeight: 12 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
-                  <MarkdownEditor
-                    value={form?.risks || ''}
-                    onChange={(v) => update({ risks: v })}
-                    placeholder="List key residual risks, mitigation actions, and responsible owners..."
-                    minRows={12}
-                    maxRows={24}
-                    disabled={!canManage}
-                    onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'risks') : undefined}
-                  />
-                </React.Suspense>
+                <IntegratedDocumentEditor
+                  ref={risksEditorRef}
+                  entityType="requests"
+                  entityId={isCreate ? null : id}
+                  slotKey="risks_mitigations"
+                  label="Risks & Mitigations"
+                  placeholder="List key residual risks, mitigation actions, and responsible owners..."
+                  minRows={12}
+                  maxRows={24}
+                  disabled={!canEditManagedDocs}
+                  draftValue={form?.risks || ''}
+                  onDraftChange={(value) => update({ risks: value })}
+                  onDirtyChange={setRisksDirty}
+                />
               </Box>
 
               <Box
@@ -1157,6 +1182,14 @@ export default function RequestWorkspacePage() {
             </Stack>
           )}
 
+          {routeTab === 'knowledge' && !isCreate && form?.id && (
+            <EntityKnowledgePanel
+              entityType="requests"
+              entityId={form.id}
+              canCreate={hasLevel('knowledge', 'member')}
+            />
+          )}
+
           {routeTab === 'activity' && !isCreate && (
             <PortfolioActivity
               entityType="request"
@@ -1182,7 +1215,6 @@ export default function RequestWorkspacePage() {
           request={{
             id: form.id,
             name: form.name || '',
-            purpose: form.purpose,
             target_delivery_date: form.target_delivery_date,
           }}
           onSuccess={(projectId) => {

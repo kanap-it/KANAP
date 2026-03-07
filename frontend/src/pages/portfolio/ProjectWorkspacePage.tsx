@@ -41,7 +41,6 @@ import CompanySelect from '../../components/fields/CompanySelect';
 import DepartmentSelect from '../../components/fields/DepartmentSelect';
 import DateEUField from '../../components/fields/DateEUField';
 import EnumAutocomplete from '../../components/fields/EnumAutocomplete';
-import ExportButton from '../../components/ExportButton';
 import StatusChangeDialog from './components/StatusChangeDialog';
 import PortfolioActivity from './components/PortfolioActivity';
 import DependencySelector from './components/DependencySelector';
@@ -58,10 +57,10 @@ import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
 import { formatItemRef } from '../../utils/item-ref';
 import ShareDialog from '../../components/ShareDialog';
+import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
+import IntegratedDocumentEditor, { IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
 
-const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
-
-type TabKey = 'overview' | 'scoring' | 'timeline' | 'effort' | 'tasks' | 'team' | 'relations' | 'activity';
+type TabKey = 'overview' | 'scoring' | 'timeline' | 'effort' | 'tasks' | 'team' | 'relations' | 'knowledge' | 'activity';
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'overview', label: 'Overview' },
@@ -72,6 +71,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'tasks', label: 'Tasks' },
   { key: 'scoring', label: 'Scoring' },
   { key: 'relations', label: 'Relations' },
+  { key: 'knowledge', label: 'Knowledge' },
 ];
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -435,6 +435,8 @@ export default function ProjectWorkspacePage() {
   const relationsPanelRef = React.useRef<ProjectRelationsPanelHandle>(null);
   const scoringEditorRef = React.useRef<ProjectScoringEditorHandle>(null);
   const [scoringDirty, setScoringDirty] = React.useState(false);
+  const purposeEditorRef = React.useRef<IntegratedDocumentEditorHandle>(null);
+  const [purposeDirty, setPurposeDirty] = React.useState(false);
   const classificationTouchedRef = React.useRef({
     source_id: false,
     category_id: false,
@@ -547,7 +549,7 @@ export default function ProjectWorkspacePage() {
     streams,
   ]);
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<boolean> => {
     setSaveError(null);
     try {
       if (isCreate) {
@@ -556,32 +558,51 @@ export default function ProjectWorkspacePage() {
         if (newId) {
           setDirty(false);
           navigate(`/portfolio/projects/${newId}/overview?${searchParams.toString()}`);
+          return true;
         }
+        return false;
       } else {
-        await api.patch(`/portfolio/projects/${id}`, form);
-
-        // Save scoring editor data if dirty
-        if (scoringEditorRef.current?.isDirty()) {
-          await scoringEditorRef.current.save();
+        if (!canManage && (dirty || scoringDirty || relationsDirty)) {
+          setSaveError('You do not have permission to save project form changes from this workspace.');
+          return false;
         }
 
-        // Save relations panel data if dirty
-        if (relationsPanelRef.current?.isDirty()) {
-          await relationsPanelRef.current.save();
+        if (canManage) {
+          const projectPayload = { ...form };
+          delete projectPayload.purpose;
+          await api.patch(`/portfolio/projects/${id}`, projectPayload);
+
+          // Save scoring editor data if dirty.
+          if (scoringEditorRef.current?.isDirty()) {
+            await scoringEditorRef.current.save();
+          }
+
+          // Save relations panel data if dirty.
+          if (relationsPanelRef.current?.isDirty()) {
+            await relationsPanelRef.current.save();
+          }
+        }
+
+        if (purposeEditorRef.current?.isDirty()) {
+          const ok = await purposeEditorRef.current.save();
+          if (!ok) return false;
         }
 
         setDirty(false);
         setScoringDirty(false);
         setRelationsDirty(false);
+        setPurposeDirty(false);
         await refetch();
         queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+        return true;
       }
     } catch (e: any) {
       setSaveError(e?.response?.data?.message || e?.message || 'Failed to save');
+      return false;
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (data) {
       setForm({ ...data });
     } else {
@@ -590,9 +611,11 @@ export default function ProjectWorkspacePage() {
     setDirty(false);
     setScoringDirty(false);
     setRelationsDirty(false);
+    setPurposeDirty(false);
     setSaveError(null);
     scoringEditorRef.current?.reset?.();
     relationsPanelRef.current?.reset();
+    await purposeEditorRef.current?.reset?.();
     classificationTouchedRef.current = {
       source_id: false,
       category_id: false,
@@ -672,13 +695,15 @@ export default function ProjectWorkspacePage() {
 
   const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
-    if (dirty) {
+    if (hasUnsavedChanges) {
       const proceed = window.confirm('You have unsaved changes. Save before switching tabs?');
       if (proceed) {
-        void handleSave().then(() => navigate(`/portfolio/projects/${id}/${nextValue}?${searchParams.toString()}`));
+        void handleSave().then((ok) => {
+          if (ok) navigate(`/portfolio/projects/${id}/${nextValue}?${searchParams.toString()}`);
+        });
         return;
       } else {
-        handleReset();
+        void handleReset();
       }
     }
     navigate(`/portfolio/projects/${id}/${nextValue}?${searchParams.toString()}`);
@@ -687,7 +712,10 @@ export default function ProjectWorkspacePage() {
   const canManage = hasLevel('portfolio_projects', 'manager');
   const canContributeToProject = hasLevel('portfolio_projects', 'contributor');
   const canProjectAdmin = hasLevel('portfolio_projects', 'admin');
-  const saveDisabled = (!dirty && !scoringDirty && !relationsDirty) || !canManage;
+  const hasPageDirtyChanges = dirty || scoringDirty || relationsDirty;
+  const hasUnsavedChanges = hasPageDirtyChanges || purposeDirty;
+  const canSaveManagedDocsOnly = !hasPageDirtyChanges && purposeDirty && canContributeToProject;
+  const saveDisabled = !hasUnsavedChanges || (!canManage && !canSaveManagedDocsOnly);
 
   // Drag-and-drop sensors for phase reordering
   const sensors = useSensors(
@@ -745,6 +773,39 @@ export default function ProjectWorkspacePage() {
     return sp;
   }, [searchParams]);
 
+  const taskWorkspaceContextParams = React.useMemo(() => {
+    const sp = new URLSearchParams();
+    const sort = searchParams.get('sort');
+    const q = searchParams.get('q');
+    const filters = searchParams.get('filters');
+    const projectScope = searchParams.get('projectScope');
+    const involvedUserId = searchParams.get('involvedUserId');
+    const involvedTeamId = searchParams.get('involvedTeamId');
+    sp.set('projectId', id);
+    if (sort) sp.set('projectSort', sort);
+    if (q) sp.set('projectQ', q);
+    if (filters) sp.set('projectFilters', filters);
+    if (projectScope) sp.set('projectScope', projectScope);
+    if (involvedUserId) sp.set('projectInvolvedUserId', involvedUserId);
+    if (involvedTeamId) sp.set('projectInvolvedTeamId', involvedTeamId);
+    sp.set('projectTab', routeTab || 'tasks');
+    return sp;
+  }, [id, routeTab, searchParams]);
+
+  const navigateWithTaskWorkspaceContext = React.useCallback((path: string) => {
+    if (!path.startsWith('/portfolio/tasks/')) {
+      navigate(path);
+      return;
+    }
+    const [pathname, search = ''] = path.split('?');
+    const sp = new URLSearchParams(search);
+    taskWorkspaceContextParams.forEach((value, key) => {
+      if (!sp.has(key)) sp.set(key, value);
+    });
+    const qs = sp.toString();
+    navigate(`${pathname}${qs ? `?${qs}` : ''}`);
+  }, [navigate, taskWorkspaceContextParams]);
+
   // Navigation for prev/next
   const sort = searchParams.get('sort') || 'priority_score:DESC';
   const q = searchParams.get('q') || '';
@@ -764,17 +825,18 @@ export default function ProjectWorkspacePage() {
 
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
-    if (dirty || scoringDirty || relationsDirty) {
+    if (hasUnsavedChanges) {
       const proceed = window.confirm('You have unsaved changes. Save before navigating?');
       if (proceed) {
-        try { await handleSave(); } catch { return; }
+        const ok = await handleSave();
+        if (!ok) return;
       } else {
-        handleReset();
+        await handleReset();
       }
     }
     const qs = listContextParams.toString();
     navigate(`/portfolio/projects/${targetId}/${routeTab}${qs ? `?${qs}` : ''}`);
-  }, [dirty, scoringDirty, relationsDirty, handleSave, handleReset, listContextParams, navigate, routeTab]);
+  }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab]);
 
   const statusLabel = STATUS_OPTIONS.find((s) => s.value === form?.status)?.label || form?.status || '';
   const statusColor = STATUS_COLORS[form?.status] || 'default';
@@ -913,7 +975,7 @@ export default function ProjectWorkspacePage() {
           >
             <ArrowForwardIcon />
           </IconButton>
-          <Button onClick={handleReset} disabled={!dirty}>Reset</Button>
+          <Button onClick={() => { void handleReset(); }} disabled={!hasUnsavedChanges}>Reset</Button>
           <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>Save</Button>
           <IconButton
             aria-label="Close"
@@ -968,28 +1030,20 @@ export default function ProjectWorkspacePage() {
                   options={STATUS_OPTIONS}
                 />
               )}
-              <Box>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Purpose
-                  </Typography>
-                  <ExportButton
-                    content={form?.purpose || ''}
-                    title={form?.name || 'project-purpose'}
-                    disabled={!String(form?.purpose || '').trim()}
-                  />
-                </Stack>
-                <React.Suspense fallback={<Box sx={{ minHeight: 14 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
-                  <MarkdownEditor
-                    value={form?.purpose || ''}
-                    onChange={(v) => update({ purpose: v })}
-                    placeholder="Describe the purpose of this project..."
-                    minRows={14}
-                    maxRows={26}
-                    onImageUpload={!isCreate ? (file) => handleImageUpload(file, 'purpose') : undefined}
-                  />
-                </React.Suspense>
-              </Box>
+              <IntegratedDocumentEditor
+                ref={purposeEditorRef}
+                entityType="projects"
+                entityId={isCreate ? null : id}
+                slotKey="purpose"
+                label="Purpose"
+                placeholder="Describe the purpose of this project..."
+                minRows={14}
+                maxRows={26}
+                disabled={!canContributeToProject}
+                draftValue={form?.purpose || ''}
+                onDraftChange={(value) => update({ purpose: value })}
+                onDirtyChange={setPurposeDirty}
+              />
               {isCreate && (
                 <EnumAutocomplete
                   label="Origin"
@@ -1225,7 +1279,7 @@ export default function ProjectWorkspacePage() {
                                   milestones={form?.milestones || []}
                                   onRefetch={refetch}
                                   onError={setSaveError}
-                                  onNavigate={navigate}
+                                  onNavigate={navigateWithTaskWorkspaceContext}
                                 />
                               ))}
                             </TableBody>
@@ -1943,6 +1997,14 @@ export default function ProjectWorkspacePage() {
                 onDirtyChange={setRelationsDirty}
               />
             </Stack>
+          )}
+
+          {routeTab === 'knowledge' && !isCreate && form?.id && (
+            <EntityKnowledgePanel
+              entityType="projects"
+              entityId={form.id}
+              canCreate={hasLevel('knowledge', 'member')}
+            />
           )}
 
           {routeTab === 'activity' && !isCreate && (

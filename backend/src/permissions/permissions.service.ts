@@ -10,6 +10,14 @@ export type PermissionLevel = 'reader' | 'contributor' | 'member' | 'admin';
 // Permission level ranking for union logic (higher = more permissive)
 const LEVEL_RANK: Record<PermissionLevel, number> = { reader: 1, contributor: 2, member: 3, admin: 4 };
 
+function normalizePermissionLevel(resource: string, level: PermissionLevel): PermissionLevel {
+  // Knowledge does not use a contributor tier. Preserve legacy data by folding it down to reader.
+  if (normalizeResource(resource) === 'knowledge' && level === 'contributor') {
+    return 'reader';
+  }
+  return level;
+}
+
 export const RESOURCES = [
   'opex',
   'capex',
@@ -25,6 +33,7 @@ export const RESOURCES = [
   'accounts',
   'analytics',
   'business_processes',
+  'knowledge',
   'users',
   'reporting',
   'settings',
@@ -75,10 +84,11 @@ export class PermissionsService {
     const map = new Map<string, PermissionLevel>();
     for (const i of items) {
       const key = normalizeResource(i.resource);
+      const level = normalizePermissionLevel(key, i.level);
       // Prefer explicitly mapped resource; do not overwrite higher privilege with lower
       const existing = map.get(key);
-      if (!existing || (LEVEL_RANK[i.level] ?? 0) > (LEVEL_RANK[existing] ?? 0)) {
-        map.set(key, i.level);
+      if (!existing || (LEVEL_RANK[level] ?? 0) > (LEVEL_RANK[existing] ?? 0)) {
+        map.set(key, level);
       }
     }
     // Derived: if role has suppliers:member or suppliers:admin, grant contacts:reader unless explicitly set
@@ -119,7 +129,7 @@ export class PermissionsService {
       if (level == null) {
         if (current.has(normalized)) toDelete.push(normalized);
       } else {
-        toSave.push({ resource: normalized, level });
+        toSave.push({ resource: normalized, level: normalizePermissionLevel(normalized, level) });
       }
     }
 

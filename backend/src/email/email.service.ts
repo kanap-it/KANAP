@@ -23,6 +23,10 @@ interface QueuedEmail {
   reject: (err: Error) => void;
 }
 
+type DeliveryError = Error & { code?: string };
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -30,15 +34,26 @@ export class EmailService {
   private readonly defaultFrom: string;
   private readonly emailOverride: string | null;
 
-  // Rate limiting queue - Resend API allows 2 req/sec, we stay safely under at ~1.4/sec
+  // Queue + rate limiting (single-process). Defaults target <= ~1.4 req/sec.
   private emailQueue: QueuedEmail[] = [];
   private isProcessingQueue = false;
-  private readonly RATE_LIMIT_DELAY_MS = 700;
+  private nextSendAtMs = 0;
+
+  private readonly RATE_LIMIT_DELAY_MS: number;
+  private readonly RATE_LIMIT_MAX_RETRIES: number;
+  private readonly RATE_LIMIT_RETRY_BASE_MS: number;
+  private readonly RATE_LIMIT_RETRY_MAX_MS: number;
+  private readonly RATE_LIMIT_RETRY_JITTER_MS: number;
 
   constructor() {
     const apiKey = process.env.RESEND_API_KEY;
     this.defaultFrom = process.env.RESEND_FROM_EMAIL ?? 'KANAP <no-reply@kanap.net>';
     this.emailOverride = process.env.EMAIL_OVERRIDE?.trim() || null;
+    this.RATE_LIMIT_DELAY_MS = this.readPositiveIntEnv('EMAIL_QUEUE_MIN_INTERVAL_MS', 700);
+    this.RATE_LIMIT_MAX_RETRIES = this.readPositiveIntEnv('EMAIL_RATE_LIMIT_MAX_RETRIES', 5);
+    this.RATE_LIMIT_RETRY_BASE_MS = this.readPositiveIntEnv('EMAIL_RATE_LIMIT_RETRY_BASE_MS', 1_500);
+    this.RATE_LIMIT_RETRY_MAX_MS = this.readPositiveIntEnv('EMAIL_RATE_LIMIT_RETRY_MAX_MS', 30_000);
+    this.RATE_LIMIT_RETRY_JITTER_MS = this.readPositiveIntEnv('EMAIL_RATE_LIMIT_RETRY_JITTER_MS', 250);
     if (apiKey && apiKey.trim().length > 0) {
       this.client = new Resend(apiKey.trim());
     } else {
@@ -61,22 +76,62 @@ export class EmailService {
     if (this.isProcessingQueue) return;
     this.isProcessingQueue = true;
 
-    while (this.emailQueue.length > 0) {
-      const item = this.emailQueue.shift()!;
-      try {
-        await this.sendImmediate(item.options);
-        item.resolve();
-      } catch (err) {
-        item.reject(err as Error);
+    try {
+      while (this.emailQueue.length > 0) {
+        const item = this.emailQueue.shift()!;
+        try {
+          await this.sendWithRateLimitRetry(item.options);
+          item.resolve();
+        } catch (err) {
+          item.reject(this.normalizeError(err));
+        }
       }
-
-      // Rate limit delay before next email
+    } finally {
+      this.isProcessingQueue = false;
+      // Queue can grow while we are draining; restart safely if needed.
       if (this.emailQueue.length > 0) {
-        await new Promise(r => setTimeout(r, this.RATE_LIMIT_DELAY_MS));
+        void this.processQueue();
       }
     }
+  }
 
-    this.isProcessingQueue = false;
+  private async sendWithRateLimitRetry(options: SendEmailOptions): Promise<void> {
+    let attempt = 0;
+    while (true) {
+      await this.waitForSendSlot();
+      try {
+        await this.sendImmediate(options);
+        return;
+      } catch (err) {
+        const normalized = this.normalizeError(err);
+        const retryDelayMs = this.getRateLimitRetryDelayMs(normalized, attempt);
+        if (retryDelayMs === null || attempt >= this.RATE_LIMIT_MAX_RETRIES) {
+          throw normalized;
+        }
+
+        attempt += 1;
+        const to = Array.isArray(options.to) ? options.to.join(', ') : options.to;
+        this.logger.warn(
+          `Resend rate limit hit for ${to}; retry ${attempt}/${this.RATE_LIMIT_MAX_RETRIES} in ${retryDelayMs}ms`,
+        );
+
+        this.deferNextSendUntil(Date.now() + retryDelayMs);
+        await sleep(retryDelayMs);
+      }
+    }
+  }
+
+  private async waitForSendSlot(): Promise<void> {
+    const now = Date.now();
+    const waitMs = this.nextSendAtMs - now;
+    if (waitMs > 0) {
+      await sleep(waitMs);
+    }
+    this.nextSendAtMs = Date.now() + this.RATE_LIMIT_DELAY_MS;
+  }
+
+  private deferNextSendUntil(timestampMs: number): void {
+    this.nextSendAtMs = Math.max(this.nextSendAtMs, timestampMs);
   }
 
   private async sendImmediate(options: SendEmailOptions) {
@@ -97,19 +152,29 @@ export class EmailService {
 
     this.logger.debug(`Sending email to ${to.join(', ')}: ${subject}`);
 
-    const { data, error } = await client.emails.send({
-      from: options.from ?? this.defaultFrom,
-      to,
-      subject,
-      html: options.html,
-      text: options.text,
-      replyTo,
-      headers: options.headers,
-      attachments: options.attachments,
-    });
+    let data: unknown;
+    let error: { name?: string; message?: string } | null = null;
+    try {
+      const result = await client.emails.send({
+        from: options.from ?? this.defaultFrom,
+        to,
+        subject,
+        html: options.html,
+        text: options.text,
+        replyTo,
+        headers: options.headers,
+        attachments: options.attachments,
+      });
+      data = result.data;
+      error = result.error;
+    } catch (err) {
+      const normalized = this.normalizeError(err);
+      this.logger.error(`Failed to send email via Resend: ${normalized.name} - ${normalized.message}`);
+      throw normalized;
+    }
     if (error) {
       this.logger.error(`Failed to send email via Resend: ${error.name} - ${error.message}`);
-      throw new Error(error.message ?? 'Failed to send email');
+      throw this.createDeliveryError(error.message ?? 'Failed to send email', error.name);
     }
     return data;
   }
@@ -183,5 +248,66 @@ export class EmailService {
       throw new FeatureDisabledError('email', 'Email service is not configured. Set RESEND_API_KEY.');
     }
     return this.client;
+  }
+
+  private createDeliveryError(message: string, code?: string): DeliveryError {
+    const error = new Error(message) as DeliveryError;
+    if (code) error.code = code;
+    return error;
+  }
+
+  private normalizeError(err: unknown): DeliveryError {
+    if (err instanceof Error) return err as DeliveryError;
+    if (typeof err === 'string') return new Error(err) as DeliveryError;
+    return new Error('Unknown email send error') as DeliveryError;
+  }
+
+  private getRateLimitRetryDelayMs(err: DeliveryError, attempt: number): number | null {
+    if (!this.isRateLimitError(err)) return null;
+
+    const explicitRetryAfterMs = this.extractRetryAfterMs(err.message);
+    if (explicitRetryAfterMs !== null) return explicitRetryAfterMs;
+
+    const exponentialDelay = this.RATE_LIMIT_RETRY_BASE_MS * Math.pow(2, attempt);
+    const cappedDelay = Math.min(exponentialDelay, this.RATE_LIMIT_RETRY_MAX_MS);
+    const jitter = this.RATE_LIMIT_RETRY_JITTER_MS > 0
+      ? Math.floor(Math.random() * (this.RATE_LIMIT_RETRY_JITTER_MS + 1))
+      : 0;
+    return cappedDelay + jitter;
+  }
+
+  private isRateLimitError(err: DeliveryError): boolean {
+    if ((err.code || '').toLowerCase() === 'rate_limit_exceeded') return true;
+
+    const details = `${err.name || ''} ${err.message || ''}`.toLowerCase();
+    return details.includes('rate limit') || details.includes('429');
+  }
+
+  private extractRetryAfterMs(message: string): number | null {
+    const text = String(message || '').toLowerCase();
+    if (!text) return null;
+
+    const msMatch = text.match(/(?:retry[- ]?after|try again in)\s*:?\s*([0-9]+)\s*(?:ms|msec|millisecond|milliseconds)\b/);
+    if (msMatch) return Math.max(0, parseInt(msMatch[1], 10));
+
+    const secMatch = text.match(/(?:retry[- ]?after|try again in)\s*:?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:s|sec|secs|second|seconds)\b/);
+    if (secMatch) return Math.max(0, Math.ceil(parseFloat(secMatch[1]) * 1000));
+
+    const headerMatch = text.match(/retry[- ]?after\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)/);
+    if (headerMatch) return Math.max(0, Math.ceil(parseFloat(headerMatch[1]) * 1000));
+
+    return null;
+  }
+
+  private readPositiveIntEnv(name: string, fallback: number): number {
+    const raw = process.env[name];
+    if (!raw || raw.trim().length === 0) return fallback;
+
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      this.logger.warn(`${name} is invalid (${raw}); using default ${fallback}`);
+      return fallback;
+    }
+    return parsed;
   }
 }

@@ -23,6 +23,7 @@ import CompanySelect from '../../../components/fields/CompanySelect';
 import TaskLogTimeDialog from './TaskLogTimeDialog';
 import { useAuth } from '../../../auth/AuthContext';
 import { TASK_STATUS_OPTIONS } from '../task.constants';
+import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
 
 // Classification types
 interface ClassificationSource {
@@ -117,6 +118,7 @@ interface TaskSidebarProps {
   totalTimeHours?: number;
   isCreate?: boolean;
   onRelationChange?: (params: RelationChangeParams) => void;
+  projectWorkspaceLink?: string | null;
 }
 
 export default function TaskSidebar({
@@ -126,6 +128,7 @@ export default function TaskSidebar({
   totalTimeHours = 0,
   isCreate = false,
   onRelationChange,
+  projectWorkspaceLink = null,
 }: TaskSidebarProps) {
   const { hasLevel } = useAuth();
   const queryClient = useQueryClient();
@@ -142,6 +145,8 @@ export default function TaskSidebar({
   const canManageStandaloneEntries = hasLevel('tasks', 'member');
   const canManageProjectEntries = hasLevel('portfolio_projects', 'contributor');
   const canLogTime = isProjectTask ? canManageProjectEntries : canManageStandaloneEntries;
+  const canCreateKnowledge = hasLevel('knowledge', 'member');
+  const showKnowledge = !isCreate && !!task.id;
 
   // Fetch task types from classification API
   const { data: taskTypesData } = useQuery({
@@ -278,7 +283,7 @@ export default function TaskSidebar({
                   <Typography component="span"> : </Typography>
                   <Typography
                     component={Link}
-                    to={isProjectTask ? `/portfolio/projects/${task.related_object_id}` :
+                    to={isProjectTask ? (projectWorkspaceLink || `/portfolio/projects/${task.related_object_id}`) :
                         task.related_object_type === 'spend_item' ? `/ops/opex/${task.related_object_id}` :
                         task.related_object_type === 'contract' ? `/ops/contracts/${task.related_object_id}` :
                         task.related_object_type === 'capex_item' ? `/ops/capex/${task.related_object_id}` :
@@ -315,6 +320,30 @@ export default function TaskSidebar({
       </Accordion>
 
       <Divider />
+
+      {showKnowledge && (
+        <>
+          <Accordion
+            expanded={expanded.includes('knowledge')}
+            onChange={handleAccordionChange('knowledge')}
+            disableGutters
+            elevation={0}
+            sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle2" fontWeight="bold">Knowledge</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ pt: 0 }}>
+              <EntityKnowledgePanel
+                entityType="tasks"
+                entityId={task.id}
+                canCreate={canCreateKnowledge}
+              />
+            </AccordionDetails>
+          </Accordion>
+          <Divider />
+        </>
+      )}
 
       {/* TASK DETAILS - Second */}
       <Accordion

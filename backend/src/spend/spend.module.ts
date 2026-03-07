@@ -50,6 +50,7 @@ import { SupplierContactLink } from '../contacts/supplier-contact.entity';
 import { PortfolioProjectOpex } from '../portfolio/portfolio-project-opex.entity';
 import { PortfolioProject } from '../portfolio/portfolio-project.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     TasksModule,
     StorageModule,
     NotificationsModule,
+    KnowledgeModule,
   ],
   controllers: [SpendItemsController, SpendVersionsController, SpendTasksController, AllocationRulesController, TasksController, ChargebackReportController],
   providers: [

@@ -106,6 +106,7 @@ import { TasksModule } from '../tasks/tasks.module';
 import { CsvModule } from '../common/csv';
 import { CommonModule } from '../common/common.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
 
 const entities = [
   PortfolioRequest,
@@ -157,6 +158,7 @@ const entities = [
     CsvModule,
     CommonModule,
     NotificationsModule,
+    KnowledgeModule,
   ],
   providers: [
     // Non-decomposed services

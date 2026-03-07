@@ -12,6 +12,7 @@ export interface TaskListItem {
   due_date: string | null;
   start_date: string | null;
   created_at: Date;
+  updated_at: Date;
   assignee_user_id: string | null;
   assignee_name: string | null;
   related_object_type: string | null;
@@ -315,6 +316,7 @@ export class TasksService {
       description: 't.description',
       status: 't.status',
       created_at: 't.created_at',
+      updated_at: 't.updated_at',
       due_date: 't.due_date',
       start_date: 't.start_date',
       assignee_name: 'assignee_name',
@@ -343,6 +345,7 @@ export class TasksService {
         t.due_date,
         t.start_date,
         t.created_at,
+        t.updated_at,
         t.assignee_user_id,
         COALESCE(u.first_name || ' ' || u.last_name, u.email) as assignee_name,
         t.related_object_type,
@@ -432,6 +435,7 @@ export class TasksService {
       description: 't.description',
       status: 't.status',
       created_at: 't.created_at',
+      updated_at: 't.updated_at',
       due_date: 't.due_date',
       start_date: 't.start_date',
       assignee_name: 'assignee_name',

@@ -346,6 +346,118 @@ export function buildTaskAssignedEmail(params: {
   return { subject, html, text };
 }
 
+// Template: Knowledge Workflow Requested
+export function buildKnowledgeWorkflowRequestedEmail(params: {
+  documentRef: string;
+  documentTitle: string;
+  documentUrl?: string | null;
+  requesterName: string;
+  stage: 'review' | 'approval';
+}): EmailContent {
+  const subject = `${params.stage === 'review' ? 'Review requested' : 'Approval requested'}: ${params.documentRef} ${params.documentTitle}`;
+  const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
+  const body = `
+    <h2 style="margin:0 0 16px 0;color:#111827;">${params.stage === 'review' ? 'Document Review Requested' : 'Document Approval Requested'}</h2>
+    <p><strong>${escapeHtml(params.requesterName)}</strong> requested ${params.stage === 'review' ? 'a review' : 'an approval'} for document
+       <strong>${escapeHtml(params.documentRef)}</strong>.</p>
+    <p>Title: <strong>${escapeHtml(params.documentTitle)}</strong></p>
+    ${buildActionButtons(params.documentUrl ? [{ label: 'Open Document', url: params.documentUrl }] : undefined)}
+  `;
+  const html = emailWrapper(body, { preferencesUrl });
+  const text = [
+    `${params.requesterName} requested ${params.stage === 'review' ? 'a review' : 'an approval'} for ${params.documentRef}.`,
+    `Title: ${params.documentTitle}`,
+    params.documentUrl ? `Open document: ${params.documentUrl}` : null,
+    preferencesUrl ? `Manage notification preferences: ${preferencesUrl}` : null,
+  ].filter(Boolean).join('\n\n');
+
+  return { subject, html, text };
+}
+
+// Template: Knowledge Workflow Approved
+export function buildKnowledgeWorkflowApprovedEmail(params: {
+  documentRef: string;
+  documentTitle: string;
+  documentUrl?: string | null;
+}): EmailContent {
+  const subject = `Document approved: ${params.documentRef} ${params.documentTitle}`;
+  const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
+  const body = `
+    <h2 style="margin:0 0 16px 0;color:#111827;">Document Approved</h2>
+    <p>The review workflow for <strong>${escapeHtml(params.documentRef)}</strong> has been approved and the document is now published.</p>
+    <p>Title: <strong>${escapeHtml(params.documentTitle)}</strong></p>
+    ${buildActionButtons(params.documentUrl ? [{ label: 'Open Document', url: params.documentUrl }] : undefined)}
+  `;
+  const html = emailWrapper(body, { preferencesUrl });
+  const text = [
+    `The review workflow for ${params.documentRef} has been approved and the document is now published.`,
+    `Title: ${params.documentTitle}`,
+    params.documentUrl ? `Open document: ${params.documentUrl}` : null,
+    preferencesUrl ? `Manage notification preferences: ${preferencesUrl}` : null,
+  ].filter(Boolean).join('\n\n');
+
+  return { subject, html, text };
+}
+
+// Template: Knowledge Workflow Changes Requested
+export function buildKnowledgeWorkflowChangesRequestedEmail(params: {
+  documentRef: string;
+  documentTitle: string;
+  documentUrl?: string | null;
+  actorName: string;
+  comment: string;
+}): EmailContent {
+  const subject = `Changes requested: ${params.documentRef} ${params.documentTitle}`;
+  const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
+  const body = `
+    <h2 style="margin:0 0 16px 0;color:#111827;">Changes Requested</h2>
+    <p><strong>${escapeHtml(params.actorName)}</strong> requested changes for document
+       <strong>${escapeHtml(params.documentRef)}</strong>.</p>
+    <p>Title: <strong>${escapeHtml(params.documentTitle)}</strong></p>
+    <div style="border-left:3px solid #2D69E0;padding:12px 16px;background-color:#f9fafb;border-radius:0 4px 4px 0;margin:16px 0;color:#374151;">
+      ${escapeHtml(params.comment)}
+    </div>
+    ${buildActionButtons(params.documentUrl ? [{ label: 'Open Document', url: params.documentUrl }] : undefined)}
+  `;
+  const html = emailWrapper(body, { preferencesUrl });
+  const text = [
+    `${params.actorName} requested changes for ${params.documentRef}.`,
+    `Title: ${params.documentTitle}`,
+    `Comment: ${params.comment}`,
+    params.documentUrl ? `Open document: ${params.documentUrl}` : null,
+    preferencesUrl ? `Manage notification preferences: ${preferencesUrl}` : null,
+  ].filter(Boolean).join('\n\n');
+
+  return { subject, html, text };
+}
+
+// Template: Knowledge Workflow Cancelled
+export function buildKnowledgeWorkflowCancelledEmail(params: {
+  documentRef: string;
+  documentTitle: string;
+  documentUrl?: string | null;
+  actorName: string;
+}): EmailContent {
+  const subject = `Review cancelled: ${params.documentRef} ${params.documentTitle}`;
+  const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
+  const body = `
+    <h2 style="margin:0 0 16px 0;color:#111827;">Review Cancelled</h2>
+    <p><strong>${escapeHtml(params.actorName)}</strong> cancelled the active review workflow for document
+       <strong>${escapeHtml(params.documentRef)}</strong>.</p>
+    <p>Title: <strong>${escapeHtml(params.documentTitle)}</strong></p>
+    ${buildActionButtons(params.documentUrl ? [{ label: 'Open Document', url: params.documentUrl }] : undefined)}
+  `;
+  const html = emailWrapper(body, { preferencesUrl });
+  const text = [
+    `${params.actorName} cancelled the active review workflow for ${params.documentRef}.`,
+    `Title: ${params.documentTitle}`,
+    params.documentUrl ? `Open document: ${params.documentUrl}` : null,
+    preferencesUrl ? `Manage notification preferences: ${preferencesUrl}` : null,
+  ].filter(Boolean).join('\n\n');
+
+  return { subject, html, text };
+}
+
 // Template: Expiration Warning
 export function buildExpirationWarningEmail(params: {
   itemType: 'contract' | 'opex';

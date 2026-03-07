@@ -319,6 +319,27 @@ export class AdminTenantsService {
       'portfolio_sources',
       'portfolio_skills',
       'portfolio_settings',
+      // Knowledge
+      'integrated_document_bindings',
+      'integrated_document_slot_settings',
+      'document_references',
+      'document_applications',
+      'document_assets',
+      'document_projects',
+      'document_requests',
+      'document_tasks',
+      'document_classifications',
+      'document_contributors',
+      'document_workflow_participants',
+      'document_workflows',
+      'document_activities',
+      'document_attachments',
+      'document_edit_locks',
+      'document_versions',
+      'documents',
+      'document_types',
+      'document_folders',
+      'document_libraries',
       // Applications: purge attachments and links first
       'application_attachments',
       'application_links',
@@ -374,6 +395,8 @@ export class AdminTenantsService {
       'task_time_entries',
       'user_time_monthly_aggregates',
       'tasks',
+      // Per-tenant item numbering for tasks, requests, projects, and documents
+      'item_sequences',
       'spend_amounts',
       'spend_allocations',
       'spend_versions',
@@ -466,11 +489,13 @@ export class AdminTenantsService {
       const attachmentTables = new Set([
         'portfolio_project_attachments',
         'portfolio_request_attachments',
+        'task_attachments',
         'contract_attachments',
         'capex_attachments',
         'spend_attachments',
         'application_attachments',
         'interface_attachments',
+        'document_attachments',
       ]);
 
       for (const table of tablesInOrder) {

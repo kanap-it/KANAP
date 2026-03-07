@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
@@ -11,6 +11,7 @@ import { attachmentMulterOptions, csvImportMulterOptions } from '../common/uploa
 import { contentDisposition } from '../common/content-disposition';
 import { StorageService } from '../common/storage/storage.service';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 import {
   CreateApplicationInput,
   UpdateApplicationInput,
@@ -40,6 +41,7 @@ export class ApplicationsController {
     private readonly storage: StorageService,
     private readonly deleteSvc: ApplicationsDeleteService,
     private readonly csvSvc: ApplicationsCsvService,
+    private readonly knowledge: KnowledgeService,
   ) {}
 
   @UseGuards(PermissionGuard)
@@ -224,6 +226,20 @@ export class ApplicationsController {
     @Tenant() ctx: TenantRequest,
   ): Promise<Record<string, unknown>> {
     return this.svc.get(id, { manager: ctx.manager, include });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get(':id/knowledge')
+  listDocuments(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+    @Req() req: any,
+  ) {
+    return this.knowledge.listDocumentsForEntity('applications', id, {
+      manager: ctx.manager,
+      userId: req?.user?.sub ?? null,
+    });
   }
 
   @UseGuards(PermissionGuard)

@@ -1,16 +1,17 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 
-export type EntityType = 'task' | 'request' | 'project';
+export type EntityType = 'task' | 'request' | 'project' | 'document';
 
 const EXPECTED_PREFIX: Record<EntityType, string> = {
   task: 'T',
   request: 'REQ',
   project: 'PRJ',
+  document: 'DOC',
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ITEM_REF_RE = /^(T|PRJ|REQ)-(\d+)$/i;
+const ITEM_REF_RE = /^(T|PRJ|REQ|DOC)-(\d+)$/i;
 
 export function parseItemRef(
   raw: string,
@@ -54,6 +55,7 @@ export async function resolveToUuid(
     task: 'SELECT id FROM tasks WHERE item_number = $1 LIMIT 1',
     request: 'SELECT id FROM portfolio_requests WHERE item_number = $1 LIMIT 1',
     project: 'SELECT id FROM portfolio_projects WHERE item_number = $1 LIMIT 1',
+    document: 'SELECT id FROM documents WHERE item_number = $1 LIMIT 1',
   };
 
   const rows = await manager.query(queries[entityType], [parsed.value]);

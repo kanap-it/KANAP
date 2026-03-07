@@ -29,6 +29,7 @@ type TaskRow = {
   due_date: string | null;
   start_date: string | null;
   created_at: string;
+  updated_at: string;
   assignee_user_id: string | null;
   assignee_name: string | null;
   related_object_type: string | null;
@@ -246,6 +247,27 @@ export default function TasksPage() {
 
   const hasTeam = !!myTeamConfig?.team_id;
 
+  const taskScopeRef = useRef(taskScope);
+  const profileIdRef = useRef<string | null>(profile?.id ?? null);
+  const hasTeamRef = useRef(hasTeam);
+  const teamIdRef = useRef<string | null>(myTeamConfig?.team_id ?? null);
+
+  useEffect(() => {
+    taskScopeRef.current = taskScope;
+  }, [taskScope]);
+
+  useEffect(() => {
+    profileIdRef.current = profile?.id ?? null;
+  }, [profile?.id]);
+
+  useEffect(() => {
+    hasTeamRef.current = hasTeam;
+  }, [hasTeam]);
+
+  useEffect(() => {
+    teamIdRef.current = myTeamConfig?.team_id ?? null;
+  }, [myTeamConfig?.team_id]);
+
   useEffect(() => {
     if (taskScope === 'team' && isTeamConfigFetched && !hasTeam) {
       setTaskScope('my');
@@ -295,15 +317,19 @@ export default function TasksPage() {
     if (sort) sp.set('sort', sort);
     if (q) sp.set('q', q);
     if (filters && Object.keys(filters).length > 0) sp.set('filters', JSON.stringify(filters));
+    const scope = taskScopeRef.current;
+    const profileId = profileIdRef.current;
+    const hasTeamNow = hasTeamRef.current;
+    const teamId = teamIdRef.current;
     // Include task scope and derived params for workspace navigation
-    sp.set('taskScope', taskScope);
-    if (taskScope === 'my' && profile?.id) {
-      sp.set('assigneeUserId', profile.id);
-    } else if (taskScope === 'team' && myTeamConfig?.team_id) {
-      sp.set('teamId', myTeamConfig.team_id);
+    sp.set('taskScope', scope);
+    if (scope === 'my' && profileId) {
+      sp.set('assigneeUserId', profileId);
+    } else if (scope === 'team' && hasTeamNow && teamId) {
+      sp.set('teamId', teamId);
     }
     return sp;
-  }, [taskScope, profile?.id, myTeamConfig?.team_id]);
+  }, []);
 
   const getTaskFilterValues = useCallback((field: string, opts?: { labelMap?: Record<string, string>; order?: Array<string | null>; emptyLabel?: string; searchable?: boolean }) => {
     const labelMap = opts?.labelMap;
@@ -344,8 +370,8 @@ export default function TasksPage() {
     };
   }, []);
 
-  // Clickable cell renderer
-  const ClickableCell: React.FC<ICellRendererParams<TaskRow, any>> = (params) => (
+  // Keep renderer stable so AG Grid does not treat column defs as changed on URL sort updates.
+  const clickableCellRenderer = useCallback((params: ICellRendererParams<TaskRow, any>) => (
     <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => {
       const sp = buildWorkspaceSearch();
       const ref = params.data?.item_number ? `T-${params.data.item_number}` : params.data?.id;
@@ -353,7 +379,7 @@ export default function TasksPage() {
     }}>
       {params.valueFormatted ?? params.value ?? ''}
     </Box>
-  );
+  ), [buildWorkspaceSearch, navigate]);
 
   const columns: EnhancedColDef<TaskRow>[] = useMemo(() => [
     {
@@ -361,7 +387,7 @@ export default function TasksPage() {
       headerName: '#',
       width: 90,
       filter: 'agTextColumnFilter',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
       valueFormatter: (p: any) => p.value ? `T-${p.value}` : '',
       comparator: (a: number, b: number) => (a || 0) - (b || 0),
     },
@@ -371,7 +397,7 @@ export default function TasksPage() {
       flex: 1.5,
       minWidth: 200,
       filter: 'agTextColumnFilter',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'task_type_name',
@@ -408,7 +434,7 @@ export default function TasksPage() {
       flex: 1.5,
       minWidth: 180,
       filter: 'agTextColumnFilter',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
       hide: true,
     },
     {
@@ -417,7 +443,7 @@ export default function TasksPage() {
       width: 140,
       filter: 'agTextColumnFilter',
       valueFormatter: (params) => params.value || 'Project-level',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
       hide: true,
     },
     {
@@ -456,7 +482,7 @@ export default function TasksPage() {
       flex: 1,
       minWidth: 140,
       filter: 'agTextColumnFilter',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'due_date',
@@ -464,7 +490,7 @@ export default function TasksPage() {
       width: 120,
       filter: 'agDateColumnFilter',
       valueFormatter: (params) => formatDate(params.value),
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
       hide: true,
     },
     {
@@ -473,7 +499,16 @@ export default function TasksPage() {
       width: 120,
       filter: 'agDateColumnFilter',
       valueFormatter: (params) => formatDate(params.value),
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
+      hide: true,
+    },
+    {
+      field: 'updated_at',
+      headerName: 'Last changed',
+      width: 130,
+      filter: 'agDateColumnFilter',
+      valueFormatter: (params) => formatDate(params.value),
+      cellRenderer: clickableCellRenderer,
       hide: true,
     },
     {
@@ -482,7 +517,7 @@ export default function TasksPage() {
       flex: 1.5,
       minWidth: 200,
       filter: 'agTextColumnFilter',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
       hide: true,
     },
     // Classification columns (hidden by default)
@@ -495,7 +530,7 @@ export default function TasksPage() {
       filterParams: {
         getValues: getTaskFilterValues('source_name'),
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
       hide: true,
     },
     {
@@ -507,7 +542,7 @@ export default function TasksPage() {
       filterParams: {
         getValues: getTaskFilterValues('category_name'),
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'stream_name',
@@ -518,7 +553,7 @@ export default function TasksPage() {
       filterParams: {
         getValues: getTaskFilterValues('stream_name'),
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'company_name',
@@ -529,10 +564,10 @@ export default function TasksPage() {
       filterParams: {
         getValues: getTaskFilterValues('company_name'),
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
       hide: true,
     },
-  ], [ClickableCell, getTaskFilterValues]);
+  ], [clickableCellRenderer, getTaskFilterValues]);
 
   const actions = (
     <Stack direction="row" spacing={1}>

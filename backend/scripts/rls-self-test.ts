@@ -16,7 +16,13 @@ const TABLES_TO_CHECK_RLS = [
   'contracts','contract_tasks','contract_spend_items','contract_attachments','contract_links',
   'capex_items','capex_versions','capex_amounts',
   // Unified tasks table and currency rate snapshots
-  'tasks','currency_rate_sets',
+  'tasks','currency_rate_sets','item_sequences',
+  // Knowledge
+  'document_libraries','document_folders','document_types','documents','document_versions',
+  'document_edit_locks','document_attachments','document_activities','document_contributors',
+  'document_classifications','document_references','document_applications','document_assets',
+  'document_projects','document_requests','document_tasks',
+  'integrated_document_bindings','integrated_document_slot_settings',
   'roles','role_permissions','subscriptions',
   'audit_log','company_metrics','department_metrics','user_page_roles',
 ];
@@ -126,6 +132,55 @@ async function main() {
     await setTenant(r, t2Id);
     const capexCross = await r.query(`SELECT 1 FROM capex_items WHERE id=$1`, [capexId]);
     results.push({ name: 'capex_items: cross-tenant read blocked', ok: capexCross.length === 0 });
+
+    // Knowledge
+    await setTenant(r, t1Id);
+    const library = await r.query(
+      `INSERT INTO document_libraries(name, slug, is_system, display_order)
+       VALUES ($1, $2, false, 0)
+       RETURNING id`,
+      [`Knowledge ${tag}`, `knowledge-${tag}`],
+    );
+    const libraryId = library[0].id as string;
+    const doc = await r.query(
+      `INSERT INTO documents(item_number, title, content_markdown, content_plain, library_id)
+       VALUES (999001, $1, 'Body', 'Body', $2)
+       RETURNING id`,
+      [`DOC ${tag}`, libraryId],
+    );
+    const docId = doc[0].id as string;
+    await r.query(
+      `INSERT INTO item_sequences(tenant_id, entity_type, next_val)
+       VALUES ($1, 'document', 42)
+       ON CONFLICT (tenant_id, entity_type)
+       DO UPDATE SET next_val = EXCLUDED.next_val`,
+      [t1Id],
+    );
+
+    await setTenant(r, t2Id);
+    const libraryCross = await r.query(`SELECT 1 FROM document_libraries WHERE id=$1`, [libraryId]);
+    results.push({ name: 'document_libraries: cross-tenant read blocked', ok: libraryCross.length === 0 });
+    const docCross = await r.query(`SELECT 1 FROM documents WHERE id=$1`, [docId]);
+    results.push({ name: 'documents: cross-tenant read blocked', ok: docCross.length === 0 });
+    const sequenceCross = await r.query(
+      `SELECT 1 FROM item_sequences WHERE tenant_id=$1 AND entity_type='document'`,
+      [t1Id],
+    );
+    results.push({ name: 'item_sequences(document): cross-tenant read blocked', ok: sequenceCross.length === 0 });
+    let libraryCrossWriteBlocked = false;
+    await r.query('SAVEPOINT rls_document_library_cross_write');
+    try {
+      await r.query(
+        `INSERT INTO document_libraries(tenant_id, name, slug, is_system, display_order)
+         VALUES ($1, $2, $3, false, 1)`,
+        [t1Id, `Cross ${tag}`, `cross-${tag}`],
+      );
+    } catch {
+      libraryCrossWriteBlocked = true;
+    } finally {
+      await r.query('ROLLBACK TO SAVEPOINT rls_document_library_cross_write');
+    }
+    results.push({ name: 'document_libraries: cross-tenant insert blocked', ok: libraryCrossWriteBlocked });
 
     // Audit write should succeed via request manager; here we just check table has RLS enabled already.
 

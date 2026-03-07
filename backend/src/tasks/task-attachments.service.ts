@@ -35,7 +35,7 @@ export class TaskAttachmentsService {
     taskId: string,
     file: Express.Multer.File,
     userId?: string,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; sourceField?: string | null },
   ): Promise<TaskAttachment> {
     const mg = opts?.manager ?? this.repo.manager;
     const attachRepo = mg.getRepository(TaskAttachment);
@@ -62,7 +62,7 @@ export class TaskAttachmentsService {
       mimeType: file.mimetype,
       buffer: buf as Buffer,
       size: file.size,
-    });
+    }, { scope: opts?.sourceField ? 'inline-image' : 'attachment' });
 
     await this.storage.putObject({
       key,
@@ -81,6 +81,7 @@ export class TaskAttachmentsService {
       mime_type: validated.mimeType as any,
       size: validated.size,
       storage_path: key,
+      source_field: opts?.sourceField || null,
       uploaded_by_id: userId || null,
     });
 

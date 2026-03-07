@@ -1,0 +1,4707 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  GoneException,
+  HttpException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { createHash, randomUUID } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { AuditService } from '../audit/audit.service';
+import { ItemNumberService } from '../common/item-number.service';
+import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
+import { DocumentExportService } from '../common/document-export.service';
+import { BulkDeleteResult } from '../common/delete.types';
+import { fixMulterFilename } from '../common/upload';
+import { validateUploadedFile } from '../common/upload-validation';
+import { parsePagination } from '../common/pagination';
+import { resolveToUuid } from '../common/resolve-item-id';
+import { StorageService } from '../common/storage/storage.service';
+import { Features } from '../config/features';
+import { EmailService } from '../email/email.service';
+import {
+  buildKnowledgeWorkflowApprovedEmail,
+  buildKnowledgeWorkflowCancelledEmail,
+  buildKnowledgeWorkflowChangesRequestedEmail,
+  buildKnowledgeWorkflowRequestedEmail,
+} from '../notifications/notification-templates';
+import { PermissionsService } from '../permissions/permissions.service';
+import { UsersService } from '../users/users.service';
+import { UserRole } from '../users/user-role.entity';
+import { DocumentActivity } from './document-activity.entity';
+import { DocumentApplication } from './document-application.entity';
+import { DocumentAsset } from './document-asset.entity';
+import { DocumentAttachment } from './document-attachment.entity';
+import { DocumentClassification } from './document-classification.entity';
+import { DocumentContributor } from './document-contributor.entity';
+import { DocumentEditLock } from './document-edit-lock.entity';
+import { DocumentFolder } from './document-folder.entity';
+import { IntegratedDocumentBinding } from './integrated-document-binding.entity';
+import { DocumentLibrary } from './document-library.entity';
+import { DocumentProject } from './document-project.entity';
+import { DocumentReference } from './document-reference.entity';
+import { DocumentRequest } from './document-request.entity';
+import { DOCUMENT_STATUSES, DocumentStatus, isDocumentStatus } from './document-status';
+import { DocumentTask } from './document-task.entity';
+import { DocumentType } from './document-type.entity';
+import { DocumentVersion } from './document-version.entity';
+import { DocumentWorkflowParticipant } from './document-workflow-participant.entity';
+import { DocumentWorkflow } from './document-workflow.entity';
+import { Document } from './document.entity';
+
+export type RelationEntityType = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
+export type EntityDocumentListAccess = 'granted' | 'restricted';
+export type EntityDocumentListItem = {
+  id: string;
+  item_number: number;
+  title: string;
+  summary: string | null;
+  status: string;
+  updated_at: Date | string | null;
+  created_at: Date | string | null;
+};
+export type EntityDocumentListResponse = {
+  access: EntityDocumentListAccess;
+  total: number;
+  items: EntityDocumentListItem[];
+};
+
+const LOCK_TTL_SECONDS = 5 * 60;
+const DEFAULT_DOCUMENT_TYPE_NAME = 'Document';
+const TEMPLATE_LIBRARY_SLUG = 'templates';
+const DOCUMENT_CONTRIBUTOR_ROLES = new Set(['owner', 'author', 'reviewer', 'validator']);
+const RBAC_LEVEL_RANK: Record<string, number> = { reader: 1, contributor: 2, member: 3, admin: 4 };
+const ACTIVE_WORKFLOW_STATUSES = new Set(['pending_review', 'pending_approval']);
+const WORKFLOW_STAGE_TO_ROLE: Record<'reviewer' | 'approver', 'reviewer' | 'validator'> = {
+  reviewer: 'reviewer',
+  approver: 'validator',
+};
+
+type DocumentWorkflowStage = 'reviewer' | 'approver';
+type DocumentWorkflowStatus = 'pending_review' | 'pending_approval' | 'changes_requested' | 'approved' | 'cancelled';
+type DocumentWorkflowDecision = 'pending' | 'approved' | 'changes_requested';
+
+type WorkflowParticipantView = {
+  id: string;
+  user_id: string;
+  user_name: string;
+  stage: DocumentWorkflowStage;
+  decision: DocumentWorkflowDecision;
+  comment: string | null;
+  acted_at: Date | string | null;
+};
+
+type WorkflowView = {
+  id: string;
+  status: DocumentWorkflowStatus;
+  current_stage: DocumentWorkflowStage | null;
+  requested_revision: number;
+  requested_at: Date | string;
+  requested_by: string | null;
+  requested_by_name: string | null;
+  completed_at: Date | string | null;
+  is_active: boolean;
+  participants: WorkflowParticipantView[];
+};
+
+type ApprovedWorkflowSummary = {
+  id: string;
+  requested_revision: number;
+  requested_at: Date | string;
+  approved_at: Date | string | null;
+  requested_by: string | null;
+  requested_by_name: string | null;
+};
+
+type TemplateDocumentSummary = {
+  id: string;
+  content_markdown: string;
+  document_type_id: string | null;
+  title: string | null;
+  item_number: number | null;
+  document_type_name: string | null;
+};
+
+type ValidationInfo = {
+  validated_revision: number | null;
+  validated_at: Date | string | null;
+  is_validated_current_revision: boolean;
+};
+
+const RELATION_TABLE_MAP: Record<
+  RelationEntityType,
+  { table: string; idColumn: string; targetTable: string; label: string }
+> = {
+  applications: {
+    table: 'document_applications',
+    idColumn: 'application_id',
+    targetTable: 'applications',
+    label: 'applications',
+  },
+  assets: {
+    table: 'document_assets',
+    idColumn: 'asset_id',
+    targetTable: 'assets',
+    label: 'assets',
+  },
+  projects: {
+    table: 'document_projects',
+    idColumn: 'project_id',
+    targetTable: 'portfolio_projects',
+    label: 'projects',
+  },
+  requests: {
+    table: 'document_requests',
+    idColumn: 'request_id',
+    targetTable: 'portfolio_requests',
+    label: 'requests',
+  },
+  tasks: {
+    table: 'document_tasks',
+    idColumn: 'task_id',
+    targetTable: 'tasks',
+    label: 'tasks',
+  },
+};
+
+function hashLockToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function dedupeStrings(values: unknown[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of values) {
+    const value = String(raw || '').trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  return out;
+}
+
+type ActiveDocumentLock = {
+  holder_user_id: string;
+  holder_name: string;
+  acquired_at: Date;
+  heartbeat_at: Date;
+  expires_at: Date;
+};
+
+@Injectable()
+export class KnowledgeService {
+  private readonly logger = new Logger(KnowledgeService.name);
+
+  constructor(
+    @InjectRepository(Document)
+    private readonly documentsRepo: Repository<Document>,
+    @InjectRepository(DocumentFolder)
+    private readonly foldersRepo: Repository<DocumentFolder>,
+    @InjectRepository(IntegratedDocumentBinding)
+    private readonly integratedBindingsRepo: Repository<IntegratedDocumentBinding>,
+    @InjectRepository(DocumentLibrary)
+    private readonly librariesRepo: Repository<DocumentLibrary>,
+    @InjectRepository(DocumentType)
+    private readonly documentTypesRepo: Repository<DocumentType>,
+    @InjectRepository(DocumentVersion)
+    private readonly versionsRepo: Repository<DocumentVersion>,
+    @InjectRepository(DocumentEditLock)
+    private readonly locksRepo: Repository<DocumentEditLock>,
+    @InjectRepository(DocumentAttachment)
+    private readonly attachmentsRepo: Repository<DocumentAttachment>,
+    @InjectRepository(DocumentActivity)
+    private readonly activitiesRepo: Repository<DocumentActivity>,
+    @InjectRepository(DocumentContributor)
+    private readonly contributorsRepo: Repository<DocumentContributor>,
+    @InjectRepository(DocumentClassification)
+    private readonly classificationsRepo: Repository<DocumentClassification>,
+    @InjectRepository(DocumentReference)
+    private readonly referencesRepo: Repository<DocumentReference>,
+    @InjectRepository(DocumentApplication)
+    private readonly documentApplicationsRepo: Repository<DocumentApplication>,
+    @InjectRepository(DocumentAsset)
+    private readonly documentAssetsRepo: Repository<DocumentAsset>,
+    @InjectRepository(DocumentProject)
+    private readonly documentProjectsRepo: Repository<DocumentProject>,
+    @InjectRepository(DocumentRequest)
+    private readonly documentRequestsRepo: Repository<DocumentRequest>,
+    @InjectRepository(DocumentTask)
+    private readonly documentTasksRepo: Repository<DocumentTask>,
+    @InjectRepository(DocumentWorkflow)
+    private readonly workflowsRepo: Repository<DocumentWorkflow>,
+    @InjectRepository(DocumentWorkflowParticipant)
+    private readonly workflowParticipantsRepo: Repository<DocumentWorkflowParticipant>,
+    private readonly itemNumbers: ItemNumberService,
+    private readonly audit: AuditService,
+    private readonly exportService: DocumentExportService,
+    private readonly storage: StorageService,
+    private readonly dataSource: DataSource,
+    private readonly permissions: PermissionsService,
+    private readonly users: UsersService,
+    private readonly emails: EmailService,
+  ) {}
+
+  private getManager(opts?: { manager?: EntityManager }): EntityManager {
+    return opts?.manager ?? this.documentsRepo.manager;
+  }
+
+  private async getIntegratedBinding(
+    documentId: string,
+    manager: EntityManager,
+  ): Promise<IntegratedDocumentBinding | null> {
+    return manager.getRepository(IntegratedDocumentBinding).findOne({
+      where: { document_id: documentId } as any,
+    });
+  }
+
+  private async assertDocumentMoveDeleteAllowed(
+    documentId: string,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (await this.getIntegratedBinding(documentId, manager)) {
+      throw new BadRequestException('Managed integrated documents cannot be moved or deleted from Knowledge');
+    }
+  }
+
+  private async assertIntegratedDocumentWorkflowRequestAllowed(
+    documentId: string,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (await this.getIntegratedBinding(documentId, manager)) {
+      throw new BadRequestException('Managed integrated documents do not support Knowledge review workflow');
+    }
+  }
+
+  private async assertIntegratedDocumentUpdateRestrictions(
+    existing: Document,
+    body: any,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (!(await this.getIntegratedBinding(existing.id, manager))) {
+      return;
+    }
+
+    const restrictedFieldErrors: string[] = [];
+    if (body?.title !== undefined) {
+      const nextTitle = String(body.title || '').trim();
+      if (nextTitle !== String(existing.title || '')) {
+        restrictedFieldErrors.push('title');
+      }
+    }
+
+    if (body?.folder_id !== undefined) {
+      const nextFolderId = body.folder_id ? String(body.folder_id) : null;
+      if ((existing.folder_id ? String(existing.folder_id) : null) !== nextFolderId) {
+        restrictedFieldErrors.push('folder_id');
+      }
+    }
+
+    if (body?.library_id !== undefined) {
+      const nextLibraryId = body.library_id ? String(body.library_id) : null;
+      if ((existing.library_id ? String(existing.library_id) : null) !== nextLibraryId) {
+        restrictedFieldErrors.push('library_id');
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, 'document_type_id')) {
+      const nextDocumentTypeId = body?.document_type_id ? String(body.document_type_id) : null;
+      if ((existing.document_type_id ? String(existing.document_type_id) : null) !== nextDocumentTypeId) {
+        restrictedFieldErrors.push('document_type_id');
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, 'template_document_id')) {
+      const nextTemplateId = body?.template_document_id ? String(body.template_document_id) : null;
+      if ((existing.template_document_id ? String(existing.template_document_id) : null) !== nextTemplateId) {
+        restrictedFieldErrors.push('template_document_id');
+      }
+    }
+
+    if (restrictedFieldErrors.length > 0) {
+      throw new BadRequestException(
+        `Managed integrated documents cannot change: ${restrictedFieldErrors.join(', ')}`,
+      );
+    }
+  }
+
+  private assertManagedFolderWritable(folder: DocumentFolder): void {
+    if (folder.system_key) {
+      throw new BadRequestException('Managed Docs folders cannot be changed from Knowledge');
+    }
+  }
+
+  private normalizeDocumentTypeId(value: unknown): string | null {
+    const typeId = String(value || '').trim();
+    return typeId || null;
+  }
+
+  private async getDefaultDocumentType(manager: EntityManager): Promise<DocumentType> {
+    const repo = manager.getRepository(DocumentType);
+    const existing = await repo.findOne({
+      where: { is_default: true } as any,
+      order: { display_order: 'ASC', created_at: 'ASC' } as any,
+    });
+    if (existing) return existing;
+
+    const named = await repo
+      .createQueryBuilder('t')
+      .where('lower(t.name) = lower(:name)', { name: DEFAULT_DOCUMENT_TYPE_NAME })
+      .orderBy('t.display_order', 'ASC')
+      .addOrderBy('t.created_at', 'ASC')
+      .getOne();
+
+    if (named) {
+      named.is_default = true;
+      named.is_system = true;
+      named.is_active = true;
+      named.updated_at = new Date();
+      return repo.save(named);
+    }
+
+    return repo.save(
+      repo.create({
+        name: DEFAULT_DOCUMENT_TYPE_NAME,
+        description: 'Default fallback document type',
+        template_content: null,
+        is_active: true,
+        is_system: true,
+        is_default: true,
+        display_order: 0,
+      }),
+    );
+  }
+
+  private async getDocumentTypeByIdOrThrow(
+    typeId: string,
+    manager: EntityManager,
+    opts?: { allowInactive?: boolean },
+  ): Promise<DocumentType> {
+    const documentType = await manager.getRepository(DocumentType).findOne({ where: { id: typeId } as any });
+    if (!documentType) {
+      throw new BadRequestException('document_type_id is invalid');
+    }
+    if (!opts?.allowInactive && documentType.is_active === false) {
+      throw new BadRequestException('document_type_id is inactive');
+    }
+    return documentType;
+  }
+
+  private async getTemplateDocumentSummary(
+    templateDocumentId: string,
+    manager: EntityManager,
+    tenantId?: string | null,
+  ): Promise<TemplateDocumentSummary> {
+    const tenantClause = tenantId ? 'AND d.tenant_id = $2' : 'AND d.tenant_id = app_current_tenant()';
+    const params = tenantId ? [templateDocumentId, tenantId] : [templateDocumentId];
+    const rows = await manager.query(
+      `SELECT d.id,
+              d.content_markdown,
+              d.document_type_id,
+              d.title,
+              d.item_number,
+              dt.name AS document_type_name
+       FROM documents d
+       JOIN document_libraries l ON l.id = d.library_id AND l.tenant_id = d.tenant_id
+       LEFT JOIN document_types dt ON dt.id = d.document_type_id AND dt.tenant_id = d.tenant_id
+       WHERE d.id = $1
+         ${tenantClause}
+         AND l.slug = 'templates'
+       LIMIT 1`,
+      params,
+    );
+    if (!rows.length) {
+      throw new BadRequestException('template_document_id is invalid');
+    }
+    const row = rows[0];
+    return {
+      id: row.id,
+      content_markdown: String(row.content_markdown || ''),
+      document_type_id: row.document_type_id ? String(row.document_type_id) : null,
+      title: row.title ? String(row.title) : null,
+      item_number: row.item_number != null ? Number(row.item_number) : null,
+      document_type_name: row.document_type_name ? String(row.document_type_name) : null,
+    };
+  }
+
+  private async resolveDocumentTypeId(
+    manager: EntityManager,
+    params: {
+      explicitDocumentTypeId: unknown;
+      hasExplicitDocumentTypeId: boolean;
+      templateDocument: TemplateDocumentSummary | null;
+      currentDocumentTypeId?: string | null;
+    },
+  ): Promise<string> {
+    const defaultType = await this.getDefaultDocumentType(manager);
+    const templateTypeId = params.templateDocument?.document_type_id || defaultType.id;
+
+    if (params.hasExplicitDocumentTypeId) {
+      const explicitTypeId = this.normalizeDocumentTypeId(params.explicitDocumentTypeId);
+      const resolvedType = explicitTypeId
+        ? await this.getDocumentTypeByIdOrThrow(explicitTypeId, manager)
+        : defaultType;
+      if (params.templateDocument && resolvedType.id !== templateTypeId) {
+        throw new BadRequestException('document_type_id does not match template document type');
+      }
+      return resolvedType.id;
+    }
+
+    if (params.templateDocument) {
+      return templateTypeId;
+    }
+
+    if (params.currentDocumentTypeId) {
+      return String(params.currentDocumentTypeId);
+    }
+
+    return defaultType.id;
+  }
+
+  private getValidationInfo(
+    document: { status: string | null | undefined; revision: number | string | null | undefined },
+    latestApprovedWorkflow: ApprovedWorkflowSummary | null,
+  ): ValidationInfo {
+    const validatedRevision = latestApprovedWorkflow?.requested_revision != null
+      ? Number(latestApprovedWorkflow.requested_revision)
+      : null;
+    const currentRevision = document?.revision != null ? Number(document.revision) : null;
+    const isValidatedCurrentRevision = String(document?.status || '').toLowerCase() === 'published'
+      && validatedRevision != null
+      && currentRevision != null
+      && validatedRevision === currentRevision;
+
+    return {
+      validated_revision: validatedRevision,
+      validated_at: latestApprovedWorkflow?.approved_at || null,
+      is_validated_current_revision: isValidatedCurrentRevision,
+    };
+  }
+
+  private async assertTenantScopedIdsExist(
+    manager: EntityManager,
+    table:
+      | 'applications'
+      | 'assets'
+      | 'portfolio_categories'
+      | 'portfolio_projects'
+      | 'portfolio_requests'
+      | 'tasks'
+      | 'users',
+    ids: string[],
+    label: string,
+  ): Promise<void> {
+    const uniqueIds = dedupeStrings(ids);
+    if (!uniqueIds.length) return;
+
+    const rows: Array<{ id: string }> = await manager.query(
+      `SELECT id
+       FROM ${table}
+       WHERE id = ANY($1::uuid[])
+         AND tenant_id = app_current_tenant()`,
+      [uniqueIds],
+    );
+
+    if (rows.length !== uniqueIds.length) {
+      throw new BadRequestException(`One or more ${label} were not found`);
+    }
+  }
+
+  private async resolveDocumentId(idOrRef: string, manager: EntityManager): Promise<string> {
+    return resolveToUuid(idOrRef, 'document', manager);
+  }
+
+  private stripMarkdown(value: string): string {
+    const text = String(value || '')
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/`[^`]*`/g, ' ')
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+      .replace(/\[[^\]]*\]\([^)]*\)/g, ' ')
+      .replace(/[>#*_~|\-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return text;
+  }
+
+  private parseItemNumberQuery(input: string): number | null {
+    const value = String(input || '').trim();
+    if (!value) return null;
+    const match = value.match(/(?:^[A-Z]+-)?(\d+)$/i);
+    if (!match) return null;
+    const itemNumber = Number(match[1]);
+    return Number.isFinite(itemNumber) && itemNumber > 0 ? itemNumber : null;
+  }
+
+  private hasPermissionLevel(current: string | undefined, required: 'reader' | 'member' | 'admin'): boolean {
+    return (RBAC_LEVEL_RANK[current || ''] ?? 0) >= (RBAC_LEVEL_RANK[required] ?? Number.MAX_SAFE_INTEGER);
+  }
+
+  private async getRoleContextForUser(
+    manager: EntityManager,
+    userId: string | null | undefined,
+  ): Promise<{ enabled: boolean; roleIds: string[]; isAdministrator: boolean }> {
+    const normalizedUserId = String(userId || '').trim();
+    if (!normalizedUserId) {
+      return { enabled: false, roleIds: [], isAdministrator: false };
+    }
+
+    const user = await this.users.findById(normalizedUserId, { manager });
+    if (!user) {
+      return { enabled: false, roleIds: [], isAdministrator: false };
+    }
+
+    const userRoles = await manager.getRepository(UserRole).find({
+      where: { user_id: user.id },
+      relations: ['role'],
+    });
+
+    const roleIds = new Set<string>();
+    if (user.role_id) roleIds.add(user.role_id);
+    for (const userRole of userRoles) roleIds.add(userRole.role_id);
+
+    const roleNames = userRoles.map((userRole) => userRole.role?.role_name?.toLowerCase() ?? '');
+    if (user.role?.role_name) roleNames.push(user.role.role_name.toLowerCase());
+
+    return {
+      enabled: user.status === 'enabled',
+      roleIds: Array.from(roleIds),
+      isAdministrator: roleNames.includes('administrator'),
+    };
+  }
+
+  private async getKnowledgeLevelForUser(
+    manager: EntityManager,
+    userId: string | null | undefined,
+  ): Promise<'reader' | 'member' | 'admin' | null> {
+    const ctx = await this.getRoleContextForUser(manager, userId);
+    if (!ctx.enabled) return null;
+    if (ctx.isAdministrator) return 'admin';
+
+    const permissions = await this.permissions.listForRoles(ctx.roleIds, { manager });
+    const level = permissions.get('knowledge');
+    return this.hasPermissionLevel(level, 'reader')
+      ? (level as 'reader' | 'member' | 'admin')
+      : null;
+  }
+
+  private async ensureInlineAttachmentAccess(
+    manager: EntityManager,
+    tenantId: string,
+    refreshToken: string | null | undefined,
+  ): Promise<boolean> {
+    const token = String(refreshToken || '').trim();
+    if (!token) return false;
+
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const tokenRows = await manager.query(
+      `SELECT user_id, expires_at
+       FROM refresh_tokens
+       WHERE token_hash = $1
+         AND tenant_id = $2
+       LIMIT 1`,
+      [tokenHash, tenantId],
+    );
+    if (!tokenRows.length) return false;
+
+    const expiresAt = tokenRows[0]?.expires_at ? new Date(tokenRows[0].expires_at).getTime() : NaN;
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      return false;
+    }
+
+    const userId = String(tokenRows[0].user_id || '').trim();
+    if (!userId) return false;
+    return (await this.getKnowledgeLevelForUser(manager, userId)) != null;
+  }
+
+  private normalizeStatus(input?: unknown, fallback: DocumentStatus = 'draft'): DocumentStatus {
+    if (input == null) return fallback;
+    const value = String(input).trim().toLowerCase();
+    if (!isDocumentStatus(value)) {
+      throw new BadRequestException(`Invalid status: ${String(input)}`);
+    }
+    return value;
+  }
+
+  private async ensureVersionSnapshot(
+    document: Document,
+    changeNote: string | null,
+    userId: string | null,
+    manager: EntityManager,
+  ): Promise<void> {
+    const versionsRepo = manager.getRepository(DocumentVersion);
+    const docsRepo = manager.getRepository(Document);
+    const nextVersion = Number(document.current_version_number || 0) + 1;
+
+    const version = versionsRepo.create({
+      tenant_id: document.tenant_id,
+      document_id: document.id,
+      version_number: nextVersion,
+      title: document.title,
+      summary: document.summary,
+      content_markdown: document.content_markdown,
+      content_plain: document.content_plain,
+      change_note: changeNote,
+      created_by: userId,
+    });
+    await versionsRepo.save(version);
+
+    document.current_version_number = nextVersion;
+    await docsRepo.save(document);
+  }
+
+  private parseDocReferences(markdown: string): number[] {
+    const text = String(markdown || '');
+    // Accept legacy and renamed workspace URLs.
+    const matches = [...text.matchAll(/\/(?:docs|knowledge)\/DOC-(\d+)/gi)];
+    const out: number[] = [];
+    const seen = new Set<number>();
+    for (const match of matches) {
+      const num = Number(match[1]);
+      if (!Number.isFinite(num) || num <= 0 || seen.has(num)) continue;
+      seen.add(num);
+      out.push(num);
+    }
+    return out;
+  }
+
+  private formatUserDisplayName(row: any, fallback: string): string {
+    const fromFullName = String(
+      row?.display_name
+      || row?.holder_name
+      || row?.user_name
+      || '',
+    ).trim();
+    if (fromFullName) return fromFullName;
+    return String(row?.email || fallback || '').trim() || fallback;
+  }
+
+  private async getUserDisplayName(userId: string, manager: EntityManager): Promise<string> {
+    const rows = await manager.query(
+      `SELECT NULLIF(trim(concat_ws(' ', first_name, last_name)), '') AS display_name, email
+       FROM users
+       WHERE id = $1
+         AND tenant_id = app_current_tenant()
+       LIMIT 1`,
+      [userId],
+    );
+    return this.formatUserDisplayName(rows[0], userId);
+  }
+
+  private getCurrentWorkflowStage(status: string | null | undefined): DocumentWorkflowStage | null {
+    if (status === 'pending_review') return 'reviewer';
+    if (status === 'pending_approval') return 'approver';
+    return null;
+  }
+
+  private async getActiveWorkflow(
+    documentId: string,
+    manager: EntityManager,
+  ): Promise<WorkflowView | null> {
+    const workflowRows = await manager.query(
+      `SELECT w.*,
+              COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, w.requested_by::text) AS requested_by_name
+       FROM document_workflows w
+       LEFT JOIN users u ON u.id = w.requested_by AND u.tenant_id = w.tenant_id
+       WHERE w.document_id = $1
+         AND w.status IN ('pending_review', 'pending_approval')
+       ORDER BY w.requested_at DESC
+       LIMIT 1`,
+      [documentId],
+    );
+    if (!workflowRows.length) return null;
+
+    const workflow = workflowRows[0];
+    const participants = await manager.query(
+      `SELECT p.*,
+              COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, p.user_id::text) AS user_name
+       FROM document_workflow_participants p
+       LEFT JOIN users u ON u.id = p.user_id AND u.tenant_id = p.tenant_id
+       WHERE p.workflow_id = $1
+       ORDER BY CASE p.stage WHEN 'reviewer' THEN 0 ELSE 1 END ASC, p.created_at ASC`,
+      [workflow.id],
+    );
+
+    return {
+      id: workflow.id,
+      status: workflow.status,
+      current_stage: this.getCurrentWorkflowStage(workflow.status),
+      requested_revision: Number(workflow.requested_revision || 0),
+      requested_at: workflow.requested_at,
+      requested_by: workflow.requested_by || null,
+      requested_by_name: workflow.requested_by_name || null,
+      completed_at: workflow.completed_at || null,
+      is_active: ACTIVE_WORKFLOW_STATUSES.has(String(workflow.status || '')),
+      participants: participants.map((row: any) => ({
+        id: row.id,
+        user_id: row.user_id,
+        user_name: row.user_name || row.user_id,
+        stage: row.stage,
+        decision: row.decision,
+        comment: row.comment || null,
+        acted_at: row.acted_at || null,
+      })),
+    };
+  }
+
+  private async getLatestApprovedWorkflowSummary(
+    documentId: string,
+    manager: EntityManager,
+  ): Promise<ApprovedWorkflowSummary | null> {
+    const rows = await manager.query(
+      `SELECT w.id,
+              w.requested_revision,
+              w.requested_at,
+              w.completed_at AS approved_at,
+              w.requested_by,
+              COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, w.requested_by::text) AS requested_by_name
+       FROM document_workflows w
+       LEFT JOIN users u ON u.id = w.requested_by AND u.tenant_id = w.tenant_id
+       WHERE w.document_id = $1
+         AND w.status = 'approved'
+       ORDER BY coalesce(w.completed_at, w.requested_at) DESC
+       LIMIT 1`,
+      [documentId],
+    );
+    if (!rows.length) return null;
+    const row = rows[0];
+    return {
+      id: row.id,
+      requested_revision: Number(row.requested_revision || 0),
+      requested_at: row.requested_at,
+      approved_at: row.approved_at || null,
+      requested_by: row.requested_by || null,
+      requested_by_name: row.requested_by_name || null,
+    };
+  }
+
+  private async assertWorkflowAllowsEditing(documentId: string, manager: EntityManager): Promise<void> {
+    const activeWorkflow = await this.getActiveWorkflow(documentId, manager);
+    if (!activeWorkflow) return;
+    throw new ConflictException('Document is currently in review. Cancel review to edit it.');
+  }
+
+  private async createSystemActivity(
+    documentId: string,
+    userId: string | null,
+    type: 'change' | 'decision',
+    content: string,
+    manager: EntityManager,
+    changedFields?: Record<string, [unknown, unknown]> | null,
+  ) {
+    const activity = manager.getRepository(DocumentActivity).create({
+      document_id: documentId,
+      author_id: userId,
+      type,
+      content,
+      changed_fields: changedFields ?? null,
+    });
+    return manager.getRepository(DocumentActivity).save(activity);
+  }
+
+  private async getWorkflowParticipantEmails(
+    manager: EntityManager,
+    workflowId: string,
+    stage: DocumentWorkflowStage,
+  ): Promise<Array<{ email: string; name: string; userId: string }>> {
+    const rows = await manager.query(
+      `SELECT p.user_id,
+              u.email,
+              COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, p.user_id::text) AS user_name
+       FROM document_workflow_participants p
+       JOIN users u ON u.id = p.user_id AND u.tenant_id = p.tenant_id
+       WHERE p.workflow_id = $1
+         AND p.stage = $2
+         AND coalesce(u.status, '') = 'enabled'
+       ORDER BY p.created_at ASC`,
+      [workflowId, stage],
+    );
+    return rows
+      .map((row: any) => ({
+        email: String(row.email || '').trim(),
+        name: String(row.user_name || row.user_id || '').trim() || String(row.user_id || ''),
+        userId: String(row.user_id || '').trim(),
+      }))
+      .filter((row: { email: string }) => !!row.email);
+  }
+
+  private async getDocumentNotificationRecipients(
+    manager: EntityManager,
+    documentId: string,
+    extraUserIds: Array<string | null | undefined> = [],
+  ): Promise<string[]> {
+    const rows = await manager.query(
+      `SELECT DISTINCT u.email
+       FROM document_contributors c
+       JOIN users u ON u.id = c.user_id AND u.tenant_id = c.tenant_id
+       WHERE c.document_id = $1
+         AND c.role IN ('owner', 'author')
+         AND coalesce(u.status, '') = 'enabled'
+         AND coalesce(u.email, '') <> ''`,
+      [documentId],
+    );
+
+    const emails = new Set<string>(rows.map((row: any) => String(row.email || '').trim()).filter(Boolean));
+    const extraIds = dedupeStrings(extraUserIds);
+    if (extraIds.length) {
+      const extraRows = await manager.query(
+        `SELECT DISTINCT email
+         FROM users
+         WHERE id = ANY($1::uuid[])
+           AND tenant_id = app_current_tenant()
+           AND coalesce(status, '') = 'enabled'
+           AND coalesce(email, '') <> ''`,
+        [extraIds],
+      );
+      for (const row of extraRows) {
+        const email = String(row.email || '').trim();
+        if (email) emails.add(email);
+      }
+    }
+
+    return Array.from(emails);
+  }
+
+  private async sendWorkflowEmail(
+    recipients: string[],
+    subject: string,
+    html: string,
+    text: string,
+  ): Promise<void> {
+    if (!Features.EMAIL_ENABLED) return;
+    const uniqueRecipients = Array.from(new Set(recipients.map((entry) => String(entry || '').trim()).filter(Boolean)));
+    if (!uniqueRecipients.length) return;
+
+    try {
+      await this.emails.send({
+        to: uniqueRecipients,
+        subject,
+        html,
+        text,
+      });
+    } catch (error) {
+      this.logger.warn(`Knowledge workflow email failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private buildKnowledgeDocumentUrl(appBaseUrl: string | null | undefined, itemNumber: number): string | null {
+    const base = String(appBaseUrl || '').trim().replace(/\/$/, '');
+    if (!base) return null;
+    return `${base}/knowledge/DOC-${itemNumber}`;
+  }
+
+  private async getActiveDocumentLock(
+    documentId: string,
+    manager: EntityManager,
+  ): Promise<ActiveDocumentLock | null> {
+    const rows = await manager.query(
+      `SELECT l.holder_user_id,
+              l.acquired_at,
+              l.heartbeat_at,
+              l.expires_at,
+              NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), '') AS display_name,
+              u.email
+       FROM document_edit_locks l
+       LEFT JOIN users u ON u.id = l.holder_user_id AND u.tenant_id = l.tenant_id
+       WHERE l.document_id = $1
+         AND l.expires_at > now()
+       LIMIT 1`,
+      [documentId],
+    );
+    if (!rows.length) return null;
+    const row = rows[0];
+    return {
+      holder_user_id: row.holder_user_id,
+      holder_name: this.formatUserDisplayName(row, String(row.holder_user_id || '')),
+      acquired_at: row.acquired_at,
+      heartbeat_at: row.heartbeat_at,
+      expires_at: row.expires_at,
+    };
+  }
+
+  private async assertDocumentUnlockedForUser(
+    documentId: string,
+    userId: string | null | undefined,
+    manager: EntityManager,
+  ): Promise<void> {
+    const activeLock = await this.getActiveDocumentLock(documentId, manager);
+    const currentUserId = String(userId || '').trim();
+    if (!activeLock || activeLock.holder_user_id === currentUserId) {
+      return;
+    }
+
+    throw new HttpException({
+      message: 'Document is locked by another user',
+      lock: activeLock,
+    }, 423);
+  }
+
+  private async syncReferences(documentId: string, markdown: string, manager: EntityManager): Promise<void> {
+    const referencesRepo = manager.getRepository(DocumentReference);
+    const numbers = this.parseDocReferences(markdown);
+
+    const targetRows: Array<{ id: string; item_number: number }> = numbers.length
+      ? await manager.query(
+          `SELECT id, item_number
+           FROM documents
+           WHERE item_number = ANY($1::int[])
+             AND tenant_id = app_current_tenant()
+             AND id <> $2`,
+          [numbers, documentId],
+        )
+      : [];
+
+    const targetIds = dedupeStrings(targetRows.map((row) => row.id));
+
+    await referencesRepo.delete({ source_document_id: documentId } as any);
+
+    for (const targetId of targetIds) {
+      const relation = referencesRepo.create({
+        source_document_id: documentId,
+        target_document_id: targetId,
+      });
+      await referencesRepo.save(relation);
+    }
+  }
+
+  private async ensureValidLock(
+    documentId: string,
+    userId: string,
+    lockToken: string | null | undefined,
+    manager: EntityManager,
+  ): Promise<DocumentEditLock> {
+    if (!lockToken) {
+      throw new HttpException('Missing lock token', 423);
+    }
+
+    const repo = manager.getRepository(DocumentEditLock);
+    const lock = await repo.findOne({ where: { document_id: documentId } as any });
+    if (!lock) {
+      throw new HttpException('Document lock not found', 423);
+    }
+
+    if (lock.holder_user_id !== userId) {
+      throw new HttpException({
+        message: 'Document is locked by another user',
+        lock: {
+          holder_user_id: lock.holder_user_id,
+          holder_name: await this.getUserDisplayName(lock.holder_user_id, manager),
+          acquired_at: lock.acquired_at,
+          heartbeat_at: lock.heartbeat_at,
+          expires_at: lock.expires_at,
+        },
+      }, 423);
+    }
+
+    if (new Date(lock.expires_at).getTime() <= Date.now()) {
+      await repo.delete({ id: lock.id } as any);
+      throw new GoneException('Document lock expired');
+    }
+
+    const expected = hashLockToken(lockToken);
+    if (expected !== lock.lock_token_hash) {
+      throw new HttpException('Invalid lock token', 423);
+    }
+
+    return lock;
+  }
+
+  private async collectDescendantFolderIds(
+    folderId: string,
+    manager: EntityManager,
+    libraryId?: string,
+  ): Promise<string[]> {
+    const all = await manager.getRepository(DocumentFolder).find({
+      where: libraryId ? ({ library_id: libraryId } as any) : undefined,
+    });
+    const ids: string[] = [folderId];
+    const queue = [folderId];
+    while (queue.length) {
+      const parentId = queue.shift()!;
+      for (const f of all) {
+        if (f.parent_id === parentId && !ids.includes(f.id)) {
+          ids.push(f.id);
+          queue.push(f.id);
+        }
+      }
+    }
+    return ids;
+  }
+
+  private slugifyLibraryName(name: string): string {
+    const slug = String(name || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-{2,}/g, '-');
+    return slug || 'library';
+  }
+
+  private async generateUniqueLibrarySlug(
+    baseName: string,
+    manager: EntityManager,
+    excludeId?: string,
+  ): Promise<string> {
+    const base = this.slugifyLibraryName(baseName);
+    const repo = manager.getRepository(DocumentLibrary);
+    let candidate = base;
+    let i = 2;
+
+    while (true) {
+      const qb = repo.createQueryBuilder('l').where('l.slug = :slug', { slug: candidate });
+      if (excludeId) {
+        qb.andWhere('l.id <> :excludeId', { excludeId });
+      }
+      const exists = await qb.getExists();
+      if (!exists) return candidate;
+      candidate = `${base}-${i}`;
+      i += 1;
+    }
+  }
+
+  private async resolveDefaultLibrary(manager: EntityManager): Promise<DocumentLibrary> {
+    const repo = manager.getRepository(DocumentLibrary);
+    const nonSystem = await repo
+      .createQueryBuilder('l')
+      .where('l.is_system = false')
+      .orderBy('l.display_order', 'ASC')
+      .addOrderBy('lower(l.name)', 'ASC')
+      .limit(1)
+      .getOne();
+    if (nonSystem) return nonSystem;
+
+    const anyLibrary = await repo
+      .createQueryBuilder('l')
+      .orderBy('l.display_order', 'ASC')
+      .addOrderBy('lower(l.name)', 'ASC')
+      .limit(1)
+      .getOne();
+    if (!anyLibrary) {
+      throw new BadRequestException('No document library is available for this tenant');
+    }
+    return anyLibrary;
+  }
+
+  private async ensureLibraryExists(
+    libraryId: string,
+    manager: EntityManager,
+  ): Promise<DocumentLibrary> {
+    const library = await manager.getRepository(DocumentLibrary).findOne({ where: { id: libraryId } as any });
+    if (!library) throw new BadRequestException('library_id is invalid');
+    return library;
+  }
+
+  private async ensureFolderInLibrary(
+    folderId: string,
+    libraryId: string,
+    manager: EntityManager,
+  ): Promise<DocumentFolder> {
+    const folder = await manager.getRepository(DocumentFolder).findOne({ where: { id: folderId } as any });
+    if (!folder) throw new BadRequestException('folder not found');
+    if (folder.library_id !== libraryId) {
+      throw new BadRequestException('folder does not belong to the selected library');
+    }
+    return folder;
+  }
+
+  private async ensureDocumentTypeExists(
+    documentTypeId: string,
+    manager: EntityManager,
+  ): Promise<DocumentType> {
+    const documentType = await manager.getRepository(DocumentType).findOne({
+      where: { id: documentTypeId } as any,
+    });
+    if (!documentType) {
+      throw new BadRequestException('document_type_id is invalid');
+    }
+    return documentType;
+  }
+
+  private parseDocumentMoveBody(body: any): { libraryId: string; folderId: string | null } {
+    const hasLibraryId =
+      Object.prototype.hasOwnProperty.call(body ?? {}, 'target_library_id')
+      || Object.prototype.hasOwnProperty.call(body ?? {}, 'library_id');
+    const hasFolderId =
+      Object.prototype.hasOwnProperty.call(body ?? {}, 'target_folder_id')
+      || Object.prototype.hasOwnProperty.call(body ?? {}, 'folder_id');
+    if (!hasLibraryId) throw new BadRequestException('library_id is required');
+    if (!hasFolderId) throw new BadRequestException('folder_id is required');
+
+    const libraryId = String(body?.target_library_id ?? body?.library_id ?? '').trim();
+    if (!libraryId) throw new BadRequestException('library_id is required');
+
+    return {
+      libraryId,
+      folderId: body?.target_folder_id ? String(body.target_folder_id) : (body?.folder_id ? String(body.folder_id) : null),
+    };
+  }
+
+  private parseFolderMoveBody(
+    body: any,
+    currentLibraryId: string,
+  ): { libraryId: string; parentId: string | null } {
+    const hasLibraryId =
+      Object.prototype.hasOwnProperty.call(body ?? {}, 'target_library_id')
+      || Object.prototype.hasOwnProperty.call(body ?? {}, 'library_id');
+
+    const rawLibraryId = hasLibraryId ? String(body?.target_library_id ?? body?.library_id ?? '').trim() : currentLibraryId;
+    if (!rawLibraryId) throw new BadRequestException('library_id is required');
+
+    const rawParentId = body?.target_folder_id ?? body?.folder_id ?? body?.parent_id;
+    return {
+      libraryId: rawLibraryId,
+      parentId: rawParentId ? String(rawParentId) : null,
+    };
+  }
+
+  private async assertTemplateLibraryMoveAllowed(
+    existingLibraryId: string,
+    targetLibrary: DocumentLibrary,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (existingLibraryId === targetLibrary.id) return;
+
+    const existingLibrary = await this.ensureLibraryExists(existingLibraryId, manager);
+    if (existingLibrary.slug === TEMPLATE_LIBRARY_SLUG || targetLibrary.slug === TEMPLATE_LIBRARY_SLUG) {
+      throw new BadRequestException('Documents cannot be moved to or from the Templates library');
+    }
+  }
+
+  private async assertTemplateFolderMoveAllowed(
+    existingLibraryId: string,
+    targetLibrary: DocumentLibrary,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (existingLibraryId === targetLibrary.id) return;
+
+    const existingLibrary = await this.ensureLibraryExists(existingLibraryId, manager);
+    if (existingLibrary.slug === TEMPLATE_LIBRARY_SLUG || targetLibrary.slug === TEMPLATE_LIBRARY_SLUG) {
+      throw new BadRequestException('Folders cannot be moved to or from the Templates library');
+    }
+  }
+
+  private async listFolderSubtreeIds(manager: EntityManager, id: string): Promise<string[]> {
+    const rows = await manager.query(
+      `WITH RECURSIVE descendants AS (
+         SELECT id, parent_id
+         FROM document_folders
+         WHERE id = $1
+         UNION ALL
+         SELECT f.id, f.parent_id
+         FROM document_folders f
+         JOIN descendants d ON f.parent_id = d.id
+       )
+       SELECT id
+       FROM descendants`,
+      [id],
+    );
+    return rows.map((row: any) => String(row.id));
+  }
+
+  private async moveDocumentRecord(
+    idOrRef: string,
+    target: { libraryId: string; folderId: string | null },
+    targetLibrary: DocumentLibrary,
+    userId: string | null,
+    manager: EntityManager,
+    knowledgeLevel?: 'reader' | 'member' | 'admin' | null,
+  ): Promise<Document> {
+    const id = await this.resolveDocumentId(idOrRef, manager);
+    const repo = manager.getRepository(Document);
+    const existing = await repo.findOne({ where: { id } });
+    if (!existing) throw new NotFoundException('Document not found');
+
+    await this.assertDocumentMoveDeleteAllowed(existing.id, manager);
+    await this.assertWorkflowAllowsEditing(existing.id, manager);
+
+    const crossLibraryMove = existing.library_id !== target.libraryId;
+    const effectiveLevel = knowledgeLevel ?? await this.getKnowledgeLevelForUser(manager, userId);
+    if (crossLibraryMove && !this.hasPermissionLevel(effectiveLevel || undefined, 'admin')) {
+      throw new ForbiddenException('Only knowledge admins can move documents between libraries');
+    }
+    await this.assertTemplateLibraryMoveAllowed(existing.library_id, targetLibrary, manager);
+
+    if (existing.library_id === target.libraryId && existing.folder_id === target.folderId) {
+      return existing;
+    }
+
+    const before = { ...existing };
+    existing.library_id = target.libraryId;
+    existing.folder_id = target.folderId;
+    existing.updated_by = userId ?? existing.updated_by;
+    existing.updated_at = new Date();
+
+    const saved = await repo.save(existing);
+
+    const changes: Record<string, [unknown, unknown]> = {};
+    if (before.library_id !== saved.library_id) changes.library_id = [before.library_id, saved.library_id];
+    if (before.folder_id !== saved.folder_id) changes.folder_id = [before.folder_id, saved.folder_id];
+
+    if (Object.keys(changes).length > 0) {
+      const activity = manager.getRepository(DocumentActivity).create({
+        document_id: saved.id,
+        author_id: userId,
+        type: 'change',
+        content: crossLibraryMove ? 'Document moved to another library' : 'Document moved',
+        changed_fields: changes,
+      });
+      await manager.getRepository(DocumentActivity).save(activity);
+
+      await this.audit.log(
+        {
+          table: 'documents',
+          recordId: saved.id,
+          action: 'update',
+          before,
+          after: saved,
+          userId,
+        },
+        { manager },
+      );
+    }
+
+    return saved;
+  }
+
+  private async folderNameExistsInLibrary(
+    manager: EntityManager,
+    libraryId: string,
+    parentId: string | null,
+    name: string,
+  ): Promise<boolean> {
+    const rows = await manager.query(
+      `SELECT 1
+       FROM document_folders
+       WHERE library_id = $1
+         AND tenant_id = app_current_tenant()
+         AND lower(name) = lower($2)
+         AND coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid) =
+             coalesce($3::uuid, '00000000-0000-0000-0000-000000000000'::uuid)
+       LIMIT 1`,
+      [libraryId, name, parentId],
+    );
+    return rows.length > 0;
+  }
+
+  private async resolveMovedFolderName(
+    manager: EntityManager,
+    libraryId: string,
+    parentId: string | null,
+    originalName: string,
+    sourceLibraryName: string,
+  ): Promise<string> {
+    if (!(await this.folderNameExistsInLibrary(manager, libraryId, parentId, originalName))) {
+      return originalName;
+    }
+
+    const base = `${originalName} (from ${sourceLibraryName})`;
+    let candidate = base;
+    let i = 2;
+    while (await this.folderNameExistsInLibrary(manager, libraryId, parentId, candidate)) {
+      candidate = `${base} ${i}`;
+      i += 1;
+    }
+    return candidate;
+  }
+
+  async listLibraries(opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    return manager
+      .getRepository(DocumentLibrary)
+      .createQueryBuilder('l')
+      .orderBy('l.display_order', 'ASC')
+      .addOrderBy('lower(l.name)', 'ASC')
+      .getMany();
+  }
+
+  async createLibrary(body: any, userId: string | null, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const name = String(body?.name || '').trim();
+    if (!name) throw new BadRequestException('name is required');
+
+    const slug = await this.generateUniqueLibrarySlug(name, manager);
+    const [{ next_order }] = await manager.query(
+      `SELECT COALESCE(MAX(display_order), -1) + 1 AS next_order
+       FROM document_libraries`,
+    );
+    const displayOrder = Number(next_order) || 0;
+
+    const entity = manager.getRepository(DocumentLibrary).create({
+      name,
+      slug,
+      is_system: false,
+      display_order: displayOrder,
+      created_by: userId,
+    });
+
+    return manager.getRepository(DocumentLibrary).save(entity);
+  }
+
+  async reorderLibraries(ids: string[], opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const orderedIds = dedupeStrings(Array.isArray(ids) ? ids : []);
+    if (orderedIds.length === 0) {
+      throw new BadRequestException('ids is required');
+    }
+
+    const repo = manager.getRepository(DocumentLibrary);
+    const existing = await repo
+      .createQueryBuilder('l')
+      .where('l.id IN (:...ids)', { ids: orderedIds })
+      .getMany();
+
+    if (existing.length !== orderedIds.length) {
+      throw new BadRequestException('One or more libraries were not found');
+    }
+
+    for (let i = 0; i < orderedIds.length; i += 1) {
+      await repo.update({ id: orderedIds[i] } as any, {
+        display_order: i,
+        updated_at: new Date(),
+      } as any);
+    }
+
+    return this.listLibraries({ manager });
+  }
+
+  async updateLibrary(id: string, body: any, _userId: string | null, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const repo = manager.getRepository(DocumentLibrary);
+    const existing = await repo.findOne({ where: { id } as any });
+    if (!existing) throw new NotFoundException('Library not found');
+    if (existing.is_system) throw new BadRequestException('System libraries cannot be renamed');
+
+    const name = String(body?.name || '').trim();
+    if (!name) throw new BadRequestException('name is required');
+
+    existing.name = name;
+    existing.slug = await this.generateUniqueLibrarySlug(name, manager, existing.id);
+    existing.updated_at = new Date();
+    return repo.save(existing);
+  }
+
+  async deleteLibrary(id: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const run = async (tx: EntityManager) => {
+      const repo = tx.getRepository(DocumentLibrary);
+      const existing = await repo.findOne({ where: { id } as any });
+      if (!existing) throw new NotFoundException('Library not found');
+      if (existing.is_system) throw new BadRequestException('System libraries cannot be deleted');
+
+      const fallback = await repo
+        .createQueryBuilder('l')
+        .where('l.is_system = false')
+        .andWhere('l.id <> :id', { id })
+        .orderBy('l.display_order', 'ASC')
+        .addOrderBy('lower(l.name)', 'ASC')
+        .limit(1)
+        .getOne();
+
+      if (!fallback) {
+        throw new BadRequestException('Cannot delete the last non-system library');
+      }
+
+      const folders = await tx
+        .getRepository(DocumentFolder)
+        .createQueryBuilder('f')
+        .where('f.library_id = :libraryId', { libraryId: existing.id })
+        .orderBy('f.parent_id', 'ASC', 'NULLS FIRST')
+        .addOrderBy('lower(f.name)', 'ASC')
+        .getMany();
+
+      for (const folder of folders) {
+        const nextName = await this.resolveMovedFolderName(
+          tx,
+          fallback.id,
+          folder.parent_id || null,
+          folder.name,
+          existing.name,
+        );
+        await tx.getRepository(DocumentFolder).update(
+          { id: folder.id } as any,
+          {
+            library_id: fallback.id,
+            name: nextName,
+            updated_at: new Date(),
+          } as any,
+        );
+      }
+
+      await tx
+        .getRepository(Document)
+        .createQueryBuilder()
+        .update(Document)
+        .set({ library_id: fallback.id } as any)
+        .where('library_id = :libraryId', { libraryId: existing.id })
+        .execute();
+
+      await repo.delete({ id: existing.id } as any);
+      return { ok: true, fallback_library_id: fallback.id };
+    };
+
+    if (manager.queryRunner?.isTransactionActive) {
+      return run(manager);
+    }
+    return manager.transaction(run);
+  }
+
+  async list(query: any, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const { page, limit, skip, sort, q, filters } = parsePagination(query, { field: 'updated_at', direction: 'DESC' });
+
+    const allowedSort = new Set([
+      'updated_at',
+      'created_at',
+      'title',
+      'status',
+      'item_number',
+      'published_at',
+      'review_due_at',
+      'current_version_number',
+      'primary_owner_name',
+      'library_name',
+      'document_type_name',
+      'template_name',
+    ]);
+    const sortField = allowedSort.has(sort.field) ? sort.field : 'updated_at';
+    // Alias-based sort fields need special handling
+    const sortExpression = sortField === 'primary_owner_name'
+      ? 'primary_owner_name'
+      : sortField === 'library_name'
+        ? 'library_name'
+        : sortField === 'document_type_name'
+          ? 'document_type_name'
+        : sortField === 'template_name'
+          ? 'template_name'
+          : `d.${sortField}`;
+
+    const qb = manager
+      .getRepository(Document)
+      .createQueryBuilder('d')
+      .leftJoin('document_folders', 'f', 'f.id = d.folder_id AND f.tenant_id = d.tenant_id')
+      .leftJoin('document_libraries', 'dl', 'dl.id = d.library_id AND dl.tenant_id = d.tenant_id')
+      .leftJoin('document_types', 'dtype', 'dtype.id = d.document_type_id AND dtype.tenant_id = d.tenant_id')
+      .leftJoin('documents', 'td', 'td.id = d.template_document_id AND td.tenant_id = d.tenant_id')
+      .select([
+        'd.id AS id',
+        'd.item_number AS item_number',
+        'd.title AS title',
+        'd.summary AS summary',
+        'd.status AS status',
+        'd.revision AS revision',
+        'd.current_version_number AS current_version_number',
+        'd.folder_id AS folder_id',
+        'd.library_id AS library_id',
+        'd.document_type_id AS document_type_id',
+        'd.template_document_id AS template_document_id',
+        'd.published_at AS published_at',
+        'd.last_reviewed_at AS last_reviewed_at',
+        'd.review_due_at AS review_due_at',
+        'd.created_by AS created_by',
+        'd.updated_by AS updated_by',
+        'd.created_at AS created_at',
+        'd.updated_at AS updated_at',
+        'f.name AS folder_name',
+        'dl.name AS library_name',
+        'dl.slug AS library_slug',
+        'dtype.name AS document_type_name',
+        'td.title AS template_name',
+        `(SELECT w.requested_revision
+          FROM document_workflows w
+          WHERE w.document_id = d.id
+            AND w.status = 'approved'
+          ORDER BY coalesce(w.completed_at, w.requested_at) DESC
+          LIMIT 1) AS validated_revision`,
+        `(SELECT w.completed_at
+          FROM document_workflows w
+          WHERE w.document_id = d.id
+            AND w.status = 'approved'
+          ORDER BY coalesce(w.completed_at, w.requested_at) DESC
+          LIMIT 1) AS validated_at`,
+        `(SELECT COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, c.user_id::text)
+          FROM document_contributors c
+          LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = d.tenant_id
+          WHERE c.document_id = d.id AND c.role = 'owner' AND c.is_primary = true
+          LIMIT 1) AS primary_owner_name`,
+        `(SELECT string_agg(pc.name || COALESCE(' / ' || ps.name, ''), ', ' ORDER BY pc.name)
+          FROM document_classifications dc
+          JOIN portfolio_categories pc ON pc.id = dc.category_id AND pc.tenant_id = d.tenant_id
+          LEFT JOIN portfolio_streams ps ON ps.id = dc.stream_id AND ps.tenant_id = d.tenant_id
+          WHERE dc.document_id = d.id) AS classification_summary`,
+        `(SELECT string_agg(a.name, ', ' ORDER BY a.name)
+          FROM document_applications da
+          JOIN applications a ON a.id = da.application_id AND a.tenant_id = d.tenant_id
+          WHERE da.document_id = d.id) AS application_names`,
+        `(SELECT string_agg(ast.name, ', ' ORDER BY ast.name)
+          FROM document_assets dasset
+          JOIN assets ast ON ast.id = dasset.asset_id AND ast.tenant_id = d.tenant_id
+          WHERE dasset.document_id = d.id) AS asset_names`,
+      ]);
+
+    if (q && q.trim()) {
+      qb.andWhere('(d.title ILIKE :term OR d.summary ILIKE :term OR d.content_plain ILIKE :term)', {
+        term: `%${q.trim()}%`,
+      });
+    }
+
+    const filterStatus = query?.status || (filters as any)?.status?.filter;
+    if (filterStatus && isDocumentStatus(String(filterStatus))) {
+      qb.andWhere('d.status = :status', { status: String(filterStatus) });
+    }
+
+    const libraryId = query?.library_id || (filters as any)?.library_id?.filter;
+    if (libraryId) {
+      qb.andWhere('d.library_id = :libraryId', { libraryId: String(libraryId) });
+    }
+
+    const folderId = query?.folder_id || (filters as any)?.folder_id?.filter;
+    if (folderId) {
+      const folderIds = await this.collectDescendantFolderIds(
+        String(folderId),
+        manager,
+        libraryId ? String(libraryId) : undefined,
+      );
+      qb.andWhere('d.folder_id = ANY(:folderIds)', { folderIds });
+    }
+
+    const typeId = query?.document_type_id || (filters as any)?.document_type_id?.filter;
+    if (typeId) {
+      qb.andWhere('d.document_type_id = :typeId', { typeId: String(typeId) });
+    }
+
+    const documentTypeNameFilter = (filters as any)?.document_type_name;
+    if (documentTypeNameFilter?.filterType === 'set' && Array.isArray(documentTypeNameFilter.values) && documentTypeNameFilter.values.length > 0) {
+      const hasNull = documentTypeNameFilter.values.includes(null);
+      const nonNull = documentTypeNameFilter.values.filter((value: any) => value !== null);
+      if (hasNull && nonNull.length > 0) {
+        qb.andWhere('(dtype.name = ANY(:documentTypeNames) OR dtype.name IS NULL)', { documentTypeNames: nonNull });
+      } else if (hasNull) {
+        qb.andWhere('dtype.name IS NULL');
+      } else if (nonNull.length > 0) {
+        qb.andWhere('dtype.name = ANY(:documentTypeNames)', { documentTypeNames: nonNull });
+      }
+    }
+
+    const templateId = query?.template_document_id || (filters as any)?.template_document_id?.filter;
+    if (templateId) {
+      qb.andWhere('d.template_document_id = :templateId', { templateId: String(templateId) });
+    }
+
+    const ownerId = query?.owner_id || (filters as any)?.owner_id?.filter;
+    if (ownerId) {
+      qb.andWhere(
+        `EXISTS (
+          SELECT 1
+          FROM document_contributors c
+          WHERE c.document_id = d.id
+            AND c.user_id = :ownerId
+            AND c.role = 'owner'
+        )`,
+        { ownerId: String(ownerId) },
+      );
+    }
+
+    // Scope filters: ownerUserId (my documents) and teamId (my team's documents)
+    const ownerUserId = query?.ownerUserId;
+    if (ownerUserId) {
+      qb.andWhere(
+        `EXISTS (
+          SELECT 1
+          FROM document_contributors c
+          WHERE c.document_id = d.id
+            AND c.user_id = :ownerUserId
+            AND c.role = 'owner'
+        )`,
+        { ownerUserId: String(ownerUserId) },
+      );
+    }
+
+    const teamId = query?.teamId;
+    if (teamId) {
+      qb.andWhere(
+        `EXISTS (
+          SELECT 1
+          FROM document_contributors c
+          WHERE c.document_id = d.id
+            AND c.role = 'owner'
+            AND c.user_id IN (
+              SELECT user_id
+              FROM portfolio_team_member_configs
+              WHERE team_id = :teamId
+                AND tenant_id = d.tenant_id
+            )
+        )`,
+        { teamId: String(teamId) },
+      );
+    }
+
+    // CheckboxSetFilter: multi-value status filter
+    const statusFilter = (filters as any)?.status;
+    if (statusFilter?.filterType === 'set' && Array.isArray(statusFilter.values) && statusFilter.values.length > 0) {
+      const validStatuses = statusFilter.values.filter((s: string) => isDocumentStatus(String(s)));
+      if (validStatuses.length > 0) {
+        qb.andWhere('d.status = ANY(:statusValues)', { statusValues: validStatuses });
+      }
+    }
+
+    // CheckboxSetFilter: folder_name
+    const folderNameFilter = (filters as any)?.folder_name;
+    if (folderNameFilter?.filterType === 'set' && Array.isArray(folderNameFilter.values) && folderNameFilter.values.length > 0) {
+      const hasNull = folderNameFilter.values.includes(null);
+      const nonNull = folderNameFilter.values.filter((v: any) => v !== null);
+      if (hasNull && nonNull.length > 0) {
+        qb.andWhere('(f.name = ANY(:folderNames) OR f.name IS NULL)', { folderNames: nonNull });
+      } else if (hasNull) {
+        qb.andWhere('f.name IS NULL');
+      } else if (nonNull.length > 0) {
+        qb.andWhere('f.name = ANY(:folderNames)', { folderNames: nonNull });
+      }
+    }
+
+    // CheckboxSetFilter: template_name
+    const templateNameFilter = (filters as any)?.template_name;
+    if (templateNameFilter?.filterType === 'set' && Array.isArray(templateNameFilter.values) && templateNameFilter.values.length > 0) {
+      const hasNull = templateNameFilter.values.includes(null);
+      const nonNull = templateNameFilter.values.filter((v: any) => v !== null);
+      if (hasNull && nonNull.length > 0) {
+        qb.andWhere('(td.title = ANY(:templateNames) OR td.title IS NULL)', { templateNames: nonNull });
+      } else if (hasNull) {
+        qb.andWhere('td.title IS NULL');
+      } else if (nonNull.length > 0) {
+        qb.andWhere('td.title = ANY(:templateNames)', { templateNames: nonNull });
+      }
+    }
+
+    // CheckboxSetFilter: library_name
+    const libraryNameFilter = (filters as any)?.library_name;
+    if (libraryNameFilter?.filterType === 'set' && Array.isArray(libraryNameFilter.values) && libraryNameFilter.values.length > 0) {
+      const hasNull = libraryNameFilter.values.includes(null);
+      const nonNull = libraryNameFilter.values.filter((v: any) => v !== null);
+      if (hasNull && nonNull.length > 0) {
+        qb.andWhere('(dl.name = ANY(:libraryNames) OR dl.name IS NULL)', { libraryNames: nonNull });
+      } else if (hasNull) {
+        qb.andWhere('dl.name IS NULL');
+      } else if (nonNull.length > 0) {
+        qb.andWhere('dl.name = ANY(:libraryNames)', { libraryNames: nonNull });
+      }
+    }
+
+    // CheckboxSetFilter: primary_owner_name
+    const ownerNameFilter = (filters as any)?.primary_owner_name;
+    if (ownerNameFilter?.filterType === 'set' && Array.isArray(ownerNameFilter.values) && ownerNameFilter.values.length > 0) {
+      const hasNull = ownerNameFilter.values.includes(null);
+      const nonNull = ownerNameFilter.values.filter((v: any) => v !== null);
+      const subquery = `(SELECT COALESCE(NULLIF(trim(concat_ws(' ', u2.first_name, u2.last_name)), ''), u2.email, c2.user_id::text)
+        FROM document_contributors c2
+        LEFT JOIN users u2 ON u2.id = c2.user_id
+        WHERE c2.document_id = d.id AND c2.role = 'owner' AND c2.is_primary = true
+        LIMIT 1)`;
+      if (hasNull && nonNull.length > 0) {
+        qb.andWhere(`(${subquery} = ANY(:ownerNames) OR ${subquery} IS NULL)`, { ownerNames: nonNull });
+      } else if (hasNull) {
+        qb.andWhere(`${subquery} IS NULL`);
+      } else if (nonNull.length > 0) {
+        qb.andWhere(`${subquery} = ANY(:ownerNames)`, { ownerNames: nonNull });
+      }
+    }
+
+    const total = await qb.getCount();
+
+    const rows = await qb
+      .orderBy(sortExpression, sort.direction as 'ASC' | 'DESC')
+      .addOrderBy('d.item_number', 'DESC')
+      .offset(skip)
+      .limit(limit)
+      .getRawMany();
+
+    const items = rows.map((row: any) => ({
+      ...row,
+      item_ref: `DOC-${row.item_number}`,
+      validated_revision: row.validated_revision != null ? Number(row.validated_revision) : null,
+      validated_at: row.validated_at || null,
+      is_validated_current_revision:
+        String(row.status || '').toLowerCase() === 'published'
+        && row.validated_revision != null
+        && Number(row.validated_revision) === Number(row.revision || 0),
+    }));
+
+    return { items, total, page, limit };
+  }
+
+  async listIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; total: number }> {
+    const manager = this.getManager(opts);
+    const parsed = parsePagination({ ...query, page: 1, limit: query?.limit ?? 10000 }, { field: 'updated_at', direction: 'DESC' });
+    const { q } = parsed;
+
+    const qb = manager
+      .getRepository(Document)
+      .createQueryBuilder('d')
+      .select('d.id', 'id');
+
+    if (q && q.trim()) {
+      qb.andWhere('(d.title ILIKE :term OR d.summary ILIKE :term OR d.content_plain ILIKE :term)', {
+        term: `%${q.trim()}%`,
+      });
+    }
+
+    const status = query?.status;
+    if (status && isDocumentStatus(String(status))) {
+      qb.andWhere('d.status = :status', { status: String(status) });
+    }
+
+    const libraryId = query?.library_id;
+    if (libraryId) {
+      qb.andWhere('d.library_id = :libraryId', { libraryId: String(libraryId) });
+    }
+
+    const rows = await qb
+      .orderBy('d.updated_at', 'DESC')
+      .limit(Math.min(Number(query?.limit) || 10000, 10000))
+      .getRawMany();
+
+    const ids = rows.map((row: any) => String(row.id)).filter(Boolean);
+    return { ids, total: ids.length };
+  }
+
+  async listFilterValues(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, any[]>> {
+    const manager = this.getManager(opts);
+    const fields = query?.fields ? String(query.fields).split(',') : null;
+    const shouldReturn = (field: string) => !fields || fields.includes(field);
+
+    // Build a base scope subquery for cross-filtering
+    const scopeConditions: string[] = ['1=1'];
+    const scopeParams: any[] = [];
+    const ownerUserId = query?.ownerUserId;
+    if (ownerUserId) {
+      scopeConditions.push(`EXISTS (SELECT 1 FROM document_contributors c WHERE c.document_id = d.id AND c.role = 'owner' AND c.user_id = $${scopeParams.length + 1})`);
+      scopeParams.push(String(ownerUserId));
+    }
+    const teamId = query?.teamId;
+    if (teamId) {
+      scopeConditions.push(`EXISTS (SELECT 1 FROM document_contributors c WHERE c.document_id = d.id AND c.role = 'owner' AND c.user_id IN (SELECT user_id FROM portfolio_team_member_configs WHERE team_id = $${scopeParams.length + 1}))`);
+      scopeParams.push(String(teamId));
+    }
+    const libraryId = query?.library_id;
+    if (libraryId) {
+      scopeConditions.push(`d.library_id = $${scopeParams.length + 1}`);
+      scopeParams.push(String(libraryId));
+    }
+
+    // Apply cross-filter from other active filters
+    let filters: any = {};
+    if (query?.filters) {
+      try { filters = typeof query.filters === 'string' ? JSON.parse(query.filters) : query.filters; } catch { /* ignore */ }
+    }
+
+    // Search filter
+    if (query?.q && String(query.q).trim()) {
+      const term = `%${String(query.q).trim()}%`;
+      scopeConditions.push(`(d.title ILIKE $${scopeParams.length + 1} OR d.summary ILIKE $${scopeParams.length + 1} OR d.content_plain ILIKE $${scopeParams.length + 1})`);
+      scopeParams.push(term);
+    }
+
+    const scopeWhere = scopeConditions.join(' AND ');
+
+    const promises: Array<Promise<[string, any[]]>> = [];
+
+    if (shouldReturn('status')) {
+      promises.push(
+        manager.query(
+          `SELECT DISTINCT d.status FROM documents d WHERE ${scopeWhere} ORDER BY d.status`,
+          scopeParams,
+        ).then((rows: any[]) => ['status', rows.map((r: any) => r.status).filter(Boolean)]),
+      );
+    }
+
+    if (shouldReturn('folder_name')) {
+      promises.push(
+        manager.query(
+          `SELECT DISTINCT f.name
+           FROM documents d
+           LEFT JOIN document_folders f ON f.id = d.folder_id AND f.tenant_id = d.tenant_id
+           WHERE ${scopeWhere}
+           ORDER BY 1`,
+          scopeParams,
+        ).then((rows: any[]) => ['folder_name', rows.map((r: any) => r.name)]),
+      );
+    }
+
+    if (shouldReturn('template_name')) {
+      promises.push(
+        manager.query(
+          `SELECT DISTINCT td.title AS name
+           FROM documents d
+           LEFT JOIN documents td ON td.id = d.template_document_id AND td.tenant_id = d.tenant_id
+           WHERE ${scopeWhere}
+           ORDER BY 1`,
+          scopeParams,
+        ).then((rows: any[]) => ['template_name', rows.map((r: any) => r.name)]),
+      );
+    }
+
+    if (shouldReturn('document_type_name')) {
+      promises.push(
+        manager.query(
+          `SELECT DISTINCT dt.name
+           FROM documents d
+           LEFT JOIN document_types dt ON dt.id = d.document_type_id AND dt.tenant_id = d.tenant_id
+           WHERE ${scopeWhere}
+           ORDER BY 1`,
+          scopeParams,
+        ).then((rows: any[]) => ['document_type_name', rows.map((r: any) => r.name)]),
+      );
+    }
+
+    if (shouldReturn('library_name')) {
+      promises.push(
+        manager.query(
+          `SELECT DISTINCT dl.name
+           FROM documents d
+           LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
+           WHERE ${scopeWhere}
+           ORDER BY 1`,
+          scopeParams,
+        ).then((rows: any[]) => ['library_name', rows.map((r: any) => r.name)]),
+      );
+    }
+
+    if (shouldReturn('primary_owner_name')) {
+      promises.push(
+        manager.query(
+          `SELECT DISTINCT (SELECT COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, c.user_id::text)
+              FROM document_contributors c
+              LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = d.tenant_id
+              WHERE c.document_id = d.id AND c.role = 'owner' AND c.is_primary = true
+              LIMIT 1) AS name
+           FROM documents d
+           WHERE ${scopeWhere}
+           ORDER BY 1`,
+          scopeParams,
+        ).then((rows: any[]) => ['primary_owner_name', rows.map((r: any) => r.name).filter(Boolean)]),
+      );
+    }
+
+    // Legacy fields for backwards compat
+    if (shouldReturn('folders')) {
+      promises.push(
+        manager.query(
+          libraryId
+            ? `SELECT id, name
+               FROM document_folders
+               WHERE tenant_id = app_current_tenant()
+                 AND library_id = $1
+               ORDER BY lower(name)`
+            : `SELECT id, name
+               FROM document_folders
+               WHERE tenant_id = app_current_tenant()
+               ORDER BY lower(name)`,
+          libraryId ? [libraryId] : [],
+        ).then(
+          (rows: any[]) => ['folders', rows.map((r: any) => `${r.id}|${r.name}`)],
+        ),
+      );
+    }
+    if (shouldReturn('document_types')) {
+      promises.push(
+        manager.query(
+          `SELECT id, name
+           FROM document_types
+           WHERE tenant_id = app_current_tenant()
+             AND is_active = true
+           ORDER BY lower(name)`,
+        ).then(
+          (rows: any[]) => ['document_types', rows.map((r: any) => `${r.id}|${r.name}`)],
+        ),
+      );
+    }
+    if (shouldReturn('owners')) {
+      promises.push(
+        manager.query(
+          `SELECT DISTINCT c.user_id AS id,
+                  COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, c.user_id::text) AS name
+           FROM document_contributors c
+           LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = c.tenant_id
+           WHERE c.role = 'owner'
+           ORDER BY 2`,
+        ).then((rows: any[]) => ['owners', rows.map((r: any) => `${r.id}|${r.name}`)]),
+      );
+    }
+
+    const results = await Promise.all(promises);
+    const out: Record<string, any[]> = {};
+    for (const [key, values] of results) {
+      out[key] = values;
+    }
+    return out;
+  }
+
+  async listRelationOptions(
+    entity: RelationEntityType,
+    query: any,
+    opts?: { manager?: EntityManager },
+  ): Promise<{ items: Array<{ id: string; label: string }> }> {
+    const manager = this.getManager(opts);
+    const q = String(query?.q || '').trim();
+    const limit = Math.min(Math.max(Number(query?.limit) || 25, 1), 50);
+    const itemNumber = this.parseItemNumberQuery(q);
+
+    switch (entity) {
+      case 'applications': {
+        const params: any[] = [];
+        let where = `tenant_id = app_current_tenant()`;
+        if (q) {
+          params.push(`%${q}%`);
+          where += ` AND name ILIKE $${params.length}`;
+        }
+        params.push(limit);
+        const rows = await manager.query(
+          `SELECT id, name
+           FROM applications
+           WHERE ${where}
+           ORDER BY lower(name) ASC
+           LIMIT $${params.length}`,
+          params,
+        );
+        return { items: rows.map((row: any) => ({ id: row.id, label: row.name || row.id })) };
+      }
+      case 'assets': {
+        const params: any[] = [];
+        let where = `tenant_id = app_current_tenant()`;
+        if (q) {
+          params.push(`%${q}%`);
+          where += ` AND name ILIKE $${params.length}`;
+        }
+        params.push(limit);
+        const rows = await manager.query(
+          `SELECT id, name
+           FROM assets
+           WHERE ${where}
+           ORDER BY lower(name) ASC
+           LIMIT $${params.length}`,
+          params,
+        );
+        return { items: rows.map((row: any) => ({ id: row.id, label: row.name || row.id })) };
+      }
+      case 'projects': {
+        const params: any[] = [];
+        let where = `tenant_id = app_current_tenant()`;
+        if (q) {
+          params.push(`%${q}%`);
+          const textPos = params.length;
+          if (itemNumber != null) {
+            params.push(itemNumber);
+            where += ` AND (name ILIKE $${textPos} OR item_number = $${params.length})`;
+          } else {
+            where += ` AND name ILIKE $${textPos}`;
+          }
+        }
+        params.push(limit);
+        const rows = await manager.query(
+          `SELECT id, name, item_number
+           FROM portfolio_projects
+           WHERE ${where}
+           ORDER BY lower(name) ASC
+           LIMIT $${params.length}`,
+          params,
+        );
+        return {
+          items: rows.map((row: any) => ({
+            id: row.id,
+            label: row.item_number ? `PRJ-${row.item_number} - ${row.name}` : (row.name || row.id),
+          })),
+        };
+      }
+      case 'requests': {
+        const params: any[] = [];
+        let where = `tenant_id = app_current_tenant()`;
+        if (q) {
+          params.push(`%${q}%`);
+          const textPos = params.length;
+          if (itemNumber != null) {
+            params.push(itemNumber);
+            where += ` AND (name ILIKE $${textPos} OR item_number = $${params.length})`;
+          } else {
+            where += ` AND name ILIKE $${textPos}`;
+          }
+        }
+        params.push(limit);
+        const rows = await manager.query(
+          `SELECT id, name, item_number
+           FROM portfolio_requests
+           WHERE ${where}
+           ORDER BY lower(name) ASC
+           LIMIT $${params.length}`,
+          params,
+        );
+        return {
+          items: rows.map((row: any) => ({
+            id: row.id,
+            label: row.item_number ? `REQ-${row.item_number} - ${row.name}` : (row.name || row.id),
+          })),
+        };
+      }
+      case 'tasks': {
+        const params: any[] = [];
+        let where = `tenant_id = app_current_tenant()`;
+        if (q) {
+          params.push(`%${q}%`);
+          const textPos = params.length;
+          if (itemNumber != null) {
+            params.push(itemNumber);
+            where += ` AND (COALESCE(title, '') ILIKE $${textPos} OR item_number = $${params.length})`;
+          } else {
+            where += ` AND COALESCE(title, '') ILIKE $${textPos}`;
+          }
+        }
+        params.push(limit);
+        const rows = await manager.query(
+          `SELECT id, title, item_number
+           FROM tasks
+           WHERE ${where}
+           ORDER BY created_at DESC
+           LIMIT $${params.length}`,
+          params,
+        );
+        return {
+          items: rows.map((row: any) => ({
+            id: row.id,
+            label: row.item_number
+              ? `T-${row.item_number} - ${row.title || 'Untitled task'}`
+              : (row.title || row.id),
+          })),
+        };
+      }
+      default:
+        throw new BadRequestException('Unsupported relation entity');
+    }
+  }
+
+  async listClassificationOptions(opts?: { manager?: EntityManager }): Promise<{
+    categories: Array<{ id: string; name: string; is_active?: boolean }>;
+    streams: Array<{ id: string; name: string; category_id: string; is_active?: boolean }>;
+  }> {
+    const manager = this.getManager(opts);
+    const [categories, streams] = await Promise.all([
+      manager.query(
+        `SELECT id, name, is_active
+         FROM portfolio_categories
+         WHERE tenant_id = app_current_tenant()
+         ORDER BY display_order ASC, lower(name) ASC`,
+      ),
+      manager.query(
+        `SELECT id, name, category_id, is_active
+         FROM portfolio_streams
+         WHERE tenant_id = app_current_tenant()
+         ORDER BY display_order ASC, lower(name) ASC`,
+      ),
+    ]);
+
+    return {
+      categories: categories.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        is_active: row.is_active,
+      })),
+      streams: streams.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        category_id: row.category_id,
+        is_active: row.is_active,
+      })),
+    };
+  }
+
+  async listContributorOptions(opts?: { manager?: EntityManager }): Promise<Array<{
+    id: string;
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+    label: string;
+  }>> {
+    const manager = this.getManager(opts);
+    const rows = await manager.query(
+      `SELECT id,
+              email,
+              first_name,
+              last_name,
+              status,
+              COALESCE(NULLIF(trim(concat_ws(' ', first_name, last_name)), ''), email, id::text) AS label
+       FROM users
+       WHERE tenant_id = app_current_tenant()
+         AND coalesce(status, '') = 'enabled'
+       ORDER BY lower(coalesce(nullif(last_name, ''), email)) ASC,
+                lower(coalesce(nullif(first_name, ''), email)) ASC,
+                lower(email) ASC`,
+    );
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      email: row.email,
+      first_name: row.first_name ?? null,
+      last_name: row.last_name ?? null,
+      label: row.label || row.email || row.id,
+    }));
+  }
+
+  async get(idOrRef: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const id = await this.resolveDocumentId(idOrRef, manager);
+
+    const rows = await manager.query(
+      `SELECT d.*,
+              f.name AS folder_name,
+              dl.name AS library_name,
+              dl.slug AS library_slug,
+              dtype.name AS document_type_name,
+              td.title AS template_document_title,
+              td.item_number AS template_document_item_number,
+              td.document_type_id AS template_document_type_id,
+              tdt.name AS template_document_type_name
+       FROM documents d
+       LEFT JOIN document_folders f ON f.id = d.folder_id AND f.tenant_id = d.tenant_id
+       LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
+       LEFT JOIN document_types dtype ON dtype.id = d.document_type_id AND dtype.tenant_id = d.tenant_id
+       LEFT JOIN documents td ON td.id = d.template_document_id AND td.tenant_id = d.tenant_id
+       LEFT JOIN document_types tdt ON tdt.id = td.document_type_id AND tdt.tenant_id = td.tenant_id
+       WHERE d.id = $1
+       LIMIT 1`,
+      [id],
+    );
+
+    if (!rows.length) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const document = rows[0];
+
+    const [
+      contributors,
+      classifications,
+      relations,
+      incomingReferences,
+      attachments,
+      editLock,
+      workflow,
+      latestApprovedWorkflow,
+      integratedBinding,
+    ] = await Promise.all([
+      manager.query(
+        `SELECT c.*, COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, c.user_id::text) AS user_name
+         FROM document_contributors c
+         LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = c.tenant_id
+         WHERE c.document_id = $1
+         ORDER BY c.is_primary DESC, c.created_at ASC`,
+        [id],
+      ),
+      manager.query(
+        `SELECT dc.*, pc.name AS category_name, ps.name AS stream_name
+         FROM document_classifications dc
+         LEFT JOIN portfolio_categories pc ON pc.id = dc.category_id AND pc.tenant_id = dc.tenant_id
+         LEFT JOIN portfolio_streams ps ON ps.id = dc.stream_id AND ps.tenant_id = dc.tenant_id
+         WHERE dc.document_id = $1
+         ORDER BY pc.name ASC, ps.name ASC`,
+        [id],
+      ),
+      Promise.all([
+        manager.query(
+          `SELECT da.application_id, a.name FROM document_applications da
+           JOIN applications a ON a.id = da.application_id AND a.tenant_id = da.tenant_id
+           WHERE da.document_id = $1 ORDER BY da.created_at ASC`, [id]),
+        manager.query(
+          `SELECT das.asset_id, a.name FROM document_assets das
+           JOIN assets a ON a.id = das.asset_id AND a.tenant_id = das.tenant_id
+           WHERE das.document_id = $1 ORDER BY das.created_at ASC`, [id]),
+        manager.query(
+          `SELECT dp.project_id, p.name, p.item_number FROM document_projects dp
+           JOIN portfolio_projects p ON p.id = dp.project_id AND p.tenant_id = dp.tenant_id
+           WHERE dp.document_id = $1 ORDER BY dp.created_at ASC`, [id]),
+        manager.query(
+          `SELECT dr.request_id, r.name, r.item_number FROM document_requests dr
+           JOIN portfolio_requests r ON r.id = dr.request_id AND r.tenant_id = dr.tenant_id
+           WHERE dr.document_id = $1 ORDER BY dr.created_at ASC`, [id]),
+        manager.query(
+          `SELECT dt.task_id, t.title, t.item_number FROM document_tasks dt
+           JOIN tasks t ON t.id = dt.task_id AND t.tenant_id = dt.tenant_id
+           WHERE dt.document_id = $1 ORDER BY dt.created_at ASC`, [id]),
+      ]),
+      manager.query(
+        `SELECT r.id,
+                r.source_document_id,
+                d.item_number AS source_item_number,
+                d.title AS source_title,
+                d.status AS source_status
+         FROM document_references r
+         JOIN documents d ON d.id = r.source_document_id AND d.tenant_id = r.tenant_id
+         WHERE r.target_document_id = $1
+         ORDER BY d.updated_at DESC`,
+        [id],
+      ),
+      manager.query(
+        `SELECT *
+         FROM document_attachments
+         WHERE document_id = $1
+           AND source_field IS NULL
+         ORDER BY uploaded_at DESC`,
+        [id],
+      ),
+      this.getActiveDocumentLock(id, manager),
+      this.getActiveWorkflow(id, manager),
+      this.getLatestApprovedWorkflowSummary(id, manager),
+      this.getIntegratedBinding(id, manager),
+    ]);
+
+    const validationInfo = this.getValidationInfo(document, latestApprovedWorkflow);
+
+    return {
+      ...document,
+      item_ref: `DOC-${document.item_number}`,
+      contributors,
+      classifications,
+      relations: {
+        applications: relations[0].map((row: any) => ({ id: row.application_id, name: row.name })),
+        assets: relations[1].map((row: any) => ({ id: row.asset_id, name: row.name })),
+        projects: relations[2].map((row: any) => ({ id: row.project_id, name: row.item_number ? `PRJ-${row.item_number} - ${row.name}` : row.name })),
+        requests: relations[3].map((row: any) => ({ id: row.request_id, name: row.item_number ? `REQ-${row.item_number} - ${row.name}` : row.name })),
+        tasks: relations[4].map((row: any) => ({ id: row.task_id, name: row.item_number ? `T-${row.item_number} - ${row.title || 'Untitled task'}` : (row.title || 'Untitled task') })),
+      },
+      incoming_references: incomingReferences,
+      attachments,
+      edit_lock: editLock,
+      workflow,
+      latest_approved_workflow: latestApprovedWorkflow,
+      integrated_binding: integratedBinding,
+      is_managed_integrated_document: !!integratedBinding,
+      ...validationInfo,
+    };
+  }
+
+  async create(body: any, tenantId: string, userId: string | null, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+
+    const title = String(body?.title || '').trim();
+    if (!title) {
+      throw new BadRequestException('title is required');
+    }
+
+    const status = this.normalizeStatus(body?.status, 'draft');
+    const summary = body?.summary == null ? null : String(body.summary).trim() || null;
+
+    const requestedLibraryId = body?.library_id ? String(body.library_id) : null;
+    const library = requestedLibraryId
+      ? await this.ensureLibraryExists(requestedLibraryId, manager)
+      : await this.resolveDefaultLibrary(manager);
+
+    const folderId = body?.folder_id ? String(body.folder_id) : null;
+    if (folderId) {
+      await this.ensureFolderInLibrary(folderId, library.id, manager);
+    }
+
+    const templateDocumentId = body?.template_document_id ? String(body.template_document_id) : null;
+    let templateClassifications: Array<{ category_id: string; stream_id: string | null }> = [];
+    const hasExplicitDocumentTypeId = Object.prototype.hasOwnProperty.call(body ?? {}, 'document_type_id');
+    const templateDocument = templateDocumentId
+      ? await this.getTemplateDocumentSummary(templateDocumentId, manager, tenantId)
+      : null;
+
+    let contentMarkdown = normalizeMarkdownRichText(body?.content_markdown, { fieldName: 'content_markdown' }) || '';
+    if (templateDocument) {
+      templateClassifications = await manager.query(
+        `SELECT category_id, stream_id
+         FROM document_classifications
+         WHERE document_id = $1
+         ORDER BY created_at ASC`,
+        [templateDocumentId],
+      );
+      if (!String(contentMarkdown || '').trim()) {
+        contentMarkdown = templateDocument.content_markdown;
+      }
+    }
+
+    const documentTypeId = await this.resolveDocumentTypeId(manager, {
+      explicitDocumentTypeId: body?.document_type_id,
+      hasExplicitDocumentTypeId,
+      templateDocument,
+    });
+
+    const contentPlain = this.stripMarkdown(contentMarkdown);
+
+    const itemNumber = await this.itemNumbers.nextItemNumber('document', tenantId, manager);
+
+    const repo = manager.getRepository(Document);
+    const entity = repo.create({
+      tenant_id: tenantId,
+      item_number: itemNumber,
+      title,
+      summary,
+      content_markdown: contentMarkdown,
+      content_plain: contentPlain,
+      folder_id: folderId,
+      library_id: library.id,
+      document_type_id: documentTypeId,
+      template_document_id: templateDocumentId,
+      status,
+      revision: 1,
+      current_version_number: 0,
+      published_at: status === 'published' ? new Date() : null,
+      last_reviewed_at: body?.last_reviewed_at ? new Date(body.last_reviewed_at) : null,
+      review_due_at: body?.review_due_at ? new Date(body.review_due_at) : null,
+      created_by: userId,
+      updated_by: userId,
+    });
+
+    const saved = await repo.save(entity);
+
+    const ownerId = body?.owner_user_id || userId;
+    if (!ownerId) {
+      throw new BadRequestException('owner_user_id is required');
+    }
+
+    await this.bulkReplaceContributors(saved.id, [
+      {
+        user_id: ownerId,
+        role: 'owner',
+        is_primary: true,
+      },
+      ...(Array.isArray(body?.contributors) ? body.contributors : []),
+    ], { manager });
+
+    if (Array.isArray(body?.classifications)) {
+      await this.bulkReplaceClassifications(saved.id, body.classifications, { manager });
+    } else if (templateClassifications.length > 0) {
+      await this.bulkReplaceClassifications(saved.id, templateClassifications, { manager });
+    }
+
+    if (body?.relations && typeof body.relations === 'object') {
+      const relationBody = body.relations;
+      if (Array.isArray(relationBody.applications)) {
+        await this.bulkReplaceRelations(saved.id, 'applications', relationBody.applications, { manager });
+      }
+      if (Array.isArray(relationBody.assets)) {
+        await this.bulkReplaceRelations(saved.id, 'assets', relationBody.assets, { manager });
+      }
+      if (Array.isArray(relationBody.projects)) {
+        await this.bulkReplaceRelations(saved.id, 'projects', relationBody.projects, { manager });
+      }
+      if (Array.isArray(relationBody.requests)) {
+        await this.bulkReplaceRelations(saved.id, 'requests', relationBody.requests, { manager });
+      }
+      if (Array.isArray(relationBody.tasks)) {
+        await this.bulkReplaceRelations(saved.id, 'tasks', relationBody.tasks, { manager });
+      }
+    }
+
+    await this.ensureVersionSnapshot(saved, body?.change_note ? String(body.change_note) : 'Initial version', userId, manager);
+    await this.syncReferences(saved.id, saved.content_markdown, manager);
+
+    const activity = manager.getRepository(DocumentActivity).create({
+      document_id: saved.id,
+      author_id: userId,
+      type: 'change',
+      content: 'Document created',
+      changed_fields: {
+        title: [null, saved.title],
+        status: [null, saved.status],
+      },
+    });
+    await manager.getRepository(DocumentActivity).save(activity);
+
+    await this.audit.log(
+      {
+        table: 'documents',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId,
+      },
+      { manager },
+    );
+
+    return this.get(saved.id, { manager });
+  }
+
+  async createManagedDocument(
+    body: {
+      tenantId: string;
+      title: string;
+      summary?: string | null;
+      content_markdown?: string | null;
+      folder_id: string;
+      library_id: string;
+      document_type_id: string;
+      template_document_id?: string | null;
+      status?: DocumentStatus;
+      relationEntityType?: Extract<RelationEntityType, 'projects' | 'requests'>;
+      relationIds?: string[];
+      change_note?: string | null;
+      activity_content?: string | null;
+    },
+    userId: string | null,
+    opts?: {
+      manager?: EntityManager;
+      initializer?: (
+        documentId: string,
+        manager: EntityManager,
+      ) => Promise<{
+        title?: string;
+        summary?: string | null;
+        content_markdown?: string | null;
+      } | void>;
+    },
+  ): Promise<Document> {
+    const manager = this.getManager(opts);
+
+    const title = String(body?.title || '').trim();
+    if (!title) {
+      throw new BadRequestException('title is required');
+    }
+
+    const summary = body?.summary == null ? null : String(body.summary).trim() || null;
+    const contentMarkdown = normalizeMarkdownRichText(body?.content_markdown, {
+      fieldName: 'content_markdown',
+    }) || '';
+    const status = this.normalizeStatus(body?.status, 'published');
+
+    await this.ensureFolderInLibrary(String(body.folder_id), String(body.library_id), manager);
+    await this.ensureDocumentTypeExists(String(body.document_type_id), manager);
+
+    const itemNumber = await this.itemNumbers.nextItemNumber('document', body.tenantId, manager);
+    const repo = manager.getRepository(Document);
+    const entity = repo.create({
+      tenant_id: body.tenantId,
+      item_number: itemNumber,
+      title,
+      summary,
+      content_markdown: contentMarkdown,
+      content_plain: this.stripMarkdown(contentMarkdown),
+      folder_id: body.folder_id,
+      library_id: body.library_id,
+      document_type_id: body.document_type_id,
+      template_document_id: body.template_document_id ? String(body.template_document_id) : null,
+      status,
+      revision: 1,
+      current_version_number: 0,
+      published_at: status === 'published' ? new Date() : null,
+      created_by: userId,
+      updated_by: userId,
+    });
+
+    let saved = await repo.save(entity);
+
+    if (body.relationEntityType && Array.isArray(body.relationIds) && body.relationIds.length > 0) {
+      await this.bulkReplaceRelations(saved.id, body.relationEntityType, body.relationIds, { manager });
+    }
+
+    if (opts?.initializer) {
+      const patch = await opts.initializer(saved.id, manager);
+      let changed = false;
+
+      if (patch && patch.title !== undefined) {
+        const nextTitle = String(patch.title || '').trim();
+        if (!nextTitle) {
+          throw new BadRequestException('title cannot be empty');
+        }
+        if (nextTitle !== saved.title) {
+          saved.title = nextTitle;
+          changed = true;
+        }
+      }
+
+      if (patch && patch.summary !== undefined) {
+        const nextSummary = patch.summary == null ? null : String(patch.summary).trim() || null;
+        if (nextSummary !== saved.summary) {
+          saved.summary = nextSummary;
+          changed = true;
+        }
+      }
+
+      if (patch && patch.content_markdown !== undefined) {
+        const nextContent = normalizeMarkdownRichText(patch.content_markdown, {
+          fieldName: 'content_markdown',
+        }) || '';
+        if (nextContent !== saved.content_markdown) {
+          saved.content_markdown = nextContent;
+          saved.content_plain = this.stripMarkdown(nextContent);
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        saved.updated_by = userId;
+        saved.updated_at = new Date();
+        saved = await repo.save(saved);
+      }
+    }
+
+    await this.ensureVersionSnapshot(
+      saved,
+      body?.change_note == null ? 'Initial version' : String(body.change_note),
+      userId,
+      manager,
+    );
+    await this.syncReferences(saved.id, saved.content_markdown, manager);
+
+    await this.createSystemActivity(
+      saved.id,
+      userId,
+      'change',
+      body?.activity_content ? String(body.activity_content) : 'Document created',
+      manager,
+      {
+        title: [null, saved.title],
+        status: [null, saved.status],
+      },
+    );
+
+    await this.audit.log(
+      {
+        table: 'documents',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId,
+      },
+      { manager },
+    );
+
+    return saved;
+  }
+
+  async updateManagedDocument(
+    idOrRef: string,
+    body: {
+      title?: string;
+      summary?: string | null;
+      content_markdown?: string | null;
+      change_note?: string | null;
+      activity_content?: string | null;
+      create_version?: boolean;
+    },
+    userId: string | null,
+    opts?: { manager?: EntityManager },
+  ): Promise<Document> {
+    const manager = this.getManager(opts);
+    const id = await this.resolveDocumentId(idOrRef, manager);
+
+    const repo = manager.getRepository(Document);
+    const existing = await repo.findOne({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Document not found');
+    }
+
+    await this.assertWorkflowAllowsEditing(existing.id, manager);
+
+    const before = { ...existing };
+    let changed = false;
+    let contentChanged = false;
+
+    if (body?.title !== undefined) {
+      const title = String(body.title || '').trim();
+      if (!title) {
+        throw new BadRequestException('title cannot be empty');
+      }
+      if (title !== existing.title) {
+        existing.title = title;
+        changed = true;
+      }
+    }
+
+    if (body?.summary !== undefined) {
+      const summary = body.summary == null ? null : String(body.summary).trim() || null;
+      if (summary !== existing.summary) {
+        existing.summary = summary;
+        changed = true;
+      }
+    }
+
+    if (body?.content_markdown !== undefined) {
+      const normalized = normalizeMarkdownRichText(body.content_markdown, {
+        fieldName: 'content_markdown',
+      }) || '';
+      if (normalized !== existing.content_markdown) {
+        existing.content_markdown = normalized;
+        existing.content_plain = this.stripMarkdown(normalized);
+        changed = true;
+        contentChanged = true;
+      }
+    }
+
+    if (!changed) {
+      return existing;
+    }
+
+    existing.revision = Number(existing.revision) + 1;
+    existing.updated_by = userId;
+    existing.updated_at = new Date();
+
+    const saved = await repo.save(existing);
+
+    if (contentChanged) {
+      await this.syncReferences(saved.id, saved.content_markdown, manager);
+    }
+
+    if (body?.create_version !== false) {
+      await this.ensureVersionSnapshot(
+        saved,
+        body?.change_note == null ? null : String(body.change_note),
+        userId,
+        manager,
+      );
+    }
+
+    if (body?.activity_content) {
+      const changes: Record<string, [unknown, unknown]> = {};
+      if (before.title !== saved.title) changes.title = [before.title, saved.title];
+      if (before.summary !== saved.summary) changes.summary = [before.summary, saved.summary];
+      if (before.content_markdown !== saved.content_markdown) {
+        changes.content_markdown = ['(changed)', '(changed)'];
+      }
+      await this.createSystemActivity(
+        saved.id,
+        userId,
+        'change',
+        String(body.activity_content),
+        manager,
+        Object.keys(changes).length > 0 ? changes : null,
+      );
+    }
+
+    await this.audit.log(
+      {
+        table: 'documents',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: saved,
+        userId,
+      },
+      { manager },
+    );
+
+    return saved;
+  }
+
+  async cloneInlineAttachments(
+    sourceDocumentId: string,
+    targetDocumentId: string,
+    attachmentIds: string[] | null | undefined,
+    userId: string | null,
+    opts?: { manager?: EntityManager },
+  ): Promise<Array<{ sourceAttachmentId: string; clonedAttachmentId: string }>> {
+    const manager = this.getManager(opts);
+
+    const targetDocument = await manager.getRepository(Document).findOne({
+      where: { id: targetDocumentId },
+    });
+    if (!targetDocument) {
+      throw new NotFoundException('Target document not found');
+    }
+
+    const requestedIds = dedupeStrings(Array.isArray(attachmentIds) ? attachmentIds : []);
+    const sourceAttachments = requestedIds.length > 0
+      ? await manager.query<Array<{
+          id: string;
+          tenant_id: string;
+          original_filename: string;
+          mime_type: string | null;
+          size: number;
+          storage_path: string;
+          source_field: string | null;
+        }>>(
+          `SELECT id,
+                  tenant_id,
+                  original_filename,
+                  mime_type,
+                  size,
+                  storage_path,
+                  source_field
+           FROM document_attachments
+           WHERE document_id = $1
+             AND source_field = 'content_markdown'
+             AND id = ANY($2::uuid[])
+           ORDER BY uploaded_at ASC`,
+          [sourceDocumentId, requestedIds],
+        )
+      : [];
+
+    if (requestedIds.length !== sourceAttachments.length) {
+      throw new NotFoundException('One or more inline attachments were not found on the source document');
+    }
+
+    const repo = manager.getRepository(DocumentAttachment);
+    const mappings: Array<{ sourceAttachmentId: string; clonedAttachmentId: string }> = [];
+
+    for (const attachment of sourceAttachments) {
+      const obj = await this.storage.getObjectStream(attachment.storage_path);
+      const ext = path.extname(attachment.original_filename || '') || path.extname(attachment.storage_path || '');
+      const clonedAttachmentId = randomUUID();
+      const rand = Math.random().toString(36).slice(2, 8);
+      const now = new Date();
+      const key = [
+        'files',
+        targetDocument.tenant_id,
+        'documents',
+        targetDocument.id,
+        now.getUTCFullYear().toString(),
+        String(now.getUTCMonth() + 1).padStart(2, '0'),
+        `${clonedAttachmentId}_${rand}${ext}`,
+      ].join('/');
+
+      await this.storage.putObject({
+        key,
+        body: obj.stream,
+        contentType: obj.contentType || attachment.mime_type,
+        contentLength: obj.contentLength ?? attachment.size,
+        sse: 'AES256',
+      });
+
+      const cloned = repo.create({
+        id: clonedAttachmentId,
+        tenant_id: targetDocument.tenant_id,
+        document_id: targetDocument.id,
+        original_filename: attachment.original_filename,
+        stored_filename: path.basename(key),
+        mime_type: attachment.mime_type,
+        size: attachment.size,
+        storage_path: key,
+        source_field: attachment.source_field || 'content_markdown',
+        uploaded_by_id: userId,
+      });
+      const saved = await repo.save(cloned);
+
+      await this.audit.log(
+        {
+          table: 'document_attachments',
+          recordId: saved.id,
+          action: 'create',
+          before: null,
+          after: saved,
+          userId,
+        },
+        { manager },
+      );
+
+      mappings.push({
+        sourceAttachmentId: attachment.id,
+        clonedAttachmentId: saved.id,
+      });
+    }
+
+    return mappings;
+  }
+
+  async deleteManagedDocument(
+    idOrRef: string,
+    userId: string | null,
+    opts?: { manager?: EntityManager },
+  ): Promise<void> {
+    const manager = this.getManager(opts);
+    const id = await this.resolveDocumentId(idOrRef, manager);
+
+    const repo = manager.getRepository(Document);
+    const existing = await repo.findOne({ where: { id } });
+    if (!existing) {
+      return;
+    }
+
+    const attachments = await manager.getRepository(DocumentAttachment).find({
+      where: { document_id: id } as any,
+    });
+    const excludedAttachmentIds = attachments.map((attachment) => attachment.id);
+
+    for (const attachment of attachments) {
+      const referencedElsewhere = await this.isStoragePathReferencedElsewhere(
+        manager,
+        attachment.storage_path,
+        excludedAttachmentIds,
+      );
+      if (!referencedElsewhere) {
+        try {
+          await this.storage.deleteObject(attachment.storage_path);
+        } catch {
+          // Keep document deletion resilient even if the object is already missing.
+        }
+      }
+    }
+
+    await repo.delete({ id } as any);
+
+    await this.audit.log(
+      {
+        table: 'documents',
+        recordId: existing.id,
+        action: 'delete',
+        before: existing,
+        after: null,
+        userId,
+      },
+      { manager },
+    );
+  }
+
+  async update(
+    idOrRef: string,
+    body: any,
+    userId: string,
+    lockToken: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const id = await this.resolveDocumentId(idOrRef, manager);
+
+    const repo = manager.getRepository(Document);
+    const existing = await repo.findOne({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const saveMode = body?.save_mode === 'autosave' ? 'autosave' : 'manual';
+
+    const shouldCheckLock =
+      body?.save_mode === 'autosave' ||
+      body?.save_mode === 'manual' ||
+      body?.content_markdown !== undefined ||
+      body?.title !== undefined ||
+      body?.summary !== undefined ||
+      body?.status !== undefined ||
+      body?.folder_id !== undefined ||
+      body?.document_type_id !== undefined ||
+      body?.template_document_id !== undefined ||
+      body?.contributors !== undefined ||
+      body?.classifications !== undefined ||
+      body?.relations !== undefined ||
+      body?.review_due_at !== undefined ||
+      body?.last_reviewed_at !== undefined;
+
+    if (shouldCheckLock) {
+      await this.assertWorkflowAllowsEditing(existing.id, manager);
+      await this.ensureValidLock(existing.id, userId, lockToken, manager);
+    }
+
+    const incomingRevision = Number(body?.revision);
+    if (!Number.isFinite(incomingRevision)) {
+      throw new BadRequestException('revision is required');
+    }
+    if (incomingRevision !== Number(existing.revision)) {
+      throw new ConflictException('Document revision conflict');
+    }
+
+    await this.assertIntegratedDocumentUpdateRestrictions(existing, body, manager);
+
+    const before = { ...existing };
+
+    if (body?.title !== undefined) {
+      const title = String(body.title || '').trim();
+      if (!title) throw new BadRequestException('title cannot be empty');
+      existing.title = title;
+    }
+
+    if (body?.summary !== undefined) {
+      existing.summary = body.summary == null ? null : String(body.summary).trim() || null;
+    }
+
+    if (body?.content_markdown !== undefined) {
+      const normalized = normalizeMarkdownRichText(body.content_markdown, { fieldName: 'content_markdown' }) || '';
+      existing.content_markdown = normalized;
+      existing.content_plain = this.stripMarkdown(normalized);
+    }
+
+    if (body?.folder_id !== undefined) {
+      const nextFolderId = body.folder_id ? String(body.folder_id) : null;
+      if (nextFolderId) {
+        await this.ensureFolderInLibrary(nextFolderId, existing.library_id, manager);
+      }
+      existing.folder_id = nextFolderId;
+    }
+
+    if (body?.library_id !== undefined && String(body.library_id || '') !== existing.library_id) {
+      throw new BadRequestException('library_id cannot be changed on update');
+    }
+
+    const hasExplicitDocumentTypeId = Object.prototype.hasOwnProperty.call(body ?? {}, 'document_type_id');
+    const hasExplicitTemplateDocumentId = Object.prototype.hasOwnProperty.call(body ?? {}, 'template_document_id');
+    const nextTemplateId = hasExplicitTemplateDocumentId
+      ? (body?.template_document_id ? String(body.template_document_id) : null)
+      : (existing.template_document_id ? String(existing.template_document_id) : null);
+    const nextTemplateDocument = nextTemplateId
+      ? await this.getTemplateDocumentSummary(nextTemplateId, manager)
+      : null;
+
+    existing.document_type_id = await this.resolveDocumentTypeId(manager, {
+      explicitDocumentTypeId: body?.document_type_id,
+      hasExplicitDocumentTypeId,
+      templateDocument: nextTemplateDocument,
+      currentDocumentTypeId: existing.document_type_id ? String(existing.document_type_id) : null,
+    });
+    existing.template_document_id = nextTemplateId;
+
+    let statusChanged = false;
+    if (body?.status !== undefined) {
+      const nextStatus = this.normalizeStatus(body.status, (existing.status as DocumentStatus) || 'draft');
+      if (nextStatus === 'in_review') {
+        throw new BadRequestException('Use the review workflow to move a document into review');
+      }
+      statusChanged = nextStatus !== existing.status;
+      existing.status = nextStatus;
+      if (statusChanged && nextStatus === 'published') {
+        existing.published_at = new Date();
+      }
+    }
+
+    if (body?.review_due_at !== undefined) {
+      existing.review_due_at = body.review_due_at ? new Date(body.review_due_at) : null;
+    }
+
+    if (body?.last_reviewed_at !== undefined) {
+      existing.last_reviewed_at = body.last_reviewed_at ? new Date(body.last_reviewed_at) : null;
+    }
+
+    existing.revision = Number(existing.revision) + 1;
+    existing.updated_by = userId;
+    existing.updated_at = new Date();
+
+    const saved = await repo.save(existing);
+
+    const shouldVersion = saveMode === 'manual' || statusChanged;
+    if (shouldVersion) {
+      await this.ensureVersionSnapshot(saved, body?.change_note ? String(body.change_note) : null, userId, manager);
+    }
+
+    if (body?.contributors && Array.isArray(body.contributors)) {
+      await this.bulkReplaceContributors(saved.id, body.contributors, { manager });
+    }
+
+    if (body?.classifications && Array.isArray(body.classifications)) {
+      await this.bulkReplaceClassifications(saved.id, body.classifications, { manager });
+    }
+
+    if (body?.relations && typeof body.relations === 'object') {
+      const relationBody = body.relations;
+      if (Array.isArray(relationBody.applications)) {
+        await this.bulkReplaceRelations(saved.id, 'applications', relationBody.applications, { manager });
+      }
+      if (Array.isArray(relationBody.assets)) {
+        await this.bulkReplaceRelations(saved.id, 'assets', relationBody.assets, { manager });
+      }
+      if (Array.isArray(relationBody.projects)) {
+        await this.bulkReplaceRelations(saved.id, 'projects', relationBody.projects, { manager });
+      }
+      if (Array.isArray(relationBody.requests)) {
+        await this.bulkReplaceRelations(saved.id, 'requests', relationBody.requests, { manager });
+      }
+      if (Array.isArray(relationBody.tasks)) {
+        await this.bulkReplaceRelations(saved.id, 'tasks', relationBody.tasks, { manager });
+      }
+    }
+
+    await this.syncReferences(saved.id, saved.content_markdown, manager);
+
+    const changes: Record<string, [unknown, unknown]> = {};
+    if (before.title !== saved.title) changes.title = [before.title, saved.title];
+    if (before.summary !== saved.summary) changes.summary = [before.summary, saved.summary];
+    if (before.status !== saved.status) changes.status = [before.status, saved.status];
+    if (before.content_markdown !== saved.content_markdown) changes.content_markdown = ['(changed)', '(changed)'];
+
+    if (Object.keys(changes).length > 0 && (saveMode === 'manual' || statusChanged)) {
+      const activity = manager.getRepository(DocumentActivity).create({
+        document_id: saved.id,
+        author_id: userId,
+        type: 'change',
+        content: statusChanged ? 'Document status changed' : 'Document updated',
+        changed_fields: changes,
+      });
+      await manager.getRepository(DocumentActivity).save(activity);
+    }
+
+    await this.audit.log(
+      {
+        table: 'documents',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: saved,
+        userId,
+      },
+      { manager },
+    );
+
+    return this.get(saved.id, { manager });
+  }
+
+  async remove(idOrRef: string, userId: string | null, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const id = await this.resolveDocumentId(idOrRef, manager);
+
+    const repo = manager.getRepository(Document);
+    const existing = await repo.findOne({ where: { id } });
+    if (!existing) throw new NotFoundException('Document not found');
+
+    await this.assertDocumentMoveDeleteAllowed(existing.id, manager);
+
+    await repo.delete({ id } as any);
+
+    await this.audit.log(
+      {
+        table: 'documents',
+        recordId: id,
+        action: 'delete',
+        before: existing,
+        after: null,
+        userId,
+      },
+      { manager },
+    );
+
+    return { ok: true };
+  }
+
+  private async isStoragePathReferencedElsewhere(
+    manager: EntityManager,
+    storagePath: string,
+    excludedDocumentAttachmentIds: string[] = [],
+  ): Promise<boolean> {
+    const documentRefs = excludedDocumentAttachmentIds.length > 0
+      ? await manager.query<Array<{ exists: number }>>(
+          `SELECT 1 AS exists
+           FROM document_attachments
+           WHERE storage_path = $1
+             AND id <> ALL($2::uuid[])
+           LIMIT 1`,
+          [storagePath, excludedDocumentAttachmentIds],
+        )
+      : await manager.query<Array<{ exists: number }>>(
+          `SELECT 1 AS exists
+           FROM document_attachments
+           WHERE storage_path = $1
+           LIMIT 1`,
+          [storagePath],
+        );
+    if (documentRefs.length > 0) return true;
+
+    const requestRefs = await manager.query<Array<{ exists: number }>>(
+      `SELECT 1 AS exists
+       FROM portfolio_request_attachments
+       WHERE storage_path = $1
+       LIMIT 1`,
+      [storagePath],
+    );
+    if (requestRefs.length > 0) return true;
+
+    const projectRefs = await manager.query<Array<{ exists: number }>>(
+      `SELECT 1 AS exists
+       FROM portfolio_project_attachments
+       WHERE storage_path = $1
+       LIMIT 1`,
+      [storagePath],
+    );
+    if (projectRefs.length > 0) return true;
+
+    const taskRefs = await manager.query<Array<{ exists: number }>>(
+      `SELECT 1 AS exists
+       FROM task_attachments
+       WHERE storage_path = $1
+       LIMIT 1`,
+      [storagePath],
+    );
+    return taskRefs.length > 0;
+  }
+
+  async bulkRemove(ids: string[], userId: string | null, opts?: { manager?: EntityManager }): Promise<BulkDeleteResult> {
+    const manager = this.getManager(opts);
+    const repo = manager.getRepository(Document);
+    const uniqueIds = Array.from(new Set((Array.isArray(ids) ? ids : []).map((id) => String(id || '').trim()).filter(Boolean)));
+    const result: BulkDeleteResult = { deleted: [], failed: [] };
+
+    for (const id of uniqueIds) {
+      try {
+        const existing = await repo.findOne({ where: { id } as any });
+        if (!existing) {
+          result.failed.push({ id, name: 'Unknown', reason: 'Not found' });
+          continue;
+        }
+        await this.remove(id, userId, { manager });
+        result.deleted.push(id);
+      } catch (e: any) {
+        let name = 'Unknown';
+        try {
+          const existing = await repo.findOne({ where: { id } as any });
+          if (existing) name = existing.title || existing.id;
+        } catch (lookupError: any) {
+          this.logger.warn(`Failed to load document title for bulk delete error reporting: ${lookupError?.message || 'Unknown error'}`);
+        }
+        result.failed.push({ id, name, reason: e?.message || 'Unknown error' });
+      }
+    }
+
+    return result;
+  }
+
+  async move(idOrRef: string, body: any, userId: string | null, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const target = this.parseDocumentMoveBody(body);
+    const targetLibrary = await this.ensureLibraryExists(target.libraryId, manager);
+    if (target.folderId) {
+      await this.ensureFolderInLibrary(target.folderId, target.libraryId, manager);
+    }
+
+    const saved = await this.moveDocumentRecord(idOrRef, target, targetLibrary, userId, manager);
+    return {
+      ok: true,
+      id: saved.id,
+      library_id: saved.library_id,
+      folder_id: saved.folder_id,
+    };
+  }
+
+  async bulkMove(ids: string[], body: any, userId: string | null, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const uniqueIds = Array.from(new Set((Array.isArray(ids) ? ids : []).map((id) => String(id || '').trim()).filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      throw new BadRequestException('ids are required');
+    }
+
+    return manager.transaction(async (tx) => {
+      const target = this.parseDocumentMoveBody(body);
+      const targetLibrary = await this.ensureLibraryExists(target.libraryId, tx);
+      if (target.folderId) {
+        await this.ensureFolderInLibrary(target.folderId, target.libraryId, tx);
+      }
+
+      const knowledgeLevel = await this.getKnowledgeLevelForUser(tx, userId);
+      const moved: string[] = [];
+      for (const id of uniqueIds) {
+        const saved = await this.moveDocumentRecord(id, target, targetLibrary, userId, tx, knowledgeLevel);
+        moved.push(saved.id);
+      }
+
+      return { ok: true, moved };
+    });
+  }
+
+  async listTypes(opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    await this.getDefaultDocumentType(manager);
+    return manager
+      .getRepository(DocumentType)
+      .createQueryBuilder('t')
+      .orderBy('t.is_default', 'DESC')
+      .addOrderBy('t.is_system', 'DESC')
+      .addOrderBy('t.display_order', 'ASC')
+      .addOrderBy('lower(t.name)', 'ASC')
+      .getMany();
+  }
+
+  async createType(body: any, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const name = String(body?.name || '').trim();
+    if (!name) throw new BadRequestException('name is required');
+
+    const repo = manager.getRepository(DocumentType);
+    const existing = await repo
+      .createQueryBuilder('t')
+      .where('lower(t.name) = lower(:name)', { name })
+      .getOne();
+    if (existing) throw new BadRequestException('Document type already exists');
+
+    const entity = repo.create({
+      name,
+      description: body?.description ? String(body.description).trim() : null,
+      template_content: body?.template_content ? String(body.template_content) : null,
+      is_active: body?.is_active !== false,
+      is_system: false,
+      is_default: false,
+      display_order: Number.isFinite(Number(body?.display_order)) ? Number(body.display_order) : 0,
+    });
+    return repo.save(entity);
+  }
+
+  async updateType(id: string, body: any, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const repo = manager.getRepository(DocumentType);
+    const existing = await repo.findOne({ where: { id } });
+    if (!existing) throw new NotFoundException('Document type not found');
+
+    if (body?.name !== undefined) {
+      const name = String(body.name || '').trim();
+      if (!name) throw new BadRequestException('name cannot be empty');
+      if (existing.is_system && name !== existing.name) {
+        throw new BadRequestException('System document types cannot be renamed');
+      }
+      const duplicate = await repo
+        .createQueryBuilder('t')
+        .where('t.id <> :id', { id })
+        .andWhere('lower(t.name) = lower(:name)', { name })
+        .getOne();
+      if (duplicate) {
+        throw new BadRequestException('Document type already exists');
+      }
+      existing.name = name;
+    }
+    if (body?.description !== undefined) {
+      existing.description = body.description == null ? null : String(body.description).trim() || null;
+    }
+    if (body?.template_content !== undefined) {
+      existing.template_content = body.template_content == null ? null : String(body.template_content);
+    }
+    if (body?.is_active !== undefined) {
+      if (existing.is_default && body.is_active === false) {
+        throw new BadRequestException('The default document type must stay active');
+      }
+      existing.is_active = !!body.is_active;
+    }
+    if (body?.is_system !== undefined && !!body.is_system !== !!existing.is_system) {
+      throw new BadRequestException('is_system cannot be changed');
+    }
+    if (body?.is_default !== undefined && !!body.is_default !== !!existing.is_default) {
+      throw new BadRequestException('is_default cannot be changed');
+    }
+    if (body?.display_order !== undefined) {
+      existing.display_order = Number.isFinite(Number(body.display_order)) ? Number(body.display_order) : 0;
+    }
+    existing.updated_at = new Date();
+
+    return repo.save(existing);
+  }
+
+  async deleteType(id: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const type = await manager.getRepository(DocumentType).findOne({ where: { id } as any });
+    if (!type) {
+      throw new NotFoundException('Document type not found');
+    }
+    if (type.is_system || type.is_default) {
+      throw new BadRequestException('System document types cannot be deleted');
+    }
+
+    const refs = await manager
+      .getRepository(Document)
+      .createQueryBuilder('d')
+      .where('d.document_type_id = :id', { id })
+      .getCount();
+
+    if (refs > 0) {
+      throw new BadRequestException('Cannot delete document type in use');
+    }
+
+    await manager.getRepository(DocumentType).delete({ id } as any);
+    return { ok: true };
+  }
+
+  async listFolderTree(opts?: { manager?: EntityManager; libraryId?: string }) {
+    const manager = this.getManager(opts);
+    const qb = manager
+      .getRepository(DocumentFolder)
+      .createQueryBuilder('f')
+      .orderBy('f.display_order', 'ASC')
+      .addOrderBy('lower(f.name)', 'ASC');
+    if (opts?.libraryId) {
+      qb.where('f.library_id = :libraryId', { libraryId: opts.libraryId });
+    }
+    const rows = await qb.getMany();
+
+    const byId = new Map<string, any>();
+    for (const row of rows) {
+      byId.set(row.id, { ...row, children: [] as any[] });
+    }
+
+    const roots: any[] = [];
+    for (const row of rows) {
+      const node = byId.get(row.id);
+      if (row.parent_id && byId.has(row.parent_id)) {
+        byId.get(row.parent_id).children.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+
+    return { items: roots };
+  }
+
+  async createFolder(body: any, userId: string | null, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const name = String(body?.name || '').trim();
+    if (!name) throw new BadRequestException('name is required');
+
+    const libraryId = String(body?.library_id || '').trim();
+    if (!libraryId) throw new BadRequestException('library_id is required');
+    await this.ensureLibraryExists(libraryId, manager);
+
+    const parentId = body?.parent_id ? String(body.parent_id) : null;
+    if (parentId) {
+      await this.ensureFolderInLibrary(parentId, libraryId, manager);
+    }
+
+    const entity = manager.getRepository(DocumentFolder).create({
+      name,
+      parent_id: parentId,
+      library_id: libraryId,
+      display_order: Number.isFinite(Number(body?.display_order)) ? Number(body.display_order) : 0,
+      description: body?.description ? String(body.description).trim() : null,
+      created_by: userId,
+    });
+
+    return manager.getRepository(DocumentFolder).save(entity);
+  }
+
+  async updateFolder(id: string, body: any, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const repo = manager.getRepository(DocumentFolder);
+    const existing = await repo.findOne({ where: { id } });
+    if (!existing) throw new NotFoundException('Folder not found');
+    this.assertManagedFolderWritable(existing);
+
+    if (body?.name !== undefined) {
+      const name = String(body.name || '').trim();
+      if (!name) throw new BadRequestException('name cannot be empty');
+      existing.name = name;
+    }
+    if (body?.description !== undefined) {
+      existing.description = body.description == null ? null : String(body.description).trim() || null;
+    }
+    if (body?.display_order !== undefined) {
+      existing.display_order = Number.isFinite(Number(body.display_order)) ? Number(body.display_order) : 0;
+    }
+    existing.updated_at = new Date();
+
+    return repo.save(existing);
+  }
+
+  async moveFolder(id: string, body: any, userId: string | null, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+
+    return manager.transaction(async (tx) => {
+      const repo = tx.getRepository(DocumentFolder);
+      const existing = await repo.findOne({ where: { id } });
+      if (!existing) throw new NotFoundException('Folder not found');
+      this.assertManagedFolderWritable(existing);
+
+      const target = this.parseFolderMoveBody(body, existing.library_id);
+      const targetLibrary = await this.ensureLibraryExists(target.libraryId, tx);
+      const nextParentId = target.parentId;
+      const crossLibraryMove = existing.library_id !== target.libraryId;
+      const knowledgeLevel = crossLibraryMove ? await this.getKnowledgeLevelForUser(tx, userId) : null;
+
+      if (nextParentId === id) {
+        throw new BadRequestException('A folder cannot be its own parent');
+      }
+
+      if (nextParentId) {
+        const checkRows = await tx.query(
+          `WITH RECURSIVE descendants AS (
+             SELECT id, parent_id
+             FROM document_folders
+             WHERE id = $1
+             UNION ALL
+             SELECT f.id, f.parent_id
+             FROM document_folders f
+             JOIN descendants d ON f.parent_id = d.id
+           )
+           SELECT 1
+           FROM descendants
+           WHERE id = $2
+           LIMIT 1`,
+          [id, nextParentId],
+        );
+        if (checkRows.length > 0) {
+          throw new BadRequestException('Cannot move folder into one of its descendants');
+        }
+
+        const parent = await repo.findOne({ where: { id: nextParentId } });
+        if (!parent) throw new BadRequestException('parent folder not found');
+        if (parent.library_id !== target.libraryId) {
+          throw new BadRequestException(crossLibraryMove
+            ? 'parent folder must be in the target library'
+            : 'parent folder must be in the same library');
+        }
+      }
+
+      if (crossLibraryMove) {
+        if (!this.hasPermissionLevel(knowledgeLevel || undefined, 'admin')) {
+          throw new ForbiddenException('Only knowledge admins can move folders between libraries');
+        }
+        await this.assertTemplateFolderMoveAllowed(existing.library_id, targetLibrary, tx);
+      }
+
+      if (!crossLibraryMove) {
+        existing.parent_id = nextParentId;
+        if (body?.display_order !== undefined) {
+          existing.display_order = Number.isFinite(Number(body.display_order)) ? Number(body.display_order) : 0;
+        }
+        existing.updated_at = new Date();
+        return repo.save(existing);
+      }
+
+      const sourceLibrary = await this.ensureLibraryExists(existing.library_id, tx);
+      const subtreeFolderIds = await this.listFolderSubtreeIds(tx, id);
+      const movedRootName = await this.resolveMovedFolderName(
+        tx,
+        target.libraryId,
+        nextParentId,
+        existing.name,
+        sourceLibrary.name,
+      );
+
+      const documentsInSubtree = await tx.getRepository(Document).find({
+        select: { id: true, folder_id: true } as any,
+        where: { folder_id: In(subtreeFolderIds) } as any,
+      });
+
+      for (const document of documentsInSubtree) {
+        await this.moveDocumentRecord(
+          document.id,
+          {
+            libraryId: target.libraryId,
+            folderId: document.folder_id ? String(document.folder_id) : null,
+          },
+          targetLibrary,
+          userId,
+          tx,
+          knowledgeLevel,
+        );
+      }
+
+      const now = new Date();
+      const descendantIds = subtreeFolderIds.filter((folderId) => folderId !== id);
+      if (descendantIds.length > 0) {
+        await tx.getRepository(DocumentFolder)
+          .createQueryBuilder()
+          .update(DocumentFolder)
+          .set({
+            library_id: target.libraryId,
+            updated_at: now,
+          } as any)
+          .where({ id: In(descendantIds) } as any)
+          .execute();
+      }
+
+      existing.library_id = target.libraryId;
+      existing.parent_id = nextParentId;
+      existing.name = movedRootName;
+      if (body?.display_order !== undefined) {
+        existing.display_order = Number.isFinite(Number(body.display_order)) ? Number(body.display_order) : 0;
+      }
+      existing.updated_at = now;
+      return repo.save(existing);
+    });
+  }
+
+  async deleteFolder(id: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const repo = manager.getRepository(DocumentFolder);
+    const existing = await repo.findOne({ where: { id } });
+    if (!existing) throw new NotFoundException('Folder not found');
+    this.assertManagedFolderWritable(existing);
+
+    const [children, docs] = await Promise.all([
+      repo.count({ where: { parent_id: id } as any }),
+      manager.getRepository(Document).count({ where: { folder_id: id } as any }),
+    ]);
+
+    if (children > 0) throw new BadRequestException('Cannot delete folder with child folders');
+    if (docs > 0) {
+      await manager
+        .getRepository(Document)
+        .createQueryBuilder()
+        .update(Document)
+        .set({ folder_id: null } as any)
+        .where('folder_id = :id', { id })
+        .execute();
+    }
+
+    await repo.delete({ id } as any);
+    return { ok: true, moved_documents_to_unfiled: docs };
+  }
+
+  async listFolderDocuments(folderId: string, query: any, opts?: { manager?: EntityManager }) {
+    return this.list({ ...query, folder_id: folderId }, opts);
+  }
+
+  async acquireLock(idOrRef: string, userId: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertWorkflowAllowsEditing(documentId, manager);
+
+    const repo = manager.getRepository(DocumentEditLock);
+    const lock = await repo.findOne({ where: { document_id: documentId } as any });
+    const nowMs = Date.now();
+    const expiresAt = new Date(nowMs + LOCK_TTL_SECONDS * 1000);
+
+    if (lock && new Date(lock.expires_at).getTime() > nowMs && lock.holder_user_id !== userId) {
+      throw new HttpException({
+        message: 'Document is already locked by another user',
+        lock: {
+          holder_user_id: lock.holder_user_id,
+          holder_name: await this.getUserDisplayName(lock.holder_user_id, manager),
+          acquired_at: lock.acquired_at,
+          heartbeat_at: lock.heartbeat_at,
+          expires_at: lock.expires_at,
+        },
+      }, 423);
+    }
+
+    const token = randomUUID();
+    const tokenHash = hashLockToken(token);
+
+    if (!lock) {
+      const created = repo.create({
+        document_id: documentId,
+        holder_user_id: userId,
+        lock_token_hash: tokenHash,
+        acquired_at: new Date(),
+        heartbeat_at: new Date(),
+        expires_at: expiresAt,
+      });
+      await repo.save(created);
+    } else {
+      lock.holder_user_id = userId;
+      lock.lock_token_hash = tokenHash;
+      lock.acquired_at = new Date();
+      lock.heartbeat_at = new Date();
+      lock.expires_at = expiresAt;
+      await repo.save(lock);
+    }
+
+    return {
+      lock_token: token,
+      expires_at: expiresAt,
+      holder_user_id: userId,
+    };
+  }
+
+  async heartbeatLock(
+    idOrRef: string,
+    userId: string,
+    lockToken: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    const repo = manager.getRepository(DocumentEditLock);
+
+    const lock = await this.ensureValidLock(documentId, userId, lockToken, manager);
+
+    lock.heartbeat_at = new Date();
+    lock.expires_at = new Date(Date.now() + LOCK_TTL_SECONDS * 1000);
+    await repo.save(lock);
+
+    return { ok: true, expires_at: lock.expires_at };
+  }
+
+  async releaseLock(
+    idOrRef: string,
+    userId: string,
+    lockToken: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    const lock = await this.ensureValidLock(documentId, userId, lockToken, manager);
+    await manager.getRepository(DocumentEditLock).delete({ id: lock.id } as any);
+    return { ok: true };
+  }
+
+  async forceReleaseLock(idOrRef: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await manager.getRepository(DocumentEditLock).delete({ document_id: documentId } as any);
+    return { ok: true };
+  }
+
+  async listVersions(idOrRef: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    return manager
+      .getRepository(DocumentVersion)
+      .createQueryBuilder('v')
+      .where('v.document_id = :documentId', { documentId })
+      .orderBy('v.version_number', 'DESC')
+      .getMany();
+  }
+
+  async getVersion(idOrRef: string, versionNumber: number, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    const version = await manager
+      .getRepository(DocumentVersion)
+      .findOne({ where: { document_id: documentId, version_number: versionNumber } as any });
+    if (!version) throw new NotFoundException('Version not found');
+    return version;
+  }
+
+  async compareVersions(idOrRef: string, fromVersion: number, toVersion: number, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const [from, to] = await Promise.all([
+      this.getVersion(idOrRef, fromVersion, { manager }),
+      this.getVersion(idOrRef, toVersion, { manager }),
+    ]);
+
+    return {
+      from,
+      to,
+      changed: {
+        title: from.title !== to.title,
+        summary: from.summary !== to.summary,
+        content_markdown: from.content_markdown !== to.content_markdown,
+      },
+    };
+  }
+
+  async revert(
+    idOrRef: string,
+    versionNumber: number,
+    userId: string,
+    lockToken: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertWorkflowAllowsEditing(documentId, manager);
+
+    const doc = await manager.getRepository(Document).findOne({ where: { id: documentId } });
+    if (!doc) throw new NotFoundException('Document not found');
+
+    await this.ensureValidLock(documentId, userId, lockToken, manager);
+
+    const version = await manager
+      .getRepository(DocumentVersion)
+      .findOne({ where: { document_id: documentId, version_number: versionNumber } as any });
+    if (!version) throw new NotFoundException('Version not found');
+
+    doc.title = version.title;
+    doc.summary = version.summary;
+    doc.content_markdown = version.content_markdown;
+    doc.content_plain = version.content_plain;
+    doc.revision = Number(doc.revision) + 1;
+    doc.updated_by = userId;
+    doc.updated_at = new Date();
+
+    const saved = await manager.getRepository(Document).save(doc);
+
+    await this.ensureVersionSnapshot(saved, `Revert to version ${versionNumber}`, userId, manager);
+    await this.syncReferences(saved.id, saved.content_markdown, manager);
+
+    await manager.getRepository(DocumentActivity).save(
+      manager.getRepository(DocumentActivity).create({
+        document_id: saved.id,
+        author_id: userId,
+        type: 'change',
+        content: `Reverted to version ${versionNumber}`,
+        changed_fields: {
+          revision: [saved.revision - 1, saved.revision],
+        },
+      }),
+    );
+
+    return this.get(saved.id, { manager });
+  }
+
+  async bulkReplaceContributors(
+    idOrRef: string,
+    contributors: any[],
+    opts?: { manager?: EntityManager; userId?: string | null; guardAgainstActiveLock?: boolean },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    if (opts?.guardAgainstActiveLock) {
+      await this.assertWorkflowAllowsEditing(documentId, manager);
+      await this.assertDocumentUnlockedForUser(documentId, opts.userId || null, manager);
+    }
+
+    const normalized = Array.isArray(contributors) ? contributors : [];
+    if (!normalized.length) {
+      throw new BadRequestException('At least one contributor is required');
+    }
+
+    const rows = normalized
+      .map((entry) => ({
+        user_id: String(entry?.user_id || '').trim(),
+        role: String(entry?.role || '').trim().toLowerCase() || 'author',
+        is_primary: !!entry?.is_primary,
+      }))
+      .filter((entry) => !!entry.user_id);
+
+    if (!rows.length) {
+      throw new BadRequestException('At least one valid contributor is required');
+    }
+
+    const ownerCount = rows.filter((entry) => entry.role === 'owner').length;
+    if (ownerCount === 0) {
+      rows[0].role = 'owner';
+      rows[0].is_primary = true;
+    }
+
+    if (!rows.some((entry) => entry.is_primary)) {
+      rows[0].is_primary = true;
+    }
+
+    const uniqueRows: Array<{ user_id: string; role: string; is_primary: boolean }> = [];
+    const seen = new Set<string>();
+    for (const row of rows) {
+      if (!DOCUMENT_CONTRIBUTOR_ROLES.has(row.role)) {
+        throw new BadRequestException(`Invalid contributor role: ${row.role}`);
+      }
+      const key = `${row.user_id}|${row.role}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniqueRows.push(row);
+    }
+
+    await this.assertTenantScopedIdsExist(
+      manager,
+      'users',
+      uniqueRows.map((row) => row.user_id),
+      'contributors',
+    );
+
+    const repo = manager.getRepository(DocumentContributor);
+    await repo.delete({ document_id: documentId } as any);
+
+    for (const row of uniqueRows) {
+      const entity = repo.create({
+        document_id: documentId,
+        user_id: row.user_id,
+        role: row.role,
+        is_primary: row.is_primary,
+      });
+      await repo.save(entity);
+    }
+
+    return { ok: true };
+  }
+
+  async bulkReplaceClassifications(
+    idOrRef: string,
+    classifications: any[],
+    opts?: { manager?: EntityManager; userId?: string | null; guardAgainstActiveLock?: boolean },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    if (opts?.guardAgainstActiveLock) {
+      await this.assertWorkflowAllowsEditing(documentId, manager);
+      await this.assertDocumentUnlockedForUser(documentId, opts.userId || null, manager);
+    }
+
+    const rows = Array.isArray(classifications)
+      ? classifications
+          .map((entry) => ({
+            category_id: String(entry?.category_id || '').trim(),
+            stream_id: entry?.stream_id ? String(entry.stream_id).trim() : null,
+          }))
+          .filter((entry) => !!entry.category_id)
+      : [];
+
+    const uniqueRows: Array<{ category_id: string; stream_id: string | null }> = [];
+    const seen = new Set<string>();
+
+    await this.assertTenantScopedIdsExist(
+      manager,
+      'portfolio_categories',
+      rows.map((row) => row.category_id),
+      'classification categories',
+    );
+
+    for (const row of rows) {
+      const key = `${row.category_id}|${row.stream_id || ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      if (row.stream_id) {
+        const streamRows = await manager.query(
+          `SELECT 1
+           FROM portfolio_streams
+           WHERE id = $1
+             AND tenant_id = app_current_tenant()
+             AND category_id = $2
+           LIMIT 1`,
+          [row.stream_id, row.category_id],
+        );
+        if (!streamRows.length) {
+          throw new BadRequestException('Invalid classification: stream does not belong to category');
+        }
+      }
+
+      uniqueRows.push(row);
+    }
+
+    const repo = manager.getRepository(DocumentClassification);
+    await repo.delete({ document_id: documentId } as any);
+
+    for (const row of uniqueRows) {
+      const entity = repo.create({
+        document_id: documentId,
+        category_id: row.category_id,
+        stream_id: row.stream_id,
+      });
+      await repo.save(entity);
+    }
+
+    return { ok: true };
+  }
+
+  async bulkReplaceRelations(
+    idOrRef: string,
+    entity: RelationEntityType,
+    ids: string[],
+    opts?: { manager?: EntityManager; userId?: string | null; guardAgainstActiveLock?: boolean },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    if (opts?.guardAgainstActiveLock) {
+      await this.assertWorkflowAllowsEditing(documentId, manager);
+      await this.assertDocumentUnlockedForUser(documentId, opts.userId || null, manager);
+    }
+
+    if (await this.getIntegratedBinding(documentId, manager)) {
+      throw new BadRequestException('Managed integrated document relations cannot be changed from Knowledge');
+    }
+
+    const map = RELATION_TABLE_MAP[entity];
+    if (!map) throw new BadRequestException('Unsupported relation entity');
+
+    const values = dedupeStrings(Array.isArray(ids) ? ids : []);
+
+    await this.assertTenantScopedIdsExist(manager, map.targetTable as any, values, `related ${map.label}`);
+
+    await manager.query(`DELETE FROM ${map.table} WHERE document_id = $1`, [documentId]);
+
+    for (const value of values) {
+      await manager.query(
+        `INSERT INTO ${map.table} (tenant_id, document_id, ${map.idColumn})
+         VALUES (app_current_tenant(), $1, $2)
+         ON CONFLICT (document_id, ${map.idColumn}) DO NOTHING`,
+        [documentId, value],
+      );
+    }
+
+    return { ok: true, count: values.length };
+  }
+
+  async listIncomingReferences(idOrRef: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+
+    return manager.query(
+      `SELECT r.id,
+              r.source_document_id,
+              d.item_number AS source_item_number,
+              d.title AS source_title,
+              d.status AS source_status,
+              d.updated_at AS source_updated_at
+       FROM document_references r
+       JOIN documents d ON d.id = r.source_document_id AND d.tenant_id = r.tenant_id
+       WHERE r.target_document_id = $1
+       ORDER BY d.updated_at DESC`,
+      [documentId],
+    );
+  }
+
+  private async getPendingWorkflowParticipantOrThrow(
+    workflowId: string,
+    userId: string,
+    stage: DocumentWorkflowStage,
+    manager: EntityManager,
+  ): Promise<DocumentWorkflowParticipant> {
+    const participant = await manager.getRepository(DocumentWorkflowParticipant).findOne({
+      where: {
+        workflow_id: workflowId,
+        user_id: userId,
+        stage,
+      } as any,
+    });
+    if (!participant) {
+      throw new HttpException('You are not assigned to the active workflow stage', 403);
+    }
+    if (participant.decision !== 'pending') {
+      throw new BadRequestException('You have already acted on this workflow stage');
+    }
+    return participant;
+  }
+
+  private async finalizeWorkflowApproved(
+    document: Document,
+    workflow: DocumentWorkflow,
+    actedByUserId: string,
+    appBaseUrl: string | null | undefined,
+    manager: EntityManager,
+  ): Promise<void> {
+    workflow.status = 'approved';
+    workflow.completed_at = new Date();
+    await manager.getRepository(DocumentWorkflow).save(workflow);
+
+    document.status = 'published';
+    document.published_at = new Date();
+    document.last_reviewed_at = new Date();
+    document.updated_by = actedByUserId;
+    document.updated_at = new Date();
+    await manager.getRepository(Document).save(document);
+
+    await this.createSystemActivity(
+      document.id,
+      actedByUserId,
+      'decision',
+      'Workflow approved and document published',
+      manager,
+      { status: ['in_review', 'published'] },
+    );
+
+    const documentUrl = this.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
+    const recipients = await this.getDocumentNotificationRecipients(
+      manager,
+      document.id,
+      [workflow.requested_by, actedByUserId],
+    );
+    const documentRef = `DOC-${document.item_number}`;
+    const email = buildKnowledgeWorkflowApprovedEmail({
+      documentRef,
+      documentTitle: document.title,
+      documentUrl,
+    });
+    await this.sendWorkflowEmail(recipients, email.subject, email.html, email.text);
+  }
+
+  async requestWorkflowReview(
+    idOrRef: string,
+    body: any,
+    userId: string,
+    appBaseUrl: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
+    if (!document) throw new NotFoundException('Document not found');
+    await this.assertIntegratedDocumentWorkflowRequestAllowed(documentId, manager);
+
+    const incomingRevision = Number(body?.revision);
+    if (!Number.isFinite(incomingRevision)) {
+      throw new BadRequestException('revision is required');
+    }
+    if (incomingRevision !== Number(document.revision)) {
+      throw new ConflictException('Document revision conflict');
+    }
+
+    const activeWorkflow = await this.getActiveWorkflow(documentId, manager);
+    if (activeWorkflow) {
+      throw new BadRequestException('A review workflow is already active for this document');
+    }
+
+    if (document.status === 'archived' || document.status === 'obsolete') {
+      throw new BadRequestException('Archived or obsolete documents cannot be sent to review');
+    }
+
+    await this.assertDocumentUnlockedForUser(documentId, userId, manager);
+
+    const contributors = await manager.getRepository(DocumentContributor).find({
+      where: { document_id: documentId } as any,
+      order: { created_at: 'ASC' },
+    });
+    const reviewerIds = dedupeStrings(contributors.filter((row) => row.role === 'reviewer').map((row) => row.user_id));
+    const approverIds = dedupeStrings(contributors.filter((row) => row.role === 'validator').map((row) => row.user_id));
+
+    if (!reviewerIds.length && !approverIds.length) {
+      throw new BadRequestException('Assign at least one reviewer or approver before requesting review');
+    }
+
+    const workflowStatus: DocumentWorkflowStatus = reviewerIds.length ? 'pending_review' : 'pending_approval';
+    const workflow = manager.getRepository(DocumentWorkflow).create({
+      document_id: documentId,
+      status: workflowStatus,
+      requested_revision: Number(document.revision || 0),
+      requested_by: userId,
+      completed_at: null,
+    });
+    const savedWorkflow = await manager.getRepository(DocumentWorkflow).save(workflow);
+
+    for (const reviewerId of reviewerIds) {
+      await manager.getRepository(DocumentWorkflowParticipant).save(
+        manager.getRepository(DocumentWorkflowParticipant).create({
+          workflow_id: savedWorkflow.id,
+          user_id: reviewerId,
+          stage: 'reviewer',
+          decision: 'pending',
+        }),
+      );
+    }
+    for (const approverId of approverIds) {
+      await manager.getRepository(DocumentWorkflowParticipant).save(
+        manager.getRepository(DocumentWorkflowParticipant).create({
+          workflow_id: savedWorkflow.id,
+          user_id: approverId,
+          stage: 'approver',
+          decision: 'pending',
+        }),
+      );
+    }
+
+    const previousStatus = document.status;
+    document.status = 'in_review';
+    document.updated_by = userId;
+    document.updated_at = new Date();
+    await manager.getRepository(Document).save(document);
+    await manager.getRepository(DocumentEditLock).delete({ document_id: documentId } as any);
+
+    await this.createSystemActivity(
+      documentId,
+      userId,
+      'change',
+      workflowStatus === 'pending_review' ? 'Review requested' : 'Approval requested',
+      manager,
+      { status: [previousStatus, 'in_review'] },
+    );
+
+    const documentUrl = this.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
+    const requesterName = await this.getUserDisplayName(userId, manager);
+    const stage = workflowStatus === 'pending_review' ? 'reviewer' : 'approver';
+    const recipients = await this.getWorkflowParticipantEmails(manager, savedWorkflow.id, stage);
+    const email = buildKnowledgeWorkflowRequestedEmail({
+      documentRef: `DOC-${document.item_number}`,
+      documentTitle: document.title,
+      documentUrl,
+      requesterName,
+      stage: stage === 'reviewer' ? 'review' : 'approval',
+    });
+    await this.sendWorkflowEmail(recipients.map((row) => row.email), email.subject, email.html, email.text);
+
+    return this.get(documentId, { manager });
+  }
+
+  async approveWorkflow(
+    idOrRef: string,
+    body: any,
+    userId: string,
+    appBaseUrl: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
+    if (!document) throw new NotFoundException('Document not found');
+
+    const workflowView = await this.getActiveWorkflow(documentId, manager);
+    if (!workflowView) {
+      throw new BadRequestException('No active workflow exists for this document');
+    }
+
+    const currentStage = workflowView.current_stage;
+    if (!currentStage) {
+      throw new BadRequestException('The active workflow is not awaiting a decision');
+    }
+
+    const workflow = await manager.getRepository(DocumentWorkflow).findOne({ where: { id: workflowView.id } as any });
+    if (!workflow) throw new NotFoundException('Workflow not found');
+
+    const participant = await this.getPendingWorkflowParticipantOrThrow(workflow.id, userId, currentStage, manager);
+    const comment = normalizeMarkdownRichText(body?.comment, { fieldName: 'comment' }) || null;
+
+    participant.decision = 'approved';
+    participant.comment = comment;
+    participant.acted_at = new Date();
+    await manager.getRepository(DocumentWorkflowParticipant).save(participant);
+
+    await this.createSystemActivity(
+      document.id,
+      userId,
+      'decision',
+      `Approved as ${currentStage}${comment ? `: ${comment}` : ''}`,
+      manager,
+    );
+
+    const pendingRows = await manager.query(
+      `SELECT count(*)::int AS count
+       FROM document_workflow_participants
+       WHERE workflow_id = $1
+         AND stage = $2
+         AND decision = 'pending'`,
+      [workflow.id, currentStage],
+    );
+    const pendingCount = Number(pendingRows[0]?.count || 0);
+    if (pendingCount > 0) {
+      return this.get(documentId, { manager });
+    }
+
+    if (currentStage === 'reviewer') {
+      const approverRows = await manager.query(
+        `SELECT count(*)::int AS count
+         FROM document_workflow_participants
+         WHERE workflow_id = $1
+           AND stage = 'approver'`,
+        [workflow.id],
+      );
+      const approverCount = Number(approverRows[0]?.count || 0);
+      if (approverCount > 0) {
+        workflow.status = 'pending_approval';
+        await manager.getRepository(DocumentWorkflow).save(workflow);
+        await this.createSystemActivity(
+          document.id,
+          userId,
+          'change',
+          'Review stage completed. Approval requested.',
+          manager,
+        );
+
+        const documentUrl = this.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
+        const actorName = await this.getUserDisplayName(userId, manager);
+        const recipients = await this.getWorkflowParticipantEmails(manager, workflow.id, 'approver');
+        const email = buildKnowledgeWorkflowRequestedEmail({
+          documentRef: `DOC-${document.item_number}`,
+          documentTitle: document.title,
+          documentUrl,
+          requesterName: actorName,
+          stage: 'approval',
+        });
+        await this.sendWorkflowEmail(recipients.map((row) => row.email), email.subject, email.html, email.text);
+        return this.get(documentId, { manager });
+      }
+    }
+
+    await this.finalizeWorkflowApproved(document, workflow, userId, appBaseUrl, manager);
+    return this.get(documentId, { manager });
+  }
+
+  async requestWorkflowChanges(
+    idOrRef: string,
+    body: any,
+    userId: string,
+    appBaseUrl: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
+    if (!document) throw new NotFoundException('Document not found');
+
+    const workflowView = await this.getActiveWorkflow(documentId, manager);
+    if (!workflowView) {
+      throw new BadRequestException('No active workflow exists for this document');
+    }
+
+    const currentStage = workflowView.current_stage;
+    if (!currentStage) {
+      throw new BadRequestException('The active workflow is not awaiting a decision');
+    }
+
+    const comment = normalizeMarkdownRichText(body?.comment, { fieldName: 'comment' }) || '';
+    if (!comment.trim()) {
+      throw new BadRequestException('A comment is required when requesting changes');
+    }
+
+    const workflow = await manager.getRepository(DocumentWorkflow).findOne({ where: { id: workflowView.id } as any });
+    if (!workflow) throw new NotFoundException('Workflow not found');
+
+    const participant = await this.getPendingWorkflowParticipantOrThrow(workflow.id, userId, currentStage, manager);
+    participant.decision = 'changes_requested';
+    participant.comment = comment;
+    participant.acted_at = new Date();
+    await manager.getRepository(DocumentWorkflowParticipant).save(participant);
+
+    workflow.status = 'changes_requested';
+    workflow.completed_at = new Date();
+    await manager.getRepository(DocumentWorkflow).save(workflow);
+
+    document.status = 'draft';
+    document.updated_by = userId;
+    document.updated_at = new Date();
+    await manager.getRepository(Document).save(document);
+    await manager.getRepository(DocumentEditLock).delete({ document_id: documentId } as any);
+
+    await this.createSystemActivity(
+      document.id,
+      userId,
+      'decision',
+      `Changes requested by ${currentStage}: ${comment}`,
+      manager,
+      { status: ['in_review', 'draft'] },
+    );
+
+    const documentUrl = this.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
+    const actorName = await this.getUserDisplayName(userId, manager);
+    const recipients = await this.getDocumentNotificationRecipients(
+      manager,
+      document.id,
+      [workflow.requested_by],
+    );
+    const email = buildKnowledgeWorkflowChangesRequestedEmail({
+      documentRef: `DOC-${document.item_number}`,
+      documentTitle: document.title,
+      documentUrl,
+      actorName,
+      comment,
+    });
+    await this.sendWorkflowEmail(recipients, email.subject, email.html, email.text);
+
+    return this.get(documentId, { manager });
+  }
+
+  async cancelWorkflowReview(
+    idOrRef: string,
+    userId: string,
+    appBaseUrl: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
+    if (!document) throw new NotFoundException('Document not found');
+
+    const workflowView = await this.getActiveWorkflow(documentId, manager);
+    if (!workflowView) {
+      throw new BadRequestException('No active workflow exists for this document');
+    }
+
+    const workflow = await manager.getRepository(DocumentWorkflow).findOne({ where: { id: workflowView.id } as any });
+    if (!workflow) throw new NotFoundException('Workflow not found');
+
+    workflow.status = 'cancelled';
+    workflow.completed_at = new Date();
+    await manager.getRepository(DocumentWorkflow).save(workflow);
+
+    document.status = 'draft';
+    document.updated_by = userId;
+    document.updated_at = new Date();
+    await manager.getRepository(Document).save(document);
+    await manager.getRepository(DocumentEditLock).delete({ document_id: documentId } as any);
+
+    await this.createSystemActivity(
+      document.id,
+      userId,
+      'change',
+      'Review cancelled',
+      manager,
+      { status: ['in_review', 'draft'] },
+    );
+
+    const participantEmails = await manager.query(
+      `SELECT DISTINCT u.email
+       FROM document_workflow_participants p
+       JOIN users u ON u.id = p.user_id AND u.tenant_id = p.tenant_id
+       WHERE p.workflow_id = $1
+         AND coalesce(u.status, '') = 'enabled'
+         AND coalesce(u.email, '') <> ''`,
+      [workflow.id],
+    );
+    const recipients = new Set<string>(
+      await this.getDocumentNotificationRecipients(manager, document.id, [workflow.requested_by, userId]),
+    );
+    for (const row of participantEmails) {
+      const email = String(row.email || '').trim();
+      if (email) recipients.add(email);
+    }
+
+    const documentUrl = this.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
+    const actorName = await this.getUserDisplayName(userId, manager);
+    const email = buildKnowledgeWorkflowCancelledEmail({
+      documentRef: `DOC-${document.item_number}`,
+      documentTitle: document.title,
+      documentUrl,
+      actorName,
+    });
+    await this.sendWorkflowEmail(Array.from(recipients), email.subject, email.html, email.text);
+
+    return this.get(documentId, { manager });
+  }
+
+  async listActivities(idOrRef: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+
+    return manager.query(
+      `SELECT a.*,
+              COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, a.author_id::text) AS author_name
+       FROM document_activities a
+       LEFT JOIN users u ON u.id = a.author_id AND u.tenant_id = a.tenant_id
+       WHERE a.document_id = $1
+       ORDER BY a.created_at DESC`,
+      [documentId],
+    );
+  }
+
+  async createActivity(idOrRef: string, body: any, userId: string | null, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+
+    const type = String(body?.type || 'comment').trim().toLowerCase();
+    if (type !== 'comment') {
+      throw new BadRequestException('Only comments can be created via this endpoint');
+    }
+
+    const content = normalizeMarkdownRichText(body?.content, { fieldName: 'content' });
+
+    const activity = manager.getRepository(DocumentActivity).create({
+      document_id: documentId,
+      author_id: userId,
+      type,
+      content,
+      changed_fields: body?.changed_fields && typeof body.changed_fields === 'object' ? body.changed_fields : null,
+    });
+
+    return manager.getRepository(DocumentActivity).save(activity);
+  }
+
+  async updateActivity(idOrRef: string, activityId: string, body: any, userId: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+
+    const repo = manager.getRepository(DocumentActivity);
+    const existing = await repo.findOne({ where: { id: activityId, document_id: documentId } as any });
+    if (!existing) throw new NotFoundException('Activity not found');
+
+    if (existing.author_id !== userId) {
+      throw new HttpException('Only the author can edit this comment', 403);
+    }
+    if (existing.type !== 'comment') {
+      throw new BadRequestException('Only comments can be edited via this endpoint');
+    }
+
+    existing.content = normalizeMarkdownRichText(body?.content, { fieldName: 'content' });
+    existing.updated_at = new Date();
+    return repo.save(existing);
+  }
+
+  async search(query: any, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const q = String(query?.q || '').trim();
+    if (!q) throw new BadRequestException('q is required');
+
+    const limit = Math.min(Math.max(Number(query?.limit) || 20, 1), 100);
+    const libraryId = query?.library_id ? String(query.library_id) : null;
+
+    const params: any[] = [q];
+    let whereLibrary = '';
+    if (libraryId) {
+      params.push(libraryId);
+      whereLibrary = ` AND d.library_id = $${params.length}`;
+    }
+    params.push(limit);
+
+    const rows = await manager.query(
+      `SELECT d.id,
+              d.item_number,
+              d.title,
+              d.summary,
+              d.status,
+              d.updated_at,
+              d.folder_id,
+              d.document_type_id,
+              d.library_id,
+              dl.name AS library_name,
+              ts_rank_cd(d.search_vector, websearch_to_tsquery('simple', $1)) AS rank,
+              ts_headline('simple', coalesce(d.content_plain, ''), websearch_to_tsquery('simple', $1),
+                'MaxFragments=2, MinWords=8, MaxWords=20') AS snippet
+       FROM documents d
+       LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
+       WHERE d.search_vector @@ websearch_to_tsquery('simple', $1)
+         ${whereLibrary}
+       ORDER BY rank DESC, d.updated_at DESC
+       LIMIT $${params.length}`,
+      params,
+    );
+
+    return {
+      items: rows.map((row: any) => ({
+        ...row,
+        item_ref: `DOC-${row.item_number}`,
+      })),
+      total: rows.length,
+    };
+  }
+
+  async listAttachments(idOrRef: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    return manager
+      .getRepository(DocumentAttachment)
+      .createQueryBuilder('a')
+      .where('a.document_id = :documentId', { documentId })
+      .andWhere('a.source_field IS NULL')
+      .orderBy('a.uploaded_at', 'DESC')
+      .getMany();
+  }
+
+  async uploadAttachment(
+    idOrRef: string,
+    file: Express.Multer.File,
+    userId: string | null,
+    opts?: { manager?: EntityManager; sourceField?: string | null },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertWorkflowAllowsEditing(documentId, manager);
+    await this.assertDocumentUnlockedForUser(documentId, userId, manager);
+    if (!file) throw new BadRequestException('No file uploaded');
+
+    const [{ tenant_id }] = await manager.query(`SELECT app_current_tenant() AS tenant_id`);
+
+    const decodedName = fixMulterFilename(file.originalname);
+    const ext = path.extname(decodedName || '') || '';
+    const now = new Date();
+    const id = randomUUID();
+    const rand = Math.random().toString(36).slice(2, 8);
+
+    const key = [
+      'files',
+      tenant_id,
+      'documents',
+      documentId,
+      now.getUTCFullYear().toString(),
+      String(now.getUTCMonth() + 1).padStart(2, '0'),
+      `${id}_${rand}${ext}`,
+    ].join('/');
+
+    const buf = file.buffer ?? ((file as any).path ? fs.readFileSync((file as any).path) : null);
+    if (!buf) throw new BadRequestException('Empty upload');
+
+    const validated = validateUploadedFile(
+      {
+        originalName: decodedName,
+        mimeType: file.mimetype,
+        buffer: buf as Buffer,
+        size: file.size,
+      },
+      { scope: opts?.sourceField ? 'inline-image' : 'attachment' },
+    );
+
+    await this.storage.putObject({
+      key,
+      body: buf,
+      contentType: validated.mimeType,
+      contentLength: validated.size,
+      sse: 'AES256',
+    });
+
+    const attachment = manager.getRepository(DocumentAttachment).create({
+      id,
+      tenant_id,
+      document_id: documentId,
+      original_filename: decodedName || `${id}${ext}`,
+      stored_filename: path.basename(key),
+      mime_type: validated.mimeType,
+      size: validated.size,
+      storage_path: key,
+      source_field: opts?.sourceField || null,
+      uploaded_by_id: userId,
+    });
+
+    const saved = await manager.getRepository(DocumentAttachment).save(attachment);
+
+    await this.audit.log(
+      {
+        table: 'document_attachments',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId,
+      },
+      { manager },
+    );
+
+    return saved;
+  }
+
+  async getAttachmentMeta(attachmentId: string, opts?: { manager?: EntityManager }) {
+    const manager = this.getManager(opts);
+    const found = await manager.getRepository(DocumentAttachment).findOne({ where: { id: attachmentId } });
+    if (!found) throw new NotFoundException('Attachment not found');
+    return found;
+  }
+
+  async deleteAttachment(
+    idOrRef: string,
+    attachmentId: string,
+    userId: string | null,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertWorkflowAllowsEditing(documentId, manager);
+    await this.assertDocumentUnlockedForUser(documentId, userId, manager);
+
+    const repo = manager.getRepository(DocumentAttachment);
+    const existing = await repo.findOne({ where: { id: attachmentId, document_id: documentId } as any });
+    if (!existing) throw new NotFoundException('Attachment not found');
+
+    try {
+      await this.storage.deleteObject(existing.storage_path);
+    } catch {
+      // Keep DB delete resilient even if object is already missing.
+    }
+
+    await repo.delete({ id: existing.id } as any);
+
+    await this.audit.log(
+      {
+        table: 'document_attachments',
+        recordId: existing.id,
+        action: 'delete',
+        before: existing,
+        after: null,
+        userId,
+      },
+      { manager },
+    );
+
+    return { ok: true };
+  }
+
+  async getInlineAttachmentMeta(
+    tenantSlug: string,
+    attachmentId: string,
+    refreshToken?: string | null,
+  ): Promise<{
+    storagePath: string;
+    mimeType: string | null;
+    size: number | null;
+  } | null> {
+    const runner = this.dataSource.createQueryRunner();
+    try {
+      await runner.connect();
+      await runner.startTransaction();
+
+      const tenantRows = await runner.query(
+        `SELECT id
+         FROM tenants
+         WHERE slug = $1
+         LIMIT 1`,
+        [tenantSlug],
+      );
+      if (!tenantRows.length) {
+        await runner.rollbackTransaction();
+        return null;
+      }
+
+      const tenantId = String(tenantRows[0].id || '').trim();
+      await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
+      const rows = await runner.query(
+        `SELECT a.storage_path,
+                a.mime_type,
+                a.size,
+                EXISTS (
+                  SELECT 1
+                  FROM integrated_document_bindings b
+                  WHERE b.document_id = a.document_id
+                ) AS is_managed_integrated_document
+         FROM document_attachments a
+         WHERE a.id = $1
+           AND a.source_field IS NOT NULL
+         LIMIT 1`,
+        [attachmentId],
+      );
+      if (!rows.length) {
+        await runner.rollbackTransaction();
+        return null;
+      }
+
+      const isManagedIntegratedDocument = !!rows[0].is_managed_integrated_document;
+      if (!isManagedIntegratedDocument) {
+        const canAccess = await this.ensureInlineAttachmentAccess(runner.manager, tenantId, refreshToken);
+        if (!canAccess) {
+          await runner.rollbackTransaction();
+          return null;
+        }
+      }
+
+      await runner.commitTransaction();
+
+      return {
+        storagePath: rows[0].storage_path,
+        mimeType: rows[0].mime_type,
+        size: rows[0].size == null ? null : Number(rows[0].size),
+      };
+    } catch (error) {
+      if (runner.isTransactionActive) {
+        await runner.rollbackTransaction();
+      }
+      throw error;
+    } finally {
+      await runner.release();
+    }
+  }
+
+  async exportDocument(
+    idOrRef: string,
+    format: 'pdf' | 'docx' | 'odt',
+    opts?: { manager?: EntityManager; imageFetchCookie?: string | null },
+  ) {
+    const manager = this.getManager(opts);
+    const document = await this.get(idOrRef, { manager });
+
+    return this.exportService.exportMarkdown(
+      String(document.content_markdown || ''),
+      format,
+      String(document.title || `DOC-${document.item_number}`),
+      opts?.imageFetchCookie
+        ? { imageFetchHeaders: { Cookie: opts.imageFetchCookie } }
+        : undefined,
+    );
+  }
+
+  async listDocumentsForEntity(
+    entity: RelationEntityType,
+    entityId: string,
+    opts?: { manager?: EntityManager; userId?: string | null },
+  ): Promise<EntityDocumentListResponse> {
+    const manager = this.getManager(opts);
+    const map = RELATION_TABLE_MAP[entity];
+    if (!map) throw new BadRequestException('Unsupported relation entity');
+
+    const countRows: Array<{ total: string | number }> = await manager.query(
+      `SELECT COUNT(DISTINCT d.id)::int AS total
+       FROM ${map.table} rel
+       JOIN documents d ON d.id = rel.document_id AND d.tenant_id = rel.tenant_id
+       LEFT JOIN integrated_document_bindings b
+         ON b.document_id = d.id
+        AND b.tenant_id = d.tenant_id
+        AND b.source_entity_type = $2
+        AND b.source_entity_id = $1
+       WHERE rel.${map.idColumn} = $1
+         AND (b.document_id IS NULL OR b.hidden_from_entity_knowledge = false)`,
+      [entityId, entity],
+    );
+    const total = Number(countRows[0]?.total || 0);
+
+    const knowledgeLevel = await this.getKnowledgeLevelForUser(manager, opts?.userId ?? null);
+    if (!knowledgeLevel) {
+      return {
+        access: 'restricted',
+        total,
+        items: [],
+      };
+    }
+
+    const items = await manager.query(
+      `SELECT d.id,
+              d.item_number,
+              d.title,
+              d.summary,
+              d.status,
+              d.updated_at,
+              d.created_at
+       FROM ${map.table} rel
+       JOIN documents d ON d.id = rel.document_id AND d.tenant_id = rel.tenant_id
+       LEFT JOIN integrated_document_bindings b
+         ON b.document_id = d.id
+        AND b.tenant_id = d.tenant_id
+        AND b.source_entity_type = $2
+        AND b.source_entity_id = $1
+       WHERE rel.${map.idColumn} = $1
+         AND (b.document_id IS NULL OR b.hidden_from_entity_knowledge = false)
+       ORDER BY d.updated_at DESC`,
+      [entityId, entity],
+    );
+    return {
+      access: 'granted',
+      total,
+      items,
+    };
+  }
+
+  async listStatuses() {
+    return DOCUMENT_STATUSES;
+  }
+}

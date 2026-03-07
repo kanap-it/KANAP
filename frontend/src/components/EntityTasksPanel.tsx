@@ -9,7 +9,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
 import { TASK_STATUS_COLORS, TASK_STATUS_LABELS } from '../pages/tasks/task.constants';
 import type { TaskStatus } from '../pages/tasks/task.constants';
@@ -64,14 +64,42 @@ const PARAM_NAMES: Record<EntityType, string> = {
 
 export default function EntityTasksPanel({ entityType, entityId, phases = [], disabled = false }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const isProject = entityType === 'project';
+  const projectWorkspaceContextQuery = React.useMemo(() => {
+    if (!isProject) return '';
+
+    const current = new URLSearchParams(location.search);
+    const sp = new URLSearchParams();
+    const sort = current.get('sort');
+    const q = current.get('q');
+    const filters = current.get('filters');
+    const projectScope = current.get('projectScope');
+    const involvedUserId = current.get('involvedUserId');
+    const involvedTeamId = current.get('involvedTeamId');
+    const tabMatch = location.pathname.match(/^\/portfolio\/projects\/[^/]+\/([^/?#]+)/);
+    const projectTab = tabMatch?.[1] || 'tasks';
+
+    if (sort) sp.set('projectSort', sort);
+    if (q) sp.set('projectQ', q);
+    if (filters) sp.set('projectFilters', filters);
+    if (projectScope) sp.set('projectScope', projectScope);
+    if (involvedUserId) sp.set('projectInvolvedUserId', involvedUserId);
+    if (involvedTeamId) sp.set('projectInvolvedTeamId', involvedTeamId);
+    if (projectTab) sp.set('projectTab', projectTab);
+    return sp.toString();
+  }, [isProject, location.pathname, location.search]);
   const taskWorkspaceContextQuery = React.useMemo(() => {
     if (!isProject) return '';
     const sp = new URLSearchParams();
     sp.set('projectId', entityId);
+    if (projectWorkspaceContextQuery) {
+      const ctx = new URLSearchParams(projectWorkspaceContextQuery);
+      ctx.forEach((value, key) => sp.set(key, value));
+    }
     return sp.toString();
-  }, [isProject, entityId]);
+  }, [isProject, entityId, projectWorkspaceContextQuery]);
   const buildTaskWorkspacePath = React.useCallback(
     (taskId: string) => `/portfolio/tasks/${taskId}${taskWorkspaceContextQuery ? `?${taskWorkspaceContextQuery}` : ''}`,
     [taskWorkspaceContextQuery],
@@ -87,6 +115,10 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
     params.set(PARAM_NAMES[entityType], entityId);
     if (phaseId && isProject) {
       params.set('phaseId', phaseId);
+    }
+    if (isProject && projectWorkspaceContextQuery) {
+      const ctx = new URLSearchParams(projectWorkspaceContextQuery);
+      ctx.forEach((value, key) => params.set(key, value));
     }
     navigate(`/portfolio/tasks/new/overview?${params.toString()}`);
   };

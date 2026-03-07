@@ -1,0 +1,726 @@
+import React from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Menu,
+  MenuItem,
+  Paper,
+  Snackbar,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import FolderIcon from '@mui/icons-material/Folder';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import api from '../../../api';
+import { useAuth } from '../../../auth/AuthContext';
+import { useTenant } from '../../../tenant/TenantContext';
+
+type FolderNode = {
+  id: string;
+  name: string;
+  children?: FolderNode[];
+};
+
+interface FolderTreePanelProps {
+  libraryId: string;
+  selectedFolderId: string | null;
+  onSelectFolder: (folderId: string | null) => void;
+  canManage: boolean;
+  folderExternalDragAndDrop?: {
+    onDragStart: (folder: DraggedFolderState) => void;
+    onDragEnd: () => void;
+  };
+  documentDragAndDrop?: {
+    active: boolean;
+    hoverFolderId: string | null;
+    canDropOnFolder: (folderId: string) => boolean;
+    onFolderDragOver: (folderId: string, event: React.DragEvent<HTMLDivElement>) => void;
+    onFolderDrop: (folderId: string, event: React.DragEvent<HTMLDivElement>) => void;
+  };
+}
+
+const FOLDER_TREE_STORAGE_PREFIX = 'kanap-knowledge-folder-tree';
+const ROOT_FOLDER_DROP_TARGET = '__root__';
+
+export type DraggedFolderState = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  libraryId: string;
+};
+
+function flattenFolders(nodes: FolderNode[], depth = 0): Array<{ id: string; name: string; depth: number }> {
+  const out: Array<{ id: string; name: string; depth: number }> = [];
+  nodes.forEach((node) => {
+    out.push({ id: node.id, name: node.name, depth });
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      out.push(...flattenFolders(node.children, depth + 1));
+    }
+  });
+  return out;
+}
+
+function collectFolderMetadata(
+  nodes: FolderNode[],
+  parentId: string | null = null,
+  folderIds: Set<string> = new Set<string>(),
+  parentById: Map<string, string | null> = new Map<string, string | null>(),
+): { folderIds: Set<string>; parentById: Map<string, string | null> } {
+  nodes.forEach((node) => {
+    folderIds.add(node.id);
+    parentById.set(node.id, parentId);
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      collectFolderMetadata(node.children, node.id, folderIds, parentById);
+    }
+  });
+  return { folderIds, parentById };
+}
+
+function getExpandedFolderStorageKey(tenantSlug: string | null, userId: string | null, libraryId: string): string {
+  return `${FOLDER_TREE_STORAGE_PREFIX}:${tenantSlug ?? 'unknown'}:${userId ?? 'anon'}:${libraryId}`;
+}
+
+function readStoredExpandedFolderIds(storageKey: string): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((value): value is string => typeof value === 'string');
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredExpandedFolderIds(storageKey: string, ids: string[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(ids));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function isFolderDescendant(
+  candidateId: string,
+  ancestorId: string,
+  parentById: Map<string, string | null>,
+): boolean {
+  let currentId: string | null = candidateId;
+  while (currentId) {
+    if (currentId === ancestorId) return true;
+    currentId = parentById.get(currentId) ?? null;
+  }
+  return false;
+}
+
+function FolderTreeNode({
+  node,
+  depth,
+  selectedFolderId,
+  onSelectFolder,
+  expandedIds,
+  onToggle,
+  canManage,
+  onRename,
+  onDelete,
+  onCreateChild,
+  folderDragAndDrop,
+  documentDragAndDrop,
+}: {
+  node: FolderNode;
+  depth: number;
+  selectedFolderId: string | null;
+  onSelectFolder: (id: string) => void;
+  expandedIds: Set<string>;
+  onToggle: (id: string) => void;
+  canManage: boolean;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+  onCreateChild: (parentId: string) => void;
+  folderDragAndDrop?: {
+    active: boolean;
+    hoverTargetId: string | null;
+    onDragStart: (node: FolderNode, event: React.DragEvent<HTMLSpanElement>) => void;
+    onDragEnd: () => void;
+    canDropOnFolder: (folderId: string) => boolean;
+    onFolderDragOver: (folderId: string, event: React.DragEvent<HTMLDivElement>) => void;
+    onFolderDrop: (folderId: string, event: React.DragEvent<HTMLDivElement>) => void;
+    movePending: boolean;
+  };
+  documentDragAndDrop?: FolderTreePanelProps['documentDragAndDrop'];
+}) {
+  const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+  const isExpanded = expandedIds.has(node.id);
+  const isSelected = selectedFolderId === node.id;
+  const canDropDraggedFolderHere = !!folderDragAndDrop?.active && folderDragAndDrop.canDropOnFolder(node.id);
+  const isHoveredFolderDropTarget = canDropDraggedFolderHere && folderDragAndDrop?.hoverTargetId === node.id;
+  const canDropHere = !!documentDragAndDrop?.active && documentDragAndDrop.canDropOnFolder(node.id);
+  const isHoveredDropTarget = canDropHere && documentDragAndDrop?.hoverFolderId === node.id;
+  const isAnyDropTargetHovered = isHoveredFolderDropTarget || isHoveredDropTarget;
+  const [editing, setEditing] = React.useState(false);
+  const [editName, setEditName] = React.useState(node.name);
+  const [menuAnchorEl, setMenuAnchorEl] = React.useState<HTMLElement | null>(null);
+  const menuOpen = !!menuAnchorEl;
+
+  return (
+    <>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          pl: depth * 2,
+          pr: 0.5,
+          py: 0.25,
+          borderRadius: 1,
+          cursor: 'pointer',
+          border: '1px solid',
+          borderColor: isAnyDropTargetHovered ? 'primary.main' : 'transparent',
+          bgcolor: isAnyDropTargetHovered ? 'action.focus' : (isSelected ? 'action.selected' : 'transparent'),
+          '&:hover': { bgcolor: isSelected ? 'action.selected' : 'action.hover' },
+        }}
+        onClick={() => onSelectFolder(node.id)}
+        onDragOver={(event) => {
+          if (folderDragAndDrop && canDropDraggedFolderHere) {
+            folderDragAndDrop.onFolderDragOver(node.id, event);
+            return;
+          }
+          if (!documentDragAndDrop || !canDropHere) return;
+          documentDragAndDrop.onFolderDragOver(node.id, event);
+        }}
+        onDrop={(event) => {
+          if (folderDragAndDrop && canDropDraggedFolderHere) {
+            folderDragAndDrop.onFolderDrop(node.id, event);
+            return;
+          }
+          if (!documentDragAndDrop || !canDropHere) return;
+          documentDragAndDrop.onFolderDrop(node.id, event);
+        }}
+      >
+        {hasChildren ? (
+          <IconButton
+            size="small"
+            sx={{ p: 0.25, mr: 0.25 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(node.id);
+            }}
+          >
+            {isExpanded ? <ExpandMoreIcon sx={{ fontSize: 16 }} /> : <ChevronRightIcon sx={{ fontSize: 16 }} />}
+          </IconButton>
+        ) : (
+          <Box sx={{ width: 24 }} />
+        )}
+        {canManage && !editing && folderDragAndDrop ? (
+          <Tooltip title={folderDragAndDrop.movePending ? 'Folder move in progress' : 'Drag folder'}>
+            <Box
+              component="span"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 16,
+                mr: 0.25,
+                color: folderDragAndDrop.movePending ? 'text.disabled' : 'text.secondary',
+                cursor: folderDragAndDrop.movePending ? 'not-allowed' : 'grab',
+              }}
+              draggable={!folderDragAndDrop.movePending}
+              onClick={(event) => event.stopPropagation()}
+              onDragStart={(event: React.DragEvent<HTMLSpanElement>) => folderDragAndDrop.onDragStart(node, event)}
+              onDragEnd={folderDragAndDrop.onDragEnd}
+            >
+              <DragIndicatorIcon sx={{ fontSize: 14 }} />
+            </Box>
+          </Tooltip>
+        ) : (
+          <Box sx={{ width: 16, mr: 0.25 }} />
+        )}
+        {isExpanded && hasChildren ? (
+          <FolderOpenIcon sx={{ fontSize: 18, mr: 0.75, color: 'text.secondary' }} />
+        ) : (
+          <FolderIcon sx={{ fontSize: 18, mr: 0.75, color: 'text.secondary' }} />
+        )}
+        {editing ? (
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flex: 1 }} onClick={(e) => e.stopPropagation()}>
+            <TextField
+              size="small"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && editName.trim()) {
+                  onRename(node.id, editName.trim());
+                  setEditing(false);
+                }
+                if (e.key === 'Escape') {
+                  setEditName(node.name);
+                  setEditing(false);
+                }
+              }}
+              sx={{ '& .MuiInputBase-input': { py: 0.25, px: 0.5, fontSize: '0.8rem' } }}
+            />
+            <IconButton size="small" onClick={() => { if (editName.trim()) { onRename(node.id, editName.trim()); setEditing(false); } }}>
+              <CheckIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+            <IconButton size="small" onClick={() => { setEditName(node.name); setEditing(false); }}>
+              <CloseIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Stack>
+        ) : (
+          <Typography
+            variant="body2"
+            sx={{
+              flex: 1,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontWeight: isSelected ? 600 : 400,
+            }}
+          >
+            {node.name}
+          </Typography>
+        )}
+        {canManage && !editing && (
+          <>
+            <IconButton
+              size="small"
+              aria-label={`Folder actions for ${node.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuAnchorEl(e.currentTarget);
+              }}
+            >
+              <MoreHorizIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+            <Menu
+              anchorEl={menuAnchorEl}
+              open={menuOpen}
+              onClose={() => setMenuAnchorEl(null)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MenuItem onClick={() => { setMenuAnchorEl(null); onCreateChild(node.id); }}>
+                New subfolder
+              </MenuItem>
+              <MenuItem onClick={() => { setMenuAnchorEl(null); setEditName(node.name); setEditing(true); }}>
+                Rename
+              </MenuItem>
+              <MenuItem
+                sx={{ color: 'error.main' }}
+                onClick={() => { setMenuAnchorEl(null); onDelete(node.id); }}
+              >
+                Delete
+              </MenuItem>
+            </Menu>
+          </>
+        )}
+      </Box>
+      {hasChildren && isExpanded && node.children!.map((child) => (
+        <FolderTreeNode
+          key={child.id}
+          node={child}
+          depth={depth + 1}
+          selectedFolderId={selectedFolderId}
+          onSelectFolder={onSelectFolder}
+          expandedIds={expandedIds}
+          onToggle={onToggle}
+          canManage={canManage}
+          onRename={onRename}
+          onDelete={onDelete}
+          onCreateChild={onCreateChild}
+          folderDragAndDrop={folderDragAndDrop}
+          documentDragAndDrop={documentDragAndDrop}
+        />
+      ))}
+    </>
+  );
+}
+
+export default function FolderTreePanel({
+  libraryId,
+  selectedFolderId,
+  onSelectFolder,
+  canManage,
+  folderExternalDragAndDrop,
+  documentDragAndDrop,
+}: FolderTreePanelProps) {
+  const { profile } = useAuth();
+  const { tenantSlug } = useTenant();
+  const qc = useQueryClient();
+  const storageKey = React.useMemo(
+    () => getExpandedFolderStorageKey(tenantSlug, profile?.id ?? null, libraryId),
+    [tenantSlug, profile?.id, libraryId],
+  );
+  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(
+    () => new Set(readStoredExpandedFolderIds(storageKey)),
+  );
+  const [folderDialogOpen, setFolderDialogOpen] = React.useState(false);
+  const [newFolderName, setNewFolderName] = React.useState('');
+  const [newFolderParentId, setNewFolderParentId] = React.useState('');
+  const [rootMenuAnchorEl, setRootMenuAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [draggedFolder, setDraggedFolder] = React.useState<DraggedFolderState | null>(null);
+  const [folderHoverTargetId, setFolderHoverTargetId] = React.useState<string | null>(null);
+  const [folderMoveSnackbar, setFolderMoveSnackbar] = React.useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error';
+  }>({ open: false, message: '', severity: 'success' });
+
+  const { data: folderTree } = useQuery({
+    queryKey: ['knowledge-folders-tree', libraryId],
+    queryFn: async () => (await api.get('/knowledge-folders/tree', { params: { library_id: libraryId } })).data as { items: FolderNode[] },
+    enabled: !!libraryId,
+  });
+
+  const flatFolders = React.useMemo(
+    () => flattenFolders(folderTree?.items || []),
+    [folderTree?.items],
+  );
+  const folderMetadata = React.useMemo(
+    () => collectFolderMetadata(folderTree?.items || []),
+    [folderTree?.items],
+  );
+  const selectedFolderAncestorIds = React.useMemo(() => {
+    if (!selectedFolderId) return [] as string[];
+    if (!folderMetadata.parentById.has(selectedFolderId)) return [] as string[];
+    const ancestors: string[] = [];
+    let parentId = folderMetadata.parentById.get(selectedFolderId) ?? null;
+    while (parentId) {
+      ancestors.push(parentId);
+      parentId = folderMetadata.parentById.get(parentId) ?? null;
+    }
+    return ancestors;
+  }, [folderMetadata.parentById, selectedFolderId]);
+
+  React.useEffect(() => {
+    setExpandedIds(new Set(readStoredExpandedFolderIds(storageKey)));
+  }, [storageKey]);
+
+  React.useEffect(() => {
+    setExpandedIds((prev) => {
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (folderMetadata.folderIds.has(id)) next.add(id);
+      });
+      selectedFolderAncestorIds.forEach((id) => next.add(id));
+      if (next.size === prev.size && Array.from(next).every((id) => prev.has(id))) {
+        return prev;
+      }
+      return next;
+    });
+  }, [folderMetadata.folderIds, selectedFolderAncestorIds]);
+
+  React.useEffect(() => {
+    writeStoredExpandedFolderIds(storageKey, Array.from(expandedIds));
+  }, [expandedIds, storageKey]);
+
+  const onToggle = React.useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const createFolderMutation = useMutation({
+    mutationFn: async ({ name, parentId }: { name: string; parentId: string | null }) => {
+      await api.post('/knowledge-folders', {
+        name,
+        parent_id: parentId,
+        library_id: libraryId,
+      });
+    },
+    onSuccess: async (_data, variables) => {
+      const parentId = variables.parentId;
+      if (parentId) {
+        setExpandedIds((prev) => new Set(prev).add(parentId));
+      }
+      setFolderDialogOpen(false);
+      setNewFolderName('');
+      setNewFolderParentId('');
+      await qc.invalidateQueries({ queryKey: ['knowledge-folders-tree', libraryId] });
+    },
+  });
+
+  const renameFolderMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      await api.patch(`/knowledge-folders/${id}`, { name });
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['knowledge-folders-tree', libraryId] });
+    },
+  });
+
+  const deleteFolderMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/knowledge-folders/${id}`);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['knowledge-folders-tree', libraryId] });
+      if (selectedFolderId) onSelectFolder(null);
+    },
+  });
+
+  const handleRename = React.useCallback((id: string, name: string) => {
+    renameFolderMutation.mutate({ id, name });
+  }, [renameFolderMutation]);
+
+  const handleDelete = React.useCallback((id: string) => {
+    if (window.confirm('Delete this folder? Documents will be moved to Unfiled. Folders with subfolders cannot be deleted.')) {
+      deleteFolderMutation.mutate(id);
+    }
+  }, [deleteFolderMutation]);
+
+  const moveFolderMutation = useMutation({
+    mutationFn: async ({ id, parentId }: { id: string; parentId: string | null }) => {
+      await api.post(`/knowledge-folders/${id}/move`, {
+        parent_id: parentId,
+      });
+    },
+    onSuccess: async (_data, variables) => {
+      const parentId = variables.parentId;
+      if (parentId) {
+        setExpandedIds((prev) => new Set(prev).add(parentId));
+      }
+      setDraggedFolder(null);
+      setFolderHoverTargetId(null);
+      folderExternalDragAndDrop?.onDragEnd();
+      await qc.invalidateQueries({ queryKey: ['knowledge-folders-tree', libraryId] });
+      setFolderMoveSnackbar({
+        open: true,
+        message: 'Folder moved.',
+        severity: 'success',
+      });
+    },
+    onError: (error: any) => {
+      setDraggedFolder(null);
+      setFolderHoverTargetId(null);
+      folderExternalDragAndDrop?.onDragEnd();
+      setFolderMoveSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Unable to move folder.',
+        severity: 'error',
+      });
+    },
+  });
+
+  const openCreateDialog = React.useCallback((parentId: string | null) => {
+    setNewFolderName('');
+    setNewFolderParentId(parentId || '');
+    setFolderDialogOpen(true);
+  }, []);
+
+  const canDropDraggedFolderOnParent = React.useCallback((parentId: string | null) => {
+    if (!draggedFolder || moveFolderMutation.isPending) return false;
+    if (draggedFolder.libraryId !== libraryId) return false;
+    if (parentId === draggedFolder.id) return false;
+    if ((draggedFolder.parentId || null) === parentId) return false;
+    if (parentId && isFolderDescendant(parentId, draggedFolder.id, folderMetadata.parentById)) return false;
+    return true;
+  }, [draggedFolder, folderMetadata.parentById, libraryId, moveFolderMutation.isPending]);
+
+  const handleFolderMoveDragStart = React.useCallback((node: FolderNode, event: React.DragEvent<HTMLSpanElement>) => {
+    const payload: DraggedFolderState = {
+      id: node.id,
+      name: node.name,
+      parentId: folderMetadata.parentById.get(node.id) ?? null,
+      libraryId,
+    };
+    setDraggedFolder(payload);
+    setFolderHoverTargetId(null);
+    folderExternalDragAndDrop?.onDragStart(payload);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('application/x-kanap-folder', JSON.stringify(payload));
+    event.dataTransfer.setData('text/plain', node.name);
+  }, [folderExternalDragAndDrop, folderMetadata.parentById, libraryId]);
+
+  const clearDraggedFolderState = React.useCallback(() => {
+    setDraggedFolder(null);
+    setFolderHoverTargetId(null);
+    folderExternalDragAndDrop?.onDragEnd();
+  }, [folderExternalDragAndDrop]);
+
+  const handleFolderMoveDragOver = React.useCallback((parentId: string | null, event: React.DragEvent<HTMLDivElement>) => {
+    if (!canDropDraggedFolderOnParent(parentId)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setFolderHoverTargetId(parentId ?? ROOT_FOLDER_DROP_TARGET);
+  }, [canDropDraggedFolderOnParent]);
+
+  const handleFolderMoveDrop = React.useCallback((parentId: string | null, event: React.DragEvent<HTMLDivElement>) => {
+    if (!draggedFolder || !canDropDraggedFolderOnParent(parentId)) return;
+    event.preventDefault();
+    setFolderHoverTargetId(null);
+    moveFolderMutation.mutate({
+      id: draggedFolder.id,
+      parentId,
+    });
+  }, [canDropDraggedFolderOnParent, draggedFolder, moveFolderMutation]);
+
+  const isRootFolderDropTarget = folderHoverTargetId === ROOT_FOLDER_DROP_TARGET && canDropDraggedFolderOnParent(null);
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        width: 240,
+        minWidth: 240,
+        alignSelf: 'flex-start',
+        overflow: 'auto',
+        maxHeight: 'calc(100vh - 180px)',
+      }}
+    >
+      <Box sx={{ p: 1.5 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>Folders</Typography>
+
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            py: 0.5,
+            px: 0.5,
+            borderRadius: 1,
+            cursor: 'pointer',
+            border: '1px solid',
+            borderColor: isRootFolderDropTarget ? 'primary.main' : 'transparent',
+            bgcolor: isRootFolderDropTarget ? 'action.focus' : (selectedFolderId === null ? 'action.selected' : 'transparent'),
+            '&:hover': { bgcolor: selectedFolderId === null ? 'action.selected' : 'action.hover' },
+            mb: 0.5,
+          }}
+          onClick={() => onSelectFolder(null)}
+          onDragOver={(event) => handleFolderMoveDragOver(null, event)}
+          onDrop={(event) => handleFolderMoveDrop(null, event)}
+        >
+          <Box sx={{ width: 16, mr: 0.25 }} />
+          <FolderOpenIcon sx={{ fontSize: 18, mr: 0.75, color: 'text.secondary' }} />
+          <Typography variant="body2" sx={{ flex: 1, fontWeight: selectedFolderId === null ? 600 : 400 }}>
+            All Docs
+          </Typography>
+          {canManage && (
+            <>
+              <IconButton
+                size="small"
+                aria-label="Folder actions"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRootMenuAnchorEl(e.currentTarget);
+                }}
+              >
+                <MoreHorizIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+              <Menu
+                anchorEl={rootMenuAnchorEl}
+                open={!!rootMenuAnchorEl}
+                onClose={() => setRootMenuAnchorEl(null)}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MenuItem onClick={() => { setRootMenuAnchorEl(null); openCreateDialog(null); }}>
+                  New top-level folder
+                </MenuItem>
+              </Menu>
+            </>
+          )}
+        </Box>
+
+        {(folderTree?.items || []).map((node) => (
+          <FolderTreeNode
+            key={node.id}
+            node={node}
+            depth={0}
+            selectedFolderId={selectedFolderId}
+            onSelectFolder={onSelectFolder}
+            expandedIds={expandedIds}
+            onToggle={onToggle}
+            canManage={canManage}
+            onRename={handleRename}
+            onDelete={handleDelete}
+            onCreateChild={(parentId) => openCreateDialog(parentId)}
+            folderDragAndDrop={canManage ? {
+              active: !!draggedFolder,
+              hoverTargetId: folderHoverTargetId,
+              onDragStart: handleFolderMoveDragStart,
+              onDragEnd: clearDraggedFolderState,
+              canDropOnFolder: canDropDraggedFolderOnParent,
+              onFolderDragOver: (folderId, event) => handleFolderMoveDragOver(folderId, event),
+              onFolderDrop: (folderId, event) => handleFolderMoveDrop(folderId, event),
+              movePending: moveFolderMutation.isPending,
+            } : undefined}
+            documentDragAndDrop={documentDragAndDrop}
+          />
+        ))}
+      </Box>
+
+      <Dialog open={folderDialogOpen} onClose={() => setFolderDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>{newFolderParentId ? 'Create Subfolder' : 'Create Folder'}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              size="small"
+              label="Folder name"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+            />
+            <TextField
+              select
+              size="small"
+              label="Parent folder"
+              value={newFolderParentId}
+              onChange={(e) => setNewFolderParentId(e.target.value)}
+            >
+              <MenuItem value="">Root</MenuItem>
+              {flatFolders.map((folder) => (
+                <MenuItem key={folder.id} value={folder.id}>
+                  {`${'  '.repeat(folder.depth)}${folder.name}`}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFolderDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => createFolderMutation.mutate({
+              name: newFolderName.trim(),
+              parentId: newFolderParentId || null,
+            })}
+            disabled={!newFolderName.trim() || createFolderMutation.isPending}
+          >
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={folderMoveSnackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setFolderMoveSnackbar((prev) => ({ ...prev, open: false }))}
+      >
+        <Alert
+          severity={folderMoveSnackbar.severity}
+          onClose={() => setFolderMoveSnackbar((prev) => ({ ...prev, open: false }))}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {folderMoveSnackbar.message}
+        </Alert>
+      </Snackbar>
+    </Paper>
+  );
+}

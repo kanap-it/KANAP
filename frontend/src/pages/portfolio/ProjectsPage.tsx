@@ -34,6 +34,7 @@ type ProjectRow = {
   planned_end: string | null;
   item_number: number;
   created_at: string;
+  updated_at: string;
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info' }> = {
@@ -132,6 +133,27 @@ export default function ProjectsPage() {
   });
   const hasTeam = !!myTeamConfig?.team_id;
 
+  const projectScopeRef = useRef(projectScope);
+  const profileIdRef = useRef<string | null>(profile?.id ?? null);
+  const hasTeamRef = useRef(hasTeam);
+  const teamIdRef = useRef<string | null>(myTeamConfig?.team_id ?? null);
+
+  React.useEffect(() => {
+    projectScopeRef.current = projectScope;
+  }, [projectScope]);
+
+  React.useEffect(() => {
+    profileIdRef.current = profile?.id ?? null;
+  }, [profile?.id]);
+
+  React.useEffect(() => {
+    hasTeamRef.current = hasTeam;
+  }, [hasTeam]);
+
+  React.useEffect(() => {
+    teamIdRef.current = myTeamConfig?.team_id ?? null;
+  }, [myTeamConfig?.team_id]);
+
   React.useEffect(() => {
     if (projectScope === 'team' && isTeamConfigFetched && !hasTeam) {
       setProjectScope('my');
@@ -164,15 +186,19 @@ export default function ProjectsPage() {
     if (sort) sp.set('sort', sort);
     if (q) sp.set('q', q);
     if (filters && Object.keys(filters).length > 0) sp.set('filters', JSON.stringify(filters));
-    sp.set('projectScope', projectScope);
-    if (projectScope === 'my' && profile?.id) {
-      sp.set('involvedUserId', profile.id);
-    } else if (projectScope === 'team' && hasTeam && myTeamConfig?.team_id) {
-      sp.set('involvedTeamId', myTeamConfig.team_id);
-      if (profile?.id) sp.set('involvedUserId', profile.id);
+    const scope = projectScopeRef.current;
+    const profileId = profileIdRef.current;
+    const hasTeamNow = hasTeamRef.current;
+    const teamId = teamIdRef.current;
+    sp.set('projectScope', scope);
+    if (scope === 'my' && profileId) {
+      sp.set('involvedUserId', profileId);
+    } else if (scope === 'team' && hasTeamNow && teamId) {
+      sp.set('involvedTeamId', teamId);
+      if (profileId) sp.set('involvedUserId', profileId);
     }
     return sp;
-  }, [projectScope, profile?.id, hasTeam, myTeamConfig?.team_id]);
+  }, []);
 
   const projectScopeToolbar = (
     <Stack direction="row" spacing={0.5} alignItems="center">
@@ -199,7 +225,7 @@ export default function ProjectsPage() {
     </Stack>
   );
 
-  const ClickableCell: React.FC<ICellRendererParams<ProjectRow, any>> = (params) => (
+  const clickableCellRenderer = useCallback((params: ICellRendererParams<ProjectRow, any>) => (
     <Box
       component="span"
       sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
@@ -212,7 +238,7 @@ export default function ProjectsPage() {
     >
       {params.valueFormatted ?? params.value ?? ''}
     </Box>
-  );
+  ), [buildWorkspaceSearch, navigate]);
 
   const getProjectFilterValues = useCallback((
     field: string,
@@ -262,7 +288,7 @@ export default function ProjectsPage() {
       headerName: '#',
       width: 90,
       filter: 'agTextColumnFilter',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
       valueFormatter: (p: any) => p.value ? `PRJ-${p.value}` : '',
       comparator: (a: number, b: number) => (a || 0) - (b || 0),
     },
@@ -272,7 +298,7 @@ export default function ProjectsPage() {
       flex: 1.5,
       minWidth: 220,
       filter: 'agTextColumnFilter',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'priority_score',
@@ -280,7 +306,7 @@ export default function ProjectsPage() {
       width: 100,
       filter: 'agNumberColumnFilter',
       valueFormatter: (params: any) => (params.value != null ? String(Math.round(params.value)) : ''),
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'status',
@@ -306,7 +332,7 @@ export default function ProjectsPage() {
         searchable: false,
       },
       valueFormatter: (params: any) => ORIGIN_LABELS[params.value] || params.value,
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'execution_progress',
@@ -325,7 +351,7 @@ export default function ProjectsPage() {
         getValues: getProjectFilterValues('source_name'),
         searchable: false,
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'category_name',
@@ -337,7 +363,7 @@ export default function ProjectsPage() {
         getValues: getProjectFilterValues('category_name'),
         searchable: false,
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'stream_name',
@@ -349,7 +375,7 @@ export default function ProjectsPage() {
         getValues: getProjectFilterValues('stream_name'),
         searchable: false,
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       colId: 'company_name',
@@ -362,7 +388,7 @@ export default function ProjectsPage() {
         searchable: false,
       },
       valueGetter: (params: any) => params.data?.company?.name || '',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'planned_start',
@@ -370,7 +396,7 @@ export default function ProjectsPage() {
       width: 110,
       filter: 'agDateColumnFilter',
       valueFormatter: (params: any) => formatDate(params.value),
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'planned_end',
@@ -378,7 +404,7 @@ export default function ProjectsPage() {
       width: 110,
       filter: 'agDateColumnFilter',
       valueFormatter: (params: any) => formatDate(params.value),
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'created_at',
@@ -386,9 +412,18 @@ export default function ProjectsPage() {
       width: 110,
       filter: 'agDateColumnFilter',
       valueFormatter: (params: any) => formatDate(params.value),
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
-  ], [ClickableCell, getProjectFilterValues]);
+    {
+      field: 'updated_at',
+      headerName: 'Last changed',
+      width: 130,
+      filter: 'agDateColumnFilter',
+      valueFormatter: (params: any) => formatDate(params.value),
+      cellRenderer: clickableCellRenderer,
+      hide: true,
+    },
+  ], [clickableCellRenderer, getProjectFilterValues]);
 
   const extraParams = useMemo(() => {
     const params: Record<string, any> = {

@@ -19,6 +19,7 @@ import { PortfolioProjectsBaseService, ServiceOpts } from './portfolio-projects-
 import { computeAutoAllocations } from '../utils/allocation-utils';
 import { detectChanges, PROJECT_TRACKED_FIELDS, resolveDisplayNames } from '../../common/change-detection';
 import { normalizeMarkdownRichText } from '../../common/markdown-rich-text';
+import { IntegratedDocumentsService } from '../../knowledge/integrated-documents.service';
 
 /**
  * Service for core CRUD operations on portfolio projects.
@@ -34,6 +35,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     private readonly criteriaService: PortfolioCriteriaService,
     private readonly notifications: NotificationsService,
     private readonly itemNumberService: ItemNumberService,
+    private readonly integratedDocuments: IntegratedDocumentsService,
   ) {
     super(projectRepo);
   }
@@ -310,11 +312,11 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
         'Standard projects must be created via Request conversion. Use origin: fast_track or legacy.'
       );
     }
+    const purposeContent = this.normalizeNullable(body.purpose);
 
     const entity = repo.create({
       tenant_id: tenantId,
       name,
-      purpose: this.normalizeNullable(body.purpose),
       source_id: body.source_id || null,
       category_id: body.category_id || null,
       stream_id: body.stream_id || null,
@@ -336,6 +338,20 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
 
     entity.item_number = await this.itemNumberService.nextItemNumber('project', tenantId, mg);
     const saved = await repo.save(entity);
+
+    await this.integratedDocuments.provisionForProject(
+      {
+        id: saved.id,
+        tenant_id: saved.tenant_id,
+        item_number: saved.item_number,
+        name: saved.name,
+      },
+      {
+        purpose: purposeContent,
+      },
+      userId,
+      { manager: mg },
+    );
 
     await this.audit.log({
       table: 'portfolio_projects',
@@ -383,9 +399,6 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     const project = projectRepo.create({
       tenant_id: tenantId,
       name: overrides.name || request.name,
-      purpose: Object.prototype.hasOwnProperty.call(overrides || {}, 'purpose')
-        ? this.normalizeNullable(overrides.purpose)
-        : this.normalizeNullable(request.purpose),
       source_id: overrides.source_id ?? request.source_id,
       category_id: overrides.category_id ?? request.category_id,
       stream_id: overrides.stream_id ?? request.stream_id,
@@ -446,6 +459,23 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
       });
     }
 
+    await this.integratedDocuments.createProjectPurposeFromRequest(
+      {
+        id: request.id,
+        tenant_id: request.tenant_id,
+        item_number: request.item_number,
+        name: request.name,
+      },
+      {
+        id: savedProject.id,
+        tenant_id: savedProject.tenant_id,
+        item_number: savedProject.item_number,
+        name: savedProject.name,
+      },
+      userId,
+      { manager: mg },
+    );
+
     // Copy related data from request to project
     await this.copyTeamFromRequest(requestId, savedProject.id, tenantId, mg);
     await this.copyContactsFromRequest(requestId, savedProject.id, tenantId, mg);
@@ -488,6 +518,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
 
     const before = { ...existing };
     const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key);
+    const nextPurpose = has('purpose') ? this.normalizeNullable(body.purpose) : undefined;
 
     // Status transition handling
     if (has('status')) {
@@ -526,7 +557,6 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
       if (!name) throw new BadRequestException('name cannot be empty');
       existing.name = name;
     }
-    if (has('purpose')) existing.purpose = this.normalizeNullable(body.purpose);
     if (has('source_id')) existing.source_id = body.source_id || null;
     if (has('category_id')) {
       existing.category_id = body.category_id || null;
@@ -565,6 +595,26 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     existing.updated_at = new Date();
 
     const saved = await repo.save(existing);
+    const sourceDescriptor = {
+      id: saved.id,
+      tenant_id: saved.tenant_id,
+      item_number: saved.item_number,
+      name: saved.name,
+    };
+
+    if (has('purpose')) {
+      await this.integratedDocuments.writeSourceSlotContent(
+        'projects',
+        sourceDescriptor,
+        'purpose',
+        nextPurpose,
+        userId,
+        { manager: mg, logSourceActivity: true },
+      );
+    }
+    if (before.name !== saved.name) {
+      await this.integratedDocuments.syncTitles('projects', sourceDescriptor, userId, { manager: mg });
+    }
 
     // Log status change as activity (optionally as decision)
     if (has('status') && before.status !== saved.status) {

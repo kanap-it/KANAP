@@ -7,14 +7,16 @@ import { useAuth } from '../../auth/AuthContext';
 
 type Role = { id: string; role_name: string; role_description: string; is_system?: boolean; is_built_in?: boolean; user_count?: number };
 type PermissionLevel = 'reader'|'contributor'|'member'|'admin'|null;
+type ConcretePermissionLevel = Exclude<PermissionLevel, null>;
 
 // Permission groups for organized display
 const PERMISSION_GROUPS = {
   'Budget & Finance': ['opex', 'capex', 'budget_ops', 'contracts', 'analytics', 'reporting'],
   'Portfolio Management': ['portfolio_requests', 'portfolio_projects', 'portfolio_planning', 'portfolio_reports', 'portfolio_settings'],
   'IT Operations': ['applications', 'infrastructure', 'locations', 'settings'],
-  'Master Data': ['companies', 'departments', 'suppliers', 'contacts', 'accounts'],
+  'Master Data': ['companies', 'departments', 'suppliers', 'contacts', 'accounts', 'business_processes'],
   'Tasks': ['tasks'],
+  'Knowledge': ['knowledge'],
   'Administration': ['users', 'billing'],
 } as const;
 
@@ -42,11 +44,27 @@ const RESOURCE_LABELS: Record<string, string> = {
   suppliers: 'Suppliers',
   contacts: 'Contacts',
   accounts: 'Accounts',
+  business_processes: 'Business Processes',
   locations: 'Locations',
   tasks: 'Tasks',
+  knowledge: 'Knowledge',
   reporting: 'Reporting',
   users: 'Users',
 };
+
+const ALL_LEVEL_OPTIONS: Array<{ value: ConcretePermissionLevel; label: string }> = [
+  { value: 'reader', label: 'Reader' },
+  { value: 'contributor', label: 'Contributor' },
+  { value: 'member', label: 'Member' },
+  { value: 'admin', label: 'Admin' },
+];
+
+function getLevelOptions(resource: string): Array<{ value: ConcretePermissionLevel; label: string }> {
+  if (resource === 'knowledge') {
+    return ALL_LEVEL_OPTIONS.filter((option) => option.value !== 'contributor');
+  }
+  return ALL_LEVEL_OPTIONS;
+}
 
 export default function RolesPage() {
   const { hasLevel } = useAuth();
@@ -256,10 +274,11 @@ export default function RolesPage() {
                                 onChange={(e) => setDraft((m) => ({ ...m, [r]: (e.target.value || null) as PermissionLevel }))}
                               >
                                 <MenuItem value=""><em>None</em></MenuItem>
-                                <MenuItem value="reader">Reader</MenuItem>
-                                <MenuItem value="contributor">Contributor</MenuItem>
-                                <MenuItem value="member">Member</MenuItem>
-                                <MenuItem value="admin">Admin</MenuItem>
+                                {getLevelOptions(r).map((option) => (
+                                  <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </MenuItem>
+                                ))}
                               </Select>
                             </FormControl>
                           </Grid>

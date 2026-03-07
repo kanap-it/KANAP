@@ -46,6 +46,8 @@ import HardwareInfoPanel, { HardwareInfoPanelHandle } from './editors/HardwareIn
 import SupportInfoPanel, { SupportInfoPanelHandle } from './editors/SupportInfoPanel';
 import AssetRelationsPanel, { AssetRelationsPanelHandle } from './editors/AssetRelationsPanel';
 import { useAssetNav } from '../../hooks/useAssetNav';
+import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
+import { useAuth } from '../../auth/AuthContext';
 
 type IpAddressEntry = { type: string; ip: string; subnet_cidr: string | null };
 
@@ -126,7 +128,7 @@ type ServerConnectionRow = {
   destination_label?: string | null;
 };
 
-type TabKey = 'overview' | 'technical' | 'hardware' | 'support' | 'relations' | 'assignments' | 'connections';
+type TabKey = 'overview' | 'technical' | 'hardware' | 'support' | 'relations' | 'knowledge' | 'assignments' | 'connections';
 
 const ENV_OPTIONS = [
   { value: 'prod', label: 'Prod' },
@@ -138,6 +140,7 @@ const ENV_OPTIONS = [
 ] as const;
 
 export default function AssetWorkspacePage() {
+  const { hasLevel } = useAuth();
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -162,6 +165,7 @@ export default function AssetWorkspacePage() {
   const [clustersForServer, setClustersForServer] = React.useState<ClusterSummary[]>([]);
   const [clustersError, setClustersError] = React.useState<string | null>(null);
   const [clustersLoading, setClustersLoading] = React.useState(false);
+  const canCreateKnowledge = hasLevel('knowledge', 'member');
   const [memberDialogOpen, setMemberDialogOpen] = React.useState(false);
   const [memberSelection, setMemberSelection] = React.useState<ServerOption[]>([]);
   const [memberOptions, setMemberOptions] = React.useState<ServerOption[]>([]);
@@ -920,6 +924,7 @@ export default function AssetWorkspacePage() {
           {isPhysicalAsset && <Tab label="Hardware" value="hardware" disabled={isCreate} />}
           {isPhysicalAsset && <Tab label="Support" value="support" disabled={isCreate} />}
           <Tab label="Relations" value="relations" disabled={isCreate} />
+          <Tab label="Knowledge" value="knowledge" disabled={isCreate} />
           <Tab label="Assignments" value="assignments" disabled={isCreate} />
           <Tab label="Connections" value="connections" disabled={isCreate} />
         </Tabs>
@@ -1489,6 +1494,9 @@ export default function AssetWorkspacePage() {
               assetId={id}
               onDirtyChange={(d) => d && setDirty(true)}
             />
+          )}
+          {tab === 'knowledge' && !isCreate && (
+            <EntityKnowledgePanel entityType="assets" entityId={id} canCreate={canCreateKnowledge} />
           )}
         </Box>
       </Box>

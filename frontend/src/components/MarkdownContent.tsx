@@ -35,7 +35,6 @@ function sanitizeUrl(url: string, key?: string): string {
   if (key === 'src') {
     if (/^https?:/i.test(value)) return value;
     if (value.startsWith('/')) return value;
-    if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(value)) return value;
     return '';
   }
 
@@ -55,6 +54,9 @@ export function MarkdownContent({ content, variant = 'default' }: MarkdownConten
         '& h1': { fontSize: '1.5rem', fontWeight: 600, mt: 2, mb: 1 },
         '& h2': { fontSize: '1.25rem', fontWeight: 600, mt: 1.5, mb: 0.75 },
         '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 1, mb: 0.5 },
+        '& h4': { fontSize: '1rem', fontWeight: 600, mt: 1, mb: 0.5 },
+        '& h5': { fontSize: '0.95rem', fontWeight: 600, mt: 0.75, mb: 0.4 },
+        '& h6': { fontSize: '0.9rem', fontWeight: 600, mt: 0.75, mb: 0.4 },
         '& ul, & ol': { pl: 3, my: 0.5 },
         '& li': { my: 0.25 },
         '& ul[data-type="taskList"], & ul.contains-task-list': {

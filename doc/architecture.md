@@ -121,7 +121,7 @@ flowchart LR
   - **Expiration warnings**: daily at 08:00 UTC — checks contracts and OPEX items expiring within 30 days, sends warnings to users with `budget.expiration_warnings` enabled.
   - **Weekly review digest**: hourly — timezone-aware dispatch that matches users whose configured day/hour matches the current hour in their timezone. Summarizes assigned tasks, upcoming due dates, and recent portfolio activity. *(Note: the scheduled weekly review has not been validated in production yet.)*
 - **Email templates**: shared `emailWrapper()` provides consistent HTML structure with header, footer, and a "Manage notification preferences" deep link (`/settings/notifications`). Per-event templates generate the body content.
-- **Email queue**: in-process queue in `EmailService` with 700ms inter-message delay to stay within Resend rate limits.
+- **Email queue**: in-process queue in `EmailService` with global inter-message pacing (`EMAIL_QUEUE_MIN_INTERVAL_MS`, default `700ms`) and automatic exponential backoff retries for Resend `429` rate-limit responses.
 - **`APP_URL`** env var is used to build tenant-specific deep links in scheduled notification emails (replaces `app` in hostname with the tenant slug).
 - **`EMAIL_OVERRIDE`** env var redirects all outgoing emails to a single address (dev/QA safety net; must never be set in production).
 - **ThrottlerModule** (`@nestjs/throttler`) provides app-level rate limiting on auth and public endpoints, configurable via `RATE_LIMIT_ENABLED` and `RATE_LIMIT_TRUST_PROXY`.

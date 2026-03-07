@@ -10,6 +10,7 @@ import { AssetsCsvService } from './assets-csv.service';
 import { attachmentMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { StorageService } from '../common/storage/storage.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('assets')
@@ -19,6 +20,7 @@ export class AssetsController {
     private readonly deleteSvc: AssetsDeleteService,
     private readonly csvSvc: AssetsCsvService,
     private readonly storage: StorageService,
+    private readonly knowledge: KnowledgeService,
   ) {}
 
   // Attachment download/delete (static routes before :id param routes)
@@ -149,6 +151,16 @@ export class AssetsController {
   @Get(':id')
   get(@Param('id') id: string, @Req() req: any) {
     return this.svc.get(id, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('infrastructure', 'reader')
+  @Get(':id/knowledge')
+  listDocuments(@Param('id') id: string, @Req() req: any) {
+    return this.knowledge.listDocumentsForEntity('assets', id, {
+      manager: req?.queryRunner?.manager,
+      userId: req?.user?.sub ?? null,
+    });
   }
 
   @UseGuards(PermissionGuard)

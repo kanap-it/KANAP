@@ -7,8 +7,8 @@ import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { PermissionsService, RESOURCES } from '../permissions/permissions.service';
 import { RolePermission } from '../permissions/role-permission.entity';
-import { User } from '../users/user.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UserRole } from '../users/user-role.entity';
 
 @Controller('roles')
 @UseGuards(JwtAuthGuard)
@@ -20,8 +20,8 @@ export class RolesController {
     private readonly roleRepo: Repository<Role>,
     @InjectRepository(RolePermission)
     private readonly rolePermRepo: Repository<RolePermission>,
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
+    @InjectRepository(UserRole)
+    private readonly userRoleRepo: Repository<UserRole>,
   ) {}
 
   @Get()
@@ -30,9 +30,10 @@ export class RolesController {
   async getRoles(@Req() req: any) {
     const mg: EntityManager | undefined = req?.queryRunner?.manager;
     const items = await this.rolesService.list({ manager: mg });
+    const userRolesRepo = (mg ?? this.userRoleRepo.manager).getRepository(UserRole);
     // Attach user counts
     const withCounts = await Promise.all(items.map(async (r) => {
-      const count = await (mg ?? this.userRepo.manager).getRepository(User).count({ where: { role_id: r.id } });
+      const count = await userRolesRepo.count({ where: { role_id: r.id } });
       return { ...r, user_count: count } as any;
     }));
     return { items: withCounts };
@@ -76,7 +77,7 @@ export class RolesController {
     if (!role) throw new BadRequestException('Role not found');
     if (role.is_system) throw new BadRequestException('Cannot delete system role');
     if (role.is_built_in) throw new BadRequestException('Cannot delete built-in role');
-    const count = await (mg ?? this.userRepo.manager).getRepository(User).count({ where: { role_id: id } });
+    const count = await (mg ?? this.userRoleRepo.manager).getRepository(UserRole).count({ where: { role_id: id } });
     if (count > 0) throw new BadRequestException('Cannot delete role with users assigned');
     await (mg ?? this.roleRepo.manager).getRepository(Role).delete({ id });
     return { ok: true };

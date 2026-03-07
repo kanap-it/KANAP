@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { PortfolioRequest } from './portfolio-request.entity';
 import {
+  CsvEntityConfig,
   CsvExportService,
   CsvImportService,
   CsvImportParams,
@@ -11,6 +12,7 @@ import {
   CsvFieldInfo,
 } from '../common/csv';
 import { portfolioRequestCsvConfig } from './portfolio-request-csv.config';
+import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 
 /**
  * Service for importing and exporting Portfolio Requests via CSV
@@ -21,7 +23,129 @@ export class PortfolioRequestsCsvService {
     @InjectRepository(PortfolioRequest) private readonly requests: Repository<PortfolioRequest>,
     private readonly exportSvc: CsvExportService,
     private readonly importSvc: CsvImportService,
+    private readonly integratedDocs: IntegratedDocumentsService,
   ) {}
+
+  private buildCsvConfig(): CsvEntityConfig {
+    const baseConfig = portfolioRequestCsvConfig;
+
+    return {
+      ...baseConfig,
+      beforeCommit: async (entities: any[], context) => {
+        await baseConfig.beforeCommit?.(entities, context);
+
+        for (const entity of entities) {
+          if (Object.prototype.hasOwnProperty.call(entity, 'purpose')) {
+            (entity as any).__csv_managed_purpose = entity.purpose ?? null;
+            delete entity.purpose;
+          }
+          if (Object.prototype.hasOwnProperty.call(entity, 'risks')) {
+            (entity as any).__csv_managed_risks = entity.risks ?? null;
+            delete entity.risks;
+          }
+        }
+      },
+      afterCommit: async (entities: any[], context) => {
+        for (const entity of entities) {
+          const source = {
+            id: entity.id,
+            tenant_id: entity.tenant_id || context.tenantId,
+            item_number: entity.item_number ?? null,
+            name: entity.name || '',
+          };
+
+          await this.integratedDocs.provisionForRequest(
+            source,
+            {
+              purpose: (entity as any).__csv_managed_purpose ?? null,
+              risks_mitigations: (entity as any).__csv_managed_risks ?? null,
+            },
+            context.userId ?? null,
+            { manager: context.manager },
+          );
+
+          if (Object.prototype.hasOwnProperty.call(entity, '__csv_managed_purpose')) {
+            await this.integratedDocs.writeSourceSlotContent(
+              'requests',
+              source,
+              'purpose',
+              (entity as any).__csv_managed_purpose ?? null,
+              context.userId ?? null,
+              { manager: context.manager, logSourceActivity: false },
+            );
+          }
+
+          if (Object.prototype.hasOwnProperty.call(entity, '__csv_managed_risks')) {
+            await this.integratedDocs.writeSourceSlotContent(
+              'requests',
+              source,
+              'risks_mitigations',
+              (entity as any).__csv_managed_risks ?? null,
+              context.userId ?? null,
+              { manager: context.manager, logSourceActivity: false },
+            );
+          }
+
+          await this.integratedDocs.syncTitles(
+            'requests',
+            source,
+            context.userId ?? null,
+            { manager: context.manager },
+          );
+
+          delete (entity as any).__csv_managed_purpose;
+          delete (entity as any).__csv_managed_risks;
+        }
+
+        await baseConfig.afterCommit?.(entities, context);
+      },
+    };
+  }
+
+  private async hydrateManagedBodies(
+    requests: PortfolioRequest[],
+    manager: EntityManager,
+    tenantId: string,
+  ): Promise<void> {
+    const requestIds = requests.map((request) => request.id).filter(Boolean);
+    if (requestIds.length === 0) {
+      return;
+    }
+
+    const rows = await manager.query<Array<{
+      source_entity_id: string;
+      slot_key: 'purpose' | 'risks_mitigations';
+      content_markdown: string | null;
+    }>>(
+      `SELECT b.source_entity_id::text AS source_entity_id,
+              b.slot_key,
+              d.content_markdown
+       FROM integrated_document_bindings b
+       JOIN documents d ON d.id = b.document_id AND d.tenant_id = b.tenant_id
+       WHERE b.tenant_id = $1
+         AND b.source_entity_type = 'requests'
+         AND b.source_entity_id = ANY($2::uuid[])
+         AND b.slot_key IN ('purpose', 'risks_mitigations')`,
+      [tenantId, requestIds],
+    );
+
+    const contentByRequestId = new Map<string, { purpose?: string | null; risks?: string | null }>();
+    for (const row of rows) {
+      const bucket = contentByRequestId.get(row.source_entity_id) || {};
+      if (row.slot_key === 'purpose') {
+        bucket.purpose = row.content_markdown ?? '';
+      } else if (row.slot_key === 'risks_mitigations') {
+        bucket.risks = row.content_markdown ?? '';
+      }
+      contentByRequestId.set(row.source_entity_id, bucket);
+    }
+
+    for (const request of requests) {
+      const managed = contentByRequestId.get(request.id);
+      request.purpose = managed?.purpose ?? '';
+      request.risks = managed?.risks ?? '';
+    }
+  }
 
   /**
    * Export portfolio requests to CSV format.
@@ -51,8 +175,11 @@ export class PortfolioRequestsCsvService {
 
     // Get requests (empty for template export)
     const requests = scope === 'template' ? [] : await queryBuilder.getMany();
+    if (scope !== 'template' && requests.length > 0) {
+      await this.hydrateManagedBodies(requests, manager, tenantId);
+    }
 
-    return this.exportSvc.export(portfolioRequestCsvConfig, requests, {
+    return this.exportSvc.export(this.buildCsvConfig(), requests, {
       manager,
       tenantId,
       scope,
@@ -73,7 +200,7 @@ export class PortfolioRequestsCsvService {
       userId?: string | null;
     },
   ): Promise<CsvImportResult> {
-    return this.importSvc.import(portfolioRequestCsvConfig, file, params, opts);
+    return this.importSvc.import(this.buildCsvConfig(), file, params, opts);
   }
 
   /**

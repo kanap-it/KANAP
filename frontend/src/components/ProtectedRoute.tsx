@@ -98,6 +98,9 @@ export default function ProtectedRoute() {
       'team-members': 'portfolio_settings',
       settings: 'portfolio_settings',
     };
+    const knowledgeAliases: Record<string, string> = {
+      settings: 'knowledge',
+    };
 
     if (isSelfContributorRoute) {
       const hasPortfolioReader = (
@@ -127,6 +130,9 @@ export default function ProtectedRoute() {
     } else if (path.startsWith('/portfolio/')) {
       const seg = path.split('/')[2] || null;
       resource = seg ? (portfolioAliases[seg] || seg) : null;
+    } else if (path === '/knowledge' || path.startsWith('/knowledge/')) {
+      const seg = path.split('/')[2] || null;
+      resource = seg ? (knowledgeAliases[seg] || 'knowledge') : 'knowledge';
     } else {
       resource = null; // dashboard and other root pages allowed
     }

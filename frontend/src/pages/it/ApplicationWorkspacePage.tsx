@@ -20,8 +20,10 @@ import VersionTimeline from './components/VersionTimeline';
 import CreateVersionDialog from './components/CreateVersionDialog';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import ContactSelect from '../../components/fields/ContactSelect';
+import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
+import { useAuth } from '../../auth/AuthContext';
 
-type TabKey = 'overview' | 'instances' | 'servers' | 'interfaces' | 'ownership' | 'technical' | 'relations' | 'compliance';
+type TabKey = 'overview' | 'instances' | 'servers' | 'interfaces' | 'ownership' | 'technical' | 'relations' | 'compliance' | 'knowledge';
 type ApplicationRelationsHandle = { save: () => Promise<void>; reset: () => void };
 type ApplicationComplianceHandle = { save: () => Promise<void>; reset: () => void };
 import { COUNTRY_OPTIONS, CountryOption } from '../../constants/isoOptions';
@@ -258,6 +260,7 @@ function OwnersAudienceEditor({ data, update, markDirty }: { data: any; update: 
 }
 
 export default function ApplicationWorkspacePage() {
+  const { hasLevel } = useAuth();
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -295,6 +298,7 @@ export default function ApplicationWorkspacePage() {
   // Suites selection (parent suites)
   const [suites, setSuites] = React.useState<Array<{ id: string; name: string }>>([]);
   const [baselineSuites, setBaselineSuites] = React.useState<Array<{ id: string; name: string }>>([]);
+  const canCreateKnowledge = hasLevel('knowledge', 'member');
   const [suiteOptions, setSuiteOptions] = React.useState<Array<{ id: string; name: string }>>([]);
   // Support contacts
   const [supportContacts, setSupportContacts] = React.useState<SupportContactRow[]>([]);
@@ -758,6 +762,7 @@ export default function ApplicationWorkspacePage() {
           <Tab label="Ownership & Audience" value="ownership" disabled={isCreate} />
           <Tab label="Technical & Support" value="technical" disabled={isCreate} />
           <Tab label="Relations" value="relations" disabled={isCreate} />
+          <Tab label="Knowledge" value="knowledge" disabled={isCreate} />
           <Tab label="Compliance" value="compliance" disabled={isCreate} />
         </Tabs>
 
@@ -1064,6 +1069,9 @@ export default function ApplicationWorkspacePage() {
           )}
           {tab === 'relations' && !isCreate && (
             <ApplicationRelationsPanel ref={relationsRef} id={id} isSuite={!!data?.is_suite} onDirtyChange={(dirty) => dirty && setDirty(true)} />
+          )}
+          {tab === 'knowledge' && !isCreate && (
+            <EntityKnowledgePanel entityType="applications" entityId={id} canCreate={canCreateKnowledge} />
           )}
           {tab === 'compliance' && !isCreate && (
             <ComplianceEditor ref={complianceRef} onDirtyChange={(dirty) => dirty && setDirty(true)} />

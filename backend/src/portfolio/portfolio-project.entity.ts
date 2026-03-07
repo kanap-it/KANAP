@@ -32,8 +32,8 @@ export class PortfolioProject {
   @Column('text')
   name!: string;
 
-  @Column('text', { nullable: true })
-  purpose!: string | null;
+  // Managed via integrated docs after cutover; retained as a transient property for API/CSV inputs.
+  purpose?: string | null;
 
   @Column('uuid', { nullable: true })
   source_id!: string | null;

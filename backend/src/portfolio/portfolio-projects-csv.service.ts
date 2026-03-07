@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { PortfolioProject } from './portfolio-project.entity';
 import {
+  CsvEntityConfig,
   CsvExportService,
   CsvImportService,
   CsvImportParams,
@@ -11,6 +12,7 @@ import {
   CsvFieldInfo,
 } from '../common/csv';
 import { portfolioProjectCsvConfig } from './portfolio-project-csv.config';
+import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 
 /**
  * Service for importing and exporting Portfolio Projects via CSV
@@ -21,7 +23,102 @@ export class PortfolioProjectsCsvService {
     @InjectRepository(PortfolioProject) private readonly projects: Repository<PortfolioProject>,
     private readonly exportSvc: CsvExportService,
     private readonly importSvc: CsvImportService,
+    private readonly integratedDocs: IntegratedDocumentsService,
   ) {}
+
+  private buildCsvConfig(): CsvEntityConfig {
+    const baseConfig = portfolioProjectCsvConfig;
+
+    return {
+      ...baseConfig,
+      beforeCommit: async (entities: any[], context) => {
+        await baseConfig.beforeCommit?.(entities, context);
+
+        for (const entity of entities) {
+          if (Object.prototype.hasOwnProperty.call(entity, 'purpose')) {
+            (entity as any).__csv_managed_purpose = entity.purpose ?? null;
+            delete entity.purpose;
+          }
+        }
+      },
+      afterCommit: async (entities: any[], context) => {
+        for (const entity of entities) {
+          const source = {
+            id: entity.id,
+            tenant_id: entity.tenant_id || context.tenantId,
+            item_number: entity.item_number ?? null,
+            name: entity.name || '',
+          };
+
+          await this.integratedDocs.provisionForProject(
+            source,
+            {
+              purpose: (entity as any).__csv_managed_purpose ?? null,
+            },
+            context.userId ?? null,
+            { manager: context.manager },
+          );
+
+          if (Object.prototype.hasOwnProperty.call(entity, '__csv_managed_purpose')) {
+            await this.integratedDocs.writeSourceSlotContent(
+              'projects',
+              source,
+              'purpose',
+              (entity as any).__csv_managed_purpose ?? null,
+              context.userId ?? null,
+              { manager: context.manager, logSourceActivity: false },
+            );
+          }
+
+          await this.integratedDocs.syncTitles(
+            'projects',
+            source,
+            context.userId ?? null,
+            { manager: context.manager },
+          );
+
+          delete (entity as any).__csv_managed_purpose;
+        }
+
+        await baseConfig.afterCommit?.(entities, context);
+      },
+    };
+  }
+
+  private async hydrateManagedBodies(
+    projects: PortfolioProject[],
+    manager: EntityManager,
+    tenantId: string,
+  ): Promise<void> {
+    const projectIds = projects.map((project) => project.id).filter(Boolean);
+    if (projectIds.length === 0) {
+      return;
+    }
+
+    const rows = await manager.query<Array<{
+      source_entity_id: string;
+      content_markdown: string | null;
+    }>>(
+      `SELECT b.source_entity_id::text AS source_entity_id,
+              d.content_markdown
+       FROM integrated_document_bindings b
+       JOIN documents d ON d.id = b.document_id AND d.tenant_id = b.tenant_id
+       WHERE b.tenant_id = $1
+         AND b.source_entity_type = 'projects'
+         AND b.source_entity_id = ANY($2::uuid[])
+         AND b.slot_key = 'purpose'`,
+      [tenantId, projectIds],
+    );
+
+    const purposeByProjectId = new Map<string, string | null>();
+    for (const row of rows) {
+      purposeByProjectId.set(row.source_entity_id, row.content_markdown ?? '');
+    }
+
+    for (const project of projects) {
+      project.purpose = purposeByProjectId.get(project.id) ?? '';
+    }
+  }
 
   /**
    * Export portfolio projects to CSV format.
@@ -51,8 +148,11 @@ export class PortfolioProjectsCsvService {
 
     // Get projects (empty for template export)
     const projects = scope === 'template' ? [] : await queryBuilder.getMany();
+    if (scope !== 'template' && projects.length > 0) {
+      await this.hydrateManagedBodies(projects, manager, tenantId);
+    }
 
-    return this.exportSvc.export(portfolioProjectCsvConfig, projects, {
+    return this.exportSvc.export(this.buildCsvConfig(), projects, {
       manager,
       tenantId,
       scope,
@@ -73,7 +173,7 @@ export class PortfolioProjectsCsvService {
       userId?: string | null;
     },
   ): Promise<CsvImportResult> {
-    return this.importSvc.import(portfolioProjectCsvConfig, file, params, opts);
+    return this.importSvc.import(this.buildCsvConfig(), file, params, opts);
   }
 
   /**

@@ -93,6 +93,8 @@ import PortfolioContributorWorkspacePage from './pages/portfolio/ContributorWork
 import { WorkspaceDashboardPage } from './pages/workspace';
 import SettingsPage from './pages/settings/SettingsPage';
 import AdminBrandingPage from './pages/admin/AdminBrandingPage';
+import KnowledgePage from './pages/knowledge/KnowledgePage';
+import KnowledgeWorkspacePage from './pages/knowledge/KnowledgeWorkspacePage';
 
 function HomeRoute() {
   const { isPlatformHost } = useTenant();
@@ -263,6 +265,13 @@ function AppRoutes() {
           <Route path="/portfolio/tasks" element={<TasksPage />} />
           <Route path="/portfolio/tasks/:id" element={<TaskWorkspacePage />} />
           <Route path="/portfolio/tasks/:id/:tab" element={<TaskWorkspacePage />} />
+          {/* Knowledge Center */}
+          <Route path="/knowledge" element={<KnowledgePage />} />
+          <Route path="/knowledge/new" element={<KnowledgeWorkspacePage />} />
+          <Route path="/knowledge/new/:tab" element={<KnowledgeWorkspacePage />} />
+          <Route path="/knowledge/settings/types" element={<Navigate to="/knowledge" replace />} />
+          <Route path="/knowledge/:id" element={<KnowledgeWorkspacePage />} />
+          <Route path="/knowledge/:id/:tab" element={<KnowledgeWorkspacePage />} />
           {/* Legacy My Workspace routes - redirect */}
           <Route path="/my" element={<Navigate to="/" replace />} />
           <Route path="/my/dashboard" element={<Navigate to="/" replace />} />

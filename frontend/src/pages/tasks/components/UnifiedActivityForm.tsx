@@ -3,7 +3,7 @@ import { Alert, Box, Button, Slider, Stack, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../../../api';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
-import { contentToPlainText } from '../../../utils/contentToPlainText';
+import { hasRenderableContent } from '../../../utils/contentToPlainText';
 import { TASK_STATUS_LABELS, TASK_STATUS_OPTIONS } from '../task.constants';
 import type { TaskStatus } from '../task.constants';
 
@@ -65,8 +65,7 @@ export default function UnifiedActivityForm({
     initialAppliedRef.current = initialStatus;
   }, [initialStatus, currentStatus]);
 
-  const plainComment = contentToPlainText(comment);
-  const hasComment = plainComment.length > 0;
+  const hasComment = hasRenderableContent(comment);
   const hasStatusChange = !!status && status !== currentStatus;
   const hasTime = supportsTimeLogging && timeHours > 0;
   const hasAnyAction = hasComment || hasStatusChange || hasTime;

@@ -2,15 +2,180 @@
   Simple entrypoint for QA/Prod:
   - Waits for DB
   - Runs TypeORM migrations programmatically using compiled DataSource
+  - Optionally runs integrated-doc repair + verification
   - Starts the NestJS server
 
   Env toggles:
   - SKIP_MIGRATIONS=true to skip running migrations at boot
+  - INTEGRATED_DOCS_AUTO_ROLLOUT=if-needed|always|off to control boot-time integrated-doc repair
 */
 
 const path = require('path');
+const { spawn } = require('child_process');
 
 async function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+const INTEGRATED_DOCS_ROLLOUT_LOCK_KEY = 'kanap:integrated-docs:auto-rollout';
+
+function readIntegratedDocsRolloutMode() {
+  const raw = String(process.env.INTEGRATED_DOCS_AUTO_ROLLOUT || '').trim().toLowerCase();
+  if (!raw || raw === '0' || raw === 'false' || raw === 'off' || raw === 'no') {
+    return 'off';
+  }
+  if (raw === 'always') {
+    return 'always';
+  }
+  return 'if-needed';
+}
+
+function npmBinary() {
+  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+}
+
+async function runChildCommand(label, args) {
+  console.log(`[entrypoint] ${label}...`);
+  await new Promise((resolve, reject) => {
+    const child = spawn(npmBinary(), args, {
+      cwd: path.resolve(__dirname, '..'),
+      env: process.env,
+      stdio: 'inherit',
+    });
+    child.on('error', reject);
+    child.on('exit', (code, signal) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      if (signal) {
+        reject(new Error(`${label} terminated by signal ${signal}`));
+        return;
+      }
+      reject(new Error(`${label} failed with exit code ${code}`));
+    });
+  });
+}
+
+async function listActiveTenants(runner) {
+  return runner.query(`
+    SELECT id::text AS id,
+           COALESCE(slug, '')::text AS slug
+    FROM tenants
+    WHERE deleted_at IS NULL
+      AND status = 'active'
+    ORDER BY slug, id
+  `);
+}
+
+async function integratedDocsTablesPresent(runner) {
+  const rows = await runner.query(`
+    SELECT to_regclass('public.integrated_document_bindings')::text AS bindings_table,
+           to_regclass('public.integrated_document_slot_settings')::text AS settings_table
+  `);
+  return !!rows[0]?.bindings_table && !!rows[0]?.settings_table;
+}
+
+async function tenantNeedsIntegratedDocsRollout(runner, tenantId) {
+  await runner.query(`SELECT set_config('app.current_tenant', $1, false)`, [tenantId]);
+  const rows = await runner.query(`
+    SELECT
+      (SELECT COUNT(*)::int FROM portfolio_requests WHERE tenant_id = app_current_tenant()) AS request_count,
+      (SELECT COUNT(*)::int FROM portfolio_projects WHERE tenant_id = app_current_tenant()) AS project_count,
+      (
+        SELECT COUNT(*)::int
+        FROM integrated_document_bindings
+        WHERE tenant_id = app_current_tenant()
+          AND source_entity_type = 'requests'
+          AND slot_key = 'purpose'
+      ) AS request_purpose_binding_count,
+      (
+        SELECT COUNT(*)::int
+        FROM integrated_document_bindings
+        WHERE tenant_id = app_current_tenant()
+          AND source_entity_type = 'requests'
+          AND slot_key = 'risks_mitigations'
+      ) AS request_risks_binding_count,
+      (
+        SELECT COUNT(*)::int
+        FROM integrated_document_bindings
+        WHERE tenant_id = app_current_tenant()
+          AND source_entity_type = 'projects'
+          AND slot_key = 'purpose'
+      ) AS project_purpose_binding_count
+  `);
+  const counts = rows[0] || {};
+  return (
+    Number(counts.request_count || 0) !== Number(counts.request_purpose_binding_count || 0)
+    || Number(counts.request_count || 0) !== Number(counts.request_risks_binding_count || 0)
+    || Number(counts.project_count || 0) !== Number(counts.project_purpose_binding_count || 0)
+  );
+}
+
+async function detectIntegratedDocsRolloutNeed(ds) {
+  const runner = ds.createQueryRunner();
+  await runner.connect();
+  try {
+    if (!await integratedDocsTablesPresent(runner)) {
+      console.log('[entrypoint] Integrated-doc tables not present yet. Skipping auto rollout.');
+      return false;
+    }
+
+    const tenants = await listActiveTenants(runner);
+    if (!tenants.length) {
+      console.log('[entrypoint] No active tenants found for integrated-doc auto rollout.');
+      return false;
+    }
+
+    for (const tenant of tenants) {
+      if (await tenantNeedsIntegratedDocsRollout(runner, tenant.id)) {
+        console.log(`[entrypoint] Integrated-doc rollout needed for tenant ${tenant.slug || tenant.id}.`);
+        return true;
+      }
+    }
+
+    console.log('[entrypoint] Integrated-doc bindings already match request/project counts. Skipping auto rollout.');
+    return false;
+  } finally {
+    await runner.release();
+  }
+}
+
+async function runIntegratedDocsRolloutIfNeeded() {
+  const rolloutMode = readIntegratedDocsRolloutMode();
+  if (rolloutMode === 'off') {
+    return;
+  }
+
+  const dsPath = path.resolve(__dirname, '../dist/data-source.js');
+  const ds = require(dsPath).default;
+  await ds.initialize();
+
+  const lockRunner = ds.createQueryRunner();
+  await lockRunner.connect();
+
+  try {
+    console.log('[entrypoint] Waiting for integrated-doc auto-rollout lock...');
+    await lockRunner.query(`SELECT pg_advisory_lock(hashtext($1))`, [INTEGRATED_DOCS_ROLLOUT_LOCK_KEY]);
+
+    const shouldRun = rolloutMode === 'always'
+      ? true
+      : await detectIntegratedDocsRolloutNeed(ds);
+
+    if (!shouldRun) {
+      return;
+    }
+
+    await runChildCommand('Running integrated-doc repair', ['run', 'integrated-docs:backfill']);
+    await runChildCommand('Verifying integrated-doc repair', ['run', 'integrated-docs:verify']);
+  } finally {
+    try {
+      await lockRunner.query(`SELECT pg_advisory_unlock(hashtext($1))`, [INTEGRATED_DOCS_ROLLOUT_LOCK_KEY]);
+    } catch (error) {
+      console.warn('[entrypoint] Failed to release integrated-doc auto-rollout lock:', error?.message || error);
+    }
+    await lockRunner.release();
+    await ds.destroy();
+  }
+}
 
 async function runMigrationsIfNeeded() {
   if ((process.env.SKIP_MIGRATIONS || '').toLowerCase() === 'true') {
@@ -53,6 +218,7 @@ async function runMigrationsIfNeeded() {
 
 (async () => {
   await runMigrationsIfNeeded();
+  await runIntegratedDocsRolloutIfNeeded();
   // Start the API (compiled output)
   // Using require keeps PID 1 as node for proper signal handling in containers
   require(path.resolve(__dirname, '../dist/main.js'));

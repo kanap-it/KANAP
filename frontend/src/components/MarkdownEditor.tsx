@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, GlobalStyles } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
+  AdmonitionDirectiveDescriptor,
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
   ChangeCodeMirrorLanguage,
@@ -10,10 +11,17 @@ import {
   CodeToggle,
   ConditionalContents,
   CreateLink,
+  diffSourcePlugin,
+  DiffSourceToggleWrapper,
+  directivesPlugin,
+  frontmatterPlugin,
   headingsPlugin,
+  HighlightToggle,
   imagePlugin,
+  InsertAdmonition,
   InsertCodeBlock,
   InsertImage,
+  InsertTable,
   InsertThematicBreak,
   linkDialogPlugin,
   linkPlugin,
@@ -25,6 +33,7 @@ import {
   quotePlugin,
   Separator,
   StrikeThroughSupSubToggles,
+  tablePlugin,
   thematicBreakPlugin,
   toolbarPlugin,
   UndoRedo,
@@ -37,6 +46,7 @@ interface MarkdownEditorProps {
   placeholder?: string;
   minRows?: number;
   maxRows?: number;
+  fillHeight?: boolean;
   disabled?: boolean;
   focusNonce?: number;
   onImageUpload?: (file: File) => Promise<string>;
@@ -48,6 +58,7 @@ export default function MarkdownEditor({
   placeholder = 'Start typing...',
   minRows = 10,
   maxRows = 18,
+  fillHeight = false,
   disabled = false,
   focusNonce,
   onImageUpload,
@@ -58,6 +69,8 @@ export default function MarkdownEditor({
   const maxHeight = maxRows * 24;
   const mdxRef = React.useRef<MDXEditorMethods>(null);
   const internalChangeRef = React.useRef(false);
+  const imageUploadHandlerRef = React.useRef<MarkdownEditorProps['onImageUpload']>(onImageUpload);
+  imageUploadHandlerRef.current = onImageUpload;
   const mdxRootClassName = React.useMemo(
     () => `kanap-mdx-root ${isDarkMode ? 'dark-theme' : 'light-theme'}`,
     [isDarkMode],
@@ -93,23 +106,6 @@ export default function MarkdownEditor({
       ),
     [mdxThemeVariables],
   );
-
-  const fallbackImageUpload = React.useCallback(async (file: File): Promise<string> => {
-    if (onImageUpload) return onImageUpload(file);
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const value = String(event.target?.result || '');
-        if (!value) {
-          reject(new Error('Failed to read image'));
-          return;
-        }
-        resolve(value);
-      };
-      reader.onerror = () => reject(reader.error || new Error('Failed to read image'));
-      reader.readAsDataURL(file);
-    });
-  }, [onImageUpload]);
 
   const [initialMarkdown] = React.useState(() => value || '');
 
@@ -227,6 +223,11 @@ export default function MarkdownEditor({
       />
       <Box
         sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: fillHeight ? '100%' : 'auto',
+          minHeight: 0,
+          overflow: 'hidden',
           border: 1,
           borderColor: disabled ? 'action.disabled' : 'divider',
           borderRadius: 1,
@@ -242,17 +243,41 @@ export default function MarkdownEditor({
             flexWrap: 'wrap',
             alignItems: 'center',
             gap: 0.5,
+            flexShrink: 0,
+            top: 0,
+            zIndex: 1,
+            bgcolor: 'background.paper',
+          },
+          '& .kanap-mdx-root': {
+            display: 'flex',
+            flexDirection: 'column',
+            height: fillHeight ? '100%' : 'auto',
+            minHeight: 0,
+          },
+          '& .kanap-mdx-root .mdxeditor-root-contenteditable': {
+            ...(fillHeight ? { display: 'flex', flex: 1, minHeight: 0, height: '100%' } : {}),
+          },
+          '& .kanap-mdx-root .mdxeditor-root-contenteditable > div': {
+            ...(fillHeight
+              ? { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }
+              : {}),
           },
           '& .kanap-mdx-content': {
             p: 1.5,
-            minHeight: minHeight - 24,
-            maxHeight: maxHeight - 24,
-            overflow: 'auto',
+            minHeight: fillHeight ? 0 : (minHeight - 24),
+            maxHeight: fillHeight ? '100%' : (maxHeight - 24),
+            ...(fillHeight ? { flex: 1, height: '100%' } : {}),
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            overscrollBehavior: 'contain',
             outline: 'none',
             '& p': { my: 0.5 },
             '& h1': { fontSize: '1.5rem', fontWeight: 600, mt: 2, mb: 1 },
             '& h2': { fontSize: '1.25rem', fontWeight: 600, mt: 1.5, mb: 0.75 },
             '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 1, mb: 0.5 },
+            '& h4': { fontSize: '1rem', fontWeight: 600, mt: 1, mb: 0.5 },
+            '& h5': { fontSize: '0.95rem', fontWeight: 600, mt: 0.75, mb: 0.4 },
+            '& h6': { fontSize: '0.9rem', fontWeight: 600, mt: 0.75, mb: 0.4 },
             '& ul, & ol': { pl: 3, my: 0.5 },
             '& li': { my: 0.25 },
             '& ul.contains-task-list': {
@@ -308,50 +333,67 @@ export default function MarkdownEditor({
           contentEditableClassName="kanap-mdx-content"
           onChange={handleChange}
           plugins={[
-            headingsPlugin({ allowedHeadingLevels: [1, 2, 3] }),
+            headingsPlugin({ allowedHeadingLevels: [1, 2, 3, 4, 5, 6] }),
             listsPlugin(),
             quotePlugin(),
             linkPlugin(),
             linkDialogPlugin(),
-            imagePlugin({ imageUploadHandler: fallbackImageUpload }),
+            imagePlugin({
+              imageUploadHandler: async (file: File) => {
+                const handler = imageUploadHandlerRef.current;
+                if (!handler) {
+                  throw new Error('Image upload is unavailable in this editor state');
+                }
+                return handler(file);
+              },
+            }),
             thematicBreakPlugin(),
+            tablePlugin(),
+            frontmatterPlugin(),
+            directivesPlugin({ directiveDescriptors: [AdmonitionDirectiveDescriptor] }),
             codeBlockPlugin({ defaultCodeBlockLanguage: 'txt' }),
             codeMirrorPlugin({ codeBlockLanguages }),
+            diffSourcePlugin({ viewMode: 'rich-text' }),
             markdownShortcutPlugin(),
             toolbarPlugin({
               toolbarClassName: 'kanap-mdx-toolbar',
               toolbarContents: () => (
-                <ConditionalContents
-                  options={[
-                    {
-                      when: (editor) => editor?.editorType === 'codeblock',
-                      contents: () => (
-                        <>
-                          <ChangeCodeMirrorLanguage />
-                        </>
-                      ),
-                    },
-                    {
-                      fallback: () => (
-                        <>
-                          <UndoRedo />
-                          <Separator />
-                          <BlockTypeSelect />
-                          <BoldItalicUnderlineToggles options={['Bold', 'Italic']} />
-                          <StrikeThroughSupSubToggles options={['Strikethrough']} />
-                          <CodeToggle />
-                          <Separator />
-                          <ListsToggle options={['bullet', 'number', 'check']} />
-                          <Separator />
-                          <CreateLink />
-                          <InsertImage />
-                          <InsertCodeBlock />
-                          <InsertThematicBreak />
-                        </>
-                      ),
-                    },
-                  ]}
-                />
+                <DiffSourceToggleWrapper options={['rich-text', 'source']}>
+                  <ConditionalContents
+                    options={[
+                      {
+                        when: (editor) => editor?.editorType === 'codeblock',
+                        contents: () => (
+                          <>
+                            <ChangeCodeMirrorLanguage />
+                          </>
+                        ),
+                      },
+                      {
+                        fallback: () => (
+                          <>
+                            <UndoRedo />
+                            <Separator />
+                            <BlockTypeSelect />
+                            <BoldItalicUnderlineToggles options={['Bold', 'Italic']} />
+                            <StrikeThroughSupSubToggles options={['Strikethrough', 'Sub', 'Sup']} />
+                            <HighlightToggle />
+                            <CodeToggle />
+                            <Separator />
+                            <ListsToggle options={['bullet', 'number', 'check']} />
+                            <Separator />
+                            <CreateLink />
+                            {onImageUpload ? <InsertImage /> : null}
+                            <InsertTable />
+                            <InsertCodeBlock />
+                            <InsertAdmonition />
+                            <InsertThematicBreak />
+                          </>
+                        ),
+                      },
+                    ]}
+                  />
+                </DiffSourceToggleWrapper>
               ),
             }),
           ]}

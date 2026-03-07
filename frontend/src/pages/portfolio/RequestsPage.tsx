@@ -33,6 +33,7 @@ type RequestRow = {
   target_delivery_date: string | null;
   item_number: number;
   created_at: string;
+  updated_at: string;
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info' }> = {
@@ -110,6 +111,27 @@ export default function RequestsPage() {
   });
   const hasTeam = !!myTeamConfig?.team_id;
 
+  const requestScopeRef = useRef(requestScope);
+  const profileIdRef = useRef<string | null>(profile?.id ?? null);
+  const hasTeamRef = useRef(hasTeam);
+  const teamIdRef = useRef<string | null>(myTeamConfig?.team_id ?? null);
+
+  React.useEffect(() => {
+    requestScopeRef.current = requestScope;
+  }, [requestScope]);
+
+  React.useEffect(() => {
+    profileIdRef.current = profile?.id ?? null;
+  }, [profile?.id]);
+
+  React.useEffect(() => {
+    hasTeamRef.current = hasTeam;
+  }, [hasTeam]);
+
+  React.useEffect(() => {
+    teamIdRef.current = myTeamConfig?.team_id ?? null;
+  }, [myTeamConfig?.team_id]);
+
   React.useEffect(() => {
     if (requestScope === 'team' && isTeamConfigFetched && !hasTeam) {
       setRequestScope('my');
@@ -148,15 +170,19 @@ export default function RequestsPage() {
     if (sort) sp.set('sort', sort);
     if (q) sp.set('q', q);
     if (filters && Object.keys(filters).length > 0) sp.set('filters', JSON.stringify(filters));
-    sp.set('requestScope', requestScope);
-    if (requestScope === 'my' && profile?.id) {
-      sp.set('involvedUserId', profile.id);
-    } else if (requestScope === 'team' && hasTeam && myTeamConfig?.team_id) {
-      sp.set('involvedTeamId', myTeamConfig.team_id);
-      if (profile?.id) sp.set('involvedUserId', profile.id);
+    const scope = requestScopeRef.current;
+    const profileId = profileIdRef.current;
+    const hasTeamNow = hasTeamRef.current;
+    const teamId = teamIdRef.current;
+    sp.set('requestScope', scope);
+    if (scope === 'my' && profileId) {
+      sp.set('involvedUserId', profileId);
+    } else if (scope === 'team' && hasTeamNow && teamId) {
+      sp.set('involvedTeamId', teamId);
+      if (profileId) sp.set('involvedUserId', profileId);
     }
     return sp;
-  }, [requestScope, profile?.id, hasTeam, myTeamConfig?.team_id]);
+  }, []);
 
   const requestScopeToolbar = (
     <Stack direction="row" spacing={0.5} alignItems="center">
@@ -183,7 +209,7 @@ export default function RequestsPage() {
     </Stack>
   );
 
-  const ClickableCell: React.FC<ICellRendererParams<RequestRow, any>> = (params) => (
+  const clickableCellRenderer = useCallback((params: ICellRendererParams<RequestRow, any>) => (
     <Box
       component="span"
       sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
@@ -196,7 +222,7 @@ export default function RequestsPage() {
     >
       {params.valueFormatted ?? params.value ?? ''}
     </Box>
-  );
+  ), [buildWorkspaceSearch, navigate]);
 
   const getRequestFilterValues = useCallback((
     field: string,
@@ -246,7 +272,7 @@ export default function RequestsPage() {
       headerName: '#',
       width: 90,
       filter: 'agTextColumnFilter',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
       valueFormatter: (p: any) => p.value ? `REQ-${p.value}` : '',
       comparator: (a: number, b: number) => (a || 0) - (b || 0),
     },
@@ -256,7 +282,7 @@ export default function RequestsPage() {
       flex: 1.5,
       minWidth: 220,
       filter: 'agTextColumnFilter',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'priority_score',
@@ -264,7 +290,7 @@ export default function RequestsPage() {
       width: 100,
       filter: 'agNumberColumnFilter',
       valueFormatter: (params: any) => (params.value != null ? String(Math.round(params.value)) : ''),
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'status',
@@ -289,7 +315,7 @@ export default function RequestsPage() {
         getValues: getRequestFilterValues('source_name'),
         searchable: false,
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'category_name',
@@ -301,7 +327,7 @@ export default function RequestsPage() {
         getValues: getRequestFilterValues('category_name'),
         searchable: false,
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'stream_name',
@@ -313,7 +339,7 @@ export default function RequestsPage() {
         getValues: getRequestFilterValues('stream_name'),
         searchable: false,
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       colId: 'company_name',
@@ -326,7 +352,7 @@ export default function RequestsPage() {
         searchable: false,
       },
       valueGetter: (params: any) => params.data?.company?.name || '',
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       colId: 'requestor_name',
@@ -344,7 +370,7 @@ export default function RequestsPage() {
         if (r.first_name || r.last_name) return `${r.first_name || ''} ${r.last_name || ''}`.trim();
         return r.email || '';
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'target_delivery_date',
@@ -352,7 +378,7 @@ export default function RequestsPage() {
       width: 130,
       filter: 'agDateColumnFilter',
       valueFormatter: (params: any) => formatDate(params.value),
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
     {
       field: 'created_at',
@@ -360,9 +386,18 @@ export default function RequestsPage() {
       width: 130,
       filter: 'agDateColumnFilter',
       valueFormatter: (params: any) => formatDate(params.value),
-      cellRenderer: ClickableCell,
+      cellRenderer: clickableCellRenderer,
     },
-  ], [ClickableCell, getRequestFilterValues]);
+    {
+      field: 'updated_at',
+      headerName: 'Last changed',
+      width: 140,
+      filter: 'agDateColumnFilter',
+      valueFormatter: (params: any) => formatDate(params.value),
+      cellRenderer: clickableCellRenderer,
+      hide: true,
+    },
+  ], [clickableCellRenderer, getRequestFilterValues]);
 
   const extraParams = useMemo(() => {
     const params: Record<string, any> = {

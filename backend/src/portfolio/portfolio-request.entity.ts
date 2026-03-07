@@ -56,8 +56,8 @@ export class PortfolioRequest {
   @Column('text')
   name!: string;
 
-  @Column('text', { nullable: true })
-  purpose!: string | null;
+  // Managed via integrated docs after cutover; retained as a transient property for API/CSV inputs.
+  purpose?: string | null;
 
   @Column('uuid', { nullable: true })
   requestor_id!: string | null;
@@ -112,8 +112,8 @@ export class PortfolioRequest {
   @Column('text', { nullable: true })
   expected_benefits!: string | null;
 
-  @Column('text', { nullable: true })
-  risks!: string | null;
+  // Managed via integrated docs after cutover; retained as a transient property for API/CSV inputs.
+  risks?: string | null;
 
   @Column('jsonb', { default: () => "'{}'::jsonb" })
   feasibility_review!: FeasibilityReview;

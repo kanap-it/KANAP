@@ -4,6 +4,8 @@ services:
       context: ../backend
       dockerfile: Dockerfile
     env_file: ../backend/.env.qa
+    environment:
+      INTEGRATED_DOCS_AUTO_ROLLOUT: ${INTEGRATED_DOCS_AUTO_ROLLOUT:-if-needed}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

@@ -22,6 +22,7 @@ import { ItOpsSettingsModule } from '../it-ops-settings/it-ops-settings.module';
 import { StorageModule } from '../common/storage/storage.module';
 import { CsvModule } from '../common/csv';
 import { PortfolioProject } from '../portfolio/portfolio-project.entity';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
 
 // Decomposed services
 import {
@@ -58,6 +59,7 @@ import {
     ItOpsSettingsModule,
     StorageModule,
     CsvModule,
+    KnowledgeModule,
   ],
   providers: [
     // Validation service (no dependencies on other asset services)

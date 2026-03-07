@@ -106,6 +106,8 @@ const portfolioNav: NavEntry[] = [
   { to: '/portfolio/settings', label: 'Settings', icon: <SettingsIcon />, resource: 'portfolio_settings' },
 ];
 
+const knowledgeNav: NavEntry[] = [];
+
 const tenantAdminNav: NavEntry[] = [
   { to: '/admin/users', label: 'Users', icon: <PeopleIcon />, resource: 'users' },
   { to: '/admin/roles', label: 'Roles', icon: <SecurityIcon />, resource: 'users' },
@@ -134,6 +136,7 @@ const getWorkspaceResources = (ws: string): string[] => {
     case 'master-data': return getNavResources(masterData);
     case 'it': return getNavResources(itOperations);
     case 'portfolio': return getNavResources(portfolioNav);
+    case 'knowledge': return ['knowledge'];
     case 'admin': return getNavResources(tenantAdminNav);
     default: return [];
   }
@@ -161,18 +164,19 @@ export default function Layout() {
   // Determine which workspaces are visible
   const visibleWorkspaces = React.useMemo(() => {
     if (isPlatformHost) return ['admin'];
-    const all = ['portfolio', 'it', 'ops', 'master-data', 'admin'] as const;
+    const all = ['portfolio', 'knowledge', 'it', 'ops', 'master-data', 'admin'] as const;
     return all.filter(ws => hasWorkspaceAccess(ws));
   }, [isPlatformHost, hasWorkspaceAccess]);
 
   // Derive active workspace from the current route to keep the top bar highlight in sync
-  const workspace: 'ops' | 'it' | 'master-data' | 'portfolio' | 'admin' | 'home' = React.useMemo(() => {
+  const workspace: 'ops' | 'it' | 'master-data' | 'portfolio' | 'knowledge' | 'admin' | 'home' = React.useMemo(() => {
     if (isPlatformHost) return 'admin';
     const p = location.pathname;
     if (p === '/') return 'home';
     if (p.startsWith('/admin')) return 'admin';
     if (p.startsWith('/master-data')) return 'master-data';
     if (p.startsWith('/portfolio')) return 'portfolio';
+    if (p.startsWith('/knowledge')) return 'knowledge';
     if (p.startsWith('/it')) return 'it';
     if (p.startsWith('/settings')) return 'home';
     return 'ops';
@@ -243,7 +247,19 @@ export default function Layout() {
             <Tabs
               value={workspace === 'home' ? false : (visibleWorkspaces.includes(workspace) ? workspace : visibleWorkspaces[0])}
               onChange={(_, val) => {
-                navigate(val === 'ops' ? '/ops' : val === 'it' ? '/it' : val === 'master-data' ? '/master-data' : val === 'portfolio' ? '/portfolio' : '/admin');
+                navigate(
+                  val === 'ops'
+                    ? '/ops'
+                    : val === 'it'
+                      ? '/it'
+                      : val === 'master-data'
+                        ? '/master-data'
+                        : val === 'portfolio'
+                          ? '/portfolio'
+                          : val === 'knowledge'
+                            ? '/knowledge'
+                            : '/admin'
+                );
               }}
               sx={{
                 flex: 1,
@@ -265,6 +281,7 @@ export default function Layout() {
             >
               {visibleWorkspaces.includes('portfolio') && <Tab value="portfolio" label="Portfolio" />}
               {visibleWorkspaces.includes('it') && <Tab value="it" label="IT Operations" />}
+              {visibleWorkspaces.includes('knowledge') && <Tab value="knowledge" label="Knowledge" />}
               {visibleWorkspaces.includes('ops') && <Tab value="ops" label="Budget Management" />}
               {visibleWorkspaces.includes('master-data') && <Tab value="master-data" label="Master Data" />}
               {visibleWorkspaces.includes('admin') && <Tab value="admin" label="Admin" />}
@@ -316,7 +333,7 @@ export default function Layout() {
         </Toolbar>
       </AppBar>
 
-      {workspace !== 'home' && <Drawer
+      {workspace !== 'home' && workspace !== 'knowledge' && <Drawer
         variant="permanent"
         sx={{
           width: (theme) => (navOpen ? drawerWidth : `calc(${theme.spacing(7)} + 1px)`),
@@ -353,6 +370,7 @@ export default function Layout() {
                 'master-data': masterData,
                 it: itOperations,
                 portfolio: portfolioNav,
+                knowledge: knowledgeNav,
               };
               entries = navMap[workspace] || [];
             }

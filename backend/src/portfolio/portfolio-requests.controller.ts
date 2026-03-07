@@ -17,6 +17,8 @@ import { contentDisposition } from '../common/content-disposition';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
+import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 
 const RANK: Record<PermissionLevel, number> = {
   reader: 1,
@@ -34,6 +36,8 @@ export class PortfolioRequestsController {
     private readonly projectsSvc: PortfolioProjectsService,
     private readonly storage: StorageService,
     private readonly permissionsSvc: PermissionsService,
+    private readonly knowledge: KnowledgeService,
+    private readonly integratedDocuments: IntegratedDocumentsService,
   ) {}
 
   private resolve(idOrRef: string, req: any): Promise<string> {
@@ -237,6 +241,160 @@ export class PortfolioRequestsController {
   async get(@Param('id') idOrRef: string, @Query() query: any, @Req() req: any) {
     const id = await this.resolve(idOrRef, req);
     return this.svc.get(id, query, { manager: req?.queryRunner?.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'reader')
+  @Get(':id/knowledge')
+  async listDocuments(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
+    return this.knowledge.listDocumentsForEntity('requests', id, {
+      manager: req?.queryRunner?.manager,
+      userId: req?.user?.sub ?? null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'reader')
+  @Get(':id/integrated-documents/:slotKey')
+  async getIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.integratedDocuments.getBySource('requests', id, slotKey, req?.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Post(':id/integrated-documents/:slotKey/locks')
+  async acquireIntegratedDocumentLock(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.integratedDocuments.acquireLockBySource('requests', id, slotKey, req?.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Post(':id/integrated-documents/:slotKey/locks/heartbeat')
+  async heartbeatIntegratedDocumentLock(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.integratedDocuments.heartbeatLockBySource(
+      'requests',
+      id,
+      slotKey,
+      req?.user?.sub ?? null,
+      req?.headers?.['x-lock-token'],
+      { manager: req?.queryRunner?.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Delete(':id/integrated-documents/:slotKey/locks')
+  async releaseIntegratedDocumentLock(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.integratedDocuments.releaseLockBySource(
+      'requests',
+      id,
+      slotKey,
+      req?.user?.sub ?? null,
+      req?.headers?.['x-lock-token'],
+      { manager: req?.queryRunner?.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Patch(':id/integrated-documents/:slotKey')
+  async updateIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.integratedDocuments.updateBySource(
+      'requests',
+      id,
+      slotKey,
+      body,
+      req?.user?.sub ?? null,
+      req?.headers?.['x-lock-token'],
+      { manager: req?.queryRunner?.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Post(':id/integrated-documents/:slotKey/attachments/inline')
+  @UseInterceptors(FileInterceptor('file', inlineImageMulterOptions))
+  async uploadIntegratedDocumentInlineAttachment(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.integratedDocuments.uploadInlineAttachmentBySource(
+      'requests',
+      id,
+      slotKey,
+      file,
+      req?.user?.sub ?? null,
+      { manager: req?.queryRunner?.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'reader')
+  @Get(':id/integrated-documents/:slotKey/versions')
+  async listIntegratedDocumentVersions(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.integratedDocuments.listVersionsBySource('requests', id, slotKey, req?.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Post(':id/integrated-documents/:slotKey/revert/:versionNumber')
+  async revertIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Param('versionNumber') versionNumber: string,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.integratedDocuments.revertBySource(
+      'requests',
+      id,
+      slotKey,
+      Number(versionNumber),
+      req?.user?.sub ?? null,
+      req?.headers?.['x-lock-token'],
+      { manager: req?.queryRunner?.manager },
+    );
   }
 
   @UseGuards(PermissionGuard)

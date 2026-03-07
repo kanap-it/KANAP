@@ -58,6 +58,18 @@ const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' |
   optional: 'success',
 };
 
+const PROJECT_WORKSPACE_TABS = new Set([
+  'overview',
+  'activity',
+  'team',
+  'timeline',
+  'effort',
+  'tasks',
+  'scoring',
+  'relations',
+  'knowledge',
+]);
+
 interface TaskData {
   id: string;
   item_number: number | null;
@@ -122,7 +134,34 @@ export default function TaskWorkspacePage() {
   const canDelete = hasLevel('tasks', 'admin');
   const canCreateRequest = hasLevel('portfolio_requests', 'member');
   const originProjectId = cleanedSearchParams.get('projectId');
-  const projectTasksPath = originProjectId ? `/portfolio/projects/${originProjectId}/tasks` : null;
+  const originProjectTab = React.useMemo(() => {
+    const tab = (cleanedSearchParams.get('projectTab') || '').trim();
+    if (!tab || !PROJECT_WORKSPACE_TABS.has(tab)) return 'tasks';
+    return tab;
+  }, [cleanedSearchParams]);
+  const projectListContextParams = React.useMemo(() => {
+    const sp = new URLSearchParams();
+    const projectSort = cleanedSearchParams.get('projectSort');
+    const projectQ = cleanedSearchParams.get('projectQ');
+    const projectFilters = cleanedSearchParams.get('projectFilters');
+    const projectScope = cleanedSearchParams.get('projectScope');
+    const projectInvolvedUserId = cleanedSearchParams.get('projectInvolvedUserId');
+    const projectInvolvedTeamId = cleanedSearchParams.get('projectInvolvedTeamId');
+    if (projectSort) sp.set('sort', projectSort);
+    if (projectQ) sp.set('q', projectQ);
+    if (projectFilters) sp.set('filters', projectFilters);
+    if (projectScope) sp.set('projectScope', projectScope);
+    if (projectInvolvedUserId) sp.set('involvedUserId', projectInvolvedUserId);
+    if (projectInvolvedTeamId) sp.set('involvedTeamId', projectInvolvedTeamId);
+    return sp;
+  }, [cleanedSearchParams]);
+  const buildProjectWorkspacePath = React.useCallback((projectId: string, tab?: string) => {
+    const requestedTab = (tab || '').trim();
+    const effectiveTab = requestedTab && PROJECT_WORKSPACE_TABS.has(requestedTab) ? requestedTab : originProjectTab;
+    const qs = projectListContextParams.toString();
+    return `/portfolio/projects/${projectId}/${effectiveTab}${qs ? `?${qs}` : ''}`;
+  }, [originProjectTab, projectListContextParams]);
+  const originProjectPath = originProjectId ? buildProjectWorkspacePath(originProjectId) : null;
   const validTaskStatuses = React.useMemo(
     () => new Set<TaskStatus>(TASK_STATUS_OPTIONS.map((option) => option.value)),
     [],
@@ -303,6 +342,7 @@ export default function TaskWorkspacePage() {
   const handleUploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('source_field', 'description');
     const res = await api.post<{ id: string }>(`/tasks/${id}/attachments`, formData);
     refetchAttachments();
     const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
@@ -343,6 +383,7 @@ export default function TaskWorkspacePage() {
         const file = base64ToFile(base64Src, `image-${Date.now()}-${i + 1}.png`);
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('source_field', 'description');
         const res = await api.post<{ id: string }>(`/tasks/${taskId}/attachments`, formData);
         const s3Url = buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
         updatedMarkdown = updatedMarkdown.replace(base64Src, s3Url);
@@ -709,8 +750,8 @@ export default function TaskWorkspacePage() {
   };
 
   const handleBack = () => {
-    if (projectTasksPath) {
-      navigate(projectTasksPath);
+    if (originProjectPath) {
+      navigate(originProjectPath);
       return;
     }
     const qs = cleanedSearchParams.toString();
@@ -857,7 +898,11 @@ export default function TaskWorkspacePage() {
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
         if (originProjectId) {
           queryClient.invalidateQueries({ queryKey: ['project-tasks', originProjectId] });
-          navigate(`/portfolio/projects/${originProjectId}/tasks`, { replace: true });
+          if (originProjectPath) {
+            navigate(originProjectPath, { replace: true });
+          } else {
+            navigate(`/portfolio/projects/${originProjectId}/tasks`, { replace: true });
+          }
           return;
         }
         const qs = cleanedSearchParams.toString();
@@ -1153,6 +1198,19 @@ export default function TaskWorkspacePage() {
   const isProjectTask = task.related_object_type === 'project';
   const hasConvertedRequest = Boolean(task.converted_request_id);
   const canConvertToRequest = canManage && canCreateRequest;
+  const headerRelatedType = (form.related_object_type ?? task.related_object_type) as TaskData['related_object_type'];
+  const headerRelatedId = (form.related_object_id ?? task.related_object_id) as string | null;
+  const headerRelatedName = (form.related_object_name ?? task.related_object_name ?? '').trim();
+  const sidebarProjectWorkspaceLink = (
+    headerRelatedType === 'project' && headerRelatedId
+      ? buildProjectWorkspacePath(headerRelatedId, 'overview')
+      : null
+  );
+  const projectHeaderChip = (
+    headerRelatedType === 'project' && headerRelatedId && headerRelatedName
+      ? { id: headerRelatedId, name: headerRelatedName }
+      : null
+  );
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -1312,6 +1370,16 @@ export default function TaskWorkspacePage() {
                 color={TASK_STATUS_COLORS[(form.status || task.status) as TaskStatus] || 'default'}
                 size="small"
               />
+              {projectHeaderChip && (
+                <Chip
+                  label={projectHeaderChip.name}
+                  size="small"
+                  variant="outlined"
+                  onClick={() => navigate(buildProjectWorkspacePath(projectHeaderChip.id, 'activity'))}
+                  sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                  title={`Open project activity: ${projectHeaderChip.name}`}
+                />
+              )}
               <Chip
                 label={PRIORITY_LABELS[form.priority_level || task.priority_level] || task.priority_level}
                 color={PRIORITY_COLORS[form.priority_level || task.priority_level] || 'default'}
@@ -1407,11 +1475,12 @@ export default function TaskWorkspacePage() {
               company_id: form.company_id !== undefined ? form.company_id : task.company_id,
               company_name: task.company_name,
             }}
-            onChange={handleFieldChange}
-            readOnly={!canManage}
-            totalTimeHours={totalTimeHours}
-            onRelationChange={handleRelationChange}
-          />
+              onChange={handleFieldChange}
+              readOnly={!canManage}
+              totalTimeHours={totalTimeHours}
+              onRelationChange={handleRelationChange}
+              projectWorkspaceLink={sidebarProjectWorkspaceLink}
+            />
         </Box>
 
         {/* Main content area */}

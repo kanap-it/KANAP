@@ -69,6 +69,7 @@ export default function TaskComments({
   const handleUploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('source_field', 'content');
     const res = await api.post<{ id: string }>(`/tasks/${taskId}/attachments`, formData);
     const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
     return buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);

@@ -245,7 +245,6 @@ export const TASK_TRACKED_FIELDS: FieldConfig[] = [
 
 export const REQUEST_TRACKED_FIELDS: FieldConfig[] = [
   { field: 'name' },
-  { field: 'purpose' },
   { field: 'requestor_id', fk: FK.user },
   { field: 'target_delivery_date', compare: 'date' },
   { field: 'origin_task_id', fk: FK.task },
@@ -260,13 +259,11 @@ export const REQUEST_TRACKED_FIELDS: FieldConfig[] = [
   { field: 'it_lead_id', fk: FK.user },
   { field: 'current_situation' },
   { field: 'expected_benefits' },
-  { field: 'risks' },
   { field: 'feasibility_review', compare: 'json' },
 ];
 
 export const PROJECT_TRACKED_FIELDS: FieldConfig[] = [
   { field: 'name' },
-  { field: 'purpose' },
   { field: 'source_id', fk: FK.source },
   { field: 'category_id', fk: FK.category },
   { field: 'stream_id', fk: FK.stream },
