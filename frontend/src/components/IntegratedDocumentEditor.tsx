@@ -6,15 +6,11 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Collapse,
-  Divider,
   Stack,
   Typography,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
-import HistoryIcon from '@mui/icons-material/History';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import RestoreIcon from '@mui/icons-material/Restore';
 import SaveIcon from '@mui/icons-material/Save';
 import api from '../api';
 import { useAuth } from '../auth/AuthContext';
@@ -40,15 +36,6 @@ type IntegratedDocumentDetails = {
   content_markdown: string;
   revision: number;
   edit_lock?: EditLockInfo | null;
-};
-
-type IntegratedDocumentVersion = {
-  id: string;
-  version_number: number;
-  created_at: string;
-  change_note?: string | null;
-  created_by_name?: string | null;
-  created_by_email?: string | null;
 };
 
 export type IntegratedDocumentEditorHandle = {
@@ -108,17 +95,12 @@ export const IntegratedDocumentEditor = React.forwardRef<
   const [lockToken, setLockToken] = React.useState<string | null>(null);
   const [lockExpiresAt, setLockExpiresAt] = React.useState<string | null>(null);
   const [activeLockInfo, setActiveLockInfo] = React.useState<EditLockInfo | null>(null);
-  const [showVersions, setShowVersions] = React.useState(false);
 
   const isDraftMode = !entityId;
   const canEdit = !disabled;
   const canOpenKnowledge = hasLevel('knowledge', 'reader');
   const docQueryKey = React.useMemo(
     () => ['integrated-document', entityType, entityId, slotKey],
-    [entityId, entityType, slotKey],
-  );
-  const versionsQueryKey = React.useMemo(
-    () => ['integrated-document-versions', entityType, entityId, slotKey],
     [entityId, entityType, slotKey],
   );
   const endpointBase = entityId ? `${ENTITY_ENDPOINTS[entityType]}/${entityId}/integrated-documents/${slotKey}` : '';
@@ -146,12 +128,6 @@ export const IntegratedDocumentEditor = React.forwardRef<
     queryKey: docQueryKey,
     queryFn: async () => (await api.get(endpointBase)).data as IntegratedDocumentDetails,
     enabled: !isDraftMode,
-  });
-
-  const { data: versions = [], isLoading: versionsLoading } = useQuery({
-    queryKey: versionsQueryKey,
-    queryFn: async () => (await api.get(`${endpointBase}/versions`)).data as IntegratedDocumentVersion[],
-    enabled: !isDraftMode && showVersions,
   });
 
   React.useEffect(() => {
@@ -244,10 +220,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
         content_markdown: result.data?.content_markdown || '',
         revision: Number(result.data?.revision || form.revision + 1),
       });
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: docQueryKey }),
-        qc.invalidateQueries({ queryKey: versionsQueryKey }),
-      ]);
+      await qc.invalidateQueries({ queryKey: docQueryKey });
     },
     onError: (e: any, mode: 'manual' | 'autosave') => {
       const status = Number(e?.response?.status || 0);
@@ -354,44 +327,6 @@ export const IntegratedDocumentEditor = React.forwardRef<
     await reset();
   }, [reset]);
 
-  const revertMutation = useMutation({
-    mutationFn: async (versionNumber: number) => {
-      if (isDraftMode || !entityId) {
-        throw new Error('Managed document is not available until the source item is created');
-      }
-      await api.post(`${endpointBase}/revert/${versionNumber}`, null, {
-        headers: lockToken ? { 'X-Lock-Token': lockToken } : undefined,
-      });
-    },
-    onSuccess: async () => {
-      setDirty(false);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: docQueryKey }),
-        qc.invalidateQueries({ queryKey: versionsQueryKey }),
-      ]);
-      await refetch();
-    },
-    onError: (e: any) => {
-      const status = Number(e?.response?.status || 0);
-      const lockInfo = parseLockInfoFromError(e) || parseLockInfo(doc?.edit_lock);
-      if (status === 423 && lockInfo) {
-        setActiveLockInfo(lockInfo);
-        setEditMode(false);
-        setLockToken(null);
-        setLockExpiresAt(null);
-        return;
-      }
-      if (status === 410) {
-        setEditMode(false);
-        setLockToken(null);
-        setLockExpiresAt(null);
-        setError('Editing lock expired. Re-enter edit mode to continue.');
-        return;
-      }
-      setError(e?.response?.data?.message || e?.message || 'Failed to restore version');
-    },
-  });
-
   const handleInlineImageUpload = React.useCallback(async (file: File): Promise<string> => {
     if (isDraftMode || !entityId) {
       throw new Error('Inline image upload is available after the source item is created');
@@ -477,6 +412,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
           {canOpenKnowledge && deepLinkRef && (
             <Button
               size="small"
+              variant="outlined"
               href={`/knowledge/${deepLinkRef}`}
               target="_blank"
               rel="noreferrer"
@@ -485,14 +421,6 @@ export const IntegratedDocumentEditor = React.forwardRef<
               Open full document
             </Button>
           )}
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<HistoryIcon fontSize="small" />}
-            onClick={() => setShowVersions((prev) => !prev)}
-          >
-            {showVersions ? 'Hide history' : 'Version history'}
-          </Button>
           {!editMode && canEdit && (
             <Button
               size="small"
@@ -503,7 +431,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
               {isLockedByAnotherUser ? 'Retry lock' : 'Edit'}
             </Button>
           )}
-          {editMode && canEdit && dirty && (
+          {editMode && canEdit && (
             <Button
               size="small"
               variant="outlined"
@@ -585,65 +513,6 @@ export const IntegratedDocumentEditor = React.forwardRef<
           onImageUpload={canEditContent ? handleInlineImageUpload : undefined}
         />
       )}
-
-      <Collapse in={showVersions}>
-        <Divider sx={{ my: 1.5 }} />
-        <Stack spacing={1}>
-          {versionsLoading && (
-            <Typography variant="body2" color="text.secondary">
-              Loading version history…
-            </Typography>
-          )}
-          {!versionsLoading && versions.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              No version history yet.
-            </Typography>
-          )}
-          {!versionsLoading && versions.map((version) => {
-            const createdAt = version.created_at
-              ? new Date(version.created_at).toLocaleString()
-              : 'Unknown date';
-            const createdBy = version.created_by_name || version.created_by_email || 'Unknown';
-            return (
-              <Box
-                key={version.id}
-                sx={{
-                  p: 1.25,
-                  border: 1,
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  bgcolor: 'background.paper',
-                }}
-              >
-                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                  <Box>
-                    <Typography variant="subtitle2">
-                      Version {version.version_number}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      {createdAt} by {createdBy}
-                    </Typography>
-                    {version.change_note && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        {version.change_note}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<RestoreIcon fontSize="small" />}
-                    disabled={!canEditContent || revertMutation.isPending}
-                    onClick={() => revertMutation.mutate(version.version_number)}
-                  >
-                    Restore
-                  </Button>
-                </Stack>
-              </Box>
-            );
-          })}
-        </Stack>
-      </Collapse>
     </Box>
   );
 });

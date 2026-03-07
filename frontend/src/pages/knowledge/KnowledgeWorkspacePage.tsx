@@ -101,7 +101,21 @@ type EditLockInfo = {
   expires_at: string;
 };
 
-const SIDEBAR_STORAGE_KEY = 'doc-sidebar-open';
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  in_review: 'In Review',
+  published: 'Published',
+  archived: 'Archived',
+  obsolete: 'Obsolete',
+};
+
+const STATUS_CHIP_COLORS: Record<string, 'default' | 'warning' | 'info' | 'success' | 'secondary'> = {
+  draft: 'default',
+  in_review: 'warning',
+  published: 'success',
+  archived: 'secondary',
+  obsolete: 'default',
+};
 
 export default function KnowledgeWorkspacePage() {
   const theme = useTheme();
@@ -152,19 +166,14 @@ export default function KnowledgeWorkspacePage() {
   const [contributorAssignments, setContributorAssignments] = React.useState<ContributorAssignments>(EMPTY_CONTRIBUTOR_ASSIGNMENTS);
   const [contributorsDirty, setContributorsDirty] = React.useState(false);
   const [contributorsError, setContributorsError] = React.useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = React.useState(() => {
-    try {
-      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-      return stored !== 'false';
-    } catch { return true; }
-  });
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const canManageDocument = hasLevel('knowledge', 'member');
   const [contentFocusNonce, setContentFocusNonce] = React.useState(0);
   const [editorRows, setEditorRows] = React.useState(30);
 
   React.useEffect(() => {
-    try { localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarOpen)); } catch { /* ignore */ }
-  }, [sidebarOpen]);
+    setSidebarOpen(false);
+  }, [id, isCreate]);
 
   const updateEditorRows = React.useCallback((height: number) => {
     const safeHeight = Math.max(240, Math.floor(height || 0));
@@ -249,12 +258,6 @@ export default function KnowledgeWorkspacePage() {
   const { data: activities } = useQuery({
     queryKey: ['knowledge-activities', id],
     queryFn: async () => (await api.get(`/knowledge/${id}/activities`)).data,
-    enabled: !isCreate,
-  });
-
-  const { data: files, refetch: refetchFiles } = useQuery({
-    queryKey: ['knowledge-files', id],
-    queryFn: async () => (await api.get(`/knowledge/${id}/attachments`)).data,
     enabled: !isCreate,
   });
 
@@ -404,12 +407,11 @@ export default function KnowledgeWorkspacePage() {
     [parseLockInfo],
   );
 
-  // Sync doc data to form state
-  React.useEffect(() => {
-    if (!doc || isCreate) return;
-    const incomingRelations = doc.relations || {};
+  const applyDocumentState = React.useCallback((nextDoc: any) => {
+    if (!nextDoc) return;
+    const incomingRelations = nextDoc.relations || {};
     const mapRelation = (item: any) => ({ id: item?.id || item, label: item?.name || item?.id || item });
-    const incomingContributors = Array.isArray(doc.contributors) ? doc.contributors : [];
+    const incomingContributors = Array.isArray(nextDoc.contributors) ? nextDoc.contributors : [];
     const nextRelations: Record<RelationKey, RelationOption[]> = {
       applications: (incomingRelations.applications || []).map(mapRelation),
       assets: (incomingRelations.assets || []).map(mapRelation),
@@ -418,8 +420,8 @@ export default function KnowledgeWorkspacePage() {
       tasks: (incomingRelations.tasks || []).map(mapRelation),
     };
 
-    const nextClassifications: ClassificationRow[] = Array.isArray(doc.classifications)
-      ? doc.classifications
+    const nextClassifications: ClassificationRow[] = Array.isArray(nextDoc.classifications)
+      ? nextDoc.classifications
           .map((row: any) => ({
             category_id: String(row?.category_id || ''),
             stream_id: row?.stream_id ? String(row.stream_id) : null,
@@ -444,20 +446,20 @@ export default function KnowledgeWorkspacePage() {
     };
 
     setForm({
-      title: doc.title || '',
-      summary: doc.summary || '',
-      content_markdown: doc.content_markdown || '',
-      status: doc.status || 'draft',
-      folder_id: doc.folder_id || null,
-      document_type_id: doc.document_type_id || null,
-      template_document_id: doc.template_document_id || null,
-      template_document_title: doc.template_document_title || '',
-      template_document_type_id: doc.template_document_type_id || null,
-      template_document_type_name: doc.template_document_type_name || '',
-      revision: Number(doc.revision || 1),
+      title: nextDoc.title || '',
+      summary: nextDoc.summary || '',
+      content_markdown: nextDoc.content_markdown || '',
+      status: nextDoc.status || 'draft',
+      folder_id: nextDoc.folder_id || null,
+      document_type_id: nextDoc.document_type_id || null,
+      template_document_id: nextDoc.template_document_id || null,
+      template_document_title: nextDoc.template_document_title || '',
+      template_document_type_id: nextDoc.template_document_type_id || null,
+      template_document_type_name: nextDoc.template_document_type_name || '',
+      revision: Number(nextDoc.revision || 1),
       relations: incomingRelations,
       contributors: incomingContributors,
-      classifications: doc.classifications || [],
+      classifications: nextDoc.classifications || [],
     });
     setRelationSelections(nextRelations);
     setRelationsDirty(false);
@@ -466,7 +468,13 @@ export default function KnowledgeWorkspacePage() {
     setContributorAssignments(nextContributorAssignments);
     setContributorsDirty(false);
     setDirty(false);
-  }, [doc, isCreate]);
+  }, []);
+
+  // Sync doc data to form state
+  React.useEffect(() => {
+    if (!doc || isCreate) return;
+    applyDocumentState(doc);
+  }, [applyDocumentState, doc, isCreate]);
 
   // Replace UUID in URL with item_ref
   React.useEffect(() => {
@@ -672,25 +680,12 @@ export default function KnowledgeWorkspacePage() {
     },
   });
 
-  // File operations
-  const uploadFile = async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    await api.post(`/knowledge/${id}/attachments`, formData);
-    await refetchFiles();
-  };
-
   const uploadInlineImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
     const res = await api.post<{ id: string }>(`/knowledge/${id}/attachments/inline`, formData);
     const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
     return buildInlineImageUrl(`/knowledge/inline/${tenantSlug}/${res.data.id}`);
-  };
-
-  const deleteFile = async (attachmentId: string) => {
-    await api.delete(`/knowledge/${id}/attachments/${attachmentId}`);
-    await refetchFiles();
   };
 
   // Edit mode transitions
@@ -716,31 +711,19 @@ export default function KnowledgeWorkspacePage() {
   }, [acquireLock, doc?.edit_lock, parseLockInfo, parseLockInfoFromError]);
 
   const discardChanges = async () => {
-    if (!dirty) return;
+    const hasUnsavedChanges = dirty || relationsDirty || classificationsDirty || contributorsDirty;
+    if (!hasUnsavedChanges) {
+      setEditMode(false);
+      await releaseLock();
+      setError(null);
+      return;
+    }
     const confirmed = window.confirm('Discard unsaved changes and revert to the last saved version?');
     if (!confirmed) return;
-    // Refetch the document to get the last saved state
     const result = await refetch();
-    if (result.data) {
-      const d = result.data;
-      setForm({
-        title: d.title || '',
-        summary: d.summary || '',
-        content_markdown: d.content_markdown || '',
-        status: d.status || 'draft',
-        folder_id: d.folder_id || null,
-        document_type_id: d.document_type_id || null,
-        template_document_id: d.template_document_id || null,
-        template_document_title: d.template_document_title || '',
-        template_document_type_id: d.template_document_type_id || null,
-        template_document_type_name: d.template_document_type_name || '',
-        revision: Number(d.revision || 1),
-        relations: d.relations || {},
-        contributors: d.contributors || [],
-        classifications: d.classifications || [],
-      });
-    }
-    setDirty(false);
+    applyDocumentState(result.data || doc);
+    setEditMode(false);
+    await releaseLock();
     setError(null);
   };
 
@@ -774,6 +757,55 @@ export default function KnowledgeWorkspacePage() {
     () => documentTypes.filter((row) => row.is_active || row.id === form.document_type_id),
     [documentTypes, form.document_type_id],
   );
+
+  const contributorLabelById = React.useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const option of contributorOptions) {
+      const firstName = String(option.first_name || '').trim();
+      const lastName = String(option.last_name || '').trim();
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      const label = fullName || option.label || option.email || option.id;
+      if (label) byId.set(option.id, label);
+    }
+    for (const row of Array.isArray(doc?.contributors) ? doc.contributors : []) {
+      const id = String(row?.user_id || '').trim();
+      if (!id || byId.has(id)) continue;
+      const label = String(row?.user_name || row?.email || row?.user_id || '').trim();
+      if (label) byId.set(id, label);
+    }
+    return byId;
+  }, [contributorOptions, doc?.contributors]);
+
+  const ownerContributor = React.useMemo(() => {
+    const contributors = Array.isArray(doc?.contributors) ? doc.contributors : [];
+    return contributors.find((row: any) => row?.role === 'owner' && row?.is_primary)
+      || contributors.find((row: any) => row?.role === 'owner')
+      || null;
+  }, [doc?.contributors]);
+
+  const currentStatusLabel = React.useMemo(
+    () => STATUS_LABELS[String(form.status || '').toLowerCase()] || String(form.status || 'Draft'),
+    [form.status],
+  );
+
+  const currentStatusColor = React.useMemo(
+    () => STATUS_CHIP_COLORS[String(form.status || '').toLowerCase()] || 'default',
+    [form.status],
+  );
+
+  const currentDocumentTypeLabel = React.useMemo(() => {
+    const explicitType = documentTypes.find((row) => row.id === form.document_type_id);
+    return explicitType?.name || doc?.document_type_name || 'Document';
+  }, [doc?.document_type_name, documentTypes, form.document_type_id]);
+
+  const currentOwnerLabel = React.useMemo(() => {
+    const ownerUserId = contributorAssignments.owner_user_id;
+    if (ownerUserId && contributorLabelById.has(ownerUserId)) {
+      return contributorLabelById.get(ownerUserId) || 'Unassigned';
+    }
+    const fallbackLabel = String(ownerContributor?.user_name || ownerContributor?.email || ownerContributor?.user_id || '').trim();
+    return fallbackLabel || 'Unassigned';
+  }, [contributorAssignments.owner_user_id, contributorLabelById, ownerContributor]);
 
   // Enrich relation labels from fetched options
   React.useEffect(() => {
@@ -999,24 +1031,7 @@ export default function KnowledgeWorkspacePage() {
   const isValidatedCurrentRevision = !!doc?.is_validated_current_revision;
   const validatedAtLabel = doc?.validated_at ? new Date(doc.validated_at).toLocaleString() : null;
   const isManagedIntegratedDocument = !isCreate && !!doc?.is_managed_integrated_document;
-  const managedIntegratedBinding = isManagedIntegratedDocument ? doc?.integrated_binding || null : null;
-  const managedSlotLabel = managedIntegratedBinding?.slot_key === 'risks_mitigations'
-    ? 'Risks & Mitigations'
-    : managedIntegratedBinding?.slot_key === 'purpose'
-      ? 'Purpose'
-      : null;
-  const managedSourceTypeLabel = managedIntegratedBinding?.source_entity_type === 'requests'
-    ? 'Request'
-    : managedIntegratedBinding?.source_entity_type === 'projects'
-      ? 'Project'
-      : managedIntegratedBinding?.source_entity_type === 'applications'
-        ? 'Application'
-        : managedIntegratedBinding?.source_entity_type === 'assets'
-          ? 'Asset'
-          : null;
-  const managedSourceLabel = managedSourceTypeLabel && managedSlotLabel
-    ? `${managedSourceTypeLabel} ${managedSlotLabel}`
-    : managedSourceTypeLabel;
+  const showTitleMeta = (!isCreate && !!doc?.item_number) || isManagedIntegratedDocument;
   const hasWorkflowAssignments = contributorAssignments.reviewer_user_ids.length > 0 || contributorAssignments.approver_user_ids.length > 0;
   const hasPendingWorkflowChanges = dirty || relationsDirty || classificationsDirty || contributorsDirty;
   const isLockedByAnotherUser = !!activeLockInfo?.holder_user_id && activeLockInfo.holder_user_id !== profile?.id;
@@ -1057,8 +1072,15 @@ export default function KnowledgeWorkspacePage() {
           </Typography>
         </Breadcrumbs>
         <Stack direction="row" alignItems="center" spacing={1}>
-          {!isCreate && isValidatedCurrentRevision && (
-            <ValidatedBadge size="small" validatedAtLabel={validatedAtLabel} />
+          {!isCreate && !workflowActive && canManageDocument && !isManagedIntegratedDocument && (
+            <Button
+              variant="outlined"
+              size="small"
+              disabled={!canRequestReview || requestReviewMutation.isPending}
+              onClick={() => requestReviewMutation.mutate()}
+            >
+              Request Review
+            </Button>
           )}
           {!isCreate && !workflowActive && !editMode && canManageDocument && (
             <Button variant="outlined" size="small" startIcon={<EditIcon />} onClick={() => { void startEdit(); }}>
@@ -1075,17 +1097,7 @@ export default function KnowledgeWorkspacePage() {
               Cancel Review and Edit
             </Button>
           )}
-          {!isCreate && !workflowActive && canManageDocument && !isManagedIntegratedDocument && (
-            <Button
-              variant="outlined"
-              size="small"
-              disabled={!canRequestReview || requestReviewMutation.isPending}
-              onClick={() => requestReviewMutation.mutate()}
-            >
-              Request Review
-            </Button>
-          )}
-          {!isCreate && !workflowActive && editMode && dirty && canManageDocument && (
+          {!isCreate && !workflowActive && editMode && canManageDocument && (
             <Button variant="outlined" size="small" onClick={discardChanges}>
               Discard
             </Button>
@@ -1094,7 +1106,7 @@ export default function KnowledgeWorkspacePage() {
             content={form.content_markdown || ''}
             title={String(form.title || (!isCreate ? doc?.item_ref : '') || 'knowledge-document')}
           />
-          {canManageDocument && !workflowActive && (
+          {canManageDocument && !workflowActive && (isCreate || editMode) && (
             <Button
               variant="contained"
               size="small"
@@ -1144,12 +1156,6 @@ export default function KnowledgeWorkspacePage() {
         </Alert>
       )}
 
-      {isManagedIntegratedDocument && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          This is a managed integrated document. Body content stays editable here, but title, folder, type, template, and source relations are controlled by the source workspace.
-        </Alert>
-      )}
-
       <Stack direction="row" spacing={0} sx={{ height: 'calc(100vh - 130px)' }}>
         {/* Folder tree */}
         {!!workspaceLibraryId && (
@@ -1175,34 +1181,8 @@ export default function KnowledgeWorkspacePage() {
             sx={{ p: 2, height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
           >
             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-              {/* Inline title bar — Task pattern */}
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2, flexShrink: 0 }}>
-                {!isCreate && doc?.item_number && (
-                  <Chip
-                    label={`DOC-${doc.item_number}`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontFamily: 'monospace', flexShrink: 0 }}
-                    onClick={() => navigator.clipboard.writeText(`DOC-${doc.item_number}`)}
-                    title="Click to copy reference"
-                  />
-                )}
-                {isManagedIntegratedDocument && (
-                  <Chip
-                    label="Integrated"
-                    size="small"
-                    color="info"
-                    variant="outlined"
-                  />
-                )}
-                {isManagedIntegratedDocument && managedSourceLabel && (
-                  <Chip
-                    label={managedSourceLabel}
-                    size="small"
-                    variant="outlined"
-                  />
-                )}
-                <Box sx={{ ...titleBarSx, flex: 1 }}>
+              <Stack spacing={1} sx={{ mb: 2, flexShrink: 0 }}>
+                <Box sx={{ ...titleBarSx, minWidth: 0 }}>
                   {canEditContent && !isManagedIntegratedDocument ? (
                     <TextField
                       value={form.title || ''}
@@ -1228,6 +1208,53 @@ export default function KnowledgeWorkspacePage() {
                     </Typography>
                   )}
                 </Box>
+                {showTitleMeta && (
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                    {!isCreate && doc?.item_number && (
+                      <Chip
+                        label={`DOC-${doc.item_number}`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontFamily: 'monospace' }}
+                        onClick={() => navigator.clipboard.writeText(`DOC-${doc.item_number}`)}
+                        title="Click to copy reference"
+                      />
+                    )}
+                    {isManagedIntegratedDocument && (
+                      <Chip
+                        label="Integrated"
+                        size="small"
+                        color="info"
+                        variant="outlined"
+                      />
+                    )}
+                    {!isCreate && isValidatedCurrentRevision && (
+                      <ValidatedBadge size="small" validatedAtLabel={validatedAtLabel} />
+                    )}
+                    {!isCreate && (
+                      <>
+                        <Chip
+                          label={currentStatusLabel}
+                          size="small"
+                          color={currentStatusColor}
+                        />
+                        <Chip
+                          label={`Type: ${currentDocumentTypeLabel}`}
+                          size="small"
+                          variant="outlined"
+                          title={currentDocumentTypeLabel}
+                        />
+                        <Chip
+                          label={`Owner: ${currentOwnerLabel}`}
+                          size="small"
+                          variant="outlined"
+                          title={currentOwnerLabel}
+                          sx={{ maxWidth: 280 }}
+                        />
+                      </>
+                    )}
+                  </Stack>
+                )}
               </Stack>
 
               <Box ref={editorHostRef} sx={{ flex: 1, minHeight: 0 }}>
@@ -1300,9 +1327,6 @@ export default function KnowledgeWorkspacePage() {
               savingRelations={saveRelationsMutation.isPending}
               relationsDirty={relationsDirty}
               relationsError={relationsError}
-              files={files || []}
-              onUploadFile={uploadFile}
-              onDeleteFile={deleteFile}
               versions={versions || []}
               onRevertVersion={(vn) => revertMutation.mutate(vn)}
               revertingVersion={revertMutation.isPending}

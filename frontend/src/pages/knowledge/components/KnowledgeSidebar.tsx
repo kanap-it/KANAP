@@ -15,13 +15,14 @@ import {
   Tab,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SaveIcon from '@mui/icons-material/Save';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
@@ -95,10 +96,6 @@ interface KnowledgeSidebarProps {
   savingRelations: boolean;
   relationsDirty: boolean;
   relationsError: string | null;
-  // Files
-  files: any[];
-  onUploadFile: (file: File) => Promise<void>;
-  onDeleteFile: (id: string) => Promise<void>;
   // Versions
   versions: any[];
   onRevertVersion: (versionNumber: number) => void;
@@ -132,6 +129,36 @@ const accordionSx = {
   '&:before': { display: 'none' },
   bgcolor: 'transparent',
 };
+
+function ManagedReadonlyBadge({ title }: { title: string }) {
+  return (
+    <Tooltip title={title}>
+      <Box
+        component="span"
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          color: 'text.secondary',
+          cursor: 'help',
+          lineHeight: 0,
+        }}
+      >
+        <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+      </Box>
+    </Tooltip>
+  );
+}
+
+function ManagedReadonlyFieldLabel({ label, title }: { label: string; title: string }) {
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <ManagedReadonlyBadge title={title} />
+    </Stack>
+  );
+}
 
 export default function KnowledgeSidebar({
   doc,
@@ -167,9 +194,6 @@ export default function KnowledgeSidebar({
   savingRelations,
   relationsDirty,
   relationsError,
-  files,
-  onUploadFile,
-  onDeleteFile,
   versions,
   onRevertVersion,
   revertingVersion,
@@ -189,7 +213,7 @@ export default function KnowledgeSidebar({
   postingComment,
 }: KnowledgeSidebarProps) {
   const [activeTab, setActiveTab] = React.useState<'properties' | 'comments'>('properties');
-  const [expanded, setExpanded] = React.useState<string[]>(['status', 'contributors', 'workflow']);
+  const [expanded, setExpanded] = React.useState<string[]>([]);
   const [workflowComment, setWorkflowComment] = React.useState('');
 
   const handleAccordionChange = (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
@@ -202,6 +226,12 @@ export default function KnowledgeSidebar({
   const isManagedIntegratedDocument = !!doc?.is_managed_integrated_document;
   const managedMetadataDisabled = disabled || isManagedIntegratedDocument;
   const workflowActive = !!workflow?.is_active;
+  const managedStatusTooltip = 'Managed docs keep status controlled by the source workspace. Knowledge review workflow is unavailable.';
+  const managedFolderTooltip = 'Managed docs keep folder placement controlled by the source workspace.';
+  const managedTypeTooltip = 'Managed docs keep the document type controlled by the source workspace.';
+  const managedTemplateTooltip = 'Managed docs keep the template controlled by the source workspace.';
+  const managedRelationsTooltip = 'Managed docs keep source relations read-only in Knowledge.';
+  const managedWorkflowTooltip = 'Managed docs do not use the Knowledge review workflow.';
   const templateDocumentId = form?.template_document_id !== undefined
     ? form.template_document_id
     : doc?.template_document_id;
@@ -389,81 +419,135 @@ export default function KnowledgeSidebar({
                 </Typography>
               )}
               {isManagedIntegratedDocument && (
-                <Alert severity="info" sx={{ fontSize: '0.75rem' }}>
-                  Managed document metadata is locked here. Use the source workspace to change title, folder, type, template, or source placement.
-                </Alert>
+                <Box>
+                  <ManagedReadonlyFieldLabel label="Status" title={managedStatusTooltip} />
+                  <TextField
+                    select
+                    size="small"
+                    value={form.status || 'draft'}
+                    onChange={(e) => onChange('status', e.target.value)}
+                    disabled={managedMetadataDisabled}
+                    fullWidth
+                  >
+                    {form.status === 'in_review' && (
+                      <MenuItem value="in_review">In Review</MenuItem>
+                    )}
+                    {STATUS_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
               )}
-              <TextField
-                select
-                label="Status"
-                size="small"
-                value={form.status || 'draft'}
-                onChange={(e) => onChange('status', e.target.value)}
-                disabled={disabled}
-                fullWidth
-              >
-                {form.status === 'in_review' && (
-                  <MenuItem value="in_review">In Review</MenuItem>
-                )}
-                {STATUS_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                label="Folder"
-                size="small"
-                value={form.folder_id || ''}
-                onChange={(e) => onChange('folder_id', e.target.value || null)}
-                disabled={managedMetadataDisabled}
-                fullWidth
-              >
-                <MenuItem value="">Unfiled</MenuItem>
-                {folderOptions.map((folder) => (
-                  <MenuItem key={folder.id} value={folder.id}>
-                    {folder.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-              {documentTypeOptions.length > 0 ? (
+              {!isManagedIntegratedDocument && (
                 <TextField
                   select
-                  label="Type"
+                  label="Status"
                   size="small"
-                  value={form.document_type_id || ''}
-                  onChange={(e) => onChange('document_type_id', e.target.value || null)}
+                  value={form.status || 'draft'}
+                  onChange={(e) => onChange('status', e.target.value)}
                   disabled={managedMetadataDisabled}
                   fullWidth
                 >
-                  {documentTypeOptions.map((option) => (
-                    <MenuItem
-                      key={option.id}
-                      value={option.id}
-                      disabled={!option.is_active && option.id !== form.document_type_id}
-                    >
-                      {option.name}
-                      {option.is_default ? ' (Default)' : ''}
-                      {!option.is_active ? ' (Inactive)' : ''}
+                  {form.status === 'in_review' && (
+                    <MenuItem value="in_review">In Review</MenuItem>
+                  )}
+                  {STATUS_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
                     </MenuItem>
                   ))}
                 </TextField>
-              ) : (
+              )}
+              {isManagedIntegratedDocument && (
+                <Box>
+                  <ManagedReadonlyFieldLabel label="Folder" title={managedFolderTooltip} />
+                  <TextField
+                    select
+                    size="small"
+                    value={form.folder_id || ''}
+                    onChange={(e) => onChange('folder_id', e.target.value || null)}
+                    disabled={managedMetadataDisabled}
+                    fullWidth
+                  >
+                    <MenuItem value="">Unfiled</MenuItem>
+                    {folderOptions.map((folder) => (
+                      <MenuItem key={folder.id} value={folder.id}>
+                        {folder.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
+              )}
+              {!isManagedIntegratedDocument && (
                 <TextField
-                  label="Type"
+                  select
+                  label="Folder"
                   size="small"
-                  value={activeDocumentType?.name || 'Document'}
+                  value={form.folder_id || ''}
+                  onChange={(e) => onChange('folder_id', e.target.value || null)}
+                  disabled={managedMetadataDisabled}
                   fullWidth
-                  InputProps={{ readOnly: true }}
-                />
+                >
+                  <MenuItem value="">Unfiled</MenuItem>
+                  {folderOptions.map((folder) => (
+                    <MenuItem key={folder.id} value={folder.id}>
+                      {folder.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+              {documentTypeOptions.length > 0 ? (
+                <>
+                  {isManagedIntegratedDocument && (
+                    <ManagedReadonlyFieldLabel label="Type" title={managedTypeTooltip} />
+                  )}
+                  <TextField
+                    select
+                    label={isManagedIntegratedDocument ? undefined : 'Type'}
+                    size="small"
+                    value={form.document_type_id || ''}
+                    onChange={(e) => onChange('document_type_id', e.target.value || null)}
+                    disabled={managedMetadataDisabled}
+                    fullWidth
+                  >
+                    {documentTypeOptions.map((option) => (
+                      <MenuItem
+                        key={option.id}
+                        value={option.id}
+                        disabled={!option.is_active && option.id !== form.document_type_id}
+                      >
+                        {option.name}
+                        {option.is_default ? ' (Default)' : ''}
+                        {!option.is_active ? ' (Inactive)' : ''}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </>
+              ) : (
+                <>
+                  {isManagedIntegratedDocument && (
+                    <ManagedReadonlyFieldLabel label="Type" title={managedTypeTooltip} />
+                  )}
+                  <TextField
+                    label={isManagedIntegratedDocument ? undefined : 'Type'}
+                    size="small"
+                    value={activeDocumentType?.name || 'Document'}
+                    fullWidth
+                    InputProps={{ readOnly: true }}
+                  />
+                </>
+              )}
+              {isManagedIntegratedDocument && (
+                <ManagedReadonlyFieldLabel label="Based on template" title={managedTemplateTooltip} />
               )}
               <TextField
-                label="Based on template"
+                label={isManagedIntegratedDocument ? undefined : 'Based on template'}
                 size="small"
                 value={templateTitle || 'None'}
+                disabled
                 fullWidth
-                InputProps={{ readOnly: true }}
               />
               {!!templateTitle && !!templateRef && (
                 <Button size="small" href={`/knowledge/${templateRef}`} sx={{ alignSelf: 'flex-start', textTransform: 'none', px: 0 }}>
@@ -593,7 +677,12 @@ export default function KnowledgeSidebar({
               sx={accordionSx}
             >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle2">Workflow</Typography>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Typography variant="subtitle2">Workflow</Typography>
+                  {isManagedIntegratedDocument && (
+                    <ManagedReadonlyBadge title={managedWorkflowTooltip} />
+                  )}
+                </Stack>
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
                 <Stack spacing={1}>
@@ -910,16 +999,18 @@ export default function KnowledgeSidebar({
               sx={accordionSx}
             >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle2">Relations</Typography>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Typography variant="subtitle2">Relations</Typography>
+                  {isManagedIntegratedDocument && (
+                    <ManagedReadonlyBadge title={managedRelationsTooltip} />
+                  )}
+                </Stack>
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
                 {isCreate ? (
                   <Alert severity="info" sx={{ fontSize: '0.75rem' }}>Save first to create relations.</Alert>
                 ) : isManagedIntegratedDocument ? (
                   <Stack spacing={1}>
-                    <Alert severity="info" sx={{ fontSize: '0.75rem' }}>
-                      Managed documents keep their source relations read-only in Knowledge.
-                    </Alert>
                     {readOnlyRelations.length === 0 ? (
                       <Typography variant="body2" color="text.secondary">No relations.</Typography>
                     ) : (
@@ -976,80 +1067,6 @@ export default function KnowledgeSidebar({
                 )}
               </AccordionDetails>
             </Accordion>
-
-            <Divider />
-
-            {/* Files */}
-            <Accordion
-              expanded={expanded.includes('files')}
-              onChange={handleAccordionChange('files')}
-              disableGutters
-              elevation={0}
-              sx={accordionSx}
-            >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle2">Files</Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0 }}>
-                {isCreate ? (
-                  <Alert severity="info" sx={{ fontSize: '0.75rem' }}>Save first to upload files.</Alert>
-                ) : (
-                  <Stack spacing={1}>
-                    <Box>
-                      <Button
-                        component="label"
-                        size="small"
-                        variant="outlined"
-                        startIcon={<UploadFileIcon sx={{ fontSize: 16 }} />}
-                        disabled={!canManage}
-                        sx={{ textTransform: 'none' }}
-                      >
-                        Upload
-                        <input
-                          hidden
-                          type="file"
-                          onChange={async (event) => {
-                            const file = event.target.files?.[0];
-                            if (!file) return;
-                            await onUploadFile(file);
-                            event.currentTarget.value = '';
-                          }}
-                        />
-                      </Button>
-                    </Box>
-                    {(files || []).map((file: any) => (
-                      <Box key={file.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {file.original_filename}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {file.size ? `${Math.round(Number(file.size) / 1024)} KB` : ''}
-                          </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={0.5}>
-                          <Button size="small" href={`/api/knowledge/attachments/${file.id}`} target="_blank" sx={{ minWidth: 0, px: 0.5, fontSize: '0.7rem' }}>
-                            DL
-                          </Button>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => onDeleteFile(file.id)}
-                            disabled={!canManage}
-                          >
-                            <DeleteIcon sx={{ fontSize: 14 }} />
-                          </IconButton>
-                        </Stack>
-                      </Box>
-                    ))}
-                    {(files || []).length === 0 && (
-                      <Typography variant="body2" color="text.secondary">No files.</Typography>
-                    )}
-                  </Stack>
-                )}
-              </AccordionDetails>
-            </Accordion>
-
             <Divider />
 
             {/* Versions */}

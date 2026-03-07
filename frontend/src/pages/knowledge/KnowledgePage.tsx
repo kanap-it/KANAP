@@ -63,6 +63,7 @@ const STATUS_COLORS: Record<string, 'default' | 'warning' | 'info' | 'success' |
 };
 
 const TEMPLATE_LIBRARY_SLUG = 'templates';
+const MANAGED_DOCS_LIBRARY_SLUG = 'managed-docs';
 
 type DocumentRow = {
   id: string;
@@ -182,9 +183,20 @@ export default function KnowledgePage() {
   });
 
   const sortedLibraries = useMemo(() => {
-    const normal = libraries.filter((l) => l.slug !== 'templates');
-    const templates = libraries.filter((l) => l.slug === 'templates');
-    return [...normal, ...templates];
+    const userLibraries = libraries.filter((library) => !library.is_system);
+    const otherSystemLibraries = libraries.filter(
+      (library) => library.is_system
+        && library.slug !== MANAGED_DOCS_LIBRARY_SLUG
+        && library.slug !== TEMPLATE_LIBRARY_SLUG,
+    );
+    const managedDocsLibraries = libraries.filter((library) => library.slug === MANAGED_DOCS_LIBRARY_SLUG);
+    const templatesLibraries = libraries.filter((library) => library.slug === TEMPLATE_LIBRARY_SLUG);
+    return [
+      ...userLibraries,
+      ...otherSystemLibraries,
+      ...managedDocsLibraries,
+      ...templatesLibraries,
+    ];
   }, [libraries]);
 
   const activeLibrary = useMemo(() => {
