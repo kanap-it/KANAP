@@ -1135,10 +1135,14 @@ export class IntegratedDocumentsService {
       );
       rewritten = rewritten.replace(
         pattern,
-        `/knowledge/inline/${tenantSlug}/${mapping.clonedAttachmentId}`,
+        this.buildManagedInlineAttachmentPath(tenantSlug, mapping.clonedAttachmentId),
       );
     }
     return rewritten;
+  }
+
+  private buildManagedInlineAttachmentPath(tenantSlug: string, attachmentId: string): string {
+    return `/api/knowledge/inline/${tenantSlug}/${attachmentId}`;
   }
 
   private escapeRegExp(value: string): string {
@@ -1328,7 +1332,9 @@ export class IntegratedDocumentsService {
         dataImageAttachmentIds.push(uploaded.id);
         replacements.push({
           raw: occurrence.raw,
-          replacement: occurrence.rewrite(`/knowledge/inline/${tenantSlug}/${uploaded.id}`),
+          replacement: occurrence.rewrite(
+            this.buildManagedInlineAttachmentPath(tenantSlug, uploaded.id),
+          ),
         });
         continue;
       }
@@ -1356,7 +1362,9 @@ export class IntegratedDocumentsService {
       });
       replacements.push({
         raw: occurrence.raw,
-        replacement: occurrence.rewrite(`/knowledge/inline/${tenantSlug}/${saved.id}`),
+        replacement: occurrence.rewrite(
+          this.buildManagedInlineAttachmentPath(tenantSlug, saved.id),
+        ),
       });
     }
 
@@ -1404,7 +1412,9 @@ export class IntegratedDocumentsService {
 
       replacements.push({
         raw: occurrence.raw,
-        replacement: occurrence.rewrite(`/knowledge/inline/${tenantSlug}/${attachmentId}`),
+        replacement: occurrence.rewrite(
+          this.buildManagedInlineAttachmentPath(tenantSlug, attachmentId),
+        ),
       });
 
       if (occurrence.kind === 'data') {
