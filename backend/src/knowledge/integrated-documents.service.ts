@@ -5,9 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { marked } from 'marked';
 import { EntityManager, Repository } from 'typeorm';
 import { extractInlineImageUrls } from '../common/content-image-urls';
-import { htmlToMarkdown, isHtmlContent } from '../common/html-to-markdown';
+import { containsInlineDataImage, htmlToMarkdown, isHtmlContent } from '../common/html-to-markdown';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
 import { PortfolioActivity } from '../portfolio/portfolio-activity.entity';
@@ -97,6 +98,40 @@ type ManagedAttachmentRow = {
   storage_path: string;
   source_field: string | null;
 };
+type MarkdownToken = {
+  type?: string;
+  raw?: string;
+  text?: string;
+  [key: string]: unknown;
+};
+type InlineImageOccurrence = {
+  raw: string;
+  target: string;
+  rewrite: (nextTarget: string) => string;
+};
+type RecoverableInlineImageOccurrence =
+  | (InlineImageOccurrence & {
+    kind: 'data';
+    mimeType: string;
+    buffer: Buffer;
+    extension: string;
+  })
+  | (InlineImageOccurrence & {
+    kind: 'legacy';
+    attachmentId: string;
+  });
+type RecoverableInlineImageAssignment =
+  | {
+    kind: 'data';
+    attachmentId: string;
+    mimeType: string;
+    size: number;
+  }
+  | {
+    kind: 'legacy';
+    attachmentId: string;
+    sourceAttachmentId: string;
+  };
 
 const PERMISSION_RANK: Record<PermissionLevel, number> = {
   reader: 1,
@@ -580,6 +615,266 @@ export class IntegratedDocumentsService {
     return normalized;
   }
 
+  private parseMarkdownTokens(content: string): MarkdownToken[] | null {
+    try {
+      return marked.lexer(content, { gfm: true, breaks: true }) as MarkdownToken[];
+    } catch {
+      return null;
+    }
+  }
+
+  private walkMarkdownToken(value: unknown, visit: (token: MarkdownToken) => void): void {
+    if (!value || typeof value !== 'object') return;
+    const token = value as MarkdownToken;
+    if (typeof token.type !== 'string') return;
+
+    visit(token);
+
+    if (token.type === 'code' || token.type === 'codespan') {
+      return;
+    }
+
+    for (const nested of Object.values(token)) {
+      if (Array.isArray(nested)) {
+        for (const child of nested) {
+          this.walkMarkdownToken(child, visit);
+        }
+        continue;
+      }
+      if (nested && typeof nested === 'object') {
+        this.walkMarkdownToken(nested, visit);
+      }
+    }
+  }
+
+  private collectInlineImageOccurrences(content: string | null | undefined): InlineImageOccurrence[] {
+    const text = String(content || '');
+    if (!text.trim()) {
+      return [];
+    }
+
+    const tokens = this.parseMarkdownTokens(text);
+    if (tokens) {
+      const occurrences: InlineImageOccurrence[] = [];
+      for (const token of tokens) {
+        this.walkMarkdownToken(token, (current) => {
+          if (current.type === 'image') {
+            const raw = String(current.raw || '');
+            const target = String((current as any).href || '').trim();
+            if (!raw || !target) return;
+            occurrences.push({
+              raw,
+              target,
+              rewrite: (nextTarget: string) => raw.replace(target, nextTarget),
+            });
+            return;
+          }
+
+          if (current.type !== 'html') {
+            return;
+          }
+
+          const snippet = String(current.raw ?? current.text ?? '');
+          if (!snippet || !/<img\b/i.test(snippet)) {
+            return;
+          }
+
+          const imgRegex = /<img\b[^>]*\bsrc\s*=\s*(["'])([^"']+)\1[^>]*>/gi;
+          let match: RegExpExecArray | null;
+          while ((match = imgRegex.exec(snippet)) !== null) {
+            const raw = String(match[0] || '');
+            const target = String(match[2] || '').trim();
+            if (!raw || !target) continue;
+            occurrences.push({
+              raw,
+              target,
+              rewrite: (nextTarget: string) => raw.replace(target, nextTarget),
+            });
+          }
+        });
+      }
+      return occurrences;
+    }
+
+    const fallbackOccurrences: InlineImageOccurrence[] = [];
+    const markdownImageRegex = /!\[[^\]]*]\(\s*<?([^)\s>]+)>?(?:\s+["'][^"']*["'])?\s*\)/g;
+    let markdownMatch: RegExpExecArray | null;
+    while ((markdownMatch = markdownImageRegex.exec(text)) !== null) {
+      const raw = String(markdownMatch[0] || '');
+      const target = String(markdownMatch[1] || '').trim();
+      if (!raw || !target) continue;
+      fallbackOccurrences.push({
+        raw,
+        target,
+        rewrite: (nextTarget: string) => raw.replace(target, nextTarget),
+      });
+    }
+
+    const htmlImageRegex = /<img\b[^>]*\bsrc\s*=\s*(["'])([^"']+)\1[^>]*>/gi;
+    let htmlMatch: RegExpExecArray | null;
+    while ((htmlMatch = htmlImageRegex.exec(text)) !== null) {
+      const raw = String(htmlMatch[0] || '');
+      const target = String(htmlMatch[2] || '').trim();
+      if (!raw || !target) continue;
+      fallbackOccurrences.push({
+        raw,
+        target,
+        rewrite: (nextTarget: string) => raw.replace(target, nextTarget),
+      });
+    }
+
+    return fallbackOccurrences;
+  }
+
+  private applyInlineImageReplacements(
+    content: string | null | undefined,
+    replacements: Array<{ raw: string; replacement: string }>,
+  ): string {
+    const text = String(content || '');
+    if (replacements.length === 0) {
+      return text;
+    }
+
+    let cursor = 0;
+    let output = '';
+    for (const entry of replacements) {
+      const nextIndex = text.indexOf(entry.raw, cursor);
+      if (nextIndex < 0) {
+        throw new BadRequestException('Failed to rewrite recovered inline image content');
+      }
+      output += text.slice(cursor, nextIndex);
+      output += entry.replacement;
+      cursor = nextIndex + entry.raw.length;
+    }
+
+    output += text.slice(cursor);
+    return output;
+  }
+
+  private inlineImageExtensionFromMimeType(mimeType: string): string {
+    switch (String(mimeType || '').toLowerCase()) {
+      case 'image/png':
+        return 'png';
+      case 'image/jpeg':
+        return 'jpg';
+      case 'image/gif':
+        return 'gif';
+      case 'image/webp':
+        return 'webp';
+      default:
+        throw new BadRequestException('Unsupported image type. Allowed: PNG, JPG, JPEG, GIF, WEBP');
+    }
+  }
+
+  private parseDataImageUri(
+    target: string | null | undefined,
+  ): { mimeType: string; buffer: Buffer; extension: string } | null {
+    const normalized = String(target || '').trim();
+    const match = normalized.match(/^data:(image\/[a-z0-9.+-]+);base64,/i);
+    if (!match) {
+      return null;
+    }
+
+    const metaEnd = normalized.indexOf(',');
+    if (metaEnd < 0) {
+      throw new BadRequestException('Invalid inline image data URI');
+    }
+
+    const base64Part = normalized.slice(metaEnd + 1).replace(/\s+/g, '');
+    const buffer = Buffer.from(base64Part, 'base64');
+    if (buffer.length === 0) {
+      throw new BadRequestException('Invalid inline image payload');
+    }
+
+    const mimeType = String(match[1] || '').toLowerCase();
+    return {
+      mimeType,
+      buffer,
+      extension: this.inlineImageExtensionFromMimeType(mimeType),
+    };
+  }
+
+  private parseLegacyInlineAttachmentId(
+    target: string | null | undefined,
+    sourceEntityType: SourceScopedEntityType,
+  ): string | null {
+    const normalized = String(target || '').trim();
+    if (!normalized) {
+      return null;
+    }
+    const { routePrefix } = this.getLegacyAttachmentTable(sourceEntityType);
+    const match = normalized.match(
+      new RegExp(`${this.escapeRegExp(routePrefix)}[^/]+/([a-f0-9-]+)(?=[/?#]|$)`, 'i'),
+    );
+    return match?.[1] || null;
+  }
+
+  private collectRecoverableInlineImageOccurrences(
+    content: string | null | undefined,
+    sourceEntityType: SourceScopedEntityType,
+    opts?: { includeLegacyAttachmentRefs?: boolean },
+  ): RecoverableInlineImageOccurrence[] {
+    const occurrences = this.collectInlineImageOccurrences(content);
+    const recoverable: RecoverableInlineImageOccurrence[] = [];
+
+    for (const occurrence of occurrences) {
+      const dataImage = this.parseDataImageUri(occurrence.target);
+      if (dataImage) {
+        recoverable.push({
+          ...occurrence,
+          kind: 'data',
+          mimeType: dataImage.mimeType,
+          buffer: dataImage.buffer,
+          extension: dataImage.extension,
+        });
+        continue;
+      }
+
+      if (opts?.includeLegacyAttachmentRefs === false) {
+        continue;
+      }
+
+      const attachmentId = this.parseLegacyInlineAttachmentId(occurrence.target, sourceEntityType);
+      if (attachmentId) {
+        recoverable.push({
+          ...occurrence,
+          kind: 'legacy',
+          attachmentId,
+        });
+      }
+    }
+
+    return recoverable;
+  }
+
+  private resolveRecoveredInitialContent(content: string | null | undefined): string {
+    if (containsInlineDataImage(String(content || ''))) {
+      return '';
+    }
+    return normalizeMarkdownRichText(content, {
+      fieldName: 'content_markdown',
+    }) || '';
+  }
+
+  private buildRecoveredInlineImageFile(
+    occurrence: Extract<RecoverableInlineImageOccurrence, { kind: 'data' }>,
+    index: number,
+  ): Express.Multer.File {
+    const originalname = `recovered-inline-${index + 1}.${occurrence.extension}`;
+    return {
+      fieldname: 'file',
+      originalname,
+      encoding: '7bit',
+      mimetype: occurrence.mimeType,
+      size: occurrence.buffer.length,
+      buffer: occurrence.buffer,
+      destination: '',
+      filename: originalname,
+      path: '',
+      stream: undefined as any,
+    } as Express.Multer.File;
+  }
+
   private async hasOwningRelationRow(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
@@ -953,6 +1248,302 @@ export class IntegratedDocumentsService {
       ),
       mappings,
     };
+  }
+
+  private async importRecoveredInlineImages(
+    sourceEntityType: SourceScopedEntityType,
+    sourceEntityId: string,
+    slotKey: IntegratedDocumentSlotKey,
+    documentId: string,
+    tenantId: string,
+    tenantSlug: string,
+    content: string | null | undefined,
+    userId: string | null | undefined,
+    manager: EntityManager,
+    opts?: { includeLegacyAttachmentRefs?: boolean },
+  ): Promise<{
+    content_markdown: string;
+    legacyMappings: Array<{ sourceAttachmentId: string; clonedAttachmentId: string }>;
+    dataImageAttachmentIds: string[];
+  }> {
+    const recoverable = this.collectRecoverableInlineImageOccurrences(
+      content,
+      sourceEntityType,
+      { includeLegacyAttachmentRefs: opts?.includeLegacyAttachmentRefs !== false },
+    );
+
+    if (recoverable.length === 0) {
+      return {
+        content_markdown: normalizeMarkdownRichText(content, {
+          fieldName: 'content_markdown',
+        }) || '',
+        legacyMappings: [],
+        dataImageAttachmentIds: [],
+      };
+    }
+
+    const legacySourceField = this.getLegacySourceField(sourceEntityType, slotKey);
+    const legacyAttachmentIds = Array.from(new Set(
+      recoverable
+        .filter((occurrence): occurrence is Extract<RecoverableInlineImageOccurrence, { kind: 'legacy' }> => (
+          occurrence.kind === 'legacy'
+        ))
+        .map((occurrence) => occurrence.attachmentId),
+    ));
+
+    const legacyById = new Map<string, LegacyAttachmentRow>();
+    if (legacyAttachmentIds.length > 0) {
+      const legacyAttachments = await this.loadLegacyAttachmentRows(
+        sourceEntityType,
+        sourceEntityId,
+        legacySourceField,
+        legacyAttachmentIds,
+        manager,
+      );
+      if (legacyAttachments.length !== legacyAttachmentIds.length) {
+        throw new NotFoundException(`Missing legacy inline attachment rows for ${sourceEntityType}:${legacySourceField}`);
+      }
+      for (const legacyAttachment of legacyAttachments) {
+        legacyById.set(String(legacyAttachment.id), legacyAttachment);
+      }
+    }
+
+    const attachmentRepo = manager.getRepository(DocumentAttachment);
+    const replacements: Array<{ raw: string; replacement: string }> = [];
+    const legacyMappings: Array<{ sourceAttachmentId: string; clonedAttachmentId: string }> = [];
+    const dataImageAttachmentIds: string[] = [];
+
+    for (let index = 0; index < recoverable.length; index += 1) {
+      const occurrence = recoverable[index];
+      if (occurrence.kind === 'data') {
+        const uploaded = await this.knowledge.uploadAttachment(
+          documentId,
+          this.buildRecoveredInlineImageFile(occurrence, index),
+          userId || null,
+          {
+            manager,
+            sourceField: 'content_markdown',
+          },
+        );
+        dataImageAttachmentIds.push(uploaded.id);
+        replacements.push({
+          raw: occurrence.raw,
+          replacement: occurrence.rewrite(`/knowledge/inline/${tenantSlug}/${uploaded.id}`),
+        });
+        continue;
+      }
+
+      const legacyAttachment = legacyById.get(occurrence.attachmentId);
+      if (!legacyAttachment) {
+        throw new NotFoundException(`Legacy inline attachment ${occurrence.attachmentId} not found`);
+      }
+
+      const saved = await attachmentRepo.save(attachmentRepo.create({
+        tenant_id: tenantId,
+        document_id: documentId,
+        original_filename: legacyAttachment.original_filename,
+        stored_filename: legacyAttachment.stored_filename,
+        mime_type: legacyAttachment.mime_type,
+        size: Number(legacyAttachment.size || 0),
+        storage_path: legacyAttachment.storage_path,
+        source_field: 'content_markdown',
+        uploaded_by_id: userId || null,
+      }));
+
+      legacyMappings.push({
+        sourceAttachmentId: occurrence.attachmentId,
+        clonedAttachmentId: saved.id,
+      });
+      replacements.push({
+        raw: occurrence.raw,
+        replacement: occurrence.rewrite(`/knowledge/inline/${tenantSlug}/${saved.id}`),
+      });
+    }
+
+    return {
+      content_markdown: normalizeMarkdownRichText(
+        this.applyInlineImageReplacements(content, replacements),
+        {
+          fieldName: 'content_markdown',
+        },
+      ) || '',
+      legacyMappings,
+      dataImageAttachmentIds,
+    };
+  }
+
+  private rewriteRecoveredInlineImagesForVerification(
+    sourceEntityType: SourceScopedEntityType,
+    tenantSlug: string,
+    content: string | null | undefined,
+    managedAttachmentIds: string[],
+    contextLabel: string,
+    opts?: { includeLegacyAttachmentRefs?: boolean },
+  ): {
+    content_markdown: string;
+    assignments: RecoverableInlineImageAssignment[];
+  } {
+    const recoverable = this.collectRecoverableInlineImageOccurrences(
+      content,
+      sourceEntityType,
+      { includeLegacyAttachmentRefs: opts?.includeLegacyAttachmentRefs !== false },
+    );
+    if (recoverable.length !== managedAttachmentIds.length) {
+      throw new Error(`Managed inline attachment count mismatch for ${contextLabel}`);
+    }
+
+    const replacements: Array<{ raw: string; replacement: string }> = [];
+    const assignments: RecoverableInlineImageAssignment[] = [];
+
+    for (let index = 0; index < recoverable.length; index += 1) {
+      const occurrence = recoverable[index];
+      const attachmentId = String(managedAttachmentIds[index] || '').trim();
+      if (!attachmentId) {
+        throw new Error(`Managed inline attachment mapping missing for ${contextLabel}`);
+      }
+
+      replacements.push({
+        raw: occurrence.raw,
+        replacement: occurrence.rewrite(`/knowledge/inline/${tenantSlug}/${attachmentId}`),
+      });
+
+      if (occurrence.kind === 'data') {
+        assignments.push({
+          kind: 'data',
+          attachmentId,
+          mimeType: occurrence.mimeType,
+          size: occurrence.buffer.length,
+        });
+        continue;
+      }
+
+      assignments.push({
+        kind: 'legacy',
+        attachmentId,
+        sourceAttachmentId: occurrence.attachmentId,
+      });
+    }
+
+    return {
+      content_markdown: this.applyInlineImageReplacements(content, replacements),
+      assignments,
+    };
+  }
+
+  private async assertRecoveredInlineImagesMatchDocument(
+    sourceEntityType: SourceScopedEntityType,
+    sourceEntityId: string,
+    slotKey: IntegratedDocumentSlotKey,
+    tenantSlug: string,
+    recoveredContent: string | null | undefined,
+    documentId: string,
+    normalizedDocumentContent: string,
+    manager: EntityManager,
+    opts?: { includeLegacyAttachmentRefs?: boolean },
+  ): Promise<void> {
+    const managedAttachmentIds = this.extractKnowledgeInlineAttachmentIds(normalizedDocumentContent);
+    const contextLabel = `${sourceEntityType}:${slotKey}:${sourceEntityId}`;
+    const rewritten = this.rewriteRecoveredInlineImagesForVerification(
+      sourceEntityType,
+      tenantSlug,
+      recoveredContent,
+      managedAttachmentIds,
+      contextLabel,
+      { includeLegacyAttachmentRefs: opts?.includeLegacyAttachmentRefs !== false },
+    );
+
+    const managedAttachments = await manager.query<Array<ManagedAttachmentRow>>(
+      `SELECT id,
+              original_filename,
+              mime_type,
+              size,
+              storage_path,
+              source_field
+       FROM document_attachments
+       WHERE tenant_id = app_current_tenant()
+         AND document_id = $1
+         AND source_field = 'content_markdown'`,
+      [documentId],
+    );
+    if (managedAttachments.length !== managedAttachmentIds.length) {
+      throw new Error(`Managed attachment row mismatch for ${sourceEntityType}:${slotKey}:${sourceEntityId}`);
+    }
+
+    const managedAttachmentIdsSet = new Set(managedAttachmentIds);
+    if (managedAttachments.some((attachment) => !managedAttachmentIdsSet.has(String(attachment.id)))) {
+      throw new Error(`Managed attachment rows are not fully referenced by content for ${sourceEntityType}:${slotKey}:${sourceEntityId}`);
+    }
+
+    const managedById = new Map<string, ManagedAttachmentRow>(
+      managedAttachments.map((attachment) => [String(attachment.id), attachment]),
+    );
+
+    const legacyAssignments = rewritten.assignments
+      .filter((assignment): assignment is Extract<RecoverableInlineImageAssignment, { kind: 'legacy' }> => (
+        assignment.kind === 'legacy'
+      ));
+    if (legacyAssignments.length > 0) {
+      const legacySourceField = this.getLegacySourceField(sourceEntityType, slotKey);
+      const legacyAttachments = await this.loadLegacyAttachmentRows(
+        sourceEntityType,
+        sourceEntityId,
+        legacySourceField,
+        legacyAssignments.map((assignment) => assignment.sourceAttachmentId),
+        manager,
+      );
+      if (legacyAttachments.length !== legacyAssignments.length) {
+        throw new Error(`Legacy inline attachment row mismatch for ${sourceEntityType}:${slotKey}:${sourceEntityId}`);
+      }
+
+      const legacyById = new Map<string, LegacyAttachmentRow>(
+        legacyAttachments.map((attachment) => [String(attachment.id), attachment]),
+      );
+
+      for (const assignment of legacyAssignments) {
+        const legacyAttachment = legacyById.get(assignment.sourceAttachmentId);
+        const managedAttachment = managedById.get(assignment.attachmentId);
+        if (!legacyAttachment || !managedAttachment) {
+          throw new Error(`Inline attachment mapping missing for ${sourceEntityType}:${slotKey}:${sourceEntityId}`);
+        }
+        if (managedAttachment.source_field !== 'content_markdown') {
+          throw new Error(`Managed inline attachment source_field mismatch for ${sourceEntityType}:${slotKey}:${sourceEntityId}`);
+        }
+        if (
+          managedAttachment.storage_path !== legacyAttachment.storage_path
+          || managedAttachment.original_filename !== legacyAttachment.original_filename
+          || managedAttachment.mime_type !== legacyAttachment.mime_type
+          || Number(managedAttachment.size || 0) !== Number(legacyAttachment.size || 0)
+        ) {
+          throw new Error(`Managed inline attachment metadata mismatch for ${sourceEntityType}:${slotKey}:${sourceEntityId}`);
+        }
+      }
+    }
+
+    for (const assignment of rewritten.assignments) {
+      if (assignment.kind !== 'data') {
+        continue;
+      }
+      const managedAttachment = managedById.get(assignment.attachmentId);
+      if (!managedAttachment) {
+        throw new Error(`Managed inline attachment mapping missing for ${sourceEntityType}:${slotKey}:${sourceEntityId}`);
+      }
+      if (managedAttachment.source_field !== 'content_markdown') {
+        throw new Error(`Managed inline attachment source_field mismatch for ${sourceEntityType}:${slotKey}:${sourceEntityId}`);
+      }
+      if (
+        String(managedAttachment.mime_type || '').toLowerCase() !== assignment.mimeType
+        || Number(managedAttachment.size || 0) !== assignment.size
+      ) {
+        throw new Error(`Recovered data image metadata mismatch for ${sourceEntityType}:${slotKey}:${sourceEntityId}`);
+      }
+    }
+
+    const normalizedExpectedContent = normalizeMarkdownRichText(rewritten.content_markdown, {
+      fieldName: 'content_markdown',
+    }) || '';
+    if (normalizedExpectedContent !== normalizedDocumentContent) {
+      throw new Error(`Managed document content mismatch for ${sourceEntityType}:${slotKey}:${sourceEntityId}`);
+    }
   }
 
   private async assertSourcePermission(
@@ -1352,17 +1943,14 @@ export class IntegratedDocumentsService {
     ownerUserId: string | null,
     manager: EntityManager,
   ): Promise<ManagedWriteResult> {
-    const legacySourceField = this.getLegacySourceField(sourceEntityType, slotKey);
-    const normalizedLegacyContent = normalizeMarkdownRichText(legacyContent, {
-      fieldName: 'content_markdown',
-    }) || '';
     const importChangeNote = this.getImportChangeNote(sourceEntityType);
+    const initialContent = this.resolveRecoveredInitialContent(legacyContent);
 
     return this.ensureBoundDocument(
       sourceEntityType,
       source,
       slotKey,
-      normalizedLegacyContent,
+      initialContent,
       ownerUserId,
       manager,
       {
@@ -1371,16 +1959,17 @@ export class IntegratedDocumentsService {
         changeNote: importChangeNote,
         activityContent: importChangeNote,
         initializer: async (documentId, initializerManager) => {
-          const imported = await this.importLegacyInlineAttachments(
+          const imported = await this.importRecoveredInlineImages(
             sourceEntityType,
             source.id,
-            legacySourceField,
+            slotKey,
             documentId,
             source.tenant_id,
             tenantSlug,
-            normalizedLegacyContent,
+            legacyContent,
             ownerUserId,
             initializerManager,
+            { includeLegacyAttachmentRefs: true },
           );
           return {
             content_markdown: imported.content_markdown,
@@ -1501,11 +2090,13 @@ export class IntegratedDocumentsService {
         manager,
       );
     } else {
+      const initialContent = this.resolveRecoveredInitialContent(recovered.content);
+      const needsDataImageRecovery = containsInlineDataImage(String(recovered.content || ''));
       await this.ensureBoundDocument(
         sourceEntityType,
         context.source,
         slotKey,
-        recovered.content,
+        initialContent,
         context.ownerUserId,
         manager,
         {
@@ -1513,6 +2104,25 @@ export class IntegratedDocumentsService {
           useTemplateWhenBlank: false,
           changeNote: 'Recovered from audit log after integrated-doc migration',
           activityContent: 'Recovered from audit log after integrated-doc migration',
+          initializer: needsDataImageRecovery
+            ? async (documentId, initializerManager) => {
+              const imported = await this.importRecoveredInlineImages(
+                sourceEntityType,
+                context.source.id,
+                slotKey,
+                documentId,
+                context.source.tenant_id,
+                context.tenantSlug,
+                recovered.content,
+                context.ownerUserId,
+                initializerManager,
+                { includeLegacyAttachmentRefs: false },
+              );
+              return {
+                content_markdown: imported.content_markdown,
+              };
+            }
+            : undefined,
         },
       );
     }
@@ -1671,105 +2281,17 @@ export class IntegratedDocumentsService {
     const normalizedDocumentContent = normalizeMarkdownRichText(document.content_markdown, {
       fieldName: 'content_markdown',
     }) || '';
-    const normalizedRecoveredContent = normalizeMarkdownRichText(recovered.content, {
-      fieldName: 'content_markdown',
-    }) || '';
-
-    if (
-      recovered.source === 'audit'
-      || recovered.unresolvedLegacyInlineAttachmentIds.length === 0
-    ) {
-      if (normalizedRecoveredContent !== normalizedDocumentContent) {
-        throw new Error(`Managed document content mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
-      }
-      return;
-    }
-
-    const legacySourceField = this.getLegacySourceField(sourceEntityType, slotKey);
-    const legacyAttachmentIds = this.extractLegacyInlineAttachmentIds(
-      normalizedRecoveredContent,
+    await this.assertRecoveredInlineImagesMatchDocument(
       sourceEntityType,
-    );
-    const managedAttachmentIds = this.extractKnowledgeInlineAttachmentIds(normalizedDocumentContent);
-
-    if (legacyAttachmentIds.length !== managedAttachmentIds.length) {
-      throw new Error(`Managed inline attachment count mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
-    }
-
-    const managedAttachments = await manager.query<Array<ManagedAttachmentRow>>(
-      `SELECT id,
-              original_filename,
-              mime_type,
-              size,
-              storage_path,
-              source_field
-       FROM document_attachments
-       WHERE tenant_id = app_current_tenant()
-         AND document_id = $1
-         AND source_field = 'content_markdown'
-       ORDER BY uploaded_at ASC, id ASC`,
-      [document.id],
-    );
-    if (managedAttachments.length !== managedAttachmentIds.length) {
-      throw new Error(`Managed attachment row mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
-    }
-
-    const mappings = legacyAttachmentIds.map((sourceAttachmentId, index) => ({
-      sourceAttachmentId,
-      clonedAttachmentId: managedAttachmentIds[index],
-    }));
-
-    if (legacyAttachmentIds.length > 0) {
-      const legacyAttachments = await this.loadLegacyAttachmentRows(
-        sourceEntityType,
-        context.source.id,
-        legacySourceField,
-        legacyAttachmentIds,
-        manager,
-      );
-      if (legacyAttachments.length !== legacyAttachmentIds.length) {
-        throw new Error(`Legacy inline attachment row mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
-      }
-
-      const legacyById = new Map<string, LegacyAttachmentRow>(
-        legacyAttachments.map((attachment) => [String(attachment.id), attachment]),
-      );
-      const managedById = new Map<string, ManagedAttachmentRow>(
-        managedAttachments.map((attachment) => [String(attachment.id), attachment]),
-      );
-
-      for (const mapping of mappings) {
-        const legacyAttachment = legacyById.get(mapping.sourceAttachmentId);
-        const managedAttachment = managedById.get(mapping.clonedAttachmentId);
-        if (!legacyAttachment || !managedAttachment) {
-          throw new Error(`Inline attachment mapping missing for ${sourceEntityType}:${slotKey}:${context.source.id}`);
-        }
-        if (managedAttachment.source_field !== 'content_markdown') {
-          throw new Error(`Managed inline attachment source_field mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
-        }
-        if (
-          managedAttachment.storage_path !== legacyAttachment.storage_path
-          || managedAttachment.original_filename !== legacyAttachment.original_filename
-          || managedAttachment.mime_type !== legacyAttachment.mime_type
-          || Number(managedAttachment.size || 0) !== Number(legacyAttachment.size || 0)
-        ) {
-          throw new Error(`Managed inline attachment metadata mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
-        }
-      }
-    }
-
-    const rewrittenLegacyContent = this.rewriteLegacyInlineAttachmentIds(
-      normalizedRecoveredContent,
-      sourceEntityType,
+      context.source.id,
+      slotKey,
       context.tenantSlug,
-      mappings,
+      recovered.content,
+      document.id,
+      normalizedDocumentContent,
+      manager,
+      { includeLegacyAttachmentRefs: recovered.source === 'legacy' },
     );
-    const normalizedExpectedContent = normalizeMarkdownRichText(rewrittenLegacyContent, {
-      fieldName: 'content_markdown',
-    }) || '';
-    if (normalizedExpectedContent !== normalizedDocumentContent) {
-      throw new Error(`Managed document content mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
-    }
   }
 
   async verifySourceEntity(
@@ -1925,98 +2447,21 @@ export class IntegratedDocumentsService {
       }
     }
 
-    const normalizedLegacyContent = normalizeMarkdownRichText(legacyContent, {
-      fieldName: 'content_markdown',
-    }) || '';
+    const preparedLegacyContent = this.prepareRecoveredContent(legacyContent);
     const normalizedDocumentContent = normalizeMarkdownRichText(document.content_markdown, {
       fieldName: 'content_markdown',
     }) || '';
-    const legacySourceField = this.getLegacySourceField(sourceEntityType, slotKey);
-    const legacyAttachmentIds = this.extractLegacyInlineAttachmentIds(normalizedLegacyContent, sourceEntityType);
-    const managedAttachmentIds = this.extractKnowledgeInlineAttachmentIds(normalizedDocumentContent);
-
-    if (legacyAttachmentIds.length !== managedAttachmentIds.length) {
-      throw new Error(`Managed inline attachment count mismatch for ${sourceEntityType}:${slotKey}:${source.id}`);
-    }
-
-    const managedAttachments = await manager.query<Array<ManagedAttachmentRow>>(
-      `SELECT id,
-              original_filename,
-              mime_type,
-              size,
-              storage_path,
-              source_field
-       FROM document_attachments
-       WHERE tenant_id = app_current_tenant()
-         AND document_id = $1
-         AND source_field = 'content_markdown'
-       ORDER BY uploaded_at ASC, id ASC`,
-      [document.id],
-    );
-    if (managedAttachments.length !== managedAttachmentIds.length) {
-      throw new Error(`Managed attachment row mismatch for ${sourceEntityType}:${slotKey}:${source.id}`);
-    }
-    const managedAttachmentIdsSet = new Set(managedAttachmentIds);
-    if (managedAttachments.some((attachment) => !managedAttachmentIdsSet.has(attachment.id))) {
-      throw new Error(`Managed attachment rows are not fully referenced by content for ${sourceEntityType}:${slotKey}:${source.id}`);
-    }
-
-    const mappings = legacyAttachmentIds.map((sourceAttachmentId, index) => ({
-      sourceAttachmentId,
-      clonedAttachmentId: managedAttachmentIds[index],
-    }));
-
-    if (legacyAttachmentIds.length > 0) {
-      const legacyAttachments = await this.loadLegacyAttachmentRows(
-        sourceEntityType,
-        source.id,
-        legacySourceField,
-        legacyAttachmentIds,
-        manager,
-      );
-      if (legacyAttachments.length !== legacyAttachmentIds.length) {
-        throw new Error(`Legacy inline attachment row mismatch for ${sourceEntityType}:${slotKey}:${source.id}`);
-      }
-
-      const legacyById = new Map<string, LegacyAttachmentRow>(
-        legacyAttachments.map((attachment) => [String(attachment.id), attachment]),
-      );
-      const managedById = new Map<string, ManagedAttachmentRow>(
-        managedAttachments.map((attachment) => [String(attachment.id), attachment]),
-      );
-
-      for (const mapping of mappings) {
-        const legacyAttachment = legacyById.get(mapping.sourceAttachmentId);
-        const managedAttachment = managedById.get(mapping.clonedAttachmentId);
-        if (!legacyAttachment || !managedAttachment) {
-          throw new Error(`Inline attachment mapping missing for ${sourceEntityType}:${slotKey}:${source.id}`);
-        }
-        if (managedAttachment.source_field !== 'content_markdown') {
-          throw new Error(`Managed inline attachment source_field mismatch for ${sourceEntityType}:${slotKey}:${source.id}`);
-        }
-        if (
-          managedAttachment.storage_path !== legacyAttachment.storage_path
-          || managedAttachment.original_filename !== legacyAttachment.original_filename
-          || managedAttachment.mime_type !== legacyAttachment.mime_type
-          || Number(managedAttachment.size || 0) !== Number(legacyAttachment.size || 0)
-        ) {
-          throw new Error(`Managed inline attachment metadata mismatch for ${sourceEntityType}:${slotKey}:${source.id}`);
-        }
-      }
-    }
-
-    const rewrittenLegacyContent = this.rewriteLegacyInlineAttachmentIds(
-      normalizedLegacyContent,
+    await this.assertRecoveredInlineImagesMatchDocument(
       sourceEntityType,
+      source.id,
+      slotKey,
       tenantSlug,
-      mappings,
+      preparedLegacyContent,
+      document.id,
+      normalizedDocumentContent,
+      manager,
+      { includeLegacyAttachmentRefs: true },
     );
-    const normalizedExpectedContent = normalizeMarkdownRichText(rewrittenLegacyContent, {
-      fieldName: 'content_markdown',
-    }) || '';
-    if (normalizedExpectedContent !== normalizedDocumentContent) {
-      throw new Error(`Managed document content mismatch for ${sourceEntityType}:${slotKey}:${source.id}`);
-    }
   }
 
   async verifyRequestRow(

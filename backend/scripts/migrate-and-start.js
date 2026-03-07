@@ -8,6 +8,7 @@
   Env toggles:
   - SKIP_MIGRATIONS=true to skip running migrations at boot
   - INTEGRATED_DOCS_AUTO_ROLLOUT=if-needed|always|off to control boot-time integrated-doc repair
+  - INTEGRATED_DOCS_AUTO_ROLLOUT_STRICT=true to fail startup when integrated-doc repair fails
 */
 
 const path = require('path');
@@ -26,6 +27,11 @@ function readIntegratedDocsRolloutMode() {
     return 'always';
   }
   return 'if-needed';
+}
+
+function isIntegratedDocsRolloutStrict() {
+  const raw = String(process.env.INTEGRATED_DOCS_AUTO_ROLLOUT_STRICT || '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'strict';
 }
 
 function npmBinary() {
@@ -164,8 +170,17 @@ async function runIntegratedDocsRolloutIfNeeded() {
       return;
     }
 
-    await runChildCommand('Running integrated-doc repair', ['run', 'integrated-docs:backfill']);
-    await runChildCommand('Verifying integrated-doc repair', ['run', 'integrated-docs:verify']);
+    try {
+      await runChildCommand('Running integrated-doc repair', ['run', 'integrated-docs:backfill']);
+      await runChildCommand('Verifying integrated-doc repair', ['run', 'integrated-docs:verify']);
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      if (isIntegratedDocsRolloutStrict()) {
+        throw error;
+      }
+      console.error(`[entrypoint] Integrated-doc auto rollout failed: ${message}`);
+      console.error('[entrypoint] Continuing startup because schema migrations already completed. Review repair logs and rerun repair after fixing the data issue.');
+    }
   } finally {
     try {
       await lockRunner.query(`SELECT pg_advisory_unlock(hashtext($1))`, [INTEGRATED_DOCS_ROLLOUT_LOCK_KEY]);
