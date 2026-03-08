@@ -2,6 +2,7 @@ import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { Chip, Button, Stack, Box, RadioGroup, FormControlLabel, Radio, Tooltip, Typography } from '@mui/material';
 import type { EnhancedColDef } from '../../components/ServerDataGrid';
 import ServerDataGrid from '../../components/ServerDataGrid';
+import { LinkCellRenderer } from '../../components/grid/renderers';
 import PageHeader from '../../components/PageHeader';
 import { useAuth } from '../../auth/AuthContext';
 import type { ICellRendererParams } from 'ag-grid-community';
@@ -210,18 +211,17 @@ export default function RequestsPage() {
   );
 
   const clickableCellRenderer = useCallback((params: ICellRendererParams<RequestRow, any>) => (
-    <Box
-      component="span"
-      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-      onClick={() => {
-        if (!params.data?.id) return;
+    <LinkCellRenderer
+      {...params}
+      linkType="internal"
+      getHref={(data) => {
+        if (!data?.id) return null;
         const sp = buildWorkspaceSearch();
-        const ref = params.data?.item_number ? `REQ-${params.data.item_number}` : params.data.id;
-        navigate(`/portfolio/requests/${ref}/overview?${sp.toString()}`);
+        const ref = data.item_number ? `REQ-${data.item_number}` : data.id;
+        return `/portfolio/requests/${ref}/summary?${sp.toString()}`;
       }}
-    >
-      {params.valueFormatted ?? params.value ?? ''}
-    </Box>
+      onNavigate={(href) => navigate(href)}
+    />
   ), [buildWorkspaceSearch, navigate]);
 
   const getRequestFilterValues = useCallback((
@@ -430,7 +430,7 @@ export default function RequestsPage() {
           variant="contained"
           onClick={() => {
             const sp = buildWorkspaceSearch();
-            navigate(`/portfolio/requests/new/overview?${sp.toString()}`);
+            navigate(`/portfolio/requests/new/summary?${sp.toString()}`);
           }}
         >
           New Request

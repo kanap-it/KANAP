@@ -165,6 +165,16 @@ export class AssetsController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('infrastructure', 'reader')
+  @Get(':id/knowledge-context')
+  getKnowledgeContext(@Param('id') id: string, @Req() req: any) {
+    return this.knowledge.getKnowledgeContextForEntity('assets', id, {
+      manager: req?.queryRunner?.manager,
+      userId: req?.user?.sub ?? null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('infrastructure', 'reader')
   @Get(':id/members')
   listMembers(@Param('id') id: string, @Req() req: any) {
     return this.svc.listClusterMembers(id, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id });

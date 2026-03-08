@@ -229,8 +229,24 @@ export class PortfolioProjectsService {
     return this.dependenciesService.listLinkedApplications(projectId, opts);
   }
 
+  bulkReplaceLinkedApplications(
+    projectId: string,
+    applicationIds: string[],
+    opts?: ServiceOpts,
+  ) {
+    return this.dependenciesService.bulkReplaceLinkedApplications(projectId, applicationIds, opts);
+  }
+
   listLinkedAssets(projectId: string, opts?: ServiceOpts) {
     return this.dependenciesService.listLinkedAssets(projectId, opts);
+  }
+
+  bulkReplaceLinkedAssets(
+    projectId: string,
+    assetIds: string[],
+    opts?: ServiceOpts,
+  ) {
+    return this.dependenciesService.bulkReplaceLinkedAssets(projectId, assetIds, opts);
   }
 
   // =========================================================================

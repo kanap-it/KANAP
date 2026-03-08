@@ -1,12 +1,13 @@
 import React, { useMemo, useRef, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../components/ServerDataGrid';
-import { Box, Button, Stack } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import CsvExportDialog from '../components/csv/CsvExportDialog';
 import CsvImportDialog from '../components/csv/CsvImportDialog';
 import { useAuth } from '../auth/AuthContext';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { useNavigate } from 'react-router-dom';
+import { LinkCellRenderer } from '../components/grid/renderers';
 import ForbiddenPage from './ForbiddenPage';
 
 export default function ContactsPage() {
@@ -33,32 +34,100 @@ export default function ContactsPage() {
     return sp;
   };
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
-
-  const ClickableCell: React.FC<any> = (params) => (
-    <Box
-      component="span"
-      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-      onClick={() => {
-        const sp = buildWorkspaceSearch();
-        navigate(`/master-data/contacts/${params.data?.id}/overview?${sp.toString()}`);
-      }}
-    >
-      {params.valueFormatted ?? (params.value != null ? String(params.value) : '')}
-    </Box>
-  );
+  const getContactHref = (row: any) => {
+    const sp = buildWorkspaceSearch();
+    return `/master-data/contacts/${row.id}/overview?${sp.toString()}`;
+  };
 
   const columns: EnhancedColDef<any>[] = useMemo(() => [
-    { field: 'last_name', headerName: 'Last Name', width: 160, cellRenderer: ClickableCell },
-    { field: 'first_name', headerName: 'First Name', width: 160, cellRenderer: ClickableCell },
-    { field: 'supplier_name', headerName: 'Supplier', width: 200, cellRenderer: ClickableCell },
-    { field: 'job_title', headerName: 'Job Title', width: 200, defaultHidden: true, cellRenderer: ClickableCell },
-    { field: 'email', headerName: 'Email', flex: 1, cellRenderer: ClickableCell },
-    { field: 'phone', headerName: 'Phone', width: 140, defaultHidden: true, cellRenderer: ClickableCell },
-    { field: 'mobile', headerName: 'Mobile', width: 140, defaultHidden: true, cellRenderer: ClickableCell },
-    { field: 'country', headerName: 'Country', width: 120, defaultHidden: true, cellRenderer: ClickableCell },
-    { field: 'active', headerName: 'Active', width: 120, valueFormatter: (p: any) => (p.value ? 'Yes' : 'No'), cellRenderer: ClickableCell },
-    { field: 'created_at', headerName: 'Created', width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''), defaultHidden: true, cellRenderer: ClickableCell },
-  ], []);
+    {
+      field: 'last_name',
+      headerName: 'Last Name',
+      width: 160,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'first_name',
+      headerName: 'First Name',
+      width: 160,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'supplier_name',
+      headerName: 'Supplier',
+      width: 200,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'job_title',
+      headerName: 'Job Title',
+      width: 200,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'email',
+      headerName: 'Email',
+      flex: 1,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'phone',
+      headerName: 'Phone',
+      width: 140,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'mobile',
+      headerName: 'Mobile',
+      width: 140,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'country',
+      headerName: 'Country',
+      width: 120,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'active',
+      headerName: 'Active',
+      width: 120,
+      valueFormatter: (p: any) => (p.value ? 'Yes' : 'No'),
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'created_at',
+      headerName: 'Created',
+      width: 200,
+      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+  ], [navigate]);
 
   const canCreate = hasLevel('contacts','manager');
   const canAdmin = hasLevel('contacts','admin');

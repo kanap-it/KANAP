@@ -36,6 +36,7 @@ import api from '../../api';
 import DeleteSelectedButton from '../../components/DeleteSelectedButton';
 import ServerDataGrid from '../../components/ServerDataGrid';
 import type { EnhancedColDef } from '../../components/ServerDataGrid';
+import { LinkCellRenderer } from '../../components/grid/renderers';
 import CheckboxSetFilter from '../../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
 import { useAuth } from '../../auth/AuthContext';
@@ -356,13 +357,17 @@ export default function KnowledgePage() {
   }, []);
 
   const ClickableCell: React.FC<ICellRendererParams<DocumentRow, any>> = (params) => (
-    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => {
-      const sp = buildWorkspaceSearch();
-      const ref = params.data?.item_ref || params.data?.id;
-      navigate(`/knowledge/${ref}?${sp.toString()}`);
-    }}>
-      {params.valueFormatted ?? params.value ?? ''}
-    </Box>
+    <LinkCellRenderer
+      {...params}
+      linkType="internal"
+      getHref={(data) => {
+        const sp = buildWorkspaceSearch();
+        const ref = data?.item_ref || data?.id;
+        if (!ref) return null;
+        return `/knowledge/${ref}?${sp.toString()}`;
+      }}
+      onNavigate={(href) => navigate(href)}
+    />
   );
 
   const DragHandleCell: React.FC<ICellRendererParams<DocumentRow, any>> = (params) => {

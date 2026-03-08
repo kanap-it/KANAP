@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
-import { Box, Button, Stack, Chip, Tooltip, Typography, RadioGroup, FormControlLabel, Radio } from '@mui/material';
+import { Box, Button, Stack, Chip, Tooltip, Typography, RadioGroup, FormControlLabel, Radio, Link } from '@mui/material';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
 import { ICellRendererParams } from 'ag-grid-community';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { LinkCellRenderer } from '../../components/grid/renderers';
 import { useAuth } from '../../auth/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import ForbiddenPage from '../ForbiddenPage';
@@ -209,25 +210,41 @@ export default function ApplicationsPage() {
     </Stack>
   );
 
+  const isPlainLeftClick = useCallback((event: React.MouseEvent) => {
+    return (
+      event.button === 0
+      && !event.metaKey
+      && !event.ctrlKey
+      && !event.shiftKey
+      && !event.altKey
+    );
+  }, []);
+
+  const buildAppHref = useCallback((row: AppRow | null | undefined, tab: 'overview' | 'ownership' | 'technical' | 'relations' | 'compliance' | 'instances') => {
+    if (!row?.id) return undefined;
+    const sp = buildWorkspaceSearch();
+    return `/it/applications/${row.id}/${tab}?${sp.toString()}`;
+  }, [buildWorkspaceSearch]);
+
+  const handleInternalNavigate = useCallback((event: React.MouseEvent, href: string | undefined) => {
+    if (!href) return;
+    if (!isPlainLeftClick(event)) return;
+    event.preventDefault();
+    navigate(href);
+  }, [isPlainLeftClick, navigate]);
+
   // Clickable cell to navigate to a specific tab
   const makeClickableCell = useCallback((tab: 'overview' | 'ownership' | 'technical' | 'relations' | 'compliance') => {
     const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => (
-      <Box
-        component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-        title={params.valueFormatted ?? params.value}
-        onClick={() => {
-          const id = (params?.data as AppRow | undefined)?.id;
-          if (!id) return;
-          const sp = buildWorkspaceSearch();
-          navigate(`/it/applications/${id}/${tab}?${sp.toString()}`);
-        }}
-      >
-        {params.valueFormatted ?? params.value}
-      </Box>
+      <LinkCellRenderer
+        {...params}
+        linkType="internal"
+        getHref={(row) => buildAppHref(row, tab)}
+        onNavigate={(href) => navigate(href)}
+      />
     );
     return Cell;
-  }, [buildWorkspaceSearch, navigate]);
+  }, [buildAppHref, navigate]);
 
   const ClickToOverview = useMemo(() => makeClickableCell('overview'), [makeClickableCell]);
   const ClickToOwnership = useMemo(() => makeClickableCell('ownership'), [makeClickableCell]);
@@ -346,23 +363,19 @@ export default function ApplicationsPage() {
       const extra = arr.length > 1 ? ` +${arr.length - 1}` : '';
       const title = arr.join(', ');
       return (
-        <Box
-          component="span"
+        <Link
+          href={buildAppHref(params.data as AppRow, 'ownership')}
+          onClick={(event) => handleInternalNavigate(event, buildAppHref(params.data as AppRow, 'ownership'))}
           sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-          title={title || undefined}
-          onClick={() => {
-            const id = (params?.data as AppRow | undefined)?.id;
-            if (!id) return;
-            const sp = buildWorkspaceSearch();
-            navigate(`/it/applications/${id}/ownership?${sp.toString()}`);
-          }}
+          underline="none"
+          color="inherit"
         >
           {`${first}${extra}`}
-        </Box>
+        </Link>
       );
     };
     return Cell;
-  }, [buildWorkspaceSearch, navigate]);
+  }, [buildAppHref, handleInternalNavigate]);
 
   const ResidencyCell = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
@@ -371,23 +384,19 @@ export default function ApplicationsPage() {
       const extra = arr.length > 2 ? ` +${arr.length - 2}` : '';
       const fullNames = arr.map((c) => countryNameByCode.get(String(c || '').toUpperCase()) || String(c || ''));
       return (
-        <Box
-          component="span"
+        <Link
+          href={buildAppHref(params.data as AppRow, 'compliance')}
+          onClick={(event) => handleInternalNavigate(event, buildAppHref(params.data as AppRow, 'compliance'))}
           sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-          title={fullNames.join(', ') || undefined}
-          onClick={() => {
-            const id = (params?.data as AppRow | undefined)?.id;
-            if (!id) return;
-            const sp = buildWorkspaceSearch();
-            navigate(`/it/applications/${id}/compliance?${sp.toString()}`);
-          }}
+          underline="none"
+          color="inherit"
         >
           {firstTwo.join(', ')}{extra}
-        </Box>
+        </Link>
       );
     };
     return Cell;
-  }, [buildWorkspaceSearch, countryNameByCode, navigate]);
+  }, [buildAppHref, countryNameByCode, handleInternalNavigate]);
 
   const RelationSummaryCell = useCallback((tab: 'relations') => {
     const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
@@ -401,23 +410,19 @@ export default function ApplicationsPage() {
       const extra = count && count > 1 ? ` +${count - 1}` : '';
       const title = first || '';
       return (
-        <Box
-          component="span"
+        <Link
+          href={buildAppHref(data as AppRow, tab)}
+          onClick={(event) => handleInternalNavigate(event, buildAppHref(data as AppRow, tab))}
           sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-          title={title || undefined}
-          onClick={() => {
-            const id = data?.id;
-            if (!id) return;
-            const sp = buildWorkspaceSearch();
-            navigate(`/it/applications/${id}/${tab}?${sp.toString()}`);
-          }}
+          underline="none"
+          color="inherit"
         >
           {(first || '') + (extra || '')}
-        </Box>
+        </Link>
       );
     };
     return Cell;
-  }, [buildWorkspaceSearch, navigate]);
+  }, [buildAppHref, handleInternalNavigate]);
 
   const StructureSummaryCell = useCallback((kind: 'suites' | 'components') => {
     const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
@@ -427,24 +432,19 @@ export default function ApplicationsPage() {
       const extra = count && count > 1 ? ` +${count - 1}` : '';
       const title = first || '';
       return (
-        <Box
-          component="span"
+        <Link
+          href={buildAppHref(data as AppRow, 'relations')}
+          onClick={(event) => handleInternalNavigate(event, buildAppHref(data as AppRow, 'relations'))}
           sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-          title={title || undefined}
-          onClick={() => {
-            const id = data?.id;
-            if (!id) return;
-            const sp = buildWorkspaceSearch();
-            // Jump to Relations tab where structure is edited/visible
-            navigate(`/it/applications/${id}/relations?${sp.toString()}`);
-          }}
+          underline="none"
+          color="inherit"
         >
           {(first || '') + (extra || '')}
-        </Box>
+        </Link>
       );
     };
     return Cell;
-  }, [buildWorkspaceSearch, navigate]);
+  }, [buildAppHref, handleInternalNavigate]);
 
   const NameWithSuiteCell = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
@@ -456,34 +456,27 @@ export default function ApplicationsPage() {
       return (
         <Stack component="span" direction="row" spacing={1} alignItems="center">
           <Box component="span">
-            <Box
-              component="span"
+            <Link
+              href={buildAppHref(data as AppRow, 'overview')}
+              onClick={(event) => handleInternalNavigate(event, buildAppHref(data as AppRow, 'overview'))}
               sx={{ cursor: 'pointer', display: 'block', '&:hover': { color: 'primary.main' } }}
-              title={String(name || '')}
-              onClick={() => {
-                const id = data?.id;
-                if (!id) return;
-                const sp = buildWorkspaceSearch();
-                navigate(`/it/applications/${id}/overview?${sp.toString()}`);
-              }}
+              underline="none"
+              color="inherit"
             >
               {name}
-            </Box>
+            </Link>
             <Typography variant="caption" color="text.secondary" component="span">
               {categoryLabel(data?.category)}
             </Typography>
           </Box>
           {(firstSuite && suitesCount > 0 && !suitesColVisible) && (
             <Box
-              component="span"
+              component="a"
+              href={buildAppHref(data as AppRow, 'relations')}
               sx={{ px: 0.75, py: 0.25, borderRadius: 1, bgcolor: 'action.hover', color: 'text.secondary', cursor: 'pointer', fontSize: '0.75rem' }}
-              title={`Included in: ${firstSuite}${extra}`}
               onClick={(e) => {
                 e.stopPropagation();
-                const id = data?.id;
-                if (!id) return;
-                const sp = buildWorkspaceSearch();
-                navigate(`/it/applications/${id}/relations?${sp.toString()}`);
+                handleInternalNavigate(e, buildAppHref(data as AppRow, 'relations'));
               }}
             >
               Included in: {firstSuite}{extra}
@@ -493,7 +486,7 @@ export default function ApplicationsPage() {
       );
     };
     return Cell;
-  }, [buildWorkspaceSearch, categoryLabel, navigate, suitesColVisible]);
+  }, [buildAppHref, categoryLabel, handleInternalNavigate, suitesColVisible]);
 
   const EnvironmentCell = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
@@ -531,11 +524,11 @@ export default function ApplicationsPage() {
                   variant="filled"
                   color="primary"
                   label={env.short}
-                  onClick={() => {
-                    const id = params.data?.id;
-                    if (!id) return;
-                    const sp = buildWorkspaceSearch();
-                    navigate(`/it/applications/${id}/instances?${sp.toString()}`);
+                  component="a"
+                  href={buildAppHref(params.data as AppRow, 'instances')}
+                  clickable
+                  onClick={(event) => {
+                    handleInternalNavigate(event, buildAppHref(params.data as AppRow, 'instances'));
                   }}
                 />
               </Tooltip>
@@ -545,7 +538,7 @@ export default function ApplicationsPage() {
       );
     };
     return Cell;
-  }, [buildWorkspaceSearch, isInstanceActive, lifecycleLabel, navigate]);
+  }, [buildAppHref, handleInternalNavigate, isInstanceActive, lifecycleLabel]);
 
   const SuitesSummaryCell = useMemo(() => StructureSummaryCell('suites'), [StructureSummaryCell]);
   const ComponentsSummaryCell = useMemo(() => StructureSummaryCell('components'), [StructureSummaryCell]);

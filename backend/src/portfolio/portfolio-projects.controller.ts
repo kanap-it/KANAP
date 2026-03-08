@@ -222,6 +222,21 @@ export class PortfolioProjectsController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
+  @Get(':id/knowledge-context')
+  async getKnowledgeContext(
+    @Param('id') idOrRef: string,
+    @Tenant() ctx: TenantRequest,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.knowledge.getKnowledgeContextForEntity('projects', id, {
+      manager: ctx.manager,
+      userId: req?.user?.sub ?? null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'reader')
   @Get(':id/integrated-documents/:slotKey')
   async getIntegratedDocument(
     @Param('id') idOrRef: string,
@@ -545,6 +560,21 @@ export class PortfolioProjectsController {
     return this.svc.listLinkedApplications(id, { manager: ctx.manager });
   }
 
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @Post(':id/applications/bulk-replace')
+  async bulkReplaceLinkedApplications(
+    @Param('id') idOrRef: string,
+    @Body() body: { application_ids: string[] },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.svc.bulkReplaceLinkedApplications(id, body?.application_ids ?? [], {
+      manager: ctx.manager,
+      userId: ctx.userId ?? null,
+    });
+  }
+
   // ==================== LINKED ASSETS ====================
 
   @UseGuards(PermissionGuard)
@@ -556,6 +586,21 @@ export class PortfolioProjectsController {
   ) {
     const id = await this.resolve(idOrRef, ctx);
     return this.svc.listLinkedAssets(id, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @Post(':id/assets/bulk-replace')
+  async bulkReplaceLinkedAssets(
+    @Param('id') idOrRef: string,
+    @Body() body: { asset_ids: string[] },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.svc.bulkReplaceLinkedAssets(id, body?.asset_ids ?? [], {
+      manager: ctx.manager,
+      userId: ctx.userId ?? null,
+    });
   }
 
   // ==================== CAPEX ====================

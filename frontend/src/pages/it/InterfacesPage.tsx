@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -14,12 +14,14 @@ import {
   Checkbox,
   Typography,
   CircularProgress,
+  Link,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { ICellRendererParams } from 'ag-grid-community';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
+import { LinkCellRenderer } from '../../components/grid/renderers';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
@@ -62,6 +64,28 @@ export default function InterfacesPage() {
   }>({ open: false, message: '', severity: 'success' });
   const canCreate = hasLevel('applications', 'manager');
   const canAdmin = hasLevel('applications', 'admin');
+
+  const isPlainLeftClick = useCallback((event: React.MouseEvent) => {
+    return (
+      event.button === 0
+      && !event.metaKey
+      && !event.ctrlKey
+      && !event.shiftKey
+      && !event.altKey
+    );
+  }, []);
+
+  const getInterfaceHref = useCallback((row: InterfaceRow | null | undefined) => {
+    if (!row?.id) return undefined;
+    return `/it/interfaces/${row.id}/overview`;
+  }, []);
+
+  const handleInternalNavigate = useCallback((event: React.MouseEvent, href: string | undefined) => {
+    if (!href) return;
+    if (!isPlainLeftClick(event)) return;
+    event.preventDefault();
+    navigate(href);
+  }, [isPlainLeftClick, navigate]);
 
   const handleOpenDuplicateDialog = () => {
     if (selectedRows.length !== 1) return;
@@ -109,29 +133,24 @@ export default function InterfacesPage() {
 
   const ClickToWorkspace = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<InterfaceRow, any>> = (params) => (
-      <Box
-        component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-        title={params.valueFormatted ?? params.value}
-        onClick={() => {
-          const id = params.data?.id;
-          if (!id) return;
-          navigate(`/it/interfaces/${id}/overview`);
-        }}
-      >
-        {params.valueFormatted ?? params.value}
-      </Box>
+      <LinkCellRenderer
+        {...params}
+        linkType="internal"
+        getHref={getInterfaceHref}
+        onNavigate={(href) => navigate(href)}
+      />
     );
     return Cell;
-  }, [navigate]);
+  }, [getInterfaceHref, navigate]);
 
   const EnvPills = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<InterfaceRow, any>> = (params) => {
       const envs = (params.data?.binding_environments || []) as string[];
       if (!envs || envs.length === 0) return null;
       return (
-        <Box
-          component="span"
+        <Link
+          href={getInterfaceHref(params.data as InterfaceRow)}
+          onClick={(event) => handleInternalNavigate(event, getInterfaceHref(params.data as InterfaceRow))}
           sx={{
             display: 'flex',
             flexWrap: 'wrap',
@@ -139,12 +158,8 @@ export default function InterfacesPage() {
             cursor: 'pointer',
             alignItems: 'center',
             height: '100%',
-            '&:hover': { opacity: 0.8 },
-          }}
-          onClick={() => {
-            const id = params.data?.id;
-            if (!id) return;
-            navigate(`/it/interfaces/${id}/overview`);
+            color: 'inherit',
+            textDecoration: 'none',
           }}
         >
           {envs.map((env) => (
@@ -156,11 +171,11 @@ export default function InterfacesPage() {
               label={env.toUpperCase()}
             />
           ))}
-        </Box>
+        </Link>
       );
     };
     return Cell;
-  }, [navigate]);
+  }, [getInterfaceHref, handleInternalNavigate]);
 
   if (!hasLevel('applications', 'reader')) {
     return <ForbiddenPage />;

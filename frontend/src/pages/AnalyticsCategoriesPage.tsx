@@ -1,10 +1,11 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../components/ServerDataGrid';
-import { Box, Button } from '@mui/material';
+import { Button } from '@mui/material';
 import { STATUS_VALUES } from '../constants/status';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { LinkCellRenderer } from '../components/grid/renderers';
 import ForbiddenPage from './ForbiddenPage';
 
 interface AnalyticsCategoryRow {
@@ -37,28 +38,66 @@ export default function AnalyticsCategoriesPage() {
   }, []);
 
   const columns = useMemo<EnhancedColDef<AnalyticsCategoryRow>[]>(() => {
-    const ClickableCell: React.FC<{ value: any; data: AnalyticsCategoryRow }> = ({ value, data }) => (
-      <Box
-        component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-        onClick={() => {
-          const sp = buildWorkspaceSearch();
-          navigate(`/master-data/analytics/${data.id}/overview?${sp.toString()}`);
-        }}
-      >
-        {value}
-      </Box>
-    );
+    const getAnalyticsHref = (row: AnalyticsCategoryRow) => {
+      const sp = buildWorkspaceSearch();
+      return `/master-data/analytics/${row.id}/overview?${sp.toString()}`;
+    };
+
     return [
-      { field: 'name', headerName: 'Name', flex: 1, cellRenderer: ClickableCell },
-      { field: 'description', headerName: 'Description', flex: 1, cellRenderer: ClickableCell },
-      { field: 'status', headerName: 'Status', width: 140, cellRenderer: ClickableCell, filter: 'agSetColumnFilter', filterParams: { values: STATUS_VALUES, suppressMiniFilter: true } },
+      {
+        field: 'name',
+        headerName: 'Name',
+        flex: 1,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={getAnalyticsHref}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'description',
+        headerName: 'Description',
+        flex: 1,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={getAnalyticsHref}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'status',
+        headerName: 'Status',
+        width: 140,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={getAnalyticsHref}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+        filter: 'agSetColumnFilter',
+        filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
+      },
       {
         field: 'updated_at',
         headerName: 'Updated',
         width: 200,
         valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
-        cellRenderer: ClickableCell,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={getAnalyticsHref}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
       },
     ];
   }, [buildWorkspaceSearch, navigate]);

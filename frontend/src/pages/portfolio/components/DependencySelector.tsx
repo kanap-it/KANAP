@@ -27,8 +27,19 @@ interface TargetOption {
   type: 'request' | 'project';
   id: string;
   name: string;
-  status: string;
 }
+
+const compactFieldSx = {
+  '& .MuiFormLabel-root': {
+    fontSize: '0.9rem',
+  },
+  '& .MuiInputBase-root': {
+    fontSize: '0.9rem',
+  },
+  '& .MuiInputBase-input': {
+    fontSize: '0.9rem',
+  },
+};
 
 export default function DependencySelector({
   entityType,
@@ -67,7 +78,7 @@ export default function DependencySelector({
       const key = `request:${r.id}`;
       // Filter out converted requests - use the resulting project instead
       if (key !== selfKey && !linkedIds.has(key) && r.status !== 'converted') {
-        options.push({ type: 'request', id: r.id, name: r.name, status: r.status });
+        options.push({ type: 'request', id: r.id, name: r.name });
       }
     }
   }
@@ -76,7 +87,7 @@ export default function DependencySelector({
     for (const p of projects) {
       const key = `project:${p.id}`;
       if (key !== selfKey && !linkedIds.has(key)) {
-        options.push({ type: 'project', id: p.id, name: p.name, status: p.status });
+        options.push({ type: 'project', id: p.id, name: p.name });
       }
     }
   }
@@ -106,6 +117,7 @@ export default function DependencySelector({
     <Stack spacing={2}>
       <Autocomplete
         options={options}
+        size="small"
         groupBy={(option) => option.type === 'request' ? 'Requests' : 'Projects'}
         getOptionLabel={(option) => option.name}
         isOptionEqualToValue={(option, value) => option.type === value.type && option.id === value.id}
@@ -113,11 +125,8 @@ export default function DependencySelector({
         value={null}
         renderOption={(props, option) => (
           <li {...props} key={`${option.type}:${option.id}`}>
-            <Box>
+            <Box sx={{ py: 0.25 }}>
               <Typography variant="body2">{option.name}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {option.status.replace(/_/g, ' ')}
-              </Typography>
             </Box>
           </li>
         )}
@@ -126,6 +135,7 @@ export default function DependencySelector({
             {...params}
             label="Add Dependency"
             placeholder="Search requests or projects..."
+            sx={compactFieldSx}
             InputProps={{
               ...params.InputProps,
               endAdornment: (
@@ -162,9 +172,6 @@ export default function DependencySelector({
               />
               <Typography variant="body2" sx={{ flex: 1 }}>
                 {dep.target_name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {dep.target_status?.replace(/_/g, ' ')}
               </Typography>
               {!disabled && (
                 <IconButton

@@ -40,6 +40,50 @@ export interface TimeSummary {
   nonProjectTaskHours: number;
 }
 
+export interface TeamActivityItem {
+  id: string;
+  projectId: string;
+  projectName: string;
+  type: 'change' | 'comment' | 'decision';
+  content: string | null;
+  authorName: string;
+  createdAt: string;
+  changedFields: Record<string, [unknown, unknown]> | null;
+}
+
+export interface ProjectStatusChangeItem {
+  id: string;
+  projectId: string;
+  projectName: string;
+  previousStatus: string | null;
+  nextStatus: string | null;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface StaleTaskItem {
+  id: string;
+  itemNumber: number;
+  title: string;
+  status: string;
+  updatedAt: string;
+  staleDays: number;
+  assigneeName: string | null;
+  relatedObjectType: string | null;
+  relatedObjectId: string | null;
+  relatedObjectName: string | null;
+}
+
+export interface KnowledgeReviewItem {
+  id: string;
+  itemNumber: number;
+  title: string;
+  status: string;
+  stage: 'reviewer' | 'approver';
+  requestedAt: string;
+  requestedByName: string | null;
+}
+
 @Injectable()
 export class DashboardDataService {
   /**
@@ -278,5 +322,269 @@ export class DashboardDataService {
       },
       nonProjectTaskHours: parseFloat(row.non_project_hours) || 0,
     };
+  }
+
+  async getTeamActivity(
+    userId: string,
+    limit: number = 5,
+    opts?: ServiceOptions,
+  ): Promise<TeamActivityItem[]> {
+    const manager = opts?.manager;
+    if (!manager) throw new Error('EntityManager required');
+
+    const rows = await manager.query(
+      `
+      WITH involved_projects AS (
+        SELECT p.id
+        FROM portfolio_projects p
+        WHERE p.it_lead_id = $1
+          OR p.business_lead_id = $1
+          OR p.it_sponsor_id = $1
+          OR p.business_sponsor_id = $1
+        UNION
+        SELECT ppt.project_id AS id
+        FROM portfolio_project_team ppt
+        WHERE ppt.user_id = $1
+      )
+      SELECT
+        a.id,
+        a.project_id,
+        p.name AS project_name,
+        a.type,
+        a.content,
+        a.changed_fields,
+        a.created_at,
+        COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, 'Someone') AS author_name
+      FROM portfolio_activities a
+      JOIN involved_projects ip ON ip.id = a.project_id
+      JOIN portfolio_projects p ON p.id = a.project_id
+      LEFT JOIN users u ON u.id = a.author_id AND u.tenant_id = p.tenant_id
+      WHERE a.project_id IS NOT NULL
+        AND a.created_at >= NOW() - INTERVAL '7 days'
+        AND (
+          a.type IN ('comment', 'decision')
+          OR (
+            a.type = 'change'
+            AND a.changed_fields IS NOT NULL
+            AND a.changed_fields ?| ARRAY[
+              'status',
+              'phase_id',
+              'execution_progress',
+              'planned_start',
+              'planned_end',
+              'it_lead_id',
+              'business_lead_id',
+              'it_sponsor_id',
+              'business_sponsor_id',
+              'priority_score',
+              'task_created'
+            ]
+          )
+        )
+      ORDER BY a.created_at DESC
+      LIMIT $2
+      `,
+      [userId, limit],
+    );
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      projectId: row.project_id,
+      projectName: row.project_name,
+      type: row.type,
+      content: row.content || null,
+      authorName: row.author_name || 'Someone',
+      createdAt: row.created_at,
+      changedFields: row.changed_fields || null,
+    }));
+  }
+
+  async getProjectStatusChanges(
+    days: number = 5,
+    limit: number = 5,
+    opts?: ServiceOptions,
+  ): Promise<ProjectStatusChangeItem[]> {
+    const manager = opts?.manager;
+    if (!manager) throw new Error('EntityManager required');
+
+    const rows = await manager.query(
+      `
+      SELECT
+        a.id,
+        a.project_id,
+        p.name AS project_name,
+        a.changed_fields->'status'->>0 AS previous_status,
+        a.changed_fields->'status'->>1 AS next_status,
+        a.created_at,
+        COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, 'Someone') AS author_name
+      FROM portfolio_activities a
+      JOIN portfolio_projects p ON p.id = a.project_id
+      LEFT JOIN users u ON u.id = a.author_id AND u.tenant_id = p.tenant_id
+      WHERE a.project_id IS NOT NULL
+        AND a.type = 'change'
+        AND a.changed_fields ? 'status'
+        AND a.created_at >= NOW() - ($1 || ' days')::interval
+      ORDER BY a.created_at DESC
+      LIMIT $2
+      `,
+      [days, limit],
+    );
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      projectId: row.project_id,
+      projectName: row.project_name,
+      previousStatus: row.previous_status || null,
+      nextStatus: row.next_status || null,
+      authorName: row.author_name || 'Someone',
+      createdAt: row.created_at,
+    }));
+  }
+
+  async getStaleTasks(
+    userId: string,
+    scope: 'my' | 'team' | 'all' = 'my',
+    thresholdDays: number = 90,
+    limit: number = 5,
+    opts?: ServiceOptions,
+  ): Promise<StaleTaskItem[]> {
+    const manager = opts?.manager;
+    if (!manager) throw new Error('EntityManager required');
+
+    let scopeSql = '';
+    const params: unknown[] = [thresholdDays];
+
+    if (scope === 'my') {
+      params.push(userId);
+      scopeSql = `AND t.assignee_user_id = $${params.length}`;
+    } else if (scope === 'team') {
+      const teamRows = await manager.query<Array<{ team_id: string | null }>>(
+        `
+        SELECT team_id
+        FROM portfolio_team_member_configs
+        WHERE user_id = $1
+          AND tenant_id = app_current_tenant()
+        LIMIT 1
+        `,
+        [userId],
+      );
+      const teamId = teamRows[0]?.team_id || null;
+      if (!teamId) return [];
+      params.push(teamId);
+      scopeSql = `AND t.assignee_user_id IN (
+        SELECT user_id
+        FROM portfolio_team_member_configs
+        WHERE team_id = $${params.length}
+          AND tenant_id = app_current_tenant()
+      )`;
+    }
+
+    params.push(limit);
+
+    const rows = await manager.query(
+      `
+      SELECT
+        t.id,
+        t.item_number,
+        t.title,
+        t.status,
+        t.updated_at,
+        COALESCE(
+          NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''),
+          u.email
+        ) AS assignee_name,
+        t.related_object_type,
+        t.related_object_id,
+        CASE
+          WHEN t.related_object_type IS NULL THEN NULL
+          WHEN t.related_object_type = 'spend_item' THEN si.product_name
+          WHEN t.related_object_type = 'contract' THEN c.name
+          WHEN t.related_object_type = 'capex_item' THEN ci.description
+          WHEN t.related_object_type = 'project' THEN pp.name
+          ELSE NULL
+        END AS related_object_name,
+        GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - t.updated_at)) / 86400))::int AS stale_days
+      FROM tasks t
+      LEFT JOIN users u ON u.id = t.assignee_user_id
+      LEFT JOIN spend_items si ON t.related_object_type = 'spend_item' AND t.related_object_id = si.id
+      LEFT JOIN contracts c ON t.related_object_type = 'contract' AND t.related_object_id = c.id
+      LEFT JOIN capex_items ci ON t.related_object_type = 'capex_item' AND t.related_object_id = ci.id
+      LEFT JOIN portfolio_projects pp ON t.related_object_type = 'project' AND t.related_object_id = pp.id
+      WHERE t.status NOT IN ('done', 'cancelled')
+        AND t.updated_at < NOW() - ($1 || ' days')::interval
+        ${scopeSql}
+      ORDER BY t.updated_at ASC, t.created_at ASC
+      LIMIT $${params.length}
+      `,
+      params,
+    );
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      itemNumber: Number(row.item_number || 0),
+      title: row.title,
+      status: row.status,
+      updatedAt: row.updated_at,
+      staleDays: Number(row.stale_days || 0),
+      assigneeName: row.assignee_name || null,
+      relatedObjectType: row.related_object_type || null,
+      relatedObjectId: row.related_object_id || null,
+      relatedObjectName: row.related_object_name || null,
+    }));
+  }
+
+  async getKnowledgeReviewItems(
+    userId: string,
+    limit: number = 5,
+    opts?: ServiceOptions,
+  ): Promise<KnowledgeReviewItem[]> {
+    const manager = opts?.manager;
+    if (!manager) throw new Error('EntityManager required');
+
+    const rows = await manager.query(
+      `
+      SELECT
+        d.id,
+        d.item_number,
+        d.title,
+        d.status,
+        CASE
+          WHEN w.status = 'pending_review' THEN 'reviewer'
+          WHEN w.status = 'pending_approval' THEN 'approver'
+          ELSE p.stage
+        END AS stage,
+        w.requested_at,
+        COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, w.requested_by::text) AS requested_by_name
+      FROM document_workflow_participants p
+      JOIN document_workflows w
+        ON w.id = p.workflow_id
+       AND w.tenant_id = p.tenant_id
+      JOIN documents d
+        ON d.id = w.document_id
+       AND d.tenant_id = w.tenant_id
+      LEFT JOIN users u
+        ON u.id = w.requested_by
+       AND u.tenant_id = w.tenant_id
+      WHERE p.user_id = $1
+        AND p.decision = 'pending'
+        AND (
+          (w.status = 'pending_review' AND p.stage = 'reviewer')
+          OR (w.status = 'pending_approval' AND p.stage = 'approver')
+        )
+      ORDER BY w.requested_at ASC, d.updated_at DESC
+      LIMIT $2
+      `,
+      [userId, limit],
+    );
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      itemNumber: Number(row.item_number || 0),
+      title: row.title,
+      status: row.status,
+      stage: row.stage,
+      requestedAt: row.requested_at,
+      requestedByName: row.requested_by_name || null,
+    }));
   }
 }

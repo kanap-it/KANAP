@@ -429,7 +429,7 @@ export function PortfolioGantt({
             navigate(`/portfolio/projects/${task._projectId}/timeline`);
           }
         } else {
-          navigate(`/portfolio/projects/${taskId}/overview`);
+          navigate(`/portfolio/projects/${taskId}/summary`);
         }
       }
       return false; // Prevent default editor

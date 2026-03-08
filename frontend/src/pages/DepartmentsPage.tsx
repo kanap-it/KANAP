@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Box, Button, Stack, TextField } from '@mui/material';
-import { ICellRendererParams } from 'ag-grid-community';
+import { Button, Stack, TextField } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef, StatusScope } from '../components/ServerDataGrid';
@@ -8,6 +7,7 @@ import CsvExportDialog from '../components/csv/CsvExportDialog';
 import CsvImportDialog from '../components/csv/CsvImportDialog';
 import { useAuth } from '../auth/AuthContext';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
+import { LinkCellRenderer } from '../components/grid/renderers';
 import { STATUS_VALUES } from '../constants/status';
 import ForbiddenPage from './ForbiddenPage';
 
@@ -46,27 +46,95 @@ export default function DepartmentsPage() {
     navigate(`/master-data/departments/${row.id}/${tab}?${sp.toString()}`);
   }, [buildWorkspaceSearch, navigate]);
 
-  const ClickableCell: React.FC<ICellRendererParams<any, any>> = (params) => (
-    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => openWorkspace(params.data, 'overview')}>
-      {params.value}
-    </Box>
-  );
-
-  const ClickableCellGeneric: React.FC<ICellRendererParams<any, any>> = (params) => (
-    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => openWorkspace(params.data, 'overview')}>
-      {params.valueFormatted ?? params.value}
-    </Box>
-  );
+  const getWorkspaceHref = useCallback((row: any, tab: 'overview' | 'details') => {
+    if (!row?.id) return null;
+    const sp = buildWorkspaceSearch();
+    return `/master-data/departments/${row.id}/${tab}?${sp.toString()}`;
+  }, [buildWorkspaceSearch]);
 
   const columns: EnhancedColDef<any>[] = useMemo(() => [
-    { field: 'name', headerName: 'Name', flex: 1, required: true, cellRenderer: ClickableCell },
-    { field: 'company_name', headerName: 'Company', width: 280, filter: 'agTextColumnFilter', filterParams: { suppressAndOrCondition: true }, cellRenderer: ClickableCellGeneric },
-    { field: 'headcount_year', headerName: `Headcount (${year})`, width: 180, filter: 'agNumberColumnFilter', filterParams: { suppressAndOrCondition: true }, cellRenderer: (p: any) => (
-      <Box sx={{ cursor: 'pointer', color: 'primary.main', textDecoration: 'underline' }} onClick={() => openWorkspace(p.data, 'details')}>{(p.value ?? 0)}</Box>
-    ) },
-    { field: 'status', headerName: 'Status', width: 140, filter: 'agSetColumnFilter', filterParams: { values: STATUS_VALUES, suppressMiniFilter: true }, cellRenderer: ClickableCellGeneric, defaultHidden: true },
-    { field: 'created_at', headerName: 'Created', width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''), defaultHidden: true, cellRenderer: ClickableCellGeneric },
-  ], [ClickableCell, ClickableCellGeneric, openWorkspace, year]);
+    {
+      field: 'name',
+      headerName: 'Name',
+      flex: 1,
+      required: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'company_name',
+      headerName: 'Company',
+      width: 280,
+      filter: 'agTextColumnFilter',
+      filterParams: { suppressAndOrCondition: true },
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'headcount_year',
+      headerName: `Headcount (${year})`,
+      width: 180,
+      filter: 'agNumberColumnFilter',
+      filterParams: { suppressAndOrCondition: true },
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'details')}
+          onNavigate={(href) => navigate(href)}
+          linkSx={{
+            color: 'primary.main',
+            textDecoration: 'underline',
+            '&:visited': { color: 'primary.main' },
+            '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+          }}
+        />
+      ),
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 140,
+      filter: 'agSetColumnFilter',
+      filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'created_at',
+      headerName: 'Created',
+      width: 200,
+      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+  ], [getWorkspaceHref, navigate, year]);
 
   const canCreate = hasLevel('departments','manager');
   const canAdmin = hasLevel('departments','admin');
@@ -119,11 +187,6 @@ export default function DepartmentsPage() {
         enableRowSelection={canAdmin}
         onSelectionChanged={setSelectedRows}
         onGridApiReady={(api) => { gridApiRef.current = api; }}
-        onCellClicked={(e: any) => {
-          const f = e?.colDef?.field;
-          if (['headcount_year'].includes(f)) openWorkspace(e.data, 'details');
-          else openWorkspace(e.data, 'overview');
-        }}
         onQueryStateChange={(state) => {
           const scope = state.statusScope ?? 'enabled';
           lastQueryRef.current = { sort: state.sort, q: state.q || '', filters: state.filterModel || {}, statusScope: scope };

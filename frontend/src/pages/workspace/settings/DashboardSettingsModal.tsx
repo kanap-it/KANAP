@@ -25,6 +25,7 @@ import InboxIcon from '@mui/icons-material/Inbox';
 import UpdateIcon from '@mui/icons-material/Update';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import WarningIcon from '@mui/icons-material/Warning';
+import DescriptionIcon from '@mui/icons-material/Description';
 import { useDashboardConfig, DashboardTileConfig } from '../hooks/useDashboardConfig';
 import { TILE_REGISTRY } from '../tiles/TileRegistry';
 
@@ -38,6 +39,7 @@ const ICON_MAP: Record<string, typeof TaskIcon> = {
   Update: UpdateIcon,
   SwapHoriz: SwapHorizIcon,
   Warning: WarningIcon,
+  Description: DescriptionIcon,
 };
 
 interface DashboardSettingsModalProps {

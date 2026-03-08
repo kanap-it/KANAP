@@ -59,6 +59,7 @@ const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' |
 };
 
 const PROJECT_WORKSPACE_TABS = new Set([
+  'summary',
   'overview',
   'activity',
   'team',
@@ -1574,7 +1575,7 @@ export default function TaskWorkspacePage() {
           queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
           queryClient.invalidateQueries({ queryKey: ['tasks'] });
           if (requestId) {
-            navigate(`/portfolio/requests/${requestId}/overview`);
+            navigate(`/portfolio/requests/${requestId}/summary`);
             return;
           }
           void refetch();

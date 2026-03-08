@@ -1406,6 +1406,180 @@ export class PortfolioRequestsService {
     return { ok: true, added: toInsert.length, removed: toDelete.length };
   }
 
+  // ==================== LINKED APPLICATIONS ====================
+  async listLinkedApplications(
+    requestId: string,
+    opts?: { manager?: EntityManager },
+  ) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const request = await this.getRequestOrThrow(requestId, mg);
+    const rows = await mg.query<Array<{ id: string; name: string | null }>>(
+      `SELECT l.application_id AS id, a.name
+       FROM portfolio_request_applications l
+       JOIN applications a ON a.id = l.application_id
+       WHERE l.request_id = $1
+         AND l.tenant_id = $2
+         AND a.tenant_id = $2
+       ORDER BY a.name ASC`,
+      [requestId, request.tenant_id],
+    );
+    return { items: rows };
+  }
+
+  async bulkReplaceApplications(
+    requestId: string,
+    applicationIds: string[],
+    opts?: { manager?: EntityManager; userId?: string | null },
+  ) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const actorId = this.requireActivityAuthor(opts?.userId);
+    const request = await this.getRequestOrThrow(requestId, mg);
+
+    const unique = Array.from(new Set((applicationIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
+    if (unique.length > 0) {
+      const rows = await mg.query<Array<{ id: string }>>(
+        `SELECT id
+         FROM applications
+         WHERE tenant_id = $1
+           AND id = ANY($2::uuid[])`,
+        [request.tenant_id, unique],
+      );
+      if (rows.length !== unique.length) {
+        throw new BadRequestException('One or more applications were not found');
+      }
+    }
+
+    const existing = await mg.query<Array<{ id: string; application_id: string }>>(
+      `SELECT id, application_id
+       FROM portfolio_request_applications
+       WHERE request_id = $1
+         AND tenant_id = $2`,
+      [requestId, request.tenant_id],
+    );
+    const beforeIds = Array.from(new Set(existing.map((row) => row.application_id)));
+
+    await mg.query(
+      `DELETE FROM portfolio_request_applications
+       WHERE request_id = $1
+         AND tenant_id = $2`,
+      [requestId, request.tenant_id],
+    );
+
+    if (unique.length > 0) {
+      await mg.query(
+        `INSERT INTO portfolio_request_applications (tenant_id, request_id, application_id)
+         SELECT $1, $2, application_id
+         FROM unnest($3::uuid[]) AS application_id`,
+        [request.tenant_id, requestId, unique],
+      );
+    }
+
+    const beforeSorted = [...beforeIds].sort();
+    const afterSorted = [...unique].sort();
+    if (JSON.stringify(beforeSorted) !== JSON.stringify(afterSorted)) {
+      const [beforeLabels, afterLabels] = await Promise.all([
+        this.resolveApplicationLabelsByIds(mg, beforeSorted),
+        this.resolveApplicationLabelsByIds(mg, afterSorted),
+      ]);
+      await this.logActivity(mg, {
+        request_id: requestId,
+        tenant_id: request.tenant_id,
+        author_id: actorId,
+        type: 'change',
+        changed_fields: { applications: [beforeLabels, afterLabels] },
+      });
+    }
+
+    return { ok: true, count: unique.length };
+  }
+
+  // ==================== LINKED ASSETS ====================
+  async listLinkedAssets(
+    requestId: string,
+    opts?: { manager?: EntityManager },
+  ) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const request = await this.getRequestOrThrow(requestId, mg);
+    const rows = await mg.query<Array<{ id: string; name: string | null }>>(
+      `SELECT l.asset_id AS id, a.name
+       FROM portfolio_request_assets l
+       JOIN assets a ON a.id = l.asset_id
+       WHERE l.request_id = $1
+         AND l.tenant_id = $2
+         AND a.tenant_id = $2
+       ORDER BY a.name ASC`,
+      [requestId, request.tenant_id],
+    );
+    return { items: rows };
+  }
+
+  async bulkReplaceAssets(
+    requestId: string,
+    assetIds: string[],
+    opts?: { manager?: EntityManager; userId?: string | null },
+  ) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const actorId = this.requireActivityAuthor(opts?.userId);
+    const request = await this.getRequestOrThrow(requestId, mg);
+
+    const unique = Array.from(new Set((assetIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
+    if (unique.length > 0) {
+      const rows = await mg.query<Array<{ id: string }>>(
+        `SELECT id
+         FROM assets
+         WHERE tenant_id = $1
+           AND id = ANY($2::uuid[])`,
+        [request.tenant_id, unique],
+      );
+      if (rows.length !== unique.length) {
+        throw new BadRequestException('One or more assets were not found');
+      }
+    }
+
+    const existing = await mg.query<Array<{ id: string; asset_id: string }>>(
+      `SELECT id, asset_id
+       FROM portfolio_request_assets
+       WHERE request_id = $1
+         AND tenant_id = $2`,
+      [requestId, request.tenant_id],
+    );
+    const beforeIds = Array.from(new Set(existing.map((row) => row.asset_id)));
+
+    await mg.query(
+      `DELETE FROM portfolio_request_assets
+       WHERE request_id = $1
+         AND tenant_id = $2`,
+      [requestId, request.tenant_id],
+    );
+
+    if (unique.length > 0) {
+      await mg.query(
+        `INSERT INTO portfolio_request_assets (tenant_id, request_id, asset_id)
+         SELECT $1, $2, asset_id
+         FROM unnest($3::uuid[]) AS asset_id`,
+        [request.tenant_id, requestId, unique],
+      );
+    }
+
+    const beforeSorted = [...beforeIds].sort();
+    const afterSorted = [...unique].sort();
+    if (JSON.stringify(beforeSorted) !== JSON.stringify(afterSorted)) {
+      const [beforeLabels, afterLabels] = await Promise.all([
+        this.resolveAssetLabelsByIds(mg, beforeSorted),
+        this.resolveAssetLabelsByIds(mg, afterSorted),
+      ]);
+      await this.logActivity(mg, {
+        request_id: requestId,
+        tenant_id: request.tenant_id,
+        author_id: actorId,
+        type: 'change',
+        changed_fields: { assets: [beforeLabels, afterLabels] },
+      });
+    }
+
+    return { ok: true, count: unique.length };
+  }
+
   // ==================== CAPEX MANAGEMENT ====================
   async bulkReplaceCapex(
     requestId: string,
@@ -1888,6 +2062,36 @@ export class PortfolioRequestsService {
       byId.set(row.id, row.description || row.id);
     }
     return capexIds.map((id) => byId.get(id) ?? id).sort((a, b) => a.localeCompare(b));
+  }
+
+  private async resolveApplicationLabelsByIds(mg: EntityManager, applicationIds: string[]): Promise<string[]> {
+    if (applicationIds.length === 0) return [];
+    const rows = await mg.query<Array<{ id: string; name: string | null }>>(
+      `SELECT id, name
+       FROM applications
+       WHERE id = ANY($1::uuid[])`,
+      [applicationIds],
+    );
+    const byId = new Map<string, string>();
+    for (const row of rows) {
+      byId.set(row.id, row.name || row.id);
+    }
+    return applicationIds.map((id) => byId.get(id) ?? id).sort((a, b) => a.localeCompare(b));
+  }
+
+  private async resolveAssetLabelsByIds(mg: EntityManager, assetIds: string[]): Promise<string[]> {
+    if (assetIds.length === 0) return [];
+    const rows = await mg.query<Array<{ id: string; name: string | null }>>(
+      `SELECT id, name
+       FROM assets
+       WHERE id = ANY($1::uuid[])`,
+      [assetIds],
+    );
+    const byId = new Map<string, string>();
+    for (const row of rows) {
+      byId.set(row.id, row.name || row.id);
+    }
+    return assetIds.map((id) => byId.get(id) ?? id).sort((a, b) => a.localeCompare(b));
   }
 
   private async resolveOpexLabelsByIds(mg: EntityManager, opexIds: string[]): Promise<string[]> {

@@ -43,7 +43,7 @@ const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error
 
 export default function ProjectsIContributeTile({ config }: ProjectsIContributeTileProps) {
   const navigate = useNavigate();
-  const limit = (config.limit as number) || 5;
+  const limit = Math.min((config.limit as number) || 5, 5);
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'my-contribution-projects', limit],

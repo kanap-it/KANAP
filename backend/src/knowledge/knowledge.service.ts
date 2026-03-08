@@ -63,6 +63,37 @@ export type EntityDocumentListResponse = {
   total: number;
   items: EntityDocumentListItem[];
 };
+export type EntityKnowledgeContextGroupKey =
+  | 'direct'
+  | 'resulting_projects'
+  | 'source_requests'
+  | 'dependencies'
+  | 'linked_requests'
+  | 'linked_projects'
+  | 'linked_applications'
+  | 'linked_assets';
+export type EntityKnowledgeContextSource = {
+  entity_type: RelationEntityType;
+  entity_id: string;
+  item_number: number | null;
+  name: string;
+  status: string | null;
+};
+export type EntityKnowledgeContextItem = EntityDocumentListItem & {
+  provenance: EntityKnowledgeContextSource[];
+};
+export type EntityKnowledgeContextGroup = {
+  key: EntityKnowledgeContextGroupKey;
+  label: string;
+  linked_via_label: string;
+  total: number;
+  items: EntityKnowledgeContextItem[];
+};
+export type EntityKnowledgeContextResponse = {
+  access: EntityDocumentListAccess;
+  total: number;
+  groups: EntityKnowledgeContextGroup[];
+};
 
 const LOCK_TTL_SECONDS = 5 * 60;
 const DEFAULT_DOCUMENT_TYPE_NAME = 'Document';
@@ -196,6 +227,23 @@ type ActiveDocumentLock = {
   acquired_at: Date;
   heartbeat_at: Date;
   expires_at: Date;
+};
+
+type KnowledgeContextRootEntityType = RelationEntityType;
+type KnowledgeContextSourceRow = {
+  entity_id: string;
+  item_number: number | null;
+  name: string;
+  status: string | null;
+};
+type EntityDocumentListItemRow = EntityDocumentListItem & {
+  entity_id: string;
+};
+type EntityKnowledgeContextGroupDefinition = {
+  key: EntityKnowledgeContextGroupKey;
+  label: string;
+  linked_via_label: string;
+  sources: EntityKnowledgeContextSource[];
 };
 
 @Injectable()
@@ -4287,6 +4335,566 @@ export class KnowledgeService {
         ? { imageFetchHeaders: { Cookie: opts.imageFetchCookie } }
         : undefined,
     );
+  }
+
+  private mapKnowledgeContextSources(
+    entityType: RelationEntityType,
+    rows: KnowledgeContextSourceRow[],
+  ): EntityKnowledgeContextSource[] {
+    const sources: EntityKnowledgeContextSource[] = [];
+    const seen = new Set<string>();
+
+    for (const row of rows) {
+      const entityId = String(row?.entity_id || '').trim();
+      if (!entityId || seen.has(entityId)) continue;
+      seen.add(entityId);
+      sources.push({
+        entity_type: entityType,
+        entity_id: entityId,
+        item_number: row?.item_number != null ? Number(row.item_number) : null,
+        name: String(row?.name || entityId),
+        status: row?.status != null ? String(row.status) : null,
+      });
+    }
+
+    return sources;
+  }
+
+  private async listDocumentRowsForEntityIds(
+    entity: RelationEntityType,
+    entityIds: string[],
+    manager: EntityManager,
+  ): Promise<EntityDocumentListItemRow[]> {
+    const ids = dedupeStrings(entityIds);
+    if (ids.length === 0) return [];
+
+    const map = RELATION_TABLE_MAP[entity];
+    if (!map) throw new BadRequestException('Unsupported relation entity');
+
+    return manager.query(
+      `SELECT rel.${map.idColumn} AS entity_id,
+              d.id,
+              d.item_number,
+              d.title,
+              d.summary,
+              d.status,
+              d.updated_at,
+              d.created_at
+       FROM ${map.table} rel
+       JOIN documents d ON d.id = rel.document_id AND d.tenant_id = rel.tenant_id
+       LEFT JOIN integrated_document_bindings b
+         ON b.document_id = d.id
+        AND b.tenant_id = d.tenant_id
+        AND b.source_entity_type = $2
+        AND b.source_entity_id = rel.${map.idColumn}
+       WHERE rel.${map.idColumn} = ANY($1::uuid[])
+         AND (b.document_id IS NULL OR b.hidden_from_entity_knowledge = false)
+       ORDER BY rel.${map.idColumn} ASC, d.updated_at DESC`,
+      [ids, entity],
+    );
+  }
+
+  private async listDocumentRowsForKnowledgeSources(
+    sources: EntityKnowledgeContextSource[],
+    manager: EntityManager,
+  ): Promise<Map<string, EntityDocumentListItemRow[]>> {
+    const rowsBySourceId = new Map<string, EntityDocumentListItemRow[]>();
+    const sourceIdsByType = new Map<RelationEntityType, string[]>();
+
+    for (const source of sources) {
+      const ids = sourceIdsByType.get(source.entity_type) || [];
+      ids.push(source.entity_id);
+      sourceIdsByType.set(source.entity_type, ids);
+    }
+
+    await Promise.all(
+      Array.from(sourceIdsByType.entries()).map(async ([entityType, entityIds]) => {
+        const rows = await this.listDocumentRowsForEntityIds(entityType, entityIds, manager);
+        for (const row of rows) {
+          const bucket = rowsBySourceId.get(row.entity_id) || [];
+          bucket.push(row);
+          rowsBySourceId.set(row.entity_id, bucket);
+        }
+      }),
+    );
+
+    return rowsBySourceId;
+  }
+
+  private buildKnowledgeContextGroup(
+    definition: EntityKnowledgeContextGroupDefinition,
+    rowsBySourceId: Map<string, EntityDocumentListItemRow[]>,
+  ): EntityKnowledgeContextGroup | null {
+    const itemsById = new Map<string, EntityKnowledgeContextItem>();
+    const provenanceKeysByDocumentId = new Map<string, Set<string>>();
+
+    for (const source of definition.sources) {
+      const rows = rowsBySourceId.get(source.entity_id) || [];
+      for (const row of rows) {
+        const provenanceKey = `${source.entity_type}:${source.entity_id}`;
+        const existingProvenanceKeys = provenanceKeysByDocumentId.get(row.id) || new Set<string>();
+        const existingItem = itemsById.get(row.id);
+        if (existingItem && existingProvenanceKeys.has(provenanceKey)) {
+          continue;
+        }
+
+        if (!existingItem) {
+          itemsById.set(row.id, {
+            id: row.id,
+            item_number: Number(row.item_number),
+            title: row.title,
+            summary: row.summary,
+            status: row.status,
+            updated_at: row.updated_at,
+            created_at: row.created_at,
+            provenance: [],
+          });
+        }
+
+        const item = itemsById.get(row.id);
+        if (!item) continue;
+        item.provenance.push(source);
+        existingProvenanceKeys.add(provenanceKey);
+        provenanceKeysByDocumentId.set(row.id, existingProvenanceKeys);
+      }
+    }
+
+    const items = Array.from(itemsById.values())
+      .map((item) => ({
+        ...item,
+        provenance: [...item.provenance].sort((a, b) => {
+          const aRef = `${a.item_number != null ? a.item_number : Number.MAX_SAFE_INTEGER}:${a.name}`.toLowerCase();
+          const bRef = `${b.item_number != null ? b.item_number : Number.MAX_SAFE_INTEGER}:${b.name}`.toLowerCase();
+          return aRef.localeCompare(bRef);
+        }),
+      }))
+      .sort((a, b) => {
+        const aTime = new Date(a.updated_at || a.created_at || 0).getTime();
+        const bTime = new Date(b.updated_at || b.created_at || 0).getTime();
+        if (aTime !== bTime) return bTime - aTime;
+        return String(a.title || '').localeCompare(String(b.title || ''));
+      });
+
+    if (items.length === 0) {
+      return null;
+    }
+
+    return {
+      key: definition.key,
+      label: definition.label,
+      linked_via_label: definition.linked_via_label,
+      total: items.length,
+      items,
+    };
+  }
+
+  private async getRequestKnowledgeContextGroupDefinitions(
+    requestId: string,
+    manager: EntityManager,
+  ): Promise<EntityKnowledgeContextGroupDefinition[]> {
+    const [requestRows, projectRows, requestDependencyRows, projectDependencyRows, applicationRows, assetRows] = await Promise.all([
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT r.id AS entity_id, r.item_number, r.name, r.status
+         FROM portfolio_requests r
+         WHERE r.id = $1
+         LIMIT 1`,
+        [requestId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT p.id AS entity_id, p.item_number, p.name, p.status
+         FROM portfolio_request_projects rp
+         JOIN portfolio_projects p ON p.id = rp.project_id AND p.tenant_id = rp.tenant_id
+         WHERE rp.request_id = $1
+         ORDER BY p.name ASC`,
+        [requestId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT r.id AS entity_id, r.item_number, r.name, r.status
+         FROM portfolio_request_dependencies d
+         JOIN portfolio_requests r ON r.id = d.depends_on_request_id AND r.tenant_id = d.tenant_id
+         WHERE d.request_id = $1
+         ORDER BY r.name ASC`,
+        [requestId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT p.id AS entity_id, p.item_number, p.name, p.status
+         FROM portfolio_request_dependencies d
+         JOIN portfolio_projects p ON p.id = d.depends_on_project_id AND p.tenant_id = d.tenant_id
+         WHERE d.request_id = $1
+         ORDER BY p.name ASC`,
+        [requestId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, NULL::text AS status
+         FROM portfolio_request_applications l
+         JOIN applications a ON a.id = l.application_id AND a.tenant_id = l.tenant_id
+         WHERE l.request_id = $1
+         ORDER BY a.name ASC`,
+        [requestId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, NULL::text AS status
+         FROM portfolio_request_assets l
+         JOIN assets a ON a.id = l.asset_id AND a.tenant_id = l.tenant_id
+         WHERE l.request_id = $1
+         ORDER BY a.name ASC`,
+        [requestId],
+      ),
+    ]);
+
+    return [
+      {
+        key: 'direct',
+        label: 'Direct',
+        linked_via_label: 'Direct',
+        sources: this.mapKnowledgeContextSources('requests', requestRows),
+      },
+      {
+        key: 'resulting_projects',
+        label: 'Resulting Projects',
+        linked_via_label: 'Resulting Project',
+        sources: this.mapKnowledgeContextSources('projects', projectRows),
+      },
+      {
+        key: 'dependencies',
+        label: 'Dependencies',
+        linked_via_label: 'Dependency',
+        sources: [
+          ...this.mapKnowledgeContextSources('requests', requestDependencyRows),
+          ...this.mapKnowledgeContextSources('projects', projectDependencyRows),
+        ],
+      },
+      {
+        key: 'linked_applications',
+        label: 'Linked Applications',
+        linked_via_label: 'Application',
+        sources: this.mapKnowledgeContextSources('applications', applicationRows),
+      },
+      {
+        key: 'linked_assets',
+        label: 'Linked Assets',
+        linked_via_label: 'Asset',
+        sources: this.mapKnowledgeContextSources('assets', assetRows),
+      },
+    ];
+  }
+
+  private async getProjectKnowledgeContextGroupDefinitions(
+    projectId: string,
+    manager: EntityManager,
+  ): Promise<EntityKnowledgeContextGroupDefinition[]> {
+    const [projectRows, sourceRequestRows, dependencyRows, applicationRows, assetRows] = await Promise.all([
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT p.id AS entity_id, p.item_number, p.name, p.status
+         FROM portfolio_projects p
+         WHERE p.id = $1
+         LIMIT 1`,
+        [projectId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT r.id AS entity_id, r.item_number, r.name, r.status
+         FROM portfolio_request_projects rp
+         JOIN portfolio_requests r ON r.id = rp.request_id AND r.tenant_id = rp.tenant_id
+         WHERE rp.project_id = $1
+         ORDER BY r.name ASC`,
+        [projectId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT p.id AS entity_id, p.item_number, p.name, p.status
+         FROM portfolio_project_dependencies d
+         JOIN portfolio_projects p ON p.id = d.depends_on_project_id AND p.tenant_id = d.tenant_id
+         WHERE d.project_id = $1
+         ORDER BY p.name ASC`,
+        [projectId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, NULL::text AS status
+         FROM application_projects l
+         JOIN applications a ON a.id = l.application_id AND a.tenant_id = l.tenant_id
+         WHERE l.project_id = $1
+         ORDER BY a.name ASC`,
+        [projectId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, NULL::text AS status
+         FROM asset_projects l
+         JOIN assets a ON a.id = l.asset_id AND a.tenant_id = l.tenant_id
+         WHERE l.project_id = $1
+         ORDER BY a.name ASC`,
+        [projectId],
+      ),
+    ]);
+
+    return [
+      {
+        key: 'direct',
+        label: 'Direct',
+        linked_via_label: 'Direct',
+        sources: this.mapKnowledgeContextSources('projects', projectRows),
+      },
+      {
+        key: 'source_requests',
+        label: 'Source Requests',
+        linked_via_label: 'Source Request',
+        sources: this.mapKnowledgeContextSources('requests', sourceRequestRows),
+      },
+      {
+        key: 'dependencies',
+        label: 'Dependencies',
+        linked_via_label: 'Dependency',
+        sources: this.mapKnowledgeContextSources('projects', dependencyRows),
+      },
+      {
+        key: 'linked_applications',
+        label: 'Linked Applications',
+        linked_via_label: 'Application',
+        sources: this.mapKnowledgeContextSources('applications', applicationRows),
+      },
+      {
+        key: 'linked_assets',
+        label: 'Linked Assets',
+        linked_via_label: 'Asset',
+        sources: this.mapKnowledgeContextSources('assets', assetRows),
+      },
+    ];
+  }
+
+  private async getApplicationKnowledgeContextGroupDefinitions(
+    applicationId: string,
+    manager: EntityManager,
+  ): Promise<EntityKnowledgeContextGroupDefinition[]> {
+    const [applicationRows, requestRows, projectRows, relatedApplicationRows, assetRows] = await Promise.all([
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+         FROM applications a
+         WHERE a.id = $1
+         LIMIT 1`,
+        [applicationId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT r.id AS entity_id, r.item_number, r.name, r.status
+         FROM portfolio_request_applications l
+         JOIN portfolio_requests r ON r.id = l.request_id AND r.tenant_id = l.tenant_id
+         WHERE l.application_id = $1
+         ORDER BY r.name ASC`,
+        [applicationId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT p.id AS entity_id, p.item_number, p.name, p.status
+         FROM application_projects l
+         JOIN portfolio_projects p ON p.id = l.project_id AND p.tenant_id = l.tenant_id
+         WHERE l.application_id = $1
+         ORDER BY p.name ASC`,
+        [applicationId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+         FROM application_suites l
+         JOIN applications a ON a.id = l.suite_id AND a.tenant_id = l.tenant_id
+         WHERE l.application_id = $1
+         UNION ALL
+         SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+         FROM application_suites l
+         JOIN applications a ON a.id = l.application_id AND a.tenant_id = l.tenant_id
+         WHERE l.suite_id = $1`,
+        [applicationId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+         FROM app_instances ai
+         JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id AND aaa.tenant_id = ai.tenant_id
+         JOIN assets a ON a.id = aaa.asset_id AND a.tenant_id = aaa.tenant_id
+         WHERE ai.application_id = $1
+         ORDER BY a.name ASC`,
+        [applicationId],
+      ),
+    ]);
+
+    return [
+      {
+        key: 'direct',
+        label: 'Direct',
+        linked_via_label: 'Direct',
+        sources: this.mapKnowledgeContextSources('applications', applicationRows),
+      },
+      {
+        key: 'linked_requests',
+        label: 'Linked Requests',
+        linked_via_label: 'Request',
+        sources: this.mapKnowledgeContextSources('requests', requestRows),
+      },
+      {
+        key: 'linked_projects',
+        label: 'Linked Projects',
+        linked_via_label: 'Project',
+        sources: this.mapKnowledgeContextSources('projects', projectRows),
+      },
+      {
+        key: 'linked_applications',
+        label: 'Related Applications',
+        linked_via_label: 'Application',
+        sources: this.mapKnowledgeContextSources('applications', relatedApplicationRows),
+      },
+      {
+        key: 'linked_assets',
+        label: 'Linked Assets',
+        linked_via_label: 'Asset',
+        sources: this.mapKnowledgeContextSources('assets', assetRows),
+      },
+    ];
+  }
+
+  private async getAssetKnowledgeContextGroupDefinitions(
+    assetId: string,
+    manager: EntityManager,
+  ): Promise<EntityKnowledgeContextGroupDefinition[]> {
+    const [assetRows, requestRows, projectRows, relatedAssetRows, applicationRows] = await Promise.all([
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+         FROM assets a
+         WHERE a.id = $1
+         LIMIT 1`,
+        [assetId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT r.id AS entity_id, r.item_number, r.name, r.status
+         FROM portfolio_request_assets l
+         JOIN portfolio_requests r ON r.id = l.request_id AND r.tenant_id = l.tenant_id
+         WHERE l.asset_id = $1
+         ORDER BY r.name ASC`,
+        [assetId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT p.id AS entity_id, p.item_number, p.name, p.status
+         FROM asset_projects l
+         JOIN portfolio_projects p ON p.id = l.project_id AND p.tenant_id = l.tenant_id
+         WHERE l.asset_id = $1
+         ORDER BY p.name ASC`,
+        [assetId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+         FROM asset_relations r
+         JOIN assets a ON a.id = r.related_asset_id AND a.tenant_id = r.tenant_id
+         WHERE r.asset_id = $1
+         UNION ALL
+         SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+         FROM asset_relations r
+         JOIN assets a ON a.id = r.asset_id AND a.tenant_id = r.tenant_id
+         WHERE r.related_asset_id = $1`,
+        [assetId],
+      ),
+      manager.query<KnowledgeContextSourceRow[]>(
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+         FROM app_asset_assignments aaa
+         JOIN app_instances ai ON ai.id = aaa.app_instance_id AND ai.tenant_id = aaa.tenant_id
+         JOIN applications a ON a.id = ai.application_id AND a.tenant_id = ai.tenant_id
+         WHERE aaa.asset_id = $1
+         ORDER BY a.name ASC`,
+        [assetId],
+      ),
+    ]);
+
+    return [
+      {
+        key: 'direct',
+        label: 'Direct',
+        linked_via_label: 'Direct',
+        sources: this.mapKnowledgeContextSources('assets', assetRows),
+      },
+      {
+        key: 'linked_requests',
+        label: 'Linked Requests',
+        linked_via_label: 'Request',
+        sources: this.mapKnowledgeContextSources('requests', requestRows),
+      },
+      {
+        key: 'linked_projects',
+        label: 'Linked Projects',
+        linked_via_label: 'Project',
+        sources: this.mapKnowledgeContextSources('projects', projectRows),
+      },
+      {
+        key: 'linked_assets',
+        label: 'Related Assets',
+        linked_via_label: 'Asset',
+        sources: this.mapKnowledgeContextSources('assets', relatedAssetRows),
+      },
+      {
+        key: 'linked_applications',
+        label: 'Linked Applications',
+        linked_via_label: 'Application',
+        sources: this.mapKnowledgeContextSources('applications', applicationRows),
+      },
+    ];
+  }
+
+  private async getDirectKnowledgeContextGroupDefinitions(
+    entityType: 'tasks',
+    entityId: string,
+    manager: EntityManager,
+  ): Promise<EntityKnowledgeContextGroupDefinition[]> {
+    const sourceRows = await manager.query<KnowledgeContextSourceRow[]>(
+      `SELECT t.id AS entity_id, t.item_number, t.title AS name, t.status
+       FROM tasks t
+       WHERE t.id = $1
+       LIMIT 1`,
+      [entityId],
+    );
+
+    return [
+      {
+        key: 'direct',
+        label: 'Direct',
+        linked_via_label: 'Direct',
+        sources: this.mapKnowledgeContextSources(entityType, sourceRows),
+      },
+    ];
+  }
+
+  async getKnowledgeContextForEntity(
+    entity: KnowledgeContextRootEntityType,
+    entityId: string,
+    opts?: { manager?: EntityManager; userId?: string | null },
+  ): Promise<EntityKnowledgeContextResponse> {
+    const manager = this.getManager(opts);
+    const definitions = entity === 'requests'
+      ? await this.getRequestKnowledgeContextGroupDefinitions(entityId, manager)
+      : entity === 'projects'
+        ? await this.getProjectKnowledgeContextGroupDefinitions(entityId, manager)
+        : entity === 'applications'
+          ? await this.getApplicationKnowledgeContextGroupDefinitions(entityId, manager)
+          : entity === 'assets'
+            ? await this.getAssetKnowledgeContextGroupDefinitions(entityId, manager)
+            : await this.getDirectKnowledgeContextGroupDefinitions(entity, entityId, manager);
+
+    const groups: EntityKnowledgeContextGroup[] = [];
+    const distinctDocumentIds = new Set<string>();
+
+    for (const definition of definitions) {
+      if (definition.sources.length === 0) continue;
+      const rowsBySourceId = await this.listDocumentRowsForKnowledgeSources(definition.sources, manager);
+      const group = this.buildKnowledgeContextGroup(definition, rowsBySourceId);
+      if (!group) continue;
+      group.items.forEach((item) => distinctDocumentIds.add(item.id));
+      groups.push(group);
+    }
+
+    const total = distinctDocumentIds.size;
+    const knowledgeLevel = await this.getKnowledgeLevelForUser(manager, opts?.userId ?? null);
+    if (!knowledgeLevel) {
+      return {
+        access: 'restricted',
+        total,
+        groups: [],
+      };
+    }
+
+    return {
+      access: 'granted',
+      total,
+      groups,
+    };
   }
 
   async listDocumentsForEntity(

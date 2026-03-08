@@ -48,7 +48,7 @@ const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error
 
 export default function ProjectsILeadTile({ config }: ProjectsILeadTileProps) {
   const navigate = useNavigate();
-  const limit = (config.limit as number) || 5;
+  const limit = Math.min((config.limit as number) || 5, 5);
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'my-leadership-projects', limit],

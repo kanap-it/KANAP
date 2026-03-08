@@ -1,6 +1,7 @@
 import { useState, useMemo, Suspense, lazy } from 'react';
 import {
   Box,
+  ButtonGroup,
   Grid,
   Stack,
   Button,
@@ -10,6 +11,14 @@ import {
   Card,
   Paper,
   Typography,
+  Menu,
+  MenuItem,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  ListSubheader,
+  TextField,
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AddTaskIcon from '@mui/icons-material/AddTask';
@@ -17,7 +26,11 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import InboxIcon from '@mui/icons-material/Inbox';
 import DnsIcon from '@mui/icons-material/Dns';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
+import DescriptionIcon from '@mui/icons-material/Description';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { useDashboardConfig } from './hooks/useDashboardConfig';
 import { useTilePermissions } from './hooks/useTilePermissions';
@@ -44,6 +57,21 @@ function TileLoader() {
   );
 }
 
+type DocumentLibrary = {
+  id: string;
+  name: string;
+  slug: string;
+  is_system: boolean;
+  display_order: number;
+};
+
+type TemplateListItem = {
+  id: string;
+  item_number: number;
+  title: string;
+  document_type_name: string | null;
+};
+
 export default function WorkspaceDashboardPage() {
   const navigate = useNavigate();
   const { hasLevel, profile } = useAuth();
@@ -52,6 +80,9 @@ export default function WorkspaceDashboardPage() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logTimeOpen, setLogTimeOpen] = useState(false);
+  const [newDocAnchorEl, setNewDocAnchorEl] = useState<null | HTMLElement>(null);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
   // Quick actions visibility
   const canCreateTask = hasLevel('tasks', 'member');
@@ -59,6 +90,58 @@ export default function WorkspaceDashboardPage() {
   const canCreateRequest = hasLevel('portfolio_requests', 'member');
   const canCreateAsset = hasLevel('infrastructure', 'member');
   const canCreateApp = hasLevel('applications', 'member');
+  const canCreateDocument = hasLevel('knowledge', 'member');
+
+  const { data: knowledgeLibraries = [] } = useQuery({
+    queryKey: ['knowledge-libraries'],
+    queryFn: async () => (await api.get('/knowledge-libraries')).data as DocumentLibrary[],
+    enabled: canCreateDocument,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const templatesLibrary = useMemo(
+    () => knowledgeLibraries.find((row) => row.slug === 'templates') || null,
+    [knowledgeLibraries],
+  );
+
+  const { data: templatesData } = useQuery({
+    queryKey: ['dashboard', 'knowledge-templates', templatesLibrary?.id],
+    queryFn: async () => {
+      const res = await api.get('/knowledge', {
+        params: {
+          library_id: templatesLibrary?.id,
+          status: 'published',
+          limit: 200,
+          sort: 'updated_at:DESC',
+        },
+      });
+      return res.data as { items: TemplateListItem[] };
+    },
+    enabled: templatePickerOpen && !!templatesLibrary?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const groupedTemplates = useMemo(() => {
+    const groups: Array<{ typeName: string; items: TemplateListItem[] }> = [];
+    const byType = new Map<string, TemplateListItem[]>();
+    for (const item of templatesData?.items || []) {
+      const typeName = String(item.document_type_name || 'Document').trim() || 'Document';
+      if (!byType.has(typeName)) byType.set(typeName, []);
+      byType.get(typeName)!.push(item);
+    }
+    Array.from(byType.keys())
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+      .forEach((typeName) => {
+        groups.push({
+          typeName,
+          items: (byType.get(typeName) || []).sort((a, b) => {
+            if (a.title === b.title) return Number(b.item_number || 0) - Number(a.item_number || 0);
+            return String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' });
+          }),
+        });
+      });
+    return groups;
+  }, [templatesData?.items]);
 
   // Filter tiles by permission AND enabled status
   const visibleTiles = useMemo(() => {
@@ -68,6 +151,22 @@ export default function WorkspaceDashboardPage() {
   }, [config.tiles, filterVisibleTiles]);
 
   const userName = profile?.first_name || 'there';
+
+  const goToBlankDocument = () => {
+    navigate('/knowledge/new');
+  };
+
+  const openTemplatePicker = () => {
+    setTemplatePickerOpen(true);
+    setSelectedTemplateId('');
+  };
+
+  const createFromTemplate = () => {
+    if (!selectedTemplateId) return;
+    navigate(`/knowledge/new?template_document_id=${encodeURIComponent(selectedTemplateId)}`);
+    setTemplatePickerOpen(false);
+    setSelectedTemplateId('');
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -115,10 +214,10 @@ export default function WorkspaceDashboardPage() {
             </Button>
           )}
           {canCreateRequest && (
-            <Button
+          <Button
               variant="outlined"
               startIcon={<InboxIcon />}
-              onClick={() => navigate('/portfolio/requests/new/overview')}
+              onClick={() => navigate('/portfolio/requests/new/summary')}
               size="small"
             >
               New Request
@@ -143,6 +242,22 @@ export default function WorkspaceDashboardPage() {
             >
               New Asset
             </Button>
+          )}
+          {canCreateDocument && (
+            <ButtonGroup variant="outlined" size="small">
+              <Button
+                startIcon={<DescriptionIcon />}
+                onClick={goToBlankDocument}
+              >
+                New Document
+              </Button>
+              <Button
+                onClick={(event) => setNewDocAnchorEl(event.currentTarget)}
+                sx={{ px: 0.5, minWidth: 'auto' }}
+              >
+                <ArrowDropDownIcon />
+              </Button>
+            </ButtonGroup>
           )}
           <Box flex={1} />
           <Tooltip title="Dashboard Settings">
@@ -204,6 +319,61 @@ export default function WorkspaceDashboardPage() {
         canViewTile={canViewTile}
       />
       <QuickLogTimeModal open={logTimeOpen} onClose={() => setLogTimeOpen(false)} />
+
+      <Menu
+        anchorEl={newDocAnchorEl}
+        open={Boolean(newDocAnchorEl)}
+        onClose={() => setNewDocAnchorEl(null)}
+      >
+        <MenuItem onClick={() => { setNewDocAnchorEl(null); goToBlankDocument(); }}>
+          Blank Document
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setNewDocAnchorEl(null);
+            openTemplatePicker();
+          }}
+          disabled={!templatesLibrary}
+        >
+          From template...
+        </MenuItem>
+      </Menu>
+
+      <Dialog open={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Select Template</DialogTitle>
+        <DialogContent>
+          <TextField
+            select
+            fullWidth
+            margin="dense"
+            label="Template"
+            value={selectedTemplateId}
+            onChange={(event) => setSelectedTemplateId(event.target.value)}
+          >
+            {groupedTemplates.map((group) => ([
+              <ListSubheader key={`${group.typeName}-header`} disableSticky>
+                {group.typeName}
+              </ListSubheader>,
+              ...group.items.map((row) => (
+                <MenuItem key={row.id} value={row.id}>
+                  {`DOC-${row.item_number} - ${row.title}`}
+                </MenuItem>
+              )),
+            ]))}
+          </TextField>
+          {!templatesData?.items?.length && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              No published templates are available.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTemplatePickerOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={createFromTemplate} disabled={!selectedTemplateId}>
+            Use Template
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

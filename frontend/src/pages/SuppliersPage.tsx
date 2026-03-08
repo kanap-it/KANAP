@@ -1,14 +1,14 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef, StatusScope } from '../components/ServerDataGrid';
-import { ICellRendererParams } from 'ag-grid-community';
-import { Box, Button, Stack } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import CsvExportDialog from '../components/csv/CsvExportDialog';
 import CsvImportDialog from '../components/csv/CsvImportDialog';
 import { useAuth } from '../auth/AuthContext';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { STATUS_VALUES } from '../constants/status';
+import { LinkCellRenderer } from '../components/grid/renderers';
 import ForbiddenPage from './ForbiddenPage';
 
 export default function SuppliersPage() {
@@ -37,31 +37,60 @@ export default function SuppliersPage() {
     if (filters && Object.keys(filters).length > 0) sp.set('filters', JSON.stringify(filters));
     return sp;
   }, []);
-
-  const ClickableCell: React.FC<ICellRendererParams<any, any>> = (params) => (
-    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => {
-      const sp = buildWorkspaceSearch();
-      navigate(`/master-data/suppliers/${params.data?.id}/overview?${sp.toString()}`);
-    }}>
-      {params.value}
-    </Box>
-  );
-  const ClickableCellGeneric: React.FC<ICellRendererParams<any, any>> = (params) => (
-    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => {
-      const sp = buildWorkspaceSearch();
-      navigate(`/master-data/suppliers/${params.data?.id}/overview?${sp.toString()}`);
-    }}>
-      {params.valueFormatted ?? params.value}
-    </Box>
-  );
+  const getSupplierHref = useCallback((row: any) => {
+    const sp = buildWorkspaceSearch();
+    return `/master-data/suppliers/${row.id}/overview?${sp.toString()}`;
+  }, [buildWorkspaceSearch]);
 
   const columns: EnhancedColDef<any>[] = useMemo(() => [
-    { field: 'name', headerName: 'Name', flex: 1, required: true, cellRenderer: ClickableCell },
-    { field: 'erp_supplier_id', headerName: 'ERP Supplier ID', width: 200, cellRenderer: ClickableCellGeneric },
-    { field: 'notes', headerName: 'Notes', width: 250, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-    { field: 'status', headerName: 'Status', width: 140, filter: 'agSetColumnFilter', filterParams: { values: STATUS_VALUES, suppressMiniFilter: true }, cellRenderer: ClickableCellGeneric, defaultHidden: true },
-    { field: 'created_at', headerName: 'Created', width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''), defaultHidden: true, cellRenderer: ClickableCellGeneric },
-  ], [ClickableCell]);
+    {
+      field: 'name',
+      headerName: 'Name',
+      flex: 1,
+      required: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getSupplierHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'erp_supplier_id',
+      headerName: 'ERP Supplier ID',
+      width: 200,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getSupplierHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'notes',
+      headerName: 'Notes',
+      width: 250,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getSupplierHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 140,
+      filter: 'agSetColumnFilter',
+      filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getSupplierHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'created_at',
+      headerName: 'Created',
+      width: 200,
+      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getSupplierHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+  ], [getSupplierHref, navigate]);
 
   const canCreate = hasLevel('suppliers','manager');
   const canAdmin = hasLevel('suppliers','admin');

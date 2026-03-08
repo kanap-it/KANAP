@@ -42,6 +42,39 @@ export class PortfolioProjectTasksController {
   }
 
   @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'reader')
+  @Get('status-summary')
+  async getTaskStatusSummary(@Param('projectId') projectIdOrRef: string, @Req() req: any) {
+    const projectId = await this.resolveProjectId(projectIdOrRef, req);
+    const rows = await req?.queryRunner?.manager.query(
+      `SELECT status, COUNT(*)::int AS count
+       FROM tasks
+       WHERE tenant_id = app_current_tenant()
+         AND related_object_type = 'project'
+         AND related_object_id = $1
+       GROUP BY status`,
+      [projectId],
+    );
+
+    const counts = Object.fromEntries(
+      (Array.isArray(rows) ? rows : []).map((row: { status: string; count: number | string }) => [
+        row.status,
+        Number(row.count) || 0,
+      ]),
+    );
+
+    return {
+      total: Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0),
+      open: counts.open || 0,
+      in_progress: counts.in_progress || 0,
+      pending: counts.pending || 0,
+      in_testing: counts.in_testing || 0,
+      done: counts.done || 0,
+      cancelled: counts.cancelled || 0,
+    };
+  }
+
+  @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'contributor')
   @Post()
   async createTask(

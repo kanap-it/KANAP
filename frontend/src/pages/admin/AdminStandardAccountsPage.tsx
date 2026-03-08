@@ -1,12 +1,12 @@
 import React from 'react';
-import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
+import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
-import { ICellRendererParams } from 'ag-grid-community';
 import { useNavigate } from 'react-router-dom';
 import CsvExportDialog from '../../components/csv/CsvExportDialog';
 import CsvImportDialog from '../../components/csv/CsvImportDialog';
 import DeleteSelectedButton from '../../components/DeleteSelectedButton';
+import { LinkCellRenderer } from '../../components/grid/renderers';
 import api from '../../api';
 
 type Template = { id: string; country_iso: string | null; template_code: string; template_name: string; version: string; is_global?: boolean };
@@ -48,24 +48,81 @@ export default function AdminStandardAccountsPage() {
     if (selectedTemplateId) localStorage.setItem('admin-standard-accounts.selectedTemplateId', selectedTemplateId);
   }, [selectedTemplateId]);
 
-  const ClickableCellGeneric: React.FC<ICellRendererParams<any, any>> = (params) => (
-    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => {
-      navigate(`/admin/standard-accounts/${selectedTemplateId}/${params.data?.account_number}/overview`);
-    }}>
-      {params.valueFormatted ?? params.value}
-    </Box>
-  );
+  const getStandardAccountHref = React.useCallback((row: any) => {
+    return `/admin/standard-accounts/${selectedTemplateId}/${row.account_number}/overview`;
+  }, [selectedTemplateId]);
 
   const columns: EnhancedColDef<any>[] = React.useMemo(() => [
-    { field: 'account_number', headerName: 'Account #', width: 160, required: true, cellRenderer: ClickableCellGeneric },
-    { field: 'account_name', headerName: 'Name', flex: 1, required: true, cellRenderer: ClickableCellGeneric },
-    { field: 'native_name', headerName: 'Native Name', width: 220, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-    { field: 'description', headerName: 'Description', width: 250, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-    { field: 'consolidation_account_number', headerName: 'Consol. Account #', width: 180, cellRenderer: ClickableCellGeneric },
-    { field: 'consolidation_account_name', headerName: 'Consol. Name', width: 250, cellRenderer: ClickableCellGeneric },
-    { field: 'consolidation_account_description', headerName: 'Consol. Description', width: 300, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-    { field: 'status', headerName: 'Status', width: 140, cellRenderer: ClickableCellGeneric },
-  ], [selectedTemplateId]);
+    {
+      field: 'account_number',
+      headerName: 'Account #',
+      width: 160,
+      required: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'account_name',
+      headerName: 'Name',
+      flex: 1,
+      required: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'native_name',
+      headerName: 'Native Name',
+      width: 220,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'description',
+      headerName: 'Description',
+      width: 250,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'consolidation_account_number',
+      headerName: 'Consol. Account #',
+      width: 180,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'consolidation_account_name',
+      headerName: 'Consol. Name',
+      width: 250,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'consolidation_account_description',
+      headerName: 'Consol. Description',
+      width: 300,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 140,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+  ], [getStandardAccountHref, navigate]);
 
   const actions = (
     <Stack direction="row" spacing={1}>

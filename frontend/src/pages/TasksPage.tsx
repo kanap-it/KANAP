@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { Chip, Button, Stack, Box, RadioGroup, FormControlLabel, Radio, Tooltip, Typography } from '@mui/material';
 import type { EnhancedColDef } from '../components/ServerDataGrid';
 import ServerDataGrid from '../components/ServerDataGrid';
+import { LinkCellRenderer } from '../components/grid/renderers';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../auth/AuthContext';
 import type { ICellRendererParams } from 'ag-grid-community';
@@ -372,13 +373,17 @@ export default function TasksPage() {
 
   // Keep renderer stable so AG Grid does not treat column defs as changed on URL sort updates.
   const clickableCellRenderer = useCallback((params: ICellRendererParams<TaskRow, any>) => (
-    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => {
-      const sp = buildWorkspaceSearch();
-      const ref = params.data?.item_number ? `T-${params.data.item_number}` : params.data?.id;
-      navigate(`/portfolio/tasks/${ref}/overview?${sp.toString()}`);
-    }}>
-      {params.valueFormatted ?? params.value ?? ''}
-    </Box>
+    <LinkCellRenderer
+      {...params}
+      linkType="internal"
+      getHref={(data) => {
+        const sp = buildWorkspaceSearch();
+        const ref = data?.item_number ? `T-${data.item_number}` : data?.id;
+        if (!ref) return null;
+        return `/portfolio/tasks/${ref}/overview?${sp.toString()}`;
+      }}
+      onNavigate={(href) => navigate(href)}
+    />
   ), [buildWorkspaceSearch, navigate]);
 
   const columns: EnhancedColDef<TaskRow>[] = useMemo(() => [

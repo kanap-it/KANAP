@@ -694,7 +694,7 @@ export class PortfolioWeeklyReportService {
 
     return (rows as RawRequestRow[]).map((row) => ({
       requestId: row.request_id,
-      itemPath: `/portfolio/requests/${row.request_id}/overview`,
+      itemPath: `/portfolio/requests/${row.request_id}/summary`,
       name: row.name ?? '',
       sourceId: row.source_id ?? null,
       sourceName: row.source_name ?? null,

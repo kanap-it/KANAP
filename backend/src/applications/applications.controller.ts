@@ -243,6 +243,20 @@ export class ApplicationsController {
   }
 
   @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get(':id/knowledge-context')
+  getKnowledgeContext(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+    @Req() req: any,
+  ) {
+    return this.knowledge.getKnowledgeContextForEntity('applications', id, {
+      manager: ctx.manager,
+      userId: req?.user?.sub ?? null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'member')
   @Post()
   create(

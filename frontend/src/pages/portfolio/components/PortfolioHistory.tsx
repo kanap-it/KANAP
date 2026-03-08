@@ -86,6 +86,8 @@ const FIELD_LABELS: Record<string, string> = {
   business_team: 'Business Team',
   it_team: 'IT Team',
   dependency: 'Dependency',
+  applications: 'Applications',
+  assets: 'Assets',
   capex_items: 'CAPEX Items',
   opex_items: 'OPEX Items',
   phase: 'Phase',

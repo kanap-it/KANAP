@@ -21,13 +21,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import api from '../../api';
 import ExportButton from '../../components/ExportButton';
-import MarkdownEditor from '../../components/MarkdownEditor';
 import { useAuth } from '../../auth/AuthContext';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
+import { useRecentKnowledgeDocuments } from '../workspace/hooks/useRecentKnowledgeDocuments';
 import KnowledgeSidebar from './components/KnowledgeSidebar';
 import FolderTreePanel from './components/FolderTreePanel';
 import ValidatedBadge from './components/ValidatedBadge';
 import { CircularProgress } from '@mui/material';
+
+const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
 type RelationKey = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
 type RelationOption = { id: string; label: string };
@@ -120,9 +122,29 @@ const STATUS_CHIP_COLORS: Record<string, 'default' | 'warning' | 'info' | 'succe
   obsolete: 'default',
 };
 
+function MarkdownEditorLoadingFallback({ minRows }: { minRows: number }) {
+  return (
+    <Box
+      sx={{
+        minHeight: minRows * 24,
+        height: '100%',
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        bgcolor: 'background.paper',
+        display: 'grid',
+        placeItems: 'center',
+      }}
+    >
+      <CircularProgress size={24} />
+    </Box>
+  );
+}
+
 export default function KnowledgeWorkspacePage() {
   const theme = useTheme();
   const { profile, hasLevel } = useAuth();
+  const { addDocument } = useRecentKnowledgeDocuments();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -175,6 +197,7 @@ export default function KnowledgeWorkspacePage() {
   const [editorRows, setEditorRows] = React.useState(30);
   const hydratedDocumentIdRef = React.useRef<string | null>(null);
   const hasLocalWorkspaceChangesRef = React.useRef(false);
+  const trackedRecentDocumentIdRef = React.useRef<string | null>(null);
 
   hasLocalWorkspaceChangesRef.current = dirty || relationsDirty || classificationsDirty || contributorsDirty;
 
@@ -255,6 +278,15 @@ export default function KnowledgeWorkspacePage() {
     queryFn: async () => (await api.get(`/knowledge/${id}`)).data,
     enabled: !isCreate,
   });
+
+  React.useEffect(() => {
+    if (isCreate || !doc?.id) return;
+    if (trackedRecentDocumentIdRef.current === doc.id) return;
+    trackedRecentDocumentIdRef.current = doc.id;
+    const itemNumber = doc?.item_number ? `DOC-${doc.item_number}` : 'Document';
+    const title = String(doc?.title || '').trim();
+    addDocument(doc.id, title ? `${itemNumber} - ${title}` : itemNumber);
+  }, [addDocument, doc?.id, doc?.item_number, doc?.title, isCreate]);
 
   const { data: versions } = useQuery({
     queryKey: ['knowledge-versions', id],
@@ -1381,16 +1413,18 @@ export default function KnowledgeWorkspacePage() {
               </Stack>
 
               <Box ref={editorHostRef} sx={{ flex: 1, minHeight: 0 }}>
-                <MarkdownEditor
-                  key={activeEditorDocumentId}
-                  value={displayContentMarkdown}
-                  onChange={(value) => handleFormChange('content_markdown', value)}
-                  disabled={!canEditContent}
-                  focusNonce={contentFocusNonce}
-                  onImageUpload={!isCreate ? uploadInlineImage : undefined}
-                  minRows={editorRows}
-                  maxRows={editorRows}
-                />
+                <React.Suspense fallback={<MarkdownEditorLoadingFallback minRows={editorRows} />}>
+                  <MarkdownEditor
+                    key={activeEditorDocumentId}
+                    value={displayContentMarkdown}
+                    onChange={(value) => handleFormChange('content_markdown', value)}
+                    disabled={!canEditContent}
+                    focusNonce={contentFocusNonce}
+                    onImageUpload={!isCreate ? uploadInlineImage : undefined}
+                    minRows={editorRows}
+                    maxRows={editorRows}
+                  />
+                </React.Suspense>
               </Box>
             </Box>
           </Paper>

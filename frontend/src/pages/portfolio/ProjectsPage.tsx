@@ -2,6 +2,7 @@ import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { Chip, Button, Stack, Box, LinearProgress, Typography, RadioGroup, FormControlLabel, Radio, Tooltip } from '@mui/material';
 import type { EnhancedColDef } from '../../components/ServerDataGrid';
 import ServerDataGrid from '../../components/ServerDataGrid';
+import { LinkCellRenderer } from '../../components/grid/renderers';
 import PageHeader from '../../components/PageHeader';
 import { useAuth } from '../../auth/AuthContext';
 import type { ICellRendererParams } from 'ag-grid-community';
@@ -226,18 +227,17 @@ export default function ProjectsPage() {
   );
 
   const clickableCellRenderer = useCallback((params: ICellRendererParams<ProjectRow, any>) => (
-    <Box
-      component="span"
-      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-      onClick={() => {
-        if (!params.data?.id) return;
+    <LinkCellRenderer
+      {...params}
+      linkType="internal"
+      getHref={(data) => {
+        if (!data?.id) return null;
         const sp = buildWorkspaceSearch();
-        const ref = params.data?.item_number ? `PRJ-${params.data.item_number}` : params.data.id;
-        navigate(`/portfolio/projects/${ref}/overview?${sp.toString()}`);
+        const ref = data.item_number ? `PRJ-${data.item_number}` : data.id;
+        return `/portfolio/projects/${ref}/summary?${sp.toString()}`;
       }}
-    >
-      {params.valueFormatted ?? params.value ?? ''}
-    </Box>
+      onNavigate={(href) => navigate(href)}
+    />
   ), [buildWorkspaceSearch, navigate]);
 
   const getProjectFilterValues = useCallback((
@@ -456,7 +456,7 @@ export default function ProjectsPage() {
           variant="contained"
           onClick={() => {
             const sp = buildWorkspaceSearch();
-            navigate(`/portfolio/projects/new/overview?${sp.toString()}`);
+            navigate(`/portfolio/projects/new/summary?${sp.toString()}`);
           }}
         >
           New Project

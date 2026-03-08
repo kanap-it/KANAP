@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { StatusScope } from '../components/ServerDataGrid';
-import { Box, Button, Stack } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import CheckboxSetFilter from '../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../components/CheckboxSetFloatingFilter';
 import CsvExportDialog from '../components/csv/CsvExportDialog';
@@ -10,6 +10,7 @@ import CsvImportDialog from '../components/csv/CsvImportDialog';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import api from '../api';
 import { useAuth } from '../auth/AuthContext';
+import { LinkCellRenderer } from '../components/grid/renderers';
 import { readStoredCapexListContext, writeStoredCapexListContext } from './capex/listContextStorage';
 import ForbiddenPage from './ForbiddenPage';
 import { STATUS_VALUES } from '../constants/status';
@@ -256,130 +257,11 @@ export default function CapexPage() {
     updateTotals({ q, filterModel: fm, statusScope });
   }, [refreshKey, updateTotals]);
 
-  // legacy modal create/edit handlers removed
-
-  const ClickableCell: React.FC<any> = (params) => {
-    const isPinned = params.node?.rowPinned;
-    return (
-      <Box
-        component="span"
-        sx={{ cursor: isPinned ? 'default' : 'pointer', '&:hover': isPinned ? undefined : { color: 'primary.main' } }}
-      >
-        {params.value}
-      </Box>
-    );
-  };
-  const ClickableCellGeneric: React.FC<any> = (params) => {
-    const v = params.value as any;
-    const display = typeof v === 'number' ? formatNumber(v) : v ?? '';
-    const isPinned = params.node?.rowPinned;
-    return (
-      <Box component="span" sx={{ cursor: isPinned ? 'default' : 'pointer', '&:hover': isPinned ? undefined : { color: 'primary.main' } }}>
-        {display}
-      </Box>
-    );
-  };
-
-  const columns = useMemo(() => {
-    return [
-      { field: 'description', headerName: 'Description', flex: 1, minWidth: 220, required: true, cellRenderer: ClickableCell },
-      {
-        field: 'company_name',
-        headerName: 'Company',
-        width: 160,
-        filter: CheckboxSetFilter,
-        floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: {
-          getValues: getCapexFilterValues('company_name'),
-          searchable: false,
-        },
-        cellRenderer: ClickableCell,
-      },
-      {
-        field: 'ppe_type',
-        headerName: 'PP&E Type',
-        width: 140,
-        filter: CheckboxSetFilter,
-        floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: {
-          getValues: getCapexFilterValues('ppe_type', { labelMap: PPE_LABELS }),
-          searchable: false,
-        },
-        valueFormatter: (p: any) => {
-          const raw = p?.value;
-          return raw != null ? (PPE_LABELS[String(raw)] || String(raw)) : '';
-        },
-        cellRenderer: ClickableCell,
-      },
-      {
-        field: 'investment_type',
-        headerName: 'Investment Type',
-        width: 170,
-        filter: CheckboxSetFilter,
-        floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: {
-          getValues: getCapexFilterValues('investment_type', { labelMap: INVESTMENT_LABELS }),
-          searchable: false,
-        },
-        valueFormatter: (p: any) => {
-          const raw = p?.value;
-          return raw != null ? (INVESTMENT_LABELS[String(raw)] || String(raw)) : '';
-        },
-        cellRenderer: ClickableCell,
-      },
-      {
-        field: 'priority',
-        headerName: 'Priority',
-        width: 120,
-        filter: CheckboxSetFilter,
-        floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: {
-          getValues: getCapexFilterValues('priority', { labelMap: PRIORITY_LABELS }),
-          searchable: false,
-        },
-        valueFormatter: (p: any) => {
-          const raw = p?.value;
-          return raw != null ? (PRIORITY_LABELS[String(raw)] || String(raw)) : '';
-        },
-        cellRenderer: ClickableCell,
-      },
-      { colId: 'yAllocation', headerName: 'Y Allocation', valueGetter: (p: any) => p.data?.allocation_method_label ?? '', tooltipValueGetter: (p: any) => p.data?.allocation_method_label ?? '', width: 180, cellRenderer: ClickableCellGeneric },
-      { colId: 'yPlus1Allocation', headerName: 'Y+1 Allocation', valueGetter: (p: any) => p.data?.next_year_allocation_method_label ?? '', tooltipValueGetter: (p: any) => p.data?.next_year_allocation_method_label ?? '', width: 200, cellRenderer: ClickableCellGeneric, defaultHidden: true },
-      { colId: 'yMinus1Landing', headerName: `Y-1 Landing (${Y - 1})`, valueGetter: (p: any) => p.data?.versions?.yMinus1?.reporting?.landing ?? p.data?.versions?.yMinus1?.totals?.landing ?? 0, valueFormatter: (p: any) => formatNumber(p.value), type: 'rightAligned', width: 170, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-      { colId: 'yBudget', headerName: `Y Budget (${Y})`, valueGetter: (p: any) => p.data?.versions?.y?.reporting?.budget ?? p.data?.versions?.y?.totals?.budget ?? 0, valueFormatter: (p: any) => formatNumber(p.value), type: 'rightAligned', width: 160, cellRenderer: ClickableCellGeneric },
-      { colId: 'yLanding', headerName: `Y Landing (${Y})`, valueGetter: (p: any) => p.data?.versions?.y?.reporting?.landing ?? p.data?.versions?.y?.totals?.landing ?? 0, valueFormatter: (p: any) => formatNumber(p.value), type: 'rightAligned', width: 160, cellRenderer: ClickableCellGeneric },
-      { colId: 'yPlus1Budget', headerName: `Y+1 Budget (${Y + 1})`, valueGetter: (p: any) => p.data?.versions?.yPlus1?.reporting?.budget ?? p.data?.versions?.yPlus1?.totals?.budget ?? 0, valueFormatter: (p: any) => formatNumber(p.value), type: 'rightAligned', width: 180, cellRenderer: ClickableCellGeneric },
-      {
-        field: 'currency',
-        headerName: 'Currency',
-        width: 110,
-        defaultHidden: true,
-        filter: CheckboxSetFilter,
-        floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: {
-          getValues: getCapexFilterValues('currency'),
-          searchable: false,
-        },
-        cellRenderer: ClickableCellGeneric,
-      },
-      { field: 'effective_start', headerName: 'Start', width: 120, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-      { field: 'effective_end', headerName: 'End', width: 120, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-      { field: 'notes', headerName: 'Notes', flex: 1, minWidth: 200, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-      { colId: 'latest_task_text', headerName: 'Task', valueGetter: (p: any) => p.data?.latest_task?.title ?? '', tooltipValueGetter: (p: any) => (p.value ? String(p.value) : ''), flex: 1, minWidth: 220, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-      { field: 'status', headerName: 'Enabled', width: 140, filter: 'agSetColumnFilter', filterParams: { values: STATUS_VALUES, suppressMiniFilter: true }, cellRenderer: ClickableCellGeneric, defaultHidden: true },
-    ];
-  }, [Y, getCapexFilterValues, INVESTMENT_LABELS, PPE_LABELS, PRIORITY_LABELS, reportingCurrency]);
-
-  const onCellClicked = useCallback((params: any) => {
-    const colId = params?.column?.getColId?.() || params?.colDef?.colId || params?.colDef?.field;
-    const row: SummaryRow = params?.data;
-    if (!row) return;
-
+  const buildGridSearch = useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const stored = storedContextRef.current || readStoredCapexListContext();
     if (stored && !storedContextRef.current) storedContextRef.current = stored;
     const fallbackSort = lastQueryRef.current?.sort || urlParams.get('sort') || stored?.sort || 'yBudget:DESC';
-    // Capture the live grid sort to avoid relying on stale query state when navigating to the workspace
     const sortModel = gridApiRef.current?.getSortModel?.() as Array<{ colId?: string; sort?: 'asc' | 'desc' | undefined }> | undefined;
     const primarySort = Array.isArray(sortModel) && sortModel.length > 0 ? sortModel[0] : undefined;
     let sort = fallbackSort;
@@ -396,25 +278,335 @@ export default function CapexPage() {
     if (sort) sp.set('sort', sort);
     if (q) sp.set('q', q);
     if (filters) sp.set('filters', filters);
-    const snapshot = { sort, q, filters };
-    storedContextRef.current = snapshot;
-    writeStoredCapexListContext(snapshot);
+    return sp;
+  }, []);
 
-    const go = (tab: string, year?: number) => {
-      const s = new URLSearchParams(sp);
-      if (year) s.set('year', String(year));
-      navigate(`/ops/capex/${row.id}/${tab}?${s.toString()}`);
-    };
+  const getCapexHref = useCallback((row: unknown, colId?: string) => {
+    const item = row as SummaryRow | null | undefined;
+    if (!item?.id) return null;
+    const sp = buildGridSearch();
+    const next = new URLSearchParams(sp);
+    let tab = 'overview';
+    if (colId === 'yAllocation') {
+      tab = 'allocations';
+      next.set('year', String(Y));
+    } else if (colId === 'yPlus1Allocation') {
+      tab = 'allocations';
+      next.set('year', String(Y + 1));
+    } else if (colId === 'yMinus1Landing') {
+      tab = 'budget';
+      next.set('year', String(Y - 1));
+    } else if (colId === 'yBudget' || colId === 'yLanding') {
+      tab = 'budget';
+      next.set('year', String(Y));
+    } else if (colId === 'yPlus1Budget') {
+      tab = 'budget';
+      next.set('year', String(Y + 1));
+    } else if (colId === 'latest_task_text') {
+      tab = 'tasks';
+    }
+    return `/ops/capex/${item.id}/${tab}?${next.toString()}`;
+  }, [Y, buildGridSearch]);
 
-    if (colId === 'yAllocation') return go('allocations', Y);
-    if (colId === 'yPlus1Allocation') return go('allocations', Y + 1);
-    if (colId === 'yMinus1Landing') return go('budget', Y - 1);
-    if (colId === 'yBudget') return go('budget', Y);
-    if (colId === 'yLanding') return go('budget', Y);
-    if (colId === 'yPlus1Budget') return go('budget', Y + 1);
-    if (colId === 'latest_task_text') return go('tasks');
-    return go('overview');
-  }, [Y, navigate]);
+  const columns = useMemo(() => {
+    return [
+      {
+        field: 'description',
+        headerName: 'Description',
+        flex: 1,
+        minWidth: 220,
+        required: true,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'description')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'company_name',
+        headerName: 'Company',
+        width: 160,
+        filter: CheckboxSetFilter,
+        floatingFilterComponent: CheckboxSetFloatingFilter,
+        filterParams: {
+          getValues: getCapexFilterValues('company_name'),
+          searchable: false,
+        },
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'company_name')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'ppe_type',
+        headerName: 'PP&E Type',
+        width: 140,
+        filter: CheckboxSetFilter,
+        floatingFilterComponent: CheckboxSetFloatingFilter,
+        filterParams: {
+          getValues: getCapexFilterValues('ppe_type', { labelMap: PPE_LABELS }),
+          searchable: false,
+        },
+        valueFormatter: (p: any) => {
+          const raw = p?.value;
+          return raw != null ? (PPE_LABELS[String(raw)] || String(raw)) : '';
+        },
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'ppe_type')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'investment_type',
+        headerName: 'Investment Type',
+        width: 170,
+        filter: CheckboxSetFilter,
+        floatingFilterComponent: CheckboxSetFloatingFilter,
+        filterParams: {
+          getValues: getCapexFilterValues('investment_type', { labelMap: INVESTMENT_LABELS }),
+          searchable: false,
+        },
+        valueFormatter: (p: any) => {
+          const raw = p?.value;
+          return raw != null ? (INVESTMENT_LABELS[String(raw)] || String(raw)) : '';
+        },
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'investment_type')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'priority',
+        headerName: 'Priority',
+        width: 120,
+        filter: CheckboxSetFilter,
+        floatingFilterComponent: CheckboxSetFloatingFilter,
+        filterParams: {
+          getValues: getCapexFilterValues('priority', { labelMap: PRIORITY_LABELS }),
+          searchable: false,
+        },
+        valueFormatter: (p: any) => {
+          const raw = p?.value;
+          return raw != null ? (PRIORITY_LABELS[String(raw)] || String(raw)) : '';
+        },
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'priority')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        colId: 'yAllocation',
+        headerName: 'Y Allocation',
+        valueGetter: (p: any) => p.data?.allocation_method_label ?? '',
+        tooltipValueGetter: (p: any) => p.data?.allocation_method_label ?? '',
+        width: 180,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'yAllocation')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        colId: 'yPlus1Allocation',
+        headerName: 'Y+1 Allocation',
+        valueGetter: (p: any) => p.data?.next_year_allocation_method_label ?? '',
+        tooltipValueGetter: (p: any) => p.data?.next_year_allocation_method_label ?? '',
+        width: 200,
+        defaultHidden: true,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'yPlus1Allocation')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        colId: 'yMinus1Landing',
+        headerName: `Y-1 Landing (${Y - 1})`,
+        valueGetter: (p: any) => p.data?.versions?.yMinus1?.reporting?.landing ?? p.data?.versions?.yMinus1?.totals?.landing ?? 0,
+        valueFormatter: (p: any) => formatNumber(p.value),
+        type: 'rightAligned',
+        width: 170,
+        defaultHidden: true,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'yMinus1Landing')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        colId: 'yBudget',
+        headerName: `Y Budget (${Y})`,
+        valueGetter: (p: any) => p.data?.versions?.y?.reporting?.budget ?? p.data?.versions?.y?.totals?.budget ?? 0,
+        valueFormatter: (p: any) => formatNumber(p.value),
+        type: 'rightAligned',
+        width: 160,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'yBudget')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        colId: 'yLanding',
+        headerName: `Y Landing (${Y})`,
+        valueGetter: (p: any) => p.data?.versions?.y?.reporting?.landing ?? p.data?.versions?.y?.totals?.landing ?? 0,
+        valueFormatter: (p: any) => formatNumber(p.value),
+        type: 'rightAligned',
+        width: 160,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'yLanding')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        colId: 'yPlus1Budget',
+        headerName: `Y+1 Budget (${Y + 1})`,
+        valueGetter: (p: any) => p.data?.versions?.yPlus1?.reporting?.budget ?? p.data?.versions?.yPlus1?.totals?.budget ?? 0,
+        valueFormatter: (p: any) => formatNumber(p.value),
+        type: 'rightAligned',
+        width: 180,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'yPlus1Budget')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'currency',
+        headerName: 'Currency',
+        width: 110,
+        defaultHidden: true,
+        filter: CheckboxSetFilter,
+        floatingFilterComponent: CheckboxSetFloatingFilter,
+        filterParams: {
+          getValues: getCapexFilterValues('currency'),
+          searchable: false,
+        },
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'currency')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'effective_start',
+        headerName: 'Start',
+        width: 120,
+        defaultHidden: true,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'effective_start')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'effective_end',
+        headerName: 'End',
+        width: 120,
+        defaultHidden: true,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'effective_end')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'notes',
+        headerName: 'Notes',
+        flex: 1,
+        minWidth: 200,
+        defaultHidden: true,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'notes')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        colId: 'latest_task_text',
+        headerName: 'Task',
+        valueGetter: (p: any) => p.data?.latest_task?.title ?? '',
+        tooltipValueGetter: (p: any) => (p.value ? String(p.value) : ''),
+        flex: 1,
+        minWidth: 220,
+        defaultHidden: true,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'latest_task_text')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+      {
+        field: 'status',
+        headerName: 'Enabled',
+        width: 140,
+        filter: 'agSetColumnFilter',
+        filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
+        defaultHidden: true,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer
+            {...params}
+            linkType="internal"
+            getHref={(row) => getCapexHref(row, 'status')}
+            onNavigate={(href) => navigate(href)}
+          />
+        ),
+      },
+    ];
+  }, [Y, getCapexFilterValues, getCapexHref, INVESTMENT_LABELS, PPE_LABELS, PRIORITY_LABELS, navigate, reportingCurrency]);
 
   const canCreate = hasLevel('capex','manager');
   const canAdmin = hasLevel('capex','admin');
@@ -469,7 +661,6 @@ export default function CapexPage() {
         defaultSort={{ field: 'yBudget', direction: 'DESC' }}
         statusScopeConfig={{ defaultScope: 'enabled' }}
         columnPreferencesKey="capex-summary"
-        onCellClicked={onCellClicked}
         refreshKey={refreshKey}
         onGridApiReady={(gridApi) => { gridApiRef.current = gridApi; }}
         onQueryStateChange={(state) => {

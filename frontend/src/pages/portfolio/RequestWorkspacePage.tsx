@@ -1,10 +1,9 @@
 import React from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Accordion, AccordionDetails, AccordionSummary,
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider,
-  IconButton, Snackbar, Stack, Tab, Tabs, TextField, Typography,
+  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
+  IconButton, LinearProgress, Snackbar, Stack, Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -12,43 +11,34 @@ import ShareIcon from '@mui/icons-material/Share';
 import TransformIcon from '@mui/icons-material/Transform';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import api from '../../api';
 import { useRequestNav } from '../../hooks/useRequestNav';
 import { useClassificationDefaults } from '../../hooks/useClassificationDefaults';
 import { useAuth } from '../../auth/AuthContext';
-import UserSelect from '../../components/fields/UserSelect';
-import CompanySelect from '../../components/fields/CompanySelect';
-import DepartmentSelect from '../../components/fields/DepartmentSelect';
-import DateEUField from '../../components/fields/DateEUField';
-import EnumAutocomplete from '../../components/fields/EnumAutocomplete';
-import { MarkdownContent } from '../../components/MarkdownContent';
 import ConvertToProjectDialog from './components/ConvertToProjectDialog';
 import StatusChangeDialog from './components/StatusChangeDialog';
-import PortfolioActivity from './components/PortfolioActivity';
 import RecommendationDialog from './components/RecommendationDialog';
-import RequestScoringEditor, { RequestScoringEditorHandle } from './editors/RequestScoringEditor';
-import RequestRelationsPanel, { RequestRelationsPanelHandle } from './editors/RequestRelationsPanel';
-import FeasibilityReview from './editors/FeasibilityReview';
-import DependencySelector from './components/DependencySelector';
-import TeamMemberMultiSelect from '../../components/fields/TeamMemberMultiSelect';
-import BusinessProcessMultiSelect from '../../components/fields/BusinessProcessMultiSelect';
+import { type RequestScoringEditorHandle } from './editors/RequestScoringEditor';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
 import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
-import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
-import IntegratedDocumentEditor, { IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
+import { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
+import PortfolioWorkspaceShell from './workspace/PortfolioWorkspaceShell';
+import RequestPropertyPanel from './workspace/request/RequestPropertyPanel';
+import RequestSummaryTab from './workspace/request/RequestSummaryTab';
+import WorkspaceTabLoadingFallback from './workspace/WorkspaceTabLoadingFallback';
+import { getRequestWorkspaceInclude } from './workspace/workspace-detail-includes';
 
-type TabKey = 'overview' | 'analysis' | 'scoring' | 'team' | 'relations' | 'knowledge' | 'activity';
+type TabKey = 'summary' | 'analysis' | 'scoring' | 'knowledge' | 'activity';
+type LegacyPanelRoute = 'overview' | 'team' | 'relations';
+type RouteTabKey = TabKey | LegacyPanelRoute;
 
 const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: 'overview', label: 'Overview' },
+  { key: 'summary', label: 'Summary' },
   { key: 'activity', label: 'Activity' },
   { key: 'analysis', label: 'Analysis' },
   { key: 'scoring', label: 'Scoring' },
-  { key: 'team', label: 'Team' },
-  { key: 'relations', label: 'Relations' },
   { key: 'knowledge', label: 'Knowledge' },
 ];
 
@@ -114,14 +104,10 @@ const DECISION_OUTCOME_COLORS: Record<string, 'default' | 'success' | 'error' | 
   analysis_complete: 'info',
 };
 
-const hasContentValue = (value: unknown): boolean => {
-  if (value == null) return false;
-  const text = String(value)
-    .replace(/<[^>]*>/g, '')
-    .replace(/[#*_~`>\-\[\]()!|]/g, '')
-    .trim();
-  return text.length > 0;
-};
+const RequestAnalysisTab = React.lazy(() => import('./workspace/request/RequestAnalysisTab'));
+const RequestActivityTab = React.lazy(() => import('./workspace/request/RequestActivityTab'));
+const RequestScoringTab = React.lazy(() => import('./workspace/request/RequestScoringTab'));
+const RequestKnowledgeTab = React.lazy(() => import('./workspace/request/RequestKnowledgeTab'));
 
 export default function RequestWorkspacePage() {
   const navigate = useNavigate();
@@ -135,17 +121,34 @@ export default function RequestWorkspacePage() {
   const idParam = String(params.id || '');
   const isCreate = idParam === 'new';
   const id = idParam;
-  const routeTab = (params.tab as TabKey) || 'overview';
+  const rawRouteTab = (params.tab as RouteTabKey | undefined) || 'summary';
+  const routeTab: TabKey = rawRouteTab === 'overview' || rawRouteTab === 'team' || rawRouteTab === 'relations'
+    ? 'summary'
+    : rawRouteTab;
+  const propertyPanelFocusSection = rawRouteTab === 'team' || rawRouteTab === 'relations'
+    ? rawRouteTab
+    : null;
+  const requestInclude = React.useMemo(() => getRequestWorkspaceInclude(routeTab), [routeTab]);
+
+  React.useEffect(() => {
+    if (rawRouteTab === 'overview') {
+      navigate(`/portfolio/requests/${id}/summary${location.search}`, { replace: true });
+      return;
+    }
+    if (isCreate && rawRouteTab !== 'summary') {
+      navigate(`/portfolio/requests/${id}/summary${location.search}`, { replace: true });
+    }
+  }, [id, isCreate, location.search, navigate, rawRouteTab]);
 
   // Fetch request data
-  const { data, error, refetch } = useQuery({
-    queryKey: ['portfolio-request', id],
+  const { data, error, isFetching, isLoading, isPlaceholderData, refetch } = useQuery({
+    queryKey: ['portfolio-request', id, requestInclude],
     queryFn: async () => {
-      const include = 'team,sponsors,contacts,urls,attachments,activities,company,department,financials,projects,dependencies,business_processes,origin_task';
-      const res = await api.get(`/portfolio/requests/${id}`, { params: { include } });
+      const res = await api.get(`/portfolio/requests/${id}`, { params: { include: requestInclude } });
       return res.data;
     },
     enabled: !isCreate,
+    placeholderData: keepPreviousData,
   });
 
   // Track recently viewed
@@ -202,7 +205,6 @@ export default function RequestWorkspacePage() {
   const streams = classificationData?.streams?.filter((s) => s.is_active) || [];
 
   const [form, setForm] = React.useState<any>({});
-  const [dirty, setDirty] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = React.useState(false);
@@ -213,21 +215,20 @@ export default function RequestWorkspacePage() {
   const [highlightLatestRecommendation, setHighlightLatestRecommendation] = React.useState(false);
   const [pendingStatus, setPendingStatus] = React.useState<string | null>(null);
   const scoringEditorRef = React.useRef<RequestScoringEditorHandle>(null);
-  const relationsPanelRef = React.useRef<RequestRelationsPanelHandle>(null);
   const purposeEditorRef = React.useRef<IntegratedDocumentEditorHandle>(null);
   const risksEditorRef = React.useRef<IntegratedDocumentEditorHandle>(null);
   const savedScoreRef = React.useRef<number | null>(null);
   const canManage = hasLevel('portfolio_requests', 'manager');
   const canEditManagedDocs = hasLevel('portfolio_requests', 'member');
   const canAdmin = hasLevel('portfolio_requests', 'admin');
+  const [tabDirty, setTabDirty] = React.useState(false);
   const [scoringDirty, setScoringDirty] = React.useState(false);
-  const [relationsDirty, setRelationsDirty] = React.useState(false);
   const [purposeDirty, setPurposeDirty] = React.useState(false);
   const [risksDirty, setRisksDirty] = React.useState(false);
-  const hasPageDirtyChanges = dirty || scoringDirty || relationsDirty;
+  const hasTabDirtyChanges = tabDirty || scoringDirty;
   const hasManagedDocumentChanges = purposeDirty || risksDirty;
-  const hasUnsavedChanges = hasPageDirtyChanges || hasManagedDocumentChanges;
-  const canSaveManagedDocsOnly = !hasPageDirtyChanges && hasManagedDocumentChanges && canEditManagedDocs;
+  const hasUnsavedChanges = hasTabDirtyChanges || hasManagedDocumentChanges;
+  const canSaveManagedDocsOnly = !hasTabDirtyChanges && hasManagedDocumentChanges && canEditManagedDocs;
   const saveDisabled = !hasUnsavedChanges || (!canManage && !canSaveManagedDocsOnly);
   const classificationTouchedRef = React.useRef({
     source_id: false,
@@ -254,18 +255,17 @@ export default function RequestWorkspacePage() {
     if (data && !isCreate) {
       // If we just saved a score, use that instead of potentially stale data
       if (savedScoreRef.current !== null) {
-        setForm({ ...data, priority_score: savedScoreRef.current });
+        setForm((prev: any) => ({
+          ...(prev || {}),
+          ...data,
+          priority_score: savedScoreRef.current,
+        }));
         savedScoreRef.current = null;
       } else {
-        setForm({ ...data });
+        setForm((prev: any) => ({ ...(prev || {}), ...data }));
       }
     }
   }, [data, isCreate]);
-
-  React.useEffect(() => {
-    if (isCreate || routeTab !== 'activity') return;
-    void refetch();
-  }, [isCreate, routeTab, refetch]);
 
   React.useEffect(() => {
     if (!highlightLatestRecommendation) return;
@@ -274,9 +274,34 @@ export default function RequestWorkspacePage() {
   }, [highlightLatestRecommendation]);
 
   const update = React.useCallback((patch: any) => {
-    setDirty(true);
+    setTabDirty(true);
     setForm((prev: any) => ({ ...prev, ...patch }));
   }, []);
+
+  const updateManagedDocDraft = React.useCallback((patch: any) => {
+    if (isCreate) {
+      setTabDirty(true);
+    }
+    setForm((prev: any) => ({ ...prev, ...patch }));
+  }, [isCreate]);
+
+  const persistPanelPatch = React.useCallback(async (patch: Record<string, any>) => {
+    setForm((prev: any) => ({ ...prev, ...patch }));
+
+    if (isCreate) {
+      setTabDirty(true);
+      return;
+    }
+
+    setSaveError(null);
+    try {
+      await api.patch(`/portfolio/requests/${id}`, patch);
+      queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
+    } catch (e: any) {
+      setSaveError(e?.response?.data?.message || e?.message || 'Failed to save request details');
+      await refetch();
+    }
+  }, [id, isCreate, queryClient, refetch]);
 
   React.useEffect(() => {
     if (!isCreate || defaultsAppliedRef.current || classificationDefaultsLoading) return;
@@ -336,40 +361,32 @@ export default function RequestWorkspacePage() {
         const res = await api.post('/portfolio/requests', form);
         const newId = res.data?.id;
         if (newId) {
-          setDirty(false);
-          navigate(`/portfolio/requests/${newId}/overview?${searchParams.toString()}`);
+          setTabDirty(false);
+          navigate(`/portfolio/requests/${newId}/summary?${searchParams.toString()}`);
           return true;
         }
         return false;
       } else {
-        if (!canManage && hasPageDirtyChanges) {
+        if (!canManage && hasTabDirtyChanges) {
           setSaveError('You do not have permission to save request form changes from this workspace.');
           return false;
         }
 
         if (canManage) {
-          // Only send the actual request fields, not loaded relations.
           const requestPayload: Record<string, any> = {};
-          const editableFields = [
-            'name', 'source_id', 'category_id', 'stream_id', 'requestor_id', 'company_id', 'department_id',
-            'target_delivery_date', 'status', 'feasibility_review',
-            // Note: sponsor/lead fields are saved immediately on change, not with the main form.
-          ];
+          const editableFields = ['feasibility_review'];
           for (const field of editableFields) {
             if (Object.prototype.hasOwnProperty.call(form, field)) {
               requestPayload[field] = form[field];
             }
           }
-          await api.patch(`/portfolio/requests/${id}`, requestPayload);
+          if (Object.keys(requestPayload).length > 0) {
+            await api.patch(`/portfolio/requests/${id}`, requestPayload);
+          }
 
           // Save scoring data if the editor is dirty and store the score for the useEffect.
           if (scoringEditorRef.current?.isDirty()) {
             savedScoreRef.current = await scoringEditorRef.current.save();
-          }
-
-          // Save relations panel data if dirty.
-          if (relationsPanelRef.current?.isDirty()) {
-            await relationsPanelRef.current.save();
           }
         }
 
@@ -382,9 +399,8 @@ export default function RequestWorkspacePage() {
           if (!ok) return false;
         }
 
-        setDirty(false);
+        setTabDirty(false);
         setScoringDirty(false);
-        setRelationsDirty(false);
         setPurposeDirty(false);
         setRisksDirty(false);
         await refetch();
@@ -404,14 +420,12 @@ export default function RequestWorkspacePage() {
     } else {
       setForm({});
     }
-    setDirty(false);
+    setTabDirty(false);
     setScoringDirty(false);
-    setRelationsDirty(false);
     setPurposeDirty(false);
     setRisksDirty(false);
     setSaveError(null);
     scoringEditorRef.current?.reset?.();
-    relationsPanelRef.current?.reset();
     await Promise.all([
       purposeEditorRef.current?.reset?.(),
       risksEditorRef.current?.reset?.(),
@@ -530,8 +544,8 @@ export default function RequestWorkspacePage() {
     return buildInlineImageUrl(`/portfolio/requests/inline/${tenantSlug}/${res.data.id}`);
   }, [id]);
 
-  const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
-    if (isCreate && nextValue !== 'overview') return;
+  const onTabChange = (_: React.SyntheticEvent | null, nextValue: TabKey) => {
+    if (isCreate && nextValue !== 'summary') return;
     if (hasUnsavedChanges) {
       const proceed = window.confirm('You have unsaved changes. Save before switching tabs?');
       if (proceed) {
@@ -599,7 +613,6 @@ export default function RequestWorkspacePage() {
   const statusColor = STATUS_COLORS[form?.status] || 'default';
   const categoryName = classificationData?.categories?.find((c) => c.id === form?.category_id)?.name;
   const streamName = classificationData?.streams?.find((s) => s.id === form?.stream_id)?.name;
-  const hasLegacyAnalysis = hasContentValue(form?.current_situation) || hasContentValue(form?.expected_benefits);
   const analysisRecommendations = React.useMemo(() => {
     const activities = Array.isArray(form?.activities) ? form.activities : [];
     return activities
@@ -637,562 +650,294 @@ export default function RequestWorkspacePage() {
     })
     : '';
   const latestRecommendationStatusChange = latestAnalysisRecommendation?.changed_fields?.status;
+  const showRefreshState = !isCreate && !!data && isFetching;
+
+  if (!isCreate && isLoading && !data) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <LinearProgress sx={{ mb: 2 }} />
+        <Typography variant="body2" color="text.secondary">
+          Loading request workspace...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 2 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          {!isCreate && form?.priority_score != null && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                bgcolor: form.priority_override ? 'warning.main' : 'primary.main',
-                color: 'primary.contrastText',
-                fontWeight: 700,
-                fontSize: '1.25rem',
-                boxShadow: 2,
-              }}
-              title={form.priority_override ? 'Overridden priority score' : 'Priority score'}
-            >
-              {Math.round(form.priority_score)}
-            </Box>
-          )}
-          <Stack spacing={0.5}>
-            <Stack direction="row" alignItems="center">
-              {data?.item_number && (
-                <Chip
-                  label={`REQ-${data.item_number}`}
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontFamily: 'monospace', mr: 1 }}
-                  onClick={() => navigator.clipboard.writeText(`REQ-${data.item_number}`)}
-                  title="Click to copy reference"
-                />
-              )}
-              <Typography variant="h6">
-                {isCreate ? 'New Request' : (form?.name || 'Request')}
-              </Typography>
-            </Stack>
-            {!isCreate && (
-              <Stack direction="row" spacing={1} alignItems="center">
-                {form?.status && (
-                  <Chip label={statusLabel} color={statusColor} size="small" />
-                )}
-                {form?.origin_task?.id && (
-                  <Chip
-                    label={
-                      form.origin_task.item_number
-                        ? `Origin: T-${form.origin_task.item_number}`
-                        : 'Origin: Task'
-                    }
-                    size="small"
-                    variant="outlined"
-                    onClick={() => navigate(`/portfolio/tasks/${form.origin_task.id}/overview`)}
-                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                    title={`Created from task: ${form.origin_task.title || form.origin_task.id}`}
-                  />
-                )}
-                {total > 0 && (
-                  <Typography variant="body2" color="text.secondary">
-                    {index + 1} of {total}
-                  </Typography>
-                )}
-              </Stack>
-            )}
-          </Stack>
-        </Stack>
-        <Stack direction="row" spacing={1} alignItems="center">
-          {!isCreate && (
-            <Button
-              startIcon={<ShareIcon />}
-              onClick={() => setShareDialogOpen(true)}
-              size="small"
-            >
-              Send link
-            </Button>
-          )}
-          {!isCreate && canAdmin && form?.status !== 'converted' && (
-            <Button
-              startIcon={<DeleteIcon />}
-              color="error"
-              onClick={() => setDeleteConfirmOpen(true)}
-              size="small"
-            >
-              Delete
-            </Button>
-          )}
-          <IconButton
-            aria-label="Previous"
-            title="Previous"
-            onClick={() => confirmAndNavigate(prevId)}
-            disabled={!hasPrev}
-            size="small"
-          >
-            <ArrowBackIcon />
-          </IconButton>
-          <IconButton
-            aria-label="Next"
-            title="Next"
-            onClick={() => confirmAndNavigate(nextId)}
-            disabled={!hasNext}
-            size="small"
-          >
-            <ArrowForwardIcon />
-          </IconButton>
-          {!isCreate && (form?.status === 'approved' || form?.status === 'converted') && (
-            <Button
-              variant="outlined"
-              startIcon={<TransformIcon />}
-              onClick={() => setConvertDialogOpen(true)}
-            >
-              Convert to Project
-            </Button>
-          )}
-          <Button onClick={() => { void handleReset(); }} disabled={!hasUnsavedChanges}>Reset</Button>
-          <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>Save</Button>
-          <IconButton
-            aria-label="Close"
-            title="Close"
-            onClick={() => {
-              const qs = listContextParams.toString();
-              navigate(`/portfolio/requests${qs ? `?${qs}` : ''}`);
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-      </Stack>
-
-      {!!error && <Alert severity="error">Failed to load request.</Alert>}
+      {!!error && <Alert severity="error" sx={{ mb: 1 }}>Failed to load request.</Alert>}
       {!!saveError && <Alert severity="error" sx={{ mb: 1 }}>{saveError}</Alert>}
 
-      <Divider sx={{ mb: 2 }} />
-
-      <Box sx={{ display: 'flex', minHeight: 480 }}>
-        <Tabs
-          orientation="vertical"
-          value={routeTab}
-          onChange={(_, value) => onTabChange(null as any, value as TabKey)}
-          sx={{ borderRight: 1, borderColor: 'divider', minWidth: 160 }}
-        >
-          {tabs.map((t) => (
-            <Tab
-              key={t.key}
-              label={t.label}
-              value={t.key}
-              disabled={isCreate && t.key !== 'overview'}
-            />
-          ))}
-        </Tabs>
-
-        <Box sx={{ flex: 1, pl: 3 }}>
-          {routeTab === 'overview' && (
-            <Stack spacing={2}>
-              <TextField
-                label="Request Name"
-                value={form?.name || ''}
-                onChange={(e) => update({ name: e.target.value })}
-                required
-                fullWidth
-              />
-              {!isCreate && (
-                <EnumAutocomplete
-                  label="Status"
-                  value={form?.status || 'pending_review'}
-                  onChange={(v) => handleStatusChange(v)}
-                  options={STATUS_OPTIONS}
-                />
-              )}
-              <IntegratedDocumentEditor
-                ref={purposeEditorRef}
-                entityType="requests"
-                entityId={isCreate ? null : id}
-                slotKey="purpose"
-                label="Purpose"
-                placeholder="Describe the purpose of this request..."
-                minRows={14}
-                maxRows={26}
-                disabled={!canEditManagedDocs}
-                draftValue={form?.purpose || ''}
-                onDraftChange={(value) => update({ purpose: value })}
-                onDirtyChange={setPurposeDirty}
-              />
-              <EnumAutocomplete
-                label="Source"
-                value={form?.source_id || ''}
-                onChange={(v) => {
-                  classificationTouchedRef.current.source_id = true;
-                  update({ source_id: v });
-                }}
-                options={sources.map((t) => ({ value: t.id, label: t.name }))}
-              />
-              <EnumAutocomplete
-                label="Category"
-                value={form?.category_id || ''}
-                onChange={(v) => {
-                  classificationTouchedRef.current.category_id = true;
-                  classificationTouchedRef.current.stream_id = true;
-                  update({ category_id: v, stream_id: null });
-                }}
-                options={categories.map((c) => ({ value: c.id, label: c.name }))}
-              />
-              <EnumAutocomplete
-                label="Stream"
-                value={form?.stream_id || ''}
-                onChange={(v) => {
-                  classificationTouchedRef.current.stream_id = true;
-                  update({ stream_id: v });
-                }}
-                options={streams
-                  .filter((s) => s.category_id === form?.category_id)
-                  .map((s) => ({ value: s.id, label: s.name }))}
-                disabled={!form?.category_id}
-              />
-              <UserSelect
-                label="Requestor"
-                value={form?.requestor_id || null}
-                onChange={(v) => update({ requestor_id: v })}
-              />
-              <CompanySelect
-                label="Company"
-                value={form?.company_id || null}
-                onChange={(v) => {
-                  classificationTouchedRef.current.company_id = true;
-                  update({ company_id: v });
-                }}
-              />
-              <DepartmentSelect
-                label="Department"
-                companyId={form?.company_id || undefined}
-                value={form?.department_id || null}
-                onChange={(v) => update({ department_id: v })}
-              />
-              <DateEUField
-                label="Target Delivery Date"
-                valueYmd={form?.target_delivery_date || ''}
-                onChangeYmd={(v) => update({ target_delivery_date: v })}
-              />
-            </Stack>
-          )}
-
-          {routeTab === 'analysis' && !isCreate && (
-            <Stack spacing={2}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Impacted Business Processes</Typography>
-              <BusinessProcessMultiSelect
-                label="Business Processes"
-                value={(form?.business_processes || []).map((bp: any) => bp.id)}
-                onChange={async (ids) => {
-                  await api.post(`/portfolio/requests/${form.id}/business-processes/bulk-replace`, {
-                    business_process_ids: ids,
-                  });
-                  await refetch();
-                }}
-                disabled={!canManage}
-              />
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 1 }}>Feasibility Review</Typography>
-              <FeasibilityReview
-                value={form?.feasibility_review}
-                onChange={(v) => update({ feasibility_review: v })}
-                disabled={!canManage}
-                categoryName={categoryName}
-                streamName={streamName}
-              />
-              <Box>
-                <IntegratedDocumentEditor
-                  ref={risksEditorRef}
-                  entityType="requests"
-                  entityId={isCreate ? null : id}
-                  slotKey="risks_mitigations"
-                  label="Risks & Mitigations"
-                  placeholder="List key residual risks, mitigation actions, and responsible owners..."
-                  minRows={12}
-                  maxRows={24}
-                  disabled={!canEditManagedDocs}
-                  draftValue={form?.risks || ''}
-                  onDraftChange={(value) => update({ risks: value })}
-                  onDirtyChange={setRisksDirty}
-                />
-              </Box>
-
+      <PortfolioWorkspaceShell
+        activeTab={routeTab}
+        tabs={tabs.map((tab) => ({
+          ...tab,
+          disabled: isCreate && tab.key !== 'summary',
+        }))}
+        onTabChange={(nextTab) => onTabChange(null, nextTab as TabKey)}
+        sidebarStorageKey="portfolioRequestWorkspaceSidebarWidth"
+        sidebarTitle={isCreate ? 'Request Setup' : 'Request Properties'}
+        headerContent={(
+          <Stack direction="row" alignItems="center" spacing={2}>
+            {!isCreate && form?.priority_score != null && (
               <Box
                 sx={{
-                  p: 2,
-                  border: 1,
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  bgcolor: 'background.paper',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 56,
+                  height: 56,
+                  borderRadius: '50%',
+                  bgcolor: form.priority_override ? 'warning.main' : 'primary.main',
+                  color: 'primary.contrastText',
+                  fontWeight: 700,
+                  fontSize: '1.25rem',
+                  boxShadow: 2,
                 }}
+                title={form.priority_override ? 'Overridden priority score' : 'Priority score'}
               >
-                <Stack spacing={1.5}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                        Analysis Recommendation
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Publish a formal decision to Activity with context "Analysis Recommendation".
-                      </Typography>
-                    </Box>
-                    <Stack direction="row" spacing={1}>
-                      {latestAnalysisRecommendation && (
-                        <Button
-                          variant="outlined"
-                          onClick={() => onTabChange(null as any, 'activity')}
-                        >
-                          View in Activity
-                        </Button>
-                      )}
-                      <Button
-                        variant="contained"
-                        color="warning"
-                        disabled={!canManage || form?.status === 'converted'}
-                        onClick={() => void handleOpenRecommendationDialog()}
-                      >
-                        {recommendationButtonLabel}
-                      </Button>
-                    </Stack>
-                  </Stack>
-
-                  {latestAnalysisRecommendation ? (
-                    <Box
-                      sx={{
-                        p: 1.5,
-                        border: 1,
-                        borderColor: highlightLatestRecommendation ? 'success.main' : 'divider',
-                        borderRadius: 1,
-                        bgcolor: highlightLatestRecommendation ? 'success.light' : 'action.hover',
-                      }}
-                    >
-                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          Latest recommendation
-                        </Typography>
-                        {latestRecommendationOutcome && (
-                          <Chip
-                            size="small"
-                            color={latestRecommendationOutcomeColor}
-                            label={latestRecommendationOutcome}
-                          />
-                        )}
-                        <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                          {latestRecommendationAuthor} • {latestRecommendationCreatedAt}
-                        </Typography>
-                      </Stack>
-                      {Array.isArray(latestRecommendationStatusChange) && latestRecommendationStatusChange.length === 2 && (
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                          Status changed: {String(latestRecommendationStatusChange[0] || '')} → {String(latestRecommendationStatusChange[1] || '')}
-                        </Typography>
-                      )}
-                      {hasContentValue(latestAnalysisRecommendation.content) && (
-                        <Box sx={{ mt: 1, maxHeight: 140, overflow: 'hidden' }}>
-                          <MarkdownContent content={latestAnalysisRecommendation.content} variant="compact" />
-                        </Box>
-                      )}
-                    </Box>
-                  ) : (
-                    <Alert severity="info">
-                      No recommendation submitted yet.
-                    </Alert>
+                {Math.round(form.priority_score)}
+              </Box>
+            )}
+            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                {data?.item_number && (
+                  <Chip
+                    label={`REQ-${data.item_number}`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontFamily: 'monospace' }}
+                    onClick={() => navigator.clipboard.writeText(`REQ-${data.item_number}`)}
+                    title="Click to copy reference"
+                  />
+                )}
+                <Typography variant="h6" sx={{ minWidth: 0 }}>
+                  {isCreate ? 'New Request' : (form?.name || 'Request')}
+                </Typography>
+              </Stack>
+              {!isCreate && (
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                  {form?.status && (
+                    <Chip label={statusLabel} color={statusColor} size="small" />
+                  )}
+                  {form?.origin_task?.id && (
+                    <Chip
+                      label={
+                        form.origin_task.item_number
+                          ? `Origin: T-${form.origin_task.item_number}`
+                          : 'Origin: Task'
+                      }
+                      size="small"
+                      variant="outlined"
+                      onClick={() => navigate(`/portfolio/tasks/${form.origin_task.id}/overview`)}
+                      sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                      title={`Created from task: ${form.origin_task.title || form.origin_task.id}`}
+                    />
+                  )}
+                  {total > 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      {index + 1} of {total}
+                    </Typography>
                   )}
                 </Stack>
-              </Box>
-
-              {hasLegacyAnalysis && (
-                <Accordion disableGutters>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography variant="subtitle2">Previous Analysis (Legacy)</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Stack spacing={2}>
-                      {hasContentValue(form?.current_situation) && (
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                            Current Situation
-                          </Typography>
-                          <MarkdownContent content={form?.current_situation} />
-                        </Box>
-                      )}
-                      {hasContentValue(form?.expected_benefits) && (
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                            Expected Benefits
-                          </Typography>
-                          <MarkdownContent content={form?.expected_benefits} />
-                        </Box>
-                      )}
-                    </Stack>
-                  </AccordionDetails>
-                </Accordion>
               )}
             </Stack>
-          )}
-
-          {routeTab === 'scoring' && !isCreate && (
-            <Stack spacing={3}>
-              {form?.status === 'converted' && (
-                <Alert severity="info">
-                  Scoring is frozen. This request has been converted to a project.
-                </Alert>
-              )}
-              <RequestScoringEditor
-                ref={scoringEditorRef}
-                requestId={form?.id}
-                criteriaValues={form?.criteria_values || {}}
-                priorityScore={form?.priority_score}
-                priorityOverride={form?.priority_override || false}
-                overrideValue={form?.override_value}
-                overrideJustification={form?.override_justification}
-                mandatoryBypassEnabled={portfolioSettings?.mandatory_bypass_enabled ?? false}
-                readOnly={!canManage || form?.status === 'converted'}
-                onScoreChange={(newScore) => {
-                  setForm((prev: any) => ({ ...prev, priority_score: newScore }));
-                }}
-                onDirtyChange={setScoringDirty}
+          </Stack>
+        )}
+        headerActions={(
+          <>
+            {!isCreate && showRefreshState && (
+              <Chip
+                label={isPlaceholderData ? 'Loading tab data' : 'Refreshing'}
+                size="small"
+                variant="outlined"
               />
-            </Stack>
-          )}
+            )}
+            {!isCreate && (
+              <Button
+                startIcon={<ShareIcon />}
+                onClick={() => setShareDialogOpen(true)}
+                size="small"
+              >
+                Send link
+              </Button>
+            )}
+            <IconButton
+              aria-label="Previous"
+              title="Previous"
+              onClick={() => confirmAndNavigate(prevId)}
+              disabled={!hasPrev}
+              size="small"
+            >
+              <ArrowBackIcon />
+            </IconButton>
+            <IconButton
+              aria-label="Next"
+              title="Next"
+              onClick={() => confirmAndNavigate(nextId)}
+              disabled={!hasNext}
+              size="small"
+            >
+              <ArrowForwardIcon />
+            </IconButton>
+            {!isCreate && (form?.status === 'approved' || form?.status === 'converted') && (
+              <Button
+                variant="outlined"
+                startIcon={<TransformIcon />}
+                onClick={() => setConvertDialogOpen(true)}
+                size="small"
+              >
+                Convert to Project
+              </Button>
+            )}
+            <Button onClick={() => { void handleReset(); }} disabled={!hasUnsavedChanges} size="small">
+              Reset
+            </Button>
+            {!isCreate && canAdmin && form?.status !== 'converted' && (
+              <Button
+                startIcon={<DeleteIcon />}
+                color="error"
+                onClick={() => setDeleteConfirmOpen(true)}
+                size="small"
+              >
+                Delete
+              </Button>
+            )}
+            <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled} size="small">
+              Save
+            </Button>
+            <IconButton
+              aria-label="Close"
+              title="Close"
+              onClick={() => {
+                const qs = listContextParams.toString();
+                navigate(`/portfolio/requests${qs ? `?${qs}` : ''}`);
+              }}
+              size="small"
+            >
+              <CloseIcon />
+            </IconButton>
+          </>
+        )}
+        sidebar={(
+          <RequestPropertyPanel
+            canManage={canManage}
+            categories={categories}
+            form={form}
+            focusSection={propertyPanelFocusSection}
+            isCreate={isCreate}
+            onCategoryChange={(value) => {
+              classificationTouchedRef.current.category_id = true;
+              classificationTouchedRef.current.stream_id = true;
+              void persistPanelPatch({ category_id: value, stream_id: null });
+            }}
+            onCompanyChange={(value) => {
+              classificationTouchedRef.current.company_id = true;
+              void persistPanelPatch({ company_id: value });
+            }}
+            onNameChange={(value) => { void persistPanelPatch({ name: value }); }}
+            onRefetch={refetch}
+            onRequestorChange={(value) => { void persistPanelPatch({ requestor_id: value }); }}
+            onSourceChange={(value) => {
+              classificationTouchedRef.current.source_id = true;
+              void persistPanelPatch({ source_id: value });
+            }}
+            onStatusChange={handleStatusChange}
+            onStreamChange={(value) => {
+              classificationTouchedRef.current.stream_id = true;
+              void persistPanelPatch({ stream_id: value });
+            }}
+            onUpdate={(patch) => { void persistPanelPatch(patch); }}
+            sources={sources}
+            statusOptions={STATUS_OPTIONS}
+            streams={streams}
+          />
+        )}
+      >
+        {showRefreshState && (
+          <LinearProgress sx={{ mb: 2 }} />
+        )}
+        {routeTab === 'summary' && (
+          <RequestSummaryTab
+            canEditManagedDocs={canEditManagedDocs}
+            form={form}
+            id={id}
+            isCreate={isCreate}
+            latestAnalysisRecommendation={latestAnalysisRecommendation}
+            latestRecommendationAuthor={latestRecommendationAuthor}
+            latestRecommendationCreatedAt={latestRecommendationCreatedAt}
+            latestRecommendationOutcome={latestRecommendationOutcome}
+            latestRecommendationOutcomeColor={latestRecommendationOutcomeColor}
+            latestRecommendationStatusChange={latestRecommendationStatusChange}
+            onOpenTab={(tab) => onTabChange(null, tab)}
+            onPurposeDirtyChange={setPurposeDirty}
+            onPurposeDraftChange={(value) => updateManagedDocDraft({ purpose: value })}
+            purposeEditorRef={purposeEditorRef}
+            statusColor={statusColor}
+            statusLabel={statusLabel}
+          />
+        )}
 
-          {routeTab === 'team' && !isCreate && (
-            <Stack spacing={3}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Sponsors & Leads</Typography>
-              <Stack spacing={2}>
-                <UserSelect
-                  label="Business Sponsor"
-                  value={form?.business_sponsor_id || null}
-                  onChange={async (v) => {
-                    await api.patch(`/portfolio/requests/${form.id}`, { business_sponsor_id: v });
-                    await refetch();
-                  }}
-                  disabled={!canManage}
-                />
-                <UserSelect
-                  label="Business Lead"
-                  value={form?.business_lead_id || null}
-                  onChange={async (v) => {
-                    await api.patch(`/portfolio/requests/${form.id}`, { business_lead_id: v });
-                    await refetch();
-                  }}
-                  disabled={!canManage}
-                />
-                <UserSelect
-                  label="IT Sponsor"
-                  value={form?.it_sponsor_id || null}
-                  onChange={async (v) => {
-                    await api.patch(`/portfolio/requests/${form.id}`, { it_sponsor_id: v });
-                    await refetch();
-                  }}
-                  disabled={!canManage}
-                />
-                <UserSelect
-                  label="IT Lead"
-                  value={form?.it_lead_id || null}
-                  onChange={async (v) => {
-                    await api.patch(`/portfolio/requests/${form.id}`, { it_lead_id: v });
-                    await refetch();
-                  }}
-                  disabled={!canManage}
-                />
-              </Stack>
+        {routeTab === 'analysis' && !isCreate && (
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading analysis tab..." />}>
+            <RequestAnalysisTab
+              canEditManagedDocs={canEditManagedDocs}
+              canManage={canManage}
+              categoryName={categoryName}
+              form={form}
+              highlightLatestRecommendation={highlightLatestRecommendation}
+              id={id}
+              latestAnalysisRecommendation={latestAnalysisRecommendation}
+              latestRecommendationAuthor={latestRecommendationAuthor}
+              latestRecommendationCreatedAt={latestRecommendationCreatedAt}
+              latestRecommendationOutcome={latestRecommendationOutcome}
+              latestRecommendationOutcomeColor={latestRecommendationOutcomeColor}
+              latestRecommendationStatusChange={latestRecommendationStatusChange}
+              onBusinessProcessesChange={async (ids) => {
+                await api.post(`/portfolio/requests/${form.id}/business-processes/bulk-replace`, {
+                  business_process_ids: ids,
+                });
+                await refetch();
+              }}
+              onOpenActivity={() => onTabChange(null, 'activity')}
+              onOpenRecommendationDialog={() => { void handleOpenRecommendationDialog(); }}
+              onRisksDraftChange={(value) => updateManagedDocDraft({ risks: value })}
+              onRisksDirtyChange={setRisksDirty}
+              onUpdateFeasibilityReview={(value) => update({ feasibility_review: value })}
+              recommendationButtonLabel={recommendationButtonLabel}
+              risksEditorRef={risksEditorRef}
+              streamName={streamName}
+            />
+          </React.Suspense>
+        )}
 
-              <Divider />
+        {routeTab === 'scoring' && !isCreate && (
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading scoring tab..." />}>
+            <RequestScoringTab
+              form={form}
+              mandatoryBypassEnabled={portfolioSettings?.mandatory_bypass_enabled ?? false}
+              onDirtyChange={setScoringDirty}
+              onScoreChange={(newScore) => {
+                setForm((prev: any) => ({ ...prev, priority_score: newScore }));
+              }}
+              readOnly={!canManage || form?.status === 'converted'}
+              scoringEditorRef={scoringEditorRef}
+            />
+          </React.Suspense>
+        )}
 
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Contributors</Typography>
-
-              <TeamMemberMultiSelect
-                label="Business Contributors"
-                value={form?.business_team || []}
-                onChange={async (userIds) => {
-                  await api.post(`/portfolio/requests/${form.id}/business-team/bulk-replace`, {
-                    user_ids: userIds,
-                  });
-                  await refetch();
-                }}
-                disabled={!canManage}
-              />
-
-              <TeamMemberMultiSelect
-                label="IT Contributors"
-                value={form?.it_team || []}
-                onChange={async (userIds) => {
-                  await api.post(`/portfolio/requests/${form.id}/it-team/bulk-replace`, {
-                    user_ids: userIds,
-                  });
-                  await refetch();
-                }}
-                disabled={!canManage}
-              />
-            </Stack>
-          )}
-
-          {routeTab === 'relations' && !isCreate && form?.id && (
-            <Stack spacing={3}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Dependencies</Typography>
-              <DependencySelector
-                entityType="request"
-                entityId={form?.id}
-                dependencies={form?.dependencies || []}
-                onAdd={async (targetType, targetId) => {
-                  await api.post(`/portfolio/requests/${form.id}/dependencies`, {
-                    target_type: targetType,
-                    target_id: targetId,
-                  });
-                  await refetch();
-                }}
-                onRemove={async (targetType, targetId) => {
-                  await api.delete(`/portfolio/requests/${form.id}/dependencies/${targetType}/${targetId}`);
-                  await refetch();
-                }}
-                disabled={!canManage}
-              />
-
-              <Divider />
-
-              <RequestRelationsPanel
-                ref={relationsPanelRef}
-                id={form?.id}
-                onDirtyChange={setRelationsDirty}
-              />
-
-              <Divider />
-
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Resulting Projects</Typography>
-              {form?.resulting_projects && form.resulting_projects.length > 0 ? (
-                <Stack spacing={1}>
-                  {form.resulting_projects.map((p: any) => (
-                    <Box
-                      key={p.id}
-                      component="span"
-                      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-                      onClick={() => navigate(`/portfolio/projects/${p.id}/overview`)}
-                    >
-                      <Typography variant="body2">
-                        {p.name} ({p.status})
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              ) : (
-                <Typography variant="body2" color="text.secondary">No resulting projects yet.</Typography>
-              )}
-            </Stack>
-          )}
-
-          {routeTab === 'knowledge' && !isCreate && form?.id && (
-            <EntityKnowledgePanel
-              entityType="requests"
+        {routeTab === 'knowledge' && !isCreate && form?.id && (
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading knowledge tab..." />}>
+            <RequestKnowledgeTab
               entityId={form.id}
               canCreate={hasLevel('knowledge', 'member')}
             />
-          )}
+          </React.Suspense>
+        )}
 
-          {routeTab === 'activity' && !isCreate && (
-            <PortfolioActivity
-              entityType="request"
+        {routeTab === 'activity' && !isCreate && (
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading activity tab..." />}>
+            <RequestActivityTab
               entityId={form?.id || ''}
               activities={form?.activities || []}
               currentStatus={form?.status || ''}
@@ -1204,9 +949,9 @@ export default function RequestWorkspacePage() {
               readOnly={!canManage}
               onImageUpload={handleImageUpload}
             />
-          )}
-        </Box>
-      </Box>
+          </React.Suspense>
+        )}
+      </PortfolioWorkspaceShell>
 
       {!isCreate && form && (
         <ConvertToProjectDialog
@@ -1219,7 +964,7 @@ export default function RequestWorkspacePage() {
           }}
           onSuccess={(projectId) => {
             setConvertDialogOpen(false);
-            navigate(`/portfolio/projects/${projectId}/overview`);
+            navigate(`/portfolio/projects/${projectId}/summary`);
           }}
         />
       )}

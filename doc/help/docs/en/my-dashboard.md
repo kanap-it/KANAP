@@ -12,8 +12,9 @@ The Dashboard is your personal landing page in KANAP. It gives you a quick overv
 
 At the top of the dashboard you'll find shortcut buttons for common actions:
 
-- **Create Task** — opens a quick dialog to create a task without leaving the dashboard. You provide a title and optionally link it to a project. Requires `tasks:member` or higher.
+- **Create Task** — opens the task creation flow. Requires `tasks:member` or higher.
 - **Log Time** — opens a quick dialog to log hours against a project. Choose a project, enter the hours, pick a category (**IT** or **Business**), and optionally add notes. Requires `portfolio_projects:member` or higher.
+- **New Document** — opens the Knowledge creation flow so you can start a blank document or create one from a published template. Requires `knowledge:member` or higher.
 - **Settings** (gear icon) — opens the dashboard settings to choose which tiles to show.
 
 ## Dashboard tiles
@@ -30,7 +31,7 @@ Shows your assigned tasks grouped by urgency:
 
 Each task shows its title, linked project (if any), due date, and priority badge when the priority is above normal. Click a task to open its workspace.
 
-**Settings**: Maximum number of items (3–20), toggle overdue section on or off.
+Displays up to 5 items total across the three groups.
 
 **Requires**: `tasks:reader`
 
@@ -44,7 +45,7 @@ Lists projects where you hold a leadership role (IT Lead, Business Lead, IT Spon
 - Current project status (colour-coded)
 - Next milestone and its target date, if set
 
-**Settings**: Maximum number of items (3–20).
+Displays up to 5 items.
 
 **Requires**: `portfolio_projects:reader`
 
@@ -58,7 +59,7 @@ Lists projects where you are a team member. Each project shows:
 - Current project status
 - Number of tasks assigned to you in that project
 
-**Settings**: Maximum number of items (3–20).
+Displays up to 5 items.
 
 **Requires**: `portfolio_projects:reader` and `tasks:reader`
 
@@ -70,7 +71,7 @@ Shows items you have recently opened across the application — projects, reques
 
 Recently viewed items are stored locally in your browser and are specific to your user and tenant. Click **Clear** to reset the list.
 
-**Settings**: Maximum number of items (5–20).
+Displays up to 5 items.
 
 **Requires**: No special permissions (items you cannot access are automatically hidden).
 
@@ -94,21 +95,44 @@ Displays a summary of time you have logged over a recent period:
 
 Shows portfolio requests created within a recent period. Each request shows the name, requester, creation date, and a priority badge if the priority score is above 80.
 
-**Settings**: Maximum number of items (3–20), time period in days (1–30).
+Displays up to 5 items.
 
 **Requires**: `portfolio_requests:reader`
 
 ---
 
-### Coming soon
+### Knowledge
 
-Three additional tiles are planned for a future release:
+Shows two Knowledge-focused sections:
 
-- **Team Activity** — recent activity across your teams
-- **Project Status Changes** — projects that recently changed status
-- **Stale Tasks** — tasks that have not been updated in a long time
+- **To Review** — documents where you are the active reviewer or approver
+- **Last 5 Accessed** — the last five Knowledge documents you opened on this browser for the current tenant and user
 
-These tiles appear in settings but show a placeholder message.
+**Requires**: `knowledge:reader`
+
+---
+
+### Team Activity
+
+Shows recent project activity on projects where you are involved.
+
+**Requires**: `portfolio_projects:reader`
+
+---
+
+### Project Status Changes
+
+Shows the latest project status changes from the last few days.
+
+**Requires**: `portfolio_projects:reader`
+
+---
+
+### Stale Tasks
+
+Shows tasks that have not been updated for a long time, with support for personal, team, or global scope.
+
+**Requires**: `tasks:reader`
 
 ## Customising your dashboard
 

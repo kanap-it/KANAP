@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo, useRef } from 'react';
-import { Box, Button, Stack } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
+import { LinkCellRenderer } from '../../components/grid/renderers';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import { COUNTRY_OPTIONS } from '../../constants/isoOptions';
@@ -55,25 +56,23 @@ export default function LocationsPage() {
     return sp;
   }, []);
 
+  const getLocationHref = useCallback((row: LocationRow) => {
+    const sp = buildWorkspaceSearch();
+    const qs = sp.toString();
+    return `/it/locations/${row.id}/overview${qs ? `?${qs}` : ''}`;
+  }, [buildWorkspaceSearch]);
+
   const ClickableCell = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<LocationRow, any>> = (params) => (
-      <Box
-        component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-        title={params.valueFormatted ?? params.value}
-        onClick={() => {
-          const id = params.data?.id;
-          if (!id) return;
-          const sp = buildWorkspaceSearch();
-          const qs = sp.toString();
-          navigate(`/it/locations/${id}/overview${qs ? `?${qs}` : ''}`);
-        }}
-      >
-        {params.valueFormatted ?? params.value}
-      </Box>
+      <LinkCellRenderer
+        {...params}
+        linkType="internal"
+        getHref={getLocationHref}
+        onNavigate={(href) => navigate(href)}
+      />
     );
     return Cell;
-  }, [buildWorkspaceSearch, navigate]);
+  }, [getLocationHref, navigate]);
 
   const columns: EnhancedColDef<LocationRow>[] = [
     { headerName: 'Code', field: 'code', minWidth: 140, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },

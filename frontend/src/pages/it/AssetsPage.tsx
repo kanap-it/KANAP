@@ -1,9 +1,10 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
-import { Box, Button, Chip, Stack } from '@mui/material';
+import { Box, Button, Chip, Link, Stack } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
 import { ICellRendererParams } from 'ag-grid-community';
+import { LinkCellRenderer } from '../../components/grid/renderers';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
@@ -163,44 +164,58 @@ export default function AssetsPage() {
     return sp;
   }, []);
 
+  const isPlainLeftClick = useCallback((event: React.MouseEvent) => {
+    return (
+      event.button === 0
+      && !event.metaKey
+      && !event.ctrlKey
+      && !event.shiftKey
+      && !event.altKey
+    );
+  }, []);
+
+  const getAssetHref = useCallback((row: AssetRow) => {
+    const sp = buildWorkspaceSearch();
+    return `/it/assets/${row.id}/overview?${sp.toString()}`;
+  }, [buildWorkspaceSearch]);
+
+  const handleInternalNavigate = useCallback((event: React.MouseEvent, href: string) => {
+    if (!isPlainLeftClick(event)) return;
+    event.preventDefault();
+    navigate(href);
+  }, [isPlainLeftClick, navigate]);
+
   if (!hasLevel('infrastructure', 'reader')) {
     return <ForbiddenPage />;
   }
 
   const ClickToWorkspace = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<AssetRow, any>> = (params) => (
-      <Box
-        component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-        title={params.valueFormatted ?? params.value}
-        onClick={() => {
-          const id = params.data?.id;
-          if (!id) return;
-          const sp = buildWorkspaceSearch();
-          navigate(`/it/assets/${id}/overview?${sp.toString()}`);
-        }}
-      >
-        {params.valueFormatted ?? params.value}
-      </Box>
+      <LinkCellRenderer
+        {...params}
+        linkType="internal"
+        getHref={getAssetHref}
+        onNavigate={(href) => navigate(href)}
+      />
     );
     return Cell;
-  }, [navigate, buildWorkspaceSearch]);
+  }, [getAssetHref, navigate]);
 
   const ClusterCell = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<AssetRow, any>> = (params) => {
       const id = params.data?.id;
       const value = params.data?.cluster;
       const isCluster = params.data?.is_cluster;
+      const data = params.data;
+      if (!data) return null;
+      const href = getAssetHref(data);
       return (
-        <Box
-          component="span"
+        <Link
+          href={href}
+          onClick={(event) => handleInternalNavigate(event, href)}
           sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-          onClick={() => {
-            if (id) {
-              const sp = buildWorkspaceSearch();
-              navigate(`/it/assets/${id}/overview?${sp.toString()}`);
-            }
-          }}
+          underline="none"
+          color="inherit"
         >
           {isCluster ? (
             <Chip size="small" label="Cluster" color="primary" variant="outlined" sx={{ height: 22 }} />
@@ -209,11 +224,11 @@ export default function AssetsPage() {
           ) : (
             '—'
           )}
-        </Box>
+        </Link>
       );
     };
     return Cell;
-  }, [navigate, buildWorkspaceSearch]);
+  }, [getAssetHref, handleInternalNavigate]);
 
   const columns: EnhancedColDef<AssetRow>[] = useMemo(() => [
     { headerName: 'Name', field: 'name', minWidth: 180, cellRenderer: ClickToWorkspace },

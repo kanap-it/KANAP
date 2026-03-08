@@ -6,17 +6,21 @@ import {
   Button,
   Chip,
   CircularProgress,
+  IconButton,
   Stack,
   Typography,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import SaveIcon from '@mui/icons-material/Save';
 import api from '../api';
 import { useAuth } from '../auth/AuthContext';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../utils/inlineImageUrls';
 import ExportButton from './ExportButton';
-import MarkdownEditor from './MarkdownEditor';
+
+const MarkdownEditor = React.lazy(() => import('./MarkdownEditor'));
 
 type SourceEntityType = 'requests' | 'projects';
 type SlotKey = 'purpose' | 'risks_mitigations';
@@ -48,11 +52,17 @@ type IntegratedDocumentEditorProps = {
   entityType: SourceEntityType;
   entityId?: string | null;
   slotKey: SlotKey;
+  collapsed?: boolean;
+  collapsible?: boolean;
+  headerTitle?: React.ReactNode;
   label: string;
+  hideHeaderLabel?: boolean;
+  onToggleCollapsed?: () => void;
   placeholder?: string;
   minRows?: number;
   maxRows?: number;
   disabled?: boolean;
+  showManagedDocChip?: boolean;
   draftValue?: string;
   onDraftChange?: (value: string) => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -63,6 +73,23 @@ const ENTITY_ENDPOINTS: Record<SourceEntityType, string> = {
   projects: '/portfolio/projects',
 };
 
+function MarkdownEditorLoadingFallback({ minRows }: { minRows: number }) {
+  return (
+    <Box
+      sx={{
+        minHeight: minRows * 24,
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        display: 'grid',
+        placeItems: 'center',
+      }}
+    >
+      <CircularProgress size={24} />
+    </Box>
+  );
+}
+
 export const IntegratedDocumentEditor = React.forwardRef<
   IntegratedDocumentEditorHandle,
   IntegratedDocumentEditorProps
@@ -71,11 +98,17 @@ export const IntegratedDocumentEditor = React.forwardRef<
     entityType,
     entityId,
     slotKey,
+    collapsed = false,
+    collapsible = false,
+    headerTitle,
     label,
+    hideHeaderLabel = false,
+    onToggleCollapsed,
     placeholder,
     minRows = 12,
     maxRows = 24,
     disabled = false,
+    showManagedDocChip = true,
     draftValue = '',
     onDraftChange,
     onDirtyChange,
@@ -327,6 +360,13 @@ export const IntegratedDocumentEditor = React.forwardRef<
     await reset();
   }, [reset]);
 
+  const handleEnterEdit = React.useCallback(() => {
+    if (collapsible && collapsed) {
+      onToggleCollapsed?.();
+    }
+    void startEdit();
+  }, [collapsed, collapsible, onToggleCollapsed, startEdit]);
+
   const handleInlineImageUpload = React.useCallback(async (file: File): Promise<string> => {
     if (isDraftMode || !entityId) {
       throw new Error('Inline image upload is available after the source item is created');
@@ -375,89 +415,138 @@ export const IntegratedDocumentEditor = React.forwardRef<
   const canEditContent = isDraftMode ? canEdit : (canEdit && editMode && !!lockToken && !isLockedByAnotherUser);
   const exportTitle = label.toLowerCase().replace(/\s+/g, '-');
   const deepLinkRef = doc?.item_ref || (doc?.item_number ? `DOC-${doc.item_number}` : null);
+  const headerNode = headerTitle || (!hideHeaderLabel ? (
+    <Typography variant="body2" color="text.secondary">
+      {label}
+    </Typography>
+  ) : null);
+
+  const renderHeader = React.useCallback((actions: React.ReactNode) => (
+    <Stack
+      direction="row"
+      alignItems="center"
+      justifyContent="space-between"
+      sx={{ mb: collapsed ? 0 : (headerNode ? 0.5 : 0.25), gap: 1, flexWrap: 'nowrap' }}
+    >
+      <Box sx={{ minWidth: 0, flex: headerNode ? '1 1 auto' : '0 1 auto' }}>
+        {headerNode}
+      </Box>
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+        {actions}
+        {collapsible && (
+          <IconButton
+            size="small"
+            onClick={onToggleCollapsed}
+            aria-label={collapsed ? 'Expand document' : 'Collapse document'}
+            sx={{
+              ml: 0.25,
+              transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s ease',
+            }}
+          >
+            <ExpandMoreIcon fontSize="small" />
+          </IconButton>
+        )}
+      </Stack>
+    </Stack>
+  ), [collapsed, collapsible, headerNode, onToggleCollapsed]);
 
   if (isDraftMode) {
+    const draftActions = (
+      <ExportButton
+        content={draftValue || ''}
+        title={exportTitle}
+        disabled={!String(draftValue || '').trim()}
+      />
+    );
+
     return (
       <Box>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-          <Typography variant="body2" color="text.secondary">
-            {label}
-          </Typography>
-          <ExportButton
-            content={draftValue || ''}
-            title={exportTitle}
-            disabled={!String(draftValue || '').trim()}
-          />
-        </Stack>
-        <MarkdownEditor
-          value={draftValue || ''}
-          onChange={(value) => onDraftChange?.(value)}
-          placeholder={placeholder}
-          minRows={minRows}
-          maxRows={maxRows}
-          disabled={disabled}
-        />
+        {renderHeader(draftActions)}
+        {collapsible && collapsed ? null : (
+          <React.Suspense fallback={<MarkdownEditorLoadingFallback minRows={minRows} />}>
+            <MarkdownEditor
+              value={draftValue || ''}
+              onChange={(value) => onDraftChange?.(value)}
+              placeholder={placeholder}
+              minRows={minRows}
+              maxRows={maxRows}
+              disabled={disabled}
+            />
+          </React.Suspense>
+        )}
       </Box>
     );
   }
 
+  const persistedActions = (
+    <>
+      {showManagedDocChip && <Chip label="Managed Doc" size="small" variant="outlined" />}
+      {!editMode && (
+        <Chip
+          icon={<LockOutlinedIcon fontSize="small" />}
+          label="Read only"
+          size="small"
+          variant="outlined"
+          sx={{ borderColor: 'divider' }}
+        />
+      )}
+      {canOpenKnowledge && deepLinkRef && (
+        <Button
+          size="small"
+          variant="outlined"
+          href={`/knowledge/${deepLinkRef}`}
+          target="_blank"
+          rel="noreferrer"
+          startIcon={<OpenInNewIcon fontSize="small" />}
+        >
+          Open full document
+        </Button>
+      )}
+      {!editMode && canEdit && (
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<EditIcon fontSize="small" />}
+          onClick={handleEnterEdit}
+        >
+          {isLockedByAnotherUser ? 'Retry lock' : 'Edit'}
+        </Button>
+      )}
+      {editMode && canEdit && (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => { void discardChanges(); }}
+        >
+          Discard
+        </Button>
+      )}
+      {editMode && canEdit && (
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<SaveIcon fontSize="small" />}
+          disabled={!dirty || saveMutation.isPending}
+          onClick={() => { void save(); }}
+        >
+          Save
+        </Button>
+      )}
+      <ExportButton
+        content={form.content_markdown || ''}
+        title={deepLinkRef || exportTitle}
+        disabled={!String(form.content_markdown || '').trim()}
+      />
+    </>
+  );
+
   return (
     <Box ref={containerRef} onBlurCapture={handleBlurCapture}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5, gap: 1, flexWrap: 'wrap' }}>
-        <Typography variant="body2" color="text.secondary">
-          {label}
-        </Typography>
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-          <Chip label="Managed Doc" size="small" variant="outlined" />
-          {canOpenKnowledge && deepLinkRef && (
-            <Button
-              size="small"
-              variant="outlined"
-              href={`/knowledge/${deepLinkRef}`}
-              target="_blank"
-              rel="noreferrer"
-              startIcon={<OpenInNewIcon fontSize="small" />}
-            >
-              Open full document
-            </Button>
-          )}
-          {!editMode && canEdit && (
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<EditIcon fontSize="small" />}
-              onClick={() => { void startEdit(); }}
-            >
-              {isLockedByAnotherUser ? 'Retry lock' : 'Edit'}
-            </Button>
-          )}
-          {editMode && canEdit && (
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => { void discardChanges(); }}
-            >
-              Discard
-            </Button>
-          )}
-          {editMode && canEdit && (
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<SaveIcon fontSize="small" />}
-              disabled={!dirty || saveMutation.isPending}
-              onClick={() => { void save(); }}
-            >
-              Save
-            </Button>
-          )}
-          <ExportButton
-            content={form.content_markdown || ''}
-            title={deepLinkRef || exportTitle}
-            disabled={!String(form.content_markdown || '').trim()}
-          />
-        </Stack>
-      </Stack>
+      {renderHeader(persistedActions)}
+
+      {collapsible && collapsed ? null : (
+        <>
 
       {!!loadErrorMessage && (
         <Alert
@@ -479,7 +568,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
           severity="info"
           sx={{ mb: 1 }}
           action={canEdit ? (
-            <Button size="small" onClick={() => { void startEdit(); }}>
+            <Button size="small" onClick={handleEnterEdit}>
               Retry lock
             </Button>
           ) : undefined}
@@ -500,18 +589,22 @@ export const IntegratedDocumentEditor = React.forwardRef<
           </Typography>
         </Box>
       ) : (
-        <MarkdownEditor
-          value={form.content_markdown || ''}
-          onChange={(value) => {
-            setForm((prev) => ({ ...prev, content_markdown: value }));
-            setDirty(true);
-          }}
-          placeholder={placeholder}
-          minRows={minRows}
-          maxRows={maxRows}
-          disabled={!canEditContent}
-          onImageUpload={canEditContent ? handleInlineImageUpload : undefined}
-        />
+        <React.Suspense fallback={<MarkdownEditorLoadingFallback minRows={minRows} />}>
+          <MarkdownEditor
+            value={form.content_markdown || ''}
+            onChange={(value) => {
+              setForm((prev) => ({ ...prev, content_markdown: value }));
+              setDirty(true);
+            }}
+            placeholder={placeholder}
+            minRows={minRows}
+            maxRows={maxRows}
+            disabled={!canEditContent}
+            onImageUpload={canEditContent ? handleInlineImageUpload : undefined}
+          />
+        </React.Suspense>
+      )}
+        </>
       )}
     </Box>
   );

@@ -253,10 +253,82 @@ export class PortfolioDependenciesService extends PortfolioProjectsBaseService {
        FROM application_projects ap
        JOIN applications a ON a.id = ap.application_id
        WHERE ap.project_id = $1
+         AND ap.tenant_id = $2
+         AND a.tenant_id = $2
        ORDER BY a.name ASC`,
-      [projectId],
+      [projectId, project.tenant_id],
     );
     return { items: rows };
+  }
+
+  /**
+   * Replace linked applications for a project.
+   */
+  async bulkReplaceLinkedApplications(
+    projectId: string,
+    applicationIds: string[],
+    opts?: ServiceOpts,
+  ) {
+    const mg = this.getManager(opts);
+    const actorId = this.requireActivityAuthor(opts?.userId);
+    const project = await this.ensureProject(projectId, mg);
+    const unique = Array.from(new Set((applicationIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
+
+    if (unique.length > 0) {
+      const rows = await mg.query<Array<{ id: string }>>(
+        `SELECT id
+         FROM applications
+         WHERE tenant_id = $1
+           AND id = ANY($2::uuid[])`,
+        [project.tenant_id, unique],
+      );
+      if (rows.length !== unique.length) {
+        throw new BadRequestException('One or more applications were not found');
+      }
+    }
+
+    const existing = await mg.query<Array<{ application_id: string }>>(
+      `SELECT application_id
+       FROM application_projects
+       WHERE project_id = $1
+         AND tenant_id = $2`,
+      [projectId, project.tenant_id],
+    );
+    const beforeIds = Array.from(new Set(existing.map((row) => row.application_id)));
+
+    await mg.query(
+      `DELETE FROM application_projects
+       WHERE project_id = $1
+         AND tenant_id = $2`,
+      [projectId, project.tenant_id],
+    );
+
+    if (unique.length > 0) {
+      await mg.query(
+        `INSERT INTO application_projects (tenant_id, application_id, project_id)
+         SELECT $1, application_id, $2
+         FROM unnest($3::uuid[]) AS application_id`,
+        [project.tenant_id, projectId, unique],
+      );
+    }
+
+    const beforeSorted = [...beforeIds].sort();
+    const afterSorted = [...unique].sort();
+    if (JSON.stringify(beforeSorted) !== JSON.stringify(afterSorted)) {
+      const [beforeLabels, afterLabels] = await Promise.all([
+        this.resolveApplicationLabelsByIds(mg, beforeSorted),
+        this.resolveApplicationLabelsByIds(mg, afterSorted),
+      ]);
+      await this.logActivity(mg, {
+        project_id: projectId,
+        tenant_id: project.tenant_id,
+        author_id: actorId,
+        type: 'change',
+        changed_fields: { applications: [beforeLabels, afterLabels] },
+      });
+    }
+
+    return this.listLinkedApplications(projectId, { manager: mg });
   }
 
   /**
@@ -270,10 +342,112 @@ export class PortfolioDependenciesService extends PortfolioProjectsBaseService {
        FROM asset_projects asp
        JOIN assets a ON a.id = asp.asset_id
        WHERE asp.project_id = $1
+         AND asp.tenant_id = $2
+         AND a.tenant_id = $2
        ORDER BY a.name ASC`,
-      [projectId],
+      [projectId, project.tenant_id],
     );
     return { items: rows };
+  }
+
+  /**
+   * Replace linked assets for a project.
+   */
+  async bulkReplaceLinkedAssets(
+    projectId: string,
+    assetIds: string[],
+    opts?: ServiceOpts,
+  ) {
+    const mg = this.getManager(opts);
+    const actorId = this.requireActivityAuthor(opts?.userId);
+    const project = await this.ensureProject(projectId, mg);
+    const unique = Array.from(new Set((assetIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
+
+    if (unique.length > 0) {
+      const rows = await mg.query<Array<{ id: string }>>(
+        `SELECT id
+         FROM assets
+         WHERE tenant_id = $1
+           AND id = ANY($2::uuid[])`,
+        [project.tenant_id, unique],
+      );
+      if (rows.length !== unique.length) {
+        throw new BadRequestException('One or more assets were not found');
+      }
+    }
+
+    const existing = await mg.query<Array<{ asset_id: string }>>(
+      `SELECT asset_id
+       FROM asset_projects
+       WHERE project_id = $1
+         AND tenant_id = $2`,
+      [projectId, project.tenant_id],
+    );
+    const beforeIds = Array.from(new Set(existing.map((row) => row.asset_id)));
+
+    await mg.query(
+      `DELETE FROM asset_projects
+       WHERE project_id = $1
+         AND tenant_id = $2`,
+      [projectId, project.tenant_id],
+    );
+
+    if (unique.length > 0) {
+      await mg.query(
+        `INSERT INTO asset_projects (tenant_id, asset_id, project_id)
+         SELECT $1, asset_id, $2
+         FROM unnest($3::uuid[]) AS asset_id`,
+        [project.tenant_id, projectId, unique],
+      );
+    }
+
+    const beforeSorted = [...beforeIds].sort();
+    const afterSorted = [...unique].sort();
+    if (JSON.stringify(beforeSorted) !== JSON.stringify(afterSorted)) {
+      const [beforeLabels, afterLabels] = await Promise.all([
+        this.resolveAssetLabelsByIds(mg, beforeSorted),
+        this.resolveAssetLabelsByIds(mg, afterSorted),
+      ]);
+      await this.logActivity(mg, {
+        project_id: projectId,
+        tenant_id: project.tenant_id,
+        author_id: actorId,
+        type: 'change',
+        changed_fields: { assets: [beforeLabels, afterLabels] },
+      });
+    }
+
+    return this.listLinkedAssets(projectId, { manager: mg });
+  }
+
+  private async resolveApplicationLabelsByIds(mg: EntityManager, applicationIds: string[]): Promise<string[]> {
+    if (applicationIds.length === 0) return [];
+    const rows = await mg.query<Array<{ id: string; name: string | null }>>(
+      `SELECT id, name
+       FROM applications
+       WHERE id = ANY($1::uuid[])`,
+      [applicationIds],
+    );
+    const byId = new Map<string, string>();
+    for (const row of rows) {
+      byId.set(row.id, row.name || row.id);
+    }
+    return applicationIds.map((id) => byId.get(id) ?? id).sort((a, b) => a.localeCompare(b));
+  }
+
+  private async resolveAssetLabelsByIds(mg: EntityManager, assetIds: string[]): Promise<string[]> {
+    if (assetIds.length === 0) return [];
+    const rows = await mg.query<Array<{ id: string; name: string | null }>>(
+      `SELECT id, name
+       FROM assets
+       WHERE id = ANY($1::uuid[])`,
+      [assetIds],
+    );
+    const byId = new Map<string, string>();
+    for (const row of rows) {
+      byId.set(row.id, row.name || row.id);
+    }
+    return assetIds.map((id) => byId.get(id) ?? id).sort((a, b) => a.localeCompare(b));
   }
 
   /**

@@ -23,6 +23,28 @@ export class DashboardService {
     return manager ? manager.getRepository(UserDashboardConfig) : this.repo;
   }
 
+  private mergeWithDefaults(tiles: DashboardTileConfig[]): DashboardTileConfig[] {
+    const byId = new Map(tiles.map((tile) => [tile.id, tile]));
+    const merged = DEFAULT_DASHBOARD_CONFIG.map((defaultTile) => {
+      const existing = byId.get(defaultTile.id);
+      return existing
+        ? {
+            ...existing,
+            config: { ...defaultTile.config, ...(existing.config || {}) },
+          }
+        : { ...defaultTile, config: { ...defaultTile.config } };
+    });
+
+    const knownIds = new Set(DEFAULT_DASHBOARD_CONFIG.map((tile) => tile.id));
+    const extras = tiles
+      .filter((tile) => !knownIds.has(tile.id))
+      .map((tile) => ({ ...tile, config: { ...(tile.config || {}) } }));
+
+    return [...merged, ...extras]
+      .sort((a, b) => a.order - b.order)
+      .map((tile, index) => ({ ...tile, order: index + 1 }));
+  }
+
   /**
    * Get user's dashboard configuration, returning defaults if none exists
    */
@@ -36,11 +58,16 @@ export class DashboardService {
     });
 
     if (config) {
-      return { tiles: config.tiles };
+      return { tiles: this.mergeWithDefaults(config.tiles) };
     }
 
     // Return default configuration
-    return { tiles: [...DEFAULT_DASHBOARD_CONFIG] };
+    return {
+      tiles: DEFAULT_DASHBOARD_CONFIG.map((tile) => ({
+        ...tile,
+        config: { ...tile.config },
+      })),
+    };
   }
 
   /**
@@ -60,7 +87,7 @@ export class DashboardService {
 
     if (existing) {
       // Update existing config
-      existing.tiles = dto.tiles;
+      existing.tiles = this.mergeWithDefaults(dto.tiles);
       await repo.save(existing);
       return { tiles: existing.tiles };
     }
@@ -68,7 +95,7 @@ export class DashboardService {
     // Create new config (tenant_id will be set by default via app_current_tenant())
     const newConfig = repo.create({
       user_id: userId,
-      tiles: dto.tiles,
+      tiles: this.mergeWithDefaults(dto.tiles),
     });
     await repo.save(newConfig);
     return { tiles: newConfig.tiles };
@@ -87,6 +114,11 @@ export class DashboardService {
     await repo.delete({ user_id: userId });
 
     // Return default configuration
-    return { tiles: [...DEFAULT_DASHBOARD_CONFIG] };
+    return {
+      tiles: DEFAULT_DASHBOARD_CONFIG.map((tile) => ({
+        ...tile,
+        config: { ...tile.config },
+      })),
+    };
   }
 }

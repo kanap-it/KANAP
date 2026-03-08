@@ -61,7 +61,7 @@ function isDueThisWeek(dueDate: string | null): boolean {
 export default function MyTasksTile({ config }: MyTasksTileProps) {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const limit = (config.limit as number) || 5;
+  const limit = Math.min((config.limit as number) || 5, 5);
   const showOverdue = config.showOverdue !== false;
 
   const { data, isLoading } = useQuery({
@@ -87,9 +87,16 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
   const tasks = data || [];
 
   // Group tasks
-  const overdueTasks = showOverdue ? tasks.filter((t) => isOverdue(t.due_date)).slice(0, limit) : [];
-  const dueThisWeek = tasks.filter((t) => !isOverdue(t.due_date) && isDueThisWeek(t.due_date)).slice(0, limit);
-  const laterTasks = tasks.filter((t) => !isOverdue(t.due_date) && !isDueThisWeek(t.due_date)).slice(0, limit);
+  const overdueSource = showOverdue ? tasks.filter((t) => isOverdue(t.due_date)) : [];
+  const dueThisWeekSource = tasks.filter((t) => !isOverdue(t.due_date) && isDueThisWeek(t.due_date));
+  const laterSource = tasks.filter((t) => !isOverdue(t.due_date) && !isDueThisWeek(t.due_date));
+
+  let remaining = limit;
+  const overdueTasks = overdueSource.slice(0, remaining);
+  remaining -= overdueTasks.length;
+  const dueThisWeek = dueThisWeekSource.slice(0, remaining);
+  remaining -= dueThisWeek.length;
+  const laterTasks = laterSource.slice(0, remaining);
 
   const formatDueDate = (date: string | null) => {
     if (!date) return 'No due date';

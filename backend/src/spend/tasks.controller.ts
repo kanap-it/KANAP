@@ -176,6 +176,17 @@ export class TasksController {
   }
 
   @UseGuards(PermissionGuard)
+  @RequireLevel('tasks', 'reader')
+  @Get(':id/knowledge-context')
+  async getKnowledgeContext(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
+    return this.knowledge.getKnowledgeContextForEntity('tasks', id, {
+      manager: req?.queryRunner?.manager,
+      userId: req?.user?.sub ?? null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'admin')
   @Delete('bulk')
   async bulkDelete(@Body() body: { ids: string[] }, @Req() req: any) {

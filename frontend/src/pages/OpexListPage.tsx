@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { ColDef } from 'ag-grid-community';
 import ServerDataGrid, { StatusScope } from '../components/ServerDataGrid';
 import PageHeader from '../components/PageHeader';
-import { Button, Stack, Box } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import CheckboxSetFilter from '../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../components/CheckboxSetFloatingFilter';
 import api from '../api';
@@ -12,6 +12,7 @@ import { useAuth } from '../auth/AuthContext';
 import CsvExportDialog from '../components/csv/CsvExportDialog';
 import CsvImportDialog from '../components/csv/CsvImportDialog';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
+import { LinkCellRenderer } from '../components/grid/renderers';
 import { readStoredOpexListContext, writeStoredOpexListContext } from './opex/listContextStorage';
 import { STATUS_VALUES } from '../constants/status';
 import ForbiddenPage from './ForbiddenPage';
@@ -273,31 +274,76 @@ export default function OpexListPage() {
     </Stack>
   );
 
-  const ClickableCell: React.FC<ICellRendererParams<SummaryRow, any>> = (params) => {
-    const isPinned = params.node?.rowPinned;
-    return (
-      <Box
-        component="span"
-        sx={{ cursor: isPinned ? 'default' : 'pointer', '&:hover': isPinned ? undefined : { color: 'primary.main' } }}
-      >
-        {params.value}
-      </Box>
-    );
-  };
+  const buildGridSearch = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const stored = storedContextRef.current || readStoredOpexListContext();
+    if (stored && !storedContextRef.current) storedContextRef.current = stored;
+    const fallbackSort = lastQueryRef.current?.sort || urlParams.get('sort') || stored?.sort || 'yBudget:DESC';
+    const sortModel = gridApiRef.current?.getSortModel?.() as Array<{ colId?: string; sort?: 'asc' | 'desc' | undefined }> | undefined;
+    const primarySort = Array.isArray(sortModel) && sortModel.length > 0 ? sortModel[0] : undefined;
+    let sort = fallbackSort;
+    if (primarySort?.colId) {
+      const direction = primarySort.sort === 'asc' ? 'ASC' : 'DESC';
+      sort = `${primarySort.colId}:${direction}`;
+    }
+    const q = lastQueryRef.current?.q ?? urlParams.get('q') ?? stored?.q ?? '';
+    const gridFilterModel = gridApiRef.current?.getFilterModel?.() || lastQueryRef.current?.filters || {};
+    let filters = gridFilterModel && Object.keys(gridFilterModel).length > 0 ? JSON.stringify(gridFilterModel) : '';
+    if (!filters && lastQueryRef.current?.filtersString) filters = lastQueryRef.current.filtersString;
+    if (!filters && stored?.filters) filters = stored.filters;
+    const sp = new URLSearchParams();
+    if (sort) sp.set('sort', sort);
+    if (q) sp.set('q', q);
+    if (filters) sp.set('filters', filters);
+    return sp;
+  }, []);
 
-  const ClickableCellGeneric: React.FC<ICellRendererParams<SummaryRow, any>> = (params) => {
-    const v = params.value as any;
-    const display = typeof v === 'number' ? formatNumber(v) : v ?? '';
-    if (params.node?.rowPinned) return <Box component="span">{display}</Box>;
-    return (
-      <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}>
-        {display}
-      </Box>
-    );
-  };
+  const getOpexHref = useCallback((row: unknown, colId?: string) => {
+    const item = row as SummaryRow | null | undefined;
+    if (!item?.id) return null;
+    if (colId === 'contract_name') {
+      const contractId = (item as any)?.latest_contract_id;
+      return contractId ? `/ops/contracts/${contractId}/overview` : null;
+    }
+    const sp = buildGridSearch();
+    const next = new URLSearchParams(sp);
+    let tab = 'overview';
+    if (colId === 'allocation_label') {
+      tab = 'allocations';
+      next.set('year', String(Y));
+    } else if (colId === 'yMinus1Budget' || colId === 'yMinus1Landing') {
+      tab = 'budget';
+      next.set('year', String(Y - 1));
+    } else if (colId === 'yBudget' || colId === 'yRevision' || colId === 'yFollowUp' || colId === 'yLanding' || colId === 'spread_mode_for_y') {
+      tab = 'budget';
+      next.set('year', String(Y));
+    } else if (colId === 'yPlus1Budget' || colId === 'yPlus1Revision') {
+      tab = 'budget';
+      next.set('year', String(Y + 1));
+    } else if (colId === 'yPlus2Budget') {
+      tab = 'budget';
+      next.set('year', String(Y + 2));
+    } else if (colId === 'latest_task_text') {
+      tab = 'tasks';
+    }
+    return `/ops/opex/${item.id}/${tab}?${next.toString()}`;
+  }, [Y, buildGridSearch]);
 
   const columns: ColDef<SummaryRow>[] = useMemo(() => [
-    { field: 'product_name', headerName: 'Product Name', flex: 1, minWidth: 220, cellRenderer: ClickableCell },
+    {
+      field: 'product_name',
+      headerName: 'Product Name',
+      flex: 1,
+      minWidth: 220,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'product_name')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
     {
       colId: 'supplier_name',
       headerName: 'Supplier',
@@ -306,7 +352,14 @@ export default function OpexListPage() {
         return d?.supplier?.name ?? d?.supplier_name ?? d?.supplier ?? '';
       },
       width: 180,
-      cellRenderer: ClickableCell,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'supplier_name')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       field: 'paying_company_name',
@@ -318,14 +371,28 @@ export default function OpexListPage() {
         getValues: getOpexFilterValues('paying_company_name'),
         searchable: false,
       },
-      cellRenderer: ClickableCell,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'paying_company_name')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       colId: 'contract_name',
       headerName: 'Contract',
       valueGetter: (p) => p.data?.latest_contract_name || '',
       width: 200,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'contract_name')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       colId: 'account_display',
@@ -354,7 +421,14 @@ export default function OpexListPage() {
         return '';
       },
       width: 220,
-      cellRenderer: ClickableCell,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'account_display')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       colId: 'allocation_label',
@@ -368,7 +442,14 @@ export default function OpexListPage() {
       valueGetter: (p) => p.data?.allocation_method_label ?? '',
       tooltipValueGetter: (p) => p.data?.allocation_method_label ?? '',
       width: 180,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'allocation_label')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       colId: 'yMinus1Budget',
@@ -377,7 +458,14 @@ export default function OpexListPage() {
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
       width: 170,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'yMinus1Budget')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
       defaultHidden: true,
     },
     {
@@ -387,7 +475,14 @@ export default function OpexListPage() {
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
       width: 170,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'yMinus1Landing')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
       defaultHidden: true,
     },
     {
@@ -397,7 +492,14 @@ export default function OpexListPage() {
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
       width: 160,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'yBudget')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       colId: 'yRevision',
@@ -406,7 +508,14 @@ export default function OpexListPage() {
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
       width: 160,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'yRevision')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
       defaultHidden: true,
     },
     {
@@ -416,7 +525,14 @@ export default function OpexListPage() {
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
       width: 170,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'yFollowUp')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
       defaultHidden: true,
     },
     {
@@ -426,7 +542,14 @@ export default function OpexListPage() {
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
       width: 160,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'yLanding')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       colId: 'yPlus1Budget',
@@ -435,7 +558,14 @@ export default function OpexListPage() {
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
       width: 180,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'yPlus1Budget')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
       defaultHidden: true,
     },
     {
@@ -445,7 +575,14 @@ export default function OpexListPage() {
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
       width: 190,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'yPlus1Revision')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
       defaultHidden: true,
     },
     {
@@ -455,7 +592,14 @@ export default function OpexListPage() {
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
       width: 180,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'yPlus2Budget')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
       defaultHidden: true,
     },
     {
@@ -465,7 +609,14 @@ export default function OpexListPage() {
       tooltipValueGetter: (p) => (p.value ? String(p.value) : ''),
       flex: 1,
       minWidth: 220,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'latest_task_text')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       field: 'status',
@@ -473,10 +624,30 @@ export default function OpexListPage() {
       width: 140,
       filter: 'agSetColumnFilter',
       filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'status')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
       defaultHidden: true,
     },
-    { field: 'description', headerName: 'Description', width: 250, defaultHidden: true, cellRenderer: ClickableCellGeneric },
+    {
+      field: 'description',
+      headerName: 'Description',
+      width: 250,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'description')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
     {
       field: 'currency',
       headerName: 'Currency',
@@ -488,7 +659,14 @@ export default function OpexListPage() {
         getValues: getOpexFilterValues('currency'),
         searchable: false,
       },
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'currency')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       field: 'effective_start',
@@ -496,7 +674,14 @@ export default function OpexListPage() {
       width: 150,
       defaultHidden: true,
       valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleDateString() : ''),
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'effective_start')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       field: 'effective_end',
@@ -504,7 +689,14 @@ export default function OpexListPage() {
       width: 150,
       defaultHidden: true,
       valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleDateString() : ''),
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'effective_end')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       colId: 'owner_it_name',
@@ -518,7 +710,14 @@ export default function OpexListPage() {
       valueGetter: (p) => p.data?.owner_it_name ?? (p.data?.owner_it_id ? userNameById.get(p.data.owner_it_id) || '' : ''),
       width: 200,
       defaultHidden: true,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'owner_it_name')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       colId: 'owner_business_name',
@@ -532,7 +731,14 @@ export default function OpexListPage() {
       valueGetter: (p) => p.data?.owner_business_name ?? (p.data?.owner_business_id ? userNameById.get(p.data.owner_business_id) || '' : ''),
       width: 200,
       defaultHidden: true,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'owner_business_name')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       field: 'analytics_category_name',
@@ -545,17 +751,57 @@ export default function OpexListPage() {
         getValues: getOpexFilterValues('analytics_category_name'),
         searchable: false,
       },
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'analytics_category_name')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
-    { field: 'project_id', headerName: 'Project ID', width: 150, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-    { field: 'notes', headerName: 'Notes', width: 250, defaultHidden: true, cellRenderer: ClickableCellGeneric },
+    {
+      field: 'project_id',
+      headerName: 'Project ID',
+      width: 150,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'project_id')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'notes',
+      headerName: 'Notes',
+      width: 250,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'notes')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
     {
       field: 'created_at',
       headerName: 'Created',
       width: 200,
       valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
       defaultHidden: true,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'created_at')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
     {
       field: 'updated_at',
@@ -563,66 +809,16 @@ export default function OpexListPage() {
       width: 200,
       valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
       defaultHidden: true,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'updated_at')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
     },
-  ], [Y, getOpexFilterValues, userNameById]);
-
-  const onCellClicked = useCallback((e: any) => {
-    const colId = e?.colDef?.colId || e?.colDef?.field;
-    const row: SummaryRow = e?.data;
-    if (!colId || !row) return;
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const stored = storedContextRef.current || readStoredOpexListContext();
-    if (stored && !storedContextRef.current) storedContextRef.current = stored;
-    const fallbackSort = lastQueryRef.current?.sort || urlParams.get('sort') || stored?.sort || 'yBudget:DESC';
-    const sortModel = gridApiRef.current?.getSortModel?.() as Array<{ colId?: string; sort?: 'asc' | 'desc' | undefined }> | undefined;
-    const primarySort = Array.isArray(sortModel) && sortModel.length > 0 ? sortModel[0] : undefined;
-    let sort = fallbackSort;
-    if (primarySort?.colId) {
-      const direction = primarySort.sort === 'asc' ? 'ASC' : 'DESC';
-      sort = `${primarySort.colId}:${direction}`;
-    }
-    const q = lastQueryRef.current?.q ?? urlParams.get('q') ?? stored?.q ?? '';
-    const gridFilterModel = gridApiRef.current?.getFilterModel?.() || lastQueryRef.current?.filters || {};
-    let filters = gridFilterModel && Object.keys(gridFilterModel).length > 0 ? JSON.stringify(gridFilterModel) : '';
-    if (!filters && lastQueryRef.current?.filtersString) filters = lastQueryRef.current.filtersString;
-    if (!filters && stored?.filters) filters = stored.filters;
-    const sp = new URLSearchParams();
-    if (sort) sp.set('sort', sort);
-    if (q) sp.set('q', q);
-    if (filters) sp.set('filters', filters);
-    const snapshot = { sort, q, filters };
-    storedContextRef.current = snapshot;
-    writeStoredOpexListContext(snapshot);
-
-    const go = (tab: string, year?: number) => {
-      const s = new URLSearchParams(sp);
-      if (year) s.set('year', String(year));
-      navigate(`/ops/opex/${row.id}/${tab}?${s.toString()}`);
-    };
-
-    if (colId === 'contract_name') {
-      const contractId = (row as any)?.latest_contract_id;
-      if (contractId) navigate(`/ops/contracts/${contractId}/overview`);
-      return;
-    }
-
-    if (colId === 'allocation_label') return go('allocations', Y);
-    if (colId === 'yMinus1Budget') return go('budget', Y - 1);
-    if (colId === 'yMinus1Landing') return go('budget', Y - 1);
-    if (colId === 'yBudget') return go('budget', Y);
-    if (colId === 'yRevision') return go('budget', Y);
-    if (colId === 'yFollowUp') return go('budget', Y);
-    if (colId === 'yLanding') return go('budget', Y);
-    if (colId === 'yPlus1Budget') return go('budget', Y + 1);
-    if (colId === 'yPlus1Revision') return go('budget', Y + 1);
-    if (colId === 'yPlus2Budget') return go('budget', Y + 2);
-    if (colId === 'latest_task_text') return go('tasks');
-    if (colId === 'spread_mode_for_y') return go('budget', Y);
-
-    return go('overview');
-  }, [Y, navigate]);
+  ], [Y, getOpexFilterValues, getOpexHref, navigate, userNameById]);
 
   return (
     <>
@@ -638,7 +834,6 @@ export default function OpexListPage() {
         extraParams={{ years: [Y - 1, Y, Y + 1, Y + 2].join(',') }}
         statusScopeConfig={{ defaultScope: 'enabled' }}
         columnPreferencesKey="opex-summary"
-        onCellClicked={onCellClicked}
         refreshKey={refreshKey}
         onGridApiReady={(gridApi) => { gridApiRef.current = gridApi; }}
         onQueryStateChange={(state) => {

@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Box, Button, Stack, TextField } from '@mui/material';
+import { Button, Stack, TextField } from '@mui/material';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef, StatusScope } from '../components/ServerDataGrid';
 import CsvExportDialog from '../components/csv/CsvExportDialog';
 import CsvImportDialog from '../components/csv/CsvImportDialog';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { useAuth } from '../auth/AuthContext';
+import { LinkCellRenderer } from '../components/grid/renderers';
 import { STATUS_VALUES } from '../constants/status';
 import api from '../api';
 import ForbiddenPage from './ForbiddenPage';
@@ -93,72 +94,232 @@ export default function CompaniesPage() {
     openWorkspace(row, 'details');
   }, [openWorkspace]);
 
-  const ClickableCell = useCallback((params: any) => {
-    const isPinned = params?.node?.rowPinned;
-    return (
-      <Box
-        component="span"
-        sx={{ cursor: isPinned ? 'default' : 'pointer', '&:hover': isPinned ? undefined : { color: 'primary.main' } }}
-        onClick={isPinned ? undefined : (() => openWorkspace(params.data as CompanyRow, 'overview'))}
-      >
-        {params.value}
-      </Box>
-    );
-  }, [openWorkspace]);
-
-  const ClickableCellFormatted = useCallback((params: any) => {
-    const isPinned = params?.node?.rowPinned;
-    return (
-      <Box
-        component="span"
-        sx={{ cursor: isPinned ? 'default' : 'pointer', '&:hover': isPinned ? undefined : { color: 'primary.main' } }}
-        onClick={isPinned ? undefined : (() => openWorkspace(params.data as CompanyRow, 'overview'))}
-      >
-        {params.valueFormatted ?? params.value}
-      </Box>
-    );
-  }, [openWorkspace]);
-
-  const MetricCell = useCallback((params: any) => {
-    const isPinned = params?.node?.rowPinned;
-    return (
-      <Box
-        sx={{ cursor: isPinned ? 'default' : 'pointer', color: isPinned ? 'inherit' : 'primary.main', textDecoration: isPinned ? 'none' : 'underline' }}
-        onClick={isPinned ? undefined : (() => handleMetricClick(params.data as CompanyRow))}
-      >
-        {params.value ?? 0}
-      </Box>
-    );
-  }, [handleMetricClick]);
+  const getWorkspaceHref = useCallback((row: unknown, tab: 'overview' | 'details') => {
+    const company = row as CompanyRow | null | undefined;
+    if (!company?.id) return null;
+    const sp = buildWorkspaceSearch();
+    return `/master-data/companies/${company.id}/${tab}?${sp.toString()}`;
+  }, [buildWorkspaceSearch]);
 
   const columns: EnhancedColDef<CompanyRow>[] = useMemo(() => [
-    { field: 'name', headerName: 'Name', flex: 1, required: true, cellRenderer: ClickableCell },
-    { field: 'country_iso', headerName: 'Country', width: 120, cellRenderer: ClickableCellFormatted },
-    { field: 'city', headerName: 'City', width: 140, defaultHidden: true, cellRenderer: ClickableCellFormatted },
-    { field: 'postal_code', headerName: 'Postal Code', width: 150, defaultHidden: true, cellRenderer: ClickableCellFormatted },
-    { field: 'address1', headerName: 'Address 1', width: 220, defaultHidden: true, cellRenderer: ClickableCellFormatted },
-    { field: 'address2', headerName: 'Address 2', width: 220, defaultHidden: true, cellRenderer: ClickableCellFormatted },
-    { field: 'state', headerName: 'State', width: 140, defaultHidden: true, cellRenderer: ClickableCellFormatted },
-    { field: 'notes', headerName: 'Notes', width: 260, defaultHidden: true, cellRenderer: ClickableCellFormatted },
-    { field: 'base_currency', headerName: 'Currency', width: 110, cellRenderer: ClickableCellFormatted },
-    { field: 'headcount_year', headerName: `Headcount (${year})`, width: 150, cellRenderer: MetricCell, filter: 'agNumberColumnFilter', filterParams: { suppressAndOrCondition: true } },
-    { field: 'it_users_year', headerName: `IT Users (${year})`, width: 150, cellRenderer: MetricCell, filter: 'agNumberColumnFilter', filterParams: { suppressAndOrCondition: true } },
-    { field: 'turnover_year', headerName: `Turnover (${year})`, width: 170, cellRenderer: MetricCell, filter: 'agNumberColumnFilter', filterParams: { suppressAndOrCondition: true } },
-    { field: 'status', headerName: 'Status', width: 140, cellRenderer: ClickableCellFormatted, filter: 'agSetColumnFilter', filterParams: { values: STATUS_VALUES, suppressMiniFilter: true } },
-    { field: 'created_at', headerName: 'Created', width: 200, defaultHidden: true, cellRenderer: ClickableCellFormatted, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : '') },
-  ], [ClickableCell, ClickableCellFormatted, MetricCell, year]);
-
-  const handleCellClicked = useCallback((params: any) => {
-    if (params?.node?.rowPinned) return; // ignore totals row clicks
-    const field: string | undefined = params?.colDef?.field;
-    const row: CompanyRow | undefined = params?.data;
-    if (!row) return;
-    if (field && ['headcount_year', 'it_users_year', 'turnover_year'].includes(field)) {
-      handleMetricClick(row);
-    } else {
-      openWorkspace(row, 'overview');
-    }
-  }, [handleMetricClick, openWorkspace]);
+    {
+      field: 'name',
+      headerName: 'Name',
+      flex: 1,
+      required: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'country_iso',
+      headerName: 'Country',
+      width: 120,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'city',
+      headerName: 'City',
+      width: 140,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'postal_code',
+      headerName: 'Postal Code',
+      width: 150,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'address1',
+      headerName: 'Address 1',
+      width: 220,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'address2',
+      headerName: 'Address 2',
+      width: 220,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'state',
+      headerName: 'State',
+      width: 140,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'notes',
+      headerName: 'Notes',
+      width: 260,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'base_currency',
+      headerName: 'Currency',
+      width: 110,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'headcount_year',
+      headerName: `Headcount (${year})`,
+      width: 150,
+      filter: 'agNumberColumnFilter',
+      filterParams: { suppressAndOrCondition: true },
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'details')}
+          onNavigate={(href) => navigate(href)}
+          linkSx={{
+            color: 'primary.main',
+            textDecoration: 'underline',
+            '&:visited': { color: 'primary.main' },
+            '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+          }}
+        />
+      ),
+    },
+    {
+      field: 'it_users_year',
+      headerName: `IT Users (${year})`,
+      width: 150,
+      filter: 'agNumberColumnFilter',
+      filterParams: { suppressAndOrCondition: true },
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'details')}
+          onNavigate={(href) => navigate(href)}
+          linkSx={{
+            color: 'primary.main',
+            textDecoration: 'underline',
+            '&:visited': { color: 'primary.main' },
+            '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+          }}
+        />
+      ),
+    },
+    {
+      field: 'turnover_year',
+      headerName: `Turnover (${year})`,
+      width: 170,
+      filter: 'agNumberColumnFilter',
+      filterParams: { suppressAndOrCondition: true },
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'details')}
+          onNavigate={(href) => navigate(href)}
+          linkSx={{
+            color: 'primary.main',
+            textDecoration: 'underline',
+            '&:visited': { color: 'primary.main' },
+            '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+          }}
+        />
+      ),
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 140,
+      filter: 'agSetColumnFilter',
+      filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      field: 'created_at',
+      headerName: 'Created',
+      width: 200,
+      defaultHidden: true,
+      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getWorkspaceHref(row, 'overview')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+  ], [getWorkspaceHref, navigate, year]);
 
   const updateTotals = useCallback(async ({ q, filterModel, statusScope }: { q: string; filterModel: any; statusScope?: StatusScope }) => {
     try {
@@ -258,7 +419,6 @@ export default function CompaniesPage() {
         requiredColumns={['name']}
         defaultHiddenColumns={['city', 'postal_code', 'address1', 'address2', 'state', 'notes', 'created_at']}
         statusScopeConfig={{ defaultScope: 'enabled' }}
-        onCellClicked={handleCellClicked}
         onQueryStateChange={(state) => {
           const statusScope = state.statusScope ?? 'enabled';
           lastQueryRef.current = { sort: state.sort, q: state.q || '', filters: state.filterModel || {}, statusScope };

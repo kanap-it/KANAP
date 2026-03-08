@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Link, Tooltip, Typography } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import type { SxProps, Theme } from '@mui/material/styles';
 
 /**
  * Link type for routing
@@ -15,7 +16,7 @@ export interface LinkCellRendererProps<T = unknown> extends ICellRendererParams<
   /** Type of link (internal uses react-router, external opens in new tab) */
   linkType?: LinkType;
   /** Function to generate href from row data */
-  getHref?: (data: T) => string | null;
+  getHref?: (data: T) => string | null | undefined;
   /** Static href prefix (combined with value) */
   hrefPrefix?: string;
   /** Static href suffix (combined with value) */
@@ -34,6 +35,8 @@ export interface LinkCellRendererProps<T = unknown> extends ICellRendererParams<
   onNavigate?: (href: string, data: T) => void;
   /** Max width for text truncation */
   maxWidth?: number | string;
+  /** Optional style overrides for the anchor itself */
+  linkSx?: SxProps<Theme>;
 }
 
 /**
@@ -46,6 +49,16 @@ function isExternalUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isPlainLeftClick(event: React.MouseEvent): boolean {
+  return (
+    event.button === 0
+    && !event.metaKey
+    && !event.ctrlKey
+    && !event.shiftKey
+    && !event.altKey
+  );
 }
 
 /**
@@ -111,12 +124,14 @@ export function LinkCellRenderer<T = unknown>(
     tooltip,
     onNavigate,
     maxWidth,
+    linkSx,
+    valueFormatted,
   } = props;
 
   // Get display text
   const displayText = labelField && data
     ? String(getFieldValue(data, labelField) ?? '')
-    : String(value ?? '');
+    : String(valueFormatted ?? value ?? '');
 
   if (!displayText && !emptyText) {
     return null;
@@ -131,7 +146,7 @@ export function LinkCellRenderer<T = unknown>(
   }
 
   // Get href
-  let href: string | null = null;
+  let href: string | null | undefined = null;
   if (getHref && data) {
     href = getHref(data);
   } else if (hrefField && data) {
@@ -156,11 +171,12 @@ export function LinkCellRenderer<T = unknown>(
   // Get tooltip content
   const tooltipContent = typeof tooltip === 'function' && data
     ? tooltip(data, value)
-    : tooltip ?? (isExternal ? href : displayText);
+    : tooltip;
 
   // Handle click
   const handleClick = (e: React.MouseEvent) => {
     if (!isExternal && onNavigate && data) {
+      if (!isPlainLeftClick(e)) return;
       e.preventDefault();
       onNavigate(href!, data);
     }
@@ -180,12 +196,22 @@ export function LinkCellRenderer<T = unknown>(
         onClick={handleClick}
         target={isExternal ? '_blank' : undefined}
         rel={isExternal ? 'noopener noreferrer' : undefined}
-        underline="hover"
+        underline={isExternal ? 'hover' : 'none'}
         sx={{
           display: 'block',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          color: isExternal ? undefined : 'inherit',
+          textDecoration: 'none',
+          '&:visited': {
+            color: isExternal ? undefined : 'inherit',
+          },
+          '&:hover': {
+            color: isExternal ? undefined : 'primary.main',
+            textDecoration: isExternal ? undefined : 'none',
+          },
+          ...linkSx,
         }}
       >
         {displayText}

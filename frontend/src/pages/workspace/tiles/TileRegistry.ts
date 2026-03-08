@@ -33,6 +33,7 @@ const LazyNewRequestsTile = () => import('./NewRequestsTile').then((m) => m.defa
 const LazyTeamActivityTile = () => import('./TeamActivityTile').then((m) => m.default);
 const LazyGlobalStatusChangesTile = () => import('./GlobalStatusChangesTile').then((m) => m.default);
 const LazyStaleTasksTile = () => import('./StaleTasksTile').then((m) => m.default);
+const LazyKnowledgeOverviewTile = () => import('./KnowledgeOverviewTile').then((m) => m.default);
 
 // We'll use a placeholder component initially, then replace with lazy-loaded ones
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -107,14 +108,22 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
     },
     requiredPermissions: [{ resource: 'portfolio_requests', level: 'reader' }],
   },
+  'knowledge-overview': {
+    component: Placeholder,
+    title: 'Knowledge',
+    icon: 'Description',
+    defaultConfig: {},
+    configSchema: {},
+    requiredPermissions: [{ resource: 'knowledge', level: 'reader' }],
+  },
   // Phase 2 tiles
   'team-activity': {
     component: Placeholder,
     title: 'Team Activity',
     icon: 'Update',
-    defaultConfig: { limit: 10 },
+    defaultConfig: { limit: 5 },
     configSchema: {
-      limit: { type: 'number', label: 'Max items', min: 5, max: 30 },
+      limit: { type: 'number', label: 'Max items', min: 1, max: 5 },
     },
     requiredPermissions: [{ resource: 'portfolio_projects', level: 'reader' }],
   },
@@ -149,6 +158,7 @@ export const TILE_LOADERS = {
   'recently-viewed': LazyRecentlyViewedTile,
   'my-time-last-week': LazyMyTimeLastWeekTile,
   'new-requests': LazyNewRequestsTile,
+  'knowledge-overview': LazyKnowledgeOverviewTile,
   'team-activity': LazyTeamActivityTile,
   'global-status-changes': LazyGlobalStatusChangesTile,
   'stale-tasks': LazyStaleTasksTile,

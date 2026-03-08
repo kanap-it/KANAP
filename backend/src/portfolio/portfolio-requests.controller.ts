@@ -256,6 +256,17 @@ export class PortfolioRequestsController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'reader')
+  @Get(':id/knowledge-context')
+  async getKnowledgeContext(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolve(idOrRef, req);
+    return this.knowledge.getKnowledgeContextForEntity('requests', id, {
+      manager: req?.queryRunner?.manager,
+      userId: req?.user?.sub ?? null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'reader')
   @Get(':id/integrated-documents/:slotKey')
   async getIntegratedDocument(
     @Param('id') idOrRef: string,
@@ -524,6 +535,66 @@ export class PortfolioRequestsController {
   ) {
     const id = await this.resolve(idOrRef, req);
     return this.svc.removeDependency(id, targetType, targetId, {
+      manager: req?.queryRunner?.manager,
+      userId: req.user?.sub ?? null,
+    });
+  }
+
+  // ==================== LINKED APPLICATIONS ====================
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'reader')
+  @Get(':id/applications')
+  async listLinkedApplications(
+    @Param('id') idOrRef: string,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.svc.listLinkedApplications(id, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Post(':id/applications/bulk-replace')
+  async bulkReplaceApplications(
+    @Param('id') idOrRef: string,
+    @Body() body: { application_ids: string[] },
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.svc.bulkReplaceApplications(id, body?.application_ids ?? [], {
+      manager: req?.queryRunner?.manager,
+      userId: req.user?.sub ?? null,
+    });
+  }
+
+  // ==================== LINKED ASSETS ====================
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'reader')
+  @Get(':id/assets')
+  async listLinkedAssets(
+    @Param('id') idOrRef: string,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.svc.listLinkedAssets(id, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Post(':id/assets/bulk-replace')
+  async bulkReplaceAssets(
+    @Param('id') idOrRef: string,
+    @Body() body: { asset_ids: string[] },
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.svc.bulkReplaceAssets(id, body?.asset_ids ?? [], {
       manager: req?.queryRunner?.manager,
       userId: req.user?.sub ?? null,
     });

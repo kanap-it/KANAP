@@ -26,7 +26,7 @@ interface NewRequestsTileProps {
 
 export default function NewRequestsTile({ config }: NewRequestsTileProps) {
   const navigate = useNavigate();
-  const limit = (config.limit as number) || 5;
+  const limit = Math.min((config.limit as number) || 5, 5);
   const days = (config.days as number) || 7;
 
   const cutoffDate = new Date();

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Button, Stack, Typography } from '@mui/material';
-import { ICellRendererParams } from 'ag-grid-community';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef, StatusScope } from '../../components/ServerDataGrid';
@@ -10,6 +9,7 @@ import DeleteSelectedButton from '../../components/DeleteSelectedButton';
 import ForbiddenPage from '../ForbiddenPage';
 import { STATUS_VALUES } from '../../constants/status';
 import { useAuth } from '../../auth/AuthContext';
+import { LinkCellRenderer } from '../../components/grid/renderers';
 import CoaChipBar from './CoaChipBar';
 import CreateCoADialog from './CreateCoADialog';
 import ManageCoAsDialog from './ManageCoAsDialog';
@@ -117,47 +117,82 @@ export default function CoaPage() {
     const params = buildWorkspaceSearch();
     navigate(`/master-data/accounts/${accountId}/overview?${params.toString()}`);
   }, [buildWorkspaceSearch, navigate]);
-
-  const ClickableCell: React.FC<ICellRendererParams<any, any>> = (params) => {
-    const nativeName = params.data?.native_name;
-    const showTooltip = nativeName && nativeName !== params.value;
-    return (
-      <Box
-        component="span"
-        title={showTooltip ? nativeName : undefined}
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-        onClick={() => navigateToAccount(String(params.data?.id))}
-      >
-        {params.value}
-      </Box>
-    );
-  };
-
-  const ClickableCellGeneric: React.FC<ICellRendererParams<any, any>> = (params) => (
-    <Box
-      component="span"
-      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-      onClick={() => navigateToAccount(String(params.data?.id))}
-    >
-      {params.valueFormatted ?? params.value}
-    </Box>
-  );
+  const getAccountHref = useCallback((row: AccountRow) => {
+    const params = buildWorkspaceSearch();
+    return `/master-data/accounts/${row.id}/overview?${params.toString()}`;
+  }, [buildWorkspaceSearch]);
 
   const columns: EnhancedColDef<AccountRow>[] = useMemo(() => [
-    { field: 'account_number', headerName: 'Account #', width: 160, required: true, cellRenderer: ClickableCell },
-    { field: 'account_name', headerName: 'Name', flex: 1, required: true, cellRenderer: ClickableCell },
-    { field: 'native_name', headerName: 'Native Name', width: 220, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-    { field: 'description', headerName: 'Description', width: 250, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-    { field: 'consolidation_account_number', headerName: 'Consol. Account #', width: 180, cellRenderer: ClickableCellGeneric },
-    { field: 'consolidation_account_name', headerName: 'Consol. Name', width: 250, cellRenderer: ClickableCellGeneric },
-    { field: 'consolidation_account_description', headerName: 'Consol. Description', width: 300, defaultHidden: true, cellRenderer: ClickableCellGeneric },
+    {
+      field: 'account_number',
+      headerName: 'Account #',
+      width: 160,
+      required: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'account_name',
+      headerName: 'Name',
+      flex: 1,
+      required: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'native_name',
+      headerName: 'Native Name',
+      width: 220,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'description',
+      headerName: 'Description',
+      width: 250,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'consolidation_account_number',
+      headerName: 'Consol. Account #',
+      width: 180,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'consolidation_account_name',
+      headerName: 'Consol. Name',
+      width: 250,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
+    {
+      field: 'consolidation_account_description',
+      headerName: 'Consol. Description',
+      width: 300,
+      defaultHidden: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
+    },
     {
       field: 'status',
       headerName: 'Status',
       width: 140,
       filter: 'agSetColumnFilter',
       filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
       defaultHidden: true,
     },
     {
@@ -166,9 +201,11 @@ export default function CoaPage() {
       width: 200,
       valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
       defaultHidden: true,
-      cellRenderer: ClickableCellGeneric,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
+      ),
     },
-  ], [ClickableCell]);
+  ], [getAccountHref, navigate]);
 
   const updateSelectedCoa = useCallback((coaId: string) => {
     const next = new URLSearchParams(searchParams);

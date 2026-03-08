@@ -100,4 +100,66 @@ export class DashboardController {
       { manager: ctx.manager },
     );
   }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'reader')
+  @Get('team-activity')
+  async getTeamActivity(
+    @Query('limit') limit: string = '5',
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.dataSvc.getTeamActivity(
+      ctx.userId!,
+      Math.min(parseInt(limit, 10) || 5, 5),
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'reader')
+  @Get('project-status-changes')
+  async getProjectStatusChanges(
+    @Query('days') days: string = '5',
+    @Query('limit') limit: string = '5',
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.dataSvc.getProjectStatusChanges(
+      parseInt(days, 10) || 5,
+      Math.min(parseInt(limit, 10) || 5, 5),
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('tasks', 'reader')
+  @Get('stale-tasks')
+  async getStaleTasks(
+    @Query('scope') scope: string = 'my',
+    @Query('thresholdDays') thresholdDays: string = '90',
+    @Query('limit') limit: string = '5',
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const safeScope = scope === 'team' || scope === 'all' ? scope : 'my';
+    return this.dataSvc.getStaleTasks(
+      ctx.userId!,
+      safeScope,
+      parseInt(thresholdDays, 10) || 90,
+      Math.min(parseInt(limit, 10) || 5, 5),
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'reader')
+  @Get('knowledge-review-items')
+  async getKnowledgeReviewItems(
+    @Query('limit') limit: string = '5',
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.dataSvc.getKnowledgeReviewItems(
+      ctx.userId!,
+      Math.min(parseInt(limit, 10) || 5, 5),
+      { manager: ctx.manager },
+    );
+  }
 }

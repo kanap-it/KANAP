@@ -2,10 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../components/ServerDataGrid';
-import { Box, Button, Stack } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import CsvExportDialog from '../components/csv/CsvExportDialog';
 import CsvImportDialog from '../components/csv/CsvImportDialog';
 import { useAuth } from '../auth/AuthContext';
+import { LinkCellRenderer } from '../components/grid/renderers';
 import ForbiddenPage from './ForbiddenPage';
 
 type ContractRow = {
@@ -50,26 +51,60 @@ export default function ContractsPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const openEdit = (row: ContractRow) => {
-    const sp = new URLSearchParams(searchParams);
-    navigate(`/ops/contracts/${row.id}/overview?${sp.toString()}`);
-  };
-
   const handleNew = () => {
     const sp = new URLSearchParams(searchParams);
     navigate(`/ops/contracts/new/overview?${sp.toString()}`);
   };
 
+  const getContractHref = (row: ContractRow) => {
+    const sp = new URLSearchParams(searchParams);
+    return `/ops/contracts/${row.id}/overview?${sp.toString()}`;
+  };
+
   const columns: EnhancedColDef<ContractRow>[] = useMemo(() => [
-    { field: 'name', headerName: 'Contract', flex: 1, minWidth: 220, required: true, cellRenderer: (p: any) => (
-      <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => openEdit(p.data)}>{p.value}</Box>
-    )},
-    { colId: 'supplier_name', headerName: 'Supplier', width: 180, valueGetter: (p) => p.data?.supplier?.name || '', cellRenderer: (p: any) => (
-      <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => openEdit(p.data)}>{p.value}</Box>
-    ) },
-    { colId: 'company_name', headerName: 'Company', width: 180, valueGetter: (p) => p.data?.company?.name || '', cellRenderer: (p: any) => (
-      <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => openEdit(p.data)}>{p.value}</Box>
-    ) },
+    {
+      field: 'name',
+      headerName: 'Contract',
+      flex: 1,
+      minWidth: 220,
+      required: true,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={getContractHref}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      colId: 'supplier_name',
+      headerName: 'Supplier',
+      width: 180,
+      valueGetter: (p) => p.data?.supplier?.name || '',
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={getContractHref}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
+    {
+      colId: 'company_name',
+      headerName: 'Company',
+      width: 180,
+      valueGetter: (p) => p.data?.company?.name || '',
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={getContractHref}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
     { field: 'start_date', headerName: 'Start', width: 120 },
     { field: 'duration_months', headerName: 'Duration (m)', width: 130, type: 'rightAligned' },
     { field: 'auto_renewal', headerName: 'Auto-renewal', width: 130, valueFormatter: (p) => p.value ? 'yes' : 'no' },
@@ -79,15 +114,26 @@ export default function ContractsPage() {
     { field: 'yearly_amount_at_signature', headerName: 'Yearly amount', width: 150, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
     { field: 'currency', headerName: 'Curr', width: 90 },
     { field: 'billing_frequency', headerName: 'Billing', width: 120 },
-    { colId: 'linked_opex_count', headerName: 'Linked OPEX', width: 140, valueGetter: (p) => p.data?.linked_opex_count ?? 0, cellRenderer: (p: any) => (
-      <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => openEdit(p.data)}>{p.value}</Box>
-    )},
+    {
+      colId: 'linked_opex_count',
+      headerName: 'Linked OPEX',
+      width: 140,
+      valueGetter: (p) => p.data?.linked_opex_count ?? 0,
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={getContractHref}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
     { colId: 'latest_task_text', headerName: 'Task', flex: 1, minWidth: 200, defaultHidden: true, valueGetter: (p) => {
       const t = p.data?.latest_task; if (!t) return ''; const s = t.status || ''; const d = (t.description || '').toString(); const short = d.length > 40 ? `${d.slice(0,40)}…` : d; return s ? `${s}: ${short}` : short;
     } },
     // Keep status filter values list if needed later
     // { field: 'status', headerName: 'Status', width: 120, defaultHidden: true, filter: 'agSetColumnFilter', filterParams: { values: STATUS_VALUES, suppressMiniFilter: true } },
-  ], []);
+  ], [navigate, searchParams]);
 
   const canCreate = hasLevel('contracts','manager');
   const canAdmin = hasLevel('contracts','admin');
@@ -118,4 +164,3 @@ export default function ContractsPage() {
     </>
   );
 }
-

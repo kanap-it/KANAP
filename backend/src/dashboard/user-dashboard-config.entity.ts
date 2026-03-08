@@ -20,13 +20,13 @@ export const DEFAULT_DASHBOARD_CONFIG: DashboardTileConfig[] = [
   { id: 'my-tasks', enabled: true, order: 1, config: { limit: 5, showOverdue: true } },
   { id: 'projects-i-lead', enabled: true, order: 2, config: { limit: 5 } },
   { id: 'projects-i-contribute', enabled: true, order: 3, config: { limit: 5 } },
-  { id: 'recently-viewed', enabled: true, order: 4, config: { limit: 10 } },
+  { id: 'recently-viewed', enabled: true, order: 4, config: { limit: 5 } },
   { id: 'my-time-last-week', enabled: true, order: 5, config: { days: 7 } },
   { id: 'new-requests', enabled: true, order: 6, config: { limit: 5, days: 7 } },
-  // Phase 2 tiles - disabled by default
-  { id: 'team-activity', enabled: false, order: 7, config: { limit: 10 } },
-  { id: 'global-status-changes', enabled: false, order: 8, config: { days: 5 } },
-  { id: 'stale-tasks', enabled: false, order: 9, config: { scope: 'my', thresholdDays: 90 } },
+  { id: 'knowledge-overview', enabled: true, order: 7, config: {} },
+  { id: 'team-activity', enabled: false, order: 8, config: { limit: 5 } },
+  { id: 'global-status-changes', enabled: false, order: 9, config: { days: 5 } },
+  { id: 'stale-tasks', enabled: false, order: 10, config: { scope: 'my', thresholdDays: 90 } },
 ];
 
 @Entity('user_dashboard_config')

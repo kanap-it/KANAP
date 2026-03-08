@@ -25,6 +25,41 @@ import { useAuth } from '../../../auth/AuthContext';
 import { TASK_STATUS_OPTIONS } from '../task.constants';
 import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
 
+const compactFieldSx = {
+  '& .MuiFormLabel-root': {
+    fontSize: '0.9rem',
+  },
+  '& .MuiInputBase-root': {
+    fontSize: '0.9rem',
+  },
+  '& .MuiInputBase-input': {
+    fontSize: '0.9rem',
+  },
+};
+
+const accordionSx = {
+  '&:before': { display: 'none' },
+  bgcolor: 'transparent',
+};
+
+const accordionSummarySx = {
+  minHeight: 40,
+  px: 0,
+  '& .MuiAccordionSummary-content': {
+    my: 0.75,
+  },
+};
+
+const readOnlyLabelSx = {
+  lineHeight: 1,
+  fontSize: '0.72rem',
+};
+
+const readOnlyValueSx = {
+  mt: 0.25,
+  fontSize: '0.9rem',
+};
+
 // Classification types
 interface ClassificationSource {
   id: string;
@@ -244,13 +279,13 @@ export default function TaskSidebar({
         onChange={handleAccordionChange('context')}
         disableGutters
         elevation={0}
-        sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+        sx={accordionSx}
       >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography variant="subtitle2" fontWeight="bold">Context</Typography>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Context</Typography>
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
-          <Stack spacing={1.5}>
+          <Stack spacing={1.25} sx={compactFieldSx}>
             {onRelationChange && !readOnly ? (
               <RelatedObjectSelect
                 relationType={task.related_object_type as RelatedObjectType}
@@ -263,15 +298,15 @@ export default function TaskSidebar({
                 size="small"
               />
             ) : isStandalone ? (
-              <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+              <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.25 }}>
+                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
                   Related To
                 </Typography>
-                <Typography sx={{ mt: 0.25, fontWeight: 600 }}>Standalone task</Typography>
+                <Typography sx={{ ...readOnlyValueSx, fontWeight: 600 }}>Standalone task</Typography>
               </Box>
             ) : (
-              <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+              <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.25 }}>
+                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
                   Related To
                 </Typography>
                 <Box sx={{ mt: 0.25 }}>
@@ -299,8 +334,8 @@ export default function TaskSidebar({
             {isProjectTask && (
               readOnly ? (
                 <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Phase</Typography>
-                  <Typography sx={{ mt: 0.25 }}>{task.phase_name || 'Project-level'}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Phase</Typography>
+                  <Typography sx={readOnlyValueSx}>{task.phase_name || 'Project-level'}</Typography>
                 </Box>
               ) : (
                 <EnumAutocomplete
@@ -321,47 +356,23 @@ export default function TaskSidebar({
 
       <Divider />
 
-      {showKnowledge && (
-        <>
-          <Accordion
-            expanded={expanded.includes('knowledge')}
-            onChange={handleAccordionChange('knowledge')}
-            disableGutters
-            elevation={0}
-            sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle2" fontWeight="bold">Knowledge</Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ pt: 0 }}>
-              <EntityKnowledgePanel
-                entityType="tasks"
-                entityId={task.id}
-                canCreate={canCreateKnowledge}
-              />
-            </AccordionDetails>
-          </Accordion>
-          <Divider />
-        </>
-      )}
-
       {/* TASK DETAILS - Second */}
       <Accordion
         expanded={expanded.includes('details')}
         onChange={handleAccordionChange('details')}
         disableGutters
         elevation={0}
-        sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+        sx={accordionSx}
       >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography variant="subtitle2" fontWeight="bold">Task Details</Typography>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Task Details</Typography>
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
-          <Stack spacing={1.5}>
+          <Stack spacing={1.25} sx={compactFieldSx}>
             {readOnly ? (
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Task Type</Typography>
-                <Typography sx={{ mt: 0.25 }}>
+                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Task Type</Typography>
+                <Typography sx={readOnlyValueSx}>
                   {task.task_type_name || taskTypeOptions.find((o) => o.value === task.task_type_id)?.label || '-'}
                 </Typography>
               </Box>
@@ -377,8 +388,8 @@ export default function TaskSidebar({
 
             {readOnly ? (
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Priority</Typography>
-                <Typography sx={{ mt: 0.25 }}>
+                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Priority</Typography>
+                <Typography sx={readOnlyValueSx}>
                   {PRIORITY_OPTIONS.find((o) => o.value === task.priority_level)?.label || task.priority_level}
                 </Typography>
               </Box>
@@ -394,8 +405,8 @@ export default function TaskSidebar({
 
             {readOnly ? (
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Status</Typography>
-                <Typography sx={{ mt: 0.25 }}>
+                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Status</Typography>
+                <Typography sx={readOnlyValueSx}>
                   {TASK_STATUS_OPTIONS.find((o) => o.value === task.status)?.label || task.status}
                 </Typography>
               </Box>
@@ -433,13 +444,13 @@ export default function TaskSidebar({
             onChange={handleAccordionChange('classification')}
             disableGutters
             elevation={0}
-            sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+            sx={accordionSx}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle2" fontWeight="bold">Classification</Typography>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Classification</Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0 }}>
-              <Stack spacing={1.5}>
+              <Stack spacing={1.25} sx={compactFieldSx}>
                 {canEditClassification && !readOnly ? (
                   <>
                     <EnumAutocomplete
@@ -486,26 +497,26 @@ export default function TaskSidebar({
                   <>
                     {task.source_name && (
                       <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Source</Typography>
-                        <Typography variant="body2" sx={{ mt: 0.25 }}>{task.source_name}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Source</Typography>
+                        <Typography variant="body2" sx={readOnlyValueSx}>{task.source_name}</Typography>
                       </Box>
                     )}
                     {task.category_name && (
                       <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Category</Typography>
-                        <Typography variant="body2" sx={{ mt: 0.25 }}>{task.category_name}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Category</Typography>
+                        <Typography variant="body2" sx={readOnlyValueSx}>{task.category_name}</Typography>
                       </Box>
                     )}
                     {task.stream_name && (
                       <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Stream</Typography>
-                        <Typography variant="body2" sx={{ mt: 0.25 }}>{task.stream_name}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Stream</Typography>
+                        <Typography variant="body2" sx={readOnlyValueSx}>{task.stream_name}</Typography>
                       </Box>
                     )}
                     {task.company_name && (
                       <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Company</Typography>
-                        <Typography variant="body2" sx={{ mt: 0.25 }}>{task.company_name}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Company</Typography>
+                        <Typography variant="body2" sx={readOnlyValueSx}>{task.company_name}</Typography>
                       </Box>
                     )}
                     {!hasClassificationValues && (
@@ -531,13 +542,13 @@ export default function TaskSidebar({
             onChange={handleAccordionChange('time')}
             disableGutters
             elevation={0}
-            sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+            sx={accordionSx}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle2" fontWeight="bold">Time</Typography>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Time</Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0 }}>
-              <Stack spacing={1.5}>
+              <Stack spacing={1.25} sx={compactFieldSx}>
                 {!readOnly && supportsTimeLogging && canLogTime && (
                   <Button
                     startIcon={<AddIcon />}
@@ -548,8 +559,8 @@ export default function TaskSidebar({
                   </Button>
                 )}
                 <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Time Spent</Typography>
-                  <Typography variant="h6" sx={{ mt: 0.25 }}>
+                  <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Time Spent</Typography>
+                  <Typography sx={{ mt: 0.25, fontSize: '1rem', fontWeight: 600 }}>
                     {formatHours(totalTimeHours)}
                   </Typography>
                 </Box>
@@ -584,13 +595,13 @@ export default function TaskSidebar({
         onChange={handleAccordionChange('people')}
         disableGutters
         elevation={0}
-        sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+        sx={accordionSx}
       >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography variant="subtitle2" fontWeight="bold">People</Typography>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>People</Typography>
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
-          <Stack spacing={1.5}>
+          <Stack spacing={1.25} sx={compactFieldSx}>
             <UserSelect
               label="Requestor"
               value={task.creator_id}
@@ -624,13 +635,13 @@ export default function TaskSidebar({
         onChange={handleAccordionChange('dates')}
         disableGutters
         elevation={0}
-        sx={{ '&:before': { display: 'none' }, bgcolor: 'transparent' }}
+        sx={accordionSx}
       >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography variant="subtitle2" fontWeight="bold">Dates</Typography>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Dates</Typography>
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
-          <Stack spacing={1.5}>
+          <Stack spacing={1.25} sx={compactFieldSx}>
             <DateEUField
               label="Start Date"
               valueYmd={task.start_date || ''}
@@ -648,6 +659,31 @@ export default function TaskSidebar({
           </Stack>
         </AccordionDetails>
       </Accordion>
+
+      {showKnowledge && (
+        <>
+          <Divider />
+          <Accordion
+            expanded={expanded.includes('knowledge')}
+            onChange={handleAccordionChange('knowledge')}
+            disableGutters
+            elevation={0}
+            sx={accordionSx}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Knowledge</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ pt: 0 }}>
+              <EntityKnowledgePanel
+                entityType="tasks"
+                entityId={task.id}
+                canCreate={canCreateKnowledge}
+                variant="sidebar"
+              />
+            </AccordionDetails>
+          </Accordion>
+        </>
+      )}
     </Box>
   );
 }

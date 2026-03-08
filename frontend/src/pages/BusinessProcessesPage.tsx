@@ -1,13 +1,14 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef, StatusScope } from '../components/ServerDataGrid';
-import { Box, Button, Stack } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import CsvExportDialog from '../components/csv/CsvExportDialog';
 import CsvImportDialog from '../components/csv/CsvImportDialog';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { useAuth } from '../auth/AuthContext';
 import { STATUS_VALUES } from '../constants/status';
+import { LinkCellRenderer } from '../components/grid/renderers';
 import BusinessProcessCategoryManagerDialog from './business-processes/BusinessProcessCategoryManagerDialog';
 import ForbiddenPage from './ForbiddenPage';
 
@@ -52,40 +53,22 @@ export default function BusinessProcessesPage() {
     if (filters && Object.keys(filters).length > 0) sp.set('filters', JSON.stringify(filters));
     return sp;
   }, []);
-
-  const ClickableCell: React.FC<{ value: any; data: BusinessProcessRow }> = ({ value, data }) => (
-    <Box
-      component="span"
-      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-      onClick={() => {
-        const sp = buildWorkspaceSearch();
-        navigate(`/master-data/business-processes/${data.id}/overview?${sp.toString()}`);
-      }}
-    >
-      {value}
-    </Box>
-  );
-
-  const ClickableCellFormatted: React.FC<{ value: any; valueFormatted?: any; data: BusinessProcessRow }> = ({
-    value,
-    valueFormatted,
-    data,
-  }) => (
-    <Box
-      component="span"
-      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-      onClick={() => {
-        const sp = buildWorkspaceSearch();
-        navigate(`/master-data/business-processes/${data.id}/overview?${sp.toString()}`);
-      }}
-    >
-      {valueFormatted ?? value}
-    </Box>
-  );
+  const getBusinessProcessHref = useCallback((row: BusinessProcessRow) => {
+    const sp = buildWorkspaceSearch();
+    return `/master-data/business-processes/${row.id}/overview?${sp.toString()}`;
+  }, [buildWorkspaceSearch]);
 
   const columns: EnhancedColDef<BusinessProcessRow>[] = useMemo(
     () => [
-      { field: 'name', headerName: 'Name', flex: 1, required: true, cellRenderer: ClickableCell },
+      {
+        field: 'name',
+        headerName: 'Name',
+        flex: 1,
+        required: true,
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer {...params} linkType="internal" getHref={getBusinessProcessHref} onNavigate={(href) => navigate(href)} />
+        ),
+      },
       {
         field: 'primary_category_name',
         headerName: 'Categories',
@@ -96,24 +79,18 @@ export default function BusinessProcessesPage() {
           const names = cats.map((c) => c.name);
           return names.join(', ');
         },
-        cellRenderer: (params: any) =>
-          ClickableCellFormatted({
-            value: params.value,
-            valueFormatted: params.valueFormatted,
-            data: params.data as BusinessProcessRow,
-          }),
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer {...params} linkType="internal" getHref={getBusinessProcessHref} onNavigate={(href) => navigate(href)} />
+        ),
       },
       {
         field: 'owner_name',
         headerName: 'Process Owner',
         width: 220,
         valueGetter: (p: any) => p.data?.owner_name || '',
-        cellRenderer: (params: any) =>
-          ClickableCellFormatted({
-            value: params.value,
-            valueFormatted: params.valueFormatted,
-            data: params.data as BusinessProcessRow,
-          }),
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer {...params} linkType="internal" getHref={getBusinessProcessHref} onNavigate={(href) => navigate(href)} />
+        ),
       },
       {
         field: 'status',
@@ -122,28 +99,22 @@ export default function BusinessProcessesPage() {
         filter: 'agSetColumnFilter',
         filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
         defaultHidden: true,
-        cellRenderer: (params: any) =>
-          ClickableCellFormatted({
-            value: params.value,
-            valueFormatted: params.valueFormatted,
-            data: params.data as BusinessProcessRow,
-          }),
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer {...params} linkType="internal" getHref={getBusinessProcessHref} onNavigate={(href) => navigate(href)} />
+        ),
       },
       {
         field: 'updated_at',
         headerName: 'Updated',
         width: 200,
         valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
-        cellRenderer: (params: any) =>
-          ClickableCellFormatted({
-            value: params.value,
-            valueFormatted: params.valueFormatted,
-            data: params.data as BusinessProcessRow,
-          }),
+        cellRenderer: (params: any) => (
+          <LinkCellRenderer {...params} linkType="internal" getHref={getBusinessProcessHref} onNavigate={(href) => navigate(href)} />
+        ),
         defaultHidden: true,
       },
     ],
-    [ClickableCell, ClickableCellFormatted],
+    [getBusinessProcessHref, navigate],
   );
 
   const canCreate = hasLevel('business_processes', 'manager');

@@ -1,9 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Button, Chip, Stack, Typography } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
+import { LinkCellRenderer } from '../../components/grid/renderers';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
@@ -45,20 +46,16 @@ export default function ConnectionsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [filterParams, setFilterParams] = useState<Record<string, any>>({});
 
+  const getConnectionHref = (row: ConnectionRow) => `/it/connections/${row.id}/overview`;
+
   const ClickToWorkspace = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<ConnectionRow, any>> = (params) => (
-      <Box
-        component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-        title={params.valueFormatted ?? params.value}
-        onClick={() => {
-          const id = params.data?.id;
-          if (!id) return;
-          navigate(`/it/connections/${id}/overview`);
-        }}
-      >
-        {params.valueFormatted ?? params.value}
-      </Box>
+      <LinkCellRenderer
+        {...params}
+        linkType="internal"
+        getHref={getConnectionHref}
+        onNavigate={(href) => navigate(href)}
+      />
     );
     return Cell;
   }, [navigate]);
