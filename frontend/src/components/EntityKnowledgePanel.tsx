@@ -97,11 +97,18 @@ function uniqueIds(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
+function formatDocumentOptionLabel(option: Pick<DocumentListItem, 'title' | 'item_ref' | 'item_number'>): string {
+  const ref = option.item_ref || `DOC-${option.item_number}`;
+  const title = String(option.title || '').trim();
+  return title ? `${title} (${ref})` : ref;
+}
+
 export default function EntityKnowledgePanel({ entityType, entityId, canCreate = false }: EntityKnowledgePanelProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [search, setSearch] = React.useState('');
   const [selectedDoc, setSelectedDoc] = React.useState<DocumentListItem | null>(null);
+  const deferredSearch = React.useDeferredValue(search.trim());
 
   const endpoint = ENTITY_ENDPOINTS[entityType];
 
@@ -114,19 +121,25 @@ export default function EntityKnowledgePanel({ entityType, entityId, canCreate =
     enabled: !!entityId,
   });
 
-  const { data: docsList } = useQuery({
-    queryKey: ['knowledge-link-options', entityType, entityId, search],
+  const { data: docsList, isFetching: isSearchingDocs } = useQuery({
+    queryKey: ['knowledge-link-options', entityType, entityId, deferredSearch],
     queryFn: async () => {
-      const res = await api.get<DocumentsListResponse>('/knowledge', {
-        params: {
-          q: search.trim() || undefined,
-          limit: 50,
-          sort: 'updated_at:DESC',
-        },
-      });
+      const params = {
+        limit: 50,
+        sort: 'title:ASC',
+      };
+      const res = deferredSearch
+        ? await api.get<DocumentsListResponse>('/knowledge/search', {
+            params: {
+              ...params,
+              q: deferredSearch,
+            },
+          })
+        : await api.get<DocumentsListResponse>('/knowledge', { params });
       return res.data;
     },
     enabled: canCreate && !!entityId,
+    staleTime: 30_000,
   });
 
   const linkedDocIds = React.useMemo(
@@ -178,18 +191,19 @@ export default function EntityKnowledgePanel({ entityType, entityId, canCreate =
       return res.data;
     },
     onSuccess: async (created) => {
-      await qc.invalidateQueries({ queryKey: ['entity-knowledge', entityType, entityId] });
       const ref = created?.item_ref || `DOC-${created?.item_number}`;
       navigate(`/knowledge/${ref}`);
     },
   });
 
   const linkExistingMutation = useMutation({
-    mutationFn: async (documentId: string) => {
-      await updateEntityRelationOnDocument(documentId, 'link');
+    mutationFn: async (document: DocumentListItem) => {
+      await updateEntityRelationOnDocument(document.id, 'link');
+      return document;
     },
     onSuccess: async () => {
       setSelectedDoc(null);
+      setSearch('');
       await qc.invalidateQueries({ queryKey: ['entity-knowledge', entityType, entityId] });
     },
   });
@@ -197,6 +211,7 @@ export default function EntityKnowledgePanel({ entityType, entityId, canCreate =
   const unlinkMutation = useMutation({
     mutationFn: async (documentId: string) => {
       await updateEntityRelationOnDocument(documentId, 'unlink');
+      return documentId;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['entity-knowledge', entityType, entityId] });
@@ -232,10 +247,12 @@ export default function EntityKnowledgePanel({ entityType, entityId, canCreate =
               onChange={(_, value) => setSelectedDoc(value)}
               inputValue={search}
               onInputChange={(_, value) => setSearch(value)}
-              getOptionLabel={(option) => option.item_ref || `DOC-${option.item_number} - ${option.title}`}
+              loading={canCreate && !!entityId && isSearchingDocs}
+              getOptionLabel={formatDocumentOptionLabel}
               isOptionEqualToValue={(option, value) => option.id === value.id}
+              noOptionsText={deferredSearch ? 'No matching knowledge' : 'No available knowledge'}
               renderInput={(params) => (
-                <TextField {...params} label="Link existing knowledge" placeholder="Search by title or ref" />
+                <TextField {...params} label="Link existing knowledge" placeholder="Search by name or ref" />
               )}
               sx={{ minWidth: 320, flex: 1 }}
             />
@@ -244,7 +261,7 @@ export default function EntityKnowledgePanel({ entityType, entityId, canCreate =
               startIcon={<LinkIcon />}
               onClick={() => {
                 if (!selectedDoc) return;
-                linkExistingMutation.mutate(selectedDoc.id);
+                linkExistingMutation.mutate(selectedDoc);
               }}
               disabled={!selectedDoc || linkExistingMutation.isPending}
             >

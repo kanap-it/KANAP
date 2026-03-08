@@ -30,7 +30,9 @@ import { Document } from './document.entity';
 import { KnowledgeController } from './knowledge.controller';
 import { DocumentFoldersController } from './document-folders.controller';
 import { DocumentLibrariesController } from './document-libraries.controller';
+import { KnowledgeRelationsService } from './knowledge-relations.service';
 import { KnowledgeService } from './knowledge.service';
+import { KnowledgeWorkflowService } from './knowledge-workflow.service';
 import { DocumentTypesController } from './document-types.controller';
 
 @Module({
@@ -70,7 +72,18 @@ import { DocumentTypesController } from './document-types.controller';
     DocumentLibrariesController,
     DocumentTypesController,
   ],
-  providers: [KnowledgeService, IntegratedDocumentsService],
-  exports: [KnowledgeService, IntegratedDocumentsService, TypeOrmModule],
+  providers: [
+    KnowledgeService,
+    KnowledgeRelationsService,
+    KnowledgeWorkflowService,
+    IntegratedDocumentsService,
+  ],
+  exports: [
+    KnowledgeService,
+    KnowledgeRelationsService,
+    KnowledgeWorkflowService,
+    IntegratedDocumentsService,
+    TypeOrmModule,
+  ],
 })
 export class KnowledgeModule {}

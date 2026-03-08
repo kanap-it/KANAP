@@ -69,8 +69,10 @@ export default function MarkdownEditor({
   const maxHeight = maxRows * 24;
   const mdxRef = React.useRef<MDXEditorMethods>(null);
   const internalChangeRef = React.useRef(false);
+  const currentMarkdownRef = React.useRef(value || '');
   const imageUploadHandlerRef = React.useRef<MarkdownEditorProps['onImageUpload']>(onImageUpload);
   imageUploadHandlerRef.current = onImageUpload;
+  const [editorInstanceKey, setEditorInstanceKey] = React.useState(0);
   const mdxRootClassName = React.useMemo(
     () => `kanap-mdx-root ${isDarkMode ? 'dark-theme' : 'light-theme'}`,
     [isDarkMode],
@@ -107,8 +109,6 @@ export default function MarkdownEditor({
     [mdxThemeVariables],
   );
 
-  const [initialMarkdown] = React.useState(() => value || '');
-
   const codeBlockLanguages = React.useMemo<Record<string, string>>(
     () => ({
       txt: 'Plain text',
@@ -139,6 +139,7 @@ export default function MarkdownEditor({
   const handleChange = React.useCallback(
     (markdown: string, initialMarkdownNormalize: boolean) => {
       if (initialMarkdownNormalize) return;
+      currentMarkdownRef.current = markdown;
       internalChangeRef.current = true;
       onChange(markdown);
     },
@@ -146,17 +147,16 @@ export default function MarkdownEditor({
   );
 
   React.useEffect(() => {
-    if (!mdxRef.current) return;
+    const incoming = value || '';
     if (internalChangeRef.current) {
       internalChangeRef.current = false;
+      currentMarkdownRef.current = incoming;
       return;
     }
-
-    const incoming = value || '';
-    const current = mdxRef.current.getMarkdown();
-    if (incoming !== current) {
-      mdxRef.current.setMarkdown(incoming);
-    }
+    if (incoming === currentMarkdownRef.current) return;
+    currentMarkdownRef.current = incoming;
+    // Remount on true external resets so rich image nodes render immediately.
+    setEditorInstanceKey((prev) => prev + 1);
   }, [value]);
 
   React.useEffect(() => {
@@ -325,8 +325,9 @@ export default function MarkdownEditor({
         }}
       >
         <MDXEditor
+          key={editorInstanceKey}
           ref={mdxRef}
-          markdown={initialMarkdown}
+          markdown={currentMarkdownRef.current}
           readOnly={disabled}
           placeholder={placeholder}
           className={mdxRootClassName}

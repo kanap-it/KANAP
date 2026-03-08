@@ -25,13 +25,7 @@ import { resolveToUuid } from '../common/resolve-item-id';
 import { StorageService } from '../common/storage/storage.service';
 import { Features } from '../config/features';
 import { EmailService } from '../email/email.service';
-import {
-  buildKnowledgeWorkflowApprovedEmail,
-  buildKnowledgeWorkflowCancelledEmail,
-  buildKnowledgeWorkflowChangesRequestedEmail,
-  buildKnowledgeWorkflowRequestedEmail,
-} from '../notifications/notification-templates';
-import { PermissionsService } from '../permissions/permissions.service';
+import { PermissionLevel, PermissionsService } from '../permissions/permissions.service';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user-role.entity';
 import { DocumentActivity } from './document-activity.entity';
@@ -51,8 +45,6 @@ import { DOCUMENT_STATUSES, DocumentStatus, isDocumentStatus } from './document-
 import { DocumentTask } from './document-task.entity';
 import { DocumentType } from './document-type.entity';
 import { DocumentVersion } from './document-version.entity';
-import { DocumentWorkflowParticipant } from './document-workflow-participant.entity';
-import { DocumentWorkflow } from './document-workflow.entity';
 import { Document } from './document.entity';
 
 export type RelationEntityType = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
@@ -78,6 +70,10 @@ const TEMPLATE_LIBRARY_SLUG = 'templates';
 const DOCUMENT_CONTRIBUTOR_ROLES = new Set(['owner', 'author', 'reviewer', 'validator']);
 const RBAC_LEVEL_RANK: Record<string, number> = { reader: 1, contributor: 2, member: 3, admin: 4 };
 const ACTIVE_WORKFLOW_STATUSES = new Set(['pending_review', 'pending_approval']);
+const INLINE_ATTACHMENT_SOURCE_RESOURCE: Record<'requests' | 'projects', 'portfolio_requests' | 'portfolio_projects'> = {
+  requests: 'portfolio_requests',
+  projects: 'portfolio_projects',
+};
 const WORKFLOW_STAGE_TO_ROLE: Record<'reviewer' | 'approver', 'reviewer' | 'validator'> = {
   reviewer: 'reviewer',
   approver: 'validator',
@@ -133,6 +129,14 @@ type ValidationInfo = {
   validated_at: Date | string | null;
   is_validated_current_revision: boolean;
 };
+
+type DocumentChangeField =
+  | 'title'
+  | 'summary'
+  | 'status'
+  | 'content_markdown'
+  | 'library_id'
+  | 'folder_id';
 
 const RELATION_TABLE_MAP: Record<
   RelationEntityType,
@@ -233,10 +237,6 @@ export class KnowledgeService {
     private readonly documentRequestsRepo: Repository<DocumentRequest>,
     @InjectRepository(DocumentTask)
     private readonly documentTasksRepo: Repository<DocumentTask>,
-    @InjectRepository(DocumentWorkflow)
-    private readonly workflowsRepo: Repository<DocumentWorkflow>,
-    @InjectRepository(DocumentWorkflowParticipant)
-    private readonly workflowParticipantsRepo: Repository<DocumentWorkflowParticipant>,
     private readonly itemNumbers: ItemNumberService,
     private readonly audit: AuditService,
     private readonly exportService: DocumentExportService,
@@ -247,11 +247,11 @@ export class KnowledgeService {
     private readonly emails: EmailService,
   ) {}
 
-  private getManager(opts?: { manager?: EntityManager }): EntityManager {
+  getManager(opts?: { manager?: EntityManager }): EntityManager {
     return opts?.manager ?? this.documentsRepo.manager;
   }
 
-  private async getIntegratedBinding(
+  async getIntegratedBinding(
     documentId: string,
     manager: EntityManager,
   ): Promise<IntegratedDocumentBinding | null> {
@@ -269,7 +269,7 @@ export class KnowledgeService {
     }
   }
 
-  private async assertIntegratedDocumentWorkflowRequestAllowed(
+  async assertIntegratedDocumentWorkflowRequestAllowed(
     documentId: string,
     manager: EntityManager,
   ): Promise<void> {
@@ -512,7 +512,7 @@ export class KnowledgeService {
     }
   }
 
-  private async resolveDocumentId(idOrRef: string, manager: EntityManager): Promise<string> {
+  async resolveDocumentId(idOrRef: string, manager: EntityManager): Promise<string> {
     return resolveToUuid(idOrRef, 'document', manager);
   }
 
@@ -537,7 +537,7 @@ export class KnowledgeService {
     return Number.isFinite(itemNumber) && itemNumber > 0 ? itemNumber : null;
   }
 
-  private hasPermissionLevel(current: string | undefined, required: 'reader' | 'member' | 'admin'): boolean {
+  hasPermissionLevel(current: string | undefined, required: 'reader' | 'member' | 'admin'): boolean {
     return (RBAC_LEVEL_RANK[current || ''] ?? 0) >= (RBAC_LEVEL_RANK[required] ?? Number.MAX_SAFE_INTEGER);
   }
 
@@ -574,28 +574,37 @@ export class KnowledgeService {
     };
   }
 
-  private async getKnowledgeLevelForUser(
+  private async getPermissionLevelForUser(
     manager: EntityManager,
     userId: string | null | undefined,
-  ): Promise<'reader' | 'member' | 'admin' | null> {
+    resource: string,
+  ): Promise<PermissionLevel | null> {
     const ctx = await this.getRoleContextForUser(manager, userId);
     if (!ctx.enabled) return null;
     if (ctx.isAdministrator) return 'admin';
 
     const permissions = await this.permissions.listForRoles(ctx.roleIds, { manager });
-    const level = permissions.get('knowledge');
+    const level = permissions.get(resource);
+    return level ? (level as PermissionLevel) : null;
+  }
+
+  async getKnowledgeLevelForUser(
+    manager: EntityManager,
+    userId: string | null | undefined,
+  ): Promise<'reader' | 'member' | 'admin' | null> {
+    const level = await this.getPermissionLevelForUser(manager, userId, 'knowledge');
     return this.hasPermissionLevel(level, 'reader')
       ? (level as 'reader' | 'member' | 'admin')
       : null;
   }
 
-  private async ensureInlineAttachmentAccess(
+  private async resolveUserIdFromRefreshToken(
     manager: EntityManager,
     tenantId: string,
     refreshToken: string | null | undefined,
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     const token = String(refreshToken || '').trim();
-    if (!token) return false;
+    if (!token) return null;
 
     const tokenHash = createHash('sha256').update(token).digest('hex');
     const tokenRows = await manager.query(
@@ -606,15 +615,32 @@ export class KnowledgeService {
        LIMIT 1`,
       [tokenHash, tenantId],
     );
-    if (!tokenRows.length) return false;
+    if (!tokenRows.length) return null;
 
     const expiresAt = tokenRows[0]?.expires_at ? new Date(tokenRows[0].expires_at).getTime() : NaN;
     if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-      return false;
+      return null;
     }
 
     const userId = String(tokenRows[0].user_id || '').trim();
+    return userId || null;
+  }
+
+  private async ensureInlineAttachmentAccess(
+    manager: EntityManager,
+    tenantId: string,
+    refreshToken: string | null | undefined,
+    integratedBinding?: Pick<IntegratedDocumentBinding, 'source_entity_type'> | null,
+  ): Promise<boolean> {
+    const userId = await this.resolveUserIdFromRefreshToken(manager, tenantId, refreshToken);
     if (!userId) return false;
+
+    if (integratedBinding?.source_entity_type === 'requests' || integratedBinding?.source_entity_type === 'projects') {
+      const resource = INLINE_ATTACHMENT_SOURCE_RESOURCE[integratedBinding.source_entity_type];
+      const level = await this.getPermissionLevelForUser(manager, userId, resource);
+      return this.hasPermissionLevel(level || undefined, 'reader');
+    }
+
     return (await this.getKnowledgeLevelForUser(manager, userId)) != null;
   }
 
@@ -625,6 +651,33 @@ export class KnowledgeService {
       throw new BadRequestException(`Invalid status: ${String(input)}`);
     }
     return value;
+  }
+
+  private getDocumentSearchState(input: unknown): { term: string; itemNumber: number | null } | null {
+    const term = String(input || '').trim();
+    if (!term) return null;
+    return {
+      term,
+      itemNumber: this.parseItemNumberQuery(term),
+    };
+  }
+
+  private buildDocumentSearchSql(
+    alias: string,
+    paramOffset: number,
+    search: { term: string; itemNumber: number | null },
+  ): { clause: string; params: Array<string | number> } {
+    const params: Array<string | number> = [search.term];
+    const searchTermIndex = paramOffset + 1;
+    const clauses = [`${alias}.search_vector @@ websearch_to_tsquery('simple', $${searchTermIndex})`];
+    if (search.itemNumber != null) {
+      params.push(search.itemNumber);
+      clauses.unshift(`${alias}.item_number = $${paramOffset + params.length}`);
+    }
+    return {
+      clause: `(${clauses.join(' OR ')})`,
+      params,
+    };
   }
 
   private async ensureVersionSnapshot(
@@ -680,7 +733,7 @@ export class KnowledgeService {
     return String(row?.email || fallback || '').trim() || fallback;
   }
 
-  private async getUserDisplayName(userId: string, manager: EntityManager): Promise<string> {
+  async getUserDisplayName(userId: string, manager: EntityManager): Promise<string> {
     const rows = await manager.query(
       `SELECT NULLIF(trim(concat_ws(' ', first_name, last_name)), '') AS display_name, email
        FROM users
@@ -698,7 +751,7 @@ export class KnowledgeService {
     return null;
   }
 
-  private async getActiveWorkflow(
+  async getActiveWorkflow(
     documentId: string,
     manager: EntityManager,
   ): Promise<WorkflowView | null> {
@@ -779,13 +832,13 @@ export class KnowledgeService {
     };
   }
 
-  private async assertWorkflowAllowsEditing(documentId: string, manager: EntityManager): Promise<void> {
+  async assertWorkflowAllowsEditing(documentId: string, manager: EntityManager): Promise<void> {
     const activeWorkflow = await this.getActiveWorkflow(documentId, manager);
     if (!activeWorkflow) return;
     throw new ConflictException('Document is currently in review. Cancel review to edit it.');
   }
 
-  private async createSystemActivity(
+  async createSystemActivity(
     documentId: string,
     userId: string | null,
     type: 'change' | 'decision',
@@ -803,7 +856,73 @@ export class KnowledgeService {
     return manager.getRepository(DocumentActivity).save(activity);
   }
 
-  private async getWorkflowParticipantEmails(
+  private async applyDocumentRelations(
+    documentId: string,
+    relations: unknown,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (!relations || typeof relations !== 'object' || Array.isArray(relations)) {
+      return;
+    }
+
+    const relationBody = relations as Partial<Record<RelationEntityType, unknown>>;
+    for (const key of Object.keys(RELATION_TABLE_MAP) as RelationEntityType[]) {
+      const relationValues = relationBody[key];
+      if (Array.isArray(relationValues)) {
+        await this.replaceDocumentRelationsByEntity(documentId, key, relationValues, manager);
+      }
+    }
+  }
+
+  private buildDocumentChanges(
+    before: Partial<Record<DocumentChangeField, unknown>> | null,
+    after: Partial<Record<DocumentChangeField, unknown>>,
+    fields: DocumentChangeField[],
+  ): Record<string, [unknown, unknown]> {
+    const changes: Record<string, [unknown, unknown]> = {};
+
+    for (const field of fields) {
+      if (field === 'content_markdown') {
+        const previousContent = String(before?.content_markdown || '');
+        const nextContent = String(after.content_markdown || '');
+        if (previousContent !== nextContent) {
+          changes.content_markdown = ['(changed)', '(changed)'];
+        }
+        continue;
+      }
+
+      const previousValue = before?.[field] ?? null;
+      const nextValue = after[field] ?? null;
+      if (previousValue !== nextValue) {
+        changes[field] = [previousValue, nextValue];
+      }
+    }
+
+    return changes;
+  }
+
+  private async auditDocumentChange(
+    action: 'create' | 'update' | 'delete',
+    recordId: string,
+    before: unknown,
+    after: unknown,
+    userId: string | null,
+    manager: EntityManager,
+  ): Promise<void> {
+    await this.audit.log(
+      {
+        table: 'documents',
+        recordId,
+        action,
+        before,
+        after,
+        userId,
+      },
+      { manager },
+    );
+  }
+
+  async getWorkflowParticipantEmails(
     manager: EntityManager,
     workflowId: string,
     stage: DocumentWorkflowStage,
@@ -829,7 +948,7 @@ export class KnowledgeService {
       .filter((row: { email: string }) => !!row.email);
   }
 
-  private async getDocumentNotificationRecipients(
+  async getDocumentNotificationRecipients(
     manager: EntityManager,
     documentId: string,
     extraUserIds: Array<string | null | undefined> = [],
@@ -866,7 +985,7 @@ export class KnowledgeService {
     return Array.from(emails);
   }
 
-  private async sendWorkflowEmail(
+  async sendWorkflowEmail(
     recipients: string[],
     subject: string,
     html: string,
@@ -888,7 +1007,7 @@ export class KnowledgeService {
     }
   }
 
-  private buildKnowledgeDocumentUrl(appBaseUrl: string | null | undefined, itemNumber: number): string | null {
+  buildKnowledgeDocumentUrl(appBaseUrl: string | null | undefined, itemNumber: number): string | null {
     const base = String(appBaseUrl || '').trim().replace(/\/$/, '');
     if (!base) return null;
     return `${base}/knowledge/DOC-${itemNumber}`;
@@ -923,7 +1042,7 @@ export class KnowledgeService {
     };
   }
 
-  private async assertDocumentUnlockedForUser(
+  async assertDocumentUnlockedForUser(
     documentId: string,
     userId: string | null | undefined,
     manager: EntityManager,
@@ -1018,14 +1137,26 @@ export class KnowledgeService {
     const all = await manager.getRepository(DocumentFolder).find({
       where: libraryId ? ({ library_id: libraryId } as any) : undefined,
     });
-    const ids: string[] = [folderId];
+    const childrenByParent = new Map<string, string[]>();
+    for (const folder of all) {
+      if (!folder.parent_id) continue;
+      const current = childrenByParent.get(folder.parent_id) || [];
+      current.push(folder.id);
+      childrenByParent.set(folder.parent_id, current);
+    }
+
+    const ids: string[] = [];
     const queue = [folderId];
+    const seen = new Set<string>();
     while (queue.length) {
-      const parentId = queue.shift()!;
-      for (const f of all) {
-        if (f.parent_id === parentId && !ids.includes(f.id)) {
-          ids.push(f.id);
-          queue.push(f.id);
+      const parentId = queue.pop()!;
+      if (seen.has(parentId)) continue;
+      seen.add(parentId);
+      ids.push(parentId);
+      const children = childrenByParent.get(parentId) || [];
+      for (const childId of children) {
+        if (!seen.has(childId)) {
+          queue.push(childId);
         }
       }
     }
@@ -1238,31 +1369,18 @@ export class KnowledgeService {
 
     const saved = await repo.save(existing);
 
-    const changes: Record<string, [unknown, unknown]> = {};
-    if (before.library_id !== saved.library_id) changes.library_id = [before.library_id, saved.library_id];
-    if (before.folder_id !== saved.folder_id) changes.folder_id = [before.folder_id, saved.folder_id];
+    const changes = this.buildDocumentChanges(before, saved, ['library_id', 'folder_id']);
 
     if (Object.keys(changes).length > 0) {
-      const activity = manager.getRepository(DocumentActivity).create({
-        document_id: saved.id,
-        author_id: userId,
-        type: 'change',
-        content: crossLibraryMove ? 'Document moved to another library' : 'Document moved',
-        changed_fields: changes,
-      });
-      await manager.getRepository(DocumentActivity).save(activity);
-
-      await this.audit.log(
-        {
-          table: 'documents',
-          recordId: saved.id,
-          action: 'update',
-          before,
-          after: saved,
-          userId,
-        },
-        { manager },
+      await this.createSystemActivity(
+        saved.id,
+        userId,
+        'change',
+        crossLibraryMove ? 'Document moved to another library' : 'Document moved',
+        manager,
+        changes,
       );
+      await this.auditDocumentChange('update', saved.id, before, saved, userId, manager);
     }
 
     return saved;
@@ -1528,25 +1646,19 @@ export class KnowledgeService {
           LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = d.tenant_id
           WHERE c.document_id = d.id AND c.role = 'owner' AND c.is_primary = true
           LIMIT 1) AS primary_owner_name`,
-        `(SELECT string_agg(pc.name || COALESCE(' / ' || ps.name, ''), ', ' ORDER BY pc.name)
-          FROM document_classifications dc
-          JOIN portfolio_categories pc ON pc.id = dc.category_id AND pc.tenant_id = d.tenant_id
-          LEFT JOIN portfolio_streams ps ON ps.id = dc.stream_id AND ps.tenant_id = d.tenant_id
-          WHERE dc.document_id = d.id) AS classification_summary`,
-        `(SELECT string_agg(a.name, ', ' ORDER BY a.name)
-          FROM document_applications da
-          JOIN applications a ON a.id = da.application_id AND a.tenant_id = d.tenant_id
-          WHERE da.document_id = d.id) AS application_names`,
-        `(SELECT string_agg(ast.name, ', ' ORDER BY ast.name)
-          FROM document_assets dasset
-          JOIN assets ast ON ast.id = dasset.asset_id AND ast.tenant_id = d.tenant_id
-          WHERE dasset.document_id = d.id) AS asset_names`,
       ]);
 
-    if (q && q.trim()) {
-      qb.andWhere('(d.title ILIKE :term OR d.summary ILIKE :term OR d.content_plain ILIKE :term)', {
-        term: `%${q.trim()}%`,
-      });
+    const search = this.getDocumentSearchState(q);
+    if (search) {
+      const params: Record<string, string | number> = {
+        searchTerm: search.term,
+      };
+      const searchClauses = [`d.search_vector @@ websearch_to_tsquery('simple', :searchTerm)`];
+      if (search.itemNumber != null) {
+        params.searchItemNumber = search.itemNumber;
+        searchClauses.unshift('d.item_number = :searchItemNumber');
+      }
+      qb.andWhere(`(${searchClauses.join(' OR ')})`, params);
     }
 
     const filterStatus = query?.status || (filters as any)?.status?.filter;
@@ -1736,17 +1848,23 @@ export class KnowledgeService {
   async listIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; total: number }> {
     const manager = this.getManager(opts);
     const parsed = parsePagination({ ...query, page: 1, limit: query?.limit ?? 10000 }, { field: 'updated_at', direction: 'DESC' });
-    const { q } = parsed;
+    const search = this.getDocumentSearchState(parsed.q);
 
     const qb = manager
       .getRepository(Document)
       .createQueryBuilder('d')
       .select('d.id', 'id');
 
-    if (q && q.trim()) {
-      qb.andWhere('(d.title ILIKE :term OR d.summary ILIKE :term OR d.content_plain ILIKE :term)', {
-        term: `%${q.trim()}%`,
-      });
+    if (search) {
+      const params: Record<string, string | number> = {
+        searchTerm: search.term,
+      };
+      const searchClauses = [`d.search_vector @@ websearch_to_tsquery('simple', :searchTerm)`];
+      if (search.itemNumber != null) {
+        params.searchItemNumber = search.itemNumber;
+        searchClauses.unshift('d.item_number = :searchItemNumber');
+      }
+      qb.andWhere(`(${searchClauses.join(' OR ')})`, params);
     }
 
     const status = query?.status;
@@ -1798,11 +1916,11 @@ export class KnowledgeService {
       try { filters = typeof query.filters === 'string' ? JSON.parse(query.filters) : query.filters; } catch { /* ignore */ }
     }
 
-    // Search filter
-    if (query?.q && String(query.q).trim()) {
-      const term = `%${String(query.q).trim()}%`;
-      scopeConditions.push(`(d.title ILIKE $${scopeParams.length + 1} OR d.summary ILIKE $${scopeParams.length + 1} OR d.content_plain ILIKE $${scopeParams.length + 1})`);
-      scopeParams.push(term);
+    const search = this.getDocumentSearchState(query?.q);
+    if (search) {
+      const searchFilter = this.buildDocumentSearchSql('d', scopeParams.length, search);
+      scopeConditions.push(searchFilter.clause);
+      scopeParams.push(...searchFilter.params);
     }
 
     const scopeWhere = scopeConditions.join(' AND ');
@@ -2376,51 +2494,19 @@ export class KnowledgeService {
       await this.bulkReplaceClassifications(saved.id, templateClassifications, { manager });
     }
 
-    if (body?.relations && typeof body.relations === 'object') {
-      const relationBody = body.relations;
-      if (Array.isArray(relationBody.applications)) {
-        await this.bulkReplaceRelations(saved.id, 'applications', relationBody.applications, { manager });
-      }
-      if (Array.isArray(relationBody.assets)) {
-        await this.bulkReplaceRelations(saved.id, 'assets', relationBody.assets, { manager });
-      }
-      if (Array.isArray(relationBody.projects)) {
-        await this.bulkReplaceRelations(saved.id, 'projects', relationBody.projects, { manager });
-      }
-      if (Array.isArray(relationBody.requests)) {
-        await this.bulkReplaceRelations(saved.id, 'requests', relationBody.requests, { manager });
-      }
-      if (Array.isArray(relationBody.tasks)) {
-        await this.bulkReplaceRelations(saved.id, 'tasks', relationBody.tasks, { manager });
-      }
-    }
+    await this.applyDocumentRelations(saved.id, body?.relations, manager);
 
     await this.ensureVersionSnapshot(saved, body?.change_note ? String(body.change_note) : 'Initial version', userId, manager);
     await this.syncReferences(saved.id, saved.content_markdown, manager);
-
-    const activity = manager.getRepository(DocumentActivity).create({
-      document_id: saved.id,
-      author_id: userId,
-      type: 'change',
-      content: 'Document created',
-      changed_fields: {
-        title: [null, saved.title],
-        status: [null, saved.status],
-      },
-    });
-    await manager.getRepository(DocumentActivity).save(activity);
-
-    await this.audit.log(
-      {
-        table: 'documents',
-        recordId: saved.id,
-        action: 'create',
-        before: null,
-        after: saved,
-        userId,
-      },
-      { manager },
+    await this.createSystemActivity(
+      saved.id,
+      userId,
+      'change',
+      'Document created',
+      manager,
+      this.buildDocumentChanges(null, saved, ['title', 'status']),
     );
+    await this.auditDocumentChange('create', saved.id, null, saved, userId, manager);
 
     return this.get(saved.id, { manager });
   }
@@ -2494,7 +2580,7 @@ export class KnowledgeService {
     let saved = await repo.save(entity);
 
     if (body.relationEntityType && Array.isArray(body.relationIds) && body.relationIds.length > 0) {
-      await this.bulkReplaceRelations(saved.id, body.relationEntityType, body.relationIds, { manager });
+      await this.replaceDocumentRelationsByEntity(saved.id, body.relationEntityType, body.relationIds, manager);
     }
 
     if (opts?.initializer) {
@@ -2552,23 +2638,10 @@ export class KnowledgeService {
       'change',
       body?.activity_content ? String(body.activity_content) : 'Document created',
       manager,
-      {
-        title: [null, saved.title],
-        status: [null, saved.status],
-      },
+      this.buildDocumentChanges(null, saved, ['title', 'status']),
     );
 
-    await this.audit.log(
-      {
-        table: 'documents',
-        recordId: saved.id,
-        action: 'create',
-        before: null,
-        after: saved,
-        userId,
-      },
-      { manager },
-    );
+    await this.auditDocumentChange('create', saved.id, null, saved, userId, manager);
 
     return saved;
   }
@@ -2656,12 +2729,7 @@ export class KnowledgeService {
     }
 
     if (body?.activity_content) {
-      const changes: Record<string, [unknown, unknown]> = {};
-      if (before.title !== saved.title) changes.title = [before.title, saved.title];
-      if (before.summary !== saved.summary) changes.summary = [before.summary, saved.summary];
-      if (before.content_markdown !== saved.content_markdown) {
-        changes.content_markdown = ['(changed)', '(changed)'];
-      }
+      const changes = this.buildDocumentChanges(before, saved, ['title', 'summary', 'content_markdown']);
       await this.createSystemActivity(
         saved.id,
         userId,
@@ -2672,17 +2740,7 @@ export class KnowledgeService {
       );
     }
 
-    await this.audit.log(
-      {
-        table: 'documents',
-        recordId: saved.id,
-        action: 'update',
-        before,
-        after: saved,
-        userId,
-      },
-      { manager },
-    );
+    await this.auditDocumentChange('update', saved.id, before, saved, userId, manager);
 
     return saved;
   }
@@ -2832,17 +2890,7 @@ export class KnowledgeService {
 
     await repo.delete({ id } as any);
 
-    await this.audit.log(
-      {
-        table: 'documents',
-        recordId: existing.id,
-        action: 'delete',
-        before: existing,
-        after: null,
-        userId,
-      },
-      { manager },
-    );
+    await this.auditDocumentChange('delete', existing.id, existing, null, userId, manager);
   }
 
   async update(
@@ -2981,55 +3029,24 @@ export class KnowledgeService {
       await this.bulkReplaceClassifications(saved.id, body.classifications, { manager });
     }
 
-    if (body?.relations && typeof body.relations === 'object') {
-      const relationBody = body.relations;
-      if (Array.isArray(relationBody.applications)) {
-        await this.bulkReplaceRelations(saved.id, 'applications', relationBody.applications, { manager });
-      }
-      if (Array.isArray(relationBody.assets)) {
-        await this.bulkReplaceRelations(saved.id, 'assets', relationBody.assets, { manager });
-      }
-      if (Array.isArray(relationBody.projects)) {
-        await this.bulkReplaceRelations(saved.id, 'projects', relationBody.projects, { manager });
-      }
-      if (Array.isArray(relationBody.requests)) {
-        await this.bulkReplaceRelations(saved.id, 'requests', relationBody.requests, { manager });
-      }
-      if (Array.isArray(relationBody.tasks)) {
-        await this.bulkReplaceRelations(saved.id, 'tasks', relationBody.tasks, { manager });
-      }
-    }
+    await this.applyDocumentRelations(saved.id, body?.relations, manager);
 
     await this.syncReferences(saved.id, saved.content_markdown, manager);
 
-    const changes: Record<string, [unknown, unknown]> = {};
-    if (before.title !== saved.title) changes.title = [before.title, saved.title];
-    if (before.summary !== saved.summary) changes.summary = [before.summary, saved.summary];
-    if (before.status !== saved.status) changes.status = [before.status, saved.status];
-    if (before.content_markdown !== saved.content_markdown) changes.content_markdown = ['(changed)', '(changed)'];
+    const changes = this.buildDocumentChanges(before, saved, ['title', 'summary', 'status', 'content_markdown']);
 
     if (Object.keys(changes).length > 0 && (saveMode === 'manual' || statusChanged)) {
-      const activity = manager.getRepository(DocumentActivity).create({
-        document_id: saved.id,
-        author_id: userId,
-        type: 'change',
-        content: statusChanged ? 'Document status changed' : 'Document updated',
-        changed_fields: changes,
-      });
-      await manager.getRepository(DocumentActivity).save(activity);
+      await this.createSystemActivity(
+        saved.id,
+        userId,
+        'change',
+        statusChanged ? 'Document status changed' : 'Document updated',
+        manager,
+        changes,
+      );
     }
 
-    await this.audit.log(
-      {
-        table: 'documents',
-        recordId: saved.id,
-        action: 'update',
-        before,
-        after: saved,
-        userId,
-      },
-      { manager },
-    );
+    await this.auditDocumentChange('update', saved.id, before, saved, userId, manager);
 
     return this.get(saved.id, { manager });
   }
@@ -3046,17 +3063,7 @@ export class KnowledgeService {
 
     await repo.delete({ id } as any);
 
-    await this.audit.log(
-      {
-        table: 'documents',
-        recordId: id,
-        action: 'delete',
-        before: existing,
-        after: null,
-        userId,
-      },
-      { manager },
-    );
+    await this.auditDocumentChange('delete', id, existing, null, userId, manager);
 
     return { ok: true };
   }
@@ -3844,23 +3851,12 @@ export class KnowledgeService {
     return { ok: true };
   }
 
-  async bulkReplaceRelations(
-    idOrRef: string,
+  async replaceDocumentRelationsByEntity(
+    documentId: string,
     entity: RelationEntityType,
     ids: string[],
-    opts?: { manager?: EntityManager; userId?: string | null; guardAgainstActiveLock?: boolean },
+    manager: EntityManager,
   ) {
-    const manager = this.getManager(opts);
-    const documentId = await this.resolveDocumentId(idOrRef, manager);
-    if (opts?.guardAgainstActiveLock) {
-      await this.assertWorkflowAllowsEditing(documentId, manager);
-      await this.assertDocumentUnlockedForUser(documentId, opts.userId || null, manager);
-    }
-
-    if (await this.getIntegratedBinding(documentId, manager)) {
-      throw new BadRequestException('Managed integrated document relations cannot be changed from Knowledge');
-    }
-
     const map = RELATION_TABLE_MAP[entity];
     if (!map) throw new BadRequestException('Unsupported relation entity');
 
@@ -3869,17 +3865,66 @@ export class KnowledgeService {
     await this.assertTenantScopedIdsExist(manager, map.targetTable as any, values, `related ${map.label}`);
 
     await manager.query(`DELETE FROM ${map.table} WHERE document_id = $1`, [documentId]);
-
-    for (const value of values) {
+    if (values.length > 0) {
       await manager.query(
         `INSERT INTO ${map.table} (tenant_id, document_id, ${map.idColumn})
-         VALUES (app_current_tenant(), $1, $2)
+         SELECT app_current_tenant(), $1, value
+         FROM unnest($2::uuid[]) AS value
          ON CONFLICT (document_id, ${map.idColumn}) DO NOTHING`,
-        [documentId, value],
+        [documentId, values],
       );
     }
 
     return { ok: true, count: values.length };
+  }
+
+  async addDocumentRelationByEntity(
+    documentId: string,
+    entity: RelationEntityType,
+    targetId: string,
+    manager: EntityManager,
+  ) {
+    const map = RELATION_TABLE_MAP[entity];
+    if (!map) throw new BadRequestException('Unsupported relation entity');
+
+    const normalizedTargetId = String(targetId || '').trim();
+    if (!normalizedTargetId) {
+      throw new BadRequestException(`${map.idColumn} is required`);
+    }
+
+    await this.assertTenantScopedIdsExist(manager, map.targetTable as any, [normalizedTargetId], `related ${map.label}`);
+    await manager.query(
+      `INSERT INTO ${map.table} (tenant_id, document_id, ${map.idColumn})
+       VALUES (app_current_tenant(), $1, $2)
+       ON CONFLICT (document_id, ${map.idColumn}) DO NOTHING`,
+      [documentId, normalizedTargetId],
+    );
+
+    return { ok: true };
+  }
+
+  async removeDocumentRelationByEntity(
+    documentId: string,
+    entity: RelationEntityType,
+    targetId: string,
+    manager: EntityManager,
+  ) {
+    const map = RELATION_TABLE_MAP[entity];
+    if (!map) throw new BadRequestException('Unsupported relation entity');
+
+    const normalizedTargetId = String(targetId || '').trim();
+    if (!normalizedTargetId) {
+      throw new BadRequestException(`${map.idColumn} is required`);
+    }
+
+    await manager.query(
+      `DELETE FROM ${map.table}
+       WHERE document_id = $1
+         AND ${map.idColumn} = $2`,
+      [documentId, normalizedTargetId],
+    );
+
+    return { ok: true };
   }
 
   async listIncomingReferences(idOrRef: string, opts?: { manager?: EntityManager }) {
@@ -3899,411 +3944,6 @@ export class KnowledgeService {
        ORDER BY d.updated_at DESC`,
       [documentId],
     );
-  }
-
-  private async getPendingWorkflowParticipantOrThrow(
-    workflowId: string,
-    userId: string,
-    stage: DocumentWorkflowStage,
-    manager: EntityManager,
-  ): Promise<DocumentWorkflowParticipant> {
-    const participant = await manager.getRepository(DocumentWorkflowParticipant).findOne({
-      where: {
-        workflow_id: workflowId,
-        user_id: userId,
-        stage,
-      } as any,
-    });
-    if (!participant) {
-      throw new HttpException('You are not assigned to the active workflow stage', 403);
-    }
-    if (participant.decision !== 'pending') {
-      throw new BadRequestException('You have already acted on this workflow stage');
-    }
-    return participant;
-  }
-
-  private async finalizeWorkflowApproved(
-    document: Document,
-    workflow: DocumentWorkflow,
-    actedByUserId: string,
-    appBaseUrl: string | null | undefined,
-    manager: EntityManager,
-  ): Promise<void> {
-    workflow.status = 'approved';
-    workflow.completed_at = new Date();
-    await manager.getRepository(DocumentWorkflow).save(workflow);
-
-    document.status = 'published';
-    document.published_at = new Date();
-    document.last_reviewed_at = new Date();
-    document.updated_by = actedByUserId;
-    document.updated_at = new Date();
-    await manager.getRepository(Document).save(document);
-
-    await this.createSystemActivity(
-      document.id,
-      actedByUserId,
-      'decision',
-      'Workflow approved and document published',
-      manager,
-      { status: ['in_review', 'published'] },
-    );
-
-    const documentUrl = this.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
-    const recipients = await this.getDocumentNotificationRecipients(
-      manager,
-      document.id,
-      [workflow.requested_by, actedByUserId],
-    );
-    const documentRef = `DOC-${document.item_number}`;
-    const email = buildKnowledgeWorkflowApprovedEmail({
-      documentRef,
-      documentTitle: document.title,
-      documentUrl,
-    });
-    await this.sendWorkflowEmail(recipients, email.subject, email.html, email.text);
-  }
-
-  async requestWorkflowReview(
-    idOrRef: string,
-    body: any,
-    userId: string,
-    appBaseUrl: string | null | undefined,
-    opts?: { manager?: EntityManager },
-  ) {
-    const manager = this.getManager(opts);
-    const documentId = await this.resolveDocumentId(idOrRef, manager);
-    const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
-    if (!document) throw new NotFoundException('Document not found');
-    await this.assertIntegratedDocumentWorkflowRequestAllowed(documentId, manager);
-
-    const incomingRevision = Number(body?.revision);
-    if (!Number.isFinite(incomingRevision)) {
-      throw new BadRequestException('revision is required');
-    }
-    if (incomingRevision !== Number(document.revision)) {
-      throw new ConflictException('Document revision conflict');
-    }
-
-    const activeWorkflow = await this.getActiveWorkflow(documentId, manager);
-    if (activeWorkflow) {
-      throw new BadRequestException('A review workflow is already active for this document');
-    }
-
-    if (document.status === 'archived' || document.status === 'obsolete') {
-      throw new BadRequestException('Archived or obsolete documents cannot be sent to review');
-    }
-
-    await this.assertDocumentUnlockedForUser(documentId, userId, manager);
-
-    const contributors = await manager.getRepository(DocumentContributor).find({
-      where: { document_id: documentId } as any,
-      order: { created_at: 'ASC' },
-    });
-    const reviewerIds = dedupeStrings(contributors.filter((row) => row.role === 'reviewer').map((row) => row.user_id));
-    const approverIds = dedupeStrings(contributors.filter((row) => row.role === 'validator').map((row) => row.user_id));
-
-    if (!reviewerIds.length && !approverIds.length) {
-      throw new BadRequestException('Assign at least one reviewer or approver before requesting review');
-    }
-
-    const workflowStatus: DocumentWorkflowStatus = reviewerIds.length ? 'pending_review' : 'pending_approval';
-    const workflow = manager.getRepository(DocumentWorkflow).create({
-      document_id: documentId,
-      status: workflowStatus,
-      requested_revision: Number(document.revision || 0),
-      requested_by: userId,
-      completed_at: null,
-    });
-    const savedWorkflow = await manager.getRepository(DocumentWorkflow).save(workflow);
-
-    for (const reviewerId of reviewerIds) {
-      await manager.getRepository(DocumentWorkflowParticipant).save(
-        manager.getRepository(DocumentWorkflowParticipant).create({
-          workflow_id: savedWorkflow.id,
-          user_id: reviewerId,
-          stage: 'reviewer',
-          decision: 'pending',
-        }),
-      );
-    }
-    for (const approverId of approverIds) {
-      await manager.getRepository(DocumentWorkflowParticipant).save(
-        manager.getRepository(DocumentWorkflowParticipant).create({
-          workflow_id: savedWorkflow.id,
-          user_id: approverId,
-          stage: 'approver',
-          decision: 'pending',
-        }),
-      );
-    }
-
-    const previousStatus = document.status;
-    document.status = 'in_review';
-    document.updated_by = userId;
-    document.updated_at = new Date();
-    await manager.getRepository(Document).save(document);
-    await manager.getRepository(DocumentEditLock).delete({ document_id: documentId } as any);
-
-    await this.createSystemActivity(
-      documentId,
-      userId,
-      'change',
-      workflowStatus === 'pending_review' ? 'Review requested' : 'Approval requested',
-      manager,
-      { status: [previousStatus, 'in_review'] },
-    );
-
-    const documentUrl = this.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
-    const requesterName = await this.getUserDisplayName(userId, manager);
-    const stage = workflowStatus === 'pending_review' ? 'reviewer' : 'approver';
-    const recipients = await this.getWorkflowParticipantEmails(manager, savedWorkflow.id, stage);
-    const email = buildKnowledgeWorkflowRequestedEmail({
-      documentRef: `DOC-${document.item_number}`,
-      documentTitle: document.title,
-      documentUrl,
-      requesterName,
-      stage: stage === 'reviewer' ? 'review' : 'approval',
-    });
-    await this.sendWorkflowEmail(recipients.map((row) => row.email), email.subject, email.html, email.text);
-
-    return this.get(documentId, { manager });
-  }
-
-  async approveWorkflow(
-    idOrRef: string,
-    body: any,
-    userId: string,
-    appBaseUrl: string | null | undefined,
-    opts?: { manager?: EntityManager },
-  ) {
-    const manager = this.getManager(opts);
-    const documentId = await this.resolveDocumentId(idOrRef, manager);
-    const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
-    if (!document) throw new NotFoundException('Document not found');
-
-    const workflowView = await this.getActiveWorkflow(documentId, manager);
-    if (!workflowView) {
-      throw new BadRequestException('No active workflow exists for this document');
-    }
-
-    const currentStage = workflowView.current_stage;
-    if (!currentStage) {
-      throw new BadRequestException('The active workflow is not awaiting a decision');
-    }
-
-    const workflow = await manager.getRepository(DocumentWorkflow).findOne({ where: { id: workflowView.id } as any });
-    if (!workflow) throw new NotFoundException('Workflow not found');
-
-    const participant = await this.getPendingWorkflowParticipantOrThrow(workflow.id, userId, currentStage, manager);
-    const comment = normalizeMarkdownRichText(body?.comment, { fieldName: 'comment' }) || null;
-
-    participant.decision = 'approved';
-    participant.comment = comment;
-    participant.acted_at = new Date();
-    await manager.getRepository(DocumentWorkflowParticipant).save(participant);
-
-    await this.createSystemActivity(
-      document.id,
-      userId,
-      'decision',
-      `Approved as ${currentStage}${comment ? `: ${comment}` : ''}`,
-      manager,
-    );
-
-    const pendingRows = await manager.query(
-      `SELECT count(*)::int AS count
-       FROM document_workflow_participants
-       WHERE workflow_id = $1
-         AND stage = $2
-         AND decision = 'pending'`,
-      [workflow.id, currentStage],
-    );
-    const pendingCount = Number(pendingRows[0]?.count || 0);
-    if (pendingCount > 0) {
-      return this.get(documentId, { manager });
-    }
-
-    if (currentStage === 'reviewer') {
-      const approverRows = await manager.query(
-        `SELECT count(*)::int AS count
-         FROM document_workflow_participants
-         WHERE workflow_id = $1
-           AND stage = 'approver'`,
-        [workflow.id],
-      );
-      const approverCount = Number(approverRows[0]?.count || 0);
-      if (approverCount > 0) {
-        workflow.status = 'pending_approval';
-        await manager.getRepository(DocumentWorkflow).save(workflow);
-        await this.createSystemActivity(
-          document.id,
-          userId,
-          'change',
-          'Review stage completed. Approval requested.',
-          manager,
-        );
-
-        const documentUrl = this.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
-        const actorName = await this.getUserDisplayName(userId, manager);
-        const recipients = await this.getWorkflowParticipantEmails(manager, workflow.id, 'approver');
-        const email = buildKnowledgeWorkflowRequestedEmail({
-          documentRef: `DOC-${document.item_number}`,
-          documentTitle: document.title,
-          documentUrl,
-          requesterName: actorName,
-          stage: 'approval',
-        });
-        await this.sendWorkflowEmail(recipients.map((row) => row.email), email.subject, email.html, email.text);
-        return this.get(documentId, { manager });
-      }
-    }
-
-    await this.finalizeWorkflowApproved(document, workflow, userId, appBaseUrl, manager);
-    return this.get(documentId, { manager });
-  }
-
-  async requestWorkflowChanges(
-    idOrRef: string,
-    body: any,
-    userId: string,
-    appBaseUrl: string | null | undefined,
-    opts?: { manager?: EntityManager },
-  ) {
-    const manager = this.getManager(opts);
-    const documentId = await this.resolveDocumentId(idOrRef, manager);
-    const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
-    if (!document) throw new NotFoundException('Document not found');
-
-    const workflowView = await this.getActiveWorkflow(documentId, manager);
-    if (!workflowView) {
-      throw new BadRequestException('No active workflow exists for this document');
-    }
-
-    const currentStage = workflowView.current_stage;
-    if (!currentStage) {
-      throw new BadRequestException('The active workflow is not awaiting a decision');
-    }
-
-    const comment = normalizeMarkdownRichText(body?.comment, { fieldName: 'comment' }) || '';
-    if (!comment.trim()) {
-      throw new BadRequestException('A comment is required when requesting changes');
-    }
-
-    const workflow = await manager.getRepository(DocumentWorkflow).findOne({ where: { id: workflowView.id } as any });
-    if (!workflow) throw new NotFoundException('Workflow not found');
-
-    const participant = await this.getPendingWorkflowParticipantOrThrow(workflow.id, userId, currentStage, manager);
-    participant.decision = 'changes_requested';
-    participant.comment = comment;
-    participant.acted_at = new Date();
-    await manager.getRepository(DocumentWorkflowParticipant).save(participant);
-
-    workflow.status = 'changes_requested';
-    workflow.completed_at = new Date();
-    await manager.getRepository(DocumentWorkflow).save(workflow);
-
-    document.status = 'draft';
-    document.updated_by = userId;
-    document.updated_at = new Date();
-    await manager.getRepository(Document).save(document);
-    await manager.getRepository(DocumentEditLock).delete({ document_id: documentId } as any);
-
-    await this.createSystemActivity(
-      document.id,
-      userId,
-      'decision',
-      `Changes requested by ${currentStage}: ${comment}`,
-      manager,
-      { status: ['in_review', 'draft'] },
-    );
-
-    const documentUrl = this.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
-    const actorName = await this.getUserDisplayName(userId, manager);
-    const recipients = await this.getDocumentNotificationRecipients(
-      manager,
-      document.id,
-      [workflow.requested_by],
-    );
-    const email = buildKnowledgeWorkflowChangesRequestedEmail({
-      documentRef: `DOC-${document.item_number}`,
-      documentTitle: document.title,
-      documentUrl,
-      actorName,
-      comment,
-    });
-    await this.sendWorkflowEmail(recipients, email.subject, email.html, email.text);
-
-    return this.get(documentId, { manager });
-  }
-
-  async cancelWorkflowReview(
-    idOrRef: string,
-    userId: string,
-    appBaseUrl: string | null | undefined,
-    opts?: { manager?: EntityManager },
-  ) {
-    const manager = this.getManager(opts);
-    const documentId = await this.resolveDocumentId(idOrRef, manager);
-    const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
-    if (!document) throw new NotFoundException('Document not found');
-
-    const workflowView = await this.getActiveWorkflow(documentId, manager);
-    if (!workflowView) {
-      throw new BadRequestException('No active workflow exists for this document');
-    }
-
-    const workflow = await manager.getRepository(DocumentWorkflow).findOne({ where: { id: workflowView.id } as any });
-    if (!workflow) throw new NotFoundException('Workflow not found');
-
-    workflow.status = 'cancelled';
-    workflow.completed_at = new Date();
-    await manager.getRepository(DocumentWorkflow).save(workflow);
-
-    document.status = 'draft';
-    document.updated_by = userId;
-    document.updated_at = new Date();
-    await manager.getRepository(Document).save(document);
-    await manager.getRepository(DocumentEditLock).delete({ document_id: documentId } as any);
-
-    await this.createSystemActivity(
-      document.id,
-      userId,
-      'change',
-      'Review cancelled',
-      manager,
-      { status: ['in_review', 'draft'] },
-    );
-
-    const participantEmails = await manager.query(
-      `SELECT DISTINCT u.email
-       FROM document_workflow_participants p
-       JOIN users u ON u.id = p.user_id AND u.tenant_id = p.tenant_id
-       WHERE p.workflow_id = $1
-         AND coalesce(u.status, '') = 'enabled'
-         AND coalesce(u.email, '') <> ''`,
-      [workflow.id],
-    );
-    const recipients = new Set<string>(
-      await this.getDocumentNotificationRecipients(manager, document.id, [workflow.requested_by, userId]),
-    );
-    for (const row of participantEmails) {
-      const email = String(row.email || '').trim();
-      if (email) recipients.add(email);
-    }
-
-    const documentUrl = this.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
-    const actorName = await this.getUserDisplayName(userId, manager);
-    const email = buildKnowledgeWorkflowCancelledEmail({
-      documentRef: `DOC-${document.item_number}`,
-      documentTitle: document.title,
-      documentUrl,
-      actorName,
-    });
-    await this.sendWorkflowEmail(Array.from(recipients), email.subject, email.html, email.text);
-
-    return this.get(documentId, { manager });
   }
 
   async listActivities(idOrRef: string, opts?: { manager?: EntityManager }) {
@@ -4365,17 +4005,26 @@ export class KnowledgeService {
 
   async search(query: any, opts?: { manager?: EntityManager }) {
     const manager = this.getManager(opts);
-    const q = String(query?.q || '').trim();
-    if (!q) throw new BadRequestException('q is required');
+    const search = this.getDocumentSearchState(query?.q);
+    if (!search) throw new BadRequestException('q is required');
 
     const limit = Math.min(Math.max(Number(query?.limit) || 20, 1), 100);
     const libraryId = query?.library_id ? String(query.library_id) : null;
 
-    const params: any[] = [q];
-    let whereLibrary = '';
+    const params: Array<string | number> = [search.term, `%${search.term}%`];
+    const searchClauses = [
+      `d.search_vector @@ websearch_to_tsquery('simple', $1)`,
+      `d.title ILIKE $2`,
+      `COALESCE(d.summary, '') ILIKE $2`,
+    ];
+    if (search.itemNumber != null) {
+      params.push(search.itemNumber);
+      searchClauses.unshift(`d.item_number = $${params.length}`);
+    }
+    const whereClauses = [`(${searchClauses.join(' OR ')})`];
     if (libraryId) {
       params.push(libraryId);
-      whereLibrary = ` AND d.library_id = $${params.length}`;
+      whereClauses.push(`d.library_id = $${params.length}`);
     }
     params.push(limit);
 
@@ -4390,14 +4039,14 @@ export class KnowledgeService {
               d.document_type_id,
               d.library_id,
               dl.name AS library_name,
+              CASE WHEN d.title ILIKE $2 THEN 1 ELSE 0 END AS title_match,
               ts_rank_cd(d.search_vector, websearch_to_tsquery('simple', $1)) AS rank,
               ts_headline('simple', coalesce(d.content_plain, ''), websearch_to_tsquery('simple', $1),
                 'MaxFragments=2, MinWords=8, MaxWords=20') AS snippet
        FROM documents d
        LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
-       WHERE d.search_vector @@ websearch_to_tsquery('simple', $1)
-         ${whereLibrary}
-       ORDER BY rank DESC, d.updated_at DESC
+       WHERE ${whereClauses.join(' AND ')}
+       ORDER BY title_match DESC, rank DESC, d.title ASC, d.updated_at DESC
        LIMIT $${params.length}`,
       params,
     );
@@ -4581,12 +4230,11 @@ export class KnowledgeService {
         `SELECT a.storage_path,
                 a.mime_type,
                 a.size,
-                EXISTS (
-                  SELECT 1
-                  FROM integrated_document_bindings b
-                  WHERE b.document_id = a.document_id
-                ) AS is_managed_integrated_document
+                b.source_entity_type
          FROM document_attachments a
+         LEFT JOIN integrated_document_bindings b
+           ON b.document_id = a.document_id
+          AND b.tenant_id = a.tenant_id
          WHERE a.id = $1
            AND a.source_field IS NOT NULL
          LIMIT 1`,
@@ -4597,13 +4245,13 @@ export class KnowledgeService {
         return null;
       }
 
-      const isManagedIntegratedDocument = !!rows[0].is_managed_integrated_document;
-      if (!isManagedIntegratedDocument) {
-        const canAccess = await this.ensureInlineAttachmentAccess(runner.manager, tenantId, refreshToken);
-        if (!canAccess) {
-          await runner.rollbackTransaction();
-          return null;
-        }
+      const binding = rows[0]?.source_entity_type
+        ? { source_entity_type: rows[0].source_entity_type as 'requests' | 'projects' }
+        : null;
+      const canAccess = await this.ensureInlineAttachmentAccess(runner.manager, tenantId, refreshToken, binding);
+      if (!canAccess) {
+        await runner.rollbackTransaction();
+        return null;
       }
 
       await runner.commitTransaction();

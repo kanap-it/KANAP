@@ -27,12 +27,16 @@ import { resolveTenantAppBaseUrl } from '../common/url';
 import { StorageService } from '../common/storage/storage.service';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { KnowledgeService } from './knowledge.service';
+import { KnowledgeRelationsService } from './knowledge-relations.service';
+import { KnowledgeWorkflowService } from './knowledge-workflow.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('knowledge')
 export class KnowledgeController {
   constructor(
     private readonly docs: KnowledgeService,
+    private readonly relations: KnowledgeRelationsService,
+    private readonly workflows: KnowledgeWorkflowService,
     private readonly storage: StorageService,
   ) {}
 
@@ -137,7 +141,8 @@ export class KnowledgeController {
     if (contentLength != null) {
       res.setHeader('Content-Length', String(contentLength));
     }
-    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    res.setHeader('Vary', 'Cookie');
     obj.stream.pipe(res);
   }
 
@@ -312,6 +317,32 @@ export class KnowledgeController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('knowledge', 'member')
+  @Post(':idOrRef/relations/bulk-replace')
+  bulkReplaceRelationSets(
+    @Param('idOrRef') idOrRef: string,
+    @Body() body:
+      | Partial<Record<'applications' | 'assets' | 'projects' | 'requests' | 'tasks', string[]>>
+      | { relations?: Partial<Record<'applications' | 'assets' | 'projects' | 'requests' | 'tasks', string[]>> },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const relationBody = body as any;
+    const relations: Partial<Record<'applications' | 'assets' | 'projects' | 'requests' | 'tasks', string[]>> = (
+      relationBody
+      && typeof relationBody === 'object'
+      && !Array.isArray(relationBody)
+      && Object.prototype.hasOwnProperty.call(relationBody, 'relations')
+        ? relationBody.relations
+        : relationBody
+    ) ?? {};
+    return this.relations.bulkReplaceRelationSets(idOrRef, relations || {}, {
+      manager: ctx.manager,
+      userId: ctx.userId || null,
+      guardAgainstActiveLock: true,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'member')
   @Post(':idOrRef/relations/applications/bulk-replace')
   bulkReplaceApplicationRelations(
     @Param('idOrRef') idOrRef: string,
@@ -319,7 +350,7 @@ export class KnowledgeController {
     @Tenant() ctx: TenantRequest,
   ) {
     const ids = Array.isArray(body) ? body : body?.application_ids ?? [];
-    return this.docs.bulkReplaceRelations(idOrRef, 'applications', ids, {
+    return this.relations.bulkReplaceRelations(idOrRef, 'applications', ids, {
       manager: ctx.manager,
       userId: ctx.userId || null,
       guardAgainstActiveLock: true,
@@ -335,7 +366,7 @@ export class KnowledgeController {
     @Tenant() ctx: TenantRequest,
   ) {
     const ids = Array.isArray(body) ? body : body?.asset_ids ?? [];
-    return this.docs.bulkReplaceRelations(idOrRef, 'assets', ids, {
+    return this.relations.bulkReplaceRelations(idOrRef, 'assets', ids, {
       manager: ctx.manager,
       userId: ctx.userId || null,
       guardAgainstActiveLock: true,
@@ -351,7 +382,7 @@ export class KnowledgeController {
     @Tenant() ctx: TenantRequest,
   ) {
     const ids = Array.isArray(body) ? body : body?.project_ids ?? [];
-    return this.docs.bulkReplaceRelations(idOrRef, 'projects', ids, {
+    return this.relations.bulkReplaceRelations(idOrRef, 'projects', ids, {
       manager: ctx.manager,
       userId: ctx.userId || null,
       guardAgainstActiveLock: true,
@@ -367,7 +398,7 @@ export class KnowledgeController {
     @Tenant() ctx: TenantRequest,
   ) {
     const ids = Array.isArray(body) ? body : body?.request_ids ?? [];
-    return this.docs.bulkReplaceRelations(idOrRef, 'requests', ids, {
+    return this.relations.bulkReplaceRelations(idOrRef, 'requests', ids, {
       manager: ctx.manager,
       userId: ctx.userId || null,
       guardAgainstActiveLock: true,
@@ -383,7 +414,39 @@ export class KnowledgeController {
     @Tenant() ctx: TenantRequest,
   ) {
     const ids = Array.isArray(body) ? body : body?.task_ids ?? [];
-    return this.docs.bulkReplaceRelations(idOrRef, 'tasks', ids, {
+    return this.relations.bulkReplaceRelations(idOrRef, 'tasks', ids, {
+      manager: ctx.manager,
+      userId: ctx.userId || null,
+      guardAgainstActiveLock: true,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'member')
+  @Post(':idOrRef/relations/:entity/items/:targetId')
+  addRelation(
+    @Param('idOrRef') idOrRef: string,
+    @Param('entity') entity: string,
+    @Param('targetId') targetId: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.relations.addRelation(idOrRef, entity as any, targetId, {
+      manager: ctx.manager,
+      userId: ctx.userId || null,
+      guardAgainstActiveLock: true,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'member')
+  @Delete(':idOrRef/relations/:entity/items/:targetId')
+  removeRelation(
+    @Param('idOrRef') idOrRef: string,
+    @Param('entity') entity: string,
+    @Param('targetId') targetId: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.relations.removeRelation(idOrRef, entity as any, targetId, {
       manager: ctx.manager,
       userId: ctx.userId || null,
       guardAgainstActiveLock: true,
@@ -407,7 +470,7 @@ export class KnowledgeController {
     @Tenant() ctx: TenantRequest,
   ) {
     const appBaseUrl = this.resolveWorkflowBaseUrl(req);
-    return this.docs.requestWorkflowReview(idOrRef, body, ctx.userId || '', appBaseUrl, { manager: ctx.manager });
+    return this.workflows.requestWorkflowReview(idOrRef, body, ctx.userId || '', appBaseUrl, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
@@ -420,7 +483,7 @@ export class KnowledgeController {
     @Tenant() ctx: TenantRequest,
   ) {
     const appBaseUrl = this.resolveWorkflowBaseUrl(req);
-    return this.docs.approveWorkflow(idOrRef, body, ctx.userId || '', appBaseUrl, { manager: ctx.manager });
+    return this.workflows.approveWorkflow(idOrRef, body, ctx.userId || '', appBaseUrl, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
@@ -433,7 +496,7 @@ export class KnowledgeController {
     @Tenant() ctx: TenantRequest,
   ) {
     const appBaseUrl = this.resolveWorkflowBaseUrl(req);
-    return this.docs.requestWorkflowChanges(idOrRef, body, ctx.userId || '', appBaseUrl, { manager: ctx.manager });
+    return this.workflows.requestWorkflowChanges(idOrRef, body, ctx.userId || '', appBaseUrl, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
@@ -445,7 +508,7 @@ export class KnowledgeController {
     @Tenant() ctx: TenantRequest,
   ) {
     const appBaseUrl = this.resolveWorkflowBaseUrl(req);
-    return this.docs.cancelWorkflowReview(idOrRef, ctx.userId || '', appBaseUrl, { manager: ctx.manager });
+    return this.workflows.cancelWorkflowReview(idOrRef, ctx.userId || '', appBaseUrl, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)

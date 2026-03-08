@@ -93,6 +93,9 @@ type DocumentLibrary = {
   display_order: number;
 };
 
+const EMPTY_RELATION_OPTIONS: RelationOption[] = [];
+const EMPTY_CONTRIBUTOR_OPTIONS: KnowledgeContributorOption[] = [];
+
 type EditLockInfo = {
   holder_user_id: string;
   holder_name: string;
@@ -170,6 +173,10 @@ export default function KnowledgeWorkspacePage() {
   const canManageDocument = hasLevel('knowledge', 'member');
   const [contentFocusNonce, setContentFocusNonce] = React.useState(0);
   const [editorRows, setEditorRows] = React.useState(30);
+  const hydratedDocumentIdRef = React.useRef<string | null>(null);
+  const hasLocalWorkspaceChangesRef = React.useRef(false);
+
+  hasLocalWorkspaceChangesRef.current = dirty || relationsDirty || classificationsDirty || contributorsDirty;
 
   React.useEffect(() => {
     setSidebarOpen(false);
@@ -252,13 +259,13 @@ export default function KnowledgeWorkspacePage() {
   const { data: versions } = useQuery({
     queryKey: ['knowledge-versions', id],
     queryFn: async () => (await api.get(`/knowledge/${id}/versions`)).data,
-    enabled: !isCreate,
+    enabled: !isCreate && sidebarOpen,
   });
 
   const { data: activities } = useQuery({
     queryKey: ['knowledge-activities', id],
     queryFn: async () => (await api.get(`/knowledge/${id}/activities`)).data,
-    enabled: !isCreate,
+    enabled: !isCreate && sidebarOpen,
   });
 
   const { data: libraries = [] } = useQuery({
@@ -323,17 +330,19 @@ export default function KnowledgeWorkspacePage() {
   const { data: classificationData } = useQuery({
     queryKey: ['knowledge-classification-options'],
     queryFn: async () => (await api.get('/knowledge/classification-options')).data as ClassificationResponse,
-    enabled: !isCreate && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocument,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const { data: contributorOptions = [] } = useQuery({
+  const { data: contributorOptions = EMPTY_CONTRIBUTOR_OPTIONS } = useQuery({
     queryKey: ['knowledge-contributor-options'],
     queryFn: async () => (await api.get('/knowledge/contributor-options')).data as KnowledgeContributorOption[],
-    enabled: !isCreate && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocument,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Relation search queries
-  const { data: applicationOptions = [] } = useQuery({
+  const { data: applicationOptions = EMPTY_RELATION_OPTIONS } = useQuery({
     queryKey: ['knowledge-relation-options', 'applications', relationSearch.applications],
     queryFn: async () => {
       const res = await api.get<{ items: Array<{ id: string; label: string }> }>('/knowledge/relation-options/applications', {
@@ -341,10 +350,11 @@ export default function KnowledgeWorkspacePage() {
       });
       return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
     },
-    enabled: !isCreate && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocument,
+    staleTime: 60_000,
   });
 
-  const { data: assetOptions = [] } = useQuery({
+  const { data: assetOptions = EMPTY_RELATION_OPTIONS } = useQuery({
     queryKey: ['knowledge-relation-options', 'assets', relationSearch.assets],
     queryFn: async () => {
       const res = await api.get<{ items: Array<{ id: string; label: string }> }>('/knowledge/relation-options/assets', {
@@ -352,10 +362,11 @@ export default function KnowledgeWorkspacePage() {
       });
       return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
     },
-    enabled: !isCreate && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocument,
+    staleTime: 60_000,
   });
 
-  const { data: projectOptions = [] } = useQuery({
+  const { data: projectOptions = EMPTY_RELATION_OPTIONS } = useQuery({
     queryKey: ['knowledge-relation-options', 'projects', relationSearch.projects],
     queryFn: async () => {
       const res = await api.get<{ items: Array<{ id: string; label: string }> }>('/knowledge/relation-options/projects', {
@@ -363,10 +374,11 @@ export default function KnowledgeWorkspacePage() {
       });
       return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
     },
-    enabled: !isCreate && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocument,
+    staleTime: 60_000,
   });
 
-  const { data: requestOptions = [] } = useQuery({
+  const { data: requestOptions = EMPTY_RELATION_OPTIONS } = useQuery({
     queryKey: ['knowledge-relation-options', 'requests', relationSearch.requests],
     queryFn: async () => {
       const res = await api.get<{ items: Array<{ id: string; label: string }> }>('/knowledge/relation-options/requests', {
@@ -374,10 +386,11 @@ export default function KnowledgeWorkspacePage() {
       });
       return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
     },
-    enabled: !isCreate && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocument,
+    staleTime: 60_000,
   });
 
-  const { data: taskOptions = [] } = useQuery({
+  const { data: taskOptions = EMPTY_RELATION_OPTIONS } = useQuery({
     queryKey: ['knowledge-relation-options', 'tasks', relationSearch.tasks],
     queryFn: async () => {
       const res = await api.get<{ items: Array<{ id: string; label: string }> }>('/knowledge/relation-options/tasks', {
@@ -385,7 +398,8 @@ export default function KnowledgeWorkspacePage() {
       });
       return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
     },
-    enabled: !isCreate && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocument,
+    staleTime: 60_000,
   });
 
   const parseLockInfo = React.useCallback((raw: any): EditLockInfo | null => {
@@ -410,7 +424,10 @@ export default function KnowledgeWorkspacePage() {
   const applyDocumentState = React.useCallback((nextDoc: any) => {
     if (!nextDoc) return;
     const incomingRelations = nextDoc.relations || {};
-    const mapRelation = (item: any) => ({ id: item?.id || item, label: item?.name || item?.id || item });
+    const mapRelation = (item: any) => ({
+      id: item?.id || item,
+      label: item?.label || item?.name || item?.title || item?.id || item,
+    });
     const incomingContributors = Array.isArray(nextDoc.contributors) ? nextDoc.contributors : [];
     const nextRelations: Record<RelationKey, RelationOption[]> = {
       applications: (incomingRelations.applications || []).map(mapRelation),
@@ -470,11 +487,79 @@ export default function KnowledgeWorkspacePage() {
     setDirty(false);
   }, []);
 
+  const updateDocumentCache = React.useCallback((updater: (current: any) => any) => {
+    if (isCreate) return;
+    qc.setQueryData(['knowledge', id], (current: any) => {
+      if (!current) return current;
+      return updater(current);
+    });
+  }, [id, isCreate, qc]);
+
+  const buildRelationPayload = React.useCallback(
+    (selections: Record<RelationKey, RelationOption[]>) => ({
+      applications: Array.from(new Set((selections.applications || []).map((option) => option.id).filter(Boolean))),
+      assets: Array.from(new Set((selections.assets || []).map((option) => option.id).filter(Boolean))),
+      projects: Array.from(new Set((selections.projects || []).map((option) => option.id).filter(Boolean))),
+      requests: Array.from(new Set((selections.requests || []).map((option) => option.id).filter(Boolean))),
+      tasks: Array.from(new Set((selections.tasks || []).map((option) => option.id).filter(Boolean))),
+    }),
+    [],
+  );
+
+  const buildRelationCacheValue = React.useCallback(
+    (selections: Record<RelationKey, RelationOption[]>) => ({
+      applications: (selections.applications || []).map((option) => ({ id: option.id, name: option.label || option.id })),
+      assets: (selections.assets || []).map((option) => ({ id: option.id, name: option.label || option.id })),
+      projects: (selections.projects || []).map((option) => ({ id: option.id, name: option.label || option.id })),
+      requests: (selections.requests || []).map((option) => ({ id: option.id, name: option.label || option.id })),
+      tasks: (selections.tasks || []).map((option) => ({ id: option.id, name: option.label || option.id })),
+    }),
+    [],
+  );
+
+  const buildContributorCacheValue = React.useCallback((assignments: ContributorAssignments) => {
+    const contributorById = new Map<string, KnowledgeContributorOption>();
+    for (const option of contributorOptions) contributorById.set(option.id, option);
+
+    const toCacheRow = (userId: string, role: 'owner' | 'author' | 'reviewer' | 'validator', isPrimary: boolean) => {
+      const option = contributorById.get(userId);
+      const firstName = String(option?.first_name || '').trim();
+      const lastName = String(option?.last_name || '').trim();
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      return {
+        user_id: userId,
+        role,
+        is_primary: isPrimary,
+        user_name: fullName || option?.label || option?.email || userId,
+        email: option?.email || null,
+      };
+    };
+
+    const ownerUserId = assignments.owner_user_id || profile?.id || null;
+    return [
+      ...(ownerUserId ? [toCacheRow(ownerUserId, 'owner', true)] : []),
+      ...Array.from(new Set(assignments.author_user_ids.filter((entry) => entry && entry !== ownerUserId)))
+        .map((userId) => toCacheRow(userId, 'author', false)),
+      ...Array.from(new Set(assignments.reviewer_user_ids.filter(Boolean)))
+        .map((userId) => toCacheRow(userId, 'reviewer', false)),
+      ...Array.from(new Set(assignments.approver_user_ids.filter(Boolean)))
+        .map((userId) => toCacheRow(userId, 'validator', false)),
+    ];
+  }, [contributorOptions, profile?.id]);
+
   // Sync doc data to form state
   React.useEffect(() => {
     if (!doc || isCreate) return;
-    applyDocumentState(doc);
-  }, [applyDocumentState, doc, isCreate]);
+    const nextDocId = String(doc.id || id);
+    if (hydratedDocumentIdRef.current !== nextDocId) {
+      hydratedDocumentIdRef.current = nextDocId;
+      applyDocumentState(doc);
+      return;
+    }
+    if (!hasLocalWorkspaceChangesRef.current) {
+      applyDocumentState(doc);
+    }
+  }, [applyDocumentState, doc, id, isCreate]);
 
   // Replace UUID in URL with item_ref
   React.useEffect(() => {
@@ -606,7 +691,7 @@ export default function KnowledgeWorkspacePage() {
         return;
       }
       setForm((prev: any) => ({ ...prev, revision: Number(result.data?.revision || prev.revision + 1) }));
-      await qc.invalidateQueries({ queryKey: ['knowledge', id] });
+      updateDocumentCache((current) => result.data || current);
       await qc.invalidateQueries({ queryKey: ['knowledge-versions', id] });
       await qc.invalidateQueries({ queryKey: ['knowledge-activities', id] });
     },
@@ -671,12 +756,12 @@ export default function KnowledgeWorkspacePage() {
       });
     },
     onSuccess: async () => {
+      const result = await refetch();
+      applyDocumentState(result.data || doc);
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ['knowledge', id] }),
         qc.invalidateQueries({ queryKey: ['knowledge-versions', id] }),
         qc.invalidateQueries({ queryKey: ['knowledge-activities', id] }),
       ]);
-      await refetch();
     },
   });
 
@@ -807,18 +892,44 @@ export default function KnowledgeWorkspacePage() {
     return fallbackLabel || 'Unassigned';
   }, [contributorAssignments.owner_user_id, contributorLabelById, ownerContributor]);
 
+  const activeEditorDocumentId = React.useMemo(
+    () => (!isCreate && doc ? String(doc.id || id) : id),
+    [doc, id, isCreate],
+  );
+
+  const isPendingCurrentDocumentHydration = React.useMemo(
+    () => !isCreate && !!doc && hydratedDocumentIdRef.current !== activeEditorDocumentId,
+    [activeEditorDocumentId, doc, isCreate],
+  );
+
+  const displayTitle = isPendingCurrentDocumentHydration
+    ? String(doc?.title || '')
+    : String(form.title || '');
+
+  const displayContentMarkdown = isPendingCurrentDocumentHydration
+    ? String(doc?.content_markdown || '')
+    : String(form.content_markdown || '');
+
   // Enrich relation labels from fetched options
   React.useEffect(() => {
     setRelationSelections((prev) => {
-      const next: Record<RelationKey, RelationOption[]> = { ...prev };
-      (Object.keys(next) as RelationKey[]).forEach((key) => {
+      let changed = false;
+      const next = {} as Record<RelationKey, RelationOption[]>;
+      (Object.keys(prev) as RelationKey[]).forEach((key) => {
         const byId = new Map(allRelationOptions[key].map((option) => [option.id, option.label]));
-        next[key] = next[key].map((entry) => ({
-          ...entry,
-          label: byId.get(entry.id) || entry.label || entry.id,
-        }));
+        next[key] = prev[key].map((entry) => {
+          const nextLabel = byId.get(entry.id) || entry.label || entry.id;
+          if (nextLabel !== entry.label) {
+            changed = true;
+            return {
+              ...entry,
+              label: nextLabel,
+            };
+          }
+          return entry;
+        });
       });
-      return next;
+      return changed ? next : prev;
     });
   }, [allRelationOptions]);
 
@@ -846,18 +957,29 @@ export default function KnowledgeWorkspacePage() {
   const saveRelationsMutation = useMutation({
     mutationFn: async () => {
       if (isCreate) return;
-      const relationKeys: RelationKey[] = ['applications', 'assets', 'projects', 'requests', 'tasks'];
-      for (const key of relationKeys) {
-        const ids = Array.from(new Set((relationSelections[key] || []).map((option) => option.id).filter(Boolean)));
-        await api.post(`/knowledge/${id}/relations/${key}/bulk-replace`, {
-          [RELATION_BODY_KEYS[key]]: ids,
-        });
-      }
+      const nextSelections: Record<RelationKey, RelationOption[]> = {
+        applications: [...relationSelections.applications],
+        assets: [...relationSelections.assets],
+        projects: [...relationSelections.projects],
+        requests: [...relationSelections.requests],
+        tasks: [...relationSelections.tasks],
+      };
+      const payload = buildRelationPayload(nextSelections);
+      await Promise.all(
+        (Object.keys(payload) as RelationKey[]).map((key) => api.post(
+          `/knowledge/${id}/relations/${key}/bulk-replace`,
+          { [RELATION_BODY_KEYS[key]]: payload[key] },
+        )),
+      );
+      return buildRelationCacheValue(nextSelections);
     },
-    onSuccess: async () => {
+    onSuccess: async (nextRelations) => {
       setRelationsError(null);
       setRelationsDirty(false);
-      await qc.invalidateQueries({ queryKey: ['knowledge', id] });
+      updateDocumentCache((current) => ({
+        ...current,
+        relations: nextRelations || current?.relations || {},
+      }));
     },
     onError: (e: any) => {
       setRelationsError(e?.response?.data?.message || e?.message || 'Failed to save relations');
@@ -872,11 +994,15 @@ export default function KnowledgeWorkspacePage() {
         .filter((row) => !!row.category_id)
         .map((row) => ({ category_id: row.category_id, stream_id: row.stream_id || null }));
       await api.post(`/knowledge/${id}/classifications/bulk-replace`, { classifications: rows });
+      return rows;
     },
-    onSuccess: async () => {
+    onSuccess: async (rows) => {
       setClassificationError(null);
       setClassificationsDirty(false);
-      await qc.invalidateQueries({ queryKey: ['knowledge', id] });
+      updateDocumentCache((current) => ({
+        ...current,
+        classifications: rows || [],
+      }));
     },
     onError: (e: any) => {
       setClassificationError(e?.response?.data?.message || e?.message || 'Failed to save classifications');
@@ -899,12 +1025,17 @@ export default function KnowledgeWorkspacePage() {
         ...Array.from(new Set(contributorAssignments.approver_user_ids.filter(Boolean)))
           .map((user_id) => ({ user_id, role: 'validator', is_primary: false })),
       ];
+      const nextContributors = buildContributorCacheValue(contributorAssignments);
       await api.post(`/knowledge/${id}/contributors/bulk-replace`, { contributors: rows });
+      return nextContributors;
     },
-    onSuccess: async () => {
+    onSuccess: async (nextContributors) => {
       setContributorsError(null);
       setContributorsDirty(false);
-      await qc.invalidateQueries({ queryKey: ['knowledge', id] });
+      updateDocumentCache((current) => ({
+        ...current,
+        contributors: nextContributors || current?.contributors || [],
+      }));
     },
     onError: (e: any) => {
       setContributorsError(e?.response?.data?.message || e?.message || 'Failed to save contributors');
@@ -923,11 +1054,9 @@ export default function KnowledgeWorkspacePage() {
       setEditMode(false);
       setLockToken(null);
       setLockExpiresAt(null);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['knowledge', id] }),
-        qc.invalidateQueries({ queryKey: ['knowledge-activities', id] }),
-      ]);
-      await refetch();
+      const result = await refetch();
+      applyDocumentState(result.data || doc);
+      await qc.invalidateQueries({ queryKey: ['knowledge-activities', id] });
     },
     onError: (e: any) => {
       setError(e?.response?.data?.message || e?.message || 'Failed to request review');
@@ -942,11 +1071,9 @@ export default function KnowledgeWorkspacePage() {
     },
     onSuccess: async () => {
       setError(null);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['knowledge', id] }),
-        qc.invalidateQueries({ queryKey: ['knowledge-activities', id] }),
-      ]);
-      await refetch();
+      const result = await refetch();
+      applyDocumentState(result.data || doc);
+      await qc.invalidateQueries({ queryKey: ['knowledge-activities', id] });
     },
     onError: (e: any) => {
       setError(e?.response?.data?.message || e?.message || 'Failed to approve workflow');
@@ -959,11 +1086,9 @@ export default function KnowledgeWorkspacePage() {
     },
     onSuccess: async () => {
       setError(null);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['knowledge', id] }),
-        qc.invalidateQueries({ queryKey: ['knowledge-activities', id] }),
-      ]);
-      await refetch();
+      const result = await refetch();
+      applyDocumentState(result.data || doc);
+      await qc.invalidateQueries({ queryKey: ['knowledge-activities', id] });
     },
     onError: (e: any) => {
       setError(e?.response?.data?.message || e?.message || 'Failed to request changes');
@@ -979,11 +1104,9 @@ export default function KnowledgeWorkspacePage() {
       setEditMode(false);
       setLockToken(null);
       setLockExpiresAt(null);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['knowledge', id] }),
-        qc.invalidateQueries({ queryKey: ['knowledge-activities', id] }),
-      ]);
-      await refetch();
+      const result = await refetch();
+      applyDocumentState(result.data || doc);
+      await qc.invalidateQueries({ queryKey: ['knowledge-activities', id] });
       await startEdit({ silentConflict: true });
     },
     onError: (e: any) => {
@@ -1185,7 +1308,7 @@ export default function KnowledgeWorkspacePage() {
                 <Box sx={{ ...titleBarSx, minWidth: 0 }}>
                   {canEditContent && !isManagedIntegratedDocument ? (
                     <TextField
-                      value={form.title || ''}
+                      value={displayTitle}
                       onChange={(e) => handleFormChange('title', e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Tab' && !e.shiftKey) {
@@ -1204,7 +1327,7 @@ export default function KnowledgeWorkspacePage() {
                     />
                   ) : (
                     <Typography variant="h5" sx={{ fontWeight: 600, py: 0.4 }}>
-                      {form.title || 'Untitled Knowledge'}
+                      {displayTitle || 'Untitled Knowledge'}
                     </Typography>
                   )}
                 </Box>
@@ -1259,7 +1382,8 @@ export default function KnowledgeWorkspacePage() {
 
               <Box ref={editorHostRef} sx={{ flex: 1, minHeight: 0 }}>
                 <MarkdownEditor
-                  value={form.content_markdown || ''}
+                  key={activeEditorDocumentId}
+                  value={displayContentMarkdown}
                   onChange={(value) => handleFormChange('content_markdown', value)}
                   disabled={!canEditContent}
                   focusNonce={contentFocusNonce}
