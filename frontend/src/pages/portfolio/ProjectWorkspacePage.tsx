@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert, Box, Button, Chip, IconButton, LinearProgress, Stack, Typography,
 } from '@mui/material';
@@ -145,7 +145,6 @@ export default function ProjectWorkspacePage() {
       return res.data;
     },
     enabled: !isCreate,
-    placeholderData: keepPreviousData,
   });
 
   // Track recently viewed
@@ -260,11 +259,24 @@ export default function ProjectWorkspacePage() {
   const { data: classificationDefaults, isLoading: classificationDefaultsLoading } = useClassificationDefaults();
 
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
+  const canManage = hasLevel('portfolio_projects', 'manager');
+  const canContributeToProject = hasLevel('portfolio_projects', 'contributor');
+  const canProjectAdmin = hasLevel('portfolio_projects', 'admin');
+
+  React.useEffect(() => {
+    setForm(isCreate ? { origin: 'fast_track' } : {});
+    setDirty(false);
+    setScoringDirty(false);
+    setPurposeDirty(false);
+    setSaveError(null);
+    scoringEditorRef.current?.reset?.();
+    void purposeEditorRef.current?.reset?.();
+  }, [id, isCreate]);
 
   // Sync form with loaded data
   React.useEffect(() => {
     if (data && !isCreate) {
-      setForm((prev: any) => ({ ...(prev || {}), ...data }));
+      setForm({ ...data });
     }
   }, [data, isCreate]);
 
@@ -291,7 +303,17 @@ export default function ProjectWorkspacePage() {
     setForm((prev: any) => ({ ...prev, ...patch }));
   }, [isCreate]);
 
+  const applyPanelLocalUpdate = React.useCallback((updater: (prev: any) => any) => {
+    setForm((prev: any) => updater(prev || {}));
+  }, []);
+
   const persistPanelPatch = React.useCallback(async (patch: Record<string, any>) => {
+    if (!isCreate && !canManage) {
+      setSaveError('You do not have permission to save project details from this panel.');
+      await refetch();
+      return;
+    }
+
     setForm((prev: any) => ({ ...prev, ...patch }));
 
     if (isCreate) {
@@ -307,7 +329,7 @@ export default function ProjectWorkspacePage() {
       setSaveError(e?.response?.data?.message || e?.message || 'Failed to save project details');
       await refetch();
     }
-  }, [id, isCreate, queryClient, refetch]);
+  }, [canManage, id, isCreate, queryClient, refetch]);
 
   React.useEffect(() => {
     if (!isCreate || defaultsAppliedRef.current || classificationDefaultsLoading) return;
@@ -512,9 +534,6 @@ export default function ProjectWorkspacePage() {
     navigate(`/portfolio/projects/${id}/${nextValue}?${searchParams.toString()}`);
   };
 
-  const canManage = hasLevel('portfolio_projects', 'manager');
-  const canContributeToProject = hasLevel('portfolio_projects', 'contributor');
-  const canProjectAdmin = hasLevel('portfolio_projects', 'admin');
   const hasPageDirtyChanges = dirty || scoringDirty;
   const hasUnsavedChanges = hasPageDirtyChanges || purposeDirty;
   const canSaveManagedDocsOnly = !hasPageDirtyChanges && purposeDirty && canContributeToProject;
@@ -788,6 +807,7 @@ export default function ProjectWorkspacePage() {
               classificationTouchedRef.current.company_id = true;
               void persistPanelPatch({ company_id: value });
             }}
+            onLocalUpdate={applyPanelLocalUpdate}
             onNameChange={(value) => { void persistPanelPatch({ name: value }); }}
             onOriginChange={(value) => { void persistPanelPatch({ origin: value }); }}
             onPlannedEndChange={(value) => { void persistPanelPatch({ planned_end: value }); }}

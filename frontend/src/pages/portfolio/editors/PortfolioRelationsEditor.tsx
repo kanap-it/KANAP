@@ -112,10 +112,12 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
   const [linkedOpex, setLinkedOpex] = React.useState<Array<{ id: string; product_name: string }>>([]);
   const [baselineOpex, setBaselineOpex] = React.useState<Array<{ id: string; product_name: string }>>([]);
   const [opexOptions, setOpexOptions] = React.useState<Array<{ id: string; product_name: string }>>([]);
+  const [loadingOpexOptions, setLoadingOpexOptions] = React.useState(false);
 
   const [linkedCapex, setLinkedCapex] = React.useState<Array<{ id: string; description: string }>>([]);
   const [baselineCapex, setBaselineCapex] = React.useState<Array<{ id: string; description: string }>>([]);
   const [capexOptions, setCapexOptions] = React.useState<Array<{ id: string; description: string }>>([]);
+  const [loadingCapexOptions, setLoadingCapexOptions] = React.useState(false);
 
   const [linkedApplications, setLinkedApplications] = React.useState<NamedItem[]>([]);
   const [baselineApplications, setBaselineApplications] = React.useState<NamedItem[]>([]);
@@ -241,34 +243,36 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
     void load();
   }, [load]);
 
-  React.useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const [allSpend, allCapex] = await Promise.all([
-          fetchAllPaged('/spend-items', 'product_name'),
-          fetchAllPaged('/capex-items', 'description'),
-        ]);
-        if (!alive) return;
-        const opexMap = new Map<string, { id: string; product_name: string }>();
-        for (const item of allSpend) {
-          opexMap.set(item.id, { id: item.id, product_name: item.product_name || item.id });
-        }
-        const capexMap = new Map<string, { id: string; description: string }>();
-        for (const item of allCapex) {
-          capexMap.set(item.id, { id: item.id, description: item.description || item.id });
-        }
-        setOpexOptions([...opexMap.values()].sort((a, b) => a.product_name.localeCompare(b.product_name)));
-        setCapexOptions([...capexMap.values()].sort((a, b) => a.description.localeCompare(b.description)));
-      } catch {
-        if (!alive) return;
-        setOpexOptions([]);
-        setCapexOptions([]);
+  const loadOpexOptions = React.useCallback(async () => {
+    setLoadingOpexOptions(true);
+    try {
+      const allSpend = await fetchAllPaged('/spend-items', 'product_name');
+      const opexMap = new Map<string, { id: string; product_name: string }>();
+      for (const item of allSpend) {
+        opexMap.set(item.id, { id: item.id, product_name: item.product_name || item.id });
       }
-    })();
-    return () => {
-      alive = false;
-    };
+      setOpexOptions([...opexMap.values()].sort((a, b) => a.product_name.localeCompare(b.product_name)));
+    } catch {
+      setOpexOptions([]);
+    } finally {
+      setLoadingOpexOptions(false);
+    }
+  }, [fetchAllPaged]);
+
+  const loadCapexOptions = React.useCallback(async () => {
+    setLoadingCapexOptions(true);
+    try {
+      const allCapex = await fetchAllPaged('/capex-items', 'description');
+      const capexMap = new Map<string, { id: string; description: string }>();
+      for (const item of allCapex) {
+        capexMap.set(item.id, { id: item.id, description: item.description || item.id });
+      }
+      setCapexOptions([...capexMap.values()].sort((a, b) => a.description.localeCompare(b.description)));
+    } catch {
+      setCapexOptions([]);
+    } finally {
+      setLoadingCapexOptions(false);
+    }
   }, [fetchAllPaged]);
 
   const loadNamedOptions = React.useCallback(async (
@@ -397,6 +401,11 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
               value={linkedOpex}
               getOptionLabel={(option) => option.product_name}
               onChange={(_, value) => setLinkedOpex(value as any)}
+              onOpen={() => {
+                if (opexOptions.length === 0 && !loadingOpexOptions) {
+                  void loadOpexOptions();
+                }
+              }}
               renderOption={(props, option) => (
                 <li {...props} key={option.id}>{option.product_name}</li>
               )}
@@ -404,7 +413,20 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 <Chip {...getTagProps({ index })} key={option.id} label={option.product_name} size="small" />
               ))}
               renderInput={(params) => (
-                <TextField {...params} label="OPEX Items" placeholder="Select OPEX items" />
+                <TextField
+                  {...params}
+                  label="OPEX Items"
+                  placeholder="Select OPEX items"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {loadingOpexOptions ? <CircularProgress color="inherit" size={18} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
               )}
               isOptionEqualToValue={(option, value) => option.id === (value as any).id}
               filterSelectedOptions
@@ -419,6 +441,11 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
               value={linkedCapex}
               getOptionLabel={(option) => option.description}
               onChange={(_, value) => setLinkedCapex(value as any)}
+              onOpen={() => {
+                if (capexOptions.length === 0 && !loadingCapexOptions) {
+                  void loadCapexOptions();
+                }
+              }}
               renderOption={(props, option) => (
                 <li {...props} key={option.id}>{option.description}</li>
               )}
@@ -426,7 +453,20 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 <Chip {...getTagProps({ index })} key={option.id} label={option.description} size="small" />
               ))}
               renderInput={(params) => (
-                <TextField {...params} label="CAPEX Items" placeholder="Select CAPEX items" />
+                <TextField
+                  {...params}
+                  label="CAPEX Items"
+                  placeholder="Select CAPEX items"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {loadingCapexOptions ? <CircularProgress color="inherit" size={18} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
               )}
               isOptionEqualToValue={(option, value) => option.id === (value as any).id}
               filterSelectedOptions

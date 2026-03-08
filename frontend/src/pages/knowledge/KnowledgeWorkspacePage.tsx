@@ -70,6 +70,24 @@ const EMPTY_RELATIONS: Record<RelationKey, RelationOption[]> = {
   tasks: [],
 };
 
+function buildCreateRelationSelections(searchParams: URLSearchParams): Record<RelationKey, RelationOption[]> {
+  const relationParamMap: Array<[RelationKey, string]> = [
+    ['applications', 'application_id'],
+    ['assets', 'asset_id'],
+    ['projects', 'project_id'],
+    ['requests', 'request_id'],
+    ['tasks', 'task_id'],
+  ];
+
+  const next = { ...EMPTY_RELATIONS };
+  for (const [key, param] of relationParamMap) {
+    const value = String(searchParams.get(param) || '').trim();
+    if (!value) continue;
+    next[key] = [{ id: value, label: value }];
+  }
+  return next;
+}
+
 const EMPTY_CONTRIBUTOR_ASSIGNMENTS: ContributorAssignments = {
   owner_user_id: null,
   author_user_ids: [],
@@ -154,6 +172,10 @@ export default function KnowledgeWorkspacePage() {
   const searchParams = React.useMemo(() => new URLSearchParams(location.search), [location.search]);
   const requestedLibrarySlug = searchParams.get('library') || '';
   const templateDocumentIdParam = searchParams.get('template_document_id') || null;
+  const createRelationSelections = React.useMemo(
+    () => buildCreateRelationSelections(searchParams),
+    [searchParams],
+  );
 
   const [form, setForm] = React.useState<any>({
     title: '',
@@ -182,7 +204,9 @@ export default function KnowledgeWorkspacePage() {
     requests: '',
     tasks: '',
   });
-  const [relationSelections, setRelationSelections] = React.useState<Record<RelationKey, RelationOption[]>>(EMPTY_RELATIONS);
+  const [relationSelections, setRelationSelections] = React.useState<Record<RelationKey, RelationOption[]>>(
+    () => (isCreate ? createRelationSelections : EMPTY_RELATIONS),
+  );
   const [classificationRows, setClassificationRows] = React.useState<ClassificationRow[]>([]);
   const [relationsError, setRelationsError] = React.useState<string | null>(null);
   const [relationsDirty, setRelationsDirty] = React.useState(false);
@@ -204,6 +228,12 @@ export default function KnowledgeWorkspacePage() {
   React.useEffect(() => {
     setSidebarOpen(false);
   }, [id, isCreate]);
+
+  React.useEffect(() => {
+    if (!isCreate) return;
+    setRelationSelections(createRelationSelections);
+    setRelationsDirty(false);
+  }, [createRelationSelections, isCreate]);
 
   const updateEditorRows = React.useCallback((height: number) => {
     const safeHeight = Math.max(240, Math.floor(height || 0));
@@ -664,6 +694,7 @@ export default function KnowledgeWorkspacePage() {
         if (!workspaceLibraryId) {
           throw new Error('No destination library available');
         }
+        const createRelationPayload = buildRelationPayload(relationSelections);
         const payload = {
           title: form.title,
           summary: form.summary,
@@ -673,6 +704,7 @@ export default function KnowledgeWorkspacePage() {
           library_id: workspaceLibraryId,
           document_type_id: form.document_type_id || null,
           template_document_id: form.template_document_id || null,
+          relations: createRelationPayload,
           ...(profile?.id ? { owner_user_id: profile.id } : {}),
         };
         const res = await api.post('/knowledge', payload);

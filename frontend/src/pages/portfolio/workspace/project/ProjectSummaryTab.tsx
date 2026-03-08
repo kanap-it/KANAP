@@ -39,15 +39,20 @@ type ProjectTaskStatusSummary = {
   cancelled: number;
 };
 
-type KnowledgeListItem = {
+type KnowledgeContextItem = {
   id: string;
-  updated_at?: string | null;
-  created_at?: string | null;
+  updated_at: string | null;
+  created_at: string | null;
 };
 
-type LinkedDocumentsResponse = {
-  items: KnowledgeListItem[];
+type KnowledgeContextGroup = {
+  key: string;
   total: number;
+  items: KnowledgeContextItem[];
+};
+
+type KnowledgeContextResponse = {
+  groups: KnowledgeContextGroup[];
 };
 
 function SummaryCard({
@@ -136,10 +141,10 @@ export default function ProjectSummaryTab({
     enabled: !isCreate && !!id,
   });
 
-  const { data: knowledgeData } = useQuery({
-    queryKey: ['project-summary-knowledge', id],
+  const { data: knowledgeContext } = useQuery({
+    queryKey: ['project-summary-knowledge-context', id],
     queryFn: async () => {
-      const res = await api.get<LinkedDocumentsResponse>(`/portfolio/projects/${id}/knowledge`);
+      const res = await api.get<KnowledgeContextResponse>(`/portfolio/projects/${id}/knowledge-context`);
       return res.data;
     },
     enabled: !isCreate && !!id,
@@ -176,6 +181,16 @@ export default function ProjectSummaryTab({
   const dependencyCount = form?.dependencies?.length || 0;
   const sourceRequestCount = form?.source_requests?.length || 0;
   const recentActivities = Array.isArray(form?.activities) ? form.activities : [];
+  const directKnowledgeGroup = React.useMemo(
+    () => (knowledgeContext?.groups || []).find((group) => group.key === 'direct') || null,
+    [knowledgeContext?.groups],
+  );
+  const relatedKnowledgeCount = React.useMemo(
+    () => (knowledgeContext?.groups || [])
+      .filter((group) => group.key !== 'direct')
+      .reduce((sum, group) => sum + (group.total || 0), 0),
+    [knowledgeContext?.groups],
+  );
   const latestActivity = React.useMemo(() => {
     return [...recentActivities].sort((a, b) => {
       const aTime = new Date(a?.created_at || 0).getTime();
@@ -188,14 +203,14 @@ export default function ProjectSummaryTab({
     : null;
   const latestActivityAt = formatDateTime(latestActivity?.created_at);
   const latestKnowledgeUpdate = React.useMemo(() => {
-    const items = Array.isArray(knowledgeData?.items) ? knowledgeData.items : [];
+    const items = (knowledgeContext?.groups || []).flatMap((group) => group.items || []);
     const latest = [...items].sort((a, b) => {
       const aTime = new Date(a?.updated_at || a?.created_at || 0).getTime();
       const bTime = new Date(b?.updated_at || b?.created_at || 0).getTime();
       return bTime - aTime;
     })[0];
     return formatDateTime(latest?.updated_at || latest?.created_at || null);
-  }, [knowledgeData?.items]);
+  }, [knowledgeContext?.groups]);
   const scheduleStartVariance = formatVariance(form?.planned_start, form?.baseline_start_date);
   const scheduleEndVariance = formatVariance(form?.planned_end, form?.baseline_end_date);
 
@@ -403,12 +418,13 @@ export default function ProjectSummaryTab({
           ) : (
             <Stack spacing={1}>
               <Typography variant="body2">
-                {knowledgeData?.total || 0} linked knowledge document{knowledgeData?.total === 1 ? '' : 's'}
+                {(directKnowledgeGroup?.total || 0)} linked document{directKnowledgeGroup?.total === 1 ? '' : 's'}
+                {relatedKnowledgeCount > 0 ? ` • ${relatedKnowledgeCount} related` : ''}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {latestKnowledgeUpdate
                   ? `Latest update ${latestKnowledgeUpdate}`
-                  : 'No linked knowledge activity yet.'}
+                  : 'No standalone knowledge activity yet.'}
               </Typography>
             </Stack>
           )}

@@ -198,7 +198,7 @@ export default function RequestSummaryTab({
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' },
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' },
           gap: 2,
         }}
       >

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
   IconButton, LinearProgress, Snackbar, Stack, Typography,
@@ -148,7 +148,6 @@ export default function RequestWorkspacePage() {
       return res.data;
     },
     enabled: !isCreate,
-    placeholderData: keepPreviousData,
   });
 
   // Track recently viewed
@@ -240,6 +239,21 @@ export default function RequestWorkspacePage() {
   const { data: classificationDefaults, isLoading: classificationDefaultsLoading } = useClassificationDefaults();
 
   React.useEffect(() => {
+    setForm(isCreate ? {} : {});
+    setTabDirty(false);
+    setScoringDirty(false);
+    setPurposeDirty(false);
+    setRisksDirty(false);
+    setSaveError(null);
+    savedScoreRef.current = null;
+    scoringEditorRef.current?.reset?.();
+    void Promise.all([
+      purposeEditorRef.current?.reset?.(),
+      risksEditorRef.current?.reset?.(),
+    ]);
+  }, [id, isCreate]);
+
+  React.useEffect(() => {
     if (!isCreate) return;
     classificationTouchedRef.current = {
       source_id: false,
@@ -255,14 +269,13 @@ export default function RequestWorkspacePage() {
     if (data && !isCreate) {
       // If we just saved a score, use that instead of potentially stale data
       if (savedScoreRef.current !== null) {
-        setForm((prev: any) => ({
-          ...(prev || {}),
+        setForm({
           ...data,
           priority_score: savedScoreRef.current,
-        }));
+        });
         savedScoreRef.current = null;
       } else {
-        setForm((prev: any) => ({ ...(prev || {}), ...data }));
+        setForm({ ...data });
       }
     }
   }, [data, isCreate]);
@@ -285,7 +298,17 @@ export default function RequestWorkspacePage() {
     setForm((prev: any) => ({ ...prev, ...patch }));
   }, [isCreate]);
 
+  const applyPanelLocalUpdate = React.useCallback((updater: (prev: any) => any) => {
+    setForm((prev: any) => updater(prev || {}));
+  }, []);
+
   const persistPanelPatch = React.useCallback(async (patch: Record<string, any>) => {
+    if (!isCreate && !canManage) {
+      setSaveError('You do not have permission to save request details from this panel.');
+      await refetch();
+      return;
+    }
+
     setForm((prev: any) => ({ ...prev, ...patch }));
 
     if (isCreate) {
@@ -301,7 +324,7 @@ export default function RequestWorkspacePage() {
       setSaveError(e?.response?.data?.message || e?.message || 'Failed to save request details');
       await refetch();
     }
-  }, [id, isCreate, queryClient, refetch]);
+  }, [canManage, id, isCreate, queryClient, refetch]);
 
   React.useEffect(() => {
     if (!isCreate || defaultsAppliedRef.current || classificationDefaultsLoading) return;
@@ -835,6 +858,7 @@ export default function RequestWorkspacePage() {
               classificationTouchedRef.current.company_id = true;
               void persistPanelPatch({ company_id: value });
             }}
+            onLocalUpdate={applyPanelLocalUpdate}
             onNameChange={(value) => { void persistPanelPatch({ name: value }); }}
             onRefetch={refetch}
             onRequestorChange={(value) => { void persistPanelPatch({ requestor_id: value }); }}

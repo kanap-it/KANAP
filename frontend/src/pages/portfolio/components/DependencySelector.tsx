@@ -18,7 +18,7 @@ interface DependencySelectorProps {
   entityType: 'request' | 'project';
   entityId: string;
   dependencies: Dependency[];
-  onAdd: (targetType: 'request' | 'project', targetId: string) => Promise<void>;
+  onAdd: (target: TargetOption) => Promise<void>;
   onRemove: (targetType: 'request' | 'project', targetId: string) => Promise<void>;
   disabled?: boolean;
 }
@@ -96,7 +96,7 @@ export default function DependencySelector({
     if (!option) return;
     setLoading(true);
     try {
-      await onAdd(option.type, option.id);
+      await onAdd(option);
     } finally {
       setLoading(false);
     }

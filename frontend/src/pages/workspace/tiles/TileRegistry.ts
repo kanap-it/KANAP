@@ -69,10 +69,7 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
     configSchema: {
       limit: { type: 'number', label: 'Max items', min: 3, max: 20 },
     },
-    requiredPermissions: [
-      { resource: 'portfolio_projects', level: 'reader' },
-      { resource: 'tasks', level: 'reader' },
-    ],
+    requiredPermissions: [{ resource: 'portfolio_projects', level: 'reader' }],
   },
   'recently-viewed': {
     component: Placeholder,
@@ -92,10 +89,7 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
     configSchema: {
       days: { type: 'number', label: 'Days to show', min: 7, max: 30 },
     },
-    requiredPermissions: [
-      { resource: 'portfolio_projects', level: 'reader' },
-      { resource: 'tasks', level: 'reader' },
-    ],
+    requiredPermissions: [{ resource: 'portfolio_projects', level: 'reader' }],
   },
   'new-requests': {
     component: Placeholder,

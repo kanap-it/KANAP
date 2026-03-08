@@ -406,7 +406,10 @@ export default function EntityKnowledgePanel({
       qc.invalidateQueries({ queryKey: ['entity-knowledge-context', entityType, entityId] }),
       qc.invalidateQueries({ queryKey: ['entity-knowledge', entityType, entityId] }),
       entityType === 'projects'
-        ? qc.invalidateQueries({ queryKey: ['project-summary-knowledge', entityId] })
+        ? qc.invalidateQueries({ queryKey: ['project-summary-knowledge-context', entityId] })
+        : Promise.resolve(),
+      entityType === 'requests'
+        ? qc.invalidateQueries({ queryKey: ['request-summary-knowledge-context', entityId] })
         : Promise.resolve(),
     ]);
   }, [entityId, entityType, qc]);
@@ -622,13 +625,13 @@ export default function EntityKnowledgePanel({
   const handleCreateFromTemplate = React.useCallback(() => {
     const template = (templatesData?.items || []).find((item) => item.id === selectedTemplateId) || null;
     if (!template) return;
-    createLinkedMutation.mutate({
-      templateDocumentId: template.id,
-      templateTitle: template.title,
-    });
+    const sp = new URLSearchParams();
+    sp.set(`${entityType.slice(0, -1)}_id`, entityId);
+    sp.set('template_document_id', template.id);
+    navigate(`/knowledge/new?${sp.toString()}`);
     setTemplatePickerOpen(false);
     setSelectedTemplateId('');
-  }, [createLinkedMutation, selectedTemplateId, templatesData?.items]);
+  }, [entityId, entityType, navigate, selectedTemplateId, templatesData?.items]);
 
   const headerActions = canCreate ? (
     isSidebar ? (
