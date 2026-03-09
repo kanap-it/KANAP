@@ -48,7 +48,7 @@ export function MarkdownContent({ content, variant = 'default' }: MarkdownConten
   return (
     <Box
       sx={{
-        '& p': { my: isCompact ? 0.25 : 0.5 },
+        '& p': { my: isCompact ? 0.25 : 1 },
         '& p:first-of-type': { mt: 0 },
         '& p:last-of-type': { mb: 0 },
         '& h1': { fontSize: '1.5rem', fontWeight: 600, mt: 2, mb: 1 },

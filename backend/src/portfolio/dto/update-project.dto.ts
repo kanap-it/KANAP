@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ProjectStatuses, ProjectOrigins } from './create-project.dto';
+import { ProjectStatuses, ProjectOrigins, ProjectSchedulingModes } from './create-project.dto';
 
 /**
  * Zod schema for updating a portfolio project.
@@ -32,6 +32,9 @@ export const UpdateProjectSchema = z.object({
 
   /** Project status */
   status: z.enum(ProjectStatuses).optional(),
+
+  /** Scheduling mode */
+  scheduling_mode: z.enum(ProjectSchedulingModes).optional(),
 
   /** Priority score */
   priority_score: z.number().nullable().optional(),

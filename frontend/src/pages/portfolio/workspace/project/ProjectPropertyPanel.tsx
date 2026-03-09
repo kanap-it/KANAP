@@ -137,6 +137,7 @@ export default function ProjectPropertyPanel({
   const handleImmediateSave = React.useCallback(async (
     action: () => Promise<void>,
     optimisticUpdate?: (prev: any) => any,
+    refetchOnSuccess = false,
   ) => {
     setPanelError(null);
     if (optimisticUpdate) {
@@ -144,6 +145,9 @@ export default function ProjectPropertyPanel({
     }
     try {
       await action();
+      if (refetchOnSuccess) {
+        await onRefetch();
+      }
     } catch (error: any) {
       setPanelError(error?.response?.data?.message || error?.message || 'Failed to update project details');
       await onRefetch();
@@ -362,7 +366,8 @@ export default function ProjectPropertyPanel({
                       });
                       await queryClient.invalidateQueries({ queryKey: ['project-effort-allocations', form.id, 'business'] });
                     },
-                    (prev) => ({ ...prev, business_team: userIds }),
+                    undefined,
+                    true,
                   )}
                   disabled={!canManage}
                 />
@@ -377,7 +382,8 @@ export default function ProjectPropertyPanel({
                       });
                       await queryClient.invalidateQueries({ queryKey: ['project-effort-allocations', form.id, 'it'] });
                     },
-                    (prev) => ({ ...prev, it_team: userIds }),
+                    undefined,
+                    true,
                   )}
                   disabled={!canManage}
                 />

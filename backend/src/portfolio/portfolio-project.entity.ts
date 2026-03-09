@@ -12,6 +12,7 @@ export type ProjectStatus =
 export type ProjectOrigin = 'standard' | 'fast_track' | 'legacy';
 
 export type EffortAllocationMode = 'auto' | 'manual';
+export type ProjectSchedulingMode = 'independent' | 'collaborative';
 
 @Entity('portfolio_projects')
 @Index(['tenant_id', 'name'])
@@ -55,6 +56,9 @@ export class PortfolioProject {
 
   @Column('text', { default: 'waiting_list' })
   status!: ProjectStatus;
+
+  @Column('text', { default: 'independent' })
+  scheduling_mode!: ProjectSchedulingMode;
 
   // === Scoring Section ===
   @Column('numeric', { precision: 5, scale: 2, nullable: true })

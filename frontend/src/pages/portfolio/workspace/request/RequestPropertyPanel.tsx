@@ -127,6 +127,7 @@ export default function RequestPropertyPanel({
   const handleImmediateSave = React.useCallback(async (
     action: () => Promise<void>,
     optimisticUpdate?: (prev: any) => any,
+    refetchOnSuccess = false,
   ) => {
     setPanelError(null);
     if (optimisticUpdate) {
@@ -134,6 +135,9 @@ export default function RequestPropertyPanel({
     }
     try {
       await action();
+      if (refetchOnSuccess) {
+        await onRefetch();
+      }
     } catch (error: any) {
       setPanelError(error?.response?.data?.message || error?.message || 'Failed to update request details');
       await onRefetch();
@@ -324,7 +328,8 @@ export default function RequestPropertyPanel({
                     () => api.post(`/portfolio/requests/${form.id}/business-team/bulk-replace`, {
                       user_ids: userIds,
                     }),
-                    (prev) => ({ ...prev, business_team: userIds }),
+                    undefined,
+                    true,
                   )}
                   disabled={!canManage}
                 />
@@ -336,7 +341,8 @@ export default function RequestPropertyPanel({
                     () => api.post(`/portfolio/requests/${form.id}/it-team/bulk-replace`, {
                       user_ids: userIds,
                     }),
-                    (prev) => ({ ...prev, it_team: userIds }),
+                    undefined,
+                    true,
                   )}
                   disabled={!canManage}
                 />

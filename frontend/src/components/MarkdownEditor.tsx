@@ -361,7 +361,7 @@ export default function MarkdownEditor({
             overflowX: 'hidden',
             overscrollBehavior: 'contain',
             outline: 'none',
-            '& p': { my: 0.5 },
+            '& p': { my: 1 },
             '& h1': { fontSize: '1.5rem', fontWeight: 600, mt: 2, mb: 1 },
             '& h2': { fontSize: '1.25rem', fontWeight: 600, mt: 1.5, mb: 0.75 },
             '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 1, mb: 0.5 },

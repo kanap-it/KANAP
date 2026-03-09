@@ -52,6 +52,8 @@ import { computeInactiveSegments } from './roadmap-inactive-segments';
 
 type RoadmapTab = 'schedule' | 'bottlenecks' | 'occupation';
 type OccupationView = 'contributor' | 'team';
+type SchedulingMode = 'independent' | 'collaborative';
+type CapacityConstraintMode = 'full' | 'it_only';
 
 type OnHoldRange = {
   from: string;
@@ -62,6 +64,7 @@ type ScheduledProject = {
   projectId: string;
   projectName: string;
   status: string;
+  schedulingMode: SchedulingMode;
   categoryId: string | null;
   sourceId: string | null;
   streamId: string | null;
@@ -88,6 +91,7 @@ type ReservationProject = {
   projectId: string;
   projectName: string;
   status: string;
+  schedulingMode: SchedulingMode;
   categoryId: string | null;
   sourceId: string | null;
   streamId: string | null;
@@ -106,6 +110,7 @@ type UnschedulableProject = {
   projectId: string;
   projectName: string;
   status: string;
+  schedulingMode: SchedulingMode;
   reason: string;
   details?: string;
 };
@@ -202,17 +207,30 @@ const STATUS_OPTIONS = [
   { value: 'planned', label: 'Planned' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'in_testing', label: 'In Testing' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'done', label: 'Done' },
 ];
 
 const STATUS_LABELS = Object.fromEntries(STATUS_OPTIONS.map((s) => [s.value, s.label]));
+const SCHEDULING_MODE_OPTIONS: Array<{ value: SchedulingMode; label: string }> = [
+  { value: 'independent', label: 'Independent' },
+  { value: 'collaborative', label: 'Collaborative' },
+];
+const SCHEDULING_MODE_LABELS: Record<SchedulingMode, string> = Object.fromEntries(
+  SCHEDULING_MODE_OPTIONS.map((option) => [option.value, option.label]),
+) as Record<SchedulingMode, string>;
 
 const REASON_LABELS: Record<string, string> = {
   zero_remaining_effort: 'No Remaining Effort',
   no_assigned_contributors: 'No Contributors',
   missing_blocker_date: 'Missing Blocker Date',
+  blocker_on_hold: 'Blocker On Hold',
+  blocked_unfinished_project: 'Blocked Unfinished Project',
+  expired_fixed_plan: 'Expired Fixed Plan',
   cyclic_dependency: 'Cyclic Dependency',
+  not_ready_within_horizon: 'Blocked Beyond Horizon',
+  no_free_slot: 'No Free Slot',
+  no_effective_capacity: 'No Effective Capacity',
+  below_minimum_start_threshold: 'Below Minimum Start Threshold',
+  unfinished_within_horizon: 'Started But Not Finished',
   insufficient_capacity: 'Insufficient Capacity',
   missing_contributor_capacity: 'Missing Contributor Capacity',
 };
@@ -856,12 +874,12 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   const [startDate, setStartDate] = useState<string>(getTodayYmd());
   const [statuses, setStatuses] = useState<string[]>(['waiting_list', 'planned', 'in_progress', 'in_testing']);
   const [capacityMode, setCapacityMode] = useState<'theoretical' | 'historical'>('theoretical');
+  const [capacityConstraintMode, setCapacityConstraintMode] = useState<CapacityConstraintMode>('full');
   const [parallelizationLimit, setParallelizationLimit] = useState<number>(1);
   const [optimizationMode, setOptimizationMode] = useState<'priority_focused' | 'completion_focused'>('priority_focused');
   const [includeAlreadyScheduled, setIncludeAlreadyScheduled] = useState(true);
   const [contextSwitchPenaltyPct, setContextSwitchPenaltyPct] = useState<number>(0.05);
   const [contextSwitchGrace, setContextSwitchGrace] = useState<number>(1);
-  const [collaborativeScheduling, setCollaborativeScheduling] = useState(false);
   const [ganttCategoryId, setGanttCategoryId] = useState<string>('');
   const [showReservations, setShowReservations] = useState(true);
   const [expandedBottleneckIds, setExpandedBottleneckIds] = useState<Set<string>>(new Set());
@@ -874,6 +892,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   const [response, setResponse] = useState<RoadmapResponse | null>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
   const [scheduleSelectionPool, setScheduleSelectionPool] = useState<ScheduledProject[]>([]);
+  const [savingSchedulingModeProjectIds, setSavingSchedulingModeProjectIds] = useState<Set<string>>(new Set());
 
   const { data: categories } = useQuery({
     queryKey: ['portfolio-categories'],
@@ -1334,6 +1353,13 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     });
   };
 
+  const buildExcludedProjectIds = (
+    selection: Set<string> = selectedProjectIds,
+    rows: ScheduledProject[] = scheduleRows,
+  ): string[] => rows
+    .map((project) => project.projectId)
+    .filter((projectId) => !selection.has(projectId));
+
   const runGenerate = async (
     excludedProjectIds: string[],
     options?: { resetSelectionPool?: boolean },
@@ -1348,13 +1374,13 @@ export default function RoadmapGenerator({ onApplied }: Props) {
         startDate,
         statuses,
         capacityMode,
+        capacityConstraintMode,
         parallelizationLimit,
         optimizationMode,
         includeAlreadyScheduled,
         excludedProjectIds,
         contextSwitchPenaltyPct,
         contextSwitchGrace,
-        collaborativeScheduling,
       };
       const res = await api.post('/portfolio/reports/roadmap/generate', payload);
       const nextResponse = res.data as RoadmapResponse;
@@ -1399,10 +1425,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   const recalculateForSelection = async (nextSelection: Set<string>) => {
     if (scheduleRows.length === 0) return;
     setSelectedProjectIds(nextSelection);
-    const excludedProjectIds = scheduleRows
-      .map((project) => project.projectId)
-      .filter((projectId) => !nextSelection.has(projectId));
-    await runGenerate(excludedProjectIds);
+    await runGenerate(buildExcludedProjectIds(nextSelection));
   };
 
   const toggleProjectSelection = (projectId: string) => {
@@ -1462,6 +1485,39 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       }
     } finally {
       setApplying(false);
+    }
+  };
+
+  const handleSchedulingModeChange = async (
+    projectId: string,
+    currentMode: SchedulingMode,
+    nextMode: SchedulingMode,
+  ) => {
+    if (currentMode === nextMode) return;
+    setError(null);
+    setApplyError(null);
+    setSuccess(null);
+    setSavingSchedulingModeProjectIds((prev) => {
+      const next = new Set(prev);
+      next.add(projectId);
+      return next;
+    });
+    try {
+      await api.patch(`/portfolio/projects/${projectId}`, {
+        scheduling_mode: nextMode,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+      await queryClient.invalidateQueries({ queryKey: ['portfolio-timeline'] });
+      await runGenerate(buildExcludedProjectIds(), { resetSelectionPool: true });
+      setSuccess(`Updated scheduling mode to ${SCHEDULING_MODE_LABELS[nextMode]}.`);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Failed to update scheduling mode');
+    } finally {
+      setSavingSchedulingModeProjectIds((prev) => {
+        const next = new Set(prev);
+        next.delete(projectId);
+        return next;
+      });
     }
   };
 
@@ -1568,6 +1624,18 @@ export default function RoadmapGenerator({ onApplied }: Props) {
               </Select>
             </FormControl>
 
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel>Constraint Scope</InputLabel>
+              <Select
+                value={capacityConstraintMode}
+                label="Constraint Scope"
+                onChange={(e) => setCapacityConstraintMode(e.target.value as CapacityConstraintMode)}
+              >
+                <MenuItem value="full">Full Portfolio</MenuItem>
+                <MenuItem value="it_only">IT Only</MenuItem>
+              </Select>
+            </FormControl>
+
             <FormControl size="small" sx={{ minWidth: 180 }}>
               <InputLabel>Parallel Limit</InputLabel>
               <Select
@@ -1606,22 +1674,13 @@ export default function RoadmapGenerator({ onApplied }: Props) {
               }
               label="Recalculate already scheduled projects"
             />
-
-            <Tooltip title="When enabled, all contributors must be available for a project to progress (synchronized). When disabled, contributors work independently and projects can start as soon as any contributor is free.">
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={collaborativeScheduling}
-                    onChange={(e) => setCollaborativeScheduling(e.target.checked)}
-                  />
-                }
-                label="Collaborative scheduling"
-              />
-            </Tooltip>
           </Stack>
 
           <Typography variant="caption" color="text.secondary">
             When enabled, projects that already have planned dates are recalculated and may move.
+            {capacityConstraintMode === 'it_only'
+              ? ' IT-only hides business capacity, occupation, and pure business projects from the generated roadmap.'
+              : ''}
           </Typography>
 
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems={{ xs: 'stretch', md: 'center' }}>
@@ -1761,6 +1820,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                           <TableCell padding="checkbox" />
                           <TableCell>Project</TableCell>
                           <TableCell>Status</TableCell>
+                          <TableCell>Scheduling</TableCell>
                           <TableCell>Start</TableCell>
                           <TableCell>End</TableCell>
                           <TableCell>Weeks</TableCell>
@@ -1772,7 +1832,9 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                           const scenarioProject = scheduleRowsById.get(project.projectId);
                           const isExcluded = !selectedProjectIds.has(project.projectId);
                           const status = scenarioProject?.status || project.status;
+                          const schedulingMode = scenarioProject?.schedulingMode || project.schedulingMode;
                           const priority = scenarioProject?.priorityScore ?? project.priorityScore;
+                          const isSavingSchedulingMode = savingSchedulingModeProjectIds.has(project.projectId);
                           return (
                             <TableRow key={project.projectId} hover sx={isExcluded ? { opacity: 0.55 } : undefined}>
                               <TableCell padding="checkbox">
@@ -1792,6 +1854,27 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                 </Link>
                               </TableCell>
                               <TableCell>{STATUS_LABELS[status] || status}</TableCell>
+                              <TableCell>
+                                <Select
+                                  size="small"
+                                  value={schedulingMode}
+                                  onChange={(event) => {
+                                    void handleSchedulingModeChange(
+                                      project.projectId,
+                                      schedulingMode,
+                                      event.target.value as SchedulingMode,
+                                    );
+                                  }}
+                                  disabled={loading || isSavingSchedulingMode}
+                                  sx={{ minWidth: 150 }}
+                                >
+                                  {SCHEDULING_MODE_OPTIONS.map((option) => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </TableCell>
                               <TableCell>{scenarioProject?.plannedStart || 'Excluded'}</TableCell>
                               <TableCell>{scenarioProject?.plannedEnd || 'Excluded'}</TableCell>
                               <TableCell>{scenarioProject?.durationWeeks ?? 'Excluded'}</TableCell>
@@ -1814,7 +1897,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                         {response.unschedulable.map((item) => (
                           <Tooltip key={item.projectId} title={item.details || ''} placement="top-start">
                             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                              {item.projectName}: {REASON_LABELS[item.reason] || item.reason}
+                              {item.projectName} ({SCHEDULING_MODE_LABELS[item.schedulingMode]}): {REASON_LABELS[item.reason] || item.reason}
                             </Typography>
                           </Tooltip>
                         ))}
@@ -1837,29 +1920,54 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                               <TableCell>Project</TableCell>
                               <TableCell>Reason</TableCell>
                               <TableCell>Status</TableCell>
+                              <TableCell>Scheduling</TableCell>
                               <TableCell>Start</TableCell>
                               <TableCell>End</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {filteredReservationProjects.map((project) => (
-                              <TableRow key={`reservation:${project.projectId}`} hover>
-                                <TableCell>
-                                  <Link
-                                    component={RouterLink}
-                                    to={`/portfolio/projects/${project.projectId}/effort`}
-                                    underline="hover"
-                                    color="primary"
-                                  >
-                                    {project.projectName}
-                                  </Link>
-                                </TableCell>
-                                <TableCell>{RESERVATION_REASON_LABELS[project.reason]}</TableCell>
-                                <TableCell>{STATUS_LABELS[project.status] || project.status}</TableCell>
-                                <TableCell>{project.plannedStart}</TableCell>
-                                <TableCell>{project.plannedEnd}</TableCell>
-                              </TableRow>
-                            ))}
+                            {filteredReservationProjects.map((project) => {
+                              const isSavingSchedulingMode = savingSchedulingModeProjectIds.has(project.projectId);
+                              return (
+                                <TableRow key={`reservation:${project.projectId}`} hover>
+                                  <TableCell>
+                                    <Link
+                                      component={RouterLink}
+                                      to={`/portfolio/projects/${project.projectId}/effort`}
+                                      underline="hover"
+                                      color="primary"
+                                    >
+                                      {project.projectName}
+                                    </Link>
+                                  </TableCell>
+                                  <TableCell>{RESERVATION_REASON_LABELS[project.reason]}</TableCell>
+                                  <TableCell>{STATUS_LABELS[project.status] || project.status}</TableCell>
+                                  <TableCell>
+                                    <Select
+                                      size="small"
+                                      value={project.schedulingMode}
+                                      onChange={(event) => {
+                                        void handleSchedulingModeChange(
+                                          project.projectId,
+                                          project.schedulingMode,
+                                          event.target.value as SchedulingMode,
+                                        );
+                                      }}
+                                      disabled={loading || isSavingSchedulingMode}
+                                      sx={{ minWidth: 150 }}
+                                    >
+                                      {SCHEDULING_MODE_OPTIONS.map((option) => (
+                                        <MenuItem key={option.value} value={option.value}>
+                                          {option.label}
+                                        </MenuItem>
+                                      ))}
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell>{project.plannedStart}</TableCell>
+                                  <TableCell>{project.plannedEnd}</TableCell>
+                                </TableRow>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       </Paper>

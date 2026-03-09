@@ -264,6 +264,7 @@ export const REQUEST_TRACKED_FIELDS: FieldConfig[] = [
 
 export const PROJECT_TRACKED_FIELDS: FieldConfig[] = [
   { field: 'name' },
+  { field: 'scheduling_mode' },
   { field: 'source_id', fk: FK.source },
   { field: 'category_id', fk: FK.category },
   { field: 'stream_id', fk: FK.stream },

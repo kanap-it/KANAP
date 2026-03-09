@@ -19,6 +19,7 @@ import api from '../api';
 import { useAuth } from '../auth/AuthContext';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../utils/inlineImageUrls';
 import ExportButton from './ExportButton';
+import { MarkdownContent } from './MarkdownContent';
 
 const MarkdownEditor = React.lazy(() => import('./MarkdownEditor'));
 
@@ -588,7 +589,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
             Managed document content is unavailable until the load error is resolved.
           </Typography>
         </Box>
-      ) : (
+      ) : editMode ? (
         <React.Suspense fallback={<MarkdownEditorLoadingFallback minRows={minRows} />}>
           <MarkdownEditor
             value={form.content_markdown || ''}
@@ -603,6 +604,28 @@ export const IntegratedDocumentEditor = React.forwardRef<
             onImageUpload={canEditContent ? handleInlineImageUpload : undefined}
           />
         </React.Suspense>
+      ) : (
+        <Box
+          sx={{
+            minHeight: minRows * 24,
+            maxHeight: maxRows * 24,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 1,
+            bgcolor: 'background.paper',
+            p: 1.5,
+          }}
+        >
+          {String(form.content_markdown || '').trim() ? (
+            <MarkdownContent content={form.content_markdown || ''} />
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              {placeholder || 'No content yet.'}
+            </Typography>
+          )}
+        </Box>
       )}
         </>
       )}

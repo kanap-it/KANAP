@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { PortfolioProject, ProjectStatus } from '../portfolio-project.entity';
+import { PortfolioProject, ProjectSchedulingMode, ProjectStatus } from '../portfolio-project.entity';
 import { TeamMemberConfigService } from '../team-member-config.service';
 import { PortfolioProjectsCrudService } from './portfolio-projects-crud.service';
 import {
@@ -27,6 +27,7 @@ type ProjectRow = {
   id: string;
   name: string;
   status: ProjectStatus;
+  scheduling_mode: ProjectSchedulingMode;
   category_id: string | null;
   source_id: string | null;
   stream_id: string | null;
@@ -101,6 +102,7 @@ type ProjectComputation = {
   id: string;
   name: string;
   status: ProjectStatus;
+  schedulingMode: ProjectSchedulingMode;
   categoryId: string | null;
   sourceId: string | null;
   streamId: string | null;
@@ -109,6 +111,8 @@ type ProjectComputation = {
   remainingIt: number;
   remainingBusiness: number;
   remainingTotal: number;
+  itContributorDays: Map<string, number>;
+  businessContributorDays: Map<string, number>;
   contributorDays: Map<string, number>;
   blockers: string[];
   plannedStart: string | null;
@@ -121,6 +125,7 @@ type CapacityReservation = {
   projectId: string;
   projectName: string;
   status: ProjectStatus;
+  schedulingMode: ProjectSchedulingMode;
   categoryId: string | null;
   sourceId: string | null;
   streamId: string | null;
@@ -137,6 +142,9 @@ type PreparedData = {
   options: RoadmapGenerateDto;
   contributors: Map<string, ContributorInfo>;
   candidates: Map<string, ProjectComputation>;
+  projectRowsById: Map<string, ProjectRow>;
+  relevantContributorIds: Set<string>;
+  expiredFixedPlanProjectIds: Set<string>;
   blockersByProject: Map<string, string[]>;
   existingEndByProject: Map<string, Date>;
   preUnschedulable: Map<string, UnschedulableProject>;
@@ -156,6 +164,30 @@ type SchedulerResult = {
   weeklyProjectLoad: WeeklyProjectLoadLedger | null;
 };
 
+type CandidateRuntimeState = {
+  project: ProjectComputation;
+  remainingTotal: number;
+  remainingByContributor: Map<string, number>;
+  contributorTotals: Map<string, number>;
+  historicalStart: Date | null;
+  firstAllocatedWeek: Date | null;
+  lastAllocatedWeek: Date | null;
+  done: boolean;
+  activeWeekKeys: Set<string>;
+  contributorsWithHistory: Set<string>;
+  everReady: boolean;
+  blockageCounts: Map<string, number>;
+  blockageDetails: Map<string, string>;
+};
+
+type RuntimeCapacityReason =
+  | 'not_ready_within_horizon'
+  | 'no_free_slot'
+  | 'no_effective_capacity'
+  | 'below_minimum_start_threshold'
+  | 'unfinished_within_horizon'
+  | 'insufficient_capacity';
+
 const CAPACITY_CONSUMING_STATUSES: ProjectStatus[] = [
   'waiting_list',
   'planned',
@@ -168,7 +200,6 @@ const SLOT_OCCUPANCY_THRESHOLD_DAYS = 0.5;
 const EPSILON = 0.0001;
 const MAX_WEEKS_TO_SCAN = 520;
 const MAX_WEEKS_TO_SCAN_HARD_CAP = 5200;
-const MAX_SENSITIVITY_CONTRIBUTORS = 30;
 const WORK_DAYS_PER_WEEK = 5;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -179,6 +210,18 @@ function toNumber(value: unknown): number {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function cloneNumberMap(input: Map<string, number>): Map<string, number> {
+  return new Map(input);
+}
+
+function sumPositiveDays(input: Map<string, number>): number {
+  let total = 0;
+  for (const value of input.values()) {
+    if (value > EPSILON) total += value;
+  }
+  return total;
 }
 
 function parseYmdUtc(input: string): Date {
@@ -245,17 +288,16 @@ export class PortfolioRoadmapService {
     const baseResult = this.runScheduler(prepared, null, true, asOfDate);
 
     const contributorsForSensitivity = Array.from(prepared.contributors.values())
-      .filter((c) => c.monthlyCapacity > EPSILON)
+      .filter((c) => c.monthlyCapacity > EPSILON && prepared.relevantContributorIds.has(c.id))
       .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-    const sensitivityTruncated = contributorsForSensitivity.length > MAX_SENSITIVITY_CONTRIBUTORS;
-    const sampledContributors = contributorsForSensitivity.slice(0, MAX_SENSITIVITY_CONTRIBUTORS);
+    const sampledContributors = contributorsForSensitivity;
 
     const baseEndDate = baseResult.roadmapEndDate ? parseYmdUtc(baseResult.roadmapEndDate) : null;
     const bottlenecks: BottleneckEntry[] = [];
 
     for (const contributor of sampledContributors) {
       const overriddenMonthlyCap = new Map<string, number>([
-        [contributor.id, contributor.monthlyCapacity + 1],
+        [contributor.id, contributor.monthlyCapacity * 1.2],
       ]);
       const rerun = this.runScheduler(prepared, overriddenMonthlyCap, false, asOfDate);
       const rerunEndDate = rerun.roadmapEndDate ? parseYmdUtc(rerun.roadmapEndDate) : null;
@@ -321,7 +363,7 @@ export class PortfolioRoadmapService {
         frozenProjects: baseResult.reservations.length,
         unschedulableProjects: baseResult.unschedulable.length,
         sensitivityReruns: sampledContributors.length,
-        sensitivityTruncated,
+        sensitivityTruncated: false,
       },
     };
   }
@@ -408,6 +450,7 @@ export class PortfolioRoadmapService {
         p.id,
         p.name,
         p.status,
+        p.scheduling_mode,
         p.category_id,
         p.source_id,
         p.stream_id,
@@ -438,12 +481,13 @@ export class PortfolioRoadmapService {
       projectNameById.set(row.id, row.name);
     }
     const excludedProjectIds = new Set<string>(options.excludedProjectIds ?? []);
+    const candidateStatuses = new Set<ProjectStatus>(options.statuses as ProjectStatus[]);
 
     const candidateIds = new Set<string>();
     for (const project of projectRows) {
       if (excludedProjectIds.has(project.id)) continue;
       const hasPlannedDates = !!project.planned_start && !!project.planned_end;
-      const candidateByStatus = options.statuses.includes(project.status);
+      const candidateByStatus = candidateStatuses.has(project.status);
       if (!candidateByStatus) continue;
       if (project.status === 'on_hold') continue;
       if (!options.includeAlreadyScheduled && hasPlannedDates) continue;
@@ -662,8 +706,10 @@ export class PortfolioRoadmapService {
 
     const candidates = new Map<string, ProjectComputation>();
     const preUnschedulable = new Map<string, UnschedulableProject>();
+    const expiredFixedPlanProjectIds = new Set<string>();
 
     const allRelevantProjects = new Map<string, ProjectComputation>();
+    const firstWeekToPlan = ceilToMondayUtc(parseYmdUtc(options.startDate));
     for (const projectId of relevantProjectIds) {
       const row = projectById.get(projectId);
       if (!row) continue;
@@ -671,7 +717,6 @@ export class PortfolioRoadmapService {
       const progress = Math.max(0, Math.min(100, toNumber(row.execution_progress)));
       const remainingIt = Math.max(0, toNumber(row.estimated_effort_it) * (1 - progress / 100));
       const remainingBusiness = Math.max(0, toNumber(row.estimated_effort_business) * (1 - progress / 100));
-      const remainingTotal = remainingIt + remainingBusiness;
 
       const members = teamByProject.get(projectId) ?? { it: [], business: [] };
       const itLead = row.it_lead_id ? personFor(row.it_lead_id) : null;
@@ -687,30 +732,48 @@ export class PortfolioRoadmapService {
         ? businessManual
         : (businessManual.length > 0 ? businessManual : computeAutoAllocations(businessLead, members.business));
 
-      const contributorDays = new Map<string, number>();
+      const itContributorDays = new Map<string, number>();
+      const businessContributorDays = new Map<string, number>();
       for (const alloc of itAllocations) {
         if (!alloc.user_id) continue;
         const value = remainingIt * (toNumber(alloc.allocation_pct) / 100);
-        contributorDays.set(alloc.user_id, (contributorDays.get(alloc.user_id) ?? 0) + value);
+        itContributorDays.set(alloc.user_id, (itContributorDays.get(alloc.user_id) ?? 0) + value);
       }
       for (const alloc of businessAllocations) {
         if (!alloc.user_id) continue;
         const value = remainingBusiness * (toNumber(alloc.allocation_pct) / 100);
-        contributorDays.set(alloc.user_id, (contributorDays.get(alloc.user_id) ?? 0) + value);
+        businessContributorDays.set(alloc.user_id, (businessContributorDays.get(alloc.user_id) ?? 0) + value);
       }
-      for (const [userId, days] of Array.from(contributorDays.entries())) {
+
+      for (const [userId, days] of Array.from(itContributorDays.entries())) {
         if (days <= EPSILON) {
-          contributorDays.delete(userId);
+          itContributorDays.delete(userId);
           continue;
         }
         ensureContributor(userId);
       }
+      for (const [userId, days] of Array.from(businessContributorDays.entries())) {
+        if (days <= EPSILON) {
+          businessContributorDays.delete(userId);
+          continue;
+        }
+        ensureContributor(userId);
+      }
+
+      const contributorDays = cloneNumberMap(itContributorDays);
+      if (options.capacityConstraintMode === 'full') {
+        for (const [userId, days] of businessContributorDays.entries()) {
+          contributorDays.set(userId, (contributorDays.get(userId) ?? 0) + days);
+        }
+      }
+      const remainingTotal = sumPositiveDays(contributorDays);
 
       const blockers = (blockersByProject.get(projectId) ?? []).slice().sort((a, b) => a.localeCompare(b));
       const computation: ProjectComputation = {
         id: row.id,
         name: row.name,
         status: row.status,
+        schedulingMode: row.scheduling_mode,
         categoryId: row.category_id ?? null,
         sourceId: row.source_id ?? null,
         streamId: row.stream_id ?? null,
@@ -719,6 +782,8 @@ export class PortfolioRoadmapService {
         remainingIt,
         remainingBusiness,
         remainingTotal,
+        itContributorDays,
+        businessContributorDays,
         contributorDays,
         blockers,
         plannedStart: row.planned_start,
@@ -735,11 +800,16 @@ export class PortfolioRoadmapService {
 
     for (const projectId of Array.from(candidates.keys()).sort((a, b) => a.localeCompare(b))) {
       const project = candidates.get(projectId)!;
+      if (options.capacityConstraintMode === 'it_only' && project.remainingIt <= EPSILON) {
+        candidates.delete(projectId);
+        continue;
+      }
       if (project.remainingTotal <= EPSILON) {
         preUnschedulable.set(projectId, {
           projectId: project.id,
           projectName: project.name,
           status: project.status,
+          schedulingMode: project.schedulingMode,
           reason: 'zero_remaining_effort',
         });
         continue;
@@ -749,6 +819,7 @@ export class PortfolioRoadmapService {
           projectId: project.id,
           projectName: project.name,
           status: project.status,
+          schedulingMode: project.schedulingMode,
           reason: 'no_assigned_contributors',
         });
         continue;
@@ -756,27 +827,19 @@ export class PortfolioRoadmapService {
       const missingCapacityUsers = Array.from(project.contributorDays.keys())
         .filter((userId) => (contributors.get(userId)?.weeklyCapacity ?? 0) <= EPSILON);
       if (missingCapacityUsers.length > 0) {
-        for (const userId of missingCapacityUsers) {
-          project.contributorDays.delete(userId);
-        }
-
         const names = missingCapacityUsers
           .map((userId) => contributors.get(userId)?.name ?? userId)
           .sort((a, b) => a.localeCompare(b))
           .join(', ');
-
-        // Best effort scheduling: continue with contributors that have capacity.
-        // If none remain, keep the project unschedulable.
-        if (project.contributorDays.size === 0) {
-          preUnschedulable.set(projectId, {
-            projectId: project.id,
-            projectName: project.name,
-            status: project.status,
-            reason: 'missing_contributor_capacity',
-            details: `No contributor capacity configured for: ${names}`,
-          });
-          continue;
-        }
+        preUnschedulable.set(projectId, {
+          projectId: project.id,
+          projectName: project.name,
+          status: project.status,
+          schedulingMode: project.schedulingMode,
+          reason: 'missing_contributor_capacity',
+          details: `No contributor capacity configured for: ${names}`,
+        });
+        continue;
       }
     }
 
@@ -800,13 +863,17 @@ export class PortfolioRoadmapService {
       if (!startDate || !endDate || endDate.getTime() < startDate.getTime()) continue;
       const reason = reservationReasonByProject.get(projectId);
       if (!reason) continue;
+      if (row.status !== 'done' && endDate.getTime() < firstWeekToPlan.getTime()) {
+        expiredFixedPlanProjectIds.add(projectId);
+      }
 
       const project = allRelevantProjects.get(projectId);
       const startWeek = getWeekStartMondayUtc(startDate);
       const endWeek = getWeekStartMondayUtc(endDate);
+      const reservationStartWeek = new Date(Math.max(startWeek.getTime(), firstWeekToPlan.getTime()));
       const weekKeys: string[] = [];
       for (
-        let cursor = startWeek;
+        let cursor = reservationStartWeek;
         cursor.getTime() <= endWeek.getTime();
         cursor = addDaysUtc(cursor, 7)
       ) {
@@ -826,11 +893,15 @@ export class PortfolioRoadmapService {
           }
         }
       }
+      if (weeklyLoads.size === 0) {
+        continue;
+      }
 
       reservations.push({
         projectId,
         projectName: row.name,
         status: row.status,
+        schedulingMode: row.scheduling_mode,
         categoryId: row.category_id ?? null,
         sourceId: row.source_id ?? null,
         streamId: row.stream_id ?? null,
@@ -844,10 +915,27 @@ export class PortfolioRoadmapService {
       });
     }
 
+    const relevantContributorIds = new Set<string>();
+    for (const project of candidates.values()) {
+      for (const contributorId of project.contributorDays.keys()) {
+        relevantContributorIds.add(contributorId);
+      }
+    }
+    for (const reservation of reservations) {
+      for (const weekLoads of reservation.weeklyLoads.values()) {
+        for (const contributorId of weekLoads.keys()) {
+          relevantContributorIds.add(contributorId);
+        }
+      }
+    }
+
     return {
       options,
       contributors,
       candidates,
+      projectRowsById: projectById,
+      relevantContributorIds,
+      expiredFixedPlanProjectIds,
       blockersByProject,
       existingEndByProject,
       preUnschedulable,
@@ -879,7 +967,6 @@ export class PortfolioRoadmapService {
     const activeProjects: ActiveProjectsLedger = new Map();
     const weeklyProjectLoad: WeeklyProjectLoadLedger | null = collectOccupation ? new Map() : null;
 
-    // Reservations consume capacity before candidate scheduling.
     for (const reservation of prepared.reservations) {
       const weeks = Array.from(reservation.weeklyLoads.keys()).sort((a, b) => a.localeCompare(b));
       for (const weekKey of weeks) {
@@ -890,7 +977,7 @@ export class PortfolioRoadmapService {
           const days = loadsByUser.get(userId) ?? 0;
           if (days <= EPSILON) continue;
           this.addCommittedLoad(committedLoad, userId, weekKey, days);
-          if (days >= SLOT_OCCUPANCY_THRESHOLD_DAYS) {
+          if (days > EPSILON) {
             this.addActiveProject(activeProjects, userId, weekKey, reservation.projectId);
           }
           if (weeklyProjectLoad) {
@@ -915,33 +1002,99 @@ export class PortfolioRoadmapService {
         .filter((id) => !unschedulableMap.has(id)),
     );
 
-    // Drop candidates that depend on blockers outside the schedulable set without a known end date.
-    const pruneMissingBlockers = (): void => {
+    const setUnschedulable = (
+      projectId: string,
+      reason: UnschedulableProject['reason'],
+      details?: string,
+    ): void => {
+      const project = prepared.candidates.get(projectId);
+      if (!project) return;
+      candidateIds.delete(projectId);
+      unschedulableMap.set(projectId, {
+        projectId: project.id,
+        projectName: project.name,
+        status: project.status,
+        schedulingMode: project.schedulingMode,
+        reason,
+        details,
+      });
+    };
+
+    const describeBlockedReason = (reason: UnschedulableProject['reason']): string => {
+      switch (reason) {
+        case 'missing_contributor_capacity':
+          return 'missing contributor capacity';
+        case 'no_assigned_contributors':
+          return 'no assigned contributors';
+        case 'zero_remaining_effort':
+          return 'no remaining effort';
+        case 'missing_blocker_date':
+          return 'missing blocker date';
+        case 'blocker_on_hold':
+          return 'blocker on hold';
+        case 'blocked_unfinished_project':
+          return 'blocked unfinished project';
+        case 'expired_fixed_plan':
+          return 'expired fixed plan';
+        case 'cyclic_dependency':
+          return 'cyclic dependency';
+        case 'not_ready_within_horizon':
+          return 'not ready within horizon';
+        case 'no_free_slot':
+          return 'no free slot';
+        case 'no_effective_capacity':
+          return 'no effective capacity';
+        case 'below_minimum_start_threshold':
+          return 'below minimum start threshold';
+        case 'unfinished_within_horizon':
+          return 'unfinished within horizon';
+        case 'insufficient_capacity':
+        default:
+          return 'insufficient capacity';
+      }
+    };
+
+    const pruneBlockedProjects = (): void => {
       let changed = true;
       while (changed) {
         changed = false;
         for (const projectId of Array.from(candidateIds).sort((a, b) => a.localeCompare(b))) {
-          const project = prepared.candidates.get(projectId);
-          if (!project) continue;
           const blockers = prepared.blockersByProject.get(projectId) ?? [];
-          const missingBlocker = blockers.find((blockerId) => {
-            if (candidateIds.has(blockerId)) return false;
-            return !knownEndByProject.has(blockerId);
-          });
-          if (!missingBlocker) continue;
-          candidateIds.delete(projectId);
-          unschedulableMap.set(projectId, {
-            projectId: project.id,
-            projectName: project.name,
-            status: project.status,
-            reason: 'missing_blocker_date',
-            details: `Missing blocker date for ${prepared.projectNameById.get(missingBlocker) || missingBlocker}`,
-          });
+          let reason: UnschedulableProject['reason'] | null = null;
+          let details: string | undefined;
+          for (const blockerId of blockers) {
+            if (candidateIds.has(blockerId)) continue;
+            const blockerRow = prepared.projectRowsById.get(blockerId);
+            const blockerName = prepared.projectNameById.get(blockerId) || blockerId;
+            const blockerUnschedulable = unschedulableMap.get(blockerId);
+            if (blockerRow?.status === 'on_hold') {
+              reason = 'blocker_on_hold';
+              details = `Blocker ${blockerName} is on hold`;
+              break;
+            }
+            if (prepared.expiredFixedPlanProjectIds.has(blockerId)) {
+              reason = 'expired_fixed_plan';
+              details = `Blocker ${blockerName} is not finished and its fixed plan ended before the roadmap start`;
+              break;
+            }
+            if (blockerUnschedulable && blockerRow?.status !== 'done') {
+              reason = 'blocked_unfinished_project';
+              details = `Blocker ${blockerName} is not finished and cannot be scheduled (${describeBlockedReason(blockerUnschedulable.reason)})`;
+              break;
+            }
+            if (!knownEndByProject.has(blockerId)) {
+              reason = 'missing_blocker_date';
+              details = `Missing blocker date for ${blockerName}`;
+              break;
+            }
+          }
+          if (!reason) continue;
+          setUnschedulable(projectId, reason, details);
           changed = true;
         }
       }
     };
-    pruneMissingBlockers();
+    pruneBlockedProjects();
 
     const buildDependencyGraph = (ids: Set<string>): {
       indegree: Map<string, number>;
@@ -965,7 +1118,6 @@ export class PortfolioRoadmapService {
       }
       for (const [projectId, list] of dependents.entries()) {
         list.sort((a, b) => a.localeCompare(b));
-        dependents.set(projectId, list);
       }
       return { indegree, dependents, internalBlockersByProject };
     };
@@ -975,7 +1127,6 @@ export class PortfolioRoadmapService {
       internalBlockersByProject,
     } = buildDependencyGraph(candidateIds);
 
-    // Mark cyclic projects unschedulable before simulation.
     const cycleProbe = buildDependencyGraph(candidateIds);
     const cycleQueue = Array.from(candidateIds)
       .filter((projectId) => (cycleProbe.indegree.get(projectId) ?? 0) === 0)
@@ -995,24 +1146,12 @@ export class PortfolioRoadmapService {
       }
       cycleQueue.sort((a, b) => a.localeCompare(b));
     }
-
     for (const projectId of Array.from(candidateIds).sort((a, b) => a.localeCompare(b))) {
       if (cycleVisited.has(projectId)) continue;
-      const project = prepared.candidates.get(projectId);
-      if (!project) continue;
-      candidateIds.delete(projectId);
-      unschedulableMap.set(projectId, {
-        projectId: project.id,
-        projectName: project.name,
-        status: project.status,
-        reason: 'cyclic_dependency',
-      });
+      setUnschedulable(projectId, 'cyclic_dependency');
     }
 
-    // Re-check blockers after cycle pruning: cycle removals may expose external blockers
-    // without known end dates.
-    pruneMissingBlockers();
-
+    pruneBlockedProjects();
     ({
       dependents,
       internalBlockersByProject,
@@ -1037,37 +1176,38 @@ export class PortfolioRoadmapService {
       depthDfs(projectId, new Set<string>());
     }
 
-    type CandidateRuntimeState = {
-      project: ProjectComputation;
-      remainingTotal: number;
-      remainingByContributor: Map<string, number>;
-      contributorTotals: Map<string, number>;
-      firstWeek: Date | null;
-      lastWeek: Date | null;
-      done: boolean;
-      activeWeekKeys: Set<string>;
-    };
-
     const runtimeByProject = new Map<string, CandidateRuntimeState>();
     const externalEarliestWeekByProject = new Map<string, Date>();
     for (const projectId of Array.from(candidateIds).sort((a, b) => a.localeCompare(b))) {
       const project = prepared.candidates.get(projectId);
       if (!project) continue;
       const remainingByContributor = new Map(project.contributorDays);
-      let schedulableRemaining = 0;
+      let remainingTotal = 0;
       for (const days of remainingByContributor.values()) {
-        if (days > EPSILON) schedulableRemaining += days;
+        if (days > EPSILON) remainingTotal += days;
       }
+      const historicalStart = this.resolveHistoricalStart(project, asOfDate);
+      const contributorsWithHistory = new Set<string>();
+      if (historicalStart) {
+        for (const [contributorId, days] of remainingByContributor.entries()) {
+          if (days > EPSILON) contributorsWithHistory.add(contributorId);
+        }
+      }
+
       runtimeByProject.set(projectId, {
         project,
-        // Track only effort that is actually allocable to contributors with capacity.
-        remainingTotal: schedulableRemaining,
+        remainingTotal,
         remainingByContributor,
         contributorTotals: new Map<string, number>(),
-        firstWeek: null,
-        lastWeek: null,
+        historicalStart,
+        firstAllocatedWeek: null,
+        lastAllocatedWeek: null,
         done: false,
         activeWeekKeys: new Set<string>(),
+        contributorsWithHistory,
+        everReady: false,
+        blockageCounts: new Map<string, number>(),
+        blockageDetails: new Map<string, string>(),
       });
 
       let earliestDate = startDate;
@@ -1097,49 +1237,6 @@ export class PortfolioRoadmapService {
     }
 
     const waitWeeksByProject = new Map<string, number>();
-
-    const computeEffectivePriority = (projectId: string): number => {
-      const state = runtimeByProject.get(projectId);
-      const project = prepared.candidates.get(projectId);
-      const raw = project?.priorityScore ?? 0;
-      if (!state) return raw;
-      if (state.firstWeek) {
-        // Started project: boost by 5 points per week since start, capped at 100
-        const weeksSinceStart = Math.max(0, Math.floor(
-          (cursor.getTime() - state.firstWeek.getTime()) / (7 * MS_PER_DAY),
-        ));
-        return Math.min(100, raw + 5 * weeksSinceStart);
-      }
-      // Ready but not started: boost by weeks waiting, capped at 90
-      const weeksWaiting = waitWeeksByProject.get(projectId) ?? 0;
-      if (weeksWaiting > 0) {
-        return Math.min(90, raw + weeksWaiting);
-      }
-      return raw;
-    };
-
-    const rankProjects = (leftId: string, rightId: string): number => {
-      if (options.optimizationMode === 'priority_focused') {
-        const leftEP = computeEffectivePriority(leftId);
-        const rightEP = computeEffectivePriority(rightId);
-        if (leftEP !== rightEP) return rightEP - leftEP;
-      } else {
-        // completion_focused: bottleneckWeeks ASC, then raw priorityScore DESC
-        const leftBottleneck = bottleneckWeeksByProject.get(leftId) ?? Number.POSITIVE_INFINITY;
-        const rightBottleneck = bottleneckWeeksByProject.get(rightId) ?? Number.POSITIVE_INFINITY;
-        if (leftBottleneck !== rightBottleneck) return leftBottleneck - rightBottleneck;
-        const leftProject = prepared.candidates.get(leftId)!;
-        const rightProject = prepared.candidates.get(rightId)!;
-        const byPriority = compareNullableNumberDesc(leftProject.priorityScore, rightProject.priorityScore);
-        if (byPriority !== 0) return byPriority;
-      }
-      // Shared tiebreakers
-      const leftDepth = dependencyDepth.get(leftId) ?? 0;
-      const rightDepth = dependencyDepth.get(rightId) ?? 0;
-      if (leftDepth !== rightDepth) return rightDepth - leftDepth;
-      return leftId.localeCompare(rightId);
-    };
-
     const scheduledEndByProject = new Map<string, Date>();
     let cursor = firstWeekToPlan;
     const contributorIds = Array.from(weeklyCapacityByUser.keys()).sort((a, b) => a.localeCompare(b));
@@ -1158,16 +1255,13 @@ export class PortfolioRoadmapService {
         frozenCommittedDays.set(contributorId, total);
       }
     }
+
     let horizonWeeks = MAX_WEEKS_TO_SCAN;
     let estimatedContributorWeeks = 0;
     for (const [contributorId, demandDays] of contributorDemand.entries()) {
       const weeklyBaseCapacity = weeklyCapacityByUser.get(contributorId) ?? 0;
       if (weeklyBaseCapacity <= EPSILON) continue;
-      const effectiveCapacity = this.computeEffectiveWeeklyCapacity(
-        weeklyBaseCapacity,
-        1,
-        options,
-      );
+      const effectiveCapacity = this.computeEffectiveWeeklyCapacity(weeklyBaseCapacity, 1, options);
       if (effectiveCapacity <= EPSILON) continue;
       const frozenDays = frozenCommittedDays.get(contributorId) ?? 0;
       const contributorWeeks = (demandDays + frozenDays) / effectiveCapacity;
@@ -1181,10 +1275,114 @@ export class PortfolioRoadmapService {
     }
     horizonWeeks = Math.min(MAX_WEEKS_TO_SCAN_HARD_CAP, horizonWeeks);
 
+    const computeStartedWeek = (state: CandidateRuntimeState): Date | null => {
+      if (state.firstAllocatedWeek) return state.firstAllocatedWeek;
+      if (state.historicalStart) return getWeekStartMondayUtc(state.historicalStart);
+      return null;
+    };
+
+    const isContinuingProject = (state: CandidateRuntimeState): boolean => computeStartedWeek(state) !== null;
+
+    const computeEffectivePriority = (projectId: string): number => {
+      const state = runtimeByProject.get(projectId);
+      const project = prepared.candidates.get(projectId);
+      const raw = project?.priorityScore ?? 0;
+      if (!state) return raw;
+      const startedWeek = computeStartedWeek(state);
+      if (startedWeek) {
+        const weeksSinceStart = Math.max(0, Math.floor(
+          (cursor.getTime() - startedWeek.getTime()) / (7 * MS_PER_DAY),
+        ));
+        return Math.min(100, raw + 5 * weeksSinceStart);
+      }
+      const weeksWaiting = waitWeeksByProject.get(projectId) ?? 0;
+      if (weeksWaiting > 0) {
+        return Math.min(90, raw + weeksWaiting);
+      }
+      return raw;
+    };
+
+    const rankProjects = (leftId: string, rightId: string): number => {
+      if (options.optimizationMode === 'priority_focused') {
+        const leftEP = computeEffectivePriority(leftId);
+        const rightEP = computeEffectivePriority(rightId);
+        if (leftEP !== rightEP) return rightEP - leftEP;
+      } else {
+        const leftBottleneck = bottleneckWeeksByProject.get(leftId) ?? Number.POSITIVE_INFINITY;
+        const rightBottleneck = bottleneckWeeksByProject.get(rightId) ?? Number.POSITIVE_INFINITY;
+        if (leftBottleneck !== rightBottleneck) return leftBottleneck - rightBottleneck;
+        const leftProject = prepared.candidates.get(leftId)!;
+        const rightProject = prepared.candidates.get(rightId)!;
+        const byPriority = compareNullableNumberDesc(leftProject.priorityScore, rightProject.priorityScore);
+        if (byPriority !== 0) return byPriority;
+      }
+      const leftDepth = dependencyDepth.get(leftId) ?? 0;
+      const rightDepth = dependencyDepth.get(rightId) ?? 0;
+      if (leftDepth !== rightDepth) return rightDepth - leftDepth;
+      return leftId.localeCompare(rightId);
+    };
+
+    const recordBlockage = (
+      state: CandidateRuntimeState,
+      reason: RuntimeCapacityReason,
+      details: string,
+    ): void => {
+      state.blockageCounts.set(reason, (state.blockageCounts.get(reason) ?? 0) + 1);
+      state.blockageDetails.set(reason, details);
+    };
+
+    const describeContributors = (contributorIds: string[]): string => contributorIds
+      .map((contributorId) => {
+        const contributor = prepared.contributors.get(contributorId);
+        const weeklyCapacity = round2(weeklyCapacityByUser.get(contributorId) ?? 0);
+        return `${contributor?.name ?? contributorId} (${weeklyCapacity}d/week)`;
+      })
+      .join(', ');
+
+    const describeLargestRemainingLoads = (state: CandidateRuntimeState): string => {
+      const parts = Array.from(state.remainingByContributor.entries())
+        .filter(([, days]) => days > EPSILON)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 3)
+        .map(([contributorId, days]) => {
+          const contributor = prepared.contributors.get(contributorId);
+          const weeklyCapacity = round2(weeklyCapacityByUser.get(contributorId) ?? 0);
+          return `${contributor?.name ?? contributorId} ${round2(days)}d remaining at ${weeklyCapacity}d/week`;
+        });
+      return parts.join(', ');
+    };
+
+    const chooseDominantBlockage = (
+      state: CandidateRuntimeState,
+    ): { reason: RuntimeCapacityReason; details: string } | null => {
+      const priority: RuntimeCapacityReason[] = [
+        'no_free_slot',
+        'no_effective_capacity',
+        'below_minimum_start_threshold',
+        'insufficient_capacity',
+      ];
+      let bestReason: RuntimeCapacityReason | null = null;
+      let bestCount = -1;
+      for (const reason of priority) {
+        const count = state.blockageCounts.get(reason) ?? 0;
+        if (count > bestCount) {
+          bestReason = reason;
+          bestCount = count;
+        }
+      }
+      if (!bestReason || bestCount <= 0) return null;
+      return {
+        reason: bestReason,
+        details: state.blockageDetails.get(bestReason) ?? 'Capacity constraints prevented scheduling',
+      };
+    };
+
+    const lastWeekWithinHorizon = addDaysUtc(firstWeekToPlan, 7 * Math.max(0, horizonWeeks - 1));
+
     for (let weekIndex = 0; weekIndex < horizonWeeks; weekIndex += 1) {
       const weekKey = toYmdUtc(cursor);
       const remainingProjects = Array.from(runtimeByProject.entries())
-        .filter(([, state]) => state.remainingTotal > EPSILON)
+        .filter(([, state]) => !state.done && state.remainingTotal > EPSILON)
         .map(([projectId]) => projectId);
       if (remainingProjects.length === 0) {
         break;
@@ -1205,381 +1403,494 @@ export class PortfolioRoadmapService {
         }
         return true;
       }).sort(rankProjects);
+      for (const projectId of readyProjects) {
+        runtimeByProject.get(projectId)!.everReady = true;
+      }
 
       const allocatedProjectsThisWeek = new Set<string>();
       if (readyProjects.length > 0) {
-        const frozenActiveByContributor = new Map<string, number>();
-        const frozenCommittedByContributor = new Map<string, number>();
-        const selectedCountByContributor = new Map<string, number>();
+        const rankIndexByProject = new Map<string, number>();
+        readyProjects.forEach((projectId, index) => rankIndexByProject.set(projectId, index));
+
+        const reservedSlotsByContributor = new Map<string, number>();
+        const reservedLoadByContributor = new Map<string, number>();
+        const candidateSlotBudgetByContributor = new Map<string, number>();
+        const activeCandidateProjectsByContributor = new Map<string, Set<string>>();
         for (const contributorId of contributorIds) {
-          const frozenActive = this.getActiveCount(activeProjects, contributorId, weekKey);
-          frozenActiveByContributor.set(contributorId, frozenActive);
-          frozenCommittedByContributor.set(
+          const reservedSlots = this.getActiveCount(activeProjects, contributorId, weekKey);
+          const reservedLoad = this.getCommittedLoad(committedLoad, contributorId, weekKey);
+          reservedSlotsByContributor.set(contributorId, reservedSlots);
+          reservedLoadByContributor.set(contributorId, reservedLoad);
+          candidateSlotBudgetByContributor.set(
             contributorId,
-            this.getCommittedLoad(committedLoad, contributorId, weekKey),
+            Math.max(0, options.parallelizationLimit - reservedSlots),
           );
-          selectedCountByContributor.set(contributorId, 0);
+          activeCandidateProjectsByContributor.set(contributorId, new Set<string>());
         }
 
-        // --- Continuity pre-selection (both modes) ---
-        // Pre-assign contributors to their ongoing projects before ranked selection.
-        const preSelectedProjects = new Set<string>();
-        const preSelectedContributorProject = new Set<string>(); // "contributorId:projectId"
-        const startedReadyProjects = readyProjects.filter((projectId) => {
+        const selectedCollaborativeProjects = new Set<string>();
+        const selectedIndependentProjects = new Set<string>();
+
+        const getRequiredContributors = (state: CandidateRuntimeState): string[] => Array.from(
+          state.remainingByContributor.entries(),
+        )
+          .filter(([, days]) => days > EPSILON)
+          .map(([contributorId]) => contributorId)
+          .sort((a, b) => a.localeCompare(b));
+
+        const getContributorActiveSet = (contributorId: string): Set<string> => {
+          const existing = activeCandidateProjectsByContributor.get(contributorId);
+          if (existing) return existing;
+          const created = new Set<string>();
+          activeCandidateProjectsByContributor.set(contributorId, created);
+          return created;
+        };
+
+        const contributorCanAddProject = (contributorId: string, projectId: string): boolean => {
+          const activeSet = getContributorActiveSet(contributorId);
+          if (activeSet.has(projectId)) return true;
+          return activeSet.size < (candidateSlotBudgetByContributor.get(contributorId) ?? 0);
+        };
+
+        const addProjectToContributor = (contributorId: string, projectId: string): boolean => {
+          const activeSet = getContributorActiveSet(contributorId);
+          if (activeSet.has(projectId)) return true;
+          if (activeSet.size >= (candidateSlotBudgetByContributor.get(contributorId) ?? 0)) {
+            return false;
+          }
+          activeSet.add(projectId);
+          return true;
+        };
+
+        const removeProjectFromContributor = (contributorId: string, projectId: string): void => {
+          getContributorActiveSet(contributorId).delete(projectId);
+        };
+
+        const getProjectedCandidateCapacity = (contributorId: string, projectedActiveCount: number): number => {
+          if (projectedActiveCount <= 0) return 0;
+          const weeklyBaseCapacity = weeklyCapacityByUser.get(contributorId) ?? 0;
+          if (weeklyBaseCapacity <= EPSILON) return 0;
+          const totalContextCount = (reservedSlotsByContributor.get(contributorId) ?? 0) + projectedActiveCount;
+          const effectiveCapacity = this.computeEffectiveWeeklyCapacity(
+            weeklyBaseCapacity,
+            totalContextCount,
+            options,
+          );
+          const reservedLoad = reservedLoadByContributor.get(contributorId) ?? 0;
+          return Math.max(0, effectiveCapacity - reservedLoad);
+        };
+
+        const estimateCollaborativeStartBurn = (projectId: string, contributorsToAdd: string[]): number => {
           const state = runtimeByProject.get(projectId);
-          return state && state.firstWeek !== null && state.remainingTotal > EPSILON;
-        });
-        // Already sorted by rankProjects via readyProjects sort
+          if (!state || state.remainingTotal <= EPSILON) return 0;
+          const totalBefore = state.remainingTotal;
+          let projectBurnCap = Number.POSITIVE_INFINITY;
+          for (const contributorId of contributorsToAdd) {
+            const demand = state.remainingByContributor.get(contributorId) ?? 0;
+            if (demand <= EPSILON) return 0;
+            const currentActiveCount = getContributorActiveSet(contributorId).size;
+            const projectedActiveCount = currentActiveCount + (getContributorActiveSet(contributorId).has(projectId) ? 0 : 1);
+            const candidateCapacity = getProjectedCandidateCapacity(contributorId, projectedActiveCount);
+            const provisionalBudget = projectedActiveCount > 0 ? candidateCapacity / projectedActiveCount : 0;
+            const weight = demand / totalBefore;
+            if (provisionalBudget <= EPSILON || weight <= EPSILON) return 0;
+            projectBurnCap = Math.min(projectBurnCap, provisionalBudget / weight);
+          }
+          if (!Number.isFinite(projectBurnCap)) return 0;
+          return Math.min(totalBefore, projectBurnCap);
+        };
 
-        for (const projectId of startedReadyProjects) {
-          const state = runtimeByProject.get(projectId)!;
-          // Find continuing contributors: have remaining effort AND have previously worked on it
-          const continuingContributors = Array.from(state.remainingByContributor.entries())
-            .filter(([contributorId, remaining]) =>
-              remaining > EPSILON
-              && (state.contributorTotals.get(contributorId) ?? 0) > EPSILON
-              && (weeklyCapacityByUser.get(contributorId) ?? 0) > EPSILON)
-            .map(([contributorId]) => contributorId);
-          if (continuingContributors.length === 0) continue;
+        const getIndependentContributorOrder = (state: CandidateRuntimeState): string[] => Array.from(
+          state.remainingByContributor.entries(),
+        )
+          .filter(([, days]) => days > EPSILON)
+          .sort((leftEntry, rightEntry) => {
+            const leftHasHistory = state.contributorsWithHistory.has(leftEntry[0]) ? 1 : 0;
+            const rightHasHistory = state.contributorsWithHistory.has(rightEntry[0]) ? 1 : 0;
+            if (leftHasHistory !== rightHasHistory) return rightHasHistory - leftHasHistory;
+            return leftEntry[0].localeCompare(rightEntry[0]);
+          })
+          .map(([contributorId]) => contributorId);
 
-          if (options.collaborativeScheduling) {
-            // Collaborative: ALL continuing contributors must have free slots
-            let allFeasible = true;
-            for (const contributorId of continuingContributors) {
-              const frozenActive = frozenActiveByContributor.get(contributorId) ?? 0;
-              const selectedSoFar = selectedCountByContributor.get(contributorId) ?? 0;
-              const availableSlots = Math.max(0, options.parallelizationLimit - frozenActive);
-              if (selectedSoFar >= availableSlots) {
-                allFeasible = false;
-                break;
-              }
+        const estimateIndependentSelection = (projectId: string): { contributors: string[]; expectedBurn: number } => {
+          const state = runtimeByProject.get(projectId);
+          if (!state || state.remainingTotal <= EPSILON) {
+            return { contributors: [], expectedBurn: 0 };
+          }
+          const contributors: string[] = [];
+          let expectedBurn = 0;
+          for (const contributorId of getIndependentContributorOrder(state)) {
+            const demand = state.remainingByContributor.get(contributorId) ?? 0;
+            if (demand <= EPSILON) continue;
+            if (!contributorCanAddProject(contributorId, projectId)) continue;
+            const currentActiveCount = getContributorActiveSet(contributorId).size;
+            const projectedActiveCount = currentActiveCount + (getContributorActiveSet(contributorId).has(projectId) ? 0 : 1);
+            const candidateCapacity = getProjectedCandidateCapacity(contributorId, projectedActiveCount);
+            const provisionalBudget = projectedActiveCount > 0 ? candidateCapacity / projectedActiveCount : 0;
+            const contribution = Math.min(demand, provisionalBudget);
+            if (contribution <= EPSILON) continue;
+            contributors.push(contributorId);
+            expectedBurn += contribution;
+          }
+          return { contributors, expectedBurn };
+        };
+
+        const removeCollaborativeProject = (projectId: string): void => {
+          const state = runtimeByProject.get(projectId);
+          if (!state) return;
+          selectedCollaborativeProjects.delete(projectId);
+          for (const contributorId of getRequiredContributors(state)) {
+            removeProjectFromContributor(contributorId, projectId);
+          }
+        };
+
+        const removeIndependentProject = (projectId: string): void => {
+          selectedIndependentProjects.delete(projectId);
+          for (const contributorId of contributorIds) {
+            removeProjectFromContributor(contributorId, projectId);
+          }
+        };
+
+        const computeContributorBudgets = (): {
+          activeCountByContributor: Map<string, number>;
+          candidateCapacityByContributor: Map<string, number>;
+          perProjectBudgetByContributor: Map<string, number>;
+        } => {
+          const activeCountByContributor = new Map<string, number>();
+          const candidateCapacityByContributor = new Map<string, number>();
+          const perProjectBudgetByContributor = new Map<string, number>();
+          for (const contributorId of contributorIds) {
+            const activeCount = getContributorActiveSet(contributorId).size;
+            activeCountByContributor.set(contributorId, activeCount);
+            if (activeCount <= 0) {
+              candidateCapacityByContributor.set(contributorId, 0);
+              perProjectBudgetByContributor.set(contributorId, 0);
+              continue;
             }
-            if (!allFeasible) continue;
-            preSelectedProjects.add(projectId);
-            for (const contributorId of continuingContributors) {
-              preSelectedContributorProject.add(`${contributorId}:${projectId}`);
-              selectedCountByContributor.set(
-                contributorId,
-                (selectedCountByContributor.get(contributorId) ?? 0) + 1,
-              );
+            const weeklyBaseCapacity = weeklyCapacityByUser.get(contributorId) ?? 0;
+            if (weeklyBaseCapacity <= EPSILON) {
+              candidateCapacityByContributor.set(contributorId, 0);
+              perProjectBudgetByContributor.set(contributorId, 0);
+              continue;
             }
-          } else {
-            // Non-collaborative: each continuing contributor with a free slot is individually pre-selected
-            for (const contributorId of continuingContributors) {
-              const frozenActive = frozenActiveByContributor.get(contributorId) ?? 0;
-              const selectedSoFar = selectedCountByContributor.get(contributorId) ?? 0;
-              const availableSlots = Math.max(0, options.parallelizationLimit - frozenActive);
-              if (selectedSoFar >= availableSlots) continue;
-              preSelectedContributorProject.add(`${contributorId}:${projectId}`);
-              selectedCountByContributor.set(
-                contributorId,
-                (selectedCountByContributor.get(contributorId) ?? 0) + 1,
-              );
+            const totalContextCount = (reservedSlotsByContributor.get(contributorId) ?? 0) + activeCount;
+            const effectiveCapacity = this.computeEffectiveWeeklyCapacity(
+              weeklyBaseCapacity,
+              totalContextCount,
+              options,
+            );
+            const reservedLoad = reservedLoadByContributor.get(contributorId) ?? 0;
+            const candidateCapacity = Math.max(0, effectiveCapacity - reservedLoad);
+            candidateCapacityByContributor.set(contributorId, candidateCapacity);
+            perProjectBudgetByContributor.set(
+              contributorId,
+              candidateCapacity > EPSILON ? candidateCapacity / activeCount : 0,
+            );
+          }
+          return {
+            activeCountByContributor,
+            candidateCapacityByContributor,
+            perProjectBudgetByContributor,
+          };
+        };
+
+        const minimumRequiredBurn = (state: CandidateRuntimeState): number => (
+          isContinuingProject(state) ? EPSILON : SLOT_OCCUPANCY_THRESHOLD_DAYS
+        );
+
+        const computeSelectedCollaborativeExpectedBurn = (
+          projectId: string,
+          perProjectBudgetByContributor: Map<string, number>,
+        ): number => {
+          const state = runtimeByProject.get(projectId);
+          if (!state || state.remainingTotal <= EPSILON) return 0;
+          const neededContributors = getRequiredContributors(state)
+            .filter((contributorId) => getContributorActiveSet(contributorId).has(projectId));
+          if (neededContributors.length === 0) return 0;
+          const totalBefore = state.remainingTotal;
+          let projectBurnCap = Number.POSITIVE_INFINITY;
+          for (const contributorId of neededContributors) {
+            const demand = state.remainingByContributor.get(contributorId) ?? 0;
+            const budget = perProjectBudgetByContributor.get(contributorId) ?? 0;
+            const weight = demand / totalBefore;
+            if (demand <= EPSILON || budget <= EPSILON || weight <= EPSILON) {
+              projectBurnCap = 0;
+              break;
             }
+            projectBurnCap = Math.min(projectBurnCap, budget / weight);
+          }
+          if (!Number.isFinite(projectBurnCap)) return 0;
+          return Math.min(totalBefore, projectBurnCap);
+        };
+
+        const computeSelectedIndependentExpectedBurn = (
+          projectId: string,
+          perProjectBudgetByContributor: Map<string, number>,
+        ): number => {
+          const state = runtimeByProject.get(projectId);
+          if (!state || state.remainingTotal <= EPSILON) return 0;
+          let expectedBurn = 0;
+          for (const contributorId of getIndependentContributorOrder(state)) {
+            if (!getContributorActiveSet(contributorId).has(projectId)) continue;
+            const demand = state.remainingByContributor.get(contributorId) ?? 0;
+            const budget = perProjectBudgetByContributor.get(contributorId) ?? 0;
+            if (demand <= EPSILON || budget <= EPSILON) continue;
+            expectedBurn += Math.min(demand, budget);
+          }
+          return expectedBurn;
+        };
+
+        const selectedProjectsMeetMinimums = (): boolean => {
+          const { perProjectBudgetByContributor } = computeContributorBudgets();
+          for (const projectId of selectedCollaborativeProjects) {
+            const state = runtimeByProject.get(projectId);
+            if (!state) continue;
+            const expectedBurn = computeSelectedCollaborativeExpectedBurn(projectId, perProjectBudgetByContributor);
+            if (expectedBurn < minimumRequiredBurn(state)) return false;
+          }
+          for (const projectId of selectedIndependentProjects) {
+            const state = runtimeByProject.get(projectId);
+            if (!state) continue;
+            const expectedBurn = computeSelectedIndependentExpectedBurn(projectId, perProjectBudgetByContributor);
+            if (expectedBurn < minimumRequiredBurn(state)) return false;
+          }
+          return true;
+        };
+
+        for (const projectId of readyProjects) {
+          const state = runtimeByProject.get(projectId);
+          if (!state || state.done || state.remainingTotal <= EPSILON) continue;
+          if (state.project.schedulingMode === 'collaborative') {
+            const neededContributors = getRequiredContributors(state);
+            if (neededContributors.length === 0) continue;
+            if (!neededContributors.every((contributorId) => contributorCanAddProject(contributorId, projectId))) {
+              continue;
+            }
+            const expectedBurn = estimateCollaborativeStartBurn(projectId, neededContributors);
+            if (expectedBurn < minimumRequiredBurn(state)) continue;
+
+            let added = true;
+            for (const contributorId of neededContributors) {
+              added = addProjectToContributor(contributorId, projectId) && added;
+            }
+            if (!added) {
+              removeCollaborativeProject(projectId);
+              continue;
+            }
+            selectedCollaborativeProjects.add(projectId);
+            if (!selectedProjectsMeetMinimums()) {
+              removeCollaborativeProject(projectId);
+            }
+            continue;
+          }
+
+          const { contributors, expectedBurn } = estimateIndependentSelection(projectId);
+          if (contributors.length === 0 || expectedBurn < minimumRequiredBurn(state)) continue;
+
+          let addedAny = false;
+          for (const contributorId of contributors) {
+            if (addProjectToContributor(contributorId, projectId)) {
+              addedAny = true;
+            }
+          }
+          if (!addedAny) {
+            removeIndependentProject(projectId);
+            continue;
+          }
+          selectedIndependentProjects.add(projectId);
+          if (!selectedProjectsMeetMinimums()) {
+            removeIndependentProject(projectId);
           }
         }
 
-        if (options.collaborativeScheduling) {
-          // --- Collaborative scheduling (original all-or-nothing + proportional burn) ---
-          const selectedProjects: string[] = [...preSelectedProjects];
-          for (const projectId of readyProjects) {
-            if (preSelectedProjects.has(projectId)) continue;
-            const state = runtimeByProject.get(projectId);
-            if (!state || state.done || state.remainingTotal <= EPSILON) continue;
+        const {
+          candidateCapacityByContributor,
+          perProjectBudgetByContributor,
+        } = computeContributorBudgets();
 
-            const neededContributors = Array.from(state.remainingByContributor.entries())
-              .filter(([contributorId, demand]) =>
-                demand > EPSILON && (weeklyCapacityByUser.get(contributorId) ?? 0) > EPSILON)
-              .map(([contributorId]) => contributorId)
-              .sort((a, b) => a.localeCompare(b));
-            if (neededContributors.length === 0) continue;
+        const burnByProject = new Map<string, Map<string, number>>();
+        const totalBurnByContributor = new Map<string, number>();
+        const addBurn = (projectId: string, contributorId: string, days: number): void => {
+          if (days <= EPSILON) return;
+          const byContributor = burnByProject.get(projectId) ?? new Map<string, number>();
+          byContributor.set(contributorId, (byContributor.get(contributorId) ?? 0) + days);
+          burnByProject.set(projectId, byContributor);
+          totalBurnByContributor.set(
+            contributorId,
+            (totalBurnByContributor.get(contributorId) ?? 0) + days,
+          );
+        };
 
-            let feasibleForAll = true;
-            for (const contributorId of neededContributors) {
-              const frozenActive = frozenActiveByContributor.get(contributorId) ?? 0;
-              const selectedSoFar = selectedCountByContributor.get(contributorId) ?? 0;
-              const availableSlots = Math.max(0, options.parallelizationLimit - frozenActive);
-              if (selectedSoFar >= availableSlots) {
-                feasibleForAll = false;
-                break;
-              }
-
-              const weeklyBaseCapacity = weeklyCapacityByUser.get(contributorId) ?? 0;
-              if (weeklyBaseCapacity <= EPSILON) {
-                feasibleForAll = false;
-                break;
-              }
-              const projectedK = selectedSoFar + 1;
-              const effectiveCapacity = this.computeEffectiveWeeklyCapacity(
-                weeklyBaseCapacity,
-                projectedK,
-                options,
-              );
-              const frozenCommitted = frozenCommittedByContributor.get(contributorId) ?? 0;
-              const allocableDays = Math.max(0, effectiveCapacity - frozenCommitted);
-              if (allocableDays <= EPSILON) {
-                feasibleForAll = false;
-                break;
-              }
+        for (const projectId of readyProjects) {
+          if (!selectedCollaborativeProjects.has(projectId)) continue;
+          const state = runtimeByProject.get(projectId);
+          if (!state || state.remainingTotal <= EPSILON) continue;
+          const neededContributors = getRequiredContributors(state)
+            .filter((contributorId) => getContributorActiveSet(contributorId).has(projectId));
+          if (neededContributors.length === 0) continue;
+          const totalBefore = state.remainingTotal;
+          let projectBurnCap = Number.POSITIVE_INFINITY;
+          for (const contributorId of neededContributors) {
+            const demand = state.remainingByContributor.get(contributorId) ?? 0;
+            const budget = perProjectBudgetByContributor.get(contributorId) ?? 0;
+            const weight = demand / totalBefore;
+            if (demand <= EPSILON || budget <= EPSILON || weight <= EPSILON) {
+              projectBurnCap = 0;
+              break;
             }
-            if (!feasibleForAll) continue;
-
-            selectedProjects.push(projectId);
-            for (const contributorId of neededContributors) {
-              selectedCountByContributor.set(
-                contributorId,
-                (selectedCountByContributor.get(contributorId) ?? 0) + 1,
-              );
-            }
+            projectBurnCap = Math.min(projectBurnCap, budget / weight);
           }
+          const burn = Math.min(totalBefore, projectBurnCap);
+          if (!Number.isFinite(burn) || burn <= EPSILON) continue;
+          for (const contributorId of neededContributors) {
+            const demand = state.remainingByContributor.get(contributorId) ?? 0;
+            if (demand <= EPSILON) continue;
+            const weight = demand / totalBefore;
+            const consumed = Math.min(demand, burn * weight);
+            addBurn(projectId, contributorId, consumed);
+          }
+        }
 
-          const availabilityByContributor = new Map<string, number>();
-          for (const contributorId of contributorIds) {
-            const weeklyBaseCapacity = weeklyCapacityByUser.get(contributorId) ?? 0;
-            if (weeklyBaseCapacity <= EPSILON) {
-              availabilityByContributor.set(contributorId, 0);
-              continue;
-            }
-            const candidateConcurrency = selectedCountByContributor.get(contributorId) ?? 0;
-            if (candidateConcurrency <= 0) {
-              availabilityByContributor.set(contributorId, 0);
-              continue;
-            }
-            const effectiveCapacity = this.computeEffectiveWeeklyCapacity(
-              weeklyBaseCapacity,
-              candidateConcurrency,
-              options,
-            );
-            const frozenCommitted = frozenCommittedByContributor.get(contributorId) ?? 0;
-            availabilityByContributor.set(
+        for (const contributorId of contributorIds) {
+          const budget = perProjectBudgetByContributor.get(contributorId) ?? 0;
+          if (budget <= EPSILON) continue;
+          const projectIds = Array.from(getContributorActiveSet(contributorId))
+            .filter((projectId) => runtimeByProject.get(projectId)?.project.schedulingMode === 'independent')
+            .sort((leftId, rightId) =>
+              (rankIndexByProject.get(leftId) ?? Number.MAX_SAFE_INTEGER)
+              - (rankIndexByProject.get(rightId) ?? Number.MAX_SAFE_INTEGER));
+          for (const projectId of projectIds) {
+            const state = runtimeByProject.get(projectId);
+            if (!state) continue;
+            const alreadyBurned = burnByProject.get(projectId)?.get(contributorId) ?? 0;
+            const remainingDemand = Math.max(0, (state.remainingByContributor.get(contributorId) ?? 0) - alreadyBurned);
+            const consumed = Math.min(remainingDemand, budget);
+            addBurn(projectId, contributorId, consumed);
+          }
+        }
+
+        for (const contributorId of contributorIds) {
+          let leftover = Math.max(
+            0,
+            (candidateCapacityByContributor.get(contributorId) ?? 0) - (totalBurnByContributor.get(contributorId) ?? 0),
+          );
+          if (leftover <= EPSILON) continue;
+          const projectIds = Array.from(getContributorActiveSet(contributorId))
+            .filter((projectId) => runtimeByProject.get(projectId)?.project.schedulingMode === 'independent')
+            .sort((leftId, rightId) =>
+              (rankIndexByProject.get(leftId) ?? Number.MAX_SAFE_INTEGER)
+              - (rankIndexByProject.get(rightId) ?? Number.MAX_SAFE_INTEGER));
+          for (const projectId of projectIds) {
+            if (leftover <= EPSILON) break;
+            const state = runtimeByProject.get(projectId);
+            if (!state) continue;
+            const alreadyBurned = burnByProject.get(projectId)?.get(contributorId) ?? 0;
+            const remainingDemand = Math.max(0, (state.remainingByContributor.get(contributorId) ?? 0) - alreadyBurned);
+            const extra = Math.min(remainingDemand, leftover);
+            addBurn(projectId, contributorId, extra);
+            leftover -= extra;
+          }
+        }
+
+        for (const [projectId, byContributor] of burnByProject.entries()) {
+          const state = runtimeByProject.get(projectId);
+          if (!state) continue;
+          let projectBurn = 0;
+          for (const [contributorId, requestedBurn] of byContributor.entries()) {
+            const remainingBefore = state.remainingByContributor.get(contributorId) ?? 0;
+            const consumed = Math.min(remainingBefore, requestedBurn);
+            if (consumed <= EPSILON) continue;
+            state.remainingByContributor.set(contributorId, Math.max(0, remainingBefore - consumed));
+            state.contributorTotals.set(
               contributorId,
-              Math.max(0, effectiveCapacity - frozenCommitted),
+              (state.contributorTotals.get(contributorId) ?? 0) + consumed,
             );
+            state.contributorsWithHistory.add(contributorId);
+            projectBurn += consumed;
+            if (weeklyProjectLoad) {
+              this.addWeeklyProjectLoad(weeklyProjectLoad, contributorId, weekKey, projectId, consumed);
+            }
+          }
+          if (projectBurn <= EPSILON) continue;
+          state.remainingTotal = Math.max(0, state.remainingTotal - projectBurn);
+          if (!state.firstAllocatedWeek) state.firstAllocatedWeek = cursor;
+          state.lastAllocatedWeek = cursor;
+          state.activeWeekKeys.add(weekKey);
+          allocatedProjectsThisWeek.add(projectId);
+        }
+
+        const classifyUnallocatedReadyProject = (
+          projectId: string,
+        ): { reason: RuntimeCapacityReason; details: string } => {
+          const state = runtimeByProject.get(projectId)!;
+          const demandedContributors = getRequiredContributors(state);
+          const slotBlockedContributors = demandedContributors.filter((contributorId) => {
+            const activeSet = getContributorActiveSet(contributorId);
+            return !activeSet.has(projectId)
+              && activeSet.size >= (candidateSlotBudgetByContributor.get(contributorId) ?? 0);
+          });
+
+          if (state.project.schedulingMode === 'collaborative') {
+            if (!selectedCollaborativeProjects.has(projectId) && slotBlockedContributors.length > 0) {
+              return {
+                reason: 'no_free_slot',
+                details: `No free parallel slot for: ${describeContributors(slotBlockedContributors)}`,
+              };
+            }
+
+            const expectedBurn = estimateCollaborativeStartBurn(projectId, demandedContributors);
+            if (expectedBurn <= EPSILON) {
+              return {
+                reason: 'no_effective_capacity',
+                details: `No allocable weekly capacity for: ${describeContributors(demandedContributors)}`,
+              };
+            }
+            if (!selectedCollaborativeProjects.has(projectId) && expectedBurn < SLOT_OCCUPANCY_THRESHOLD_DAYS) {
+              return {
+                reason: 'below_minimum_start_threshold',
+                details: `Projected collaborative start burn is ${round2(expectedBurn)}d, below the ${SLOT_OCCUPANCY_THRESHOLD_DAYS}d threshold`,
+              };
+            }
+            return {
+              reason: 'no_effective_capacity',
+              details: `Collaborative burn stalled for: ${describeContributors(demandedContributors)}`,
+            };
           }
 
-          for (const projectId of selectedProjects) {
-            const state = runtimeByProject.get(projectId);
-            if (!state || state.done || state.remainingTotal <= EPSILON) continue;
-
-            const contributorsForProject = Array.from(state.remainingByContributor.entries())
-              .filter(([contributorId, demand]) =>
-                demand > EPSILON && (weeklyCapacityByUser.get(contributorId) ?? 0) > EPSILON)
-              .map(([contributorId]) => contributorId)
-              .sort((a, b) => a.localeCompare(b));
-            if (contributorsForProject.length === 0) continue;
-
-            const totalBefore = state.remainingTotal;
-            if (totalBefore <= EPSILON) continue;
-
-            let projectBurnCap = Number.POSITIVE_INFINITY;
-            for (const contributorId of contributorsForProject) {
-              const contributorDemand = state.remainingByContributor.get(contributorId) ?? 0;
-              if (contributorDemand <= EPSILON) {
-                projectBurnCap = 0;
-                break;
-              }
-              const share = contributorDemand / totalBefore;
-              if (share <= EPSILON) {
-                projectBurnCap = 0;
-                break;
-              }
-              const available = Math.max(0, availabilityByContributor.get(contributorId) ?? 0);
-              const contributorBurnCap = available / share;
-              if (contributorBurnCap < projectBurnCap) {
-                projectBurnCap = contributorBurnCap;
-              }
+          const { contributors, expectedBurn } = estimateIndependentSelection(projectId);
+          if (!selectedIndependentProjects.has(projectId)) {
+            if (slotBlockedContributors.length === demandedContributors.length && demandedContributors.length > 0) {
+              return {
+                reason: 'no_free_slot',
+                details: `No free parallel slot for: ${describeContributors(slotBlockedContributors)}`,
+              };
             }
-
-            const burn = Math.min(totalBefore, projectBurnCap);
-            if (!Number.isFinite(burn) || burn <= EPSILON) continue;
-
-            let anyConsumed = false;
-            for (const contributorId of contributorsForProject) {
-              const demandBefore = state.remainingByContributor.get(contributorId) ?? 0;
-              if (demandBefore <= EPSILON) continue;
-              const share = demandBefore / totalBefore;
-              const consumed = Math.min(demandBefore, burn * share);
-              if (consumed <= EPSILON) continue;
-
-              const nextDemand = Math.max(0, demandBefore - consumed);
-              state.remainingByContributor.set(contributorId, nextDemand);
-              state.contributorTotals.set(
-                contributorId,
-                (state.contributorTotals.get(contributorId) ?? 0) + consumed,
-              );
-              availabilityByContributor.set(
-                contributorId,
-                Math.max(0, (availabilityByContributor.get(contributorId) ?? 0) - consumed),
-              );
-              anyConsumed = true;
-
-              if (weeklyProjectLoad) {
-                this.addWeeklyProjectLoad(weeklyProjectLoad, contributorId, weekKey, projectId, consumed);
-              }
+            if (contributors.length === 0 || expectedBurn <= EPSILON) {
+              return {
+                reason: 'no_effective_capacity',
+                details: `No allocable weekly capacity for: ${describeContributors(demandedContributors)}`,
+              };
             }
-
-            if (!anyConsumed) continue;
-            state.remainingTotal = Math.max(0, state.remainingTotal - burn);
-            if (!state.firstWeek) state.firstWeek = cursor;
-            state.lastWeek = cursor;
-            state.activeWeekKeys.add(weekKey);
-            allocatedProjectsThisWeek.add(projectId);
-          }
-        } else {
-          // --- Non-collaborative scheduling (independent contributor burns) ---
-          // Selection: project selected if ANY contributor has a free slot + available capacity.
-          // Track which contributors are feasible per project.
-          const selectedProjectFeasibleContributors = new Map<string, string[]>();
-
-          // Include pre-selected contributor-project pairs
-          for (const projectId of startedReadyProjects) {
-            const feasible: string[] = [];
-            for (const contributorId of contributorIds) {
-              if (preSelectedContributorProject.has(`${contributorId}:${projectId}`)) {
-                feasible.push(contributorId);
-              }
-            }
-            if (feasible.length > 0) {
-              selectedProjectFeasibleContributors.set(projectId, feasible);
+            if (expectedBurn < SLOT_OCCUPANCY_THRESHOLD_DAYS) {
+              return {
+                reason: 'below_minimum_start_threshold',
+                details: `Projected independent start burn is ${round2(expectedBurn)}d, below the ${SLOT_OCCUPANCY_THRESHOLD_DAYS}d threshold`,
+              };
             }
           }
 
-          for (const projectId of readyProjects) {
-            if (selectedProjectFeasibleContributors.has(projectId)) continue;
-            const state = runtimeByProject.get(projectId);
-            if (!state || state.done || state.remainingTotal <= EPSILON) continue;
+          return {
+            reason: 'no_effective_capacity',
+            details: `No effective weekly capacity remained for: ${describeContributors(demandedContributors)}`,
+          };
+        };
 
-            const neededContributors = Array.from(state.remainingByContributor.entries())
-              .filter(([contributorId, demand]) =>
-                demand > EPSILON && (weeklyCapacityByUser.get(contributorId) ?? 0) > EPSILON)
-              .map(([contributorId]) => contributorId)
-              .sort((a, b) => a.localeCompare(b));
-            if (neededContributors.length === 0) continue;
-
-            const feasibleContributors: string[] = [];
-            for (const contributorId of neededContributors) {
-              if (preSelectedContributorProject.has(`${contributorId}:${projectId}`)) {
-                feasibleContributors.push(contributorId);
-                continue;
-              }
-              const frozenActive = frozenActiveByContributor.get(contributorId) ?? 0;
-              const selectedSoFar = selectedCountByContributor.get(contributorId) ?? 0;
-              const availableSlots = Math.max(0, options.parallelizationLimit - frozenActive);
-              if (selectedSoFar >= availableSlots) continue;
-
-              const weeklyBaseCapacity = weeklyCapacityByUser.get(contributorId) ?? 0;
-              if (weeklyBaseCapacity <= EPSILON) continue;
-              const projectedK = selectedSoFar + 1;
-              const effectiveCapacity = this.computeEffectiveWeeklyCapacity(
-                weeklyBaseCapacity,
-                projectedK,
-                options,
-              );
-              const frozenCommitted = frozenCommittedByContributor.get(contributorId) ?? 0;
-              const allocableDays = Math.max(0, effectiveCapacity - frozenCommitted);
-              if (allocableDays <= EPSILON) continue;
-              feasibleContributors.push(contributorId);
-            }
-            if (feasibleContributors.length === 0) continue;
-
-            // Minimum-start guard: new starts only (firstWeek is null)
-            // Only start a project if expected total burn >= SLOT_OCCUPANCY_THRESHOLD_DAYS
-            if (!state.firstWeek) {
-              let expectedBurn = 0;
-              for (const contributorId of feasibleContributors) {
-                const weeklyBaseCapacity = weeklyCapacityByUser.get(contributorId) ?? 0;
-                const selectedSoFar = selectedCountByContributor.get(contributorId) ?? 0;
-                const projectedK = selectedSoFar + 1;
-                const effectiveCapacity = this.computeEffectiveWeeklyCapacity(
-                  weeklyBaseCapacity,
-                  projectedK,
-                  options,
-                );
-                const frozenCommitted = frozenCommittedByContributor.get(contributorId) ?? 0;
-                const available = Math.max(0, effectiveCapacity - frozenCommitted);
-                const contributorRemaining = state.remainingByContributor.get(contributorId) ?? 0;
-                expectedBurn += Math.min(contributorRemaining, available);
-              }
-              if (expectedBurn < SLOT_OCCUPANCY_THRESHOLD_DAYS) continue;
-            }
-
-            selectedProjectFeasibleContributors.set(projectId, feasibleContributors);
-            for (const contributorId of feasibleContributors) {
-              if (!preSelectedContributorProject.has(`${contributorId}:${projectId}`)) {
-                selectedCountByContributor.set(
-                  contributorId,
-                  (selectedCountByContributor.get(contributorId) ?? 0) + 1,
-                );
-              }
-            }
-          }
-
-          // Compute availability per contributor based on total concurrency
-          const availabilityByContributor = new Map<string, number>();
-          for (const contributorId of contributorIds) {
-            const weeklyBaseCapacity = weeklyCapacityByUser.get(contributorId) ?? 0;
-            if (weeklyBaseCapacity <= EPSILON) {
-              availabilityByContributor.set(contributorId, 0);
-              continue;
-            }
-            const candidateConcurrency = selectedCountByContributor.get(contributorId) ?? 0;
-            if (candidateConcurrency <= 0) {
-              availabilityByContributor.set(contributorId, 0);
-              continue;
-            }
-            const effectiveCapacity = this.computeEffectiveWeeklyCapacity(
-              weeklyBaseCapacity,
-              candidateConcurrency,
-              options,
-            );
-            const frozenCommitted = frozenCommittedByContributor.get(contributorId) ?? 0;
-            availabilityByContributor.set(
-              contributorId,
-              Math.max(0, effectiveCapacity - frozenCommitted),
-            );
-          }
-
-          // Burn: each feasible contributor burns independently (no proportional throttling)
-          for (const [projectId, feasibleContributors] of selectedProjectFeasibleContributors) {
-            const state = runtimeByProject.get(projectId);
-            if (!state || state.done || state.remainingTotal <= EPSILON) continue;
-
-            let totalBurned = 0;
-            let anyConsumed = false;
-            for (const contributorId of feasibleContributors) {
-              const contributorRemaining = state.remainingByContributor.get(contributorId) ?? 0;
-              if (contributorRemaining <= EPSILON) continue;
-              const available = Math.max(0, availabilityByContributor.get(contributorId) ?? 0);
-              if (available <= EPSILON) continue;
-
-              const consumed = Math.min(contributorRemaining, available);
-              if (consumed <= EPSILON) continue;
-
-              const nextDemand = Math.max(0, contributorRemaining - consumed);
-              state.remainingByContributor.set(contributorId, nextDemand);
-              state.contributorTotals.set(
-                contributorId,
-                (state.contributorTotals.get(contributorId) ?? 0) + consumed,
-              );
-              availabilityByContributor.set(
-                contributorId,
-                Math.max(0, available - consumed),
-              );
-              totalBurned += consumed;
-              anyConsumed = true;
-
-              if (weeklyProjectLoad) {
-                this.addWeeklyProjectLoad(weeklyProjectLoad, contributorId, weekKey, projectId, consumed);
-              }
-            }
-
-            if (!anyConsumed) continue;
-            state.remainingTotal = Math.max(0, state.remainingTotal - totalBurned);
-            if (!state.firstWeek) state.firstWeek = cursor;
-            state.lastWeek = cursor;
-            state.activeWeekKeys.add(weekKey);
-            allocatedProjectsThisWeek.add(projectId);
-          }
+        for (const projectId of readyProjects) {
+          if (allocatedProjectsThisWeek.has(projectId)) continue;
+          const state = runtimeByProject.get(projectId);
+          if (!state || state.done || state.remainingTotal <= EPSILON) continue;
+          const blockage = classifyUnallocatedReadyProject(projectId);
+          recordBlockage(state, blockage.reason, blockage.details);
         }
       }
 
@@ -1596,8 +1907,8 @@ export class PortfolioRoadmapService {
       for (const [projectId, state] of runtimeByProject.entries()) {
         if (state.done || state.remainingTotal > EPSILON) continue;
         state.done = true;
-        if (!state.lastWeek) continue;
-        const computedEnd = addDaysUtc(state.lastWeek, 4);
+        if (!state.lastAllocatedWeek) continue;
+        const computedEnd = addDaysUtc(state.lastAllocatedWeek, 4);
         scheduledEndByProject.set(projectId, computedEnd);
         knownEndByProject.set(projectId, computedEnd);
       }
@@ -1611,25 +1922,57 @@ export class PortfolioRoadmapService {
       if (!state) continue;
       const project = state.project;
 
-      if (state.remainingTotal > EPSILON || !state.firstWeek || !state.lastWeek) {
+      if (state.remainingTotal > EPSILON || !state.firstAllocatedWeek || !state.lastAllocatedWeek) {
+        let reason: RuntimeCapacityReason = 'insufficient_capacity';
+        let details = 'Capacity constraints prevented scheduling';
+
+        if (!state.everReady) {
+          const unresolvedInternalBlockers = (internalBlockersByProject.get(projectId) ?? [])
+            .filter((blockerId) => {
+              const blockerState = runtimeByProject.get(blockerId);
+              return blockerState ? !blockerState.done : !scheduledEndByProject.has(blockerId);
+            })
+            .map((blockerId) => prepared.projectNameById.get(blockerId) || blockerId);
+
+          if (unresolvedInternalBlockers.length > 0) {
+            details = `Still waiting on blockers: ${unresolvedInternalBlockers.join(', ')}`;
+          } else {
+            const earliestWeek = externalEarliestWeekByProject.get(projectId);
+            details = earliestWeek && earliestWeek.getTime() > lastWeekWithinHorizon.getTime()
+              ? `Earliest possible start is ${toYmdUtc(earliestWeek)}, beyond the ${horizonWeeks}-week horizon`
+              : 'Project never became ready within the scheduling horizon';
+          }
+          reason = 'not_ready_within_horizon';
+        } else if (state.firstAllocatedWeek || state.historicalStart) {
+          const remainingSummary = describeLargestRemainingLoads(state);
+          details = `Remaining ${round2(state.remainingTotal)}d after ${horizonWeeks} weeks. Biggest unresolved loads: ${remainingSummary || 'n/a'}`;
+          reason = 'unfinished_within_horizon';
+        } else {
+          const dominantBlockage = chooseDominantBlockage(state);
+          if (dominantBlockage) {
+            reason = dominantBlockage.reason;
+            details = dominantBlockage.details;
+          } else {
+            details = 'No allocable week found under current capacity constraints';
+          }
+        }
+
         unschedulableMap.set(projectId, {
           projectId: project.id,
           projectName: project.name,
           status: project.status,
-          reason: 'insufficient_capacity',
-          details: state.firstWeek
-            ? `Unable to consume remaining effort within scheduling horizon (${horizonWeeks} weeks)`
-            : 'No allocable week found under current capacity constraints',
+          schedulingMode: project.schedulingMode,
+          reason,
+          details,
         });
         continue;
       }
 
-      const computedStart = state.firstWeek;
-      const computedEnd = addDaysUtc(state.lastWeek, 4);
-      const historicalStart = this.resolveHistoricalStart(project, asOfDate);
-      const historicalLeadStart = historicalStart
-        && historicalStart.getTime() < computedStart.getTime()
-        ? historicalStart
+      const computedStart = state.firstAllocatedWeek;
+      const computedEnd = addDaysUtc(state.lastAllocatedWeek, 4);
+      const historicalLeadStart = state.historicalStart
+        && state.historicalStart.getTime() < computedStart.getTime()
+        ? state.historicalStart
         : null;
 
       const contributorLoads = Array.from(state.contributorTotals.entries())
@@ -1656,6 +1999,7 @@ export class PortfolioRoadmapService {
         projectId: project.id,
         projectName: project.name,
         status: project.status,
+        schedulingMode: project.schedulingMode,
         categoryId: project.categoryId,
         sourceId: project.sourceId,
         streamId: project.streamId,
@@ -1694,6 +2038,7 @@ export class PortfolioRoadmapService {
         projectId: reservation.projectId,
         projectName: reservation.projectName,
         status: reservation.status,
+        schedulingMode: reservation.schedulingMode,
         categoryId: reservation.categoryId,
         sourceId: reservation.sourceId,
         streamId: reservation.streamId,

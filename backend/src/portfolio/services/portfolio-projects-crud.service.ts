@@ -324,6 +324,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
       department_id: body.department_id || null,
       origin,
       status: 'waiting_list' as ProjectStatus,
+      scheduling_mode: body.scheduling_mode || 'independent',
       priority_score: body.priority_score ?? null,
       execution_progress: 0,
       planned_start: body.planned_start || null,
@@ -406,6 +407,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
       department_id: overrides.department_id ?? request.department_id,
       origin: 'standard' as ProjectOrigin,
       status: 'waiting_list' as ProjectStatus,
+      scheduling_mode: overrides.scheduling_mode ?? 'independent',
       priority_score: request.priority_override
         ? request.override_value
         : request.priority_score,
@@ -567,6 +569,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     if (has('stream_id')) existing.stream_id = body.stream_id || null;
     if (has('company_id')) existing.company_id = body.company_id || null;
     if (has('department_id')) existing.department_id = body.department_id || null;
+    if (has('scheduling_mode')) existing.scheduling_mode = body.scheduling_mode || 'independent';
     if (has('priority_score')) existing.priority_score = body.priority_score ?? null;
     if (has('execution_progress')) {
       const progress = Number(body.execution_progress);

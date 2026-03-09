@@ -17,6 +17,7 @@ export const ProjectStatuses = [
  * Valid project origin values.
  */
 export const ProjectOrigins = ['standard', 'fast_track', 'legacy'] as const;
+export const ProjectSchedulingModes = ['independent', 'collaborative'] as const;
 
 /**
  * Zod schema for creating a portfolio project.
@@ -48,6 +49,9 @@ export const CreateProjectSchema = z.object({
 
   /** Project status */
   status: z.enum(ProjectStatuses).optional().default('waiting_list'),
+
+  /** Scheduling mode */
+  scheduling_mode: z.enum(ProjectSchedulingModes).optional().default('independent'),
 
   /** Priority score (optional) */
   priority_score: z.number().nullable().optional(),

@@ -577,7 +577,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
 
     // Note: RLS via app_current_tenant() automatically filters by tenant.
     let sql = `
-      SELECT p.id, p.name, p.status, p.category_id,
+      SELECT p.id, p.name, p.status, p.scheduling_mode, p.category_id,
              p.planned_start, p.planned_end, p.actual_start, p.actual_end,
              p.execution_progress
       FROM portfolio_projects p

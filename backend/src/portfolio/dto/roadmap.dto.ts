@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { ProjectStatuses } from './create-project.dto';
-import { ProjectStatus } from '../portfolio-project.entity';
+import { ProjectSchedulingMode, ProjectStatus } from '../portfolio-project.entity';
 
 const DATE_YMD_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -16,7 +15,9 @@ const YmdDateSchema = z.string()
   .regex(DATE_YMD_REGEX, 'Date must be in YYYY-MM-DD format')
   .refine(isValidYmd, 'Invalid calendar date');
 
-const GenerateStatusesSchema = z.array(z.enum(ProjectStatuses))
+const RoadmapCandidateStatuses = ['waiting_list', 'planned', 'in_progress', 'in_testing'] as const;
+
+const GenerateStatusesSchema = z.array(z.enum(RoadmapCandidateStatuses))
   .min(1)
   .default(['waiting_list', 'planned', 'in_progress', 'in_testing']);
 
@@ -24,13 +25,13 @@ export const RoadmapGenerateSchema = z.object({
   startDate: YmdDateSchema,
   statuses: GenerateStatusesSchema,
   capacityMode: z.enum(['theoretical', 'historical']).default('theoretical'),
+  capacityConstraintMode: z.enum(['full', 'it_only']).default('full'),
   parallelizationLimit: z.number().int().min(1).max(5).default(1),
   optimizationMode: z.enum(['priority_focused', 'completion_focused']).default('priority_focused'),
   includeAlreadyScheduled: z.boolean().default(true),
   excludedProjectIds: z.array(z.string().uuid()).default([]),
   contextSwitchPenaltyPct: z.number().min(0).max(0.5).default(0.05),
   contextSwitchGrace: z.number().int().min(0).max(10).default(1),
-  collaborativeScheduling: z.boolean().default(false),
 });
 
 export type RoadmapGenerateInput = z.input<typeof RoadmapGenerateSchema>;
@@ -87,6 +88,7 @@ export interface ScheduledProject {
   projectId: string;
   projectName: string;
   status: ProjectStatus;
+  schedulingMode: ProjectSchedulingMode;
   categoryId: string | null;
   sourceId: string | null;
   streamId: string | null;
@@ -109,6 +111,7 @@ export interface RoadmapReservation {
   projectId: string;
   projectName: string;
   status: ProjectStatus;
+  schedulingMode: ProjectSchedulingMode;
   categoryId: string | null;
   sourceId: string | null;
   streamId: string | null;
@@ -123,11 +126,20 @@ export interface UnschedulableProject {
   projectId: string;
   projectName: string;
   status: ProjectStatus;
+  schedulingMode: ProjectSchedulingMode;
   reason:
     | 'zero_remaining_effort'
     | 'no_assigned_contributors'
     | 'missing_blocker_date'
+    | 'blocker_on_hold'
+    | 'blocked_unfinished_project'
+    | 'expired_fixed_plan'
     | 'cyclic_dependency'
+    | 'not_ready_within_horizon'
+    | 'no_free_slot'
+    | 'no_effective_capacity'
+    | 'below_minimum_start_threshold'
+    | 'unfinished_within_horizon'
     | 'insufficient_capacity'
     | 'missing_contributor_capacity';
   details?: string;
