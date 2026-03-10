@@ -6,6 +6,15 @@ Welcome to the KANAP user manual. This documentation covers all features availab
 
 KANAP helps IT and finance teams manage their technology landscape, budgets, and operations. Use the navigation menu to explore the different modules.
 
+If you want the shortest path to productivity, start with the Fast Track guides before diving into the full reference pages.
+
+## Fast Track Guides
+
+- [Getting Started: Your First 10 Minutes in KANAP](fast-track/getting-started.md) - First-day onboarding, profile setup, dashboard, and core concepts
+- [Portfolio Fast Track: From Request to Delivery](fast-track/index.md) - Submit, evaluate, approve, and deliver initiatives
+- [IT Ops Fast Track: From Application to Server](fast-track/apps-and-assets.md) - Document an app, its environments, and hosting assets
+- [Task Types Fast Track: Run, Build & Tasks](fast-track/task-types.md) - Understand the difference between incidents, problems, requests, projects, bugs, and tasks
+
 ## Modules
 
 ### Dashboard

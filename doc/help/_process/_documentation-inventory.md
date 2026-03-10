@@ -1,6 +1,6 @@
 # User Manual Documentation Inventory
 
-_Generated: 2026-02-28_
+_Generated: 2026-03-10_
 
 This document tracks documentation coverage for the KANAP user manual.
 
@@ -17,7 +17,7 @@ This document tracks documentation coverage for the KANAP user manual.
 | Portfolio | 9 | 9 | 0 |
 | **TOTAL** | **53** | **53** | **0** |
 
-_Note: Portfolio Planning is a placeholder (coming soon) and excluded from counts._
+_Note: Portfolio Planning is a placeholder (coming soon) and excluded from counts. Supplemental Fast Track guides are also excluded from these route-based counts._
 
 ---
 
@@ -25,6 +25,7 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-03-10 | `_documentation-inventory.md` | Added Fast Track supplemental-guides note and clarified that coverage totals are route-manual counts |
 | 2026-02-28 | `portfolio-reporting.md` | Added Weekly Report section (filters, three tables, exports) |
 | 2026-02-28 | `portfolio-projects.md` | Added item number (#) column in list and workspace header |
 | 2026-02-28 | `portfolio-requests.md` | Added item number (#) column in list and workspace header |
@@ -67,6 +68,19 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 | 2026-01-11 | `portfolio-projects.md` | New documentation for Portfolio Projects (initial) |
 | 2026-01-11 | `portfolio-settings.md` | New documentation for Portfolio Settings (initial) |
 | 2026-01-11 | `admin.md` | Updated for RBAC changes: multi-role assignment, permission groups, built-in roles, role duplication |
+
+---
+
+## Supplemental Guides
+
+These published pages are maintained alongside the user manual but are not tied to a single route and are therefore excluded from the coverage totals above.
+
+| Guide | Path | Purpose |
+|-------|------|---------|
+| Getting Started | `fast-track/getting-started.md` | First-day onboarding across the product |
+| Portfolio Fast Track | `fast-track/index.md` | Request-to-project delivery workflow |
+| IT Ops Fast Track | `fast-track/apps-and-assets.md` | Application-to-server documentation flow |
+| Task Types Fast Track | `fast-track/task-types.md` | Run vs Build vs Task terminology |
 
 ---
 
