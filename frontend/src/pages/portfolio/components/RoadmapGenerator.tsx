@@ -7,11 +7,13 @@ import {
   Chip,
   CircularProgress,
   Collapse,
+  Divider,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Drawer,
   FormControl,
   FormControlLabel,
   IconButton,
@@ -54,6 +56,10 @@ type RoadmapTab = 'schedule' | 'bottlenecks' | 'occupation';
 type OccupationView = 'contributor' | 'team';
 type SchedulingMode = 'independent' | 'collaborative';
 type CapacityConstraintMode = 'full' | 'it_only';
+type ScheduleConstraint =
+  | { type: 'pin_start'; startWeek: string }
+  | { type: 'pin_window'; startWeek: string; endWeek: string }
+  | { type: 'not_before'; startWeek: string };
 
 type OnHoldRange = {
   from: string;
@@ -113,6 +119,118 @@ type UnschedulableProject = {
   schedulingMode: SchedulingMode;
   reason: string;
   details?: string;
+};
+
+type ScenarioProjectOverride = {
+  projectId: string;
+  schedulingMode?: SchedulingMode;
+  constraint?: ScheduleConstraint | null;
+};
+
+type ScenarioDraftProject = {
+  scenarioProjectId: string;
+  sourceRequestId: string | null;
+  name: string;
+  status: 'planned';
+  schedulingMode: SchedulingMode;
+  priorityScore: number | null;
+  estimatedEffortIt: number;
+  estimatedEffortBusiness: number;
+  executionProgress: number;
+  categoryId: string | null;
+  sourceId: string | null;
+  streamId: string | null;
+  blockerProjectIds: string[];
+  itLeadId: string | null;
+  businessLeadId: string | null;
+  itAllocationMode: 'auto' | 'manual';
+  businessAllocationMode: 'auto' | 'manual';
+  itAllocations: Array<{ userId: string; allocationPct: number }>;
+  businessAllocations: Array<{ userId: string; allocationPct: number }>;
+  constraint?: ScheduleConstraint | null;
+};
+
+type RoadmapScenario = {
+  projectOverrides: ScenarioProjectOverride[];
+  scenarioProjects: ScenarioDraftProject[];
+};
+
+type RoadmapItemRef = {
+  projectId: string | null;
+  scenarioProjectId: string | null;
+  sourceRequestId: string | null;
+  isScenarioProject: boolean;
+};
+
+type ExplanationReasonEntry = {
+  kind:
+    | 'dependency'
+    | 'reservation'
+    | 'no_free_slot'
+    | 'no_effective_capacity'
+    | 'below_minimum_start_threshold'
+    | 'constraint_conflict'
+    | 'fixed_plan'
+    | 'unschedulable_blocker';
+  label: string;
+  projectId: string | null;
+  scenarioProjectId: string | null;
+  fromWeek: string | null;
+  toWeek: string | null;
+};
+
+type ExplanationContributorEntry = {
+  contributorId: string;
+  contributorName: string;
+  weeklyCapacity: number;
+  reservedLoad: number | null;
+  activeProjectCount: number | null;
+  reason: 'slot' | 'capacity' | 'collaborative_bottleneck' | 'reservation';
+};
+
+type ProjectExplanation = {
+  itemRef: RoadmapItemRef;
+  summary: string;
+  classification: 'scheduled' | 'reservation' | 'unschedulable';
+  schedulingMode: SchedulingMode;
+  earliestEligibleWeek: string | null;
+  actualStartWeek: string | null;
+  derivedFromConstraint: boolean;
+  activeConstraint: ScheduleConstraint | null;
+  startReason:
+    | 'historical_start'
+    | 'dependency_release'
+    | 'capacity_available'
+    | 'constraint_pin_start'
+    | 'constraint_pin_window'
+    | 'constraint_not_before'
+    | 'fixed_reservation'
+    | 'unscheduled';
+  blockerReasons: ExplanationReasonEntry[];
+  limitingContributors: ExplanationContributorEntry[];
+  finalReason: string | null;
+};
+
+type ScenarioWarning = {
+  severity: 'info' | 'warning' | 'error';
+  code:
+    | 'constraint_infeasible'
+    | 'expired_fixed_plan'
+    | 'scenario_project_incomplete'
+    | 'scenario_project_missing_capacity'
+    | 'hidden_business_only_project'
+    | 'apply_skips_scenario_projects';
+  itemRef: RoadmapItemRef | null;
+  message: string;
+};
+
+type RoadmapImpactSummary = {
+  delayedProjects: number;
+  acceleratedProjects: number;
+  unchangedProjects: number;
+  newlyUnschedulableProjects: number;
+  newlyScheduledProjects: number;
+  roadmapEndDeltaDays: number | null;
 };
 
 type BottleneckEntry = {
@@ -180,6 +298,9 @@ type RoadmapResponse = {
   schedule: ScheduledProject[];
   reservations: ReservationProject[];
   unschedulable: UnschedulableProject[];
+  explanations: ProjectExplanation[];
+  scenarioWarnings: ScenarioWarning[];
+  impactSummary: RoadmapImpactSummary | null;
   bottlenecks: BottleneckEntry[];
   occupation: OccupationEntry[];
   teamOccupation: TeamOccupationEntry[];
@@ -240,6 +361,24 @@ const RESERVATION_REASON_LABELS: Record<ReservationReason, string> = {
   external_blocker: 'External Blocker',
 };
 
+const START_REASON_LABELS: Record<ProjectExplanation['startReason'], string> = {
+  historical_start: 'Historical start',
+  dependency_release: 'Dependency release',
+  capacity_available: 'Capacity became available',
+  constraint_pin_start: 'Pinned start',
+  constraint_pin_window: 'Pinned window',
+  constraint_not_before: 'Not before constraint',
+  fixed_reservation: 'Fixed reservation',
+  unscheduled: 'Unscheduled',
+};
+
+const CONTRIBUTOR_REASON_LABELS: Record<ExplanationContributorEntry['reason'], string> = {
+  slot: 'Parallel slot limit',
+  capacity: 'Capacity pressure',
+  collaborative_bottleneck: 'Collaborative bottleneck',
+  reservation: 'Reservation pressure',
+};
+
 const GANTT_STATUS_COLORS: Record<string, string> = {
   waiting_list: '#ffa726',
   planned: '#66bb6a',
@@ -252,6 +391,28 @@ const GANTT_STATUS_COLORS: Record<string, string> = {
 const getTodayYmd = (): string => {
   return new Date().toISOString().slice(0, 10);
 };
+
+const getExplanationKey = (itemRef: RoadmapItemRef): string | null => {
+  return itemRef.projectId ?? itemRef.scenarioProjectId ?? itemRef.sourceRequestId;
+};
+
+const formatConstraint = (constraint: ScheduleConstraint | null | undefined): string => {
+  if (!constraint) return 'None';
+  switch (constraint.type) {
+    case 'pin_start':
+      return `Pin start: ${constraint.startWeek}`;
+    case 'pin_window':
+      return `Pin window: ${constraint.startWeek} to ${constraint.endWeek}`;
+    case 'not_before':
+      return `Not before: ${constraint.startWeek}`;
+    default:
+      return 'None';
+  }
+};
+
+const hasContributorLoads = (
+  project: ScheduledProject | ReservationProject | UnschedulableProject | null,
+): project is ScheduledProject | ReservationProject => !!project && 'contributorLoads' in project;
 
 const getIsoWeekParts = (weekStartYmd: string): { week: number; year: number } => {
   const base = new Date(`${weekStartYmd}T00:00:00Z`);
@@ -889,7 +1050,12 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   const [ganttSourceId, setGanttSourceId] = useState<string>('');
   const [ganttStreamId, setGanttStreamId] = useState<string>('');
 
+  const [roadmapScenario] = useState<RoadmapScenario>({
+    projectOverrides: [],
+    scenarioProjects: [],
+  });
   const [response, setResponse] = useState<RoadmapResponse | null>(null);
+  const [selectedExplanationKey, setSelectedExplanationKey] = useState<string | null>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
   const [scheduleSelectionPool, setScheduleSelectionPool] = useState<ScheduledProject[]>([]);
   const [savingSchedulingModeProjectIds, setSavingSchedulingModeProjectIds] = useState<Set<string>>(new Set());
@@ -946,6 +1112,36 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     () => new Map(scheduledProjects.map((project) => [project.projectId, project])),
     [scheduledProjects],
   );
+  const explanationByKey = useMemo(
+    () => new Map(
+      (response?.explanations ?? [])
+        .map((explanation) => [getExplanationKey(explanation.itemRef), explanation] as const)
+        .filter((entry): entry is [string, ProjectExplanation] => !!entry[0]),
+    ),
+    [response?.explanations],
+  );
+  const explanationSubjectByKey = useMemo(() => {
+    const entries = [
+      ...scheduledProjects.map((project) => [project.projectId, project.projectName] as const),
+      ...reservationProjects.map((project) => [project.projectId, project.projectName] as const),
+      ...(response?.unschedulable ?? []).map((project) => [project.projectId, project.projectName] as const),
+    ];
+    return new Map(entries);
+  }, [reservationProjects, response?.unschedulable, scheduledProjects]);
+  const selectedExplanation = selectedExplanationKey
+    ? (explanationByKey.get(selectedExplanationKey) ?? null)
+    : null;
+  const selectedExplanationProject = selectedExplanationKey
+    ? (
+      scheduleRowsById.get(selectedExplanationKey)
+      ?? reservationProjects.find((project) => project.projectId === selectedExplanationKey)
+      ?? response?.unschedulable.find((project) => project.projectId === selectedExplanationKey)
+      ?? null
+    )
+    : null;
+  const selectedExplanationTitle = selectedExplanation
+    ? (explanationSubjectByKey.get(getExplanationKey(selectedExplanation.itemRef) || '') ?? 'Explanation')
+    : 'Explanation';
   const allRowsSelected = filteredProjectIds.length > 0
     && filteredProjectIds.every((projectId) => selectedProjectIds.has(projectId));
 
@@ -1353,6 +1549,15 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     });
   };
 
+  const openExplanation = (projectId: string) => {
+    if (!explanationByKey.has(projectId)) return;
+    setSelectedExplanationKey(projectId);
+  };
+
+  const closeExplanation = () => {
+    setSelectedExplanationKey(null);
+  };
+
   const buildExcludedProjectIds = (
     selection: Set<string> = selectedProjectIds,
     rows: ScheduledProject[] = scheduleRows,
@@ -1370,6 +1575,10 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     setApplyError(null);
     const isFirstGeneration = !response;
     try {
+      const scenarioPayload = roadmapScenario.projectOverrides.length > 0
+        || roadmapScenario.scenarioProjects.length > 0
+        ? roadmapScenario
+        : undefined;
       const payload = {
         startDate,
         statuses,
@@ -1381,6 +1590,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
         excludedProjectIds,
         contextSwitchPenaltyPct,
         contextSwitchGrace,
+        scenario: scenarioPayload,
       };
       const res = await api.post('/portfolio/reports/roadmap/generate', payload);
       const nextResponse = res.data as RoadmapResponse;
@@ -1825,6 +2035,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                           <TableCell>End</TableCell>
                           <TableCell>Weeks</TableCell>
                           <TableCell align="right">Priority</TableCell>
+                          <TableCell align="right">Explain</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -1881,6 +2092,15 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                               <TableCell align="right">
                                 {priority != null ? priority.toFixed(1) : 'N/A'}
                               </TableCell>
+                              <TableCell align="right">
+                                <Button
+                                  size="small"
+                                  onClick={() => openExplanation(project.projectId)}
+                                  disabled={!explanationByKey.has(project.projectId)}
+                                >
+                                  Why?
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           );
                         })}
@@ -1895,11 +2115,26 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                       </Typography>
                       <Stack spacing={0.75}>
                         {response.unschedulable.map((item) => (
-                          <Tooltip key={item.projectId} title={item.details || ''} placement="top-start">
-                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                              {item.projectName} ({SCHEDULING_MODE_LABELS[item.schedulingMode]}): {REASON_LABELS[item.reason] || item.reason}
-                            </Typography>
-                          </Tooltip>
+                          <Stack
+                            key={item.projectId}
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            justifyContent="space-between"
+                          >
+                            <Tooltip title={item.details || ''} placement="top-start">
+                              <Typography variant="body2" sx={{ color: 'text.secondary', flex: 1 }}>
+                                {item.projectName} ({SCHEDULING_MODE_LABELS[item.schedulingMode]}): {REASON_LABELS[item.reason] || item.reason}
+                              </Typography>
+                            </Tooltip>
+                            <Button
+                              size="small"
+                              onClick={() => openExplanation(item.projectId)}
+                              disabled={!explanationByKey.has(item.projectId)}
+                            >
+                              Why?
+                            </Button>
+                          </Stack>
                         ))}
                       </Stack>
                     </Paper>
@@ -2385,6 +2620,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                   projects={ganttProjects}
                   dependencies={ganttDependencies}
                   milestones={[]}
+                  onProjectClick={openExplanation}
                   readOnly
                   months={monthsForGantt}
                   monthOffset={monthOffsetForGantt}
@@ -2411,6 +2647,174 @@ export default function RoadmapGenerator({ onApplied }: Props) {
           </Paper>
         </>
       )}
+
+      <Drawer
+        anchor="right"
+        open={!!selectedExplanation}
+        onClose={closeExplanation}
+        ModalProps={{ keepMounted: true }}
+        PaperProps={{
+          sx: {
+            top: { xs: 56, sm: 64 },
+            height: { xs: 'calc(100% - 56px)', sm: 'calc(100% - 64px)' },
+          },
+        }}
+      >
+        <Box sx={{ width: { xs: '100vw', sm: 420 }, p: 2, pb: 3, overflowY: 'auto' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+            <Box>
+              <Typography variant="overline" color="text.secondary">
+                Explainability
+              </Typography>
+              <Typography variant="h6">{selectedExplanationTitle}</Typography>
+            </Box>
+            <Button size="small" onClick={closeExplanation}>Close</Button>
+          </Stack>
+
+          {selectedExplanation && (
+            <Stack spacing={2} sx={{ mt: 2 }}>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Chip size="small" label={selectedExplanation.classification} />
+                <Chip size="small" label={SCHEDULING_MODE_LABELS[selectedExplanation.schedulingMode]} />
+              </Stack>
+
+              <Box>
+                <Typography variant="body2">{selectedExplanation.summary}</Typography>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+                  Why this start week
+                </Typography>
+                <Stack spacing={0.5}>
+                  <Typography variant="body2">
+                    Start reason: {START_REASON_LABELS[selectedExplanation.startReason]}
+                  </Typography>
+                  <Typography variant="body2">
+                    Earliest eligible week: {selectedExplanation.earliestEligibleWeek || 'N/A'}
+                  </Typography>
+                  <Typography variant="body2">
+                    Actual start week: {selectedExplanation.actualStartWeek || 'Not scheduled'}
+                  </Typography>
+                  {selectedExplanation.finalReason && (
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedExplanation.finalReason}
+                    </Typography>
+                  )}
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+                  Why not earlier
+                </Typography>
+                <Stack spacing={1}>
+                  {selectedExplanation.blockerReasons.length === 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      No additional blocking details were recorded for this item.
+                    </Typography>
+                  )}
+                  {selectedExplanation.blockerReasons.map((reason, index) => (
+                    <Paper key={`${reason.kind}:${reason.projectId || 'none'}:${index}`} variant="outlined" sx={{ p: 1.25 }}>
+                      <Typography variant="body2">{reason.label}</Typography>
+                      {(reason.fromWeek || reason.toWeek) && (
+                        <Typography variant="caption" color="text.secondary">
+                          {reason.fromWeek || 'Unknown'} to {reason.toWeek || 'Unknown'}
+                        </Typography>
+                      )}
+                    </Paper>
+                  ))}
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              {hasContributorLoads(selectedExplanationProject) && (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+                    Project contributors
+                  </Typography>
+                  <Stack spacing={1}>
+                    {selectedExplanationProject.plannedStart && (
+                      <Typography variant="body2" color="text.secondary">
+                        Scheduled window: {selectedExplanationProject.plannedStart} to {selectedExplanationProject.plannedEnd}
+                      </Typography>
+                    )}
+                    {selectedExplanationProject.contributorLoads.length === 0 && (
+                      <Typography variant="body2" color="text.secondary">
+                        No contributor load details are available for this item.
+                      </Typography>
+                    )}
+                    {selectedExplanationProject.contributorLoads.map((load) => (
+                      <Paper key={load.contributorId} variant="outlined" sx={{ p: 1.25 }}>
+                        <Typography variant="body2">{load.contributorName}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          Planned load: {load.days.toFixed(2)}d
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          Weekly capacity: {(
+                            selectedExplanation.limitingContributors.find((item) => item.contributorId === load.contributorId)?.weeklyCapacity
+                            ?? 0
+                          ).toFixed(2)}d
+                        </Typography>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {hasContributorLoads(selectedExplanationProject) && <Divider />}
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+                  Limiting contributors
+                </Typography>
+                <Stack spacing={1}>
+                  {selectedExplanation.limitingContributors.length === 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      No specific limiting contributors were recorded for this item.
+                    </Typography>
+                  )}
+                  {selectedExplanation.limitingContributors.map((contributor) => (
+                    <Paper key={contributor.contributorId} variant="outlined" sx={{ p: 1.25 }}>
+                      <Typography variant="body2">{contributor.contributorName}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {CONTRIBUTOR_REASON_LABELS[contributor.reason]}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        Weekly capacity: {contributor.weeklyCapacity.toFixed(2)}d
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        Reserved load: {contributor.reservedLoad != null ? `${contributor.reservedLoad.toFixed(2)}d` : 'N/A'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        Active projects: {contributor.activeProjectCount != null ? contributor.activeProjectCount : 'N/A'}
+                      </Typography>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+                  Active scenario overrides
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {selectedExplanation.derivedFromConstraint
+                    ? formatConstraint(selectedExplanation.activeConstraint)
+                    : 'No active scenario overrides for this item.'}
+                </Typography>
+              </Box>
+            </Stack>
+          )}
+        </Box>
+      </Drawer>
 
       <Dialog open={confirmOpen} onClose={() => !applying && setConfirmOpen(false)}>
         <DialogTitle>Apply Roadmap Dates</DialogTitle>

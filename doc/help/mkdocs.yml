@@ -105,16 +105,9 @@ nav:
     - Requests: portfolio-requests.md
     - Projects: portfolio-projects.md
     - Planning: portfolio-planning.md
-    - Team Members: portfolio-team-members.md
+    - Contributors: portfolio-team-members.md
     - Reporting: portfolio-reporting.md
     - Settings: portfolio-settings.md
-
-  - Budget Management:
-    - OPEX: opex.md
-    - CAPEX: capex.md
-    - Contracts: contracts.md
-    - Budget Administration: budget-operations.md
-    - Reports: reports.md
 
   - IT Operations:
     - Infrastructure:
@@ -127,6 +120,16 @@ nav:
       - Interfaces: interfaces.md
       - Interface Map: interface-map.md
     - Settings: it-ops-settings.md
+
+  - Knowledge:
+    - Knowledge: knowledge.md
+
+  - Budget Management:
+    - OPEX: opex.md
+    - CAPEX: capex.md
+    - Contracts: contracts.md
+    - Budget Administration: budget-operations.md
+    - Reports: reports.md
 
   - Master Data:
     - Organization:

@@ -140,7 +140,7 @@ The Roadmap Generator simulates project execution week by week. Each week it dec
 
 ### Capacity
 
-Each contributor has a monthly capacity (configured in **Team Members**). The scheduler converts this to a weekly value: `monthly * 12 / 52`.
+Each contributor has a monthly capacity (configured in **Contributors**). The scheduler converts this to a weekly value: `monthly * 12 / 52`.
 
 - **Theoretical mode** uses the configured capacity directly.
 - **Historical mode** uses actual time-tracking data from recent months as the capacity baseline.

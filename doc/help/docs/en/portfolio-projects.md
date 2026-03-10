@@ -1,497 +1,376 @@
 # Portfolio Projects
 
-Portfolio Projects track approved initiatives from planning through completion. They extend the information captured in requests with timeline management, effort tracking, and execution monitoring. Projects can originate from converted requests, be fast-tracked directly, or imported as legacy items.
+Portfolio Projects are the execution workspaces for approved initiatives. They are where delivery is planned, progress is tracked, workload is measured, tasks are coordinated, and project-specific knowledge is connected back to the rest of KANAP.
 
-## Getting started
+Projects usually come from approved requests, but they can also be created directly as **Fast-track** or **Legacy** projects when the request stage is not part of the process.
 
-Navigate to **Portfolio Management > Projects** to see your list. Click **New Project** to create a fast-track or legacy project.
-
-For portfolio-wide scheduling and roadmap simulation, use **Portfolio Management > Planning** (see [Portfolio Planning](portfolio-planning.md)).
-
-**Required fields**:
-  - **Project Name**: A clear, descriptive title
-
-**Strongly recommended**:
-  - **Purpose**: What this project aims to achieve
-  - **Origin**: How the project was created (Fast-track or Legacy)
-  - **Source/Category**: Classification for reporting and filtering
-  - **Company**: Sponsoring organization
-
-**Tip**: Most projects come from converted requests, which carry over their information automatically.
+For portfolio-wide sequencing and roadmap work, use [Portfolio Planning](portfolio-planning.md). The Projects area is for running the work once a project exists.
 
 ## Where to find it
 
-- Workspace: **Portfolio Management**
-- Path: **Portfolio Management > Projects**
-- Permissions:
-  - You need at least `portfolio_projects:reader` to view projects
-  - You need `portfolio_projects:contributor` to edit existing projects, add comments, attachments, and manage tasks
-  - You need `portfolio_projects:member` to create new projects
-  - You need `portfolio_projects:admin` for full management including CSV import/export
+- Workspace: **Portfolio**
+- Path: **Portfolio > Projects**
 
-If you don't see Projects in the menu, ask your administrator to grant you the appropriate permissions.
+## Permissions
+
+- `portfolio_projects:reader`: open the list and view project workspaces
+- `portfolio_projects:contributor`: update the managed **Purpose** document and maintain project-overhead time entries
+- `portfolio_projects:manager`: create projects and manage project data, status, team, relations, timeline, progress, tasks, scoring, comments, and decisions
+- `portfolio_projects:admin`: includes manager capabilities and can also import/export CSV and maintain other users' project-overhead time entries
+- Knowledge viewing also requires Knowledge access
+- Creating or linking standalone knowledge also requires a Knowledge creation role
+
+If Projects does not appear in the navigation, ask an administrator for access.
 
 ## Working with the list
 
-The projects list shows all portfolio projects with execution status at a glance.
+The project list is designed to answer two questions quickly: "what should I care about?" and "what is moving?"
 
-**Top scope filter**:
-  - **My projects** (default): shows projects where you are involved in any explicit project role:
-    - **Business Sponsor** / **IT Sponsor**
-    - **Business Lead** / **IT Lead**
-    - **Contributors** (Business Contributors or IT Contributors)
-  - **My team's projects**: shows projects where any member of your Portfolio team appears in those same explicit project roles. Your own involvement is also included in this scope.
-  - **All projects**: shows the full projects grid (with the standard default status behavior).
-  - If you are not assigned to a Portfolio team, **My team's projects** is disabled
-  - Your selection is remembered across sessions — returning to the page restores your last choice
+**Scope selector**
 
-**Default columns**:
-  - **#**: The item number in `PRJ-{number}` format (e.g., PRJ-1, PRJ-42). This is a unique, sequential identifier assigned automatically when a project is created. Click to open the workspace.
-  - **Project Name**: The initiative title (click to open workspace)
-  - **Priority**: Score carried from request or scored separately
-  - **Status**: Current execution state
-  - **Origin**: How the project was created (Request, Fast-track, Legacy)
-  - **Progress**: Visual progress bar with percentage
-  - **Source/Category/Stream**: Classification hierarchy
-  - **Company**: Sponsoring organization
-  - **Start/End**: Planned dates
-  - **Created**: When the project record was created
+- **My projects** shows projects where you are explicitly involved as sponsor, lead, or contributor
+- **My team's projects** expands that view to projects involving members of your portfolio team
+- **All projects** removes that involvement filter
+- If you are not assigned to a portfolio team, the team scope is unavailable
+- Your scope preference is remembered, so the list comes back the way you left it
 
-**Filtering**:
-  - Quick search covers all text fields
-  - Status, Origin, Source, Category, Stream, and Company columns use checkbox set filters with `All`, `None`, or `N selected` plus an **x** to clear
-  - By default, completed projects are hidden (use the Status filter to include Done or clear the Status filter to show all)
+**Default behavior**
 
-**Actions**:
-  - **New Project**: Create a fast-track or legacy project
+- Projects are sorted by priority score unless you change the sort
+- Projects in **Done** status are hidden by default
+- Search works across text content
+- Status, origin, source, category, stream, and company filters are available directly in the grid
 
-## The Project workspace
+**What the grid emphasizes**
 
-Click any row to open the workspace. It has 8 tabs:
+- Reference number (`PRJ-...`) and name for quick identification
+- Priority and status for execution posture
+- Origin so you can distinguish request-based work from fast-track or legacy work
+- Progress for delivery visibility
+- Classification fields for reporting and slicing the portfolio
+- Planned dates and creation date for scheduling context
 
-### Overview
+Opening a project from the list preserves the current list context. That matters because the project workspace uses the same context for **Previous** and **Next** navigation, so you can review a filtered set without losing your place.
 
-Core information about the project.
+**Bulk administration**
 
-**Item number**: The workspace header displays the project's item number as a chip (e.g., **PRJ-42**) next to the project name. Click the chip to copy the reference to your clipboard. The browser tab also shows this reference for easy identification. URLs use the human-readable reference (e.g., `/portfolio/projects/PRJ-42/overview`) instead of internal IDs.
+- **New Project** is available to managers
+- **Import CSV** and **Export CSV** are available to administrators
 
-**What you can edit**:
-  - **Project Name**: The title
-  - **Purpose**: Description of what this project delivers
-  - **Origin**: How it was created (read-only after creation)
-  - **Source/Category/Stream**: Classification hierarchy
-  - **Company/Department**: Organizational context
-  - **Status**: Current execution state
+## Creating a project
 
-**Status workflow**:
+Direct project creation is for work that should enter execution without a separate request record.
 
-| Status | Meaning | Can transition to |
-|--------|---------|-------------------|
-| Waiting List | Approved but not yet scheduled | Planned, On Hold, Cancelled |
-| Planned | Scheduled with dates, not started | In Progress, On Hold, Cancelled |
-| In Progress | Active execution | In Testing, Done, On Hold, Cancelled |
-| In Testing | Validation and QA phase | In Progress, Done, On Hold, Cancelled |
-| On Hold | Temporarily paused | Waiting List, Planned, In Progress, Cancelled |
-| Done | Successfully completed | (terminal state) |
-| Cancelled | Terminated before completion | (terminal state) |
+- New projects open on **Summary** only
+- Until the project is saved the first time, the other tabs are unavailable
+- Directly created projects use an origin of **Fast-track** or **Legacy**
+- Request-origin projects keep their request origin and source linkage
 
-**Origin types**:
-  - **Request**: Converted from an approved portfolio request
-  - **Fast-track**: Created directly without going through request workflow
-  - **Legacy**: Imported from existing/historical projects
+Use **Fast-track** for work that is genuinely being introduced directly into delivery. Use **Legacy** for work that already exists outside the normal intake history. That distinction affects reporting and makes later portfolio analysis much less confusing.
 
-**Tip**: Click the origin chip on "Request" projects to navigate to the source request.
+## Workspace mental model
 
----
+The project workspace has two layers:
 
-### Activity
+- The **main content area** for operational tabs: **Summary**, **Activity**, **Timeline**, **Progress**, **Tasks**, **Scoring**, and **Knowledge**
+- A persistent **Project Properties** sidebar for core properties, team assignment, and relations
 
-Complete audit trail of all changes, comments, and decisions.
+This is the most important behavior change from the older documentation: **Team** and **Relations** are no longer standalone tabs. They now live in the sidebar and stay available while you work anywhere else.
 
-**What's tracked**:
-  - Status changes with before/after values
-  - Field modifications
-  - Phase and milestone changes
-  - Comments and decisions
-  - Who made the change and when
+For existing projects, the sidebar behaves like a live property panel: changes there are saved immediately. The main tab content follows the usual **Save** and **Reset** workflow when that tab contains draft changes. If you switch tabs or move to the previous or next project with unsaved workspace changes, KANAP asks whether to save first.
 
-**Regular comments**:
-  - Add context (optional, e.g., "Steering Committee")
-  - Write your comment
-  - Click **Add Comment**
+## Header and navigation
 
-**Formal decisions**:
-  - Check **Formal decision**
-  - Select **Decision Outcome**: Go, No-Go, Defer, Need Info, Analysis Complete
-  - Optionally change status as part of the decision
-  - Provide **Context** (required)
-  - Add **Rationale** explaining the decision
+The workspace header is not just decoration; it is the project's control strip.
 
----
+- The `PRJ-...` chip is the stable human-readable reference and can be copied directly
+- The status chip shows the current execution state
+- The origin chip shows how the project entered the portfolio
+- Request-origin projects expose a direct path back to the source request
+- The progress bar in the header shows current execution progress without leaving the page
+- **Previous** and **Next** move through the current list result set, not through all projects in the system
+- **Send link** emails the current project URL with an optional message
+
+Sending a link does not grant access. It only shares the location. Permissions remain exactly as they were before the email was sent, which is how it should be.
+
+## Project Properties sidebar
+
+Treat the sidebar as the project's persistent identity card.
+
+### Core Properties
+
+The core section holds the project fields that define how the project appears elsewhere in KANAP:
+
+- project name
+- status
+- origin during initial creation only
+- source, category, and stream
+- company and department
+- planned start and planned end
+
+These fields drive reporting, planning, filtering, and default portfolio context. Classification choices are especially important because they affect where the project appears in cross-portfolio analysis.
+
+Changing status from the sidebar is more than a label update. KANAP opens a status-change dialog so the transition can be recorded properly. That is where you can log the change as a formal decision, capture context, and store the rationale with the transition instead of letting it disappear into hallway memory.
+
+The workflow is intentionally controlled:
+
+- **Waiting List** can move to **Planned**, **On Hold**, or **Cancelled**
+- **Planned** can move to **In Progress**, **On Hold**, or **Cancelled**
+- **In Progress** can move to **In Testing**, **Done**, **On Hold**, or **Cancelled**
+- **In Testing** can move back to **In Progress**, or forward to **Done**, **On Hold**, or **Cancelled**
+- **On Hold** can return to **Waiting List**, **Planned**, or **In Progress**, or be **Cancelled**
+- **Done** and **Cancelled** are terminal states
 
 ### Team
 
-Assign people responsible for this project.
+Team assignment is part of the sidebar so it stays available while you work on schedule, effort, or tasks.
 
-**Sponsors & Leads**:
-  - **Business Sponsor**: Executive accountable from the business side
-  - **Business Lead**: Day-to-day business representative
-  - **IT Sponsor**: Executive accountable from IT
-  - **IT Lead**: Technical representative
+- Business Sponsor / IT Sponsor capture executive accountability
+- Business Lead / IT Lead identify day-to-day leadership
+- Business Contributors / IT Contributors define the wider working team
 
-**Contributors**:
-  - **Business Contributors**: Business stakeholders and contributors
-  - **IT Contributors**: Technical team members
+These assignments do more than fill boxes:
 
----
+- they determine what appears in **My projects** and **My team's projects**
+- they feed project context in summary and reporting
+- they define who is available for effort allocation in the **Progress** tab
 
-### Timeline
-
-Manage project dates, phases, and milestones. Toggle between a **Table** view and a **Gantt** chart using the view buttons at the top of the tab.
-
-**Project Dates**:
-  - **Planned Start/End**: Target dates for the project
-  - **Actual Start/End**: Captured automatically based on status changes
-
-**Phase Management** (Table view):
-
-When no phases exist:
-  - Select a phase template from the dropdown
-  - Click **Apply Template** to create phases
-
-When phases exist:
-  - **Reorder phases**: Drag phases up or down using the grip handle in the first column
-  - Edit phase names inline
-  - Set start/end dates for each phase
-  - Change phase status: Pending, In Progress, Completed
-  - Toggle the milestone checkbox to create a completion milestone
-  - Click **[+]** next to a phase to create a task pre-linked to that phase
-  - Click **Replace with Template** to start over (deletes existing phases)
-  - Click **Add Phase** to add a custom phase
-
-**Gantt View**:
-  - Visual timeline showing phases as horizontal bars on a calendar
-  - Color-coded by phase status: orange (Pending), blue (In Progress), green (Completed)
-  - **Drag-and-drop**: Drag phase bars to change start/end dates (requires edit permission)
-  - Time scale shows months and weeks
-  - Only phases with both a start and end date appear on the Gantt
-
-**Milestones**:
-  - **Phase milestones**: Created from phases, target date syncs with phase end date
-  - **Custom milestones**: Add standalone milestones with any target date
-  - Track status: Pending, Achieved, Missed
-
-**Baseline tracking**:
-  - When a project moves to "In Progress", dates are captured as baseline
-  - Variance shows difference between current planned dates and baseline
-
----
-
-### Progress
-
-Track effort consumption and execution progress.
-
-**Progress & Effort Consumption**:
-  - **Execution Progress**: Slider (0-100%) showing overall completion
-  - **IT Effort Consumed**: Actual vs estimated for IT work
-  - **Business Effort Consumed**: Actual vs estimated for business work
-  - Alerts appear when effort exceeds progress or estimates
-
-**Estimated Effort**:
-  - **IT Effort (MD)**: Planned person-days for IT
-  - **Business Effort (MD)**: Planned person-days for business
-
-**Actual Effort**:
-  - Calculated from time log entries
-  - Read-only fields showing totals
-
-**Time Breakdown** (when time has been logged):
-  - **Project Overhead**: Time logged directly to the project via the Progress tab
-  - **Task Time**: Time logged to individual project tasks
-  - **Total Logged**: Combined total with percentages
-  - Visual progress bar showing the distribution
-
-**Time Log**:
-The Time Log displays all time entries for the project in a unified view:
-  - **Source column**: Shows "Project Overhead" for direct project time, or the task title for task time
-  - **Category column**: IT or Business indicator
-  - **Person, Hours, Notes**: Details of each entry
-
-**Logging project overhead time**:
-  - Click **Log Time** to add an entry
-  - Select category (IT or Business), person, hours, and notes
-  - Edit or delete your own project overhead entries
-
-**Task time entries**:
-  - Task time entries appear automatically when time is logged to project tasks
-  - These entries are view-only in the Time Log (edit them from the task workspace)
-  - Task time contributes to actual effort calculations the same as project overhead
-
-**Contributor time statistics**:
-  - Logged time feeds the Contributor workspace time statistics
-  - Project overhead + project task time count as **Project** effort for the assigned person
-  - Time logged to non-project tasks counts as **Other** effort
-
-**Baseline tracking**:
-  - When moving to "In Progress", effort estimates are captured as baseline
-  - Variance shows difference between current estimates and baseline
-
----
-
-### Tasks
-
-Manage project tasks and deliverables.
-
-**Task List**:
-  - Shows all tasks for this project
-  - Columns: Title, Status, Priority, Phase, Due Date
-  - Click any row to open the full task workspace
-
-**Filtering**:
-  - **Status filter**: All, Active (hides done/cancelled), or specific status
-  - **Phase filter**: All Phases, Project-level, or specific phase
-  - Click the filter icon to show/hide filter controls
-  - Click the clear button to reset filters
-
-**Creating Tasks**:
-  - Click **Add Task** to create a new task
-  - Fill in title, description, priority, phase (optional), assignee, and due date
-  - The task is automatically linked to this project
-
-**Quick Task Creation**:
-  - In the **Timeline** tab, click the **[+]** button next to any phase
-  - This opens the task creation dialog with the phase pre-selected
-
-**Task Time Tracking**:
-  - Time logged to tasks contributes to the project's actual effort
-  - When logging time on a task, select IT or Business category
-  - IT time adds to `Actual Effort (IT)`, Business time adds to `Actual Effort (Business)`
-  - The **Progress** tab shows:
-    - Time Breakdown: Project overhead vs task time summary
-    - Time Log: Unified view of all time entries (project overhead + task time)
-
----
-
-### Scoring
-
-Score or view the priority for this project.
-
-**For projects from requests**:
-  - Shows the original request scoring (read-only)
-  - Links to the source request for reference
-
-**For fast-track/legacy projects**:
-  - Score using the same criteria as requests
-  - Supports priority override with justification
-
----
+If leads and contributors are wrong, your effort planning will also be wrong.
 
 ### Relations
 
-Track dependencies and connections.
+The relations section brings together the links that explain how the project fits into the rest of the portfolio.
 
-**Dependencies**:
-  - Link to other requests or projects this depends on
-  - Add dependencies by selecting from existing items
-  - Dependencies are shown bi-directionally
+- **Dependencies** track delivery dependencies on other requests or projects
+- **Source Requests** show the request record that produced the project
+- additional relations capture connected business and technical context
 
-**Source Requests**:
-  - Shows the request(s) this project originated from
-  - Click to navigate to the source request
+Dependencies are operational, not cosmetic. They shape how delays and sequencing should be interpreted. Source request links preserve the chain from intake to execution, which is essential when someone later asks, "why are we doing this project at all?"
 
-**Business Relations**:
-  - Link to applications, business processes, or other entities affected
+## Summary
 
-## CSV import/export
+The **Summary** tab is the project cockpit. It is meant to answer the current state of the project in a single pass, not to duplicate every field in the sidebar.
 
-Maintain your project portfolio at scale using CSV import and export. This feature supports bulk operations for initial data loading, periodic updates, and data extraction for reporting.
+The summary cards cover:
 
-### Accessing CSV features
+- current status and priority
+- delivery window and schedule variance
+- effort consumption and task posture
+- team and relation coverage
+- knowledge footprint
+- latest activity
 
-From the Projects list:
-  - **Export CSV**: Download projects to a CSV file
-  - **Import CSV**: Upload a CSV file to create or update projects
-  - **Download Template**: Get a blank CSV with correct headers
+This tab is where a manager can understand whether the project is merely alive in the database or actually under control.
 
-**Permissions required**: `portfolio_projects:admin` for import/export operations.
+### Purpose
 
-### Export options
+The **Purpose** section on Summary is a managed project document, not a disposable note field.
 
-Three export modes are available:
+- use it for the narrative brief of the project: intent, expected outcome, scope boundaries, and any framing that should travel with the project
+- purpose changes follow the workspace **Save** and **Reset** flow
+- contributors can update the Purpose even when they cannot manage the rest of the project
 
-| Option | Description |
-|--------|-------------|
-| **Full Export** | All exportable fields—use for reporting and complete data extraction |
-| **Data Enrichment** | All importable fields—matches the import template format, ideal for round-trip editing (export → modify → re-import) |
-| **Custom Selection** | Choose specific fields to include in your export |
+This split is deliberate. It allows narrative ownership to be broader than structural project administration.
 
-**Template download** (from Import dialog): Downloads a blank CSV with all importable field headers—use this to prepare import files with the correct structure.
+The managed Purpose document is different from the **Knowledge** tab:
 
-### Import workflow
+- **Purpose** is the embedded, project-owned brief
+- **Knowledge** is for standalone documents that may need their own lifecycle, reuse, or relationships
 
-1. **Prepare your file**: Use UTF-8 encoding with semicolon (`;`) separators. Download a template to ensure correct headers.
+## Activity
 
-2. **Choose import settings**:
-   - **Mode**:
-     - `Enrich` (default): Empty cells preserve existing values—only update what you specify
-     - `Replace`: Empty cells clear existing values—full replacement of all fields
-   - **Operation**:
-     - `Upsert` (default): Create new projects or update existing ones
-     - `Update only`: Only modify existing projects, skip new ones
-     - `Insert only`: Only create new projects, skip existing ones
+The **Activity** tab separates conversation from audit evidence:
 
-3. **Validate first**: Click **Preflight** to validate your file without making changes. Review errors and warnings.
+- **Comments** for discussion, contextual notes, and formal decisions
+- **History** for the audit trail of field and status changes
 
-4. **Apply changes**: If validation passes, click **Import** to commit changes.
+Managers can add and edit project comments. Comments can also be recorded as formal decisions, with an outcome and an optional status change. Use that when the discussion itself changes the project's course.
 
-### Field reference
+Images can be included in activity comments when visual evidence is useful. That is handy for architecture sketches, screenshots, or review evidence.
 
-**Overview fields**:
+Use **History** when you need to know what changed. Use **Comments** when you need to know why.
 
-| CSV Column | Description | Required | Notes |
-|------------|-------------|----------|-------|
-| `id` | Project UUID | No | For updates; leave blank for new projects |
-| `name` | Project name | Yes | Used as unique identifier for matching |
-| `status` | Execution status | No | Accepts code or label |
-| `purpose` | What the project delivers | No | |
-| `origin` | How project was created | No | Accepts code or label |
-| `source_name` | Project source | No | Must match existing source name |
-| `category_name` | Category | No | Must match existing category name |
-| `stream_name` | Stream | No | Must match existing stream name |
-| `company_name` | Company | No | Must match existing company name |
-| `department_name` | Department | No | Must match existing department name |
+## Timeline
 
-**Timeline fields**:
+The **Timeline** tab is where the delivery structure becomes explicit.
 
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `planned_start` | Planned start date | Date format: YYYY-MM-DD |
-| `planned_end` | Planned end date | Date format: YYYY-MM-DD |
-| `actual_start` | Actual start date | Date format: YYYY-MM-DD |
-| `actual_end` | Actual end date | Date format: YYYY-MM-DD |
-| `baseline_start_date` | Baseline start | Date format: YYYY-MM-DD |
-| `baseline_end_date` | Baseline end | Date format: YYYY-MM-DD |
+### Project dates
 
-**Effort fields**:
+Timeline shows both planned and actual dates.
 
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `execution_progress` | Progress percentage | Number 0-100 |
-| `estimated_effort_it` | IT effort estimate (MD) | Number |
-| `estimated_effort_business` | Business effort estimate (MD) | Number |
-| `actual_effort_it` | Actual IT effort | Export only (calculated) |
-| `actual_effort_business` | Actual business effort | Export only (calculated) |
-| `baseline_effort_it` | Baseline IT effort | Number |
-| `baseline_effort_business` | Baseline business effort | Number |
+- planned dates describe the intended delivery window
+- actual dates are captured by execution events and are read-only in the workspace
 
-**Team fields**:
+Once the project enters execution, KANAP also captures baseline dates so later schedule drift can be measured instead of guessed.
 
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `business_sponsor_email` | Business sponsor | Must match existing user email |
-| `business_lead_email` | Business lead | Must match existing user email |
-| `it_sponsor_email` | IT sponsor | Must match existing user email |
-| `it_lead_email` | IT lead | Must match existing user email |
+### Phases
 
-**Scoring fields**:
+Projects can start with a phase template or a fully custom phase plan.
 
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `criteria_values` | Scoring criteria | JSON format |
-| `priority_score` | Calculated score | Export only |
-| `priority_override` | Override enabled | `true` or `false` |
-| `override_value` | Manual score | Number |
-| `override_justification` | Override reason | Free text |
+- if no phases exist yet, apply a template to create the initial structure
+- once phases exist, they can be reordered, renamed, dated, and status-managed
+- phases can be marked as milestones
+- each phase includes a shortcut to create a task already linked to that phase and project
+- **Replace with Template** rebuilds the phase structure, so use it only when you really mean "start the phase model over"
 
-### Label and code acceptance
+The phase model affects more than the timeline:
 
-For **status** and **origin** fields, you can use either the internal code or a common label:
+- the active phase appears back in **Summary**
+- phase-linked tasks inherit delivery context immediately
+- phase milestones provide completion markers without creating a separate tracking scheme
 
-**Status values**:
+### Milestones
 
-| Code | Accepted labels |
-|------|-----------------|
-| `waiting_list` | `Waiting List`, `Waiting` |
-| `planned` | `Planned` |
-| `in_progress` | `In Progress`, `Active` |
-| `in_testing` | `In Testing`, `Testing` |
-| `on_hold` | `On Hold`, `Paused` |
-| `done` | `Done`, `Completed`, `Complete`, `Finished` |
-| `cancelled` | `Cancelled`, `Canceled` |
+Milestones can be created in two ways:
 
-**Origin values**:
+- by enabling milestone tracking on a phase
+- by adding standalone milestones manually
 
-| Code | Accepted labels |
-|------|-----------------|
-| `standard` | `Standard` |
-| `fast_track` | `Fast Track`, `Fast-track`, `Fasttrack` |
-| `legacy` | `Legacy` |
+Phase-linked milestones follow the phase they are attached to. Standalone milestones are for checkpoints that should exist outside the phase structure.
 
-The system automatically normalizes values during import.
+### Table and Gantt views
 
-### Matching and updates
+The timeline can be managed as a table or as a Gantt view.
 
-Projects are matched by **name** (case-insensitive). When a match is found:
-  - With `Enrich` mode: Only non-empty CSV values update the project
-  - With `Replace` mode: All fields are updated, empty values clear existing data
+- use the table when you are shaping the structure
+- use the Gantt when you need to see overlap, sequencing, and date spread
 
-If you include the `id` column with a valid UUID, matching uses ID first, then falls back to name.
+Only phases with usable start and end dates appear meaningfully on the Gantt. If the dates are vague, the chart will be equally vague.
 
-### Computed and read-only fields
+## Progress
 
-Some fields are export-only and cannot be imported:
-  - **Priority score**: Calculated from scoring criteria
-  - **Actual effort (IT/Business)**: Calculated from time log entries
+The **Progress** tab combines execution progress, workload planning, and actual time consumption. That combination matters because a project that reports 80% progress with 20% of the effort consumed is not necessarily efficient; it may simply be badly estimated.
 
-### Limitations
+### Progress and workload
 
-  - **Phases not included**: Project phases must be configured in the workspace
-  - **Tasks not included**: Project tasks require workspace management
-  - **Dependencies not included**: Project dependencies must be set up manually
-  - **Contributors not included**: Business and IT contributors require workspace configuration
-  - **Time log not included**: Time entries must be logged in the workspace
-  - **Milestones not included**: Milestone management requires workspace configuration
+- **Execution Progress** is the overall completion signal for the project
+- **Workload consumption** compares actual effort with planned effort
 
-### Troubleshooting
+Keep these two numbers aligned with reality. If progress advances without corresponding effort, or effort accumulates without delivery movement, the mismatch is usually telling you something important about scope, estimation, or reporting discipline.
 
-**"File isn't properly formatted" error**: This usually indicates an encoding issue. Ensure your CSV is saved as **UTF-8**:
+### Estimated effort and allocations
 
-  - **In LibreOffice**: When opening a CSV, select `UTF-8` in the Character set dropdown (not "Japanese (Macintosh)" or other encodings). When saving, check "Edit filter settings" and choose UTF-8.
-  - **In Excel**: Save As → CSV UTF-8 (Comma delimited), then open in a text editor to change commas to semicolons.
-  - **General tip**: If you see garbled characters (`?¿`, `ï»¿`) at the start of your file, the encoding is incorrect.
+Progress separates estimated effort into:
 
-### Example CSV
+- **IT effort**
+- **Business effort**
 
-```csv
-name;status;origin;source_name;category_name;planned_start;planned_end;execution_progress
-CRM Upgrade;In Progress;standard;IT;Digital;2026-01-15;2026-06-30;35
-Data Warehouse;Planned;Fast Track;Business;Analytics;2026-03-01;2026-12-31;0
-Legacy Migration;waiting_list;legacy;Compliance;Infrastructure;2026-07-01;2027-06-30;0
-```
+Each side can be allocated across the relevant lead and contributors. Those allocations depend on the team configured in the sidebar, so team changes have planning consequences here as well.
 
----
+### Actual effort and time log
+
+Actual effort is calculated from two sources:
+
+- **Project Overhead** time logged directly on the project
+- **Task Time** logged from the project's tasks
+
+The time log merges both into one view and identifies the source for each entry. This is intentional: project effort should be understood as the whole delivery footprint, not as a fight between "project work" and "task work."
+
+Important consequences:
+
+- task time contributes to project actual effort automatically
+- task time is visible here but must be corrected in the task workspace
+- project-overhead entries are maintained from the Progress tab
+- contributors can maintain their own project-overhead entries
+- administrators can maintain project-overhead entries across users
+
+### Baseline effort
+
+When the project moves to **In Progress**, KANAP captures baseline effort values. Later changes are shown as variance against that baseline, which is useful for distinguishing normal delivery updates from quiet scope creep.
+
+## Tasks
+
+The **Tasks** tab is the project's execution queue.
+
+- tasks created here are automatically linked to the project
+- tasks can also be created directly from a timeline phase, which links them to both the project and the selected phase
+- the tab supports status filtering and phase filtering
+- the default task view focuses on active work by hiding done and cancelled items
+
+This tab is for managing project-linked tasks in context, not for replacing the full task workspace. Opening a task takes you to its own workspace, where task-specific detail and time logging continue.
+
+From a project perspective, the important consequence is this: task status and task time are not isolated. They feed back into **Summary** and **Progress**, so neglected tasks make the whole project picture less trustworthy.
+
+## Scoring
+
+The **Scoring** tab keeps delivery tied to prioritization.
+
+- for request-origin projects, the source request remains visible as the scoring reference
+- for fast-track and legacy projects, scoring is maintained directly on the project
+- managers can review or update scoring, including priority overrides where portfolio rules allow it
+
+The resulting priority score matters outside this tab:
+
+- it appears in the project header
+- it is visible in the list
+- it affects how projects rank when the list is sorted by priority
+
+If scoring drifts away from delivery reality, portfolio discussions become harder than they need to be.
+
+## Knowledge
+
+The **Knowledge** tab connects the project to standalone Knowledge documents.
+
+It distinguishes between:
+
+- **linked documents**: documents directly attached to the project
+- **related documents**: documents discovered through other linked entities such as source requests, dependencies, or connected items
+
+This distinction matters:
+
+- direct links represent documentation that the project explicitly owns or uses
+- related links provide context without pretending that everything belongs directly to the project
+
+Depending on your Knowledge permissions, you can:
+
+- create a new blank document already linked to the project
+- create a linked document from a template
+- link an existing document
+- unlink directly linked documents
+- open any linked or related document in Knowledge
+
+If you can open the project but do not have Knowledge viewing rights, KANAP will tell you that knowledge exists without exposing the document content. That is expected behavior, not a broken tab.
+
+Knowledge also surfaces back into **Summary**, where the project shows how much standalone documentation is linked and when that documentation was last updated.
+
+## CSV import and export
+
+Project CSV tools are available from the list page to administrators.
+
+### Export
+
+Exports support:
+
+- **Full Export**
+- **Data Enrichment**
+- **Custom Selection**
+
+Use **Data Enrichment** when you want to export, adjust selected fields externally, and import the result back into KANAP with minimal drama.
+
+### Import
+
+Imports are designed for controlled bulk changes:
+
+- download a template first when you need the correct structure
+- validate before importing
+- use advanced options to choose enrichment vs replacement behavior and insert/update rules
+
+Bulk import is useful for large portfolio maintenance, but it is not a shortcut around project governance. Phase planning, tasks, knowledge, and ongoing delivery control still belong in the workspace.
 
 ## Sending a link
 
-You can quickly email a link to any project to colleagues or external contacts.
+Use **Send link** from the workspace header to email a direct project link to internal or external recipients.
 
-1. Open the project workspace
-2. Click **Send link** in the header toolbar (to the left of the navigation arrows)
-3. In the dialog:
-   - **Select recipients**: Search for existing platform users by name or email, and/or type any email address and press Enter
-   - **Add a message** (optional): Include a personal note
-   - **Copy link**: Click the copy icon to grab the direct URL
-4. Click **Send**
+- you can send it to platform users or to any email address
+- you can include an optional message
+- the copied or emailed link points directly to the project workspace
 
-Recipients receive an email with your name, the project title, a direct link, and your message (if provided). This does not change any permissions — it simply notifies the recipients.
+Again, sending a link does not grant access. It only saves people from hunting for the project themselves.
 
-**Tip**: You can mix platform users and external email addresses in the same send.
+## Practical guidance
 
----
-
-## Tips
-
-  - **Apply templates early**: Set up phases when moving to "Planned" status
-  - **Track progress regularly**: Update the execution progress slider to keep dashboards accurate
-  - **Log time consistently**: Time entries build your actual effort picture for future estimating
-  - **Use baselines**: The variance tracking helps identify scope or schedule creep
+- Use the sidebar for structural data that should stay visible while you work.
+- Use **Summary** for the project narrative and high-level operating picture.
+- Use **Timeline** to define delivery structure before task volume grows.
+- Use **Progress** regularly, otherwise effort variance arrives as a surprise even though the data was already warning you.
+- Use **Knowledge** for reusable or governed documentation, not as a second copy of the Purpose brief.

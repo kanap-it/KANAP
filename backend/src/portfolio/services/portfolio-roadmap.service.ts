@@ -6,11 +6,17 @@ import { TeamMemberConfigService } from '../team-member-config.service';
 import { PortfolioProjectsCrudService } from './portfolio-projects-crud.service';
 import {
   RoadmapApplyDto,
+  RoadmapImpactSummary,
+  RoadmapItemRef,
   RoadmapGenerateDto,
+  RoadmapResponse,
   RoadmapReservation,
   RoadmapReservationReason,
-  RoadmapResponse,
+  ProjectExplanation,
+  ExplanationContributorEntry,
+  ExplanationReasonEntry,
   ScheduledProject,
+  ScenarioWarning,
   TeamOccupationEntry,
   UnschedulableProject,
   OccupationEntry,
@@ -160,6 +166,7 @@ type SchedulerResult = {
   schedule: ScheduledProject[];
   reservations: RoadmapReservation[];
   unschedulable: UnschedulableProject[];
+  explanations: ProjectExplanation[];
   roadmapEndDate: string | null;
   weeklyProjectLoad: WeeklyProjectLoadLedger | null;
 };
@@ -170,14 +177,16 @@ type CandidateRuntimeState = {
   remainingByContributor: Map<string, number>;
   contributorTotals: Map<string, number>;
   historicalStart: Date | null;
+  firstReadyWeek: Date | null;
+  lastReadyWeek: Date | null;
   firstAllocatedWeek: Date | null;
   lastAllocatedWeek: Date | null;
   done: boolean;
   activeWeekKeys: Set<string>;
   contributorsWithHistory: Set<string>;
   everReady: boolean;
-  blockageCounts: Map<string, number>;
-  blockageDetails: Map<string, string>;
+  blockageCounts: Map<RuntimeCapacityReason, number>;
+  blockageDetails: Map<RuntimeCapacityReason, string>;
 };
 
 type RuntimeCapacityReason =
@@ -342,6 +351,15 @@ export class PortfolioRoadmapService {
       not_recalculated: baseResult.reservations.filter((r) => r.reason === 'not_recalculated').length,
       external_blocker: baseResult.reservations.filter((r) => r.reason === 'external_blocker').length,
     };
+    const scenarioWarnings: ScenarioWarning[] = [];
+    const impactSummary: RoadmapImpactSummary = {
+      delayedProjects: 0,
+      acceleratedProjects: 0,
+      unchangedProjects: 0,
+      newlyUnschedulableProjects: 0,
+      newlyScheduledProjects: 0,
+      roadmapEndDeltaDays: 0,
+    };
 
     return {
       schedule: baseResult.schedule,
@@ -351,6 +369,9 @@ export class PortfolioRoadmapService {
       teamOccupation,
       roadmapEndDate: baseResult.roadmapEndDate,
       unschedulable: baseResult.unschedulable,
+      explanations: baseResult.explanations,
+      scenarioWarnings,
+      impactSummary,
       options,
       diagnostics: {
         modeLabel: options.optimizationMode,
@@ -1200,14 +1221,16 @@ export class PortfolioRoadmapService {
         remainingByContributor,
         contributorTotals: new Map<string, number>(),
         historicalStart,
+        firstReadyWeek: null,
+        lastReadyWeek: null,
         firstAllocatedWeek: null,
         lastAllocatedWeek: null,
         done: false,
         activeWeekKeys: new Set<string>(),
         contributorsWithHistory,
         everReady: false,
-        blockageCounts: new Map<string, number>(),
-        blockageDetails: new Map<string, string>(),
+        blockageCounts: new Map<RuntimeCapacityReason, number>(),
+        blockageDetails: new Map<RuntimeCapacityReason, string>(),
       });
 
       let earliestDate = startDate;
@@ -1238,6 +1261,7 @@ export class PortfolioRoadmapService {
 
     const waitWeeksByProject = new Map<string, number>();
     const scheduledEndByProject = new Map<string, Date>();
+    const openProjectsByContributor = new Map<string, Set<string>>();
     let cursor = firstWeekToPlan;
     const contributorIds = Array.from(weeklyCapacityByUser.keys()).sort((a, b) => a.localeCompare(b));
 
@@ -1283,6 +1307,22 @@ export class PortfolioRoadmapService {
 
     const isContinuingProject = (state: CandidateRuntimeState): boolean => computeStartedWeek(state) !== null;
 
+    const getOpenProjectSet = (contributorId: string): Set<string> => {
+      const existing = openProjectsByContributor.get(contributorId);
+      if (existing) return existing;
+      const created = new Set<string>();
+      openProjectsByContributor.set(contributorId, created);
+      return created;
+    };
+
+    const markProjectOpenForContributor = (contributorId: string, projectId: string): void => {
+      getOpenProjectSet(contributorId).add(projectId);
+    };
+
+    const closeProjectForContributor = (contributorId: string, projectId: string): void => {
+      getOpenProjectSet(contributorId).delete(projectId);
+    };
+
     const computeEffectivePriority = (projectId: string): number => {
       const state = runtimeByProject.get(projectId);
       const project = prepared.candidates.get(projectId);
@@ -1303,6 +1343,9 @@ export class PortfolioRoadmapService {
     };
 
     const rankProjects = (leftId: string, rightId: string): number => {
+      const leftContinuing = isContinuingProject(runtimeByProject.get(leftId)!);
+      const rightContinuing = isContinuingProject(runtimeByProject.get(rightId)!);
+      if (leftContinuing !== rightContinuing) return leftContinuing ? -1 : 1;
       if (options.optimizationMode === 'priority_focused') {
         const leftEP = computeEffectivePriority(leftId);
         const rightEP = computeEffectivePriority(rightId);
@@ -1377,6 +1420,295 @@ export class PortfolioRoadmapService {
       };
     };
 
+    const buildItemRef = (projectId: string): RoadmapItemRef => ({
+      projectId,
+      scenarioProjectId: null,
+      sourceRequestId: null,
+      isScenarioProject: false,
+    });
+
+    const mapUnschedulableReasonLabel = (
+      reason: UnschedulableProject['reason'] | RuntimeCapacityReason,
+    ): string => {
+      switch (reason) {
+        case 'zero_remaining_effort':
+          return 'No remaining effort';
+        case 'no_assigned_contributors':
+          return 'No assigned contributors';
+        case 'missing_blocker_date':
+          return 'Missing blocker date';
+        case 'blocker_on_hold':
+          return 'Blocker on hold';
+        case 'blocked_unfinished_project':
+          return 'Blocked by unfinished project';
+        case 'expired_fixed_plan':
+          return 'Expired fixed plan';
+        case 'cyclic_dependency':
+          return 'Cyclic dependency';
+        case 'not_ready_within_horizon':
+          return 'Not ready within horizon';
+        case 'no_free_slot':
+          return 'No free slot';
+        case 'no_effective_capacity':
+          return 'No effective capacity';
+        case 'below_minimum_start_threshold':
+          return 'Below minimum start threshold';
+        case 'unfinished_within_horizon':
+          return 'Unfinished within horizon';
+        case 'insufficient_capacity':
+          return 'Insufficient capacity';
+        case 'missing_contributor_capacity':
+          return 'Missing contributor capacity';
+        default:
+          return reason;
+      }
+    };
+
+    const mapRuntimeReasonToExplanationKind = (
+      reason: RuntimeCapacityReason,
+    ): ExplanationReasonEntry['kind'] => {
+      switch (reason) {
+        case 'no_free_slot':
+          return 'no_free_slot';
+        case 'below_minimum_start_threshold':
+          return 'below_minimum_start_threshold';
+        case 'no_effective_capacity':
+        case 'not_ready_within_horizon':
+        case 'unfinished_within_horizon':
+        case 'insufficient_capacity':
+        default:
+          return 'no_effective_capacity';
+      }
+    };
+
+    const mapUnschedulableReasonToExplanationKind = (
+      reason: UnschedulableProject['reason'],
+    ): ExplanationReasonEntry['kind'] => {
+      switch (reason) {
+        case 'missing_blocker_date':
+          return 'dependency';
+        case 'blocker_on_hold':
+        case 'blocked_unfinished_project':
+        case 'cyclic_dependency':
+          return 'unschedulable_blocker';
+        case 'expired_fixed_plan':
+          return 'fixed_plan';
+        case 'no_free_slot':
+          return 'no_free_slot';
+        case 'below_minimum_start_threshold':
+          return 'below_minimum_start_threshold';
+        case 'no_effective_capacity':
+        case 'unfinished_within_horizon':
+        case 'insufficient_capacity':
+        case 'missing_contributor_capacity':
+        case 'no_assigned_contributors':
+        case 'zero_remaining_effort':
+        case 'not_ready_within_horizon':
+        default:
+          return 'no_effective_capacity';
+      }
+    };
+
+    const buildDependencyReasonEntries = (projectId: string): ExplanationReasonEntry[] => {
+      const blockers = prepared.blockersByProject.get(projectId) ?? [];
+      return blockers
+        .map((blockerId) => {
+          const blockerName = prepared.projectNameById.get(blockerId) || blockerId;
+          const blockerRow = prepared.projectRowsById.get(blockerId);
+          const blockerUnschedulable = unschedulableMap.get(blockerId);
+          let kind: ExplanationReasonEntry['kind'] = 'dependency';
+          let label = `Waiting for ${blockerName}`;
+          let toWeek: string | null = null;
+
+          if (blockerRow?.status === 'on_hold') {
+            kind = 'unschedulable_blocker';
+            label = `${blockerName} is on hold`;
+          } else if (prepared.expiredFixedPlanProjectIds.has(blockerId)) {
+            kind = 'fixed_plan';
+            label = `${blockerName} has an expired fixed plan`;
+          } else if (blockerUnschedulable && blockerRow?.status !== 'done') {
+            kind = 'unschedulable_blocker';
+            label = `${blockerName} is unschedulable (${mapUnschedulableReasonLabel(blockerUnschedulable.reason)})`;
+          } else {
+            const blockerEnd = scheduledEndByProject.get(blockerId) ?? knownEndByProject.get(blockerId) ?? null;
+            if (blockerEnd) {
+              const releaseWeek = ceilToMondayUtc(addDaysUtc(blockerEnd, 1));
+              toWeek = toYmdUtc(releaseWeek);
+              label = `Waiting for ${blockerName} until ${toWeek}`;
+            }
+          }
+
+          return {
+            kind,
+            label,
+            projectId: blockerId,
+            scenarioProjectId: null,
+            fromWeek: toYmdUtc(firstWeekToPlan),
+            toWeek,
+          };
+        })
+        .sort((a, b) =>
+          (a.toWeek ?? '').localeCompare(b.toWeek ?? '')
+          || (a.projectId ?? '').localeCompare(b.projectId ?? ''));
+    };
+
+    const buildDominantBlockageEntries = (state: CandidateRuntimeState): ExplanationReasonEntry[] => {
+      return Array.from(state.blockageCounts.entries())
+        .filter(([, count]) => count > 0)
+        .sort((a, b) =>
+          b[1] - a[1]
+          || a[0].localeCompare(b[0]))
+        .slice(0, 3)
+        .map(([reason]) => ({
+          kind: mapRuntimeReasonToExplanationKind(reason),
+          label: state.blockageDetails.get(reason) ?? mapUnschedulableReasonLabel(reason),
+          projectId: null,
+          scenarioProjectId: null,
+          fromWeek: state.firstReadyWeek ? toYmdUtc(state.firstReadyWeek) : null,
+          toWeek: state.lastReadyWeek ? toYmdUtc(state.lastReadyWeek) : null,
+        }));
+    };
+
+    const buildLimitingContributors = (
+      state: CandidateRuntimeState,
+      probeWeek: Date | null,
+    ): ExplanationContributorEntry[] => {
+      const probeWeekKey = probeWeek ? toYmdUtc(probeWeek) : null;
+      type RankedExplanationContributorEntry = ExplanationContributorEntry & { sortDemand: number };
+      return Array.from(state.project.contributorDays.entries())
+        .filter(([, days]) => days > EPSILON)
+        .map(([contributorId, demandDays]): RankedExplanationContributorEntry => {
+          const contributor = prepared.contributors.get(contributorId);
+          const reservedLoad = probeWeekKey
+            ? round2(this.getCommittedLoad(committedLoad, contributorId, probeWeekKey))
+            : null;
+	          const activeProjectCount = probeWeekKey
+	            ? this.getActiveCount(activeProjects, contributorId, probeWeekKey)
+	            : null;
+	          let reason: ExplanationContributorEntry['reason'] = 'capacity';
+	          if ((reservedLoad ?? 0) > EPSILON) {
+	            reason = 'reservation';
+	          } else if ((activeProjectCount ?? 0) >= options.parallelizationLimit) {
+	            reason = 'slot';
+	          } else if (state.project.schedulingMode === 'collaborative' && ((reservedLoad ?? 0) > EPSILON || (activeProjectCount ?? 0) > 0)) {
+	            reason = 'collaborative_bottleneck';
+	          }
+          return {
+            contributorId,
+            contributorName: contributor?.name ?? contributorId,
+            weeklyCapacity: round2(weeklyCapacityByUser.get(contributorId) ?? 0),
+            reservedLoad,
+            activeProjectCount,
+            reason,
+            sortDemand: demandDays,
+          };
+        })
+        .sort((a, b) =>
+          (b.reservedLoad ?? 0) - (a.reservedLoad ?? 0)
+          || (b.activeProjectCount ?? 0) - (a.activeProjectCount ?? 0)
+          || b.sortDemand - a.sortDemand
+          || a.contributorName.localeCompare(b.contributorName)
+          || a.contributorId.localeCompare(b.contributorId))
+        .slice(0, 3)
+        .map(({ sortDemand, ...entry }) => entry);
+    };
+
+    const buildExplanation = (
+      projectId: string,
+      classification: ProjectExplanation['classification'],
+      actualStartWeek: string | null,
+      fallbackUnschedulable?: UnschedulableProject,
+    ): ProjectExplanation | null => {
+      const state = runtimeByProject.get(projectId);
+      const project = state?.project ?? prepared.candidates.get(projectId);
+      const unschedulable = fallbackUnschedulable ?? unschedulableMap.get(projectId);
+      const schedulingMode = project?.schedulingMode ?? unschedulable?.schedulingMode;
+      if (!schedulingMode) return null;
+
+      const earliestEligibleDate = state?.historicalStart
+        ? getWeekStartMondayUtc(state.historicalStart)
+        : (state?.firstReadyWeek ?? externalEarliestWeekByProject.get(projectId) ?? null);
+      const earliestEligibleWeek = earliestEligibleDate ? toYmdUtc(earliestEligibleDate) : null;
+      const dependencyReasons = buildDependencyReasonEntries(projectId);
+      const dominantBlockages = state ? buildDominantBlockageEntries(state) : [];
+      const blockerReasons = Array.from(
+        new Map(
+          [...dependencyReasons, ...dominantBlockages]
+            .map((entry) => [`${entry.kind}:${entry.projectId ?? ''}:${entry.label}`, entry]),
+        ).values(),
+      );
+      const delayedByCapacity = !!state
+        && !!state.firstReadyWeek
+        && !!state.firstAllocatedWeek
+        && state.firstAllocatedWeek.getTime() > state.firstReadyWeek.getTime();
+      const probeWeek = state?.firstAllocatedWeek && delayedByCapacity
+        ? addDaysUtc(state.firstAllocatedWeek, -7)
+        : (state?.lastReadyWeek ?? null);
+      const limitingContributors = state ? buildLimitingContributors(state, probeWeek) : [];
+
+      let startReason: ProjectExplanation['startReason'] = 'unscheduled';
+      if (classification === 'scheduled' && state) {
+        if (state.historicalStart) {
+          startReason = 'historical_start';
+        } else if (dependencyReasons.length > 0 && state.firstReadyWeek && state.firstAllocatedWeek
+          && state.firstReadyWeek.getTime() === state.firstAllocatedWeek.getTime()) {
+          startReason = 'dependency_release';
+        } else {
+          startReason = 'capacity_available';
+        }
+      }
+
+      const finalReason = classification === 'unschedulable'
+        ? (unschedulable?.details ?? mapUnschedulableReasonLabel(unschedulable?.reason ?? 'insufficient_capacity'))
+        : (
+          delayedByCapacity && earliestEligibleWeek && actualStartWeek
+            ? `Eligible from ${earliestEligibleWeek} and started in ${actualStartWeek} when capacity opened up`
+            : (dependencyReasons.length > 0 && actualStartWeek
+              ? `Started in ${actualStartWeek} once blockers released it`
+              : (actualStartWeek ? `Started in ${actualStartWeek}` : null))
+        );
+
+      const summary = classification === 'unschedulable'
+        ? `${project?.name ?? unschedulable?.projectName ?? projectId} could not be scheduled: ${finalReason}`
+        : (
+          startReason === 'historical_start'
+            ? `${project?.name ?? projectId} continued from historical work and appears in the roadmap from ${actualStartWeek ?? 'n/a'}.`
+            : (delayedByCapacity && earliestEligibleWeek && actualStartWeek
+              ? `${project?.name ?? projectId} was eligible from ${earliestEligibleWeek} and started in ${actualStartWeek} when capacity became available.`
+              : (dependencyReasons.length > 0 && actualStartWeek
+                ? `${project?.name ?? projectId} started in ${actualStartWeek} after its blockers released it.`
+                : `${project?.name ?? projectId} started in ${actualStartWeek ?? 'n/a'} when it became schedulable.`))
+        );
+
+      const reasons = blockerReasons.length > 0
+        ? blockerReasons
+        : (classification === 'unschedulable' && unschedulable
+          ? [{
+            kind: mapUnschedulableReasonToExplanationKind(unschedulable.reason),
+            label: unschedulable.details ?? mapUnschedulableReasonLabel(unschedulable.reason),
+            projectId: null,
+            scenarioProjectId: null,
+            fromWeek: state?.firstReadyWeek ? toYmdUtc(state.firstReadyWeek) : null,
+            toWeek: state?.lastReadyWeek ? toYmdUtc(state.lastReadyWeek) : null,
+          }]
+          : []);
+
+      return {
+        itemRef: buildItemRef(projectId),
+        summary,
+        classification,
+        schedulingMode,
+        earliestEligibleWeek,
+        actualStartWeek,
+        derivedFromConstraint: false,
+        activeConstraint: null,
+        startReason,
+        blockerReasons: reasons,
+        limitingContributors,
+        finalReason,
+      };
+    };
+
     const lastWeekWithinHorizon = addDaysUtc(firstWeekToPlan, 7 * Math.max(0, horizonWeeks - 1));
 
     for (let weekIndex = 0; weekIndex < horizonWeeks; weekIndex += 1) {
@@ -1404,7 +1736,10 @@ export class PortfolioRoadmapService {
         return true;
       }).sort(rankProjects);
       for (const projectId of readyProjects) {
-        runtimeByProject.get(projectId)!.everReady = true;
+        const state = runtimeByProject.get(projectId)!;
+        state.everReady = true;
+        if (!state.firstReadyWeek) state.firstReadyWeek = cursor;
+        state.lastReadyWeek = cursor;
       }
 
       const allocatedProjectsThisWeek = new Set<string>();
@@ -1446,16 +1781,39 @@ export class PortfolioRoadmapService {
           return created;
         };
 
+        const getEffectiveOpenProjectCount = (contributorId: string): number => {
+          const openSet = getOpenProjectSet(contributorId);
+          const activeSet = getContributorActiveSet(contributorId);
+          let count = openSet.size;
+          for (const projectId of activeSet) {
+            if (!openSet.has(projectId)) count += 1;
+          }
+          return count;
+        };
+
+        const getProjectedOpenProjectCount = (contributorId: string, projectId: string): number => {
+          const openSet = getOpenProjectSet(contributorId);
+          const activeSet = getContributorActiveSet(contributorId);
+          if (openSet.has(projectId) || activeSet.has(projectId)) {
+            return getEffectiveOpenProjectCount(contributorId);
+          }
+          return getEffectiveOpenProjectCount(contributorId) + 1;
+        };
+
         const contributorCanAddProject = (contributorId: string, projectId: string): boolean => {
           const activeSet = getContributorActiveSet(contributorId);
           if (activeSet.has(projectId)) return true;
-          return activeSet.size < (candidateSlotBudgetByContributor.get(contributorId) ?? 0);
+          const openSet = getOpenProjectSet(contributorId);
+          if (openSet.has(projectId)) return true;
+          return getEffectiveOpenProjectCount(contributorId) < (candidateSlotBudgetByContributor.get(contributorId) ?? 0);
         };
 
         const addProjectToContributor = (contributorId: string, projectId: string): boolean => {
           const activeSet = getContributorActiveSet(contributorId);
           if (activeSet.has(projectId)) return true;
-          if (activeSet.size >= (candidateSlotBudgetByContributor.get(contributorId) ?? 0)) {
+          const openSet = getOpenProjectSet(contributorId);
+          if (!openSet.has(projectId)
+            && getEffectiveOpenProjectCount(contributorId) >= (candidateSlotBudgetByContributor.get(contributorId) ?? 0)) {
             return false;
           }
           activeSet.add(projectId);
@@ -1466,11 +1824,16 @@ export class PortfolioRoadmapService {
           getContributorActiveSet(contributorId).delete(projectId);
         };
 
-        const getProjectedCandidateCapacity = (contributorId: string, projectedActiveCount: number): number => {
+        const getProjectedCandidateCapacity = (
+          contributorId: string,
+          projectId: string,
+          projectedActiveCount: number,
+        ): number => {
           if (projectedActiveCount <= 0) return 0;
           const weeklyBaseCapacity = weeklyCapacityByUser.get(contributorId) ?? 0;
           if (weeklyBaseCapacity <= EPSILON) return 0;
-          const totalContextCount = (reservedSlotsByContributor.get(contributorId) ?? 0) + projectedActiveCount;
+          const totalContextCount = (reservedSlotsByContributor.get(contributorId) ?? 0)
+            + getProjectedOpenProjectCount(contributorId, projectId);
           const effectiveCapacity = this.computeEffectiveWeeklyCapacity(
             weeklyBaseCapacity,
             totalContextCount,
@@ -1490,7 +1853,7 @@ export class PortfolioRoadmapService {
             if (demand <= EPSILON) return 0;
             const currentActiveCount = getContributorActiveSet(contributorId).size;
             const projectedActiveCount = currentActiveCount + (getContributorActiveSet(contributorId).has(projectId) ? 0 : 1);
-            const candidateCapacity = getProjectedCandidateCapacity(contributorId, projectedActiveCount);
+            const candidateCapacity = getProjectedCandidateCapacity(contributorId, projectId, projectedActiveCount);
             const provisionalBudget = projectedActiveCount > 0 ? candidateCapacity / projectedActiveCount : 0;
             const weight = demand / totalBefore;
             if (provisionalBudget <= EPSILON || weight <= EPSILON) return 0;
@@ -1525,7 +1888,7 @@ export class PortfolioRoadmapService {
             if (!contributorCanAddProject(contributorId, projectId)) continue;
             const currentActiveCount = getContributorActiveSet(contributorId).size;
             const projectedActiveCount = currentActiveCount + (getContributorActiveSet(contributorId).has(projectId) ? 0 : 1);
-            const candidateCapacity = getProjectedCandidateCapacity(contributorId, projectedActiveCount);
+            const candidateCapacity = getProjectedCandidateCapacity(contributorId, projectId, projectedActiveCount);
             const provisionalBudget = projectedActiveCount > 0 ? candidateCapacity / projectedActiveCount : 0;
             const contribution = Math.min(demand, provisionalBudget);
             if (contribution <= EPSILON) continue;
@@ -1573,7 +1936,8 @@ export class PortfolioRoadmapService {
               perProjectBudgetByContributor.set(contributorId, 0);
               continue;
             }
-            const totalContextCount = (reservedSlotsByContributor.get(contributorId) ?? 0) + activeCount;
+            const totalContextCount = (reservedSlotsByContributor.get(contributorId) ?? 0)
+              + getEffectiveOpenProjectCount(contributorId);
             const effectiveCapacity = this.computeEffectiveWeeklyCapacity(
               weeklyBaseCapacity,
               totalContextCount,
@@ -1806,9 +2170,14 @@ export class PortfolioRoadmapService {
               (state.contributorTotals.get(contributorId) ?? 0) + consumed,
             );
             state.contributorsWithHistory.add(contributorId);
+            markProjectOpenForContributor(contributorId, projectId);
             projectBurn += consumed;
+            this.addActiveProject(activeProjects, contributorId, weekKey, projectId);
             if (weeklyProjectLoad) {
               this.addWeeklyProjectLoad(weeklyProjectLoad, contributorId, weekKey, projectId, consumed);
+            }
+            if ((state.remainingByContributor.get(contributorId) ?? 0) <= EPSILON) {
+              closeProjectForContributor(contributorId, projectId);
             }
           }
           if (projectBurn <= EPSILON) continue;
@@ -1826,8 +2195,10 @@ export class PortfolioRoadmapService {
           const demandedContributors = getRequiredContributors(state);
           const slotBlockedContributors = demandedContributors.filter((contributorId) => {
             const activeSet = getContributorActiveSet(contributorId);
+            const openSet = getOpenProjectSet(contributorId);
             return !activeSet.has(projectId)
-              && activeSet.size >= (candidateSlotBudgetByContributor.get(contributorId) ?? 0);
+              && !openSet.has(projectId)
+              && getEffectiveOpenProjectCount(contributorId) >= (candidateSlotBudgetByContributor.get(contributorId) ?? 0);
           });
 
           if (state.project.schedulingMode === 'collaborative') {
@@ -2074,11 +2445,22 @@ export class PortfolioRoadmapService {
 
     const unschedulable = Array.from(unschedulableMap.values())
       .sort((a, b) => a.projectName.localeCompare(b.projectName) || a.projectId.localeCompare(b.projectId));
+    const explanations = [
+      ...schedule
+        .map((item) => buildExplanation(item.projectId, 'scheduled', item.plannedStart))
+        .filter((item): item is ProjectExplanation => !!item),
+      ...unschedulable
+        .map((item) => buildExplanation(item.projectId, 'unschedulable', null, item))
+        .filter((item): item is ProjectExplanation => !!item),
+    ].sort((a, b) =>
+      (a.actualStartWeek ?? a.earliestEligibleWeek ?? '').localeCompare(b.actualStartWeek ?? b.earliestEligibleWeek ?? '')
+      || (a.itemRef.projectId ?? '').localeCompare(b.itemRef.projectId ?? ''));
 
     return {
       schedule,
       reservations,
       unschedulable,
+      explanations,
       roadmapEndDate: maxRoadmapEnd ? toYmdUtc(maxRoadmapEnd) : null,
       weeklyProjectLoad,
     };

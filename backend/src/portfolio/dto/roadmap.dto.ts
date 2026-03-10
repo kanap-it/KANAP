@@ -16,10 +16,126 @@ const YmdDateSchema = z.string()
   .refine(isValidYmd, 'Invalid calendar date');
 
 const RoadmapCandidateStatuses = ['waiting_list', 'planned', 'in_progress', 'in_testing'] as const;
+const SchedulingModes = ['independent', 'collaborative'] as const;
+const AllocationModes = ['auto', 'manual'] as const;
 
 const GenerateStatusesSchema = z.array(z.enum(RoadmapCandidateStatuses))
   .min(1)
   .default(['waiting_list', 'planned', 'in_progress', 'in_testing']);
+
+const ScheduleConstraintSchema = z.union([
+  z.object({
+    type: z.literal('pin_start'),
+    startWeek: YmdDateSchema,
+  }),
+  z.object({
+    type: z.literal('pin_window'),
+    startWeek: YmdDateSchema,
+    endWeek: YmdDateSchema,
+  }).superRefine((val, ctx) => {
+    if (val.endWeek < val.startWeek) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'pin_window.endWeek must be after or equal to pin_window.startWeek',
+        path: ['endWeek'],
+      });
+    }
+  }),
+  z.object({
+    type: z.literal('not_before'),
+    startWeek: YmdDateSchema,
+  }),
+]);
+
+const ScenarioProjectOverrideSchema = z.object({
+  projectId: z.string().uuid(),
+  schedulingMode: z.enum(SchedulingModes).optional(),
+  constraint: ScheduleConstraintSchema.nullable().optional(),
+});
+
+const ScenarioAllocationSchema = z.object({
+  userId: z.string().uuid(),
+  allocationPct: z.number().min(0).max(100),
+});
+
+const ScenarioDraftProjectSchema = z.object({
+  scenarioProjectId: z.string().min(1),
+  sourceRequestId: z.string().uuid().nullable(),
+  name: z.string().min(1),
+  status: z.literal('planned'),
+  schedulingMode: z.enum(SchedulingModes),
+  priorityScore: z.number().nullable(),
+  estimatedEffortIt: z.number().min(0),
+  estimatedEffortBusiness: z.number().min(0),
+  executionProgress: z.number().min(0).max(100),
+  categoryId: z.string().uuid().nullable(),
+  sourceId: z.string().uuid().nullable(),
+  streamId: z.string().uuid().nullable(),
+  blockerProjectIds: z.array(z.string().uuid()).default([]),
+  itLeadId: z.string().uuid().nullable(),
+  businessLeadId: z.string().uuid().nullable(),
+  itAllocationMode: z.enum(AllocationModes),
+  businessAllocationMode: z.enum(AllocationModes),
+  itAllocations: z.array(ScenarioAllocationSchema).default([]),
+  businessAllocations: z.array(ScenarioAllocationSchema).default([]),
+  constraint: ScheduleConstraintSchema.nullable().optional(),
+}).superRefine((val, ctx) => {
+  const validateManualAllocations = (
+    allocations: Array<{ userId?: string; allocationPct?: number }>,
+    field: 'itAllocations' | 'businessAllocations',
+  ): void => {
+    const total = allocations.reduce((sum, allocation) => sum + (allocation.allocationPct ?? 0), 0);
+    if (Math.abs(total - 100) > 0.001) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${field} must sum to 100 when allocation mode is manual`,
+        path: [field],
+      });
+    }
+  };
+
+  if (val.itAllocationMode === 'manual') {
+    validateManualAllocations(val.itAllocations, 'itAllocations');
+  }
+  if (val.businessAllocationMode === 'manual') {
+    validateManualAllocations(val.businessAllocations, 'businessAllocations');
+  }
+});
+
+const RoadmapScenarioSchema = z.object({
+  projectOverrides: z.array(ScenarioProjectOverrideSchema)
+    .default([])
+    .superRefine((overrides, ctx) => {
+      const seen = new Set<string>();
+      overrides.forEach((entry, index) => {
+        if (seen.has(entry.projectId)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Duplicate projectOverride projectId '${entry.projectId}'`,
+            path: [index, 'projectId'],
+          });
+          return;
+        }
+        seen.add(entry.projectId);
+      });
+    }),
+  scenarioProjects: z.array(ScenarioDraftProjectSchema)
+    .default([])
+    .superRefine((projects, ctx) => {
+      const seen = new Set<string>();
+      projects.forEach((project, index) => {
+        if (seen.has(project.scenarioProjectId)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Duplicate scenarioProjectId '${project.scenarioProjectId}'`,
+            path: [index, 'scenarioProjectId'],
+          });
+          return;
+        }
+        seen.add(project.scenarioProjectId);
+      });
+    }),
+});
 
 export const RoadmapGenerateSchema = z.object({
   startDate: YmdDateSchema,
@@ -32,6 +148,7 @@ export const RoadmapGenerateSchema = z.object({
   excludedProjectIds: z.array(z.string().uuid()).default([]),
   contextSwitchPenaltyPct: z.number().min(0).max(0.5).default(0.05),
   contextSwitchGrace: z.number().int().min(0).max(10).default(1),
+  scenario: RoadmapScenarioSchema.optional(),
 });
 
 export type RoadmapGenerateInput = z.input<typeof RoadmapGenerateSchema>;
@@ -145,6 +262,137 @@ export interface UnschedulableProject {
   details?: string;
 }
 
+export type ScheduleConstraint =
+  | { type: 'pin_start'; startWeek: string }
+  | { type: 'pin_window'; startWeek: string; endWeek: string }
+  | { type: 'not_before'; startWeek: string };
+
+export interface ScenarioProjectOverrideDto {
+  projectId: string;
+  schedulingMode?: ProjectSchedulingMode;
+  constraint?: ScheduleConstraint | null;
+}
+
+export interface ScenarioDraftProjectAllocationDto {
+  userId: string;
+  allocationPct: number;
+}
+
+export interface ScenarioDraftProjectDto {
+  scenarioProjectId: string;
+  sourceRequestId: string | null;
+  name: string;
+  status: 'planned';
+  schedulingMode: ProjectSchedulingMode;
+  priorityScore: number | null;
+  estimatedEffortIt: number;
+  estimatedEffortBusiness: number;
+  executionProgress: number;
+  categoryId: string | null;
+  sourceId: string | null;
+  streamId: string | null;
+  blockerProjectIds: string[];
+  itLeadId: string | null;
+  businessLeadId: string | null;
+  itAllocationMode: 'auto' | 'manual';
+  businessAllocationMode: 'auto' | 'manual';
+  itAllocations: ScenarioDraftProjectAllocationDto[];
+  businessAllocations: ScenarioDraftProjectAllocationDto[];
+  constraint?: ScheduleConstraint | null;
+}
+
+export interface RoadmapScenarioDto {
+  projectOverrides: ScenarioProjectOverrideDto[];
+  scenarioProjects: ScenarioDraftProjectDto[];
+}
+
+export interface RoadmapItemRef {
+  projectId: string | null;
+  scenarioProjectId: string | null;
+  sourceRequestId: string | null;
+  isScenarioProject: boolean;
+}
+
+export interface ExplanationReasonEntry {
+  kind:
+    | 'dependency'
+    | 'reservation'
+    | 'no_free_slot'
+    | 'no_effective_capacity'
+    | 'below_minimum_start_threshold'
+    | 'constraint_conflict'
+    | 'fixed_plan'
+    | 'unschedulable_blocker'
+    | 'zero_remaining_effort'
+    | 'no_assigned_contributors'
+    | 'missing_contributor_capacity'
+    | 'missing_blocker_date'
+    | 'blocker_on_hold'
+    | 'cyclic_dependency'
+    | 'not_ready_within_horizon'
+    | 'unfinished_within_horizon'
+    | 'insufficient_capacity';
+  label: string;
+  projectId: string | null;
+  scenarioProjectId: string | null;
+  fromWeek: string | null;
+  toWeek: string | null;
+}
+
+export interface ExplanationContributorEntry {
+  contributorId: string;
+  contributorName: string;
+  weeklyCapacity: number;
+  reservedLoad: number | null;
+  activeProjectCount: number | null;
+  reason: 'slot' | 'capacity' | 'collaborative_bottleneck' | 'reservation';
+}
+
+export interface ProjectExplanation {
+  itemRef: RoadmapItemRef;
+  summary: string;
+  classification: 'scheduled' | 'reservation' | 'unschedulable';
+  schedulingMode: ProjectSchedulingMode;
+  earliestEligibleWeek: string | null;
+  actualStartWeek: string | null;
+  derivedFromConstraint: boolean;
+  activeConstraint: ScheduleConstraint | null;
+  startReason:
+    | 'historical_start'
+    | 'dependency_release'
+    | 'capacity_available'
+    | 'constraint_pin_start'
+    | 'constraint_pin_window'
+    | 'constraint_not_before'
+    | 'fixed_reservation'
+    | 'unscheduled';
+  blockerReasons: ExplanationReasonEntry[];
+  limitingContributors: ExplanationContributorEntry[];
+  finalReason: string | null;
+}
+
+export interface ScenarioWarning {
+  severity: 'info' | 'warning' | 'error';
+  code:
+    | 'constraint_infeasible'
+    | 'expired_fixed_plan'
+    | 'scenario_project_incomplete'
+    | 'scenario_project_missing_capacity'
+    | 'hidden_business_only_project'
+    | 'apply_skips_scenario_projects';
+  itemRef: RoadmapItemRef | null;
+  message: string;
+}
+
+export interface RoadmapImpactSummary {
+  delayedProjects: number;
+  acceleratedProjects: number;
+  unchangedProjects: number;
+  newlyUnschedulableProjects: number;
+  newlyScheduledProjects: number;
+  roadmapEndDeltaDays: number | null;
+}
+
 export interface BottleneckEntry {
   contributorId: string;
   contributorName: string;
@@ -203,6 +451,9 @@ export interface RoadmapResponse {
   teamOccupation: TeamOccupationEntry[];
   roadmapEndDate: string | null;
   unschedulable: UnschedulableProject[];
+  explanations: ProjectExplanation[];
+  scenarioWarnings: ScenarioWarning[];
+  impactSummary: RoadmapImpactSummary | null;
   options: RoadmapGenerateDto;
   diagnostics: RoadmapDiagnostics;
 }

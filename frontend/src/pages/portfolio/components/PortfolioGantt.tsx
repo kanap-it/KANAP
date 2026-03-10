@@ -44,6 +44,7 @@ interface Props {
   dependencies: ProjectDependency[];
   milestones?: ProjectMilestone[];
   onUpdate?: () => void;
+  onProjectClick?: (projectId: string) => void;
   months?: number;
   monthOffset?: number; // How many months to offset from current month (negative = past, positive = future)
   readOnly?: boolean;
@@ -149,6 +150,7 @@ export function PortfolioGantt({
   dependencies,
   milestones = [],
   onUpdate,
+  onProjectClick,
   months = 3,
   monthOffset = 0,
   readOnly = false,
@@ -571,10 +573,16 @@ export function PortfolioGantt({
     return (
       <div
         title={tooltip}
+        onClick={(event) => {
+          if (!data._isProject || isReservation || !onProjectClick) return;
+          event.stopPropagation();
+          onProjectClick(String(data.id));
+        }}
         style={{
           position: 'relative',
           height: '100%',
           overflow: 'visible',
+          cursor: data._isProject && onProjectClick ? 'pointer' : 'default',
         }}
       >
         {hasSleepLead && (
@@ -669,7 +677,7 @@ export function PortfolioGantt({
         </div>
       </div>
     );
-  }, []);
+  }, [onProjectClick]);
 
   // Empty state
   if (tasks.length === 0) {

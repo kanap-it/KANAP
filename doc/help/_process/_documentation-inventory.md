@@ -9,15 +9,16 @@ This document tracks documentation coverage for the KANAP user manual.
 | Category | Total Pages | Documented | Gap |
 |----------|-------------|------------|-----|
 | Home | 1 | 1 | 0 |
-| Dashboard & Operations | 9 | 9 | 0 |
+| Budget Management | 9 | 9 | 0 |
 | IT Operations | 8 | 8 | 0 |
+| Knowledge | 1 | 1 | 0 |
 | Master Data | 8 | 8 | 0 |
 | Admin & Settings | 9 | 9 | 0 |
 | Reports | 10 | 10 | 0 |
-| Portfolio | 9 | 9 | 0 |
-| **TOTAL** | **53** | **53** | **0** |
+| Portfolio | 10 | 10 | 0 |
+| **TOTAL** | **56** | **56** | **0** |
 
-_Note: Portfolio Planning is a placeholder (coming soon) and excluded from counts. Supplemental Fast Track guides are also excluded from these route-based counts._
+_Note: Supplemental Fast Track guides are excluded from these route-based counts. Coverage is complete; targeted freshness sweeps may still be needed after major product changes._
 
 ---
 
@@ -25,7 +26,10 @@ _Note: Portfolio Planning is a placeholder (coming soon) and excluded from count
 
 | Date | Doc File | Changes |
 |------|----------|---------|
-| 2026-03-10 | `_documentation-inventory.md` | Added Fast Track supplemental-guides note and clarified that coverage totals are route-manual counts |
+| 2026-03-10 | `knowledge.md` | New manual for the Knowledge workspace, document lifecycle, review flow, relations, and export behavior |
+| 2026-03-10 | `portfolio-requests.md` | Rewritten for the current Summary / Activity / Analysis / Scoring / Knowledge workspace model |
+| 2026-03-10 | `portfolio-projects.md` | Rewritten for the current Summary / Activity / Timeline / Progress / Tasks / Scoring / Knowledge workspace model |
+| 2026-03-10 | `_documentation-inventory.md` | Added Knowledge coverage, counted Planning as documented, and refreshed coverage totals |
 | 2026-02-28 | `portfolio-reporting.md` | Added Weekly Report section (filters, three tables, exports) |
 | 2026-02-28 | `portfolio-projects.md` | Added item number (#) column in list and workspace header |
 | 2026-02-28 | `portfolio-requests.md` | Added item number (#) column in list and workspace header |
@@ -133,6 +137,14 @@ _Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect t
 |-------|-----------|--------|----------|
 | `/it/settings` | ItOperationsSettingsPage | **DOCUMENTED** | `it-ops-settings.md` |
 
+### Knowledge
+
+| Route | Component | Status | Doc File |
+|-------|-----------|--------|----------|
+| `/knowledge` | KnowledgePage + KnowledgeWorkspacePage | **DOCUMENTED** | `knowledge.md` |
+
+_Note: `/knowledge/new`, `/knowledge/:id`, and `/knowledge/:id/:tab` are covered by the same manual._
+
 ### Master Data
 
 **Organization**
@@ -207,7 +219,7 @@ _Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect t
 | `/portfolio/reports/status-change` | StatusChangeReport | **DOCUMENTED** | `portfolio-reporting.md` |
 | `/portfolio/reports/capacity-heatmap` | CapacityHeatmapReport | **DOCUMENTED** | `portfolio-reporting.md` |
 | `/portfolio/reports/weekly` | WeeklyReport | **DOCUMENTED** | `portfolio-reporting.md` |
-| `/portfolio/planning` | PlanningPage | **PLACEHOLDER** | Coming soon (Phases 08-10) |
+| `/portfolio/planning` | PlanningPage | **DOCUMENTED** | `portfolio-planning.md` |
 
 ### Excluded (Work in Progress or Platform Admin)
 
@@ -223,7 +235,13 @@ _Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect t
 
 ## Remaining Gaps
 
-No gaps remaining — all tenant-facing pages are documented.
+No route-manual gaps remaining.
+
+Refresh candidates after the March 2026 product changes:
+- `applications.md`
+- `assets.md`
+- `tasks.md`
+- existing Fast Track guides affected by Knowledge and the request/project workspace overhaul
 
 ---
 
@@ -283,7 +301,9 @@ When these files change, the corresponding documentation may need updates:
 | `frontend/src/pages/portfolio/ContributorWorkspacePage.tsx` | `portfolio-team-members.md` |
 | `frontend/src/pages/portfolio/TeamMembersPage.tsx` | `portfolio-team-members.md` |
 | `frontend/src/pages/portfolio/TeamMemberWorkspacePage.tsx` | `portfolio-team-members.md` |
-| `frontend/src/pages/portfolio/PlanningPage.tsx` | (placeholder - no doc needed yet) |
+| `frontend/src/pages/portfolio/PlanningPage.tsx` | `portfolio-planning.md` |
+| `frontend/src/pages/knowledge/KnowledgePage.tsx` | `knowledge.md` |
+| `frontend/src/pages/knowledge/KnowledgeWorkspacePage.tsx` | `knowledge.md` |
 | `frontend/src/pages/reports/**/*.tsx` | `reports.md` |
 | `frontend/src/pages/admin/BillingCenter.tsx` | `admin.md` |
 | `frontend/src/pages/admin/AdminAuthPage.tsx` | `admin.md` |

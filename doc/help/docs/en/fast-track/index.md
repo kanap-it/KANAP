@@ -175,13 +175,13 @@ Set up the project team with clear roles:
 | **Contributors** | Team members (IT and Business) | Do the actual work |
 
 !!! warning "Contributors must be configured first"
-    For capacity planning to work, every contributor **must** be set up in **Portfolio > Contributors** (also known as Team Members) with:
+    For capacity planning to work, every contributor **must** be set up in **Portfolio > Contributors** with:
 
     - Their **team** assignment
     - **Availability** (days per month)
     - **Skills**
 
-    Without this data, the roadmap generator can't calculate capacity, and your planning will be flying blind. See [Team Members reference](../portfolio-team-members.md).
+    Without this data, the roadmap generator can't calculate capacity, and your planning will be flying blind. See the [Contributors reference](../portfolio-team-members.md).
 
 ### Progress Tab — Set Effort Estimates
 

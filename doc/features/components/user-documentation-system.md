@@ -5,9 +5,10 @@ This document describes the user documentation infrastructure for KANAP, includi
 ## Overview
 
 User documentation is:
-- **Written** in Markdown files in `doc/help/docs/en/`
+- **Authored** in Markdown files in `doc/help/docs/en/`
+- **Organized** as route manuals in `docs/en/*.md` and supplemental Fast Track guides in `docs/en/fast-track/*.md`
 - **Published** automatically via Cloudflare Pages to https://doc.kanap.net
-- **Linked** contextually from the application's Help button
+- **Linked** contextually from the application's Help button when a route mapping exists
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -60,9 +61,22 @@ doc/
 └── features/                          # Technical docs (internal only)
 ```
 
-## Documentation Skills
+## Authoring Automation
 
-Three Claude Code skills manage documentation:
+The documentation workflow currently has two automation surfaces:
+
+- **Legacy Claude command prompts** in `.claude/commands/`
+- **Codex maintenance skill** in `.codex/skills/user-manual-maintainer/`
+
+The prompts and skill share the same source-of-truth hierarchy:
+
+```text
+Frontend code (*.tsx)        ← Ground truth
+Technical docs in /doc       ← Secondary context
+User docs in /doc/help       ← Derived output
+```
+
+### Legacy Claude commands
 
 ### `/doc-page <route-or-component>`
 
@@ -144,6 +158,42 @@ Generates documentation for multiple pages at once.
 2. Generates each page sequentially
 3. Updates inventory after each page
 4. Reports summary when complete
+
+### Codex skill
+
+The Codex-side equivalent lives at:
+
+`/home/fried/kanap/.codex/skills/user-manual-maintainer/SKILL.md`
+
+It is intended to own ongoing maintenance of:
+
+- route manuals in `doc/help/docs/en/*.md`
+- Fast Track guides in `doc/help/docs/en/fast-track/*.md`
+- inventory/process docs in `doc/help/_process/`
+- route mappings in `frontend/src/utils/docUrls.ts`
+
+## Documentation Types
+
+### Route manuals
+
+These are 1-page or 1-feature references such as:
+
+- `applications.md`
+- `opex.md`
+- `portfolio-projects.md`
+
+They are usually route-mapped from the app header help button.
+
+### Fast Track guides
+
+These are supplemental workflow guides and cheat sheets:
+
+- `fast-track/getting-started.md`
+- `fast-track/index.md`
+- `fast-track/apps-and-assets.md`
+- `fast-track/task-types.md`
+
+They are not strictly tied to a single route and should not be forced into the same 1-route-to-1-doc model as the main manuals.
 
 ## Cloudflare Pages Integration
 
@@ -267,6 +317,8 @@ The structure supports i18n via the `mkdocs-static-i18n` plugin:
 
 See `doc/help/DEPLOYMENT.md` for detailed i18n setup instructions.
 
+For supplemental guides such as Fast Track pages, add discovery links in the docs home page and MkDocs nav even if no in-app route mapping is needed.
+
 ## Maintenance Workflow
 
 ### Regular Maintenance
@@ -274,13 +326,15 @@ See `doc/help/DEPLOYMENT.md` for detailed i18n setup instructions.
 1. **Weekly/Monthly**: Run `/doc-check` to identify stale documentation
 2. **After feature releases**: Run `/doc-page` for affected pages
 3. **Before major releases**: Run `/doc-batch all` to ensure full coverage
+4. **After workflow/navigation changes**: Review Fast Track guides and the docs home page links
 
 ### When Adding New Features
 
 1. Implement the feature (frontend components)
-2. Run `/doc-page <route>` to generate documentation
-3. Add route mapping to `docUrls.ts`
-4. Commit and push - docs auto-deploy
+2. Update or generate the relevant route manual
+3. Add or update the route mapping in `docUrls.ts`
+4. If the feature changes onboarding flows, review the Fast Track guides too
+5. Commit and push - docs auto-deploy
 
 ### Source of Truth Hierarchy
 
@@ -309,6 +363,7 @@ When sources conflict, **code wins**. Update documentation to match code, not vi
 - No `user-manual-` prefix (legacy)
 - Match the route where practical
 - Group related admin pages into single doc
+- Use `fast-track/` for cross-workspace workflow guides rather than forcing them into route slugs
 
 ## Troubleshooting
 

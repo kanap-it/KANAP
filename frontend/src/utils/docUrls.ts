@@ -22,9 +22,17 @@ const routeToDocSlug: [RegExp, string][] = [
   [/^\/portfolio\/requests/, 'portfolio-requests'],
   [/^\/portfolio\/projects\/[^/]+/, 'portfolio-projects'],
   [/^\/portfolio\/projects/, 'portfolio-projects'],
+  [/^\/portfolio\/contributors\/[^/]+/, 'portfolio-team-members'],
+  [/^\/portfolio\/contributors/, 'portfolio-team-members'],
   [/^\/portfolio\/team-members\/[^/]+/, 'portfolio-team-members'],
   [/^\/portfolio\/team-members/, 'portfolio-team-members'],
+  [/^\/portfolio\/planning/, 'portfolio-planning'],
+  [/^\/portfolio\/reports/, 'portfolio-reporting'],
   [/^\/portfolio\/settings/, 'portfolio-settings'],
+
+  // Knowledge
+  [/^\/knowledge\/[^/]+/, 'knowledge'],
+  [/^\/knowledge/, 'knowledge'],
 
   // IT Operations
   [/^\/it\/applications\/\d+/, 'applications'],
@@ -76,8 +84,11 @@ const routeToDocSlug: [RegExp, string][] = [
   // Admin
   [/^\/admin\/users/, 'admin'],
   [/^\/admin\/roles/, 'admin'],
+  [/^\/admin\/audit-logs/, 'admin'],
   [/^\/admin\/billing/, 'admin'],
   [/^\/admin\/auth/, 'admin'],
+  [/^\/admin\/branding/, 'branding'],
+  [/^\/settings/, 'fast-track/getting-started'],
 ];
 
 /**

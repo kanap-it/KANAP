@@ -31,14 +31,6 @@ If you want the shortest path to productivity, start with the Fast Track guides 
 - [Reporting](portfolio-reporting.md) - Capacity and workload reporting
 - [Settings](portfolio-settings.md) - Configure criteria, teams, and scoring
 
-### Budget Management
-
-- [OPEX](opex.md) - Manage recurring IT costs and allocations
-- [CAPEX](capex.md) - Track capital expenditure projects
-- [Contracts](contracts.md) - Manage vendor contracts and renewals
-- [Budget Administration](budget-operations.md) - Freeze, copy, and manage budget data
-- [Reports](reports.md) - Generate budget and chargeback reports
-
 ### IT Operations
 
 **Infrastructure**
@@ -57,6 +49,18 @@ If you want the shortest path to productivity, start with the Fast Track guides 
 **Settings**
 
 - [IT Operations Settings](it-ops-settings.md) - Configure dropdown values and catalogs
+
+### Knowledge
+
+- [Knowledge](knowledge.md) - Create, govern, relate, review, and export working documentation
+
+### Budget Management
+
+- [OPEX](opex.md) - Manage recurring IT costs and allocations
+- [CAPEX](capex.md) - Track capital expenditure projects
+- [Contracts](contracts.md) - Manage vendor contracts and renewals
+- [Budget Administration](budget-operations.md) - Freeze, copy, and manage budget data
+- [Reports](reports.md) - Generate budget and chargeback reports
 
 ### Master Data
 

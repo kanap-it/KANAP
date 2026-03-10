@@ -1,382 +1,302 @@
 # Portfolio Requests
 
-Portfolio Requests are the intake mechanism for new initiatives. Business and IT teams submit requests that get reviewed, scored, and prioritized before converting into projects. Use requests to capture ideas early, evaluate strategic alignment, and maintain a transparent pipeline.
-
-## Getting started
-
-Navigate to **Portfolio Management > Requests** to see your list. Click **New Request** to create your first item.
-
-**Required fields**:
-  - **Request Name**: A clear, descriptive title for the initiative
-
-**Strongly recommended**:
-  - **Purpose**: Explain what this initiative aims to achieve
-  - **Source**: Classification for the origin of work (e.g., IT, Business, Compliance)
-  - **Category**: High-level grouping
-  - **Requestor**: The person who submitted this request
-  - **Target Delivery Date**: When you'd like this delivered
-
-**Tip**: Complete as much information as possible during creation to streamline the review process.
+Portfolio Requests are the intake layer for proposed work. A request lets you capture the business need, assess feasibility, score priority, collect supporting knowledge, and decide whether the initiative should move forward as a project. In practice, this is where ideas become governed work instead of hallway folklore.
 
 ## Where to find it
 
-- Workspace: **Portfolio Management**
-- Path: **Portfolio Management > Requests**
-- Permissions:
-  - You need at least `portfolio_requests:reader` to view requests
-  - You need `portfolio_requests:member` to create and edit requests
-  - You need `portfolio_requests:admin` for full management
+- Workspace: **Portfolio**
+- Path: **Portfolio > Requests**
 
-If you don't see Requests in the menu, ask your administrator to grant you the appropriate permissions.
+### Permissions
+
+| Permission | What it allows |
+| --- | --- |
+| `portfolio_requests:reader` | Open the requests list and view request workspaces |
+| `portfolio_requests:member` | Edit the managed request documents embedded in the workspace, even without broader request-management rights |
+| `portfolio_requests:manager` | Create requests, update request data, maintain team and relations, add comments and decisions, change status, submit analysis recommendations, and edit scoring |
+| `portfolio_requests:admin` | Delete requests and use CSV import/export |
+
+The **Knowledge** tab follows Knowledge permissions for creation and linking actions. A user can be allowed to work on request content without being allowed to create or relink standalone knowledge documents.
 
 ## Working with the list
 
-The requests list shows all portfolio requests with key information at a glance.
+The list is designed for triage rather than archival browsing. By default, it sorts requests by priority so the most urgent or most strategically important work rises first.
 
-**Top scope filter**:
-  - **My requests** (default): shows requests where you are involved in any explicit request role:
-    - **Requestor**
-    - **Business Sponsor** / **IT Sponsor**
-    - **Business Lead** / **IT Lead**
-    - **Contributors** (Business Contributors or IT Contributors)
-  - **My team's requests**: shows requests where any member of your Portfolio team appears in those same explicit request roles. Your own involvement is also included in this scope.
-  - **All requests**: shows the full requests grid (with the standard default status behavior).
-  - If you are not assigned to a Portfolio team, **My team's requests** is disabled
-  - Your selection is remembered across sessions — returning to the page restores your last choice
+### Scope filters
 
-**Default columns**:
-  - **#**: The item number (e.g., `REQ-1`, `REQ-42`) — a stable, human-readable identifier assigned automatically when the request is created. Click to open the workspace.
-  - **Request Name**: The initiative title (click to open workspace)
-  - **Priority**: Calculated score based on scoring criteria
-  - **Status**: Current workflow state
-  - **Source**: Request classification
-  - **Category**: High-level grouping
-  - **Stream**: Sub-category within the category
-  - **Company**: Requesting organization
-  - **Requestor**: Person who submitted
-  - **Target Date**: Desired delivery date
-  - **Created**: When the request was submitted
+Use the scope selector above the grid to control whose pipeline you are looking at:
 
-**Filtering**:
-  - Quick search covers all text fields
-  - Status, Source, Category, Stream, Company, and Requestor columns use checkbox set filters with `All`, `None`, or `N selected` plus an **x** to clear
-  - By default, converted requests are hidden (use the Status filter to include Converted or clear the Status filter to show all)
+- **My requests** shows requests where you are explicitly involved, such as requestor, sponsor, lead, or contributor.
+- **My team's requests** expands that view to requests involving members of your Portfolio team. This option is unavailable if you are not assigned to a team.
+- **All requests** removes the involvement filter and shows the full request pipeline.
 
-**Actions**:
-  - **New Request**: Create a new portfolio request
+Your scope choice is remembered. If you open a request from the list and come back later, KANAP keeps the list context so you do not have to rebuild your filter stack every time.
+
+### Default columns
+
+The standard grid highlights the fields that matter during intake and review:
+
+- **#**
+- **Request Name**
+- **Priority**
+- **Status**
+- **Source**
+- **Category**
+- **Stream**
+- **Company**
+- **Requestor**
+- **Target Date**
+- **Created**
+
+Additional columns, such as **Last changed**, can be surfaced through grid preferences when needed.
+
+### Filtering behavior
+
+- Global search works across request content and visible business metadata.
+- Column filters are available for the main classification and ownership fields.
+- Requests with status **Converted** are hidden by default so the list stays focused on active intake. If you need to review historical intake decisions, include **Converted** in the Status filter.
+
+### List actions
+
+- **New Request** is available to request managers.
+- **Import CSV** and **Export CSV** are available to request administrators.
 
 ## The Request workspace
 
-Click any row to open the workspace. It has 6 tabs.
+The current workspace uses a split model:
 
-The workspace header displays the request's **item number** as a chip (e.g., `REQ-42`) next to the request name. Click the chip to copy the reference to your clipboard. The item number also appears in the browser tab title and in the page URL, making it easy to share and bookmark specific requests.
+- The main area is for narrative, analysis, scoring, activity, and knowledge.
+- The right-hand property sidebar is for stable request metadata, team assignment, and relations.
 
-### Overview
+This matters because not everything is saved the same way:
 
-Core information about the request.
+- Changes in the **property sidebar** are applied directly to the request.
+- Changes in **Summary**, **Analysis**, and **Scoring** are workspace edits and use **Save** / **Reset**.
+- The managed documents **Purpose** and **Risks & Mitigations** also use the workspace save flow.
 
-**What you can edit**:
-  - **Request Name**: The title
-  - **Purpose**: Description of what this initiative aims to achieve
-  - **Source/Category/Stream**: Classification hierarchy
-  - **Requestor**: Who submitted this request
-  - **Company/Department**: Organizational context
-  - **Target Delivery Date**: Desired completion
-  - **Status**: Current workflow state
+If you create a new request, KANAP starts on **Summary**. The other tabs become useful after the request exists as a real record rather than a very sincere idea.
 
-**Status workflow**:
+The workspace header gives you operational context without leaving the page:
 
-| Status | Meaning | Can transition to |
-|--------|---------|-------------------|
-| Pending Review | Newly submitted, awaiting initial assessment | Candidate, Approved, Rejected, On Hold |
-| Candidate | Under active consideration | Approved, Rejected, On Hold |
-| Approved | Cleared for project conversion | Converted |
-| On Hold | Temporarily paused | Pending Review, Candidate, Rejected |
-| Rejected | Not proceeding | Pending Review |
-| Converted | Transformed into a project | (terminal state) |
+- a copyable request reference such as `REQ-42`
+- the current status
+- the origin task when the request was created from task work
+- **Send link** for sharing
+- previous/next navigation based on the exact list context you came from
 
-**Tip**: Status changes prompt you to log a decision with context and rationale for audit purposes.
+### Property sidebar mental model
 
----
+Treat the sidebar as the request's structural backbone.
 
-### Analysis
+#### Core Properties
 
-Document feasibility and delivery readiness for this request.
+This section holds the identity and classification of the request:
 
-**What you can edit**:
-  - **Impacted Business Processes**: Link the business processes affected by the request
-  - **Feasibility Review**: Structured 7-dimension matrix with a status and notes per dimension:
-    - Technical Feasibility
-    - Integration & Compatibility
-    - Infrastructure Needs
-    - Security & Compliance
-    - Resource & Skills
-    - Delivery Constraints
-    - Change Management
-  - **Risks & Mitigations**: Capture residual risks, mitigation actions, and owners
+- Request Name
+- Status
+- Source, Category, and Stream
+- Requestor
+- Company and Department
+- Target Delivery Date
 
-**Feasibility statuses**:
-  - `Not assessed`
-  - `No concerns`
-  - `Minor concerns`
-  - `Major concerns`
-  - `Blocker`
+These fields shape how the request is routed, filtered, and reviewed elsewhere in the workspace. For example:
 
-**Notes entry**:
-  - Each dimension has an inline multiline comment field
-  - Use **Detailed notes** to expand additional writing space when needed
+- changing **Status** affects what decisions can follow and whether conversion is available
+- changing **Category** or **Stream** changes the analytical context for feasibility and scoring
+- changing **Company** or **Requestor** changes reporting and ownership visibility across the portfolio
 
-**Analysis Recommendation**:
-  - Click **Submit Recommendation** to publish a formal decision
-  - Context is fixed to **Analysis Recommendation**
-  - Choose outcome: Go, No-Go, Defer, Need Info, Analysis Complete
-  - Optionally change request status in the same submission
-  - After submission, the latest recommendation appears directly in Analysis with a link to Activity
+#### Team
 
----
+The Team section assigns responsibility rather than just keeping a contact list:
 
-### Scoring
+- Business Sponsor
+- Business Lead
+- IT Sponsor
+- IT Lead
+- Business Contributors
+- IT Contributors
 
-Evaluate the request against your organization's criteria.
+These assignments drive shared visibility and make it clear who is expected to sponsor, shape, and deliver the request. Summary uses this data to show whether the request has enough named ownership to move forward sensibly.
 
-**How it works**:
-  - Each criterion defined in Portfolio Settings appears here
-  - Select the appropriate value for each criterion
-  - The priority score is calculated automatically based on weights
-  - If "Mandatory Bypass" is enabled in settings and triggered, score becomes 100
+#### Relations
 
-**Override capability**:
-  - Enable **Priority Override** to manually set the score
-  - Provide justification when overriding
-  - Override scores display with a different visual indicator
+Relations explain how the request fits into the wider portfolio:
 
-**Note**: Scoring is frozen once a request is converted to a project.
+- **Dependencies** identify work that must exist, finish, or remain aligned before this request can succeed.
+- **Resulting Projects** show what was created from the request after conversion.
 
----
+This section is important for impact analysis. A request with weak relation data may look harmless until it collides with existing work.
 
-### Team
+Older bookmarks may still point to `overview`, `team`, or `relations`. In the current workspace, that content lives in **Summary** and the property sidebar.
 
-Assign people responsible for this request.
+## Summary
 
-**Sponsors & Leads**:
-  - **Business Sponsor**: Executive accountable from the business side
-  - **Business Lead**: Day-to-day business representative
-  - **IT Sponsor**: Executive accountable from IT
-  - **IT Lead**: Technical representative
+**Summary** is the request cockpit. It is not a simple overview tab; it is where KANAP compresses the state of the request into an operational snapshot.
 
-**Contributors**:
-  - **Business Contributors**: Business stakeholders and contributors
-  - **IT Contributors**: Technical team members
+Summary includes:
 
----
+- **Status Snapshot**, including current status, current priority, linked business processes, and latest activity
+- **Analysis Snapshot**, including the strongest feasibility signal and the latest analysis recommendation
+- **Team and Knowledge**, including role coverage, contributor count, origin task, and linked knowledge counts
+- the managed **Purpose** document
+- a **Recent Activity** feed
 
-### Relations
+Use Summary when you need to understand whether the request is merely recorded or actually ready to be discussed, scored, and converted.
 
-Track dependencies and connections.
+### Purpose as a managed document
 
-**Dependencies**:
-  - Link to other requests or projects this depends on
-  - Add dependencies by selecting from existing items
-  - Dependencies are shown bi-directionally
+The **Purpose** section is a managed markdown document embedded directly in the request. It is more than a long description field:
 
-**Resulting Projects**:
-  - Shows projects created from this request after conversion
-  - Click to navigate to the project
+- it gives reviewers a stable statement of intent
+- it is available during request-to-project conversion
+- it can be edited by users with `portfolio_requests:member`, even if they do not manage the rest of the request
 
----
+That split is deliberate. It allows subject-matter contributors to improve the request narrative without opening full control over status, scoring, and portfolio structure.
 
-### Activity
+## Activity
 
-Unified collaboration and audit trail (Comments + History).
+**Activity** separates discussion from audit trail:
 
-**What's tracked**:
-  - Regular comments
-  - Formal decisions (including Analysis Recommendation decisions)
-  - Status changes with before/after values
-  - Field modifications
-  - Who made the change and when
+- **Comments** is the collaboration stream
+- **History** is the change log
 
-**Formal decisions in Activity**:
-  - Enable **Formal decision**
-  - Select **Decision Outcome**: Go, No-Go, Defer, Need Info, Analysis Complete
-  - Optionally change status
-  - Provide context and rationale
+### Comments
 
-## Converting to Project
+Comments support normal discussion, but they also support **formal decisions**. A formal decision can capture:
 
-When a request is approved, you can convert it to a project:
+- the meeting or decision context
+- the decision outcome
+- the rationale
+- an optional status change in the same action
 
-1. Open the approved request
-2. Click **Convert to Project**
-3. Review the project name and details
-4. Select a phase template (optional)
-5. Click **Create Project**
+That combination is important. It keeps governance traceable: the record of *why* something changed stays attached to the change instead of being reconstructed later from memory and optimism.
 
-The request status changes to "Converted" and links to the new project.
+Comments support markdown and inline images, which is useful for design notes, evidence, screenshots, and review material.
 
-## CSV import/export
+### History
 
-Maintain your request pipeline at scale using CSV import and export. This feature supports bulk operations for initial data loading, periodic updates, and data extraction for reporting.
+History is the audit view. Use it when you need to answer questions such as:
 
-### Accessing CSV features
+- who changed the status
+- when team assignments changed
+- whether a scoring or analysis change happened before or after a decision
 
-From the Requests list:
-  - **Export CSV**: Download requests to a CSV file
-  - **Import CSV**: Upload a CSV file to create or update requests
-  - **Download Template**: Get a blank CSV with correct headers
+If you need narrative, use Comments. If you need proof, use History.
 
-**Permissions required**: `portfolio_requests:admin` for import/export operations.
+## Analysis
 
-### Export options
+**Analysis** is where the request moves from "sounds reasonable" to "understood well enough to decide."
 
-Three export modes are available:
+It brings together four distinct elements:
 
-| Option | Description |
-|--------|-------------|
-| **Full Export** | All exportable fields—use for reporting and complete data extraction |
-| **Data Enrichment** | All importable fields—matches the import template format, ideal for round-trip editing (export → modify → re-import) |
-| **Custom Selection** | Choose specific fields to include in your export |
+- impacted business processes
+- structured feasibility review
+- managed **Risks & Mitigations**
+- the formal **Analysis Recommendation**
 
-**Template download** (from Import dialog): Downloads a blank CSV with all importable field headers—use this to prepare import files with the correct structure.
+### Impacted Business Processes
 
-### Import workflow
+Link the business processes touched by the request. This changes the meaning of the request in portfolio terms: a request affecting core operational processes should not be evaluated the same way as a local convenience improvement.
 
-1. **Prepare your file**: Use UTF-8 encoding with semicolon (`;`) separators. Download a template to ensure correct headers.
+### Feasibility Review
 
-2. **Choose import settings**:
-   - **Mode**:
-     - `Enrich` (default): Empty cells preserve existing values—only update what you specify
-     - `Replace`: Empty cells clear existing values—full replacement of all fields
-   - **Operation**:
-     - `Upsert` (default): Create new requests or update existing ones
-     - `Update only`: Only modify existing requests, skip new ones
-     - `Insert only`: Only create new requests, skip existing ones
+The feasibility review is a structured assessment across seven dimensions. Each dimension can be assessed with a concern level and supporting notes.
 
-3. **Validate first**: Click **Preflight** to validate your file without making changes. Review errors and warnings.
+Use this section to expose delivery friction early:
 
-4. **Apply changes**: If validation passes, click **Import** to commit changes.
+- not every request fails because the idea is poor
+- many fail because integration, infrastructure, security, timing, or change-management constraints were ignored until too late
 
-### Field reference
+The Summary tab surfaces the strongest concern level from this review so major issues remain visible even when nobody opens Analysis.
 
-**Overview fields**:
+### Risks & Mitigations
 
-| CSV Column | Description | Required | Notes |
-|------------|-------------|----------|-------|
-| `id` | Request UUID | No | For updates; leave blank for new requests |
-| `name` | Request name | Yes | Used as unique identifier for matching |
-| `status` | Workflow status | No | Accepts code or label |
-| `purpose` | What the request aims to achieve | No | |
-| `source_name` | Request source | No | Must match existing source name |
-| `category_name` | Category | No | Must match existing category name |
-| `stream_name` | Stream | No | Must match existing stream name |
-| `requestor_email` | Requestor | No | Must match existing user email |
-| `company_name` | Company | No | Must match existing company name |
-| `department_name` | Department | No | Must match existing department name |
-| `target_delivery_date` | Target date | No | Date format: YYYY-MM-DD |
+**Risks & Mitigations** is another managed markdown document. Use it to document residual risk, mitigation actions, and ownership. Like Purpose, it can be edited by users with `portfolio_requests:member`.
 
-**Analysis fields**:
+This is useful when the people best placed to describe the risks are not the same people who should be changing request status or portfolio structure.
 
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `risks` | Risks and mitigations | Free text |
-| `current_situation` | Legacy analysis field | Backward compatibility only; displayed in "Previous Analysis" for older records |
-| `expected_benefits` | Legacy analysis field | Backward compatibility only; displayed in "Previous Analysis" for older records |
+### Analysis Recommendation
 
-`feasibility_review` (structured feasibility matrix) is edited in the workspace and is currently not part of CSV import/export.
+The recommendation flow publishes a formal decision into Activity with the fixed context **Analysis Recommendation**. It can also change the request status at the same time.
 
-**Team fields**:
+That means Analysis is not an isolated note-taking area. It is part of the governance trail:
 
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `business_sponsor_email` | Business sponsor | Must match existing user email |
-| `business_lead_email` | Business lead | Must match existing user email |
-| `it_sponsor_email` | IT sponsor | Must match existing user email |
-| `it_lead_email` | IT lead | Must match existing user email |
+- reviewers can see the latest recommendation directly in Analysis
+- the same recommendation appears in Activity as a decision record
+- optional status changes stay tied to the recommendation that justified them
 
-**Scoring fields**:
+Older requests may also show a **Previous Analysis (Legacy)** section. That content is retained for continuity, but the current request model relies on feasibility review, managed risks, and formal recommendations.
 
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `criteria_values` | Scoring criteria | JSON format |
-| `priority_score` | Calculated score | Export only |
-| `priority_override` | Override enabled | `true` or `false` |
-| `override_value` | Manual score | Number |
-| `override_justification` | Override reason | Free text |
+## Scoring
 
-### Label and code acceptance
+**Scoring** evaluates the request against the portfolio scoring model configured for your tenant.
 
-For the **status** field, you can use either the internal code or a common label:
+In practice:
 
-| Code | Accepted labels |
-|------|-----------------|
-| `pending_review` | `Pending Review`, `Pending` |
-| `candidate` | `Candidate` |
-| `approved` | `Approved` |
-| `on_hold` | `On Hold` |
-| `rejected` | `Rejected` |
-| `converted` | `Converted` |
+- each active criterion contributes to the calculated priority
+- the resulting score feeds portfolio comparison and list ordering
+- an override can be used when the calculated score is correct mathematically but wrong operationally
 
-The system automatically normalizes values during import, so `Pending Review`, `pending review`, and `pending_review` all resolve to the same status.
+If priority override is used, it should be treated as an exception, not a lifestyle.
 
-### Matching and updates
+Where enabled by portfolio settings, mandatory bypass rules can force top priority for qualifying requests. This is typically used for work that cannot sensibly compete with discretionary demand.
 
-Requests are matched by **name** (case-insensitive). When a match is found:
-  - With `Enrich` mode: Only non-empty CSV values update the request
-  - With `Replace` mode: All fields are updated, empty values clear existing data
+Once a request is **Converted**, scoring becomes read-only. At that point the request has already done its job as an intake and prioritization record.
 
-If you include the `id` column with a valid UUID, matching uses ID first, then falls back to name.
+## Knowledge
 
-### Computed and read-only fields
+The **Knowledge** tab connects the request to standalone knowledge documents. It is not just an attachments shelf with better posture.
 
-Some fields are export-only and cannot be imported:
-  - **Priority score**: Calculated from scoring criteria
+The tab distinguishes between two kinds of knowledge:
 
-### Limitations
+- **Linked documents** are directly attached to the request.
+- **Related documents** are discovered through the request's wider context, such as dependencies, related requests, resulting projects, and other linked objects.
 
-  - **Dependencies not included**: Request dependencies must be managed in the workspace
-  - **Contributors not included**: Business and IT contributors require workspace configuration
-  - **Comments/decisions excluded**: Activity history is not part of CSV import/export
-  - **Criteria values require JSON**: The `criteria_values` field expects valid JSON matching your scoring criteria
+This distinction matters:
 
-### Troubleshooting
+- direct documents are part of the request's explicit documentation set
+- related documents add context without claiming that the request owns them
 
-**"File isn't properly formatted" error**: This usually indicates an encoding issue. Ensure your CSV is saved as **UTF-8**:
+### What you can do
 
-  - **In LibreOffice**: When opening a CSV, select `UTF-8` in the Character set dropdown (not "Japanese (Macintosh)" or other encodings). When saving, check "Edit filter settings" and choose UTF-8.
-  - **In Excel**: Save As → CSV UTF-8 (Comma delimited), then open in a text editor to change commas to semicolons.
-  - **General tip**: If you see garbled characters (`?¿`, `ï»¿`) at the start of your file, the encoding is incorrect.
+With sufficient Knowledge permissions, you can:
 
-### Example CSV
+- create a new blank knowledge document already linked to the request
+- create a linked document from a template
+- link an existing knowledge document
+- unlink a directly linked document
+- open any linked or related document in the Knowledge workspace
 
-```csv
-name;status;purpose;source_name;category_name;target_delivery_date;requestor_email
-CRM Enhancement;Pending Review;Improve customer tracking;IT;Digital;2026-06-30;john.doe@example.com
-New Reporting Tool;Candidate;Better analytics;Business;Analytics;2026-09-15;jane.smith@example.com
-```
+Without those permissions, the tab still works as a reference view as long as you are allowed to see the underlying knowledge.
 
----
+### Managed documents versus Knowledge documents
 
-## Sending a link
+The managed documents **Purpose** and **Risks & Mitigations** are part of the request itself. They are not the same thing as Knowledge documents.
 
-You can quickly email a link to any request to colleagues or external contacts.
+Use managed documents for core request narrative that should always travel with the request. Use Knowledge for standalone documents that may need their own lifecycle, relations, exports, templates, and reuse beyond a single request.
 
-1. Open the request workspace
-2. Click **Send link** in the header toolbar (to the left of the navigation arrows)
-3. In the dialog:
-   - **Select recipients**: Search for existing platform users by name or email, and/or type any email address and press Enter
-   - **Add a message** (optional): Include a personal note
-   - **Copy link**: Click the copy icon to grab the direct URL
-4. Click **Send**
+## Converting a request to a project
 
-Recipients receive an email with your name, the request title, a direct link, and your message (if provided). This does not change any permissions — it simply notifies the recipients.
+Once a request reaches **Approved**, the workspace offers **Convert to Project**.
 
-**Tip**: You can mix platform users and external email addresses in the same send.
+The conversion flow lets you:
 
----
+- confirm or adjust the project name
+- set planned start and end dates
+- review the current Purpose text
+- carry forward estimated IT and Business effort derived from request scoring inputs
 
-## Tips
+After conversion:
 
-  - **Score early**: Fill in scoring values during the candidate phase to build your priority queue
-  - **Use decisions**: Log formal decisions with context so you have a clear audit trail
-  - **Keep feasibility actionable**: For each dimension, capture the concern, impact, and next action
-  - **Keep risks current**: Update mitigations and owners as the request evolves
+- the request becomes a durable intake and decision record
+- the resulting project appears in the request's Relations section
+- scoring is frozen on the request
+- the request can still be opened for audit, context, and knowledge tracing
+
+In other words, conversion does not erase the request. It promotes it.
+
+## CSV import and export
+
+CSV import and export are available to `portfolio_requests:admin`.
+
+Use export when you need portfolio reporting or offline enrichment. Use import when you need to create or update requests in bulk. Because import can alter intake records at scale, it is intentionally reserved for administrators.
