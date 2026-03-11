@@ -289,6 +289,26 @@ type TeamOccupationRow = {
   weekOccupation: Map<string, number | null>;
 };
 
+type ContributorProjectWeekDetail = {
+  week: string;
+  projectDays: number;
+  capacityDays: number | null;
+  occupationPct: number | null;
+  totalWeekEffortDays: number;
+};
+
+type ContributorProjectTimeline = {
+  contributorId: string;
+  contributorName: string;
+  projectId: string;
+  projectName: string;
+  weekDetails: ContributorProjectWeekDetail[];
+  totalProjectDays: number;
+  activeWeekStarts: string[];
+  activeStart: string;
+  activeEnd: string;
+};
+
 type Category = {
   id: string;
   name: string;
@@ -408,6 +428,12 @@ const formatConstraint = (constraint: ScheduleConstraint | null | undefined): st
     default:
       return 'None';
   }
+};
+
+const addDaysUtcYmd = (ymd: string, days: number): string => {
+  const dt = new Date(`${ymd}T00:00:00Z`);
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
 };
 
 const hasContributorLoads = (
@@ -1185,6 +1211,56 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [reservationProjects, scheduledProjects]);
+  const ganttContributorNameById = useMemo(
+    () => new Map(ganttContributorOptions.map((option) => [option.id, option.name])),
+    [ganttContributorOptions],
+  );
+
+  const contributorProjectTimelines = useMemo(() => {
+    const byContributor = new Map<string, Map<string, ContributorProjectTimeline>>();
+
+    for (const entry of response?.occupation ?? []) {
+      const byProject = byContributor.get(entry.contributorId) ?? new Map<string, ContributorProjectTimeline>();
+      for (const project of entry.projects) {
+        if ((project.days ?? 0) <= 0) continue;
+        const existing = byProject.get(project.projectId) ?? {
+          contributorId: entry.contributorId,
+          contributorName: entry.contributorName,
+          projectId: project.projectId,
+          projectName: project.projectName,
+          weekDetails: [],
+          totalProjectDays: 0,
+          activeWeekStarts: [],
+          activeStart: entry.week,
+          activeEnd: addDaysUtcYmd(entry.week, 4),
+        };
+        existing.weekDetails.push({
+          week: entry.week,
+          projectDays: project.days,
+          capacityDays: entry.capacityDays,
+          occupationPct: entry.occupationPct,
+          totalWeekEffortDays: entry.effortDays,
+        });
+        existing.totalProjectDays += project.days;
+        byProject.set(project.projectId, existing);
+      }
+      byContributor.set(entry.contributorId, byProject);
+    }
+
+    for (const byProject of byContributor.values()) {
+      for (const timeline of byProject.values()) {
+        timeline.weekDetails.sort((a, b) => a.week.localeCompare(b.week));
+        timeline.activeWeekStarts = timeline.weekDetails.map((detail) => detail.week);
+        timeline.activeStart = timeline.activeWeekStarts[0];
+        timeline.activeEnd = addDaysUtcYmd(timeline.activeWeekStarts[timeline.activeWeekStarts.length - 1], 4);
+      }
+    }
+
+    return byContributor;
+  }, [response?.occupation]);
+  const selectedContributorTimeline = selectedExplanationKey && ganttContributorId
+    ? (contributorProjectTimelines.get(ganttContributorId)?.get(selectedExplanationKey) ?? null)
+    : null;
 
   const contributorFilteredScheduled = useMemo(
     () => (ganttContributorId
@@ -1299,17 +1375,28 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   );
 
   const ganttProjects = useMemo(() => {
+    const selectedContributorName = ganttContributorId
+      ? (ganttContributorNameById.get(ganttContributorId) ?? null)
+      : null;
+    const selectedContributorProjectTimelines = ganttContributorId
+      ? (contributorProjectTimelines.get(ganttContributorId) ?? new Map<string, ContributorProjectTimeline>())
+      : null;
     const scheduledRows = streamFilteredScheduled.map((project) => ({
       id: project.projectId,
       name: project.projectName,
       status: project.status,
       category_id: project.categoryId,
-      planned_start: project.plannedStart,
-      historical_start: project.historicalStart,
-      planned_end: project.plannedEnd,
+      planned_start: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
+      historical_start: selectedContributorProjectTimelines ? null : project.historicalStart,
+      planned_end: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
       execution_progress: project.executionProgress || 0,
-      active_week_starts: project.activeWeekStarts,
+      active_week_starts: selectedContributorProjectTimelines?.get(project.projectId)?.activeWeekStarts ?? project.activeWeekStarts,
       on_hold_ranges: project.onHoldRanges,
+      full_planned_start: project.plannedStart,
+      full_planned_end: project.plannedEnd,
+      focus_contributor_name: selectedContributorName,
+      focus_contributor_active_start: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? null,
+      focus_contributor_active_end: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? null,
     }));
     if (!showReservations) return scheduledRows;
 
@@ -1318,28 +1405,43 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       name: project.projectName,
       status: project.status,
       category_id: project.categoryId,
-      planned_start: project.plannedStart,
+      planned_start: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
       historical_start: null,
-      planned_end: project.plannedEnd,
+      planned_end: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
       execution_progress: project.executionProgress || 0,
       is_reservation: true,
       reservation_reason: project.reason,
+      full_planned_start: project.plannedStart,
+      full_planned_end: project.plannedEnd,
+      focus_contributor_name: selectedContributorName,
+      focus_contributor_active_start: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? null,
+      focus_contributor_active_end: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? null,
     }));
 
     return [...scheduledRows, ...reservationRows];
-  }, [streamFilteredReservations, streamFilteredScheduled, showReservations]);
+  }, [
+    contributorProjectTimelines,
+    ganttContributorId,
+    ganttContributorNameById,
+    showReservations,
+    streamFilteredReservations,
+    streamFilteredScheduled,
+  ]);
 
   const ganttExportRows = useMemo<GanttRoadmapItem[]>(() => {
+    const selectedContributorProjectTimelines = ganttContributorId
+      ? (contributorProjectTimelines.get(ganttContributorId) ?? new Map<string, ContributorProjectTimeline>())
+      : null;
     const scheduledRows = streamFilteredScheduled.map((project) => ({
       projectId: project.projectId,
       projectName: project.projectName,
       status: project.status,
       executionProgress: project.executionProgress || 0,
-      plannedStart: project.plannedStart,
-      plannedEnd: project.plannedEnd,
-      historicalStart: project.historicalStart,
+      plannedStart: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
+      plannedEnd: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
+      historicalStart: selectedContributorProjectTimelines ? null : project.historicalStart,
       isReservation: false,
-      activeWeekStarts: project.activeWeekStarts,
+      activeWeekStarts: selectedContributorProjectTimelines?.get(project.projectId)?.activeWeekStarts ?? project.activeWeekStarts,
       onHoldRanges: project.onHoldRanges,
     }));
     if (!showReservations) return scheduledRows;
@@ -1348,14 +1450,20 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       projectName: project.projectName,
       status: project.status,
       executionProgress: project.executionProgress || 0,
-      plannedStart: project.plannedStart,
-      plannedEnd: project.plannedEnd,
+      plannedStart: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
+      plannedEnd: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
       historicalStart: null,
       isReservation: true,
       reservationReason: project.reason,
     }));
     return [...scheduledRows, ...reservationRows];
-  }, [streamFilteredReservations, streamFilteredScheduled, showReservations]);
+  }, [
+    contributorProjectTimelines,
+    ganttContributorId,
+    showReservations,
+    streamFilteredReservations,
+    streamFilteredScheduled,
+  ]);
 
   const ganttDependencies = useMemo(() => {
     const visibleIds = new Set<string>([
@@ -1384,14 +1492,9 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   }, [streamFilteredReservations, streamFilteredScheduled, scheduledProjects, showReservations]);
 
   const monthsForGantt = useMemo(() => {
-    const allRows = [
-      ...streamFilteredScheduled.map((item) => ({ plannedEnd: item.plannedEnd })),
-      ...(showReservations
-        ? streamFilteredReservations.map((item) => ({ plannedEnd: item.plannedEnd }))
-        : []),
-    ];
+    const allRows = ganttExportRows.map((item) => ({ plannedEnd: item.plannedEnd }));
     return calcMonthsSpan(allRows);
-  }, [streamFilteredReservations, streamFilteredScheduled, showReservations]);
+  }, [ganttExportRows]);
   const monthOffsetForGantt = 0;
   const ganttHeight = useMemo(
     () => Math.max(420, (ganttProjects.length * 38) + 180),
@@ -2732,6 +2835,43 @@ export default function RoadmapGenerator({ onApplied }: Props) {
               </Box>
 
               <Divider />
+
+              {selectedContributorTimeline && (
+                <>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+                      Selected Contributor Timeline
+                    </Typography>
+                    <Stack spacing={1}>
+                      <Typography variant="body2">
+                        {selectedContributorTimeline.contributorName}: {selectedContributorTimeline.activeStart} to {selectedContributorTimeline.activeEnd}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Planned contribution: {selectedContributorTimeline.totalProjectDays.toFixed(2)}d across {selectedContributorTimeline.weekDetails.length} active week(s)
+                      </Typography>
+                      {selectedContributorTimeline.weekDetails.map((detail) => (
+                        <Paper key={`${selectedContributorTimeline.projectId}:${detail.week}`} variant="outlined" sx={{ p: 1.25 }}>
+                          <Typography variant="body2">Week of {detail.week}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            Project load: {detail.projectDays.toFixed(2)}d
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            Weekly capacity: {detail.capacityDays != null ? `${detail.capacityDays.toFixed(2)}d` : 'N/A'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            Total assigned effort that week: {detail.totalWeekEffortDays.toFixed(2)}d
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            Weekly occupation: {detail.occupationPct != null ? `${Math.round(detail.occupationPct)}%` : 'N/A'}
+                          </Typography>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </Box>
+
+                  <Divider />
+                </>
+              )}
 
               {hasContributorLoads(selectedExplanationProject) && (
                 <Box>

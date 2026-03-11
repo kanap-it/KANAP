@@ -21,6 +21,11 @@ interface GanttProject {
   execution_progress: number;
   active_week_starts?: string[];
   on_hold_ranges?: Array<{ from: string; to: string }>;
+  full_planned_start?: string | null;
+  full_planned_end?: string | null;
+  focus_contributor_name?: string | null;
+  focus_contributor_active_start?: string | null;
+  focus_contributor_active_end?: string | null;
 }
 
 interface ProjectDependency {
@@ -229,6 +234,11 @@ export function PortfolioGantt({
           _sleepLeadDays: sleepLeadDays,
           _activeSpanDays: activeSpanDays,
           _inactiveSegments: inactiveSegments,
+          _fullPlannedStart: p.full_planned_start ?? p.planned_start,
+          _fullPlannedEnd: p.full_planned_end ?? p.planned_end,
+          _focusContributorName: p.focus_contributor_name ?? null,
+          _focusContributorActiveStart: p.focus_contributor_active_start ?? null,
+          _focusContributorActiveEnd: p.focus_contributor_active_end ?? null,
         };
       });
 
@@ -553,7 +563,12 @@ export function PortfolioGantt({
     const sleepWeeks = hasSleepLead ? Math.max(1, Math.round(sleepLeadDays / 7)) : 0;
     const inactiveSegments: InactiveSegment[] = data._inactiveSegments || [];
     const inactiveTooltipPart = inactiveSegments.length > 0 ? `\n${formatInactiveTooltip(inactiveSegments)}` : '';
-    const tooltip = `${data.text}\nStatus: ${data._statusLabel || data._status}\nProgress: ${progress}%\nStart: ${startStr}\nEnd: ${endStr}${isReservation ? `\nType: Capacity Reservation${reservationReason ? `\nReason: ${reservationReason}` : ''}` : ''}${hasSleepLead && historicalStartStr ? `\nHistorical Start: ${historicalStartStr}\nPaused: ~${sleepWeeks} week(s)` : ''}${inactiveTooltipPart}`;
+    const fullStartStr = data._fullPlannedStart ? formatDateShort(new Date(data._fullPlannedStart)) : null;
+    const fullEndStr = data._fullPlannedEnd ? formatDateShort(new Date(data._fullPlannedEnd)) : null;
+    const contributorWindowPart = data._focusContributorName && data._focusContributorActiveStart && data._focusContributorActiveEnd
+      ? `\nContributor: ${data._focusContributorName}\nContributor Active: ${formatDateShort(new Date(data._focusContributorActiveStart))} - ${formatDateShort(new Date(data._focusContributorActiveEnd))}${fullStartStr && fullEndStr && (fullStartStr !== startStr || fullEndStr !== endStr) ? `\nProject Window: ${fullStartStr} - ${fullEndStr}` : ''}`
+      : '';
+    const tooltip = `${data.text}\nStatus: ${data._statusLabel || data._status}\nProgress: ${progress}%\nStart: ${startStr}\nEnd: ${endStr}${contributorWindowPart}${isReservation ? `\nType: Capacity Reservation${reservationReason ? `\nReason: ${reservationReason}` : ''}` : ''}${hasSleepLead && historicalStartStr ? `\nHistorical Start: ${historicalStartStr}\nPaused: ~${sleepWeeks} week(s)` : ''}${inactiveTooltipPart}`;
 
     // Compute overlay positions for inactive segments as percentages of the bar
     const barStartMs = data.start ? new Date(data.start).getTime() : 0;

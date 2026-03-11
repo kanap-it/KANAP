@@ -64,8 +64,12 @@ The current maintenance assets are:
   Writing template and content rules
 - `doc/help/_process/_documentation-inventory.md`
   Coverage tracker for route-based manuals plus a note about supplemental guides
+- `doc/help/_process/doc-update-map.tsv`
+  Machine-readable mapping from frontend files to route manuals for stale-doc checks
 - `.codex/skills/user-manual-maintainer/SKILL.md`
   Codex skill for maintaining user docs from this repository
+- `.codex/skills/user-manual-maintainer/scripts/stale_doc_check.py`
+  Minimal stale-doc detector that generates a review report
 - `.claude/commands/doc-page.md`
 - `.claude/commands/doc-check.md`
 - `.claude/commands/doc-batch.md`
@@ -163,7 +167,19 @@ Documentation should be reviewed when:
 - a major workflow or permission rule changes
 - Fast Track guidance becomes inconsistent with the current UX
 
-The inventory file and the Claude `/doc-check` prompt describe the expected audit process. Even when using AI assistance, treat the result as a review aid, not as ground truth.
+For the simple machine-assisted check, run:
+
+```bash
+python3 .codex/skills/user-manual-maintainer/scripts/stale_doc_check.py --base origin/main
+```
+
+This generates `doc/help/_process/_stale-doc-report.md` with:
+
+- route manuals needing review because their mapped product files changed
+- impacted manuals already touched in the same diff
+- changed frontend files that are not mapped yet
+
+Use the report as a review aid, not as ground truth. A flagged page may still be correct, and an unflagged page may still need a rewrite after a broad UX change.
 
 ---
 
