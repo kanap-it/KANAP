@@ -1,6 +1,6 @@
 # User Manual Documentation Inventory
 
-_Generated: 2026-03-10_
+_Generated: 2026-03-12_
 
 This document tracks documentation coverage for the KANAP user manual.
 
@@ -26,6 +26,7 @@ _Note: Supplemental Fast Track guides are excluded from these route-based counts
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-03-12 | `fast-track/index.md` | Updated for the current request/project workspace model: Summary + Analysis + Scoring flow, sidebar-based team/relations, current statuses, and conversion behavior |
 | 2026-03-10 | `knowledge.md` | New manual for the Knowledge workspace, document lifecycle, review flow, relations, and export behavior |
 | 2026-03-10 | `portfolio-requests.md` | Rewritten for the current Summary / Activity / Analysis / Scoring / Knowledge workspace model |
 | 2026-03-10 | `portfolio-projects.md` | Rewritten for the current Summary / Activity / Timeline / Progress / Tasks / Scoring / Knowledge workspace model |

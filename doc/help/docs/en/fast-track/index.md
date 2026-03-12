@@ -5,7 +5,7 @@ description: Get productive with KANAP's Portfolio module in minutes. A practica
 
 # Portfolio Fast Track: From Request to Delivery
 
-This guide walks you through the entire portfolio lifecycle — from submitting your first request to delivering a finished project. It's designed to get you productive fast, not to cover every option.
+This guide walks you through the current portfolio lifecycle — from submitting your first request to delivering a finished project. It's designed to get you productive fast, not to cover every option.
 
 !!! tip "Prefer a one-page summary? :material-file-pdf-box:"
     All the key steps on a single A4 page — print it, pin it, share it with your team.
@@ -25,15 +25,15 @@ Every initiative in KANAP follows the same flow:
 | Stage | What Happens |
 |-------|-------------|
 | **Request** | Someone submits an idea or need |
-| **Evaluate** | A committee scores it for value and feasibility |
+| **Analyze & Score** | A committee reviews feasibility, captures a recommendation, and scores priority |
 | **Approve** | Decision-makers greenlight (or reject) it |
-| **Project** | The approved request becomes a project with a team, timeline, and effort estimates |
+| **Project** | The approved request becomes a project with a team, timeline, and effort plan |
 | **Deliver** | The team executes, logs time, and tracks progress to completion |
 
 This pipeline ensures every initiative is evaluated fairly, prioritized transparently, and tracked consistently. No more pet projects jumping the queue.
 
 !!! info "Why this matters"
-    The scoring and evaluation step is what makes the difference between a wish list and a real portfolio. It gives leadership a defensible, data-driven basis for saying yes — or no.
+    The analysis and scoring step is what makes the difference between a wish list and a real portfolio. It gives leadership a defensible, data-driven basis for saying yes — or no.
 
 ---
 
@@ -41,31 +41,34 @@ This pipeline ensures every initiative is evaluated fairly, prioritized transpar
 
 Go to **Portfolio > Requests** and click **+ New Request**.
 
-<!-- screenshot: New Request form with minimum fields highlighted -->
+New requests open on **Summary** with the request property sidebar already visible. Start with the structural fields in the sidebar, then capture the narrative in **Purpose**.
 
-Fill in the minimum fields to get started:
+<!-- screenshot: New Request workspace with Summary and property sidebar -->
+
+Fill in the minimum details to get started:
 
 | Field | What to enter |
 |-------|--------------|
 | **Name** | A clear, concise title for the initiative |
-| **Purpose** | What problem does this solve? One or two sentences. |
 | **Source** | Where did this come from? (Business unit, regulation, IT strategy…) |
 | **Category** | The type of initiative (e.g., New Application, Infrastructure, Process Improvement) |
 | **Requestor** | Who is asking for this? |
-| **Target Date** | When is this ideally needed by? |
+| **Target Delivery Date** | When is this ideally needed by? |
 
-Click **Save**. Your request is now in the pipeline with status **New**.
+Then use the **Purpose** document on **Summary** to explain the business need and expected outcome in plain language.
+
+Click **Save**. Your request enters the pipeline with status **Pending Review**.
 
 !!! tip "Keep it lean"
-    You can add attachments, detailed descriptions, and links later. The goal right now is to get the request into the system so it can be evaluated.
+    You can add deeper analysis, linked knowledge, and supporting evidence later. The goal right now is to get the request into the governed intake flow.
 
 For all available fields and options, see [Requests reference](../portfolio-requests.md).
 
 ---
 
-## Step 2: Evaluate and Score
+## Step 2: Analyze and Score
 
-This is the most important step in the process. It's what turns a backlog of requests into a prioritized, defensible portfolio.
+This is the step that turns a backlog of ideas into a defensible portfolio. In the current workspace, this work is split between the **Analysis** tab and the **Scoring** tab.
 
 ### Who Should Score?
 
@@ -79,23 +82,18 @@ This is the most important step in the process. It's what turns a backlog of req
 
     A single person's score is an opinion. A committee's score is a decision framework.
 
-### Scoring Criteria
+### Analysis Tab
 
-Open the request and navigate to the **Evaluation** section. You'll score the request across multiple criteria on a weighted scale.
+Use **Analysis** to understand whether the request is viable enough to move forward.
 
-<!-- screenshot: Scoring criteria panel with sample scores -->
+<!-- screenshot: Analysis tab with feasibility review and business-process selector -->
 
-The scoring criteria assess the initiative's **value and priority**:
+Analysis combines four things:
 
-| Criterion | What you're assessing |
-|-----------|----------------------|
-| **Strategic Alignment** | How well does this support the organization's strategy? |
-| **Business Value** | What's the expected return — revenue, savings, efficiency? |
-| **Urgency** | Is there a deadline, regulation, or burning platform? |
-| **Risk of Inaction** | What happens if we don't do this? |
-| **Dependencies** | Does this block or enable other initiatives? |
-
-Each criterion is scored on a scale, and KANAP calculates a **weighted total** that lets you compare requests objectively.
+- **Impacted Business Processes** so reviewers can see which operational areas the request touches
+- **Feasibility Review** across seven dimensions
+- **Risks & Mitigations** as a managed document
+- **Analysis Recommendation** as the formal committee verdict
 
 ### Feasibility Analysis (7 Dimensions)
 
@@ -103,21 +101,29 @@ Beyond value, you need to assess whether this is actually doable. The feasibilit
 
 <!-- screenshot: Feasibility analysis radar chart or form -->
 
-| Dimension | Key question |
-|-----------|-------------|
-| **Technical Feasibility** | Can we build this with our current tech stack and skills? |
-| **Resource Availability** | Do we have the people? |
-| **Budget** | Can we fund this? |
-| **Timeline** | Is the target date realistic? |
-| **Organizational Readiness** | Is the business ready for this change? |
-| **Risk** | What could go wrong, and can we manage it? |
-| **Vendor / External** | Do we depend on third parties, and are they reliable? |
+| Dimension | What you're checking |
+|-----------|----------------------|
+| **Technical Feasibility** | Is the proposed approach technically sound? |
+| **Integration & Compatibility** | Does it fit the existing landscape and interfaces? |
+| **Infrastructure Needs** | Are hosting, platform, or operations changes realistic? |
+| **Security & Compliance** | Are controls, obligations, and risks understood? |
+| **Resource & Skills** | Do you have the people and expertise? |
+| **Delivery Constraints** | Are timing, sequencing, and dependencies manageable? |
+| **Change Management** | Can the organization absorb the change? |
 
-Each dimension gets a rating. Together, they paint a realistic picture of delivery confidence.
+Each dimension is rated from **Not assessed** to **Blocker**. Summary then surfaces the strongest concern level so major issues stay visible even when nobody is parked on the Analysis tab.
+
+### Scoring Tab
+
+Use **Scoring** to rate the request against your tenant's configured portfolio criteria.
+
+<!-- screenshot: Scoring tab with weighted criteria -->
+
+The exact criterion names and weights may vary by tenant, because they come from **Portfolio > Settings**. KANAP calculates the weighted priority automatically, and some tenants also use a mandatory-bypass rule for work that must jump to the top of the queue.
 
 ### The Analysis Recommendation
 
-After scoring and feasibility, write the **Analysis Recommendation**. This is a short narrative summary — typically 2–4 sentences — that captures the committee's verdict:
+After reviewing feasibility and scoring, write the **Analysis Recommendation**. This is a short narrative summary — typically 2-4 sentences — that captures the committee's verdict:
 
 <!-- screenshot: Analysis Recommendation text field -->
 
@@ -125,10 +131,12 @@ After scoring and feasibility, write the **Analysis Recommendation**. This is a 
     - *"High strategic value, strong business case. Technical feasibility is moderate due to legacy integration. Recommend approval with a proof-of-concept phase."*
     - *"Low urgency, limited business impact. Resource constraints make Q2 delivery unlikely. Recommend deferral to H2."*
 
+Submitting the recommendation publishes a formal decision into **Activity**, so the rationale and any linked status change stay attached to the request history.
+
 The combination of **scores + feasibility + recommendation** gives decision-makers everything they need to approve or reject — without having to sit through a two-hour presentation.
 
 !!! info "Transparency is the point"
-    When stakeholders ask "why was my request rejected?" or "why did that project get priority?", the evaluation data provides the answer. This is what makes the pipeline fair.
+    When stakeholders ask "why was my request rejected?" or "why did that project get priority?", the analysis and scoring record provides the answer. This is what makes the pipeline fair.
 
 For detailed scoring configuration and weight management, see [Settings reference](../portfolio-settings.md).
 
@@ -136,20 +144,21 @@ For detailed scoring configuration and weight management, see [Settings referenc
 
 ## Step 3: Approve and Convert
 
-Once the evaluation is complete, it's decision time.
+Once analysis and scoring are complete, it's decision time.
 
 <!-- screenshot: Request with Approve button highlighted -->
 
 1. **Review** the scores, feasibility, and recommendation
-2. **Set the status** to **Approved** (or Rejected / Deferred)
-3. Click **Convert to Project**
+2. **Move the request** through **Candidate**, **On Hold**, or **Rejected** as needed while the review is still in progress
+3. **Set the status** to **Approved** when the request is ready to enter delivery
+4. Click **Convert to Project**
 
 !!! tip "Seamless handoff"
-    When you convert a request to a project, all the data carries over automatically — name, description, category, requestor, evaluation scores, and more. No re-entry needed.
+    When you convert a request to a project, KANAP opens a conversion dialog where you can confirm the project name, planned dates, and initial effort. The request purpose is shown for reference, and linked request data carries forward into the project.
 
 The request status changes to **Converted**, and a new project is created and linked back to the original request.
 
-For requests that aren't approved, you can set them to **Rejected** with a reason, or **Deferred** to revisit later.
+For requests that are not ready to convert, keep them in **Candidate**, move them to **On Hold**, or set them to **Rejected** with a reason.
 
 See [Requests reference](../portfolio-requests.md) for all status transitions.
 
@@ -157,22 +166,23 @@ See [Requests reference](../portfolio-requests.md) for all status transitions.
 
 ## Step 4: Set Up Your Project
 
-Your new project inherits the request data, but it needs a few things before execution can begin.
+Your new project inherits the request context, but it still needs execution setup.
 
 Go to **Portfolio > Projects** and open your newly created project.
 
-### Team Tab — Assign Your People
+### Sidebar — Assign Your People and Core Structure
 
-<!-- screenshot: Project Team tab with roles -->
+<!-- screenshot: Project workspace with Team section expanded in the sidebar -->
 
-Set up the project team with clear roles:
+Use the **Project Properties** sidebar to set up the core roles:
 
 | Role | Who | Purpose |
 |------|-----|---------|
-| **Sponsor** | Senior business or IT leader | Accountable for outcomes, removes blockers |
+| **Business Sponsor** | Senior business leader | Accountable for business outcomes |
+| **IT Sponsor** | Senior IT leader | Removes delivery blockers and backs the initiative |
 | **IT Lead** | Technical project manager | Drives IT delivery |
 | **Business Lead** | Business-side project manager | Drives business readiness and adoption |
-| **Contributors** | Team members (IT and Business) | Do the actual work |
+| **IT Contributors / Business Contributors** | Team members doing the work | Feed delivery context, allocations, and scope filters |
 
 !!! warning "Contributors must be configured first"
     For capacity planning to work, every contributor **must** be set up in **Portfolio > Contributors** with:
@@ -183,11 +193,13 @@ Set up the project team with clear roles:
 
     Without this data, the roadmap generator can't calculate capacity, and your planning will be flying blind. See the [Contributors reference](../portfolio-team-members.md).
 
-### Progress Tab — Set Effort Estimates
+The same sidebar also keeps **Core Properties** and **Relations** visible while you work, so you no longer need separate Team or Relations tabs.
+
+### Progress Tab — Validate Effort and Allocations
 
 <!-- screenshot: Progress tab showing IT Effort and Business Effort fields -->
 
-Enter the estimated effort for the project:
+Use **Progress** to confirm the effort that will drive delivery planning:
 
 - **IT Effort (MD)** — Total man-days expected from IT contributors
 - **Business Effort (MD)** — Total man-days expected from business contributors
@@ -215,11 +227,11 @@ Now the real work begins. As the project progresses, keep KANAP updated.
 
 <!-- screenshot: Execution Progress slider -->
 
-Use the **Execution Progress** slider on the Progress tab to reflect how far along the project is. This is a simple percentage (0–100%) that feeds dashboards and reports.
+Use the **Execution Progress** slider on the Progress tab to reflect how far along the project is. This is a simple percentage (0-100%) that feeds dashboards and reports.
 
-Move the project through statuses as work advances:
+Move the project through statuses as work advances. In practice, most projects move from **Waiting List** or **Planned** into active execution:
 
-**In Progress** → **In Testing** → **Done**
+**Waiting List / Planned** → **In Progress** → **In Testing** → **Done**
 
 ### Log Time — This is Critical
 
@@ -246,10 +258,12 @@ The roadmap generator has a **historical capacity mode** that uses actual logged
 !!! tip "Make it a habit"
     Encourage team members to log time weekly. Even rough entries are far better than nothing. The data compounds over time and makes each roadmap iteration more accurate.
 
-### Status Transitions
+### Statuses
 
 | Status | Meaning |
 |--------|---------|
+| **Waiting List** | Approved but not scheduled into active work yet |
+| **Planned** | Scheduled and prepared, but execution has not started |
 | **In Progress** | Active work is happening |
 | **In Testing** | Deliverables are being validated |
 | **On Hold** | Temporarily paused (capture the reason) |
@@ -273,7 +287,7 @@ Phases break the project into logical stages (e.g., Analysis, Development, Testi
 - **From template**: Apply a phase template from the Timeline tab to get a predefined structure
 - **Custom**: Add phases manually with names, start/end dates, and owners
 
-Each phase can have its own status, progress, and assigned team members.
+Each phase can have its own status, dates, and milestone behavior.
 
 ### Tasks
 
@@ -321,7 +335,7 @@ When multiple projects compete for the same contributors or skills, KANAP highli
 
 ### Executive Reporting
 
-Evaluation scores, project status, progress, budget, and timeline data roll up into **portfolio-level reports** that give leadership a clear picture without manual PowerPoint creation.
+Priority scores, project status, progress, budget, and timeline data roll up into **portfolio-level reports** that give leadership a clear picture without manual PowerPoint creation.
 
 See [Reporting reference](../portfolio-reporting.md).
 
@@ -332,7 +346,8 @@ See [Reporting reference](../portfolio-reporting.md).
 | I want to… | Go to… |
 |------------|--------|
 | Submit a new idea | Portfolio > Requests > + New |
-| Score a request | Open request > Evaluation section |
+| Score a request | Open request > Analysis and Scoring |
+| Set the project team | Open project > Project Properties sidebar > Team |
 | See the project pipeline | Portfolio > Planning |
 | Check team capacity | Portfolio > Planning > Capacity view |
 | Log time on a project | Open project > Progress tab or Tasks |

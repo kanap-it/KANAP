@@ -232,7 +232,7 @@ portfolio = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</s
 
 <h1>📋 Portfolio — From Request to Delivery</h1>
 <p class="sub">KANAP Cheat Sheet</p>
-<div class="chain">Request → Evaluate → Approve → Project → Deliver</div>
+<div class="chain">Request → Analyze &amp; Score → Approve → Project → Deliver</div>
 
 <div class="cols">
 
@@ -242,26 +242,29 @@ portfolio = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</s
 <table>
 <tr><th>Field</th><th>What to enter</th><th>Example</th></tr>
 <tr><td>Name</td><td>Clear, concise title</td><td>CRM Migration</td></tr>
-<tr><td>Purpose</td><td>What problem does this solve?</td><td>Replace legacy system</td></tr>
 <tr><td>Source</td><td>Where it came from</td><td>Sales department</td></tr>
 <tr><td>Category</td><td>Type of initiative</td><td>New Application</td></tr>
 <tr><td>Requestor</td><td>Who is asking</td><td>Jane Doe</td></tr>
-<tr><td>Target Date</td><td>When is this needed?</td><td>2026-06-01</td></tr>
+<tr><td>Target Delivery Date</td><td>When is this needed?</td><td>2026-06-01</td></tr>
 </table>
-<div class="box box-tip">💡 Keep it lean — attachments, detailed descriptions, and links can come later. The goal is to get the request into the pipeline so it can be evaluated.</div>
+<p><b>Summary tab:</b> use the managed <b>Purpose</b> document to explain the need and expected outcome.</p>
+<div class="box box-tip">💡 Keep it lean — deeper analysis, linked knowledge, and supporting evidence can come later. The goal is to get the request into governed intake. New requests start in <b>Pending Review</b>.</div>
 </div>
 
 <div class="nb">
-<h2>② Evaluate & Score</h2>
-<p>Open request → <b>Evaluation</b> section</p>
+<h2>② Analyze & Score</h2>
+<p>Open request → work across the <b>Analysis</b> and <b>Scoring</b> tabs</p>
 
-<h3>Value Scoring (weighted)</h3>
-<p>Strategic Alignment · Business Value · Urgency · Risk of Inaction · Dependencies — each scored on a weighted scale. KANAP calculates a total for objective comparison.</p>
+<h3>Analysis</h3>
+<p>Capture <b>Impacted Business Processes</b>, a 7-dimension <b>Feasibility Review</b>, <b>Risks &amp; Mitigations</b>, and the formal <b>Analysis Recommendation</b>.</p>
 
 <h3>Feasibility (7 dimensions)</h3>
-<p>Technical · Resources · Budget · Timeline · Org Readiness · Risk · Vendor/External — each rated to paint a realistic picture of delivery confidence.</p>
+<p>Technical Feasibility · Integration &amp; Compatibility · Infrastructure Needs · Security &amp; Compliance · Resource &amp; Skills · Delivery Constraints · Change Management.</p>
 
-<p><b>Analysis Recommendation:</b> 2–4 sentence narrative capturing the committee's verdict.</p>
+<h3>Scoring</h3>
+<p>Weighted priority criteria are configured in <b>Portfolio → Settings</b>. KANAP calculates the score automatically, and some tenants use mandatory bypass for must-do work.</p>
+
+<p><b>Analysis Recommendation:</b> a short verdict that is published into <b>Activity</b> as the formal decision record.</p>
 
 <div class="box box-warn">⚠️ <b>Don't score alone.</b> Committee: IT Functional + IT Technical + Cybersecurity + Business. One person's score = opinion. A committee's score = decision framework.</div>
 </div>
@@ -269,9 +272,10 @@ portfolio = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</s
 <div class="nb">
 <h2>③ Approve & Convert</h2>
 <ul>
-<li>Review scores, feasibility analysis, and recommendation</li>
-<li>Set status: <b>Approved</b>, Rejected (with reason), or Deferred</li>
-<li>Click <b>Convert to Project</b> — all data carries over automatically</li>
+<li>Review scoring, feasibility, and the recommendation</li>
+<li>Use <b>Candidate</b>, <b>On Hold</b>, or <b>Rejected</b> while the request is still under review</li>
+<li>Set status to <b>Approved</b> when it is ready for delivery</li>
+<li>Click <b>Convert to Project</b> and confirm name, planned dates, and starting effort</li>
 </ul>
 <div class="box box-tip">💡 Transparent scoring means you can answer "why was my request rejected?" with data, not opinions.</div>
 </div>
@@ -280,19 +284,21 @@ portfolio = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</s
 <h2>④ Set Up the Project</h2>
 <p>Open project from <b>Portfolio → Projects</b></p>
 
-<h3>Team (Team tab)</h3>
+<h3>Project Properties sidebar</h3>
 <table>
 <tr><th>Role</th><th>Purpose</th></tr>
-<tr><td>Sponsor</td><td>Accountable for outcomes, removes blockers</td></tr>
+<tr><td>Business Sponsor</td><td>Accountable for business outcomes</td></tr>
+<tr><td>IT Sponsor</td><td>Removes delivery blockers and backs the initiative</td></tr>
 <tr><td>IT Lead</td><td>Drives IT delivery</td></tr>
 <tr><td>Business Lead</td><td>Drives business readiness & adoption</td></tr>
-<tr><td>Contributors</td><td>IT and Business team members doing the work</td></tr>
+<tr><td>IT / Business Contributors</td><td>Team members doing the work</td></tr>
 </table>
 
 <div class="box box-warn">⚠️ Contributors must be set up in <b>Portfolio → Contributors</b> with team, availability (days/month), and skills. Without this, capacity planning and roadmap generation won't work.</div>
 
-<p><b>Progress tab:</b> IT Effort (MD) + Business Effort (MD) → feeds the roadmap generator.</p>
+<p><b>Progress tab:</b> validate IT Effort (MD) + Business Effort (MD), then allocate work across the team.</p>
 <p><b>Timeline tab:</b> Apply a Phase Template for instant scaffolding, or set dates manually.</p>
+<p><b>Summary / Activity:</b> keep the overall project picture and decision trail visible while the sidebar stays available.</p>
 </div>
 
 <div class="nb">
@@ -301,7 +307,7 @@ portfolio = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</s
 <h3>Progress & Status</h3>
 <ul>
 <li><b>Execution Progress</b> slider (0–100%) on Progress tab</li>
-<li>Statuses: In Progress → In Testing → Done (also: On Hold, Cancelled)</li>
+<li>Typical flow: Waiting List / Planned → In Progress → In Testing → Done (also: On Hold, Cancelled)</li>
 </ul>
 
 <h3>Time Logging</h3>
@@ -330,7 +336,8 @@ portfolio = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</s
 <table>
 <tr><th>I want to…</th><th>Go to…</th></tr>
 <tr><td>Submit a new idea</td><td>Portfolio → Requests → + New</td></tr>
-<tr><td>Score a request</td><td>Open request → Evaluation section</td></tr>
+<tr><td>Score a request</td><td>Open request → Analysis + Scoring</td></tr>
+<tr><td>Set the project team</td><td>Open project → Project Properties sidebar → Team</td></tr>
 <tr><td>See the project pipeline</td><td>Portfolio → Planning</td></tr>
 <tr><td>Check team capacity</td><td>Portfolio → Planning → Capacity view</td></tr>
 <tr><td>Log time on a project</td><td>Open project → Progress tab or Tasks</td></tr>
@@ -357,7 +364,7 @@ getting_started = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{C
 
 <div class="nb">
 <h2>① Your Dashboard</h2>
-<p><b>My Workspace → Dashboard</b> — your personal landing page.</p>
+<p><b>Dashboard</b> — your personal landing page.</p>
 <table>
 <tr><th>Tile</th><th>What it shows</th></tr>
 <tr><td>My Tasks</td><td>Assigned tasks by urgency (overdue, this week, later)</td></tr>
@@ -404,7 +411,7 @@ getting_started = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{C
 
 <div class="nb">
 <h2>④ Tasks</h2>
-<p><b>My Workspace → Tasks</b></p>
+<p><b>Portfolio → Tasks</b></p>
 <p><b>Create:</b> Dashboard quick action <i>or</i> Tasks page → New.</p>
 <p><b>Minimum fields:</b> Title + Assignee + Due Date.</p>
 <p><b>Link to context:</b> Project, OPEX, Contract, or CAPEX item. Or leave standalone.</p>
@@ -452,10 +459,10 @@ getting_started = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{C
 <h2>Quick Reference</h2>
 <table>
 <tr><th>I want to…</th><th>Go to…</th></tr>
-<tr><td>See my overview</td><td>My Workspace → Dashboard</td></tr>
+<tr><td>See my overview</td><td>Dashboard</td></tr>
 <tr><td>Create a task</td><td>Dashboard → Create Task</td></tr>
 <tr><td>Log time</td><td>Dashboard → Log Time</td></tr>
-<tr><td>See all my tasks</td><td>My Workspace → Tasks</td></tr>
+<tr><td>See all my tasks</td><td>Portfolio → Tasks (scope: My Tasks)</td></tr>
 <tr><td>Update my profile</td><td>Avatar → Settings → Profile</td></tr>
 <tr><td>Set up notifications</td><td>Avatar → Settings → Notifications</td></tr>
 <tr><td>Weekly review email</td><td>Settings → Notifications → Weekly Review</td></tr>

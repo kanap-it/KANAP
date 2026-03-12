@@ -11,7 +11,7 @@ If you want the shortest path to productivity, start with the Fast Track guides 
 ## Fast Track Guides
 
 - [Getting Started: Your First 10 Minutes in KANAP](fast-track/getting-started.md) - First-day onboarding, profile setup, dashboard, and core concepts
-- [Portfolio Fast Track: From Request to Delivery](fast-track/index.md) - Submit, evaluate, approve, and deliver initiatives
+- [Portfolio Fast Track: From Request to Delivery](fast-track/index.md) - Submit, analyze, score, convert, and deliver initiatives
 - [IT Ops Fast Track: From Application to Server](fast-track/apps-and-assets.md) - Document an app, its environments, and hosting assets
 - [Task Types Fast Track: Run, Build & Tasks](fast-track/task-types.md) - Understand the difference between incidents, problems, requests, projects, bugs, and tasks
 

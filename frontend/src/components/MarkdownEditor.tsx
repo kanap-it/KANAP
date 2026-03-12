@@ -5,6 +5,7 @@ import {
   AdmonitionDirectiveDescriptor,
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
+  ButtonOrDropdownButton,
   ChangeCodeMirrorLanguage,
   codeBlockPlugin,
   codeMirrorPlugin,
@@ -37,6 +38,8 @@ import {
   thematicBreakPlugin,
   toolbarPlugin,
   UndoRedo,
+  insertMarkdown$,
+  usePublisher,
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
 
@@ -50,6 +53,49 @@ interface MarkdownEditorProps {
   disabled?: boolean;
   focusNonce?: number;
   onImageUpload?: (file: File) => Promise<string>;
+}
+
+const EMOJI_OPTIONS = [
+  { value: '🙂', label: 'Smile' },
+  { value: '😀', label: 'Grin' },
+  { value: '😂', label: 'Laugh' },
+  { value: '😍', label: 'Love' },
+  { value: '🤔', label: 'Think' },
+  { value: '👍', label: 'Thumbs up' },
+  { value: '🎉', label: 'Celebrate' },
+  { value: '🔥', label: 'Fire' },
+  { value: '✅', label: 'Done' },
+  { value: '🚀', label: 'Launch' },
+] as const;
+
+function EmojiPickerButton() {
+  const insertMarkdown = usePublisher(insertMarkdown$);
+  const items = React.useMemo(
+    () => EMOJI_OPTIONS.map(({ value, label }) => ({
+      value,
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span aria-hidden="true">{value}</span>
+          <span>{label}</span>
+        </span>
+      ),
+    })),
+    [],
+  );
+
+  return (
+    <ButtonOrDropdownButton
+      title="Insert emoji"
+      items={items}
+      onChoose={(value) => {
+        insertMarkdown(value);
+      }}
+    >
+      <span aria-hidden="true" style={{ fontSize: '1rem', lineHeight: 1 }}>
+        🙂
+      </span>
+    </ButtonOrDropdownButton>
+  );
 }
 
 export default function MarkdownEditor({
@@ -77,6 +123,10 @@ export default function MarkdownEditor({
   const mdxRootClassName = React.useMemo(
     () => `kanap-mdx-root ${isDarkMode ? 'dark-theme' : 'light-theme'}`,
     [isDarkMode],
+  );
+  const mdxEditorKey = React.useMemo(
+    () => `${editorInstanceKey}:${disabled ? 'readonly' : 'editable'}:${onImageUpload ? 'image' : 'no-image'}`,
+    [disabled, editorInstanceKey, onImageUpload],
   );
   const mdxThemeVariables = React.useMemo<Record<string, string>>(
     () => ({
@@ -221,6 +271,7 @@ export default function MarkdownEditor({
                         <ListsToggle options={['bullet', 'number', 'check']} />
                         <Separator />
                         <CreateLink />
+                        <EmojiPickerButton />
                         {onImageUpload ? <InsertImage /> : null}
                         <InsertTable />
                         <InsertCodeBlock />
@@ -415,7 +466,7 @@ export default function MarkdownEditor({
         }}
       >
         <MDXEditor
-          key={editorInstanceKey}
+          key={mdxEditorKey}
           ref={mdxRef}
           markdown={currentMarkdownRef.current}
           readOnly={disabled}

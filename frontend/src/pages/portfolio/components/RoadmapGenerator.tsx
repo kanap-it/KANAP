@@ -56,6 +56,7 @@ type RoadmapTab = 'schedule' | 'bottlenecks' | 'occupation';
 type OccupationView = 'contributor' | 'team';
 type SchedulingMode = 'independent' | 'collaborative';
 type CapacityConstraintMode = 'full' | 'it_only';
+type GanttContributionVisibility = 'primary_only' | 'all';
 type ScheduleConstraint =
   | { type: 'pin_start'; startWeek: string }
   | { type: 'pin_window'; startWeek: string; endWeek: string }
@@ -307,6 +308,24 @@ type ContributorProjectTimeline = {
   activeWeekStarts: string[];
   activeStart: string;
   activeEnd: string;
+  contributionShare: number | null;
+  averageDaysPerWeek: number;
+  significance: 'primary' | 'support';
+};
+
+type TeamProjectTimeline = {
+  teamId: string;
+  teamName: string;
+  projectId: string;
+  projectName: string;
+  weekDetails: ContributorProjectWeekDetail[];
+  totalProjectDays: number;
+  activeWeekStarts: string[];
+  activeStart: string;
+  activeEnd: string;
+  contributionShare: number | null;
+  averageDaysPerWeek: number;
+  significance: 'primary' | 'support';
 };
 
 type Category = {
@@ -408,6 +427,16 @@ const GANTT_STATUS_COLORS: Record<string, string> = {
   done: '#9e9e9e',
 };
 
+const CONTRIBUTOR_PRIMARY_MIN_TOTAL_DAYS = 5;
+const CONTRIBUTOR_PRIMARY_MIN_SHARE = 0.15;
+const CONTRIBUTOR_PRIMARY_MIN_WEEKS = 3;
+const CONTRIBUTOR_PRIMARY_MIN_AVG_DAYS = 0.5;
+
+const TEAM_PRIMARY_MIN_TOTAL_DAYS = 10;
+const TEAM_PRIMARY_MIN_SHARE = 0.2;
+const TEAM_PRIMARY_MIN_WEEKS = 3;
+const TEAM_PRIMARY_MIN_AVG_DAYS = 1;
+
 const getTodayYmd = (): string => {
   return new Date().toISOString().slice(0, 10);
 };
@@ -434,6 +463,32 @@ const addDaysUtcYmd = (ymd: string, days: number): string => {
   const dt = new Date(`${ymd}T00:00:00Z`);
   dt.setUTCDate(dt.getUTCDate() + days);
   return dt.toISOString().slice(0, 10);
+};
+
+const classifyTimelineSignificance = (
+  scope: 'contributor' | 'team',
+  totalProjectDays: number,
+  contributionShare: number | null,
+  activeWeeks: number,
+  averageDaysPerWeek: number,
+): 'primary' | 'support' => {
+  if (scope === 'contributor') {
+    return (
+      totalProjectDays >= CONTRIBUTOR_PRIMARY_MIN_TOTAL_DAYS
+      || (contributionShare ?? 0) >= CONTRIBUTOR_PRIMARY_MIN_SHARE
+      || (activeWeeks >= CONTRIBUTOR_PRIMARY_MIN_WEEKS && averageDaysPerWeek >= CONTRIBUTOR_PRIMARY_MIN_AVG_DAYS)
+    )
+      ? 'primary'
+      : 'support';
+  }
+
+  return (
+    totalProjectDays >= TEAM_PRIMARY_MIN_TOTAL_DAYS
+    || (contributionShare ?? 0) >= TEAM_PRIMARY_MIN_SHARE
+    || (activeWeeks >= TEAM_PRIMARY_MIN_WEEKS && averageDaysPerWeek >= TEAM_PRIMARY_MIN_AVG_DAYS)
+  )
+    ? 'primary'
+    : 'support';
 };
 
 const hasContributorLoads = (
@@ -1075,6 +1130,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   const [ganttTeamId, setGanttTeamId] = useState<string>('');
   const [ganttSourceId, setGanttSourceId] = useState<string>('');
   const [ganttStreamId, setGanttStreamId] = useState<string>('');
+  const [ganttContributionVisibility, setGanttContributionVisibility] = useState<GanttContributionVisibility>('primary_only');
 
   const [roadmapScenario] = useState<RoadmapScenario>({
     projectOverrides: [],
@@ -1137,6 +1193,10 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   const scheduleRowsById = useMemo(
     () => new Map(scheduledProjects.map((project) => [project.projectId, project])),
     [scheduledProjects],
+  );
+  const reservationRowsById = useMemo(
+    () => new Map(reservationProjects.map((project) => [project.projectId, project])),
+    [reservationProjects],
   );
   const explanationByKey = useMemo(
     () => new Map(
@@ -1218,6 +1278,17 @@ export default function RoadmapGenerator({ onApplied }: Props) {
 
   const contributorProjectTimelines = useMemo(() => {
     const byContributor = new Map<string, Map<string, ContributorProjectTimeline>>();
+    const getProjectTotalDays = (projectId: string): number => {
+      const scheduled = scheduleRowsById.get(projectId);
+      if (scheduled) {
+        return scheduled.contributorLoads.reduce((sum, load) => sum + load.days, 0);
+      }
+      const reservation = reservationRowsById.get(projectId);
+      if (reservation) {
+        return reservation.contributorLoads.reduce((sum, load) => sum + load.days, 0);
+      }
+      return 0;
+    };
 
     for (const entry of response?.occupation ?? []) {
       const byProject = byContributor.get(entry.contributorId) ?? new Map<string, ContributorProjectTimeline>();
@@ -1233,6 +1304,9 @@ export default function RoadmapGenerator({ onApplied }: Props) {
           activeWeekStarts: [],
           activeStart: entry.week,
           activeEnd: addDaysUtcYmd(entry.week, 4),
+          contributionShare: null,
+          averageDaysPerWeek: 0,
+          significance: 'primary',
         };
         existing.weekDetails.push({
           week: entry.week,
@@ -1253,14 +1327,25 @@ export default function RoadmapGenerator({ onApplied }: Props) {
         timeline.activeWeekStarts = timeline.weekDetails.map((detail) => detail.week);
         timeline.activeStart = timeline.activeWeekStarts[0];
         timeline.activeEnd = addDaysUtcYmd(timeline.activeWeekStarts[timeline.activeWeekStarts.length - 1], 4);
+        timeline.averageDaysPerWeek = timeline.activeWeekStarts.length > 0
+          ? timeline.totalProjectDays / timeline.activeWeekStarts.length
+          : 0;
+        const projectTotalDays = getProjectTotalDays(timeline.projectId);
+        timeline.contributionShare = projectTotalDays > 0
+          ? timeline.totalProjectDays / projectTotalDays
+          : null;
+        timeline.significance = classifyTimelineSignificance(
+          'contributor',
+          timeline.totalProjectDays,
+          timeline.contributionShare,
+          timeline.activeWeekStarts.length,
+          timeline.averageDaysPerWeek,
+        );
       }
     }
 
     return byContributor;
-  }, [response?.occupation]);
-  const selectedContributorTimeline = selectedExplanationKey && ganttContributorId
-    ? (contributorProjectTimelines.get(ganttContributorId)?.get(selectedExplanationKey) ?? null)
-    : null;
+  }, [reservationRowsById, response?.occupation, scheduleRowsById]);
 
   const contributorFilteredScheduled = useMemo(
     () => (ganttContributorId
@@ -1294,6 +1379,110 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [response?.occupation]);
+  const ganttTeamNameById = useMemo(
+    () => new Map(ganttTeamOptions.map((option) => [option.id, option.name])),
+    [ganttTeamOptions],
+  );
+  const teamProjectTimelines = useMemo(() => {
+    const byTeam = new Map<string, Map<string, TeamProjectTimeline>>();
+    const getProjectTotalDays = (projectId: string): number => {
+      const scheduled = scheduleRowsById.get(projectId);
+      if (scheduled) {
+        return scheduled.contributorLoads.reduce((sum, load) => sum + load.days, 0);
+      }
+      const reservation = reservationRowsById.get(projectId);
+      if (reservation) {
+        return reservation.contributorLoads.reduce((sum, load) => sum + load.days, 0);
+      }
+      return 0;
+    };
+
+    for (const entry of response?.occupation ?? []) {
+      if (!entry.teamId) continue;
+      const byProject = byTeam.get(entry.teamId) ?? new Map<string, TeamProjectTimeline>();
+      for (const project of entry.projects) {
+        if ((project.days ?? 0) <= 0) continue;
+        const existing = byProject.get(project.projectId) ?? {
+          teamId: entry.teamId,
+          teamName: entry.teamName || 'No team',
+          projectId: project.projectId,
+          projectName: project.projectName,
+          weekDetails: [],
+          totalProjectDays: 0,
+          activeWeekStarts: [],
+          activeStart: entry.week,
+          activeEnd: addDaysUtcYmd(entry.week, 4),
+          contributionShare: null,
+          averageDaysPerWeek: 0,
+          significance: 'primary',
+        };
+        const weekDetail = existing.weekDetails.find((detail) => detail.week === entry.week);
+        if (weekDetail) {
+          weekDetail.projectDays += project.days;
+          weekDetail.capacityDays = (weekDetail.capacityDays ?? 0) + (entry.capacityDays ?? 0);
+          weekDetail.totalWeekEffortDays += entry.effortDays;
+          weekDetail.occupationPct = weekDetail.capacityDays && weekDetail.capacityDays > 0
+            ? (weekDetail.totalWeekEffortDays / weekDetail.capacityDays) * 100
+            : null;
+        } else {
+          existing.weekDetails.push({
+            week: entry.week,
+            projectDays: project.days,
+            capacityDays: entry.capacityDays,
+            occupationPct: entry.occupationPct,
+            totalWeekEffortDays: entry.effortDays,
+          });
+        }
+        existing.totalProjectDays += project.days;
+        byProject.set(project.projectId, existing);
+      }
+      byTeam.set(entry.teamId, byProject);
+    }
+
+    for (const byProject of byTeam.values()) {
+      for (const timeline of byProject.values()) {
+        timeline.weekDetails.sort((a, b) => a.week.localeCompare(b.week));
+        timeline.activeWeekStarts = timeline.weekDetails.map((detail) => detail.week);
+        timeline.activeStart = timeline.activeWeekStarts[0];
+        timeline.activeEnd = addDaysUtcYmd(timeline.activeWeekStarts[timeline.activeWeekStarts.length - 1], 4);
+        timeline.averageDaysPerWeek = timeline.activeWeekStarts.length > 0
+          ? timeline.totalProjectDays / timeline.activeWeekStarts.length
+          : 0;
+        const projectTotalDays = getProjectTotalDays(timeline.projectId);
+        timeline.contributionShare = projectTotalDays > 0
+          ? timeline.totalProjectDays / projectTotalDays
+          : null;
+        timeline.significance = classifyTimelineSignificance(
+          'team',
+          timeline.totalProjectDays,
+          timeline.contributionShare,
+          timeline.activeWeekStarts.length,
+          timeline.averageDaysPerWeek,
+        );
+      }
+    }
+
+    return byTeam;
+  }, [reservationRowsById, response?.occupation, scheduleRowsById]);
+  const activeGanttFocusScope = ganttContributorId
+    ? 'contributor'
+    : (ganttTeamId ? 'team' : null);
+  const activeGanttFocusTimelines = useMemo(() => {
+    if (ganttContributorId) {
+      return contributorProjectTimelines.get(ganttContributorId) ?? new Map<string, ContributorProjectTimeline>();
+    }
+    if (ganttTeamId) {
+      return teamProjectTimelines.get(ganttTeamId) ?? new Map<string, TeamProjectTimeline>();
+    }
+    return null;
+  }, [contributorProjectTimelines, ganttContributorId, ganttTeamId, teamProjectTimelines]);
+  const selectedContributorTimeline = selectedExplanationKey && ganttContributorId
+    ? (contributorProjectTimelines.get(ganttContributorId)?.get(selectedExplanationKey) ?? null)
+    : null;
+  const selectedTeamTimeline = selectedExplanationKey && !ganttContributorId && ganttTeamId
+    ? (teamProjectTimelines.get(ganttTeamId)?.get(selectedExplanationKey) ?? null)
+    : null;
+  const selectedFocusTimeline = selectedContributorTimeline ?? selectedTeamTimeline;
 
   const teamFilteredScheduled = useMemo(
     () => (ganttTeamId
@@ -1373,102 +1562,126 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       : sourceFilteredReservations),
     [sourceFilteredReservations, ganttStreamId],
   );
+  const visibleScheduledForGantt = useMemo(
+    () => {
+      if (!activeGanttFocusTimelines || ganttContributionVisibility === 'all') return streamFilteredScheduled;
+      return streamFilteredScheduled.filter((project) =>
+        (activeGanttFocusTimelines.get(project.projectId)?.significance ?? 'primary') === 'primary');
+    },
+    [activeGanttFocusTimelines, ganttContributionVisibility, streamFilteredScheduled],
+  );
+  const visibleReservationsForGantt = useMemo(
+    () => {
+      if (!activeGanttFocusTimelines || ganttContributionVisibility === 'all') return streamFilteredReservations;
+      return streamFilteredReservations.filter((project) =>
+        (activeGanttFocusTimelines.get(project.projectId)?.significance ?? 'primary') === 'primary');
+    },
+    [activeGanttFocusTimelines, ganttContributionVisibility, streamFilteredReservations],
+  );
+  const hiddenSupportSummary = useMemo(() => {
+    if (!activeGanttFocusTimelines || ganttContributionVisibility !== 'primary_only') return null;
+    const hiddenItems = [...streamFilteredScheduled, ...streamFilteredReservations]
+      .map((project) => activeGanttFocusTimelines.get(project.projectId))
+      .filter((timeline): timeline is ContributorProjectTimeline | TeamProjectTimeline =>
+        !!timeline && timeline.significance === 'support');
+    if (hiddenItems.length === 0) return null;
+    const totalDays = hiddenItems.reduce((sum, item) => sum + item.totalProjectDays, 0);
+    return {
+      count: hiddenItems.length,
+      totalDays,
+    };
+  }, [activeGanttFocusTimelines, ganttContributionVisibility, streamFilteredReservations, streamFilteredScheduled]);
 
   const ganttProjects = useMemo(() => {
-    const selectedContributorName = ganttContributorId
+    const selectedFocusName = ganttContributorId
       ? (ganttContributorNameById.get(ganttContributorId) ?? null)
-      : null;
-    const selectedContributorProjectTimelines = ganttContributorId
-      ? (contributorProjectTimelines.get(ganttContributorId) ?? new Map<string, ContributorProjectTimeline>())
-      : null;
-    const scheduledRows = streamFilteredScheduled.map((project) => ({
+      : (ganttTeamId ? (ganttTeamNameById.get(ganttTeamId) ?? null) : null);
+    const scheduledRows = visibleScheduledForGantt.map((project) => ({
       id: project.projectId,
       name: project.projectName,
       status: project.status,
       category_id: project.categoryId,
-      planned_start: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
-      historical_start: selectedContributorProjectTimelines ? null : project.historicalStart,
-      planned_end: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
+      planned_start: activeGanttFocusTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
+      historical_start: activeGanttFocusTimelines ? null : project.historicalStart,
+      planned_end: activeGanttFocusTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
       execution_progress: project.executionProgress || 0,
-      active_week_starts: selectedContributorProjectTimelines?.get(project.projectId)?.activeWeekStarts ?? project.activeWeekStarts,
+      active_week_starts: activeGanttFocusTimelines?.get(project.projectId)?.activeWeekStarts ?? project.activeWeekStarts,
       on_hold_ranges: project.onHoldRanges,
       full_planned_start: project.plannedStart,
       full_planned_end: project.plannedEnd,
-      focus_contributor_name: selectedContributorName,
-      focus_contributor_active_start: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? null,
-      focus_contributor_active_end: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? null,
+      focus_contributor_name: selectedFocusName,
+      focus_contributor_active_start: activeGanttFocusTimelines?.get(project.projectId)?.activeStart ?? null,
+      focus_contributor_active_end: activeGanttFocusTimelines?.get(project.projectId)?.activeEnd ?? null,
     }));
     if (!showReservations) return scheduledRows;
 
-    const reservationRows = streamFilteredReservations.map((project) => ({
+    const reservationRows = visibleReservationsForGantt.map((project) => ({
       id: project.projectId,
       name: project.projectName,
       status: project.status,
       category_id: project.categoryId,
-      planned_start: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
+      planned_start: activeGanttFocusTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
       historical_start: null,
-      planned_end: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
+      planned_end: activeGanttFocusTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
       execution_progress: project.executionProgress || 0,
       is_reservation: true,
       reservation_reason: project.reason,
       full_planned_start: project.plannedStart,
       full_planned_end: project.plannedEnd,
-      focus_contributor_name: selectedContributorName,
-      focus_contributor_active_start: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? null,
-      focus_contributor_active_end: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? null,
+      focus_contributor_name: selectedFocusName,
+      focus_contributor_active_start: activeGanttFocusTimelines?.get(project.projectId)?.activeStart ?? null,
+      focus_contributor_active_end: activeGanttFocusTimelines?.get(project.projectId)?.activeEnd ?? null,
     }));
 
     return [...scheduledRows, ...reservationRows];
   }, [
-    contributorProjectTimelines,
+    activeGanttFocusTimelines,
     ganttContributorId,
     ganttContributorNameById,
+    ganttTeamId,
+    ganttTeamNameById,
     showReservations,
-    streamFilteredReservations,
-    streamFilteredScheduled,
+    visibleReservationsForGantt,
+    visibleScheduledForGantt,
   ]);
 
   const ganttExportRows = useMemo<GanttRoadmapItem[]>(() => {
-    const selectedContributorProjectTimelines = ganttContributorId
-      ? (contributorProjectTimelines.get(ganttContributorId) ?? new Map<string, ContributorProjectTimeline>())
-      : null;
-    const scheduledRows = streamFilteredScheduled.map((project) => ({
+    const scheduledRows = visibleScheduledForGantt.map((project) => ({
       projectId: project.projectId,
       projectName: project.projectName,
       status: project.status,
       executionProgress: project.executionProgress || 0,
-      plannedStart: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
-      plannedEnd: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
-      historicalStart: selectedContributorProjectTimelines ? null : project.historicalStart,
+      plannedStart: activeGanttFocusTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
+      plannedEnd: activeGanttFocusTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
+      historicalStart: activeGanttFocusTimelines ? null : project.historicalStart,
       isReservation: false,
-      activeWeekStarts: selectedContributorProjectTimelines?.get(project.projectId)?.activeWeekStarts ?? project.activeWeekStarts,
+      activeWeekStarts: activeGanttFocusTimelines?.get(project.projectId)?.activeWeekStarts ?? project.activeWeekStarts,
       onHoldRanges: project.onHoldRanges,
     }));
     if (!showReservations) return scheduledRows;
-    const reservationRows = streamFilteredReservations.map((project) => ({
+    const reservationRows = visibleReservationsForGantt.map((project) => ({
       projectId: project.projectId,
       projectName: project.projectName,
       status: project.status,
       executionProgress: project.executionProgress || 0,
-      plannedStart: selectedContributorProjectTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
-      plannedEnd: selectedContributorProjectTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
+      plannedStart: activeGanttFocusTimelines?.get(project.projectId)?.activeStart ?? project.plannedStart,
+      plannedEnd: activeGanttFocusTimelines?.get(project.projectId)?.activeEnd ?? project.plannedEnd,
       historicalStart: null,
       isReservation: true,
       reservationReason: project.reason,
     }));
     return [...scheduledRows, ...reservationRows];
   }, [
-    contributorProjectTimelines,
-    ganttContributorId,
+    activeGanttFocusTimelines,
     showReservations,
-    streamFilteredReservations,
-    streamFilteredScheduled,
+    visibleReservationsForGantt,
+    visibleScheduledForGantt,
   ]);
 
   const ganttDependencies = useMemo(() => {
     const visibleIds = new Set<string>([
-      ...streamFilteredScheduled.map((p) => p.projectId),
-      ...(showReservations ? streamFilteredReservations.map((p) => p.projectId) : []),
+      ...visibleScheduledForGantt.map((p) => p.projectId),
+      ...(showReservations ? visibleReservationsForGantt.map((p) => p.projectId) : []),
     ]);
     const links: Array<{
       id: string;
@@ -1489,7 +1702,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       }
     }
     return links;
-  }, [streamFilteredReservations, streamFilteredScheduled, scheduledProjects, showReservations]);
+  }, [scheduledProjects, showReservations, visibleReservationsForGantt, visibleScheduledForGantt]);
 
   const monthsForGantt = useMemo(() => {
     const allRows = ganttExportRows.map((item) => ({ plannedEnd: item.plannedEnd }));
@@ -2613,7 +2826,20 @@ export default function RoadmapGenerator({ onApplied }: Props) {
               <Typography variant="subtitle2" sx={{ flex: 1, fontWeight: 600 }}>
                 Read-only Gantt
               </Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                {activeGanttFocusScope && (
+                  <ToggleButtonGroup
+                    size="small"
+                    value={ganttContributionVisibility}
+                    exclusive
+                    onChange={(_, value: GanttContributionVisibility | null) => {
+                      if (value) setGanttContributionVisibility(value);
+                    }}
+                  >
+                    <ToggleButton value="primary_only">Primary Only</ToggleButton>
+                    <ToggleButton value="all">All</ToggleButton>
+                  </ToggleButtonGroup>
+                )}
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -2637,6 +2863,22 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                 </Tooltip>
               </Stack>
             </Stack>
+            {activeGanttFocusScope && (
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1, pb: 0.5 }} flexWrap="wrap" useFlexGap>
+                <Chip
+                  size="small"
+                  color="default"
+                  label={activeGanttFocusScope === 'contributor' ? 'Contributor Significance View' : 'Team Significance View'}
+                />
+                {hiddenSupportSummary && (
+                  <Chip
+                    size="small"
+                    color="warning"
+                    label={`Hidden support work: ${hiddenSupportSummary.count} project(s), ${hiddenSupportSummary.totalDays.toFixed(1)}d`}
+                  />
+                )}
+              </Stack>
+            )}
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ px: 1, py: 0.5 }} useFlexGap flexWrap="wrap">
               <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
                 <InputLabel>Category</InputLabel>
@@ -2836,21 +3078,48 @@ export default function RoadmapGenerator({ onApplied }: Props) {
 
               <Divider />
 
-              {selectedContributorTimeline && (
+              {selectedFocusTimeline && activeGanttFocusScope && (
                 <>
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
-                      Selected Contributor Timeline
+                      {activeGanttFocusScope === 'contributor' ? 'Selected Contributor Timeline' : 'Selected Team Timeline'}
                     </Typography>
                     <Stack spacing={1}>
                       <Typography variant="body2">
-                        {selectedContributorTimeline.contributorName}: {selectedContributorTimeline.activeStart} to {selectedContributorTimeline.activeEnd}
+                        {'contributorName' in selectedFocusTimeline
+                          ? selectedFocusTimeline.contributorName
+                          : selectedFocusTimeline.teamName}
+                        : {selectedFocusTimeline.activeStart} to {selectedFocusTimeline.activeEnd}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Planned contribution: {selectedContributorTimeline.totalProjectDays.toFixed(2)}d across {selectedContributorTimeline.weekDetails.length} active week(s)
+                        Planned contribution: {selectedFocusTimeline.totalProjectDays.toFixed(2)}d across {selectedFocusTimeline.weekDetails.length} active week(s)
                       </Typography>
-                      {selectedContributorTimeline.weekDetails.map((detail) => (
-                        <Paper key={`${selectedContributorTimeline.projectId}:${detail.week}`} variant="outlined" sx={{ p: 1.25 }}>
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                        <Chip
+                          size="small"
+                          color={selectedFocusTimeline.significance === 'primary' ? 'success' : 'warning'}
+                          label={selectedFocusTimeline.significance === 'primary' ? 'Primary roadmap work' : 'Support work'}
+                        />
+                        {selectedFocusTimeline.contributionShare != null && (
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={`${Math.round(selectedFocusTimeline.contributionShare * 100)}% of project effort`}
+                          />
+                        )}
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={`${selectedFocusTimeline.averageDaysPerWeek.toFixed(2)}d/week avg`}
+                        />
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary">
+                        {selectedFocusTimeline.significance === 'primary'
+                          ? 'This project is shown in the primary roadmap view for the selected focus.'
+                          : 'This project is treated as support work and is hidden when the Gantt is set to Primary Only.'}
+                      </Typography>
+                      {selectedFocusTimeline.weekDetails.map((detail) => (
+                        <Paper key={`${selectedFocusTimeline.projectId}:${detail.week}`} variant="outlined" sx={{ p: 1.25 }}>
                           <Typography variant="body2">Week of {detail.week}</Typography>
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                             Project load: {detail.projectDays.toFixed(2)}d
