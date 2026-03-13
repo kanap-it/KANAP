@@ -42,6 +42,11 @@ import {
   usePublisher,
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
+import {
+  convertRichClipboardToMarkdown,
+  extractClipboardImageFiles,
+  shouldHandleRichClipboardImport,
+} from '../lib/richClipboardMarkdown';
 
 interface MarkdownEditorProps {
   value: string;
@@ -98,6 +103,12 @@ function EmojiPickerButton() {
   );
 }
 
+function getPasteTargetElement(target: EventTarget | null): HTMLElement | null {
+  if (target instanceof HTMLElement) return target;
+  if (target instanceof Text) return target.parentElement;
+  return null;
+}
+
 export default function MarkdownEditor({
   value,
   onChange,
@@ -114,6 +125,7 @@ export default function MarkdownEditor({
   const minHeight = minRows * 24;
   const maxHeight = maxRows * 24;
   const contentHeightOffset = disabled ? 0 : 24;
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
   const mdxRef = React.useRef<MDXEditorMethods>(null);
   const internalChangeRef = React.useRef(false);
   const currentMarkdownRef = React.useRef(value || '');
@@ -214,6 +226,60 @@ export default function MarkdownEditor({
     if (!mdxRef.current || disabled || focusNonce === undefined || focusNonce < 1) return;
     mdxRef.current.focus();
   }, [focusNonce, disabled]);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container || disabled) return;
+
+    const handlePaste = (event: ClipboardEvent) => {
+      const clipboardData = event.clipboardData;
+      if (!clipboardData) return;
+      if (clipboardData.getData('application/x-lexical-editor')) return;
+
+      const target = getPasteTargetElement(event.target);
+      if (!target || !container.contains(target)) return;
+      if (!target.closest('.kanap-mdx-content')) return;
+      if (target.closest('.cm-editor, input, textarea, [data-editor-dialog], [role="dialog"], [contenteditable="false"]')) {
+        return;
+      }
+
+      const html = clipboardData.getData('text/html');
+      const plainText = clipboardData.getData('text/plain');
+      const imageFiles = extractClipboardImageFiles(clipboardData);
+
+      if (!shouldHandleRichClipboardImport({ html, plainText, imageFiles })) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      void convertRichClipboardToMarkdown({
+        html,
+        plainText,
+        imageFiles,
+        uploadImage: imageUploadHandlerRef.current || undefined,
+      })
+        .then((markdown) => {
+          const content = String(markdown || '').trim();
+          if (!content) return;
+          mdxRef.current?.insertMarkdown(content);
+        })
+        .catch((error) => {
+          console.error('Failed to import rich clipboard content', error);
+          const fallback = plainText.trim();
+          if (fallback) {
+            mdxRef.current?.insertMarkdown(fallback);
+          }
+        });
+    };
+
+    container.addEventListener('paste', handlePaste, true);
+    return () => {
+      container.removeEventListener('paste', handlePaste, true);
+    };
+  }, [disabled]);
 
   const plugins = React.useMemo(() => {
     const basePlugins = [
@@ -349,6 +415,7 @@ export default function MarkdownEditor({
         }}
       />
       <Box
+        ref={containerRef}
         sx={{
           position: 'relative',
           display: 'flex',
