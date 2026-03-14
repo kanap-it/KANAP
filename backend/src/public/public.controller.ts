@@ -24,6 +24,12 @@ import { StripeClientService } from '../billing/stripe';
 import { isReservedTenantSlug, normalizeTenantSlug } from '../tenants/tenant-slug-policy';
 import { StorageService } from '../common/storage/storage.service';
 import { Response } from 'express';
+import {
+  buildActivationEmail,
+  buildContactFormEmail,
+  buildSupportRequestEmail,
+  buildNewTenantNotificationEmail,
+} from '../notifications/notification-templates';
 
 const STRIPE_EU_BANK_TRANSFER_COUNTRIES = new Set<string>(['BE', 'DE', 'ES', 'FR', 'IE', 'NL']);
 const STRIPE_DEFAULT_EU_BANK_TRANSFER_COUNTRY = 'FR';
@@ -260,11 +266,16 @@ export class PublicController {
     const activationUrl = `${this.resolveMarketingBaseUrl(req)}/activate.html#token=${token}`;
 
     try {
+      const activation = buildActivationEmail({
+        greeting: this.nameFromEmail(email, org),
+        activationUrl,
+      });
       await this.emails.send({
         to: email,
-        subject: 'Confirm your KANAP workspace',
-        html: this.renderActivationHtml(email, activationUrl, org),
-        text: this.renderActivationText(email, activationUrl, org),
+        subject: activation.subject,
+        html: activation.html,
+        text: activation.text,
+        attachments: activation.attachments,
       });
     } catch (error: any) {
       if (error?.code === 'FEATURE_DISABLED') {
@@ -291,29 +302,14 @@ export class PublicController {
     const company = body.company.trim();
     const message = body.message.trim();
 
-    const subject = `Contact form submission from ${name} (${company})`;
-    const html = `
-      <div style="font-family: Arial, sans-serif; font-size: 16px; color: #111; line-height: 1.5;">
-        <h2>New contact form submission</h2>
-        <p><strong>Name:</strong> ${this.escapeHtml(name)}</p>
-        <p><strong>Email:</strong> ${this.escapeHtml(email)}</p>
-        <p><strong>Company:</strong> ${this.escapeHtml(company)}</p>
-        <p><strong>Message:</strong></p>
-        <p style="white-space: pre-wrap; background: #f5f5f5; padding: 16px; border-radius: 4px;">${this.escapeHtml(message)}</p>
-      </div>
-    `;
-    const text = `New contact form submission\n\n` +
-      `Name: ${name}\n` +
-      `Email: ${email}\n` +
-      `Company: ${company}\n\n` +
-      `Message:\n${message}`;
-
+    const content = buildContactFormEmail({ name, email, company, message });
     await this.emails.send({
       to: 'support@kanap.net',
-      subject,
-      html,
-      text,
+      subject: content.subject,
+      html: content.html,
+      text: content.text,
       replyTo: email,
+      attachments: content.attachments,
     });
 
     return { ok: true };
@@ -384,23 +380,20 @@ export class PublicController {
     const notifyEmail = process.env.ENTERPRISE_SUPPORT_NOTIFY_EMAIL;
     if (notifyEmail) {
       try {
-        const subject = `New Enterprise Support request: ${body.company_name}`;
-        const html = `
-          <div style="font-family: Arial, sans-serif; font-size: 16px; color: #111; line-height: 1.5;">
-            <h2>New Enterprise Support request</h2>
-            <p><strong>Company:</strong> ${this.escapeHtml(body.company_name)}</p>
-            <p><strong>Contact:</strong> ${this.escapeHtml(body.contact_name)}</p>
-            <p><strong>Email:</strong> ${this.escapeHtml(body.billing_email)}</p>
-            <p><strong>Country:</strong> ${this.escapeHtml(body.country)}</p>
-            <p><strong>VAT:</strong> ${this.escapeHtml(body.vat_id || 'N/A')}</p>
-          </div>
-        `;
-        const text = `Company: ${body.company_name}\n` +
-          `Contact: ${body.contact_name}\n` +
-          `Email: ${body.billing_email}\n` +
-          `Country: ${body.country}\n` +
-          `VAT: ${body.vat_id || 'N/A'}`;
-        await this.emails.send({ to: notifyEmail, subject, html, text });
+        const supportContent = buildSupportRequestEmail({
+          companyName: body.company_name,
+          contactName: body.contact_name,
+          billingEmail: body.billing_email,
+          country: body.country,
+          vatId: body.vat_id,
+        });
+        await this.emails.send({
+          to: notifyEmail,
+          subject: supportContent.subject,
+          html: supportContent.html,
+          text: supportContent.text,
+          attachments: supportContent.attachments,
+        });
       } catch (e: any) {
         if (e?.code !== 'FEATURE_DISABLED') {
           const msg = typeof e?.message === 'string' ? e.message : '';
@@ -494,24 +487,19 @@ export class PublicController {
 
     // Fire-and-forget admin notification about tenant creation (non-blocking)
     try {
-      const subject = `New tenant created: ${tenant.name} (${signup.slug})`;
-      const safe = (v: string) => this.escapeHtml(v ?? '');
-      const countryIso = signup.country_iso || 'FR';
-      const html = `
-        <div style="font-family: Arial, sans-serif; font-size: 16px; color: #111; line-height: 1.5;">
-          <h2>New tenant created</h2>
-          <p><strong>Name:</strong> ${safe(tenant.name)}</p>
-          <p><strong>Slug:</strong> ${safe(signup.slug)}</p>
-          <p><strong>Registered email:</strong> ${safe(signup.email)}</p>
-          <p><strong>Country:</strong> ${safe(countryIso)}</p>
-        </div>
-      `;
-      const text = `New tenant created\n\n` +
-        `Name: ${tenant.name}\n` +
-        `Slug: ${signup.slug}\n` +
-        `Registered email: ${signup.email}\n` +
-        `Country: ${countryIso}`;
-      await this.emails.send({ to: 'admin@kanap.net', subject, html, text });
+      const tenantNotif = buildNewTenantNotificationEmail({
+        tenantName: tenant.name,
+        slug: signup.slug,
+        email: signup.email,
+        countryIso: signup.country_iso || 'FR',
+      });
+      await this.emails.send({
+        to: 'admin@kanap.net',
+        subject: tenantNotif.subject,
+        html: tenantNotif.html,
+        text: tenantNotif.text,
+        attachments: tenantNotif.attachments,
+      });
     } catch (e: any) {
       if (e?.code !== 'FEATURE_DISABLED') {
         // Log but do not block activation response
@@ -572,34 +560,6 @@ export class PublicController {
 
   private trialLinkTtlMs() {
     return 1000 * 60 * 60 * 48; // 48 hours
-  }
-
-  private renderActivationHtml(email: string, activationUrl: string, org?: string) {
-    const greeting = this.nameFromEmail(email, org);
-    return `
-      <div style="font-family: Arial, sans-serif; font-size: 16px; color: #111; line-height: 1.5;">
-        <p>Hello ${greeting},</p>
-        <p>Thanks for your interest in KANAP. Please confirm your email to provision your tenant.</p>
-        <p style="text-align: center; margin: 32px 0;">
-          <a href="${activationUrl}" style="background: #1976d2; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">Activate my workspace</a>
-        </p>
-        <p>If the button above does not work, copy and paste this link into your browser:</p>
-        <p style="word-break: break-all;">
-          <a href="${activationUrl}">${activationUrl}</a>
-        </p>
-        <p>The link expires in 48 hours. If you did not request this trial you can ignore this message.</p>
-        <p style="margin-top: 32px;">- The KANAP team</p>
-      </div>
-    `;
-  }
-
-  private renderActivationText(email: string, activationUrl: string, org?: string) {
-    const greeting = this.nameFromEmail(email, org);
-    return `Hello ${greeting},\n\n` +
-      `Thanks for your interest in KANAP. Confirm your email to provision your tenant.\n\n` +
-      `Activate your workspace: ${activationUrl}\n\n` +
-      `The link expires in 48 hours. If you did not request this trial you can ignore this message.\n\n` +
-      `- The KANAP team`;
   }
 
   private buildCompanyName(signup: TrialSignup) {
