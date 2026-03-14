@@ -86,9 +86,9 @@ export function emailWrapper(
   const branding = options?.branding ?? getDefaultEmailBranding();
   const pc = branding.primaryColor;
   const headerTextColor = contrastTextColor(pc);
-  const subtitleCell = options?.subtitle
+  const headerRightContent = options?.subtitle
     ? `<td align="right" style="color:${headerTextColor};opacity:0.85;font-size:13px;font-weight:600;letter-spacing:0.3px;">${escapeHtml(options.subtitle)}</td>`
-    : '';
+    : `<td align="right" style="color:${headerTextColor};font-size:18px;font-weight:bold;letter-spacing:1px;">KANAP</td>`;
   const preferencesLink = options?.preferencesUrl
     ? `<p style="margin:0 0 8px 0;"><a href="${options.preferencesUrl}" style="color:${pc};text-decoration:none;font-size:12px;">Manage notification preferences</a></p>`
     : '';
@@ -107,8 +107,8 @@ export function emailWrapper(
 <tr><td style="background-color:${pc};padding:20px 32px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 <tr>
-<td style="vertical-align:middle;"><img src="cid:${branding.logoCid}" alt="Logo" width="140" height="40" style="display:block;max-height:40px;width:auto;max-width:140px;" /></td>
-${subtitleCell}
+<td style="vertical-align:middle;"><img src="cid:${branding.logoCid}" alt="KANAP" width="140" height="40" style="display:block;max-height:40px;width:auto;max-width:140px;" /></td>
+${headerRightContent}
 </tr>
 </table>
 </td></tr>
