@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Resend, type Attachment as ResendAttachment } from 'resend';
 import { emailWrapper } from '../notifications/notification-templates';
+import type { EmailBranding } from './email-branding';
 import { FeatureDisabledError } from '../common/feature-gates';
 
 type Recipient = string | string[];
@@ -179,8 +180,10 @@ export class EmailService {
     return data;
   }
 
-  async sendPasswordResetEmail(params: { to: string; resetUrl: string; expiresInMinutes?: number }) {
+  async sendPasswordResetEmail(params: { to: string; resetUrl: string; expiresInMinutes?: number; branding?: EmailBranding }) {
     const expires = params.expiresInMinutes ?? 60;
+    const branding = params.branding;
+    const pc = branding?.primaryColor ?? '#2D69E0';
     const subject = 'Reset your KANAP password';
     const baseUrl = params.resetUrl.match(/^(https?:\/\/[^/]+)/)?.[1] || '';
     const preferencesUrl = baseUrl ? baseUrl + '/settings/notifications' : undefined;
@@ -188,7 +191,7 @@ export class EmailService {
       <p>Hello,</p>
       <p>We received a request to reset the password associated with this email address.</p>
       <p style="text-align: center; margin: 32px 0;">
-        <a href="${params.resetUrl}" style="background: #2D69E0; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">
+        <a href="${params.resetUrl}" style="background: ${pc}; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">
           Reset password
         </a>
       </p>
@@ -198,13 +201,13 @@ export class EmailService {
       </p>
       <p>This link will expire in approximately ${expires} minutes. If you did not request a password reset, you can safely ignore this email.</p>
     `;
-    const html = emailWrapper(body, { preferencesUrl });
+    const wrapper = emailWrapper(body, { preferencesUrl, branding });
     const text = `Hello,\n\n` +
       `We received a request to reset the password associated with this email address.\n\n` +
       `Reset your password: ${params.resetUrl}\n\n` +
       `This link will expire in approximately ${expires} minutes. If you did not request a password reset, you can safely ignore this email.` +
       (preferencesUrl ? `\n\nManage notification preferences: ${preferencesUrl}` : '');
-    await this.send({ to: params.to, subject, html, text });
+    await this.send({ to: params.to, subject, html: wrapper.html, text, attachments: wrapper.attachments });
   }
 
   async sendUserInviteEmail(params: {
@@ -213,8 +216,11 @@ export class EmailService {
     expiresInMinutes?: number;
     roleName?: string | null;
     inviterEmail?: string | null;
+    branding?: EmailBranding;
   }) {
     const expires = params.expiresInMinutes ?? 60;
+    const branding = params.branding;
+    const pc = branding?.primaryColor ?? '#2D69E0';
     const subject = 'You are invited to KANAP';
     const roleLine = params.roleName ? ` as ${params.roleName}` : '';
     const inviterLine = params.inviterEmail ? ` by ${params.inviterEmail}` : '';
@@ -224,7 +230,7 @@ export class EmailService {
       <p>Hello,</p>
       <p>You have been invited${inviterLine} to join KANAP${roleLine}.</p>
       <p style="text-align: center; margin: 32px 0;">
-        <a href="${params.inviteUrl}" style="background: #2D69E0; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">
+        <a href="${params.inviteUrl}" style="background: ${pc}; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">
           Set your password
         </a>
       </p>
@@ -234,13 +240,13 @@ export class EmailService {
       </p>
       <p>This link will expire in approximately ${expires} minutes. Once complete, you can sign in using your email and new password.</p>
     `;
-    const html = emailWrapper(body, { preferencesUrl });
+    const wrapper = emailWrapper(body, { preferencesUrl, branding });
     const text = `Hello,\n\n` +
       `You have been invited${inviterLine} to join KANAP${roleLine}.\n\n` +
       `Set your password: ${params.inviteUrl}\n\n` +
       `This link will expire in approximately ${expires} minutes. Once complete, you can sign in using your email and new password.` +
       (preferencesUrl ? `\n\nManage notification preferences: ${preferencesUrl}` : '');
-    await this.send({ to: params.to, subject, html, text });
+    await this.send({ to: params.to, subject, html: wrapper.html, text, attachments: wrapper.attachments });
   }
 
   private ensureClient() {

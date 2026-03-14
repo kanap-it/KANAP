@@ -20,6 +20,7 @@ import {
 } from './notification-templates';
 import { renderCommentForEmail } from './comment-email-renderer';
 import { renderMarkdownToHtml } from '../common/markdown-to-html';
+import { EmailBranding, resolveEmailBranding } from '../email/email-branding';
 
 type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex';
 type TriggerType = 'status_change' | 'team_added' | 'team_change_as_lead' | 'comment' | 'assignment' | 'expiration_warning';
@@ -123,6 +124,24 @@ export class NotificationsService {
    */
   private buildTenantBaseUrl(tenantSlug: string | null): string {
     return resolveNotificationBaseUrl(tenantSlug);
+  }
+
+  /**
+   * Resolve email branding for a tenant (loads logo from S3 if needed).
+   */
+  private async resolveBranding(tenantId: string): Promise<EmailBranding> {
+    try {
+      const rows = await this.dataSource.query(
+        `SELECT branding FROM tenants WHERE id = $1`,
+        [tenantId],
+      );
+      const raw = rows[0]?.branding;
+      return await resolveEmailBranding(raw, this.storage);
+    } catch (error) {
+      this.logger.warn(`Failed to resolve email branding for tenant ${tenantId}: ${error}`);
+      const { getDefaultEmailBranding } = await import('../email/email-branding');
+      return getDefaultEmailBranding();
+    }
   }
 
   /**
@@ -554,6 +573,7 @@ export class NotificationsService {
   }): Promise<void> {
     const workspace = this.getWorkspaceForItemType(params.itemType);
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
+    const branding = await this.resolveBranding(params.tenantId);
     const actionButtons = params.actionButtons
       ?? (params.itemType === 'task' ? this.buildTaskStatusActionButtons(itemUrl, params.newStatus) : undefined);
     const content = buildStatusChangeEmail({
@@ -563,6 +583,7 @@ export class NotificationsService {
       oldStatus: params.oldStatus,
       newStatus: params.newStatus,
       actionButtons,
+      branding,
     });
 
     for (const recipient of params.recipients) {
@@ -599,6 +620,7 @@ export class NotificationsService {
     manager?: EntityManager;
   }): Promise<void> {
     const taskUrl = await this.buildItemUrl('task', params.taskId, params.tenantId, params.manager);
+    const branding = await this.resolveBranding(params.tenantId);
     const statusChanged = Boolean(
       params.oldStatus
       && params.newStatus
@@ -625,6 +647,7 @@ export class NotificationsService {
         oldStatus: params.oldStatus,
         newStatus: params.newStatus,
         actionButtons,
+        branding,
       });
     }
 
@@ -651,8 +674,9 @@ export class NotificationsService {
         authorName: params.authorName,
         commentHtml: embeddedComment.html,
         commentTextPreview: renderedComment.textPreview,
+        branding,
       });
-      commentContent.attachments = embeddedComment.attachments;
+      commentContent.attachments = [...(commentContent.attachments ?? []), ...embeddedComment.attachments];
 
       if (statusChanged && params.oldStatus && params.newStatus) {
         mergedContent = buildStatusChangeWithCommentEmail({
@@ -665,8 +689,9 @@ export class NotificationsService {
           commentHtml: embeddedComment.html,
           commentTextPreview: renderedComment.textPreview,
           actionButtons,
+          branding,
         });
-        mergedContent.attachments = embeddedComment.attachments;
+        mergedContent.attachments = [...(mergedContent.attachments ?? []), ...embeddedComment.attachments];
       }
     }
 
@@ -736,11 +761,13 @@ export class NotificationsService {
     if (!this.checkPreferences(prefs, 'portfolio', 'team_added')) return;
 
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
+    const branding = await this.resolveBranding(params.tenantId);
     const content = buildTeamAddedEmail({
       itemType: params.itemType,
       itemName: params.itemName,
       itemUrl,
       role: params.role,
+      branding,
     });
 
     this.sendNotification(params.addedUser.email, content);
@@ -798,12 +825,14 @@ export class NotificationsService {
     if (itLeadRows.length === 0) return;
 
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId);
+    const branding = await this.resolveBranding(params.tenantId);
     const content = buildTeamMemberAddedEmail({
       itemType: params.itemType,
       itemName: params.itemName,
       itemUrl,
       addedUserName: params.addedUserName,
       role: params.role,
+      branding,
     });
 
     this.sendNotification(itLeadRows[0].email, content);
@@ -827,6 +856,7 @@ export class NotificationsService {
     const tenantSlug = await this.getTenantSlug(params.tenantId);
     const tenantBaseUrl = this.buildTenantBaseUrl(tenantSlug);
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
+    const branding = await this.resolveBranding(params.tenantId);
     const commentAsHtml = renderMarkdownToHtml(params.commentContent);
     const renderedComment = renderCommentForEmail({
       commentHtml: commentAsHtml,
@@ -847,8 +877,9 @@ export class NotificationsService {
       authorName: params.authorName,
       commentHtml: embeddedComment.html,
       commentTextPreview: renderedComment.textPreview,
+      branding,
     });
-    content.attachments = embeddedComment.attachments;
+    content.attachments = [...(content.attachments ?? []), ...embeddedComment.attachments];
 
     for (const recipient of params.recipients) {
       // Don't notify the author
@@ -893,11 +924,13 @@ export class NotificationsService {
     if (!this.checkPreferences(prefs, 'tasks', 'assignment', 'assignee')) return;
 
     const taskUrl = await this.buildItemUrl('task', params.taskId, params.tenantId, params.manager);
+    const branding = await this.resolveBranding(params.tenantId);
     const content = buildTaskAssignedEmail({
       taskTitle: params.taskTitle,
       taskUrl,
       assignerName: params.assignerName,
       dueDate: params.dueDate,
+      branding,
     });
 
     this.sendNotification(params.assigneeEmail, content);
@@ -918,6 +951,7 @@ export class NotificationsService {
     manager?: EntityManager;
   }): Promise<void> {
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
+    const branding = await this.resolveBranding(params.tenantId);
     const content = buildExpirationWarningEmail({
       itemType: params.itemType,
       itemName: params.itemName,
@@ -925,6 +959,7 @@ export class NotificationsService {
       expirationDate: params.expirationDate,
       daysRemaining: params.daysRemaining,
       warningType: params.warningType,
+      branding,
     });
 
     for (const recipient of params.recipients) {
@@ -966,12 +1001,14 @@ export class NotificationsService {
     tenantId: string;
   }): Promise<void> {
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId);
+    const branding = await this.resolveBranding(params.tenantId);
     const content = buildShareEmail({
       itemType: params.itemType,
       itemName: params.itemName,
       itemUrl,
       senderName: params.senderName,
       message: params.message,
+      branding,
     });
 
     for (const recipient of params.recipients) {
