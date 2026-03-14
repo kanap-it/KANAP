@@ -12,6 +12,7 @@
   --budget-color: #1976d2;
   --itops-color: #7b1fa2;
   --portfolio-color: #00897b;
+  --knowledge-color: #e65100;
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
@@ -429,6 +430,11 @@ main {
 .module-icon--portfolio {
   background: rgba(0, 137, 123, 0.12);
   color: var(--portfolio-color);
+}
+
+.module-icon--knowledge {
+  background: rgba(230, 81, 0, 0.12);
+  color: var(--knowledge-color);
 }
 
 .module-card h3 {
