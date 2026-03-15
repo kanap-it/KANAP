@@ -72,28 +72,20 @@ function buildActionButtons(buttons: ActionButton[] | undefined, primaryColor: s
 }
 
 /**
- * Shared email wrapper with branded header (CID logo), white card body, and footer.
+ * Shared email wrapper: thin colored accent bar, white card body, logo in footer.
  * Returns { html, attachments } — the logo is always included as a CID inline attachment.
  */
 export function emailWrapper(
   body: string,
   options?: {
-    subtitle?: string;
     preferencesUrl?: string;
     branding?: EmailBranding;
   },
 ): EmailWrapperResult {
   const branding = options?.branding ?? getDefaultEmailBranding();
   const pc = branding.primaryColor;
-  const headerTextColor = contrastTextColor(pc);
-  const headerRightContent = options?.subtitle
-    ? `<td align="right" style="color:${headerTextColor};opacity:0.85;font-size:13px;font-weight:600;letter-spacing:0.3px;">${escapeHtml(options.subtitle)}</td>`
-    : `<td align="right" style="color:${headerTextColor};font-size:18px;font-weight:bold;letter-spacing:1px;">KANAP</td>`;
   const preferencesLink = options?.preferencesUrl
-    ? `<p style="margin:0 0 8px 0;"><a href="${options.preferencesUrl}" style="color:${pc};text-decoration:none;font-size:12px;">Manage notification preferences</a></p>`
-    : '';
-  const poweredBy = branding.isCustom
-    ? `<p style="margin:0;color:#9ca3af;font-size:11px;">Powered by KANAP</p>`
+    ? `<a href="${options.preferencesUrl}" style="color:#9ca3af;text-decoration:none;font-size:11px;">Manage notification preferences</a>`
     : '';
 
   const html = `<!DOCTYPE html>
@@ -103,22 +95,17 @@ export function emailWrapper(
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
 <tr><td align="center" style="padding:24px 16px;">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
-<!-- Header -->
-<tr><td style="background-color:${pc};padding:20px 32px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-<tr>
-<td style="vertical-align:middle;"><img src="cid:${branding.logoCid}" alt="KANAP" width="140" height="40" style="display:block;max-height:40px;width:auto;max-width:140px;" /></td>
-${headerRightContent}
-</tr>
-</table>
-</td></tr>
+<!-- Accent bar -->
+<tr><td style="background-color:${pc};height:5px;font-size:0;line-height:0;">&nbsp;</td></tr>
 <!-- Body -->
 <tr><td style="padding:32px;line-height:1.6;font-size:15px;color:#374151;">
 ${body}
 </td></tr>
 <!-- Footer -->
 <tr><td style="padding:20px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-${preferencesLink}${poweredBy}
+<img src="cid:${branding.logoCid}" alt="KANAP" width="24" height="24" style="display:inline-block;vertical-align:middle;max-height:24px;width:auto;max-width:24px;" />
+<span style="display:inline-block;vertical-align:middle;margin-left:6px;color:#9ca3af;font-size:11px;font-weight:600;letter-spacing:0.5px;">Powered by KANAP</span>
+${preferencesLink ? `<br />${preferencesLink}` : ''}
 </td></tr>
 </table>
 </td></tr>
@@ -686,7 +673,7 @@ export function buildWeeklyReviewEmail(params: {
 </td></tr>
 </table>`;
     body += buildCtaButton(params.appUrl, pc);
-    const wrapper = emailWrapper(body, { subtitle: 'Weekly Review', preferencesUrl, branding });
+    const wrapper = emailWrapper(body, { preferencesUrl, branding });
     const text =
       `KANAP Weekly Review - ${params.weekLabel}\n\n` +
       `Hi ${params.userName},\n\n` +
@@ -797,7 +784,7 @@ export function buildWeeklyReviewEmail(params: {
 
   body += buildCtaButton(params.appUrl, pc);
 
-  const wrapper = emailWrapper(body, { subtitle: 'Weekly Review', preferencesUrl, branding });
+  const wrapper = emailWrapper(body, { preferencesUrl, branding });
 
   // Build plaintext fallback
   let text = `KANAP Weekly Review - ${params.weekLabel}\n\n`;
