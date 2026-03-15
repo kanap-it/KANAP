@@ -29,7 +29,7 @@ type ThemeModeContextValue = {
 export const baseThemeComponents: ThemeOptions['components'] = {
   MuiCssBaseline: {
     styleOverrides: (theme) => ({
-      a: {
+      'a:not(.MuiChip-root)': {
         color: theme.palette.primary.main,
         '&:visited': {
           color: theme.palette.primary.main,
