@@ -10,6 +10,8 @@ import { NotificationsService } from './notifications.service';
 import { buildWeeklyReviewEmail } from './notification-templates';
 import { resolveNotificationBaseUrl } from '../common/url';
 import { ACTIVE_TASK_STATUSES } from '../tasks/task.entity';
+import { StorageService } from '../common/storage/storage.service';
+import { type EmailBranding, resolveEmailBranding, getDefaultEmailBranding } from '../email/email-branding';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -23,6 +25,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
     private readonly emailService: EmailService,
     private readonly preferencesService: NotificationPreferencesService,
     private readonly notificationsService: NotificationsService,
+    private readonly storage: StorageService,
   ) {}
 
   onModuleInit() {
@@ -56,6 +59,20 @@ export class ScheduledNotificationsService implements OnModuleInit {
     }
 
     return resolveNotificationBaseUrl(null);
+  }
+
+  private async resolveBranding(tenantId: string): Promise<EmailBranding> {
+    try {
+      const rows = await this.dataSource.query(
+        `SELECT branding FROM tenants WHERE id = $1`,
+        [tenantId],
+      );
+      const raw = rows[0]?.branding;
+      return await resolveEmailBranding(raw, this.storage);
+    } catch (error) {
+      this.logger.warn(`Failed to resolve email branding for tenant ${tenantId}: ${error}`);
+      return getDefaultEmailBranding();
+    }
   }
 
   // ============================================
@@ -705,6 +722,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
 
     // Build and send email
     const userName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'there';
+    const branding = await this.resolveBranding(tenantId);
 
     const content = buildWeeklyReviewEmail({
       userName,
@@ -742,6 +760,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
         id: r.id,
         name: r.name,
       })),
+      branding,
     });
 
     try {
