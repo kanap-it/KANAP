@@ -1188,6 +1188,10 @@ export class PortfolioRoadmapService {
       internalBlockersByProject,
     } = buildDependencyGraph(candidateIds));
 
+    const planningFloorWeek = new Date(
+      Math.max(firstWeekToPlan.getTime(), ceilToMondayUtc(asOfDate).getTime()),
+    );
+
     const getConstraintStartWeek = (constraint: ScheduleConstraint | null | undefined): Date | null => {
       if (!constraint) return null;
       switch (constraint.type) {
@@ -1200,6 +1204,16 @@ export class PortfolioRoadmapService {
       }
     };
 
+    const getEffectiveConstraintStartWeek = (
+      constraint: ScheduleConstraint | null | undefined,
+    ): Date | null => {
+      const rawConstraintStartWeek = getConstraintStartWeek(constraint);
+      if (!rawConstraintStartWeek) return null;
+      return rawConstraintStartWeek.getTime() < planningFloorWeek.getTime()
+        ? planningFloorWeek
+        : rawConstraintStartWeek;
+    };
+
     const getConstraintEndWeek = (constraint: ScheduleConstraint | null | undefined): Date | null => {
       if (!constraint || constraint.type !== 'pin_window') return null;
       return ceilToMondayUtc(parseYmdUtc(constraint.endWeek));
@@ -1209,7 +1223,7 @@ export class PortfolioRoadmapService {
       earliestWeek: Date,
       constraint: ScheduleConstraint | null | undefined,
     ): Date => {
-      const constraintStartWeek = getConstraintStartWeek(constraint);
+      const constraintStartWeek = getEffectiveConstraintStartWeek(constraint);
       if (!constraintStartWeek) return earliestWeek;
       return constraintStartWeek.getTime() > earliestWeek.getTime()
         ? constraintStartWeek
@@ -1350,10 +1364,9 @@ export class PortfolioRoadmapService {
     const isContinuingProject = (state: CandidateRuntimeState): boolean => computeStartedWeek(state) !== null;
 
     const getConstraintPriority = (state: CandidateRuntimeState): number => {
-      if (computeStartedWeek(state)) return 0;
       const constraint = state.project.constraint;
       if (!constraint) return 0;
-      const startWeek = getConstraintStartWeek(constraint);
+      const startWeek = getEffectiveConstraintStartWeek(constraint);
       if (!startWeek || startWeek.getTime() > cursor.getTime()) return 0;
       switch (constraint.type) {
         case 'pin_start':
@@ -1682,30 +1695,30 @@ export class PortfolioRoadmapService {
       constraint: ScheduleConstraint | null | undefined,
       actualStartWeek: string | null,
       actualEndWeek: string | null,
-      historicalStartWeek: string | null,
     ): string | null => {
       if (!constraint) return null;
+      const effectiveConstraintStartWeek = getEffectiveConstraintStartWeek(constraint);
+      const effectiveConstraintStartWeekYmd = effectiveConstraintStartWeek
+        ? toYmdUtc(effectiveConstraintStartWeek)
+        : null;
       switch (constraint.type) {
         case 'pin_start':
-          if (historicalStartWeek && historicalStartWeek !== constraint.startWeek) {
-            return `Pinned start ${constraint.startWeek} conflicts with historical work that already began in ${historicalStartWeek}.`;
-          }
           if (!actualStartWeek) {
             return `Pinned start ${constraint.startWeek} could not be satisfied.`;
           }
-          if (actualStartWeek !== constraint.startWeek) {
+          if (effectiveConstraintStartWeekYmd && actualStartWeek !== effectiveConstraintStartWeekYmd) {
+            if (effectiveConstraintStartWeekYmd !== constraint.startWeek) {
+              return `Pinned start ${constraint.startWeek} was normalized to ${effectiveConstraintStartWeekYmd} and slipped to ${actualStartWeek}.`;
+            }
             return `Pinned start ${constraint.startWeek} slipped to ${actualStartWeek}.`;
           }
           return null;
         case 'pin_window':
-          if (historicalStartWeek && historicalStartWeek < constraint.startWeek) {
-            return `Pinned window ${constraint.startWeek} to ${constraint.endWeek} conflicts with historical work that already began in ${historicalStartWeek}.`;
-          }
           if (!actualStartWeek) {
             return `Pinned window ${constraint.startWeek} to ${constraint.endWeek} could not be satisfied.`;
           }
           if (
-            actualStartWeek < constraint.startWeek
+            (effectiveConstraintStartWeekYmd != null && actualStartWeek < effectiveConstraintStartWeekYmd)
             || actualStartWeek > constraint.endWeek
             || (actualEndWeek != null && actualEndWeek > constraint.endWeek)
           ) {
@@ -1713,10 +1726,7 @@ export class PortfolioRoadmapService {
           }
           return null;
         case 'not_before':
-          if (historicalStartWeek && historicalStartWeek < constraint.startWeek) {
-            return `Not-before constraint ${constraint.startWeek} conflicts with historical work that already began in ${historicalStartWeek}.`;
-          }
-          if (actualStartWeek && actualStartWeek < constraint.startWeek) {
+          if (effectiveConstraintStartWeekYmd && actualStartWeek && actualStartWeek < effectiveConstraintStartWeekYmd) {
             return `Not-before constraint ${constraint.startWeek} was violated by start ${actualStartWeek}.`;
           }
           return null;
@@ -1750,13 +1760,12 @@ export class PortfolioRoadmapService {
       const schedulingMode = project?.schedulingMode ?? unschedulable?.schedulingMode;
       if (!schedulingMode) return null;
       const activeConstraint = project?.constraint ?? null;
-      const historicalStartWeek = state?.historicalStart
-        ? toYmdUtc(getWeekStartMondayUtc(state.historicalStart))
-        : null;
 
-      const earliestEligibleDate = state?.historicalStart
-        ? getWeekStartMondayUtc(state.historicalStart)
-        : (state?.firstReadyWeek ?? externalEarliestWeekByProject.get(projectId) ?? null);
+      const earliestEligibleDate = activeConstraint
+        ? (state?.firstReadyWeek ?? externalEarliestWeekByProject.get(projectId) ?? null)
+        : (state?.historicalStart
+          ? getWeekStartMondayUtc(state.historicalStart)
+          : (state?.firstReadyWeek ?? externalEarliestWeekByProject.get(projectId) ?? null));
       const earliestEligibleWeek = earliestEligibleDate ? toYmdUtc(earliestEligibleDate) : null;
       const dependencyReasons = buildDependencyReasonEntries(projectId);
       const dominantBlockages = state ? buildDominantBlockageEntries(state) : [];
@@ -1772,15 +1781,15 @@ export class PortfolioRoadmapService {
         classification === 'scheduled'
           ? schedule.find((item) => item.projectId === projectId)?.plannedEnd ?? null
           : null,
-        historicalStartWeek,
       );
       if (constraintConflictMessage) {
+        const effectiveConstraintStartWeek = getEffectiveConstraintStartWeek(activeConstraint);
         blockerReasons.unshift({
           kind: 'constraint_conflict',
           label: constraintConflictMessage,
           projectId: projectId,
           scenarioProjectId: null,
-          fromWeek: activeConstraint && 'startWeek' in activeConstraint ? activeConstraint.startWeek : null,
+          fromWeek: effectiveConstraintStartWeek ? toYmdUtc(effectiveConstraintStartWeek) : null,
           toWeek: activeConstraint?.type === 'pin_window' ? activeConstraint.endWeek : actualStartWeek,
         });
       }
@@ -1795,14 +1804,14 @@ export class PortfolioRoadmapService {
 
       let startReason: ProjectExplanation['startReason'] = 'unscheduled';
       if (classification === 'scheduled' && state) {
-        if (state.historicalStart) {
-          startReason = 'historical_start';
-        } else if (activeConstraint?.type === 'pin_start') {
+        if (activeConstraint?.type === 'pin_start') {
           startReason = 'constraint_pin_start';
         } else if (activeConstraint?.type === 'pin_window') {
           startReason = 'constraint_pin_window';
         } else if (activeConstraint?.type === 'not_before') {
           startReason = 'constraint_not_before';
+        } else if (state.historicalStart) {
+          startReason = 'historical_start';
         } else if (dependencyReasons.length > 0 && state.firstReadyWeek && state.firstAllocatedWeek
           && state.firstReadyWeek.getTime() === state.firstAllocatedWeek.getTime()) {
           startReason = 'dependency_release';
@@ -2628,14 +2637,10 @@ export class PortfolioRoadmapService {
         const constraint = project.constraint ?? null;
         if (!constraint) return null;
         const scheduledItem = scheduleByProjectId.get(projectId) ?? null;
-        const historicalStartWeek = state?.historicalStart
-          ? toYmdUtc(getWeekStartMondayUtc(state.historicalStart))
-          : null;
         const conflictMessage = getConstraintConflictMessage(
           constraint,
           scheduledItem?.plannedStart ?? null,
           scheduledItem?.plannedEnd ?? null,
-          historicalStartWeek,
         );
         if (!conflictMessage) return null;
         return {

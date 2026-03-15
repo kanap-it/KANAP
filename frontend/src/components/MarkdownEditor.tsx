@@ -230,8 +230,9 @@ export default function MarkdownEditor({
 
   React.useEffect(() => {
     if (refreshNonce === undefined || refreshNonce < 1) return;
-    currentMarkdownRef.current = value || '';
-    setEditorInstanceKey((prev) => prev + 1);
+    const incoming = value || '';
+    currentMarkdownRef.current = incoming;
+    mdxRef.current?.setMarkdown(incoming);
   }, [refreshNonce, value]);
 
   React.useEffect(() => {
