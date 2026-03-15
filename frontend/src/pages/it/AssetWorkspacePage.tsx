@@ -412,20 +412,15 @@ export default function AssetWorkspacePage() {
     return result.slice(0, 63);
   }, []);
 
-  // Prefill hostname from sanitized name on create (only once when name changes and hostname is empty)
-  const [hostnamePrefilled, setHostnamePrefilled] = React.useState(false);
+  // Prefill hostname from sanitized name on create (keep syncing until user manually edits hostname)
+  const [hostnameManuallyEdited, setHostnameManuallyEdited] = React.useState(false);
   React.useEffect(() => {
     if (!isCreate) return;
-    if (hostnamePrefilled) return;
-    if (hostname) return; // Don't override if user has entered something
+    if (hostnameManuallyEdited) return;
     if (!name) return;
     const sanitized = sanitizeHostname(name);
-    if (sanitized) {
-      setHostname(sanitized);
-      setHostnamePrefilled(true);
-      setDirty(true);
-    }
-  }, [isCreate, name, hostname, sanitizeHostname, hostnamePrefilled]);
+    setHostname(sanitized);
+  }, [isCreate, name, sanitizeHostname, hostnameManuallyEdited]);
 
   // Check if hostname is required (domain is a "real" domain)
   const hostnameRequired = domain && domain !== 'workgroup' && domain !== 'n-a';
@@ -1141,7 +1136,7 @@ export default function AssetWorkspacePage() {
                   <TextField
                     label="Hostname"
                     value={hostname}
-                    onChange={(e) => { setHostname(e.target.value); setDirty(true); }}
+                    onChange={(e) => { setHostname(e.target.value); setHostnameManuallyEdited(true); setDirty(true); }}
                     InputLabelProps={{ shrink: true }}
                     error={!!hostnameRequired && !hostname}
                     helperText={hostnameRequired && !hostname ? 'Hostname is required when a domain is selected' : undefined}

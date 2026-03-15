@@ -27,6 +27,16 @@ type ThemeModeContextValue = {
 };
 
 export const baseThemeComponents: ThemeOptions['components'] = {
+  MuiCssBaseline: {
+    styleOverrides: (theme) => ({
+      a: {
+        color: theme.palette.primary.main,
+        '&:visited': {
+          color: theme.palette.primary.main,
+        },
+      },
+    }),
+  },
   MuiTextField: {
     defaultProps: {
       InputLabelProps: {
