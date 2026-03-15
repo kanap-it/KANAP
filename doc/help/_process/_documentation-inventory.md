@@ -1,6 +1,6 @@
 # User Manual Documentation Inventory
 
-_Generated: 2026-03-12_
+_Generated: 2026-03-15_
 
 This document tracks documentation coverage for the KANAP user manual.
 
@@ -26,6 +26,7 @@ _Note: Supplemental Fast Track guides are excluded from these route-based counts
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-03-15 | _27 pages refreshed_ | Full staleness sweep: all stale route manuals regenerated from current code. Key changes: docx import (tasks, knowledge, requests, projects), LinkCellRenderer migration across all list pages, Relations tab expansions (opex, capex, contracts, applications), new tabs documented (assets: 8 tabs, applications: Knowledge tab), permission corrections, terminology fixes (Servers not Assets in maps/connections) |
 | 2026-03-12 | `fast-track/index.md` | Updated for the current request/project workspace model: Summary + Analysis + Scoring flow, sidebar-based team/relations, current statuses, and conversion behavior |
 | 2026-03-10 | `knowledge.md` | New manual for the Knowledge workspace, document lifecycle, review flow, relations, and export behavior |
 | 2026-03-10 | `portfolio-requests.md` | Rewritten for the current Summary / Activity / Analysis / Scoring / Knowledge workspace model |
@@ -187,7 +188,7 @@ _Note: `/knowledge/new`, `/knowledge/:id`, and `/knowledge/:id/:tab` are covered
 | `/admin/billing` | BillingCenter | **DOCUMENTED** | `admin.md` |
 | `/admin/auth` | AdminAuthPage | **DOCUMENTED** | `admin.md` |
 | `/admin/branding` | AdminBrandingPage | **DOCUMENTED** | `branding.md` |
-| `/settings` | SettingsPage | **DOCUMENTED** | (in admin.md or standalone) |
+| `/settings` | SettingsPage | **DOCUMENTED** | mapped to `fast-track/getting-started.md` in `docUrls.ts` (personal settings are covered in the Getting Started guide) |
 | `/master-data/operations` | MasterDataOperationsPage | **DOCUMENTED** | `master-data-operations.md` |
 | `/master-data/operations/freeze` | MasterDataFreezePage | **DOCUMENTED** | (in master-data-operations) |
 | `/master-data/operations/copy` | MasterDataCopyPage | **DOCUMENTED** | (in master-data-operations) |
@@ -232,81 +233,21 @@ _Note: `/knowledge/new`, `/knowledge/:id`, and `/knowledge/:id/:tab` are covered
 | `/ops/projects` | Placeholder (removed from routes) |
 | `/ops/tasks` | Legacy route, redirects to `/portfolio/tasks` |
 
+On-premise docs (`on-premise/*.md`) are deployment guides, not route manuals — maintained separately and excluded from route-based coverage tracking.
+
 ---
 
 ## Remaining Gaps
 
 No route-manual gaps remaining.
 
-Refresh candidates after the March 2026 product changes:
-- `applications.md`
-- `assets.md`
-- `tasks.md`
-- existing Fast Track guides affected by Knowledge and the request/project workspace overhaul
+All route manuals refreshed 2026-03-15. Remaining refresh candidates:
+- Fast Track guides affected by Knowledge and the request/project workspace overhaul
 
 ---
 
 ## Documentation Update Triggers
 
-When these files change, the corresponding documentation may need updates:
-
-| Component Path | Triggers Update To |
-|----------------|-------------------|
-| `frontend/src/pages/DashboardPage.tsx` | `operations-dashboard.md` |
-| `frontend/src/pages/workspace/WorkspaceDashboardPage.tsx` | `my-dashboard.md` |
-| `frontend/src/pages/workspace/**/*.tsx` | `my-dashboard.md` |
-| `frontend/src/pages/OpexListPage.tsx` | `opex.md` |
-| `frontend/src/pages/opex/**/*.tsx` | `opex.md` |
-| `frontend/src/pages/CapexPage.tsx` | `capex.md` |
-| `frontend/src/pages/capex/**/*.tsx` | `capex.md` |
-| `frontend/src/pages/ContractsPage.tsx` | `contracts.md` |
-| `frontend/src/pages/contracts/**/*.tsx` | `contracts.md` |
-| `frontend/src/pages/CompaniesPage.tsx` | `companies.md` |
-| `frontend/src/pages/companies/**/*.tsx` | `companies.md` |
-| `frontend/src/pages/it/ApplicationsPage.tsx` | `applications.md` |
-| `frontend/src/pages/it/ApplicationWorkspacePage.tsx` | `applications.md` |
-| `frontend/src/pages/it/InterfacesPage.tsx` | `interfaces.md` |
-| `frontend/src/pages/it/InterfaceWorkspacePage.tsx` | `interfaces.md` |
-| `frontend/src/pages/it/InterfaceMapPage.tsx` | `interface-map.md` |
-| `frontend/src/pages/it/ConnectionsPage.tsx` | `connections.md` |
-| `frontend/src/pages/it/ConnectionWorkspacePage.tsx` | `connections.md` |
-| `frontend/src/pages/it/ConnectionMapPage.tsx` | `connection-map.md` |
-| `frontend/src/pages/it/AssetsPage.tsx` | `assets.md` |
-| `frontend/src/pages/it/AssetWorkspacePage.tsx` | `assets.md` |
-| `frontend/src/pages/it/LocationsPage.tsx` | `locations.md` |
-| `frontend/src/pages/it/LocationWorkspacePage.tsx` | `locations.md` |
-| `frontend/src/pages/UsersPage.tsx` | `admin.md` |
-| `frontend/src/pages/admin/RolesPage.tsx` | `admin.md` |
-| `frontend/src/pages/admin/AuditLogsPage.tsx` | `admin.md` |
-| `frontend/src/pages/TasksPage.tsx` | `tasks.md` |
-| `frontend/src/pages/tasks/TaskWorkspacePage.tsx` | `tasks.md` |
-| `frontend/src/components/EntityTasksPanel.tsx` | `opex.md`, `capex.md`, `contracts.md`, `portfolio-projects.md` |
-| `frontend/src/pages/master-data/ContactsPage.tsx` | `contacts.md` |
-| `frontend/src/pages/master-data/ContactWorkspacePage.tsx` | `contacts.md` |
-| `frontend/src/pages/master-data/SuppliersPage.tsx` | `suppliers.md` |
-| `frontend/src/pages/master-data/SupplierWorkspacePage.tsx` | `suppliers.md` |
-| `frontend/src/pages/portfolio/RequestsPage.tsx` | `portfolio-requests.md` |
-| `frontend/src/pages/portfolio/RequestWorkspacePage.tsx` | `portfolio-requests.md` |
-| `frontend/src/pages/portfolio/ProjectsPage.tsx` | `portfolio-projects.md` |
-| `frontend/src/pages/portfolio/ProjectWorkspacePage.tsx` | `portfolio-projects.md` |
-| `frontend/src/pages/portfolio/components/ProjectTimeline.tsx` | `portfolio-projects.md` |
-| `frontend/src/pages/portfolio/ReportsPage.tsx` | `portfolio-reporting.md` |
-| `frontend/src/pages/portfolio/StatusChangeReport.tsx` | `portfolio-reporting.md` |
-| `frontend/src/pages/portfolio/CapacityHeatmapReport.tsx` | `portfolio-reporting.md` |
-| `frontend/src/pages/portfolio/WeeklyReport.tsx` | `portfolio-reporting.md` |
-| `frontend/src/pages/admin/AdminBrandingPage.tsx` | `branding.md` |
-| `frontend/src/pages/settings/SettingsPage.tsx` | (settings doc) |
-| `frontend/src/pages/portfolio/ContributorTimeLog.tsx` | `portfolio-team-members.md` |
-| `frontend/src/pages/portfolio/SettingsPage.tsx` | `portfolio-settings.md` |
-| `frontend/src/pages/portfolio/ContributorsPage.tsx` | `portfolio-team-members.md` |
-| `frontend/src/pages/portfolio/ContributorWorkspacePage.tsx` | `portfolio-team-members.md` |
-| `frontend/src/pages/portfolio/TeamMembersPage.tsx` | `portfolio-team-members.md` |
-| `frontend/src/pages/portfolio/TeamMemberWorkspacePage.tsx` | `portfolio-team-members.md` |
-| `frontend/src/pages/portfolio/PlanningPage.tsx` | `portfolio-planning.md` |
-| `frontend/src/pages/knowledge/KnowledgePage.tsx` | `knowledge.md` |
-| `frontend/src/pages/knowledge/KnowledgeWorkspacePage.tsx` | `knowledge.md` |
-| `frontend/src/pages/reports/**/*.tsx` | `reports.md` |
-| `frontend/src/pages/admin/BillingCenter.tsx` | `admin.md` |
-| `frontend/src/pages/admin/AdminAuthPage.tsx` | `admin.md` |
-
-_This mapping enables automated staleness detection._
+See `doc/help/_process/doc-update-map.tsv` for the machine-readable mapping
+from frontend component files to documentation files. This mapping enables
+automated staleness detection.

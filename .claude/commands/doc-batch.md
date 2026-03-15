@@ -1,7 +1,7 @@
 ---
 description: Generate documentation for multiple pages in batch (project)
 allowed-tools: Read, Glob, Grep, Write, Edit, Task
-argument-hint: <category|all>
+argument-hint: <category|all|refresh category|stale>
 ---
 
 # Batch Documentation Generation
@@ -13,27 +13,25 @@ Generate user manual documentation for multiple pages at once.
 - `$ARGUMENTS`
 
 Valid arguments:
-- `all` - Generate docs for all undocumented pages (excluding Portfolio)
-- `it` - Generate docs for IT Operations pages only
-- `ops` - Generate docs for Budget Operations pages only
-- `master-data` - Generate docs for Master Data pages only
-- `admin` - Generate docs for Admin pages only
-- `reports` - Generate docs for Reports pages only
-- `high-priority` - Generate docs for high-priority pages first
+- `all` / `it` / `ops` / `master-data` / `admin` / `reports` / `portfolio` / `knowledge` — generate docs for **undocumented** pages only (existing behavior)
+- `refresh all` / `refresh it` / `refresh ops` / etc. — **regenerate** all pages in a category, overwriting silently
+- `stale` — detect stale pages via git history (compare `git log -1 --format="%ci"` for component vs doc), then regenerate only those
 
 ## Process
 
-### Step 1: Read the Inventory
+### Step 1: Read the Inventory and Select Pages
 
 ```
 doc/help/_process/_documentation-inventory.md
 ```
 
-Filter to pages matching the requested category.
+- **Default mode** (`all`, `it`, `ops`, etc.): filter to **undocumented** pages in the requested category.
+- **Refresh mode** (`refresh all`, `refresh it`, etc.): select **all** pages in the category (not just undocumented).
+- **Stale mode** (`stale`): run staleness detection — for each documented page, compare `git log -1 --format="%ci"` of the component file(s) vs the doc file. Collect pages where the component is newer than the doc.
 
 ### Step 2: Generate Documentation
 
-For each undocumented page in the category:
+For each selected page:
 
 1. Read the component files
 2. Extract columns, tabs, fields, actions
@@ -49,19 +47,20 @@ After completion, output:
 📚 Batch Documentation Complete
 ===============================
 
-Generated (5):
+Generated (new) (2):
+  ✓ knowledge.md → https://doc.kanap.net/knowledge/
+
+Refreshed (updated) (3):
   ✓ applications.md → https://doc.kanap.net/applications/
   ✓ interfaces.md → https://doc.kanap.net/interfaces/
   ✓ connections.md → https://doc.kanap.net/connections/
-  ✓ locations.md → https://doc.kanap.net/locations/
-  ✓ servers.md → https://doc.kanap.net/servers/
 
-Skipped (2):
-  - Portfolio pages (excluded per policy)
-  - Platform admin pages (not tenant-facing)
+Skipped (up to date) (4):
+  - locations.md (doc newer than component)
+  - assets.md (doc newer than component)
+  ...
 
-Remaining undocumented: 12
-  Run `/doc-batch ops` to continue with Budget Operations pages.
+Platform admin pages (not tenant-facing): always excluded
 
 📖 Published docs: https://doc.kanap.net/
 ```
@@ -75,45 +74,64 @@ Remaining undocumented: 12
 - `/it/connections` + workspace
 - `/it/connection-map`
 - `/it/locations` + workspace
-- `/ops/servers` + workspace
+- `/it/assets` + workspace
+- `/it/settings`
 
-### `ops` - Budget Operations
+### `ops` - Budget Management
+- `/ops` (overview)
+- `/ops/opex` + workspace
+- `/ops/capex` + workspace
 - `/ops/contracts` + workspace
-- `/ops/tasks` + workspace
-- `/ops/projects`
-- `/ops/operations` (landing)
+- `/ops/operations` (administration landing)
 - `/ops/operations/freeze`
 - `/ops/operations/copy-budget-columns`
 - `/ops/operations/copy-allocations`
 - `/ops/operations/column-reset`
 
 ### `master-data` - Master Data
+- `/master-data/companies` + workspace
 - `/master-data/departments` + workspace
+- `/master-data/suppliers` + workspace
 - `/master-data/contacts` + workspace
-- `/admin/suppliers` + workspace
+- `/master-data/business-processes` + workspace
+- `/master-data/coa` + workspace
+- `/master-data/analytics` + workspace
+- `/master-data/currency`
+- `/master-data/operations` (administration)
+- `/master-data/operations/freeze`
+- `/master-data/operations/copy`
 
-### `admin` - Admin Pages
-- `/admin` (landing)
+### `admin` - Admin & Settings
 - `/admin/users`
 - `/admin/roles`
+- `/admin/audit-logs`
 - `/admin/billing`
 - `/admin/auth`
+- `/admin/branding`
 
-### `reports` - Reports
+### `reports` - Budget Reports
 - `/ops/reports` (landing)
 - `/ops/reports/top-opex`
 - `/ops/reports/opex-delta`
-- `/ops/reports/budget-trend`
+- `/ops/reports/comparison`
+- `/ops/reports/capex/trend`
+- `/ops/reports/budget-columns-compare`
+- `/ops/reports/consolidation`
+- `/ops/reports/analytics`
 - `/ops/reports/chargeback/global`
 - `/ops/reports/chargeback/company`
 
-### `high-priority` - High Priority First
-Order from `_documentation-inventory.md`:
-1. `/it/applications`
-2. `/ops/contracts`
-3. `/ops/tasks`
-4. `/it/interfaces`
-5. `/master-data/departments`
+### `portfolio` - Portfolio Management
+- `/portfolio/tasks` + workspace
+- `/portfolio/requests` + workspace
+- `/portfolio/projects` + workspace
+- `/portfolio/planning`
+- `/portfolio/contributors` + workspace
+- `/portfolio/reports` (reporting landing + sub-reports)
+- `/portfolio/settings`
+
+### `knowledge` - Knowledge
+- `/knowledge` + workspace
 
 ## Notes
 
@@ -122,3 +140,4 @@ Order from `_documentation-inventory.md`:
 - Complex pages (like Applications with 6+ tabs) may take longer
 - After each page, the inventory is updated immediately
 - If interrupted, run again - already-documented pages will be skipped
+- Fast Track guides (`fast-track/*.md`) and On-Premise docs (`on-premise/*.md`) are not route-based and must be refreshed manually with `/doc-page`

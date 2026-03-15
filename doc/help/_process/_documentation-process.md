@@ -74,7 +74,7 @@ The current maintenance assets are:
 - `.claude/commands/doc-check.md`
 - `.claude/commands/doc-batch.md`
 
-The Claude command files remain useful references, but the workflow is no longer tied to the old `doc/user-manual/` structure.
+The Claude commands support single-page generation (`/doc-page`), staleness detection (`/doc-check`), and batch generation with refresh/stale modes (`/doc-batch`). See `doc/features/components/user-documentation-system.md` for full usage details.
 
 ---
 

@@ -1,92 +1,91 @@
 # Suppliers
 
-Suppliers (also known as vendors) represent the companies you purchase software, services, and support from. Link suppliers to applications, contracts, and OPEX items to track vendor relationships across your IT portfolio.
+Suppliers (also known as vendors) represent the companies you purchase software, services, and support from. Link suppliers to applications, contracts, and OPEX items to track vendor relationships and spending across your IT portfolio.
 
 ## Getting started
 
-Navigate to **Master Data → Suppliers** to see your vendor directory. Click **New** to create your first entry.
+Navigate to **Master Data > Suppliers** to open the supplier directory. Click **New** to create your first entry.
 
 **Required fields**:
-  - **Name**: The supplier/vendor name
+- **Name**: The supplier or vendor name
 
 **Optional but useful**:
-  - **ERP Supplier ID**: Reference ID from your ERP or procurement system
-  - **Notes**: Additional information about the vendor relationship
+- **ERP Supplier ID**: Reference ID from your ERP or procurement system
+- **Notes**: Free-form notes about the vendor relationship
 
-**Tip**: Create suppliers before adding applications or contracts—you'll be able to link them during creation.
+**Tip**: Create suppliers before adding applications or contracts -- you will be able to link them during creation.
 
 ---
 
 ## Working with the list
 
-The Suppliers grid provides a directory of all your vendors.
+The Suppliers list gives you a searchable, sortable directory of all your vendors.
 
 **Default columns**:
-  - **Name**: Supplier name (click to open workspace)
-  - **ERP Supplier ID**: Reference ID from external systems
-  - **Status**: Enabled or Disabled
+- **Name**: Supplier name (click to open workspace)
+- **ERP Supplier ID**: Reference ID from external systems
 
 **Additional columns** (via column chooser):
-  - **Notes**: Additional information
-  - **Created**: When the record was created
+- **Status**: Enabled or Disabled
+- **Notes**: Additional information
+- **Created**: When the record was created
 
-**Default sort**: By name (alphabetical).
+Every cell in a row is clickable and navigates to that supplier's workspace.
 
-**Status scope**: Use the Enabled/Disabled/All toggle to filter by status.
+**Default sort**: By name, alphabetical.
+
+**Filtering**:
+- Quick search: Searches across supplier fields
+- Status scope: Use the **Enabled / Disabled / All** toggle above the grid to filter by status
 
 **Actions**:
-  - **New**: Create a new supplier (requires `suppliers:manager`)
-  - **Import CSV**: Bulk import suppliers (requires `suppliers:admin`)
-  - **Export CSV**: Export to CSV (requires `suppliers:admin`)
-  - **Delete Selected**: Remove selected suppliers (requires `suppliers:admin`)
+- **New**: Create a new supplier (requires `suppliers:manager`)
+- **Import CSV**: Bulk-import suppliers (requires `suppliers:admin`)
+- **Export CSV**: Export the list to CSV (requires `suppliers:admin`)
+- **Delete Selected**: Remove selected suppliers (requires `suppliers:admin`)
 
 ---
 
-## The Suppliers workspace
+## The Supplier workspace
 
-Click any row to open the workspace. It has two tabs:
+Click any row to open the workspace. Use **Prev** and **Next** to step through suppliers without returning to the list. If you have unsaved changes, KANAP will prompt you before navigating away.
+
+The workspace has two tabs: **Overview** and **Contacts**.
 
 ### Overview
 
-The Overview tab captures the supplier's identity.
+The Overview tab captures the supplier's identity and status.
 
 **What you can edit**:
-  - **Name**: Supplier/vendor name
-  - **ERP Supplier ID**: Reference ID from your procurement or ERP system
-  - **Status**: Enabled or Disabled
-  - **Notes**: Free-form notes about the vendor
+- **Name**: Supplier or vendor name (required)
+- **ERP Supplier ID**: Reference ID from your procurement or ERP system
+- **Status**: Enabled or Disabled, with an optional disabled-from date
+- **Notes**: Free-form notes about the vendor
+
+Editing requires `suppliers:manager` permission. Read-only users see the same fields but cannot make changes.
 
 ---
 
 ### Contacts
 
-The Contacts tab shows all contacts linked to this supplier.
+The Contacts tab organises contacts linked to this supplier into four role categories:
 
-**What you'll see**:
-- List of contacts associated with this supplier
-- Each contact's name, job title, email, and phone numbers
+| Role | Purpose |
+|------|---------|
+| **Commercial** | Sales and account management contacts |
+| **Technical** | Engineering and technical support contacts |
+| **Support** | Helpdesk and customer support contacts |
+| **Other** | Any contact that does not fit the above roles |
 
 **How it works**:
-- Contacts are linked to suppliers via the Contact's "Supplier" field
-- Add new contacts from the Contacts page, selecting this supplier
-- Or use the quick-add button to create a contact directly
+- Each role section lists its linked contacts in a table showing first name, last name, job title, email, and mobile
+- Click a contact row to open that contact's workspace
+- Use **Add** to search for and attach an existing contact to a role
+- Use **Create** to create a brand-new contact and link it in one step -- KANAP will return you to this tab afterward
 
-**Tip**: Keep at least one primary contact per supplier for easy vendor communication.
+**Tip**: Keep at least one contact per supplier so that vendor communication is always one click away.
 
----
-
-## Where suppliers are used
-
-Suppliers are referenced throughout KANAP:
-
-### Applications
-In the Applications workspace, the Overview tab has a **Vendor** field linking to suppliers.
-
-### Contracts
-Each contract has a **Supplier** field identifying the vendor party.
-
-### OPEX Items
-Recurring costs can be linked to suppliers for vendor spend analysis.
+When creating a new supplier, the Contacts tab is disabled until you save the record.
 
 ---
 
@@ -94,27 +93,27 @@ Recurring costs can be linked to suppliers for vendor spend analysis.
 
 Manage suppliers in bulk using CSV.
 
-**Export**: Downloads all suppliers with their details.
+**Export**: Downloads all suppliers with their current details.
 
 **Import**:
-  - Use **Preflight** to validate before applying
-  - Matched by supplier name
-  - Can create new suppliers or update existing ones
+- Use **Preflight** to validate the file before applying changes
+- Rows are matched by supplier name
+- Can create new suppliers or update existing ones
 
 **Required fields**: Name
 
 **Optional fields**: ERP Supplier ID, Notes, Status
 
-**Notes**:
-  - Use **UTF-8 encoding** and **semicolons** as separators
-  - Consider importing suppliers before importing applications or contracts that reference them
+**Formatting**:
+- Use **UTF-8** encoding and **semicolons** as separators
+- Import suppliers before importing applications or contracts that reference them
 
 ---
 
 ## Tips
 
-  - **Be consistent with naming**: Use official vendor names (e.g., "Microsoft Corporation" not "MS" or "MSFT").
-  - **Add ERP IDs**: If you have an ERP system, add the supplier ID for easy cross-reference.
-  - **Disable don't delete**: When you stop working with a vendor, disable them to preserve historical data.
-  - **Maintain contacts**: Keep the Contacts tab updated with current vendor representatives.
-  - **Create before linking**: Add suppliers to master data before creating applications or contracts that reference them.
+- **Be consistent with naming**: Use official vendor names (e.g., "Microsoft Corporation" rather than "MS" or "MSFT") to avoid duplicates.
+- **Add ERP IDs early**: If you use an ERP system, recording the supplier ID makes cross-referencing straightforward.
+- **Disable, do not delete**: When you stop working with a vendor, disable them instead of deleting to preserve historical data in contracts and applications.
+- **Organise contacts by role**: Use the four role categories to make it easy for colleagues to find the right person at each vendor.
+- **Create before linking**: Add suppliers to master data before creating applications or contracts that reference them.

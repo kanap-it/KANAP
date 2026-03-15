@@ -225,6 +225,7 @@ export default function ConnectionsPage() {
       <ServerDataGrid<ConnectionRow>
         columns={columns}
         endpoint="/connections"
+        showRowCount
         queryKey="connections"
         extraParams={filterParams}
         enableSearch

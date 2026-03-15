@@ -172,6 +172,13 @@ The **Purpose** section on Summary is a managed project document, not a disposab
 
 This split is deliberate. It allows narrative ownership to be broader than structural project administration.
 
+The Purpose editor includes document import and export:
+
+- **Import** accepts a `.docx` file and converts it to the internal markdown format. If the Purpose already has content, KANAP asks for confirmation before replacing it.
+- **Export** lets you download the current Purpose as PDF, DOCX, or ODT.
+
+These tools are useful when a project brief originates in Word or when stakeholders need a formatted copy outside KANAP.
+
 The managed Purpose document is different from the **Knowledge** tab:
 
 - **Purpose** is the embedded, project-owned brief
@@ -374,3 +381,4 @@ Again, sending a link does not grant access. It only saves people from hunting f
 - Use **Timeline** to define delivery structure before task volume grows.
 - Use **Progress** regularly, otherwise effort variance arrives as a surprise even though the data was already warning you.
 - Use **Knowledge** for reusable or governed documentation, not as a second copy of the Purpose brief.
+- Use **Import** on the Purpose editor when a project brief already exists as a Word document, rather than reformatting it by hand.

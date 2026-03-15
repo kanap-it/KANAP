@@ -1,174 +1,192 @@
 # Master Data Administration
 
-Master Data Administration provides administrative tools to manage company and department metrics across fiscal years. These operations help you prepare annual budgets, protect finalized data, and maintain year-over-year consistency.
+Master Data Administration gives you the tools to manage company and department metrics across fiscal years. Whether you need to lock down finalized numbers, copy a baseline forward for next year's planning, or simply check what is frozen and what is not, this is where you do it.
 
-Access these tools at **Master Data → Administration**.
+## Where to find it
 
-## Available operations
+- Workspace: **Master Data**
+- Path: **Master Data → Administration**
+- Permissions:
+  - View freeze status: any authenticated user
+  - Freeze / unfreeze: `companies:admin`, `departments:admin`, or `budget_ops:admin`
+  - Copy data: `companies:admin`, `departments:admin`, or `budget_ops:admin`
 
-### Freeze / Unfreeze Data
+The landing page shows two operation cards. Click one to open the corresponding tool.
 
-Lock or unlock company and department metrics for a specific year to prevent accidental changes after data is finalized.
+---
 
-**Use cases**:
-  - Protect finalized metrics after year-end close
-  - Prevent edits during audit or reporting periods
-  - Lock baseline data before starting next year's planning
+## Freeze / Unfreeze Data
 
-**How it works**:
-  1. Select the **year** you want to freeze or unfreeze
-  2. Choose which data to freeze: **Companies** (headcount, IT users, turnover) or **Departments** (headcount)
-  3. Click **Freeze Data** to lock the selected data, or **Unfreeze Data** to unlock it
+Use this tool to lock or unlock company and department metrics for a specific year. Freezing prevents accidental edits after data has been finalized -- useful at year-end close, during audits, or before kicking off next year's budget cycle.
 
-**Status display**:
-  - **Frozen**: Data cannot be edited (shown in red)
-  - **Editable**: Data can be modified (shown as default)
-  - Status cards show who froze the data and when
+### How it works
 
-**Permissions**: You need admin access to Companies, Departments, or Budget Administration to freeze/unfreeze data.
+1. Select the **Year** you want to manage (range covers the previous year through five years ahead)
+2. Check the scopes you want to act on: **Companies**, **Departments**, or both
+3. Click **Freeze Data** to lock, or **Unfreeze Data** to unlock
 
-**Important**: Freezing prevents edits to yearly metrics in the Details tab of Companies or Departments. It does not affect the Overview tab (name, description, etc.) or OPEX/CAPEX items.
+The page shows a status card for each scope:
 
-### Master Data Copy
+- **Frozen** (red) -- data is read-only for that year; the card shows who froze it and when
+- **Editable** -- data can still be modified
 
-Copy company and department metrics from one year to another with a dry-run preview before committing changes.
+### What freezing affects
 
-**Use cases**:
-  - Bootstrap next year's planning with current year's data
-  - Copy baseline metrics forward when organizational structure remains stable
-  - Save time by avoiding manual re-entry of recurring values
+Freezing locks the yearly metrics on the **Details** tab of Companies (headcount, IT users, turnover) or Departments (headcount). It does not affect:
 
-**How it works**:
-  1. Select **Source Year** (where to copy from)
-  2. Select **Data Sources** (Companies, Departments, or both)
-  3. Select **Destination Year** (where to copy to)
-  4. For Companies: Choose which **metrics** to copy (Headcount, IT Users, Turnover)
-  5. Click **Dry Run** to preview what will be copied
-  6. Review the preview table showing source values, current destination values, and new values
-  7. Click **Copy Data** to apply the changes
+- The Overview tab (name, description, and other general fields)
+- OPEX or CAPEX items
 
-**Preview table columns**:
-  - **Type**: Company or Department
-  - **Name**: Entity name
-  - **Metric**: Which metric is being copied (Headcount, IT Users, Turnover)
-  - **Source Value**: Value from the source year
-  - **Current Destination**: Existing value in the destination year (if any)
-  - **New Value**: Value that will be written (highlighted)
-  - **Status**: Ready to copy or skipped (with reason)
+### Permissions
 
-**Skipped items**: Rows are skipped (shown in orange) when:
-  - Source metric is null or empty
-  - Destination year is frozen (must unfreeze first)
-  - Entity is disabled and not active for the destination year
+You need admin access on the relevant scope to freeze or unfreeze:
 
-**Summary cards** show:
-  - Total rows in the preview
-  - Ready to copy (will be updated)
-  - Skipped (excluded with reason)
-  - Errors (if any)
+| Scope | Required permission |
+|---|---|
+| Companies | `companies:admin` or `budget_ops:admin` |
+| Departments | `departments:admin` or `budget_ops:admin` |
 
-**Permissions**: You need admin access to Companies or Departments (or Budget Administration) to copy their respective metrics.
+If you lack the required permissions, the page still lets you review the current freeze status -- you just cannot change it.
 
-**Frozen data protection**: You cannot copy data to a frozen year. Unfreeze the destination year first using the Freeze/Unfreeze tool.
+---
 
-**Tip**: Always run a Dry Run first. Review the preview table to verify which values will be overwritten, then click Copy Data to commit.
+## Master Data Copy
 
-## CSV export
+Copy company and department metrics from one fiscal year to another. A built-in dry run lets you preview every row before committing, so you always know what will be overwritten.
 
-Both operations support **Export to CSV** via the export button in the toolbar. The Master Data Copy preview table can be exported to review the operation details offline or share with stakeholders.
+### How it works
+
+1. Select a **Source Year** (where to read values from)
+2. Select **Data Sources**: Companies, Departments, or both
+3. Select a **Destination Year** (where to write values to)
+4. If Companies is selected, pick which **Company Metrics** to copy -- any combination of Headcount, IT Users, and Turnover
+5. Click **Dry Run** to generate a preview
+6. Review the preview table
+7. Click **Copy Data** to apply the changes
+
+### Preview table columns
+
+| Column | What it shows |
+|---|---|
+| **Type** | Company or Department |
+| **Name** | Entity name |
+| **Metric** | Headcount, IT Users, or Turnover |
+| **Source Value** | The value from the source year |
+| **Current Destination** | The existing value in the destination year (if any) |
+| **New Value** | The value that will be written -- shown in bold |
+| **Status** | "Ready to copy" or the reason the row was skipped |
+
+Skipped rows appear in a warning colour. Common skip reasons:
+
+- Source value is null or empty
+- Destination year is frozen for that scope
+- Entity is not active for the destination year
+
+### Summary cards
+
+Below the grid, four summary cards give you a quick count:
+
+- **Total rows** -- everything the operation evaluated
+- **Ready to copy** -- rows that will be written
+- **Skipped** -- rows excluded (with reasons visible in the table)
+- **Errors** -- rows that failed during the actual copy
+
+### Frozen data protection
+
+You cannot copy data into a frozen year. If the destination year is frozen for Companies or Departments, an error banner appears and the action buttons are disabled. Unfreeze the destination year first using the Freeze / Unfreeze tool.
+
+### CSV export
+
+You can export the preview table to CSV using the export button in the toolbar. This is handy for offline review or sharing with colleagues before committing.
+
+### Permissions
+
+The same rules apply as for freezing:
+
+| Scope | Required permission |
+|---|---|
+| Companies | `companies:admin` or `budget_ops:admin` |
+| Departments | `departments:admin` or `budget_ops:admin` |
+
+If you only have access to one scope, the other is greyed out in the Data Sources selector.
+
+---
 
 ## Common scenarios
 
-### Scenario 1: Protecting finalized year-end data
+### Protecting finalized year-end data
 
-Your 2024 budget is finalized and approved. You want to lock the data to prevent accidental changes.
+Your 2025 budget is approved. Lock it so no one accidentally changes the numbers.
 
-**Steps**:
-  1. Go to **Master Data → Master Data Administration → Freeze / Unfreeze Data**
-  2. Select year **2024**
-  3. Check **Companies** and **Departments**
-  4. Click **Freeze Data**
+1. Open **Master Data → Administration → Freeze / Unfreeze Data**
+2. Select year **2025**
+3. Check **Companies** and **Departments**
+4. Click **Freeze Data**
 
-**Result**: All company and department metrics for 2024 are now locked. Users cannot edit headcount, IT users, or turnover for 2024 until you unfreeze.
+All company and department metrics for 2025 are now read-only until you unfreeze them.
 
-### Scenario 2: Bootstrapping 2025 budget with 2024 baseline
+### Bootstrapping next year's budget
 
-You want to start planning for 2025 using 2024's headcount and turnover as a starting point.
+You want to start 2026 planning using 2025 headcount and turnover as a baseline.
 
-**Steps**:
-  1. Go to **Master Data → Master Data Administration → Master Data Copy**
-  2. Select **Source Year: 2024**
-  3. Select **Destination Year: 2025**
-  4. Select **Data Sources: Companies**
-  5. Select **Company Metrics: Headcount, Turnover** (exclude IT Users if not needed)
-  6. Click **Dry Run** to preview
-  7. Review the table: verify source values look correct and check for skipped items
-  8. Click **Copy Data**
+1. Open **Master Data → Administration → Master Data Copy**
+2. Set **Source Year** to **2025** and **Destination Year** to **2026**
+3. Under **Data Sources**, select **Companies**
+4. Under **Company Metrics**, select **Headcount** and **Turnover** (deselect IT Users if you do not need it)
+5. Click **Dry Run** and review the preview
+6. Click **Copy Data**
 
-**Result**: All companies now have 2024's headcount and turnover copied to 2025. You can then edit individual companies to adjust for expected growth or changes.
+All companies now carry 2025's headcount and turnover into 2026. Adjust individual values as needed.
 
-### Scenario 3: Copying only new companies to next year
+### Making a correction to frozen data
 
-You added 5 new companies mid-year in 2024. You want to copy their metrics to 2025 without overwriting existing 2025 data.
+You froze 2025 but spotted an error in one company's headcount.
 
-**Steps**:
-  1. Run a **Dry Run** with Source Year 2024, Destination Year 2025, Companies, all metrics
-  2. Review the **Current Destination** column in the preview table
-  3. Rows with empty "Current Destination" are new; rows with values will be overwritten
-  4. If you only want to copy new companies, you'll need to do this manually or accept the overwrite
+1. Open **Master Data → Administration → Freeze / Unfreeze Data**
+2. Select year **2025**, check **Companies**, and click **Unfreeze Data**
+3. Edit the company's headcount in **Master Data → Companies → Details**
+4. Return to the Freeze tool and re-freeze 2025 Companies
 
-**Note**: The Copy tool does not have a "skip if destination exists" option—it always overwrites. To selectively copy only new entities, use CSV export/import instead.
-
-### Scenario 4: Unfreezing data to make corrections
-
-You froze 2024 data but discovered an error in one company's headcount. You need to fix it.
-
-**Steps**:
-  1. Go to **Master Data → Master Data Administration → Freeze / Unfreeze Data**
-  2. Select year **2024**
-  3. Check **Companies**
-  4. Click **Unfreeze Data**
-  5. Edit the company's headcount in **Master Data → Companies → Details**
-  6. Return to Freeze/Unfreeze and refreeze 2024 Companies when done
-
-**Result**: The correction is made, and the data is re-locked to prevent further changes.
+---
 
 ## Frequently asked questions
 
-**Q: What happens if I freeze a year and then try to edit it?**
-A: The Details tab for Companies or Departments will be read-only for that year. You'll see a message indicating the year is frozen. Unfreeze the year to make edits.
+**What happens if I try to edit a frozen year?**
+The Details tab for Companies or Departments becomes read-only for that year. You will see a message indicating the data is frozen. Unfreeze to make changes.
 
-**Q: Does freezing affect OPEX or CAPEX items?**
-A: No. Freezing only locks company and department yearly metrics (headcount, IT users, turnover). OPEX and CAPEX items are not affected.
+**Does freezing affect OPEX or CAPEX items?**
+No. Freezing only locks yearly metrics (headcount, IT users, turnover) on Companies and Departments. OPEX and CAPEX items are unaffected.
 
-**Q: Can I copy data to a frozen year?**
-A: No. The Master Data Copy tool will block the operation and show an error. Unfreeze the destination year first.
+**Can I copy data to a frozen year?**
+No. The Copy tool will show an error and disable the action buttons. Unfreeze the destination year first.
 
-**Q: What happens if I copy metrics and the destination year already has values?**
-A: The copy operation **overwrites** existing values. Always run a Dry Run first to see which values will be replaced. The "Current Destination" column shows what will be lost.
+**What happens if the destination already has values?**
+The copy operation overwrites them. Always run a Dry Run first so you can see the "Current Destination" column and understand what will be replaced.
 
-**Q: Can I undo a copy operation?**
-A: No. The copy operation is not reversible. Run a Dry Run first, and if needed, export a CSV backup of the destination year before copying.
+**Can I undo a copy?**
+No. Copy operations are not reversible. If you need a safety net, export the destination year's data to CSV before copying.
 
-**Q: Why are some rows skipped in the copy preview?**
-A: Rows are skipped if the source metric is null, the entity is disabled for the destination year, or the destination is frozen. Check the "Status" column for the reason.
+**Why are some rows skipped?**
+Rows are skipped when the source value is null, the entity is inactive for the destination year, or the destination is frozen. The Status column in the preview tells you which reason applies.
 
-**Q: Can I copy metrics selectively (e.g., only headcount for some companies)?**
-A: No. The copy operation applies to all companies or departments for the selected metrics. For selective copying, use CSV export/import.
+**Can I copy only specific companies or departments?**
+No. The tool copies all entities for the selected scopes and metrics. For selective updates, use CSV export/import on the individual Companies or Departments pages instead.
 
-**Q: Does the copy operation create new companies or departments?**
-A: No. It only copies metrics for existing entities. If a company exists in the source year but not the destination year, that row is skipped.
+**Does the copy create new companies or departments?**
+No. It only writes metrics for entities that already exist in both years. If a company exists in the source year but not the destination, that row is skipped.
 
-**Q: Who can see freeze status?**
-A: Anyone can view freeze status. Only users with admin access to Companies, Departments, or Budget Administration can freeze or unfreeze data.
+**Who can see freeze status?**
+Anyone with access to the Master Data workspace. Only admins on the relevant scope can actually freeze or unfreeze.
 
-**Q: Can I freeze future years?**
-A: Yes. You can freeze any year within the available range (typically Y-1 to Y+5). This is useful for locking approved budgets before the year starts.
+**Can I freeze future years?**
+Yes. The year picker covers a range from last year through five years ahead. Freezing a future year is useful for locking approved budgets before the fiscal year starts.
+
+---
 
 ## Tips
 
-  - **Always dry run first**: Review the preview before copying to avoid accidental overwrites
-  - **Freeze after approval**: Lock data after budgets are finalized to prevent drift
-  - **Unfreeze temporarily**: If you need to make corrections, unfreeze, edit, then refreeze
-  - **Copy early in the cycle**: Start next year's planning by copying current year metrics, then adjust for expected changes
-  - **Check permissions**: Ensure you have admin access to the scopes you want to freeze or copy
+- **Always dry run first** -- review the preview table before committing to avoid accidental overwrites
+- **Freeze after approval** -- lock data as soon as budgets are signed off to prevent drift
+- **Unfreeze temporarily** -- make your correction, then re-freeze right away
+- **Copy early** -- start the next planning cycle by copying current-year metrics forward, then adjust for expected changes
+- **Check your permissions** -- if a scope is greyed out, ask an admin to grant you the right access level

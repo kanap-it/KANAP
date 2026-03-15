@@ -44,7 +44,7 @@ pip install mkdocs-material
 mkdocs serve  # Preview at http://localhost:8000
 ```
 
-**To generate/update a page**: Use the repo-local Codex skill at `.codex/skills/user-manual-maintainer/` or the legacy Claude prompt in `.claude/commands/doc-page.md`.
+**To generate/update a page**: Use `/doc-page <route>` for a single page, `/doc-batch <category>` for bulk generation, or `/doc-check` for staleness detection. Commands are defined in `.claude/commands/doc-*.md`; there is also a Codex skill at `.codex/skills/user-manual-maintainer/`.
 
 ---
 

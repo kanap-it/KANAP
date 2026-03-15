@@ -18,17 +18,19 @@ For role-specific workflows, see the [Portfolio Fast Track](index.md) and [IT Op
 
 ## The Big Picture
 
-KANAP is organized around a simple structure:
+KANAP is organized around a simple structure. The top bar shows the sections you have access to:
 
 | Area | What it contains |
 |------|-----------------|
-| **Dashboard** | Your personal hub — click the KANAP logo |
-| **Portfolio** | Requests, Projects, Tasks, Planning, Reporting, Contributors |
-| **IT Operations** | Applications, Assets, Connections, Interfaces, Locations |
-| **Budget** | OPEX, CAPEX, Contracts, Budget Administration |
-| **Admin** | Users, Roles, Billing (admin-only) |
+| **Dashboard** | Your personal hub — click the KANAP logo or navigate to `/` |
+| **Portfolio** | Tasks, Requests, Projects, Planning, Reporting, Contributors |
+| **IT Operations** | Applications, Interfaces, Interface Map, Assets, Connections, Connection Map, Locations |
+| **Knowledge** | Documents and templates with review workflows |
+| **Budget Management** | OPEX, CAPEX, Contracts, Reporting, Administration |
+| **Master Data** | Companies, Departments, Suppliers, Contacts, Charts of Accounts, Currency, Business Processes, Analytics Dimensions |
+| **Admin** | Users, Roles, Audit Log, Billing, Authentication, Branding (admin-only) |
 
-You don't need access to everything. Your role determines which modules and actions are available to you. If something is missing from your menu, ask your administrator.
+You don't need access to everything. Your role determines which sections and actions are available to you. If something is missing from your menu, ask your administrator.
 
 ---
 
@@ -38,7 +40,7 @@ After logging in, you land on the **Dashboard**. This is your personal command c
 
 ### What you'll see
 
-A grid of tiles, each showing a different aspect of your work:
+A grid of tiles, each showing a different aspect of your work. Here are the most common ones:
 
 | Tile | What it shows |
 |------|--------------|
@@ -48,13 +50,18 @@ A grid of tiles, each showing a different aspect of your work:
 | **My Time Last Week** | Hours logged, breakdown by category, top projects |
 | **Recently Viewed** | Items you recently opened across the app |
 | **New Requests** | Portfolio requests created recently |
+| **Knowledge** | Documents awaiting your review, plus your recently accessed docs |
+| **Team Activity** | Recent project activity on projects you're involved with |
+| **Project Status Changes** | Latest project status changes |
+| **Stale Tasks** | Tasks that haven't been updated in a while |
 
 ### Quick Actions
 
-At the top of the dashboard, you'll find two shortcut buttons:
+At the top of the dashboard, you'll find shortcut buttons for common actions:
 
 - **Create Task** — open a quick dialog to create a task without leaving the dashboard
 - **Log Time** — log hours against a project in seconds
+- **New Document** — start a blank Knowledge document or create one from a template
 
 ### Customize it
 
@@ -67,7 +74,7 @@ Click the **Settings** icon (gear) to choose which tiles appear. Only tiles you 
 
 ## Step 2: Set Up Your Profile
 
-Click your **avatar** (top-right) → **Settings**, or navigate to `/settings/profile`.
+Click your **avatar** (top-right) → **My Profile**, or navigate to `/settings/profile`.
 
 ### Profile tab
 
@@ -108,6 +115,16 @@ Click **Preview email** to send yourself a test and see what it looks like.
 
 !!! tip "Don't skip this"
     The weekly email is surprisingly useful. It surfaces tasks you might have forgotten, upcoming deadlines, and recent activity. Set it up once and let it work for you.
+
+### Appearance tab
+
+Choose your preferred theme mode:
+
+- **Light** — bright interface
+- **Dark** — reduced glare for low-light environments
+- **System** — follows your operating system preference
+
+You can also toggle the theme quickly from the top bar using the theme icon (sun/moon) next to the help button.
 
 ---
 
@@ -270,11 +287,13 @@ The weekly email and real-time notifications keep you in the loop without checki
 | See my overview | Dashboard (click KANAP logo) |
 | Create a task quickly | Dashboard → Create Task button |
 | Log time quickly | Dashboard → Log Time button |
+| Start a new document | Dashboard → New Document button |
 | See all my tasks | Portfolio → Tasks (scope: My Tasks) |
 | See everything in the org | Any list → scope filter → "All" |
-| Update my profile | Avatar → Settings → Profile |
-| Set up notifications | Avatar → Settings → Notifications |
-| Configure weekly email | Avatar → Settings → Notifications → Weekly Review |
+| Update my profile | Avatar → My Profile → Profile tab |
+| Set up notifications | Avatar → My Profile → Notifications tab |
+| Configure weekly email | Avatar → My Profile → Notifications tab → Weekly Review |
+| Change theme (light/dark) | Avatar → My Profile → Appearance tab |
 | Set my availability | Portfolio → Contributors → your name |
 | Add my skills | Portfolio → Contributors → your name → Skills tab |
 | Share a link to anything | Open any workspace → Send Link |
@@ -283,4 +302,4 @@ The weekly email and real-time notifications keep you in the loop without checki
 ---
 
 !!! success "You're ready"
-    You now know how to navigate KANAP, manage your tasks, configure your notifications, and set up your contributor profile. Start with your dashboard each morning, keep your tasks updated, and log time regularly — the rest will follow naturally.
+    You now know how to navigate KANAP, manage your tasks, configure your profile and notifications, and set up your contributor profile. Start with your dashboard each morning, keep your tasks updated, and log time regularly — the rest will follow naturally.

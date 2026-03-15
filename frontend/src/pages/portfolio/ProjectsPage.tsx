@@ -473,6 +473,7 @@ export default function ProjectsPage() {
       <ServerDataGrid<ProjectRow>
         columns={columns}
         endpoint="/portfolio/projects"
+        showRowCount
         queryKey="portfolio-projects"
         getRowId={(r) => r.id}
         enableSearch

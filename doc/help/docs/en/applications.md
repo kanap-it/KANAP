@@ -36,7 +36,7 @@ Different teams can use categories to focus on their area of responsibility:
 
 ## Getting started
 
-Navigate to **IT Operations → Applications** to see your list. Click **New Application** to create your first entry.
+Navigate to **IT Operations → Applications** to see your list. Click **New App / Service** to create your first entry.
 
 **Required fields**:
   - **Name**: A recognizable name for the application or service
@@ -71,7 +71,7 @@ The Applications grid provides a comprehensive view of your application portfoli
   - **My team's apps**: shows apps where any member of your Portfolio team is listed as Business Owner or IT Owner. Your own ownership is also included in this scope.
   - **All apps**: shows the full Applications grid (with the standard default lifecycle filter behavior).
   - If you are not assigned to a Portfolio team, **My team's apps** is disabled
-  - Your selection is remembered across sessions — returning to the page restores your last choice
+  - Your selection is remembered across sessions -- returning to the page restores your last choice
 
 **Default columns**:
   - **Name**: Application name with category badge and suite membership
@@ -84,11 +84,11 @@ The Applications grid provides a comprehensive view of your application portfoli
   - **Created**: When the record was created
 
 **Default sort**:
-  - **Name** ascending (A → Z)
+  - **Name** ascending (A to Z)
 
 **Additional columns** (via column chooser):
   - **Suites**: Parent suites this application belongs to
-  - **Vendor**: Linked supplier name
+  - **Supplier**: Linked supplier name
   - **Business Owners** / **IT Owners**: Assigned owners
   - **Hosting**: Derived from server locations assigned to app instances
   - **External Facing**: Whether the app is internet-accessible
@@ -104,7 +104,7 @@ The Applications grid provides a comprehensive view of your application portfoli
   - Retired applications are hidden by default; use the Lifecycle filter to include Retired
 
 **Actions**:
-  - **New Application**: Create a new entry (requires manager permission)
+  - **New App / Service**: Create a new entry (requires manager permission)
   - **Import CSV**: Bulk import from CSV file (requires admin permission)
   - **Export CSV**: Export the list to CSV (requires admin permission)
   - **Copy item**: Duplicate a selected application with all its relations (requires manager permission)
@@ -114,7 +114,7 @@ The Applications grid provides a comprehensive view of your application portfoli
 
 ## The Applications workspace
 
-Click any row in the list to open the workspace. It has eight tabs:
+Click any row in the list to open the workspace. It has nine tabs:
 
 ### Overview
 
@@ -124,7 +124,7 @@ The Overview tab captures the core identity of your application.
   - **Name**: The application's display name
   - **Description**: What this application does
   - **Category**: The application's primary purpose (configurable in IT Operations Settings)
-  - **Vendor**: Link to a supplier from your master data
+  - **Supplier**: Link to a supplier from your master data
   - **Publisher**: The software publisher
   - **Criticality**: Business critical, High, Medium, or Low
   - **Lifecycle**: Current status (configurable in IT Operations Settings)
@@ -140,7 +140,7 @@ The Overview tab captures the core identity of your application.
 
 **Version history**: If this application was created from another version (using the **Create New Version** feature), a version timeline appears at the top of the Overview tab. Click any version chip to navigate to that version.
 
-**Suite membership**: If an application belongs to a suite, you'll see the suite badge in the list. The "Can have child apps" toggle becomes disabled when an application belongs to a parent suite—remove the suite relationship first to re-enable it.
+**Suite membership**: If an application belongs to a suite, you'll see the suite badge in the list. The "Can have child apps" toggle becomes disabled when an application belongs to a parent suite -- remove the suite relationship first to re-enable it.
 
 ---
 
@@ -162,7 +162,7 @@ The Instances tab documents where your application runs across different environ
   - **Copy from Prod**: Quickly create instances for other environments based on your Production setup
   - **Bulk Apply**: Apply changes to multiple environments at once
 
-**Tip**: Instance changes save immediately—no need to click the main Save button.
+**Tip**: Instance changes save immediately -- no need to click the main Save button.
 
 ---
 
@@ -182,7 +182,7 @@ The Servers tab shows which infrastructure assets support each application insta
 
 ### Interfaces
 
-The Interfaces tab shows all integrations where this application participates—either as source, target, or middleware.
+The Interfaces tab shows all integrations where this application participates -- either as source, target, or middleware.
 
 **What you'll see**:
   - Interfaces grouped by environment (Prod, Pre-prod, QA, etc.)
@@ -241,17 +241,29 @@ The Technical & Support tab captures technical details and support contacts.
 
 ### Relations
 
-The Relations tab links this application to your financial and contract data.
+The Relations tab links this application to your financial, contract, and project data.
 
 **Available links**:
   - **OPEX Items**: Recurring costs associated with this application
   - **CAPEX Items**: Capital expenditure projects
   - **Contracts**: Vendor contracts
-  - **URLs**: External links and documentation
+  - **Projects**: Portfolio projects linked to this application
+  - **Relevant websites**: External links and documentation
+  - **Attachments**: Upload files by drag-and-drop or file picker. Downloaded by clicking the file chip.
 
 **If this is a Suite**:
   - You'll also see a **Components** section listing child applications
   - Manage child applications by enabling "Can have child apps" in the Overview tab
+
+---
+
+### Knowledge
+
+The Knowledge tab connects this application to your organization's knowledge base. You can link existing knowledge documents or create new ones directly from the workspace.
+
+This is useful for attaching runbooks, architecture decisions, operational procedures, or any internal documentation that relates to the application.
+
+**Tip**: Knowledge documents are shared across the organization. Linking one here does not restrict its visibility -- it simply creates a convenient cross-reference.
 
 ---
 
@@ -275,12 +287,12 @@ KANAP offers **two ways to manage application versions**, depending on how your 
 
 | Approach | Best for | What happens |
 |----------|----------|--------------|
-| **Simple** | Most applications | Update the version fields in place—same record, new version number |
-| **Sophisticated** | Major migrations | Create a new application record with lineage tracking—run old and new versions side by side |
+| **Simple** | Most applications | Update the version fields in place -- same record, new version number |
+| **Sophisticated** | Major migrations | Create a new application record with lineage tracking -- run old and new versions side by side |
 
 ### Simple version tracking (in-place updates)
 
-For most applications—where you upgrade and the old version simply goes away—just update the version fields in the **Overview** tab:
+For most applications -- where you upgrade and the old version simply goes away -- just update the version fields in the **Overview** tab:
   - **Version**: Enter the current version (e.g., "4.2.1", "2023", "Q1 2024")
   - **Go Live Date**: When this version went or will go live
   - **End of Support**: When vendor support ends
@@ -288,7 +300,7 @@ For most applications—where you upgrade and the old version simply goes away�
 
 This approach keeps everything in a single record. When you upgrade, update the version fields and you're done. History is tracked in the audit log.
 
-**Use this when**: upgrades happen in place with no overlap—one version replaces another.
+**Use this when**: upgrades happen in place with no overlap -- one version replaces another.
 
 ### Creating a new version (parallel migrations)
 
@@ -363,7 +375,7 @@ There are two ways to copy an application in KANAP:
 
 ### Copy Item (from Applications grid)
 
-Use this when you want to create an independent duplicate of an application—typically to create a similar application entry without version lineage.
+Use this when you want to create an independent duplicate of an application -- typically to create a similar application entry without version lineage.
 
 1. Select an application in the grid
 2. Click **Copy item**
@@ -438,9 +450,9 @@ From the Applications list:
 | Preset | Description |
 |--------|-------------|
 | **Full Export** | All exportable fields including computed/read-only data (timestamps, data residency, user metrics) |
-| **Data Enrichment** | Only importable fields—ideal for round-trip editing workflows |
+| **Data Enrichment** | Only importable fields -- ideal for round-trip editing workflows |
 
-**Template export**: Downloads headers only—useful for preparing import files with the correct structure. The template includes all importable fields.
+**Template export**: Downloads headers only -- useful for preparing import files with the correct structure. The template includes all importable fields.
 
 **Custom selection**: Choose specific fields to include in your export.
 
@@ -450,8 +462,8 @@ From the Applications list:
 
 2. **Choose import settings**:
    - **Mode**:
-     - `Enrich` (default): Empty cells preserve existing values—only update what you specify
-     - `Replace`: Empty cells clear existing values—full replacement of all fields
+     - `Enrich` (default): Empty cells preserve existing values -- only update what you specify
+     - `Replace`: Empty cells clear existing values -- full replacement of all fields
    - **Operation**:
      - `Upsert` (default): Create new applications or update existing ones
      - `Update only`: Only modify existing applications, skip new ones
@@ -578,5 +590,6 @@ Custom ERP;lob;;medium;Active;2018-03-20;false
   - **Start with critical apps**: Document your business-critical applications first, then work down the criticality levels.
   - **Use Suites for grouping**: Mark an application as a Suite to group related components (e.g., SAP modules under an SAP Suite).
   - **Link to spend early**: Connect OPEX and CAPEX items in the Relations tab to see the full cost picture.
-  - **Keep environments current**: The Instances tab drives the environment chips in the list—keep it updated for accurate visibility.
+  - **Keep environments current**: The Instances tab drives the environment chips in the list -- keep it updated for accurate visibility.
   - **Leverage category filtering**: Use the Category column filter to focus on specific application types (e.g., show only Line-of-business apps, or exclude Productivity tools).
+  - **Attach knowledge early**: Link runbooks and architecture documents in the Knowledge tab so the team knows where to look during incidents.

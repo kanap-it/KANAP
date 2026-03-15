@@ -69,6 +69,8 @@ Document types matter because they:
 
 One subtle but important behavior: if a document was created from a template and you later change its document type to a different type, the template link is cleared. That prevents the article from pretending it still follows a template it no longer matches.
 
+When browsing the **Templates** library, administrators can open the **Manage Types** panel to create, rename, or deactivate document types.
+
 ### Managed documents
 
 Some Knowledge articles are created from Requests, Projects, Applications, Assets, or Tasks. These appear as **Integrated** documents.
@@ -100,7 +102,9 @@ The default grid focuses on document identity and governance:
 - **Folder**
 - **Updated**
 
-When you switch to **All libraries**, the **Library** column becomes useful because you are no longer browsing a single library tree.
+**Additional columns** (hidden by default, available via column chooser):
+- **Template**: shows the template the document was created from, if any
+- **Library**: appears automatically when **All libraries** is enabled, and can be shown manually otherwise
 
 ### Search, filters, and browsing
 
@@ -117,16 +121,28 @@ The **All libraries** switch changes the experience significantly:
 
 Single-library browsing is better for curation. All-library search is better for retrieval.
 
+**Filtering**:
+- Quick search bar at the top of the grid
+- Column filters on **Status**, **Type**, **Owner**, **Folder**, **Template**, and **Library** using checkbox-set selectors
+
 ### Moving documents and folders
 
-In a single-library view, documents can be dragged into folders. This is the fastest way to tidy a library without opening every article.
+In a single-library view, documents can be dragged into folders. A drag handle appears on each row when dragging is available. This is the fastest way to tidy a library without opening every article.
 
 Cross-library moves are more controlled:
 - they require higher permission
 - they are not available for managed documents
 - template documents are intentionally restricted because templates are meant to stay in the template system, not wander off into the wild
 
+Folders can also be dragged between libraries by dropping them on the target library tab.
+
 Folder moves follow the same idea. Reorganizing a folder changes the browsing structure for everyone using that library, so treat it as an information architecture change, not just personal housekeeping.
+
+### List actions
+
+- **New** (split button): creates a blank document in the active library, or opens the template picker to create from a published template
+- **Move**: moves selected documents to a different folder or library
+- **Delete**: permanently removes selected documents (admin only; unavailable for managed documents)
 
 ## Creating and shaping a document
 
@@ -180,7 +196,36 @@ While you are editing:
 - unsaved content is also autosaved periodically while your lock is active
 - **Discard** returns to the last saved state
 
-The workspace also supports inline image upload inside the markdown content area, so screenshots and diagrams can live with the article rather than in a mysterious folder on somebody's desktop.
+The workspace also supports inline image upload inside the markdown content area, so screenshots and diagrams can live with the article rather than in a mysterious folder on somebody's desktop. When you paste or reference an image from an external URL, the image is automatically imported and stored within the document so it remains available even if the original URL goes offline.
+
+## Importing a document
+
+You can import a Word document (.docx) into an existing Knowledge article. The **Import** button appears in the workspace toolbar once the document has been saved at least once and you are in edit mode.
+
+How it works:
+- Click **Import** and select a `.docx` file from your computer.
+- If the article already has content, a confirmation dialog asks whether you want to replace it. Choosing **Continue** overwrites the current markdown with the imported content.
+- The imported Word content is converted to markdown and loaded into the editor. Images embedded in the Word file are extracted and stored as inline attachments.
+- After import, your changes are unsaved. Use **Save** to persist the imported content.
+
+If the import encounters a lock conflict (someone else acquired the lock) or an expired lock, editing mode ends and an appropriate message is shown. Re-enter edit mode and try again.
+
+Import warnings, such as unsupported formatting that was simplified during conversion, appear briefly as a notification at the bottom of the screen.
+
+## Export formats
+
+Knowledge articles can be exported as:
+
+- **PDF**
+- **DOCX**
+- **ODT**
+
+Export is available when the article has content. This is useful when:
+- a document needs to circulate outside KANAP
+- a reviewer prefers Word-format markup
+- a stable PDF snapshot is needed for sharing or recordkeeping
+
+Export does not replace the live article. The Knowledge version remains the governed source, while exported files are distribution formats.
 
 ## Contributors and review workflow
 
@@ -211,24 +256,24 @@ Important consequences:
 
 This makes review meaningful. If authors could keep editing the content during approval, the approved document would be a moving target, which is a splendid way to create arguments and a poor way to create documentation.
 
-## Versions, comments, and activity
+## The document workspace sidebar
 
-### Versions
+The sidebar has two tabs: **Properties** and **Comments**.
 
-Knowledge keeps a version history for saved documents. The Versions section shows the saved states and when they were created.
+### Properties tab
 
-Reverting is available only while you are actively editing with a valid lock. That is intentional: restoring an earlier version is an editorial action, not a browsing shortcut.
+The Properties tab organizes governance data into collapsible sections:
 
-Use versions when:
-- a recent rewrite went too far
-- a previously approved structure needs to be restored
-- you need to recover from enthusiastic experimentation
+- **Status, Folder, Type, Template, and Summary** are always visible at the top.
+- **Contributors**: assign owner, authors, reviewers, and approvers. Each role is saved independently of the main document save.
+- **Review Workflow**: shows the current workflow state when a review is active, including stage progress, participant decisions, and recent workflow activity. When no workflow is active, you can request a review from here.
+- **Classification**: tag the document with categories and streams from your organization's classification scheme. Multiple classification rows can be added.
+- **Relations**: link the document to applications, assets, projects, requests, or tasks. Each relation type has its own search-and-select field.
+- **Versions**: lists saved revisions with timestamps. **Revert** is available only while you hold an active editing lock.
 
-### Comments and activity
+### Comments tab
 
-The sidebar separates **Properties** from **Comments**.
-
-The Comments area is not just for discussion. It also gives visibility into activity around the document, so readers and contributors can understand what happened, who said what, and when. Use comments for review context, editorial clarification, or change rationale that should stay attached to the article.
+The Comments tab shows activity around the document: comments, workflow events, and change history. Use comments for review context, editorial clarification, or change rationale that should stay attached to the article.
 
 ## Relations and cross-workspace context
 
@@ -258,21 +303,6 @@ In related workspaces, Knowledge panels distinguish between:
 
 That distinction matters. Direct links express an intentional relationship. Related documents express useful context, but not the same level of ownership.
 
-## Export formats
-
-Knowledge articles can be exported as:
-
-- **PDF**
-- **DOCX**
-- **ODT**
-
-Export is available when the article has content. This is useful when:
-- a document needs to circulate outside KANAP
-- a reviewer prefers Word-format markup
-- a stable PDF snapshot is needed for sharing or recordkeeping
-
-Export does not replace the live article. The Knowledge version remains the governed source, while exported files are distribution formats.
-
 ## Good operating habits
 
 - Use libraries for governance boundaries, folders for navigation, and relations for business context.
@@ -280,3 +310,4 @@ Export does not replace the live article. The Knowledge version remains the gove
 - Use templates when consistency matters across teams.
 - Use review for documents that drive decisions, controls, or repeatable processes.
 - Mark outdated content as archived or obsolete instead of leaving readers to guess.
+- Import Word documents when migrating existing content into Knowledge rather than copying and pasting, so that embedded images are preserved automatically.

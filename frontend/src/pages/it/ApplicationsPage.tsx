@@ -882,6 +882,7 @@ export default function ApplicationsPage() {
       <ServerDataGrid<AppRow>
         columns={columns}
         endpoint={'/applications'}
+        showRowCount
         queryKey={'applications'}
         defaultSort={{ field: 'name', direction: 'ASC' }}
         initialState={initialState}

@@ -447,6 +447,7 @@ export default function RequestsPage() {
       <ServerDataGrid<RequestRow>
         columns={columns}
         endpoint="/portfolio/requests"
+        showRowCount
         queryKey="portfolio-requests"
         getRowId={(r) => r.id}
         enableSearch

@@ -76,7 +76,7 @@ Technical docs in /doc       ← Secondary context
 User docs in /doc/help       ← Derived output
 ```
 
-### Legacy Claude commands
+### Claude commands
 
 ### `/doc-page <route-or-component>`
 
@@ -95,6 +95,8 @@ Generates or updates documentation for a single page.
 3. Reads technical docs for context (SECONDARY)
 4. Generates user-friendly documentation
 5. Saves to `doc/help/docs/en/{slug}.md`
+6. For new pages: updates `mkdocs.yml` nav, `docUrls.ts` route mapping, and `doc-update-map.tsv`
+7. Updates `_documentation-inventory.md`
 
 **Output location:**
 - `/it/applications` → `doc/help/docs/en/applications.md`
@@ -112,11 +114,14 @@ Checks documentation for staleness and coverage gaps.
 ```
 
 **What it does:**
-1. Scans `frontend/src/pages/` for all page components
-2. Compares git timestamps: component vs documentation
-3. Flags docs where code changed after doc was last updated
-4. Reports coverage gaps (pages without documentation)
-5. Updates `_documentation-inventory.md`
+1. Scans `frontend/src/pages/` (using Glob) for all `*Page.tsx` and `*WorkspacePage.tsx` files
+2. Categorizes pages: Dashboard & Operations, IT Operations, Master Data, Admin & Settings, Reports, Portfolio, Knowledge
+3. Compares git timestamps: component vs documentation
+4. Flags docs where code changed after doc was last updated
+5. Reports coverage gaps and consistency issues
+6. Updates `_documentation-inventory.md`
+
+**Excluded routes** (platform admin only): `/admin/tenants`, `/admin/coa-templates`, `/admin/standard-accounts`, `/admin/ops-dashboard`
 
 **Output:**
 ```
@@ -139,25 +144,38 @@ Checks documentation for staleness and coverage gaps.
    ...
 ```
 
-### `/doc-batch <category>`
+### `/doc-batch <category|refresh category|stale>`
 
-Generates documentation for multiple pages at once.
+Generates documentation for multiple pages at once. Supports three modes.
 
 **Usage:**
 ```
-/doc-batch all           # All undocumented pages
+# Default: generate docs for undocumented pages only
+/doc-batch all           # All categories
 /doc-batch it            # IT Operations pages only
-/doc-batch ops           # Budget Operations pages only
+/doc-batch ops           # Budget Management pages only
 /doc-batch master-data   # Master Data pages only
-/doc-batch admin         # Admin pages only
-/doc-batch reports       # Reports pages only
+/doc-batch admin         # Admin & Settings pages only
+/doc-batch reports       # Budget Reports pages only
+/doc-batch portfolio     # Portfolio Management pages only
+/doc-batch knowledge     # Knowledge pages only
+
+# Refresh: regenerate all pages in a category (overwrite existing)
+/doc-batch refresh all
+/doc-batch refresh it
+/doc-batch refresh ops
+
+# Stale: detect stale pages via git history, regenerate only those
+/doc-batch stale
 ```
 
 **Process:**
-1. Reads inventory to find undocumented pages in category
+1. Reads inventory and selects pages based on mode (undocumented / all in category / stale only)
 2. Generates each page sequentially
 3. Updates inventory after each page
-4. Reports summary when complete
+4. Reports summary distinguishing "Generated (new)" vs "Refreshed (updated)" vs "Skipped (up to date)"
+
+**Note:** Fast Track guides (`fast-track/*.md`) and On-Premise docs (`on-premise/*.md`) are not route-based and must be refreshed manually with `/doc-page`.
 
 ### Codex skill
 
@@ -325,7 +343,7 @@ For supplemental guides such as Fast Track pages, add discovery links in the doc
 
 1. **Weekly/Monthly**: Run `/doc-check` to identify stale documentation
 2. **After feature releases**: Run `/doc-page` for affected pages
-3. **Before major releases**: Run `/doc-batch all` to ensure full coverage
+3. **Before major releases**: Run `/doc-batch stale` to refresh all stale pages, or `/doc-batch refresh all` to regenerate everything
 4. **After workflow/navigation changes**: Review Fast Track guides and the docs home page links
 
 ### When Adding New Features

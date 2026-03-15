@@ -608,6 +608,7 @@ export default function TasksPage() {
       <ServerDataGrid<TaskRow>
         columns={columns}
         endpoint="/tasks"
+        showRowCount
         queryKey="tasks"
         getRowId={(r) => r.id}
         enableSearch

@@ -1,142 +1,153 @@
 # Connections
 
-Connections document the infrastructure-level network paths between assets. While Interfaces describe logical data flows between applications, Connections describe the physical network routes—which assets communicate, using which protocols and ports.
+Connections document the infrastructure-level network paths between servers and entities. While Interfaces describe logical data flows between applications, Connections describe the physical network routes -- which servers communicate, over which protocols and ports.
 
 ## Getting started
 
-Navigate to **IT Operations → Connections** to see your connection registry. Click **Add Connection** to create your first entry.
+Navigate to **IT Operations > Connections** to see your connection registry. Click **Add connection** to create your first entry.
 
 **Required fields**:
   - **Connection ID**: A unique identifier (e.g., `CONN-WEB-DB-001`)
   - **Name**: A descriptive name
-  - **Topology**: Asset to Asset or Multi-asset
+  - **Connection type**: Server to Server or Multi-server
+  - **Source** / **Destination**: An entity, cluster, or server at each end (for Server to Server)
+  - **Protocols**: At least one network protocol
 
 **Strongly recommended**:
-  - **Source Asset** / **Destination Asset**: For asset-to-asset topology
-  - **Protocols**: Which network protocols are used
+  - **Purpose**: Why this connection exists
   - **Lifecycle**: Current status
 
-**Tip**: Connections can be linked to Interface bindings to show which infrastructure supports each application integration.
+**Tip**: Connections can be linked to interface bindings to show which infrastructure supports each application integration.
 
 ---
 
 ## Working with the list
 
+The list gives you a filterable overview of every connection in your registry.
+
 **Default columns**:
-  - **Connection ID**: Unique identifier
+  - **Connection ID**: Unique identifier (click to open workspace)
   - **Name**: Connection name (click to open workspace)
-  - **Topology**: Asset to Asset or Multi-asset
+  - **Topology**: Server to Server or Multi-server
   - **Source** / **Destination**: The connected endpoints
-  - **Protocols**: Network protocols as chips
-  - **Criticality**: Business importance (may be derived from linked interfaces)
-  - **Data Class**: Sensitivity level
+  - **Protocols**: Network protocols shown as chips
+  - **Criticality**: Business importance -- may be derived from linked interfaces
+  - **Data class**: Data sensitivity level
   - **PII**: Whether personal data traverses this connection
-  - **Risk**: Manual or Derived from linked interfaces
+  - **Risk**: Manual or Derived (shows the number of linked interfaces)
   - **Lifecycle**: Current status
   - **Created**: When the record was created
 
 **Additional columns** (via column chooser):
-  - **Assets**: Count of assets in multi-asset topology
+  - **Servers**: Count of servers in a multi-server connection
+
+**Filtering**:
+  - Quick search: Searches across connection fields
+  - Column filters: Topology, Criticality, Data class, PII, Risk, Lifecycle
 
 **Actions**:
-  - **Add Connection**: Create a new connection (requires manager permission)
-  - **Delete Selected**: Remove selected connections (requires admin permission)
+  - **Add connection**: Create a new connection (requires `infrastructure:member`)
+  - **Delete connection**: Remove selected connections (requires `infrastructure:admin`)
 
 ---
 
-## Topologies
+## Connection types
 
-### Asset to Asset
+### Server to Server
 
-A direct connection between two specific assets:
-- **Source Asset**: Where traffic originates
-- **Destination Asset**: Where traffic terminates
-- Optionally specify **Source Entity** and **Destination Entity** for logical endpoints
+A direct connection between two specific endpoints. Each side can be a server, a cluster, or a named entity:
 
-### Multi-asset
+- **Source**: Where traffic originates -- pick a server, cluster, or entity
+- **Destination**: Where traffic terminates -- same options
+- You cannot select both a server and an entity for the same side; choose one or the other
 
-A connection involving multiple assets (e.g., load-balanced clusters):
-- Add multiple assets to the connection
+If an endpoint is a cluster, a note will remind you that member hosts are managed in the Servers workspace.
+
+### Multi-server
+
+A connection involving multiple servers (e.g., load-balanced clusters or mesh topologies):
+
+- Select at least two servers from the **Connected servers** picker
 - Use **Layers** to define the routing path between them
 
 ---
 
 ## The Connections workspace
 
-Click any row to open the workspace. It has four tabs:
+Click any row to open the workspace. It has four tabs: **Overview**, **Layers**, **Criticality & Compliance**, and **Related Interfaces**.
 
 ### Overview
 
-The Overview tab captures the connection's identity.
+The Overview tab captures the connection's identity and topology.
 
 **What you can edit**:
   - **Connection ID**: Unique identifier
   - **Name**: Display name
-  - **Topology**: Asset to Asset or Multi-asset
-  - **Source Asset** / **Destination Asset**: For asset-to-asset topology
-  - **Source Entity** / **Destination Entity**: Logical endpoints (optional)
-  - **Assets**: For multi-asset topology, the involved assets
-  - **Purpose**: Why this connection exists
-  - **Protocols**: Network protocols used
+  - **Purpose**: Why this connection exists (free text)
+  - **Connection type**: Server to Server or Multi-server
+  - **Source** / **Destination**: For Server to Server -- pick a server, cluster, or entity from a grouped dropdown
+  - **Connected servers**: For Multi-server -- search and select two or more servers
+  - **Protocols**: One or more network protocols (drawn from your Connection Types settings)
   - **Lifecycle**: Current status
   - **Notes**: Additional context
+
+When you select protocols, the system shows their typical ports for reference.
 
 ---
 
 ### Layers
 
-The Layers tab defines the network path for complex connections.
+The Layers tab lets you define an ordered network path of up to three hops -- useful for documenting reverse proxies, firewalls, or intermediate routing.
 
-**What layers capture**:
-  - **Order**: Sequence in the path
-  - **Layer Type**: Network layer (e.g., application, transport)
-  - **Source** → **Destination**: Asset or entity at each hop
-  - **Protocols**: Protocols at this layer
-  - **Port Override**: Custom port if different from protocol default
+**What each layer captures**:
+  - **Order**: Sequence number (1 to 3)
+  - **Name**: A label for the layer (e.g., `direct`, `reverse_proxy`, `firewall`)
+  - **Source** / **Destination**: An entity, cluster, or server at each end of the hop
+  - **Protocols**: Which protocols are used at this layer
+  - **Port override**: Custom port if different from the protocol default (auto-populated when you pick a protocol)
   - **Notes**: Layer-specific notes
 
-**Use cases**:
-- Multi-hop routes through firewalls or proxies
-- Different protocols at different layers
-- Load balancer → web server → app server → database paths
+Layers are saved independently from the Overview tab. Use the **Save layers** button to persist your changes.
+
+**Tip**: You must save the connection itself before you can add layers.
 
 ---
 
-### Compliance
+### Criticality & Compliance
 
-The Compliance tab captures risk and data protection settings.
+This tab controls risk classification and data protection settings.
 
-**Risk Mode**:
-- **Manual**: You set criticality, data class, and PII directly
-- **Derived**: Values are inherited from linked interfaces
+**Risk mode**:
+  - **Manual**: You set criticality, data class, and PII directly
+  - **Derived**: Values are aggregated from linked interface bindings -- the tab shows the effective values and how many bindings contribute
 
 **Fields**:
-  - **Criticality**: Business critical, High, Medium, Low
-  - **Data Class**: Public, Internal, Confidential, Restricted
+  - **Criticality**: Business critical, High, Medium, or Low
+  - **Data class**: Drawn from your organization's data classification settings
   - **Contains PII**: Whether personal data traverses the connection
 
-When in Derived mode, you'll see the effective values calculated from all linked interfaces.
+When risk mode is Derived, the criticality, data class, and PII fields become read-only and reflect the highest values across all linked interfaces.
 
 ---
 
-### Interfaces
+### Related Interfaces
 
-The Interfaces tab shows which interface bindings use this connection.
+This tab shows which interface bindings are linked to this connection.
 
-**What you'll see**:
-- Interface name and code
-- Environment
-- Leg type (Extract, Transform, Load, Direct)
-- Endpoints
-- Status
+**What you will see**:
+  - **Interface**: Name and code, with criticality / data class / PII chips
+  - **Environment**: Binding environment and leg type
+  - **Source endpoint** / **Target endpoint**: The binding's endpoints
+  - **Lifecycle**: Interface lifecycle status
+  - **Actions**: A button to navigate to the interface workspace
 
-This is read-only—link interfaces to connections from the Interface workspace or Connection Map.
+This tab is read-only. To link an interface binding to a connection, use the Interface workspace or the Connection Map.
 
 ---
 
 ## Tips
 
-  - **Start with critical paths**: Document connections for your most critical applications first.
-  - **Use Derived risk mode**: Let the system calculate criticality based on the interfaces that use each connection.
-  - **Link to interfaces**: Connect your infrastructure connections to interface bindings for complete traceability.
-  - **Document protocols**: Accurate protocol information helps with firewall rule management and security audits.
+  - **Start with critical paths**: Document connections for your most important applications first, then work outward.
+  - **Use Derived risk mode**: Let the system calculate criticality from the interfaces that use each connection -- it saves effort and stays current as interfaces change.
+  - **Link to interfaces**: Connecting your infrastructure to interface bindings gives you end-to-end traceability from application data flows down to network routes.
+  - **Document protocols accurately**: Good protocol data makes firewall rule reviews and security audits significantly easier.

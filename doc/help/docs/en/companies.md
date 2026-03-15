@@ -1,101 +1,201 @@
 # Companies
 
-Companies are the foundation of your master data. They're the entities you allocate IT spend to and report chargebacks for.
+Companies are the foundation of your master data. They represent the legal entities you allocate IT spend to and report chargebacks for. Every allocation, cost item, and many reports reference a company, so keeping this data accurate is important.
 
-When your workspace is created, it starts with one company named after your organization. Its country is the one you selected during trial signup, and it will auto‑assign to the default Chart of Accounts for that country when available. You can rename it or add more.
+When your workspace is created, it starts with one company named after your organization. Its country is the one you selected during trial signup, and it will auto-assign to the default Chart of Accounts for that country when available. You can rename it or add more.
 
 ## Getting started
 
-  - Create a company or open the existing one, then fill the essentials:
-      - **Country** (ISO code), **City**, **Base Currency** (ISO code)
-      - **Name** (what your teams recognize)
-      - **Chart of Accounts** (automatically assigned based on country, but can be changed)
-  - That's enough to start. You can add address, registration/VAT, and notes later as needed.
+Navigate to **Master Data > Companies** to open the list.
 
-**Tip**: City and Base Currency are required; keep names unique to avoid confusion in imports and selection lists.
+**Required fields**:
+
+- **Name**: a unique label your teams recognize
+- **Country**: ISO country code (searchable by name or code)
+- **City**: city where the company is based
+- **Base Currency**: ISO currency code (searchable by name or code)
+
+**Tip**: Keep names unique to avoid confusion in imports and selection lists.
+
+## Working with the list
+
+The list shows all companies for your workspace. Use it to review key information at a glance, find companies quickly, and open workspaces for editing.
+
+**Default columns**:
+
+| Column | What it shows |
+|---|---|
+| **Name** | Company name (click to open the workspace) |
+| **Country** | ISO country code |
+| **Currency** | Base currency code |
+| **Headcount (year)** | Headcount for the selected year (click to open the Details tab) |
+| **IT Users (year)** | IT users for the selected year (click to open the Details tab) |
+| **Turnover (year)** | Turnover for the selected year (click to open the Details tab) |
+| **Status** | Enabled or Disabled |
+
+**Additional columns** (hidden by default, add them from the column chooser):
+
+| Column | What it shows |
+|---|---|
+| **City** | City |
+| **Postal Code** | Postal code |
+| **Address 1** | Primary address line |
+| **Address 2** | Secondary address line |
+| **State** | State or province |
+| **Notes** | Free-text notes |
+| **Created** | Date and time the record was created |
+
+**Filtering**:
+
+- **Quick search**: free-text search across all visible columns
+- **Column filters**: click any column header to filter by value; numeric columns (Headcount, IT Users, Turnover) support number filters
+- **Status scope**: toggle between **Enabled**, **Disabled**, and **All** to control which companies appear
+
+**Year selector**: use the **Year** field in the toolbar to switch which year's metrics are displayed. The bottom row shows **totals** for Headcount, IT Users, and Turnover across all visible (filtered) companies.
+
+**Actions**:
+
+- **New**: create a company (requires `companies:manager`)
+- **Import CSV**: bulk-import companies from a CSV file (requires `companies:admin`)
+- **Export CSV**: export companies and their metrics to CSV (requires `companies:admin`)
+- **Delete Selected**: delete one or more selected companies (requires `companies:admin`; only possible if nothing references the company)
+
+**Search context**: when you open a company workspace from the list, your current search, filters, sort order, and year are preserved. Navigating back to the list restores your previous view.
+
+## Permissions
+
+| Action | Required level |
+|---|---|
+| View the list and workspaces | `companies:reader` |
+| Create or edit companies | `companies:manager` |
+| Import, export, or delete | `companies:admin` |
+
+## The company workspace
+
+Click a company name in the list to open its workspace. The workspace has two tabs arranged vertically on the left: **Overview** and **Details**.
+
+Use **Prev** / **Next** to move between companies without returning to the list. Click **Close** (X) to return to the list with your search context intact.
+
+If you have unsaved changes, the app prompts you to save before switching tabs, navigating to another company, or changing years.
+
+---
+
+### Overview
+
+The Overview tab holds general information about the company.
+
+**What you can edit**:
+
+- **Name** (required): the company display name
+- **Country** (required): ISO country code, searchable by name or code
+- **Chart of Accounts**: the CoA linked to this company (see below)
+- **Address 1**, **Address 2**: address lines
+- **Postal Code**: postal / ZIP code
+- **City** (required): city name
+- **State**: state or province
+- **Registration #**: company registration number
+- **VAT #**: VAT identification number
+- **Base Currency** (required): ISO currency code, searchable by name or code
+- **Status / Disabled date**: controls whether the company is active (see below)
+- **Notes**: free-text notes
+
+---
+
+### Details
+
+The Details tab manages **yearly metrics**. Use the year tabs at the top to switch between years (current year plus two years before and after).
+
+**What you can edit**:
+
+- **Headcount** (required): total employee count for the year, must be a non-negative integer
+- **IT Users** (optional): number of IT users, must be a non-negative integer
+- **Turnover** (optional): revenue in millions of the company's base currency, up to 3 decimal places
+
+**How it works**:
+
+- Each save applies only to the currently selected year
+- If metrics for the year are **frozen**, the fields are read-only; unfreeze them from **Master Data Administration** to make changes
+- You need `companies:manager` to edit metrics
 
 ## Chart of Accounts
 
 Each company can be linked to a **Chart of Accounts** (CoA), which defines the set of accounts available when recording OPEX or CAPEX items for that company.
 
 **How it works**:
-  - When you create a company, it's automatically assigned to the default CoA for its country (if one exists).
-  - You can change the CoA assignment in the company's **Overview** tab using the Chart of Accounts selector.
-  - The CoA you select determines which accounts appear in the account dropdown when creating or editing spend items for this company.
+
+- When you create a company, it is automatically assigned to the default CoA for its country (if one exists). If no country default exists, the global default CoA is used.
+- You can change the CoA assignment in the company's **Overview** tab using the **Chart of Accounts** selector. The selector shows CoAs matching the company's country plus any global-scope CoAs.
+- The CoA you select determines which accounts appear in the account dropdown when creating or editing spend items for this company.
 
 **What this means for your workflow**:
-  - **Companies WITH a CoA**: When recording OPEX/CAPEX, you can only select accounts that belong to that company's Chart of Accounts. This ensures accounting consistency.
-  - **Companies WITHOUT a CoA** (legacy): Can use accounts that don't belong to any Chart of Accounts. This supports gradual migration to the CoA system.
-  - **Changing CoAs**: If you switch a company to a different CoA, existing spend items keep their current accounts (with a warning if they don't match the new CoA), but new items will use accounts from the new CoA.
 
-**Setting up Charts of Accounts**:
-  - Go to **Master Data → Charts of Accounts** to view, create, or manage your CoA sets.
-  - You can create CoAs from scratch or load them from platform templates (country-specific standard account sets).
-  - Each country can have one default CoA that's automatically assigned to new companies from that country.
+- **Companies with a CoA**: when recording OPEX/CAPEX, you can only select accounts that belong to that company's Chart of Accounts. This ensures accounting consistency.
+- **Companies without a CoA** (legacy): can use accounts that do not belong to any Chart of Accounts. This supports gradual migration to the CoA system.
+- **Changing CoAs**: if you switch a company to a different CoA, existing spend items keep their current accounts (with a warning if they do not match the new CoA), but new items will use accounts from the new CoA.
 
-**Tip**: If you see an "**obsolete account**" warning when editing OPEX/CAPEX items, it means the account doesn't belong to the company's current Chart of Accounts. Update the account to one from the correct CoA to resolve this.
+**Setting up Charts of Accounts**: go to **Master Data > Charts of Accounts** to view, create, or manage your CoA sets. You can create CoAs from scratch or load them from platform templates (country-specific standard account sets). Each country can have one default CoA that is automatically assigned to new companies from that country.
+
+**Tip**: if you see an "obsolete account" warning when editing OPEX/CAPEX items, it means the account does not belong to the company's current Chart of Accounts. Update the account to one from the correct CoA to resolve this.
 
 ## Status and Disabled date
 
-Use the **Disabled date** to control when a company stops being "active."
+Use the **Disabled date** to control when a company stops being active.
 
-  - **Enabled** by default. You can also schedule a future Disabled date.
-  - After the Disabled date:
-      - It no longer appears in selection lists for new allocations and is excluded from reports for strictly later years.
-      - Historical data remains intact; the company still appears in reports covering years when it was active.
-  - **Prefer disabling over deleting**. Deletion is only possible if nothing references the company (e.g., no allocations or spend).
+- Companies are **Enabled** by default. You can also schedule a future Disabled date.
+- After the Disabled date:
+    - The company no longer appears in selection lists for new allocations and is excluded from reports for strictly later years.
+    - Historical data remains intact; the company still appears in reports covering years when it was active.
+- **Prefer disabling over deleting.** Deletion is only possible if nothing references the company (no allocations or spend).
 
-## Yearly metrics (the "Details" tab)
+## Yearly metrics
 
-Many parts of the app are year‑aware. Companies have metrics per year:
+Many parts of the app are year-aware. Companies have metrics per year:
 
-  - **Headcount** (required for the year)
-  - **IT users** (optional)
-  - **Turnover** (optional, in millions of the company's base currency)
+- **Headcount** (required for the year)
+- **IT Users** (optional)
+- **Turnover** (optional, in millions of the company's base currency)
 
 **Where it matters**:
 
-  - Allocations can use Headcount, IT users, or Turnover to distribute costs across companies for a given year.
-  - Reports use these metrics for KPIs and ratios.
-  - Only companies active for a year are considered for that year's allocation and reporting.
+- Allocations can use Headcount, IT Users, or Turnover to distribute costs across companies for a given year.
+- Reports use these metrics for KPIs and ratios.
+- Only companies active for a year are considered for that year's allocation and reporting.
 
 **Freeze and copy**:
 
-  - You can **freeze** a year once finalized to prevent edits.
-  - Use **Master Data Administration** to copy metrics from one year to another (choose which metrics to copy). Frozen years can't be overwritten.
-
-## Working with the list
-
-  - Use the **Year** selector at the top to view Headcount / IT users / Turnover for that year.
-  - Quick search and column filters help you slice the list.
-  - Click a row to open the workspace (**Overview** for general info, **Details** for yearly metrics).
+- You can **freeze** a year once finalized to prevent edits.
+- Use **Master Data Administration** to copy metrics from one year to another (choose which metrics to copy). Frozen years cannot be overwritten.
 
 ## CSV import/export
 
 Keep large sets in sync with your source systems using CSV (semicolon `;` separated).
 
-  - **Export**
-      - **Template**: header‑only file you can fill in (includes dynamic columns for Y‑1, Y, Y+1 based on the selected year).
-      - **Data**: current companies plus their metrics for Y‑1/Y/Y+1.
-  - **Import**
-      - Start with **Preflight** (validates headers, encoding, required fields, duplicates, and metrics).
-      - If Preflight is OK, **Load** will apply inserts/updates.
-      - Matching is by company **name** (within your workspace). Duplicates in the file are deduplicated by name (first occurrence wins).
-      - **Required fields**: Name, Country (2 letters), Base Currency (3 letters), City.
-      - **Optional field**: `coa_code` (references a Chart of Accounts; if omitted, the default CoA for the country is used).
-      - **Metrics**: If you provide any metrics for a year, Headcount is required for that year; IT users and Turnover are optional. Turnover accepts up to 3 decimals and must be expressed in millions of the company's base currency.
+**Export**:
+
+- **Template**: header-only file you can fill in (includes dynamic columns for Y-1, Y, Y+1 based on the selected year)
+- **Data**: current companies plus their metrics for Y-1 / Y / Y+1
+
+**Import**:
+
+- Start with **Preflight** (validates headers, encoding, required fields, duplicates, and metrics)
+- If Preflight is OK, **Load** will apply inserts and updates
+- Matching is by company **name** (within your workspace). Duplicates in the file are deduplicated by name (first occurrence wins)
+- **Required fields**: Name, Country (2 letters), Base Currency (3 letters), City
+- **Optional field**: `coa_code` (references a Chart of Accounts; if omitted, the default CoA for the country is used)
+- **Metrics**: if you provide any metrics for a year, Headcount is required for that year; IT Users and Turnover are optional. Turnover accepts up to 3 decimals and must be expressed in millions of the company's base currency
 
 **Notes**:
 
-  - Use **UTF‑8 encoding** and **semicolons** as separators.
-  - The list refreshes automatically after a successful load.
-  - If importing with `coa_code`, ensure the Chart of Accounts exists in your workspace first.
+- Use **UTF-8 encoding** and **semicolons** as separators
+- The list refreshes automatically after a successful load
+- If importing with `coa_code`, ensure the Chart of Accounts exists in your workspace first
 
 ## Tips
 
-  - **Disable over delete**: keep history consistent and reports meaningful.
-  - **Chart of Accounts**: Assign CoAs to companies to ensure consistent account usage across OPEX/CAPEX items.
-  - **Turnover**: enter values in millions of the company's base currency (e.g., 2.5 = 2.5 million in that currency).
-  - **Headcount** is the most common allocation driver; keep it up to date for the current year.
-  - If you **freeze metrics**, you can still review them, but edits are blocked until you unfreeze.
-  - When migrating to Chart of Accounts, you can do it gradually—companies without a CoA continue to work with legacy accounts.
+- **Disable over delete**: keep history consistent and reports meaningful.
+- **Chart of Accounts**: assign CoAs to companies to ensure consistent account usage across OPEX/CAPEX items.
+- **Turnover**: enter values in millions of the company's base currency (e.g., 2.5 = 2.5 million in that currency).
+- **Headcount** is the most common allocation driver; keep it up to date for the current year.
+- **Frozen metrics**: you can still review them, but edits are blocked until you unfreeze from Administration.
+- **Column chooser**: use it to show or hide columns like City, Address, State, or Created to suit your workflow.
+- **Metric columns link to Details**: clicking a Headcount, IT Users, or Turnover value opens the Details tab directly for that company.

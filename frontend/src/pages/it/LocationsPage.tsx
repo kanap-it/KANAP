@@ -143,6 +143,7 @@ export default function LocationsPage() {
       <ServerDataGrid<LocationRow>
         columns={columns}
         endpoint="/locations"
+        showRowCount
         queryKey="locations"
         defaultSort={{ field: 'created_at', direction: 'DESC' }}
         enableSearch

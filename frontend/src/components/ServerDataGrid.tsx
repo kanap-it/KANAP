@@ -73,6 +73,7 @@ export type ServerDataGridProps<T> = {
   enablePagination?: boolean;
   paginationPageSize?: number;
   toolbarExtras?: React.ReactNode;
+  showRowCount?: boolean;
 };
 
 function parseSortParam(sortModel: SortModelItem[] | undefined, fallback: { field: string; direction: 'ASC' | 'DESC' }) {
@@ -241,15 +242,45 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
   enablePagination = false,
   paginationPageSize,
   toolbarExtras,
+  showRowCount,
 }: ServerDataGridProps<T>) {
   const { profile } = useAuth();
   const { tenantSlug } = useTenant();
   const { resolvedMode } = useThemeMode();
 
+  // Determine which column gets the row-count label (first column without a valueFormatter)
+  const rowCountField = useMemo(() => {
+    if (!showRowCount) return '';
+    const col = columns.find(c => !c.valueFormatter) || columns[0];
+    return col?.field || col?.colId || '';
+  }, [showRowCount, columns]);
+
   // Process columns to move custom properties to context to avoid AG Grid warnings
   const processedColumns = useMemo(() => {
     return columns.map(col => {
       const { required, defaultHidden, category, ...agGridCol } = col;
+
+      // When showRowCount is enabled, suppress renderers/formatters for pinned
+      // bottom rows on every column except the one carrying the label.
+      const field = col.field || col.colId || '';
+      if (showRowCount && field !== rowCountField) {
+        if (agGridCol.cellRenderer) {
+          const orig = agGridCol.cellRenderer;
+          agGridCol.cellRendererSelector = (params: any) => {
+            if (params.node?.rowPinned) return undefined;
+            return { component: orig };
+          };
+          delete agGridCol.cellRenderer;
+        }
+        if (agGridCol.valueFormatter) {
+          const origFmt = agGridCol.valueFormatter;
+          agGridCol.valueFormatter = (params: any) => {
+            if (params.node?.rowPinned) return '';
+            return typeof origFmt === 'function' ? origFmt(params) : params.value;
+          };
+        }
+      }
+
       return {
         ...agGridCol,
         context: {
@@ -260,7 +291,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
         },
       };
     });
-  }, [columns]);
+  }, [columns, showRowCount, rowCountField]);
   const navigate = useNavigate();
   const location = useLocation();
   const urlParams = new URLSearchParams(location.search);
@@ -271,6 +302,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
   const [search, setSearch] = useState(qFromUrl);
   const debouncedSearch = useDebouncedValue(search, 400);
   const [loadError, setLoadError] = useState<Error | undefined>();
+  const [totalRowCount, setTotalRowCount] = useState<number | null>(null);
 
   const gridApiRef = useRef<any>(null);
   const columnApiRef = useRef<any>(null); // deprecated in AG Grid v32+, keep for backward compat (unused)
@@ -476,7 +508,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
         const res = await api.get<ServerResponse<T>>(endpointRef.current, { params: reqParams });
         const rows = (res.data?.items ?? []) as any[];
         const total = res.data?.total ?? rows.length;
-        
+        setTotalRowCount(total);
         params.successCallback(rows, total);
       } catch (e: any) {
         setLoadError(e instanceof Error ? e : new Error('Failed to load data'));
@@ -808,6 +840,17 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
     return () => obs.disconnect();
   }, [recalcTopScrollWidth]);
 
+  const mergedPinnedBottomRowData = useMemo(() => {
+    const rows: any[] = [];
+    if (showRowCount && totalRowCount !== null && rowCountField) {
+      rows.push({ [rowCountField]: `Total (${totalRowCount})` });
+    }
+    if (pinnedBottomRowData) {
+      rows.push(...pinnedBottomRowData);
+    }
+    return rows.length > 0 ? rows : undefined;
+  }, [showRowCount, totalRowCount, rowCountField, pinnedBottomRowData]);
+
   const showAuxHorizontalScrollbar = showTopScroll && !enablePagination;
 
   return (
@@ -882,7 +925,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
           initialState={initialState}
           defaultColDef={defaultColDef}
           context={gridContext}
-          pinnedBottomRowData={pinnedBottomRowData}
+          pinnedBottomRowData={mergedPinnedBottomRowData}
           cacheBlockSize={cacheBlockSize}
           maxConcurrentDatasourceRequests={1}
           getRowId={agGetRowId}

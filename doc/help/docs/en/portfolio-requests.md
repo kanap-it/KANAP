@@ -150,6 +150,7 @@ The **Purpose** section is a managed markdown document embedded directly in the 
 - it gives reviewers a stable statement of intent
 - it is available during request-to-project conversion
 - it can be edited by users with `portfolio_requests:member`, even if they do not manage the rest of the request
+- it supports **DOCX import** so you can bring in existing Word documents directly, and **export** to download the current content
 
 That split is deliberate. It allows subject-matter contributors to improve the request narrative without opening full control over status, scoring, and portfolio structure.
 
@@ -211,7 +212,7 @@ The Summary tab surfaces the strongest concern level from this review so major i
 
 ### Risks & Mitigations
 
-**Risks & Mitigations** is another managed markdown document. Use it to document residual risk, mitigation actions, and ownership. Like Purpose, it can be edited by users with `portfolio_requests:member`.
+**Risks & Mitigations** is another managed markdown document. Use it to document residual risk, mitigation actions, and ownership. Like Purpose, it can be edited by users with `portfolio_requests:member` and supports **DOCX import** for bringing in existing Word documents as well as **export**.
 
 This is useful when the people best placed to describe the risks are not the same people who should be changing request status or portfolio structure.
 
@@ -300,3 +301,10 @@ In other words, conversion does not erase the request. It promotes it.
 CSV import and export are available to `portfolio_requests:admin`.
 
 Use export when you need portfolio reporting or offline enrichment. Use import when you need to create or update requests in bulk. Because import can alter intake records at scale, it is intentionally reserved for administrators.
+
+## Tips
+
+- **Use DOCX import for existing content**: If you already have a purpose statement or risk register in a Word document, use the **Import** button on the Purpose or Risks & Mitigations editor instead of copying and pasting. The import converts the document to markdown and warns you if any content could not be carried over.
+- **Scope filters stick**: KANAP remembers your last scope choice, so you do not need to re-select it every session.
+- **Converted requests are hidden by default**: If you are looking for a request that was already converted to a project, add **Converted** to the Status filter on the list.
+- **Member permission for contributors**: Give subject-matter experts `portfolio_requests:member` so they can edit Purpose and Risks & Mitigations without being able to change status, scoring, or portfolio structure.

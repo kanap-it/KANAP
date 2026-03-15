@@ -12,14 +12,14 @@ Navigate to **Admin** from the main menu to access the administration hub.
 - Roles: `users:reader` to view, `users:admin` to edit
 - Audit Log: Requires `users:admin`
 - Billing: Requires billing admin role
-- Authentication: Requires `users:admin`
-- Branding: Requires `users:admin` (tenant host only)
+- Authentication: Requires `users:admin` (feature-flagged; requires SSO enabled)
+- Branding: Requires `users:admin` (tenant host only; accessible from sidebar)
 
 ---
 
 ## Admin Hub
 
-The Admin landing page provides quick access to all administrative functions:
+The Admin landing page provides quick access to the main administrative functions:
 
 | Card | Description | Required Permission |
 |------|-------------|---------------------|
@@ -29,9 +29,10 @@ The Admin landing page provides quick access to all administrative functions:
 | **Accounts** | Manage accounting codes | `accounts:reader` |
 | **Users & Access** | Assign seats and roles | `users:reader` |
 | **Roles** | Define role permissions | `users:reader` |
-| **Audit Log** | Browse who changed what and when | `users:admin` |
+| **Audit Log** | Browse all change history | `users:admin` |
 | **Billing** | Plan, seats and invoices | Billing admin |
-| **Branding** | Manage logo and primary light/dark colors | `users:admin` |
+
+Authentication and Branding are available from the sidebar navigation but do not appear on the Admin hub landing page.
 
 ---
 
@@ -57,6 +58,22 @@ The Audit Log page shows tenant-scoped change history for data updates across th
   - Metadata chips (date, table, action, source, source reference, tenant, record id, user)
   - Changed fields summary
   - Side-by-side **Before** and **After** JSON payloads
+
+### Columns
+
+**Default columns**:
+- **Date**: When the change occurred
+- **Table**: Which database table was affected
+- **Action**: The type of change (create, update, delete, disable)
+- **Source**: Who or what triggered the change (user, system, webhook)
+- **User**: Email of the user who made the change (or "System"/"Webhook" for non-user sources)
+
+**Additional columns** (via column chooser):
+- **Record ID**: Identifier of the affected record
+- **User ID**: UUID of the acting user
+- **User Name**: Display name of the acting user
+- **Source Ref**: External reference for webhook-originated changes
+- **Tenant ID**: The tenant this entry belongs to
 
 ### Pagination
 
@@ -91,6 +108,8 @@ Manage who can access KANAP and what they can do.
 - **MFA Enabled**: Whether multi-factor authentication is active
 - **Created**: When the user was created
 
+The grid defaults to showing **enabled** users. Use the scope toggle to switch between **Enabled**, **Disabled**, and **All**.
+
 ### User Management Actions
 
 | Action | Description | Permission |
@@ -118,7 +137,7 @@ Manage who can access KANAP and what they can do.
 
 ### Multi-Role Assignment
 
-Users can be assigned multiple roles. Their effective permissions are the combination of all assigned roles—if any role grants access to a resource, the user has that access.
+Users can be assigned multiple roles. Their effective permissions are the combination of all assigned roles -- if any role grants access to a resource, the user has that access.
 
 ### Seat Management
 
@@ -186,11 +205,19 @@ Resources are organized into groups for easier management:
 | `suppliers` | Supplier master data |
 | `contacts` | Contact directory |
 | `accounts` | Chart of accounts |
+| `business_processes` | Business process catalog |
 
 **Tasks**
 | Resource | What it controls |
 |----------|------------------|
 | `tasks` | Task management |
+
+**Knowledge**
+| Resource | What it controls |
+|----------|------------------|
+| `knowledge` | Knowledge base articles |
+
+The Knowledge resource supports Reader, Member, and Admin levels (Contributor is not available for this resource).
 
 **Administration**
 | Resource | What it controls |
@@ -205,7 +232,7 @@ Roles are categorized by how they can be modified:
 | Badge | Description |
 |-------|-------------|
 | **System** | Cannot be modified. Administrator has full access; Contact is for directory entries only. |
-| **Built-in** | Pre-configured roles providing standard access patterns. Cannot be modified directly—use **Duplicate** to create a customizable copy. |
+| **Built-in** | Pre-configured roles providing standard access patterns. Cannot be modified directly -- use **Duplicate** to create a customizable copy. |
 | _(no badge)_ | Custom roles you create. Fully editable. |
 
 ### Built-in Roles
@@ -223,8 +250,8 @@ KANAP ships with pre-configured roles organized by functional area:
 The **Business Contributor** role is designed for business stakeholders who participate in the portfolio process without full project management privileges. A Business Contributor can:
 
 - **Submit and manage portfolio requests** (full member access to requests)
-- **Edit existing projects** — update fields, add comments, upload attachments, manage phases, milestones, dependencies, and time entries
-- **Create and work on project tasks** — add tasks to projects, log time, and post comments
+- **Edit existing projects** -- update fields, add comments, upload attachments, manage phases, milestones, dependencies, and time entries
+- **Create and work on project tasks** -- add tasks to projects, log time, and post comments
 - **View users, companies, departments, and contacts** for dropdown selections
 
 A Business Contributor **cannot**:
@@ -253,12 +280,12 @@ If someone with the Contact role needs to actively use KANAP, change their role 
 ### Managing Roles
 
 The Roles page has a two-panel layout:
-- **Left panel**: List of all roles with badges indicating type
+- **Left panel**: List of all roles with badges indicating type, and a user count for each role
 - **Right panel**: Details and permissions for the selected role
 
 **Actions**:
 - **New Role**: Create a custom role from scratch
-- **Duplicate**: Copy an existing role (including built-in roles) as a starting point
+- **Duplicate**: Copy an existing role (including built-in roles) as a starting point. Not available for System roles.
 - **Delete**: Remove a custom role (only if no users are assigned)
 - **Save Details**: Update the role name and description
 - **Save Permissions**: Apply permission changes
@@ -281,39 +308,66 @@ Manage your subscription, seats, and invoices.
 
 ### Subscription Overview
 
-View your current plan:
-- **Plan name**: Your subscription tier
-- **Status**: Active, Trialing, Past Due, etc.
+The subscription card shows your current plan at a glance:
+- **Plan**: Your subscription tier (Solo, Team, Pro, or Free trial)
 - **Seats**: Used vs. available seats
-- **Billing period**: Current billing cycle dates
+- **Status**: Active, Trialing, Past Due, Canceled, etc.
+- **Renewal date**: When the next billing cycle starts
 
-### Billing Contact
+For active subscriptions (not local trials), additional details are shown:
+- **Amount per period**: Cost for the current billing cycle
+- **Billing frequency**: Monthly or Annual
+- **Collection method**: Automatic charge or Invoice (manual payment)
+- **Payment method**: Card details or Bank transfer
+- **Last Stripe sync**: When subscription data was last updated from Stripe
 
-Update the contact information used for invoices:
-- Name and company
-- Email and phone
-- Billing address
-- VAT number (if applicable)
+If the subscription is in a trial period, the remaining trial days are displayed.
 
-### Invoices
+### Actions
 
-View invoice history:
-- Invoice date and number
+- **Choose plan** / **Change plan**: Open the plan selection dialog to subscribe or switch plans. Requires billing admin.
+- **Manage subscription**: Open the Stripe customer portal to update payment methods, cancel, or make other changes. Only available when a Stripe subscription exists.
+
+If your subscription is unhealthy (expired trial, past due, etc.), the plan selection dialog opens automatically when you visit the Billing page.
+
+### Invoice History
+
+Past invoices are displayed below the subscription card:
+- Invoice number and date
+- Status (Draft, Open, Paid, Voided, Uncollectible)
 - Amount and currency
-- Status (Paid, Pending, etc.)
-- Download PDF invoices
+- **View**: Open the invoice in Stripe's hosted viewer
+- **Download**: Download the invoice PDF
+
+By default, the five most recent invoices are shown. Click **Show more invoices** to see the full history.
+
+### Customer Information
+
+Update the contact details associated with your Stripe customer record:
+- **Customer name** and **Company**
+- **Email** and **Phone**
+- **VAT number**
+- **Address** (line 1, line 2, city, state/province, postal code, country)
+
+### Invoicing Information
+
+Separate contact details used specifically on invoices. Click **Copy from customer** to pre-fill from the customer information above.
+
+Fields match the customer information section: recipient name, company, email, phone, VAT number, and full address.
+
+Click **Save changes** to update both customer and invoicing details. Use **Reset** to discard unsaved edits.
 
 ---
 
 ## Authentication
 
-Configure single sign-on (SSO) for your organization.
+Configure single sign-on (SSO) for your organization. This page is only available when the SSO feature is enabled and is not accessible from the platform-admin host.
 
 ### Microsoft Entra ID (Azure AD)
 
 Connect KANAP to your Microsoft Entra ID tenant for SSO:
 
-1. Click **Connect to Microsoft Entra**
+1. Click **Connect Microsoft Entra**
 2. Sign in with a Microsoft admin account
 3. Grant the requested permissions
 4. Users can now sign in with their Microsoft accounts
@@ -327,15 +381,16 @@ Connect KANAP to your Microsoft Entra ID tenant for SSO:
 
 | Action | Description |
 |--------|-------------|
-| **Connect** | Start the Microsoft Entra setup flow |
-| **Test Sign-In** | Test SSO with your Microsoft account |
+| **Connect Microsoft Entra** | Start the Microsoft Entra setup flow |
+| **Reconnect Microsoft Entra** | Re-run the setup flow (shown when already connected) |
+| **Test Microsoft sign-in** | Test SSO login with your Microsoft account |
 | **Disconnect** | Remove SSO configuration (reverts to local auth) |
 
 ---
 
 ## Branding
 
-Use **Admin → Branding** to apply your company identity in KANAP.
+Use **Admin > Branding** to apply your company identity in KANAP.
 
 - Route: `/admin/branding`
 - Permission: `users:admin`
@@ -356,8 +411,8 @@ For full step-by-step instructions, see: [Branding](branding.md)
 The Settings page lets you manage your personal profile and notification preferences. Access it from the user menu (top-right avatar) or navigate to `/settings`.
 
 The page has two tabs, accessible via URL:
-- `/settings/profile` (default) — Profile tab
-- `/settings/notifications` — Notifications tab
+- `/settings/profile` (default) -- Profile tab
+- `/settings/notifications` -- Notifications tab
 
 ### Profile
 
@@ -396,7 +451,7 @@ All changes are saved automatically as you toggle switches or change selections.
 ## Tips
 
   - **Duplicate built-in roles**: Instead of creating roles from scratch, duplicate a built-in role and adjust permissions. This saves time and ensures you don't miss important resources.
-  - **Use multi-role for flexibility**: Assign users multiple roles to combine permissions—for example, a "Finance Reader" role plus a "Project Manager" role.
+  - **Use multi-role for flexibility**: Assign users multiple roles to combine permissions -- for example, a "Finance Reader" role plus a "Project Manager" role.
   - **Use SSO**: If you have Microsoft 365, connect Entra ID for easier user management and automatic profile sync.
   - **Monitor seats**: Keep track of seat usage in the toolbar to avoid hitting limits.
   - **Disable don't delete**: When someone leaves, disable their account to preserve audit history.

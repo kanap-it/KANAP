@@ -316,6 +316,7 @@ export default function InterfacesPage() {
       <ServerDataGrid<InterfaceRow>
         columns={columns}
         endpoint="/interfaces"
+        showRowCount
         queryKey="interfaces"
         extraParams={filterParams}
         enableColumnChooser

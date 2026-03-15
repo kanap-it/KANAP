@@ -29,10 +29,7 @@ User docs (doc/help/docs/en/*.md)
 
 Scan `frontend/src/pages/` for all page components:
 
-```bash
-# Find all page components
-find frontend/src/pages -name "*.tsx" -type f | grep -E "(Page|Workspace)\.tsx$"
-```
+Use Glob to find all `*Page.tsx` and `*WorkspacePage.tsx` files under `frontend/src/pages/`.
 
 Categorize discovered pages into groups:
 - **Dashboard & Operations**: `/`, `/ops/*`
@@ -40,10 +37,11 @@ Categorize discovered pages into groups:
 - **Master Data**: `/master-data/*`
 - **Admin & Settings**: `/admin/*`
 - **Reports**: `/ops/reports/*`
+- **Portfolio**: `/portfolio/*`
+- **Knowledge**: `/knowledge/*`
 
 Exclude from inventory:
-- `/portfolio/*` (work in progress)
-- `/admin/tenants`, `/admin/coa-templates`, `/admin/standard-accounts` (platform admin only)
+- `/admin/tenants`, `/admin/coa-templates`, `/admin/standard-accounts`, `/admin/ops-dashboard` (platform admin only)
 
 ### Step 2: Match Pages to Documentation
 

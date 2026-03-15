@@ -94,6 +94,18 @@ Use a slug based on the feature name (lowercase, hyphens):
 
 **Published URL**: `https://doc.kanap.net/{feature-slug}/`
 
+### Step 5: Update Integration Points (New Pages Only)
+
+If this is a **new** page (not a refresh of an existing one):
+
+1. Add the page to `doc/help/mkdocs.yml` nav in the appropriate section
+2. Add a route → slug mapping in `frontend/src/utils/docUrls.ts`
+3. Update `doc/help/_process/doc-update-map.tsv` with component → doc file mappings
+
+### Step 6: Update Inventory
+
+After generating, update `doc/help/_process/_documentation-inventory.md` to mark the page as DOCUMENTED.
+
 ## Example Output Structure
 
 ```markdown
@@ -130,4 +142,4 @@ Navigate to **IT Operations → Apps & Services**...
 - If a workspace has many tabs, document each one as a separate subsection
 - For complex features (like Interfaces with environments and bindings), break down the workflows
 - Reference related pages where relevant (e.g., "See IT Operations Settings for...")
-- After generating, update `doc/help/_process/_documentation-inventory.md` to mark the page as DOCUMENTED
+- Integration points and inventory updates are handled in Steps 5-6 above

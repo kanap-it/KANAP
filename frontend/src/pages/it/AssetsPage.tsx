@@ -393,6 +393,7 @@ export default function AssetsPage() {
       <ServerDataGrid<AssetRow>
         columns={columns}
         endpoint="/assets"
+        showRowCount
         queryKey="assets"
         defaultSort={{ field: 'created_at', direction: 'DESC' }}
         enableColumnChooser

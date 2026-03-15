@@ -1,120 +1,116 @@
 # Analytics Dimensions
 
-Analytics Dimensions provide a flexible, optional dimension for classifying and analyzing your IT budget. Unlike the formal structure of Companies, Departments, and Accounts, analytics dimensions let you create custom groupings that match your reporting needs.
+Analytics Dimensions give you a flexible way to classify and analyze your IT budget outside of your formal accounting structure. Instead of reworking Companies, Departments, or Accounts, you create lightweight categories -- "Infrastructure," "Cloud Migration," "Licenses" -- and tag spend items for custom reporting.
 
-## What are Analytics Dimensions for?
+## Getting started
 
-Analytics dimensions give you a lightweight way to tag spend items for custom reporting and analysis. They work independently of your formal accounting structure, letting you create ad-hoc classifications without restructuring your master data.
-
-**Common use cases**:
-  - **Classify by expense type**: "Infrastructure," "Application Development," "Cloud Hosting," "Consulting," "Licenses"
-  - **Map to initiatives**: "Digital Transformation," "Security Enhancement," "Cloud Migration"
-  - **Flexible departmental mapping**: Approximate attribution without strict allocation rules ("Operations," "R&D," "Customer Support")
-  - **Technology stack views**: "SAP," "Microsoft 365," "AWS," "Salesforce"
-
-**Key characteristics**:
-  - **Optional**: Items without a category appear as "Unassigned" in reports
-  - **Simple**: Each spend item can have zero or one category (no multi-tagging)
-  - **Independent**: Categories don't affect accounting, allocations, or company structure
-
-## Creating and managing categories
-
-Go to **Master Data → Analytics** to view, create, or edit categories.
+Navigate to **Master Data > Analytics** to open the category list.
 
 **Required fields**:
-  - **Name**: The category label that appears in dropdowns and reports
+- **Name**: The label that appears in dropdowns and reports. Must be unique.
 
 **Optional fields**:
-  - **Description**: Explain when to use this category
+- **Description**: Explain when this category should be used so teammates apply it consistently.
 
-**Tip**: Start with 5-10 broad categories. Use consistent naming (all nouns, all gerunds, etc.) for easier scanning.
+**Permissions**:
+- View the list: `analytics:reader`
+- Create or edit categories: `analytics:member`
+
+**Tip**: Start with 5--10 broad categories. Consistent naming (all nouns or all gerunds) makes lists easier to scan.
+
+## Working with the list
+
+The category list gives you a quick overview of every analytics dimension in your tenant.
+
+**Columns**:
+
+| Column | What it shows |
+|---|---|
+| **Name** | Category label (clickable -- opens the workspace) |
+| **Description** | Short explanation of the category's purpose |
+| **Status** | Enabled or Disabled |
+| **Updated** | Timestamp of the last change |
+
+**Filtering**:
+- Quick search: searches across name and description
+- Status filter: narrow the list to Enabled or Disabled categories
+
+**Actions**:
+- **New Category**: Creates a new analytics dimension (requires `analytics:member`)
+
+## The Analytics workspace
+
+Click any row to open the workspace for that category.
+
+### Overview tab
+
+This is the only tab. It contains every field for the category.
+
+**What you can edit**:
+- **Name**: The category label. Changing it updates dropdowns and reports everywhere.
+- **Description**: Free-text explanation of the category's intended use.
+- **Status / Disabled date**: Toggle the category off to retire it. See the section below for details.
+
+**Workspace navigation**: Use the **Prev** and **Next** buttons to step through categories without returning to the list. The workspace preserves your current sort, search, and filter context. If you have unsaved changes, you will be prompted before navigating away.
+
+**Tip**: Click the close icon (X) in the top-right corner to return to the list with your filters intact.
 
 ## Status and Disabled date
 
-Use the **Disabled date** to retire a category without deleting it.
+Use the status toggle to retire a category without deleting it.
 
-  - After the Disabled date, the category no longer appears in selection lists for new items
-  - Existing items keep their assignment; reports show historical data
-  - **Prefer disabling over deleting**: Deletion requires no spend items reference the category
+- When you disable a category, a **Disabled date** is recorded.
+- After that date, the category no longer appears in selection dropdowns for new items.
+- Existing items keep their assignment, and historical reports remain accurate.
+- **Prefer disabling over deleting**: there is no delete action on this page. Disabling preserves reporting continuity while keeping the list clean.
 
 ## Tagging spend items
 
 When creating or editing OPEX or CAPEX items:
-  1. Find the **Analytics Category** field in the Overview tab
-  2. Select a category from the dropdown (or leave blank for "Unassigned")
-  3. Save the item
 
-You can change or remove the category at any time. The category applies to the entire item across all years.
+1. Open the **Overview** tab of the spend item.
+2. Find the **Analytics Category** field.
+3. Select a category from the dropdown, or leave it blank for "Unassigned."
+4. Save the item.
+
+You can change or remove the category at any time. The category applies to the entire item across all fiscal years.
 
 ## The Analytics Report
 
-The **Analytics Report** (**Reports → Analytics**) visualizes budget distribution across categories.
+The **Analytics Report** (found under **Reports > Analytics**) visualizes budget distribution across your categories.
 
 **Report features**:
-  - **Year range**: Single year (pie or bar chart) or multi-year (line chart)
-  - **Metric selection**: Budget, OPEX, CAPEX, allocated costs, or various KPIs
-  - **Chart type** (single year): Toggle between pie and horizontal bar
-  - **Category exclusion**: Filter out specific categories to focus on a subset
+- **Year range**: Single year (pie or bar chart) or multi-year (line chart)
+- **Metric selection**: Budget, OPEX, CAPEX, allocated costs, or various KPIs
+- **Chart type** (single year): Toggle between pie and horizontal bar
+- **Category exclusion**: Filter out specific categories to focus on a subset
 
 **Report outputs**:
-  - Visual chart showing budget distribution
-  - Summary table with totals by category and year
-  - Export to CSV (table), PNG (chart) or PDF (full report)
-
-**Example**: To see 2024 budget distribution by expense type, select year 2024, metric "Budget," and view the pie chart showing percentage shares and exact amounts.
-
-## CSV import and export
-
-**Export**:
-  - Click **Export** from **Master Data → Analytics**
-  - Format: semicolon-separated (`;`), UTF-8 encoding
-  - Columns: Name, Description, Status, Disabled date
-
-**Import**:
-  - Required column: `name`
-  - Optional: `description`, `status`, `disabled_at`
-  - Matching by category name (case-sensitive): exists = update, new = insert
-
-**Importing spend items**: Include an `analytics_category` column with the category name when importing OPEX/CAPEX via CSV.
+- Visual chart showing budget distribution
+- Summary table with totals by category and year
+- Export to CSV (table), PNG (chart), or PDF (full report)
 
 ## Tips
 
-  - **Keep it simple**: 5-10 broad categories work better than dozens of granular tags
-  - **Document with descriptions**: Help teammates use categories consistently
-  - **Don't force it**: Leave items "Unassigned" rather than creating vague catch-alls
-  - **Disable, don't delete**: Preserve historical reporting consistency
-  - **Use reports to refine**: Run the Analytics Report to verify your categories reveal useful insights
-
-## Common scenarios
-
-### Scenario 1: Classifying costs by expense type
-
-Create categories like "Infrastructure," "Cloud Hosting," "Consulting," "Licenses." Tag items accordingly, then view the Analytics Report to see budget breakdown (e.g., 35% Cloud, 25% Consulting, 20% Licenses).
-
-### Scenario 2: Tracking strategic initiatives
-
-Create categories for initiatives like "Cloud Migration," "Security Enhancement." Tag relevant items, then use a multi-year Analytics Report to track initiative spending trends over time.
-
-### Scenario 3: Refining categories over time
-
-Split a broad "Infrastructure" category into "On-premise Infrastructure" and "Cloud Infrastructure" by creating new categories, disabling the old one, and re-tagging existing items. Historical reports still show the original category for past periods.
+- **Keep it simple**: 5--10 broad categories usually reveal more than dozens of granular tags.
+- **Document with descriptions**: A short description goes a long way toward consistent usage across teams.
+- **Don't force it**: "Unassigned" is a valid state. Avoid creating vague catch-all categories just to fill the gap.
+- **Disable, don't delete**: Retiring a category preserves historical accuracy in reports.
+- **Use reports to refine**: Run the Analytics Report periodically -- if a category captures too much or too little spend, split or merge accordingly.
 
 ## Frequently asked questions
 
-**Q: Can I assign multiple analytics dimensions to one item?**
-A: No. Each item has zero or one category. For multi-dimensional tagging, consider combining categories or using Departments with Allocations.
+**Can I assign multiple analytics dimensions to one item?**
+No. Each spend item has zero or one category. For multi-dimensional analysis, consider combining categories or using Departments with Allocations.
 
-**Q: Do analytics dimensions affect allocations or accounting?**
-A: No. They're purely for reporting and don't influence cost allocations or accounting.
+**Do analytics dimensions affect allocations or accounting?**
+No. They are purely for reporting and have no impact on cost allocations or formal accounting.
 
-**Q: What happens if I delete a category used by spend items?**
-A: You can't. Remove or reassign the category from all items first. Disabling is safer and preserves history.
+**How many categories should I create?**
+Start with 5--10. More than 20 usually indicates over-engineering. You can always split later.
 
-**Q: How many categories should I create?**
-A: Start with 5-10. More than 20 usually indicates over-engineering.
+**What is the difference between analytics dimensions and departments?**
+**Departments** are formal organizational units with precise allocation drivers. **Analytics dimensions** are informal, optional tags for flexible reporting without allocation overhead.
 
-**Q: What's the difference between analytics dimensions and departments?**
-A: **Departments** are formal organizational units with precise allocation drivers. **Analytics dimensions** are informal, optional tags for flexible reporting without allocation overhead.
-
-**Q: Why do some items show "Unassigned"?**
-A: Items without an analytics dimension appear as "Unassigned." This is normal—categories are optional.
+**Why do some items show "Unassigned"?**
+Items without an analytics category appear as "Unassigned" in reports. This is expected -- categories are entirely optional.
