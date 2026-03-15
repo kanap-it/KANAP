@@ -750,6 +750,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
         subject: content.subject,
         html: content.html,
         text: content.text,
+        attachments: content.attachments,
       });
       return true;
     } catch (error) {
