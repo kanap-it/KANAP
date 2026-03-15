@@ -6,6 +6,7 @@
   "scripts": {
     "prebuild": "rm -rf dist",
     "build": "tsc -p tsconfig.build.json",
+    "postbuild": "mkdir -p dist/email/assets && cp -R src/email/assets/. dist/email/assets/",
     "start": "node dist/main.js",
     "start:migrate": "node ./scripts/migrate-and-start.js",
     "migrate:content:dryrun": "ts-node ./scripts/migrate-content-dryrun.ts",

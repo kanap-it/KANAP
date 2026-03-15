@@ -44,6 +44,7 @@ interface PortfolioActivityProps {
   currentUserId?: string | null;
   readOnly?: boolean;
   onImageUpload?: (file: File, sourceField: string) => Promise<string>;
+  onImageUrlImport?: (sourceUrl: string, sourceField: string) => Promise<string>;
 }
 
 export default function PortfolioActivity({
@@ -58,6 +59,7 @@ export default function PortfolioActivity({
   currentUserId,
   readOnly = false,
   onImageUpload,
+  onImageUrlImport,
 }: PortfolioActivityProps) {
   const [activeTab, setActiveTab] = React.useState<ActivityTab>('comments');
 
@@ -104,6 +106,7 @@ export default function PortfolioActivity({
             currentUserId={currentUserId}
             readOnly={readOnly}
             onImageUpload={onImageUpload}
+            onImageUrlImport={onImageUrlImport}
           />
         )}
         {activeTab === 'history' && (

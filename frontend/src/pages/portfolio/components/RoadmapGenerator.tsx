@@ -1132,10 +1132,13 @@ export default function RoadmapGenerator({ onApplied }: Props) {
   const [ganttStreamId, setGanttStreamId] = useState<string>('');
   const [ganttContributionVisibility, setGanttContributionVisibility] = useState<GanttContributionVisibility>('primary_only');
 
-  const [roadmapScenario] = useState<RoadmapScenario>({
+  const [roadmapScenario, setRoadmapScenario] = useState<RoadmapScenario>({
     projectOverrides: [],
     scenarioProjects: [],
   });
+  const [pinDialogProjectId, setPinDialogProjectId] = useState<string | null>(null);
+  const [pinDialogProjectName, setPinDialogProjectName] = useState<string>('');
+  const [pinDialogWeek, setPinDialogWeek] = useState<string>(startDate);
   const [response, setResponse] = useState<RoadmapResponse | null>(null);
   const [selectedExplanationKey, setSelectedExplanationKey] = useState<string | null>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
@@ -1206,6 +1209,26 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     ),
     [response?.explanations],
   );
+  const projectOverrideById = useMemo(
+    () => new Map(roadmapScenario.projectOverrides.map((override) => [override.projectId, override] as const)),
+    [roadmapScenario.projectOverrides],
+  );
+  const scenarioWarningsByProjectId = useMemo(() => {
+    const map = new Map<string, ScenarioWarning[]>();
+    for (const warning of response?.scenarioWarnings ?? []) {
+      const key = getExplanationKey(warning.itemRef ?? {
+        projectId: null,
+        scenarioProjectId: null,
+        sourceRequestId: null,
+        isScenarioProject: false,
+      });
+      if (!key) continue;
+      const list = map.get(key) ?? [];
+      list.push(warning);
+      map.set(key, list);
+    }
+    return map;
+  }, [response?.scenarioWarnings]);
   const explanationSubjectByKey = useMemo(() => {
     const entries = [
       ...scheduledProjects.map((project) => [project.projectId, project.projectName] as const),
@@ -1483,6 +1506,14 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     ? (teamProjectTimelines.get(ganttTeamId)?.get(selectedExplanationKey) ?? null)
     : null;
   const selectedFocusTimeline = selectedContributorTimeline ?? selectedTeamTimeline;
+  const activeConstraintOverrides = useMemo(
+    () => roadmapScenario.projectOverrides.filter((override) => !!override.constraint),
+    [roadmapScenario.projectOverrides],
+  );
+  const selectedExplanationWarnings = useMemo(
+    () => (selectedExplanationKey ? (scenarioWarningsByProjectId.get(selectedExplanationKey) ?? []) : []),
+    [scenarioWarningsByProjectId, selectedExplanationKey],
+  );
 
   const teamFilteredScheduled = useMemo(
     () => (ganttTeamId
@@ -1883,7 +1914,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
 
   const runGenerate = async (
     excludedProjectIds: string[],
-    options?: { resetSelectionPool?: boolean },
+    options?: { resetSelectionPool?: boolean; scenario?: RoadmapScenario },
   ) => {
     setLoading(true);
     setError(null);
@@ -1891,9 +1922,10 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     setApplyError(null);
     const isFirstGeneration = !response;
     try {
-      const scenarioPayload = roadmapScenario.projectOverrides.length > 0
-        || roadmapScenario.scenarioProjects.length > 0
-        ? roadmapScenario
+      const nextScenario = options?.scenario ?? roadmapScenario;
+      const scenarioPayload = nextScenario.projectOverrides.length > 0
+        || nextScenario.scenarioProjects.length > 0
+        ? nextScenario
         : undefined;
       const payload = {
         startDate,
@@ -1973,6 +2005,91 @@ export default function RoadmapGenerator({ onApplied }: Props) {
 
   const handleGenerate = async () => {
     await runGenerate([], { resetSelectionPool: true });
+  };
+
+  const setScenarioPinStart = async (projectId: string, startWeek: string) => {
+    const currentOverride = projectOverrideById.get(projectId);
+    const nextOverrides = roadmapScenario.projectOverrides
+      .filter((override) => override.projectId !== projectId);
+    nextOverrides.push({
+      projectId,
+      schedulingMode: currentOverride?.schedulingMode,
+      constraint: { type: 'pin_start', startWeek },
+    });
+    const nextScenario = {
+      ...roadmapScenario,
+      projectOverrides: nextOverrides,
+    };
+    setRoadmapScenario(nextScenario);
+    if (response) {
+      await runGenerate(buildExcludedProjectIds(), { resetSelectionPool: true, scenario: nextScenario });
+    }
+  };
+
+  const clearScenarioOverride = async (projectId: string) => {
+    const currentOverride = projectOverrideById.get(projectId);
+    if (!currentOverride) return;
+    const nextOverrides = roadmapScenario.projectOverrides
+      .filter((override) => override.projectId !== projectId);
+    if (currentOverride.schedulingMode) {
+      nextOverrides.push({
+        projectId,
+        schedulingMode: currentOverride.schedulingMode,
+        constraint: null,
+      });
+    }
+    const nextScenario = {
+      ...roadmapScenario,
+      projectOverrides: nextOverrides,
+    };
+    setRoadmapScenario(nextScenario);
+    if (response) {
+      await runGenerate(buildExcludedProjectIds(), { resetSelectionPool: true, scenario: nextScenario });
+    }
+  };
+
+  const clearAllScenarioOverrides = async () => {
+    if (roadmapScenario.projectOverrides.length === 0) return;
+    const nextScenario = {
+      ...roadmapScenario,
+      projectOverrides: [],
+    };
+    setRoadmapScenario(nextScenario);
+    if (response) {
+      await runGenerate(buildExcludedProjectIds(), { resetSelectionPool: true, scenario: nextScenario });
+    }
+  };
+
+  const openPinDialog = (
+    projectId: string,
+    projectName: string,
+    fallbackWeek?: string | null,
+  ) => {
+    const existingConstraint = projectOverrideById.get(projectId)?.constraint;
+    const initialWeek = existingConstraint?.type === 'pin_start'
+      ? existingConstraint.startWeek
+      : (fallbackWeek || startDate);
+    setPinDialogProjectId(projectId);
+    setPinDialogProjectName(projectName);
+    setPinDialogWeek(initialWeek);
+  };
+
+  const closePinDialog = () => {
+    setPinDialogProjectId(null);
+    setPinDialogProjectName('');
+    setPinDialogWeek(startDate);
+  };
+
+  const handleSavePinDialog = async () => {
+    if (!pinDialogProjectId || !pinDialogWeek) return;
+    await setScenarioPinStart(pinDialogProjectId, pinDialogWeek);
+    closePinDialog();
+  };
+
+  const handleClearPinDialog = async () => {
+    if (!pinDialogProjectId) return;
+    await clearScenarioOverride(pinDialogProjectId);
+    closePinDialog();
   };
 
   const handleApply = async () => {
@@ -2251,6 +2368,20 @@ export default function RoadmapGenerator({ onApplied }: Props) {
       {error && <Alert severity="error">{error}</Alert>}
       {applyError && <Alert severity="error">{applyError}</Alert>}
       {success && <Alert severity="success">{success}</Alert>}
+      {hasResponse && (response?.scenarioWarnings?.length ?? 0) > 0 && (
+        <Stack spacing={1}>
+          {response?.scenarioWarnings.map((warning, index) => (
+            <Alert key={`${warning.code}:${getExplanationKey(warning.itemRef ?? {
+              projectId: null,
+              scenarioProjectId: null,
+              sourceRequestId: null,
+              isScenarioProject: false,
+            }) ?? 'global'}:${index}`} severity={warning.severity}>
+              {warning.message}
+            </Alert>
+          ))}
+        </Stack>
+      )}
 
       {!hasResponse && !loading && (
         <Paper variant="outlined" sx={{ p: 3 }}>
@@ -2262,6 +2393,55 @@ export default function RoadmapGenerator({ onApplied }: Props) {
 
       {hasResponse && response && (
         <>
+          {activeConstraintOverrides.length > 0 && (
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  Scenario Overrides
+                </Typography>
+                <Button size="small" color="inherit" onClick={() => { void clearAllScenarioOverrides(); }}>
+                  Reset All Overrides
+                </Button>
+              </Stack>
+              <Stack spacing={1} sx={{ mt: 1.5 }}>
+                {activeConstraintOverrides.map((override) => {
+                  const warningCount = scenarioWarningsByProjectId.get(override.projectId)?.length ?? 0;
+                  return (
+                    <Paper key={override.projectId} variant="outlined" sx={{ p: 1.25 }}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {explanationSubjectByKey.get(override.projectId) || scheduleRowsById.get(override.projectId)?.projectName || override.projectId}
+                          </Typography>
+                          <Chip size="small" color="info" label={formatConstraint(override.constraint)} />
+                          {warningCount > 0 && (
+                            <Chip size="small" color="warning" label={`Conflict${warningCount > 1 ? 's' : ''}`} />
+                          )}
+                        </Stack>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="small"
+                            color="inherit"
+                            onClick={() => openPinDialog(
+                              override.projectId,
+                              explanationSubjectByKey.get(override.projectId) || scheduleRowsById.get(override.projectId)?.projectName || override.projectId,
+                              override.constraint?.type === 'pin_start' ? override.constraint.startWeek : null,
+                            )}
+                          >
+                            Edit Pin
+                          </Button>
+                          <Button size="small" color="inherit" onClick={() => { void clearScenarioOverride(override.projectId); }}>
+                            Reset
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            </Paper>
+          )}
+
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} flexWrap="wrap" useFlexGap>
               <Chip label={`Scheduled: ${response.schedule.length}`} />
@@ -2347,6 +2527,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                           <TableCell>Project</TableCell>
                           <TableCell>Status</TableCell>
                           <TableCell>Scheduling</TableCell>
+                          <TableCell>Scenario</TableCell>
                           <TableCell>Start</TableCell>
                           <TableCell>End</TableCell>
                           <TableCell>Weeks</TableCell>
@@ -2362,6 +2543,12 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                           const schedulingMode = scenarioProject?.schedulingMode || project.schedulingMode;
                           const priority = scenarioProject?.priorityScore ?? project.priorityScore;
                           const isSavingSchedulingMode = savingSchedulingModeProjectIds.has(project.projectId);
+                          const override = projectOverrideById.get(project.projectId);
+                          const pinStartValue = override?.constraint?.type === 'pin_start'
+                            ? override.constraint.startWeek
+                            : '';
+                          const projectWarnings = scenarioWarningsByProjectId.get(project.projectId) ?? [];
+                          const hasConstraintConflict = projectWarnings.some((warning) => warning.code === 'constraint_infeasible');
                           return (
                             <TableRow key={project.projectId} hover sx={isExcluded ? { opacity: 0.55 } : undefined}>
                               <TableCell padding="checkbox">
@@ -2379,6 +2566,14 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                 >
                                   {scenarioProject?.projectName || project.projectName}
                                 </Link>
+                                <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }} flexWrap="wrap" useFlexGap>
+                                  {pinStartValue && (
+                                    <Chip size="small" color="info" label="Pinned" />
+                                  )}
+                                  {hasConstraintConflict && (
+                                    <Chip size="small" color="warning" label="Conflict" />
+                                  )}
+                                </Stack>
                               </TableCell>
                               <TableCell>{STATUS_LABELS[status] || status}</TableCell>
                               <TableCell>
@@ -2401,6 +2596,39 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                     </MenuItem>
                                   ))}
                                 </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Stack spacing={0.75} alignItems="flex-start">
+                                  {pinStartValue ? (
+                                    <Typography variant="caption" color="text.secondary">
+                                      Pin start: {pinStartValue}
+                                    </Typography>
+                                  ) : (
+                                    <Typography variant="caption" color="text.secondary">
+                                      No scenario constraint
+                                    </Typography>
+                                  )}
+                                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                                    <Button
+                                      size="small"
+                                      onClick={() => openPinDialog(
+                                        project.projectId,
+                                        scenarioProject?.projectName || project.projectName,
+                                        scenarioProject?.plannedStart || project.plannedStart,
+                                      )}
+                                    >
+                                      {pinStartValue ? 'Edit Pin' : 'Pin Start'}
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      color="inherit"
+                                      disabled={!pinStartValue}
+                                      onClick={() => { void clearScenarioOverride(project.projectId); }}
+                                    >
+                                      Clear
+                                    </Button>
+                                  </Stack>
+                                </Stack>
                               </TableCell>
                               <TableCell>{scenarioProject?.plannedStart || 'Excluded'}</TableCell>
                               <TableCell>{scenarioProject?.plannedEnd || 'Excluded'}</TableCell>
@@ -2431,6 +2659,14 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                       </Typography>
                       <Stack spacing={0.75}>
                         {response.unschedulable.map((item) => (
+                          (() => {
+                            const override = projectOverrideById.get(item.projectId);
+                            const pinStartValue = override?.constraint?.type === 'pin_start'
+                              ? override.constraint.startWeek
+                              : '';
+                            const projectWarnings = scenarioWarningsByProjectId.get(item.projectId) ?? [];
+                            const hasConstraintConflict = projectWarnings.some((warning) => warning.code === 'constraint_infeasible');
+                            return (
                           <Stack
                             key={item.projectId}
                             direction="row"
@@ -2438,19 +2674,51 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                             alignItems="center"
                             justifyContent="space-between"
                           >
-                            <Tooltip title={item.details || ''} placement="top-start">
-                              <Typography variant="body2" sx={{ color: 'text.secondary', flex: 1 }}>
-                                {item.projectName} ({SCHEDULING_MODE_LABELS[item.schedulingMode]}): {REASON_LABELS[item.reason] || item.reason}
-                              </Typography>
-                            </Tooltip>
-                            <Button
-                              size="small"
-                              onClick={() => openExplanation(item.projectId)}
-                              disabled={!explanationByKey.has(item.projectId)}
-                            >
-                              Why?
-                            </Button>
+                            <Stack spacing={0.5} sx={{ flex: 1 }}>
+                              <Tooltip title={item.details || ''} placement="top-start">
+                                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                  {item.projectName} ({SCHEDULING_MODE_LABELS[item.schedulingMode]}): {REASON_LABELS[item.reason] || item.reason}
+                                </Typography>
+                              </Tooltip>
+                              <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                {pinStartValue && (
+                                  <Chip size="small" color="info" label="Pinned" />
+                                )}
+                                {hasConstraintConflict && (
+                                  <Chip size="small" color="warning" label="Conflict" />
+                                )}
+                              </Stack>
+                            </Stack>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                              <Button
+                                size="small"
+                                onClick={() => openPinDialog(
+                                  item.projectId,
+                                  item.projectName,
+                                  pinStartValue || startDate,
+                                )}
+                              >
+                                {pinStartValue ? 'Edit Pin' : 'Pin Start'}
+                              </Button>
+                              <Button
+                                size="small"
+                                color="inherit"
+                                disabled={!pinStartValue}
+                                onClick={() => { void clearScenarioOverride(item.projectId); }}
+                              >
+                                Clear
+                              </Button>
+                              <Button
+                                size="small"
+                                onClick={() => openExplanation(item.projectId)}
+                                disabled={!explanationByKey.has(item.projectId)}
+                              >
+                                Why?
+                              </Button>
+                            </Stack>
                           </Stack>
+                            );
+                          })()
                         ))}
                       </Stack>
                     </Paper>
@@ -3215,15 +3483,74 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                   Active scenario overrides
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {selectedExplanation.derivedFromConstraint
+                  {selectedExplanation.activeConstraint
                     ? formatConstraint(selectedExplanation.activeConstraint)
                     : 'No active scenario overrides for this item.'}
                 </Typography>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+                  Final warnings
+                </Typography>
+                <Stack spacing={1}>
+                  {selectedExplanationWarnings.length === 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      No scenario warnings were recorded for this item.
+                    </Typography>
+                  )}
+                  {selectedExplanationWarnings.map((warning, index) => (
+                    <Alert key={`${warning.code}:${index}`} severity={warning.severity}>
+                      {warning.message}
+                    </Alert>
+                  ))}
+                </Stack>
               </Box>
             </Stack>
           )}
         </Box>
       </Drawer>
+
+      <Dialog open={!!pinDialogProjectId} onClose={() => !loading && closePinDialog()} maxWidth="xs" fullWidth>
+        <DialogTitle>Pin Start</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5} sx={{ pt: 0.5 }}>
+            <DialogContentText>
+              Create or update a scenario-only pin-start constraint for {pinDialogProjectName || 'this project'}.
+            </DialogContentText>
+            <TextField
+              label="Start week"
+              type="date"
+              size="small"
+              value={pinDialogWeek}
+              onChange={(event) => setPinDialogWeek(event.target.value)}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closePinDialog} disabled={loading}>
+            Cancel
+          </Button>
+          <Button
+            color="inherit"
+            onClick={() => { void handleClearPinDialog(); }}
+            disabled={loading || !(pinDialogProjectId && projectOverrideById.get(pinDialogProjectId)?.constraint)}
+          >
+            Clear
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => { void handleSavePinDialog(); }}
+            disabled={loading || !pinDialogProjectId || !pinDialogWeek}
+          >
+            Save Pin
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={confirmOpen} onClose={() => !applying && setConfirmOpen(false)}>
         <DialogTitle>Apply Roadmap Dates</DialogTitle>

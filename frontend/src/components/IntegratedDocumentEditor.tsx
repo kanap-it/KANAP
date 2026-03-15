@@ -16,9 +16,11 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import SaveIcon from '@mui/icons-material/Save';
 import api from '../api';
+import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../api/endpoints/import';
 import { useAuth } from '../auth/AuthContext';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../utils/inlineImageUrls';
 import ExportButton from './ExportButton';
+import ImportButton from './ImportButton';
 import { MarkdownContent } from './MarkdownContent';
 
 const MarkdownEditor = React.lazy(() => import('./MarkdownEditor'));
@@ -129,6 +131,9 @@ export const IntegratedDocumentEditor = React.forwardRef<
   const [lockToken, setLockToken] = React.useState<string | null>(null);
   const [lockExpiresAt, setLockExpiresAt] = React.useState<string | null>(null);
   const [activeLockInfo, setActiveLockInfo] = React.useState<EditLockInfo | null>(null);
+  const [importInteractionActive, setImportInteractionActive] = React.useState(false);
+  const [contentResetNonce, setContentResetNonce] = React.useState(0);
+  const [contentFocusNonce, setContentFocusNonce] = React.useState(0);
 
   const isDraftMode = !entityId;
   const canEdit = !disabled;
@@ -384,8 +389,67 @@ export const IntegratedDocumentEditor = React.forwardRef<
     return buildInlineImageUrl(`/knowledge/inline/${tenantSlug}/${res.data.id}`);
   }, [endpointBase, entityId, isDraftMode, lockToken]);
 
+  const handleInlineImageImport = React.useCallback(async (sourceUrl: string): Promise<string> => {
+    if (isDraftMode || !entityId) {
+      throw new Error('Inline image import is available after the source item is created');
+    }
+    if (!lockToken) {
+      throw new Error('Acquire an editing lock before importing inline images');
+    }
+    const res = await api.post<{ id: string }>(`${endpointBase}/attachments/inline/import`, {
+      source_url: sourceUrl,
+    }, {
+      headers: { 'X-Lock-Token': lockToken },
+    });
+    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
+    return buildInlineImageUrl(`/knowledge/inline/${tenantSlug}/${res.data.id}`);
+  }, [endpointBase, entityId, isDraftMode, lockToken]);
+
+  const handleDocumentImportError = React.useCallback((e: unknown) => {
+    const status = Number((e as any)?.response?.status || 0);
+    const lockInfo = parseLockInfoFromError(e) || parseLockInfo(doc?.edit_lock);
+    if (status === 423) {
+      setEditMode(false);
+      setLockToken(null);
+      setLockExpiresAt(null);
+      setActiveLockInfo(lockInfo);
+      setError(null);
+      return;
+    }
+    if (status === 410) {
+      setEditMode(false);
+      setLockToken(null);
+      setLockExpiresAt(null);
+      setError('Editing lock expired. Re-enter edit mode to continue.');
+      return;
+    }
+    setError((e as any)?.response?.data?.message || (e as any)?.message || 'Document import failed');
+  }, [doc?.edit_lock, parseLockInfo, parseLockInfoFromError]);
+
+  const handleDocumentImport = React.useCallback(async (file: File): Promise<ImportDocumentResult> => {
+    if (isDraftMode || !entityId) {
+      throw new Error('Managed document is not available until the source item is created');
+    }
+    if (!lockToken) {
+      throw new Error('Acquire an editing lock before importing a document');
+    }
+    return importMarkdownDocument(`${endpointBase}/import`, file, {
+      headers: { 'X-Lock-Token': lockToken },
+    });
+  }, [endpointBase, entityId, isDraftMode, lockToken]);
+
+  const handleDocumentImported = React.useCallback((result: ImportDocumentResult) => {
+    setError(null);
+    setForm((prev) => ({ ...prev, content_markdown: result.markdown }));
+    setDirty(true);
+    setContentResetNonce((prev) => prev + 1);
+    window.setTimeout(() => {
+      setContentFocusNonce((prev) => prev + 1);
+    }, 0);
+  }, []);
+
   const handleBlurCapture = React.useCallback(() => {
-    if (isDraftMode || !editMode || dirty) return;
+    if (isDraftMode || !editMode || dirty || importInteractionActive) return;
     window.setTimeout(() => {
       const active = document.activeElement;
       if (containerRef.current && active instanceof Node && containerRef.current.contains(active)) {
@@ -394,7 +458,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
       setEditMode(false);
       void releaseLock();
     }, 0);
-  }, [dirty, editMode, isDraftMode, releaseLock]);
+  }, [dirty, editMode, importInteractionActive, isDraftMode, releaseLock]);
 
   const lockHolderLabel = activeLockInfo?.holder_name || 'another user';
   const loadErrorMessage = React.useMemo(() => {
@@ -534,6 +598,16 @@ export const IntegratedDocumentEditor = React.forwardRef<
           Save
         </Button>
       )}
+      {canEditContent && (
+        <ImportButton
+          onImportFile={handleDocumentImport}
+          onImported={handleDocumentImported}
+          onError={handleDocumentImportError}
+          onDialogStateChange={setImportInteractionActive}
+          hasContent={!!String(form.content_markdown || '').trim()}
+          size="small"
+        />
+      )}
       <ExportButton
         content={form.content_markdown || ''}
         title={deepLinkRef || exportTitle}
@@ -592,6 +666,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
       ) : editMode ? (
         <React.Suspense fallback={<MarkdownEditorLoadingFallback minRows={minRows} />}>
           <MarkdownEditor
+            key={`${entityType}:${entityId || 'draft'}:${slotKey}:${contentResetNonce}`}
             value={form.content_markdown || ''}
             onChange={(value) => {
               setForm((prev) => ({ ...prev, content_markdown: value }));
@@ -601,7 +676,10 @@ export const IntegratedDocumentEditor = React.forwardRef<
             minRows={minRows}
             maxRows={maxRows}
             disabled={!canEditContent}
+            focusNonce={contentFocusNonce}
+            refreshNonce={contentResetNonce}
             onImageUpload={canEditContent ? handleInlineImageUpload : undefined}
+            onImageUrlImport={canEditContent ? handleInlineImageImport : undefined}
           />
         </React.Suspense>
       ) : (

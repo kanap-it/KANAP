@@ -42,6 +42,7 @@ import { fixMulterFilename } from '../common/upload';
 import { extractInlineImageUrls } from '../common/content-image-urls';
 import { detectChanges, REQUEST_TRACKED_FIELDS, resolveDisplayNames } from '../common/change-detection';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
+import { RemoteInlineImageImportService } from '../common/remote-inline-image-import.service';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { Task } from '../tasks/task.entity';
 import { TaskAttachment } from '../tasks/task-attachment.entity';
@@ -136,6 +137,7 @@ export class PortfolioRequestsService {
     private readonly taskActivitiesSvc: TaskActivitiesService,
     private readonly notifications: NotificationsService,
     private readonly itemNumberService: ItemNumberService,
+    private readonly remoteInlineImages: RemoteInlineImageImportService,
     private readonly integratedDocuments: IntegratedDocumentsService,
   ) {}
 
@@ -2321,6 +2323,17 @@ export class PortfolioRequestsService {
     }));
 
     return saved;
+  }
+
+  async importInlineAttachmentFromUrl(
+    requestId: string,
+    sourceUrl: string,
+    sourceField: string,
+    userId: string | null,
+    opts?: { manager?: EntityManager },
+  ) {
+    const file = await this.remoteInlineImages.importFromUrl(sourceUrl);
+    return this.uploadInlineAttachment(requestId, file, sourceField, userId, opts);
   }
 
   // Cleanup orphaned inline images when rich text content is updated

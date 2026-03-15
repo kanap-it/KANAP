@@ -15,6 +15,7 @@ import {
   ProjectExplanation,
   ExplanationContributorEntry,
   ExplanationReasonEntry,
+  ScheduleConstraint,
   ScheduledProject,
   ScenarioWarning,
   TeamOccupationEntry,
@@ -109,6 +110,7 @@ type ProjectComputation = {
   name: string;
   status: ProjectStatus;
   schedulingMode: ProjectSchedulingMode;
+  constraint: ScheduleConstraint | null;
   categoryId: string | null;
   sourceId: string | null;
   streamId: string | null;
@@ -167,6 +169,7 @@ type SchedulerResult = {
   reservations: RoadmapReservation[];
   unschedulable: UnschedulableProject[];
   explanations: ProjectExplanation[];
+  scenarioWarnings: ScenarioWarning[];
   roadmapEndDate: string | null;
   weeklyProjectLoad: WeeklyProjectLoadLedger | null;
 };
@@ -187,6 +190,7 @@ type CandidateRuntimeState = {
   everReady: boolean;
   blockageCounts: Map<RuntimeCapacityReason, number>;
   blockageDetails: Map<RuntimeCapacityReason, string>;
+  constraintConflict: string | null;
 };
 
 type RuntimeCapacityReason =
@@ -351,7 +355,6 @@ export class PortfolioRoadmapService {
       not_recalculated: baseResult.reservations.filter((r) => r.reason === 'not_recalculated').length,
       external_blocker: baseResult.reservations.filter((r) => r.reason === 'external_blocker').length,
     };
-    const scenarioWarnings: ScenarioWarning[] = [];
     const impactSummary: RoadmapImpactSummary = {
       delayedProjects: 0,
       acceleratedProjects: 0,
@@ -370,7 +373,7 @@ export class PortfolioRoadmapService {
       roadmapEndDate: baseResult.roadmapEndDate,
       unschedulable: baseResult.unschedulable,
       explanations: baseResult.explanations,
-      scenarioWarnings,
+      scenarioWarnings: baseResult.scenarioWarnings,
       impactSummary,
       options,
       diagnostics: {
@@ -503,6 +506,9 @@ export class PortfolioRoadmapService {
     }
     const excludedProjectIds = new Set<string>(options.excludedProjectIds ?? []);
     const candidateStatuses = new Set<ProjectStatus>(options.statuses as ProjectStatus[]);
+    const projectOverridesById = new Map(
+      (options.scenario?.projectOverrides ?? []).map((entry) => [entry.projectId, entry] as const),
+    );
 
     const candidateIds = new Set<string>();
     for (const project of projectRows) {
@@ -790,11 +796,15 @@ export class PortfolioRoadmapService {
       const remainingTotal = sumPositiveDays(contributorDays);
 
       const blockers = (blockersByProject.get(projectId) ?? []).slice().sort((a, b) => a.localeCompare(b));
+      const override = projectOverridesById.get(projectId) as (
+        NonNullable<RoadmapGenerateDto['scenario']>['projectOverrides'][number] | undefined
+      );
       const computation: ProjectComputation = {
         id: row.id,
         name: row.name,
         status: row.status,
-        schedulingMode: row.scheduling_mode,
+        schedulingMode: override?.schedulingMode ?? row.scheduling_mode,
+        constraint: (override?.constraint ?? null) as ScheduleConstraint | null,
         categoryId: row.category_id ?? null,
         sourceId: row.source_id ?? null,
         streamId: row.stream_id ?? null,
@@ -1178,6 +1188,34 @@ export class PortfolioRoadmapService {
       internalBlockersByProject,
     } = buildDependencyGraph(candidateIds));
 
+    const getConstraintStartWeek = (constraint: ScheduleConstraint | null | undefined): Date | null => {
+      if (!constraint) return null;
+      switch (constraint.type) {
+        case 'pin_start':
+        case 'pin_window':
+        case 'not_before':
+          return ceilToMondayUtc(parseYmdUtc(constraint.startWeek));
+        default:
+          return null;
+      }
+    };
+
+    const getConstraintEndWeek = (constraint: ScheduleConstraint | null | undefined): Date | null => {
+      if (!constraint || constraint.type !== 'pin_window') return null;
+      return ceilToMondayUtc(parseYmdUtc(constraint.endWeek));
+    };
+
+    const applyConstraintEarliestWeek = (
+      earliestWeek: Date,
+      constraint: ScheduleConstraint | null | undefined,
+    ): Date => {
+      const constraintStartWeek = getConstraintStartWeek(constraint);
+      if (!constraintStartWeek) return earliestWeek;
+      return constraintStartWeek.getTime() > earliestWeek.getTime()
+        ? constraintStartWeek
+        : earliestWeek;
+    };
+
     const dependencyDepth = new Map<string, number>();
     const depthDfs = (projectId: string, visiting: Set<string>): number => {
       if (dependencyDepth.has(projectId)) return dependencyDepth.get(projectId)!;
@@ -1231,6 +1269,7 @@ export class PortfolioRoadmapService {
         everReady: false,
         blockageCounts: new Map<RuntimeCapacityReason, number>(),
         blockageDetails: new Map<RuntimeCapacityReason, string>(),
+        constraintConflict: null,
       });
 
       let earliestDate = startDate;
@@ -1244,7 +1283,10 @@ export class PortfolioRoadmapService {
           earliestDate = nextDay;
         }
       }
-      externalEarliestWeekByProject.set(projectId, ceilToMondayUtc(earliestDate));
+      externalEarliestWeekByProject.set(
+        projectId,
+        applyConstraintEarliestWeek(ceilToMondayUtc(earliestDate), project.constraint),
+      );
     }
 
     const bottleneckWeeksByProject = new Map<string, number>();
@@ -1307,6 +1349,24 @@ export class PortfolioRoadmapService {
 
     const isContinuingProject = (state: CandidateRuntimeState): boolean => computeStartedWeek(state) !== null;
 
+    const getConstraintPriority = (state: CandidateRuntimeState): number => {
+      if (computeStartedWeek(state)) return 0;
+      const constraint = state.project.constraint;
+      if (!constraint) return 0;
+      const startWeek = getConstraintStartWeek(constraint);
+      if (!startWeek || startWeek.getTime() > cursor.getTime()) return 0;
+      switch (constraint.type) {
+        case 'pin_start':
+          return 3;
+        case 'pin_window':
+          return 2;
+        case 'not_before':
+          return 1;
+        default:
+          return 0;
+      }
+    };
+
     const getOpenProjectSet = (contributorId: string): Set<string> => {
       const existing = openProjectsByContributor.get(contributorId);
       if (existing) return existing;
@@ -1343,6 +1403,11 @@ export class PortfolioRoadmapService {
     };
 
     const rankProjects = (leftId: string, rightId: string): number => {
+      const leftConstraintPriority = getConstraintPriority(runtimeByProject.get(leftId)!);
+      const rightConstraintPriority = getConstraintPriority(runtimeByProject.get(rightId)!);
+      if (leftConstraintPriority !== rightConstraintPriority) {
+        return rightConstraintPriority - leftConstraintPriority;
+      }
       const leftContinuing = isContinuingProject(runtimeByProject.get(leftId)!);
       const rightContinuing = isContinuingProject(runtimeByProject.get(rightId)!);
       if (leftContinuing !== rightContinuing) return leftContinuing ? -1 : 1;
@@ -1613,6 +1678,66 @@ export class PortfolioRoadmapService {
         .map(({ sortDemand, ...entry }) => entry);
     };
 
+    const getConstraintConflictMessage = (
+      constraint: ScheduleConstraint | null | undefined,
+      actualStartWeek: string | null,
+      actualEndWeek: string | null,
+      historicalStartWeek: string | null,
+    ): string | null => {
+      if (!constraint) return null;
+      switch (constraint.type) {
+        case 'pin_start':
+          if (historicalStartWeek && historicalStartWeek !== constraint.startWeek) {
+            return `Pinned start ${constraint.startWeek} conflicts with historical work that already began in ${historicalStartWeek}.`;
+          }
+          if (!actualStartWeek) {
+            return `Pinned start ${constraint.startWeek} could not be satisfied.`;
+          }
+          if (actualStartWeek !== constraint.startWeek) {
+            return `Pinned start ${constraint.startWeek} slipped to ${actualStartWeek}.`;
+          }
+          return null;
+        case 'pin_window':
+          if (historicalStartWeek && historicalStartWeek < constraint.startWeek) {
+            return `Pinned window ${constraint.startWeek} to ${constraint.endWeek} conflicts with historical work that already began in ${historicalStartWeek}.`;
+          }
+          if (!actualStartWeek) {
+            return `Pinned window ${constraint.startWeek} to ${constraint.endWeek} could not be satisfied.`;
+          }
+          if (
+            actualStartWeek < constraint.startWeek
+            || actualStartWeek > constraint.endWeek
+            || (actualEndWeek != null && actualEndWeek > constraint.endWeek)
+          ) {
+            return `Pinned window ${constraint.startWeek} to ${constraint.endWeek} was missed; actual schedule is ${actualStartWeek} to ${actualEndWeek ?? actualStartWeek}.`;
+          }
+          return null;
+        case 'not_before':
+          if (historicalStartWeek && historicalStartWeek < constraint.startWeek) {
+            return `Not-before constraint ${constraint.startWeek} conflicts with historical work that already began in ${historicalStartWeek}.`;
+          }
+          if (actualStartWeek && actualStartWeek < constraint.startWeek) {
+            return `Not-before constraint ${constraint.startWeek} was violated by start ${actualStartWeek}.`;
+          }
+          return null;
+        default:
+          return null;
+      }
+    };
+
+    const getConstraintSummaryLabel = (constraint: ScheduleConstraint): string => {
+      switch (constraint.type) {
+        case 'pin_start':
+          return `pin start ${constraint.startWeek}`;
+        case 'pin_window':
+          return `pin window ${constraint.startWeek} to ${constraint.endWeek}`;
+        case 'not_before':
+          return `not-before ${constraint.startWeek}`;
+        default:
+          return 'scenario constraint';
+      }
+    };
+
     const buildExplanation = (
       projectId: string,
       classification: ProjectExplanation['classification'],
@@ -1624,6 +1749,10 @@ export class PortfolioRoadmapService {
       const unschedulable = fallbackUnschedulable ?? unschedulableMap.get(projectId);
       const schedulingMode = project?.schedulingMode ?? unschedulable?.schedulingMode;
       if (!schedulingMode) return null;
+      const activeConstraint = project?.constraint ?? null;
+      const historicalStartWeek = state?.historicalStart
+        ? toYmdUtc(getWeekStartMondayUtc(state.historicalStart))
+        : null;
 
       const earliestEligibleDate = state?.historicalStart
         ? getWeekStartMondayUtc(state.historicalStart)
@@ -1637,6 +1766,24 @@ export class PortfolioRoadmapService {
             .map((entry) => [`${entry.kind}:${entry.projectId ?? ''}:${entry.label}`, entry]),
         ).values(),
       );
+      const constraintConflictMessage = getConstraintConflictMessage(
+        activeConstraint,
+        actualStartWeek,
+        classification === 'scheduled'
+          ? schedule.find((item) => item.projectId === projectId)?.plannedEnd ?? null
+          : null,
+        historicalStartWeek,
+      );
+      if (constraintConflictMessage) {
+        blockerReasons.unshift({
+          kind: 'constraint_conflict',
+          label: constraintConflictMessage,
+          projectId: projectId,
+          scenarioProjectId: null,
+          fromWeek: activeConstraint && 'startWeek' in activeConstraint ? activeConstraint.startWeek : null,
+          toWeek: activeConstraint?.type === 'pin_window' ? activeConstraint.endWeek : actualStartWeek,
+        });
+      }
       const delayedByCapacity = !!state
         && !!state.firstReadyWeek
         && !!state.firstAllocatedWeek
@@ -1650,6 +1797,12 @@ export class PortfolioRoadmapService {
       if (classification === 'scheduled' && state) {
         if (state.historicalStart) {
           startReason = 'historical_start';
+        } else if (activeConstraint?.type === 'pin_start') {
+          startReason = 'constraint_pin_start';
+        } else if (activeConstraint?.type === 'pin_window') {
+          startReason = 'constraint_pin_window';
+        } else if (activeConstraint?.type === 'not_before') {
+          startReason = 'constraint_not_before';
         } else if (dependencyReasons.length > 0 && state.firstReadyWeek && state.firstAllocatedWeek
           && state.firstReadyWeek.getTime() === state.firstAllocatedWeek.getTime()) {
           startReason = 'dependency_release';
@@ -1659,13 +1812,17 @@ export class PortfolioRoadmapService {
       }
 
       const finalReason = classification === 'unschedulable'
-        ? (unschedulable?.details ?? mapUnschedulableReasonLabel(unschedulable?.reason ?? 'insufficient_capacity'))
+        ? (constraintConflictMessage
+          ?? unschedulable?.details
+          ?? mapUnschedulableReasonLabel(unschedulable?.reason ?? 'insufficient_capacity'))
         : (
-          delayedByCapacity && earliestEligibleWeek && actualStartWeek
+          constraintConflictMessage
+            ? constraintConflictMessage
+            : (delayedByCapacity && earliestEligibleWeek && actualStartWeek
             ? `Eligible from ${earliestEligibleWeek} and started in ${actualStartWeek} when capacity opened up`
             : (dependencyReasons.length > 0 && actualStartWeek
               ? `Started in ${actualStartWeek} once blockers released it`
-              : (actualStartWeek ? `Started in ${actualStartWeek}` : null))
+              : (actualStartWeek ? `Started in ${actualStartWeek}` : null)))
         );
 
       const summary = classification === 'unschedulable'
@@ -1673,11 +1830,13 @@ export class PortfolioRoadmapService {
         : (
           startReason === 'historical_start'
             ? `${project?.name ?? projectId} continued from historical work and appears in the roadmap from ${actualStartWeek ?? 'n/a'}.`
-            : (delayedByCapacity && earliestEligibleWeek && actualStartWeek
-              ? `${project?.name ?? projectId} was eligible from ${earliestEligibleWeek} and started in ${actualStartWeek} when capacity became available.`
-              : (dependencyReasons.length > 0 && actualStartWeek
-                ? `${project?.name ?? projectId} started in ${actualStartWeek} after its blockers released it.`
-                : `${project?.name ?? projectId} started in ${actualStartWeek ?? 'n/a'} when it became schedulable.`))
+            : (activeConstraint && actualStartWeek
+              ? `${project?.name ?? projectId} started in ${actualStartWeek} under ${getConstraintSummaryLabel(activeConstraint)}${constraintConflictMessage ? `, with a conflict: ${constraintConflictMessage}` : '.'}`
+              : (delayedByCapacity && earliestEligibleWeek && actualStartWeek
+                ? `${project?.name ?? projectId} was eligible from ${earliestEligibleWeek} and started in ${actualStartWeek} when capacity became available.`
+                : (dependencyReasons.length > 0 && actualStartWeek
+                  ? `${project?.name ?? projectId} started in ${actualStartWeek} after its blockers released it.`
+                  : `${project?.name ?? projectId} started in ${actualStartWeek ?? 'n/a'} when it became schedulable.`)))
         );
 
       const reasons = blockerReasons.length > 0
@@ -1700,8 +1859,8 @@ export class PortfolioRoadmapService {
         schedulingMode,
         earliestEligibleWeek,
         actualStartWeek,
-        derivedFromConstraint: false,
-        activeConstraint: null,
+        derivedFromConstraint: !!activeConstraint && !constraintConflictMessage && !state?.historicalStart,
+        activeConstraint,
         startReason,
         blockerReasons: reasons,
         limitingContributors,
@@ -1725,6 +1884,12 @@ export class PortfolioRoadmapService {
         if (!state || state.done) return false;
         const earliestWeek = externalEarliestWeekByProject.get(projectId) ?? firstWeekToPlan;
         if (cursor.getTime() < earliestWeek.getTime()) return false;
+        const latestConstraintStartWeek = getConstraintEndWeek(state.project.constraint);
+        if (!computeStartedWeek(state)
+          && latestConstraintStartWeek
+          && cursor.getTime() > latestConstraintStartWeek.getTime()) {
+          return false;
+        }
 
         const blockers = internalBlockersByProject.get(projectId) ?? [];
         for (const blockerId of blockers) {
@@ -2455,12 +2620,42 @@ export class PortfolioRoadmapService {
     ].sort((a, b) =>
       (a.actualStartWeek ?? a.earliestEligibleWeek ?? '').localeCompare(b.actualStartWeek ?? b.earliestEligibleWeek ?? '')
       || (a.itemRef.projectId ?? '').localeCompare(b.itemRef.projectId ?? ''));
+    const scheduleByProjectId = new Map(schedule.map((item) => [item.projectId, item] as const));
+    const scenarioWarnings = Array.from(prepared.candidates.values())
+      .map<ScenarioWarning | null>((project) => {
+        const projectId = project.id;
+        const state = runtimeByProject.get(projectId) ?? null;
+        const constraint = project.constraint ?? null;
+        if (!constraint) return null;
+        const scheduledItem = scheduleByProjectId.get(projectId) ?? null;
+        const historicalStartWeek = state?.historicalStart
+          ? toYmdUtc(getWeekStartMondayUtc(state.historicalStart))
+          : null;
+        const conflictMessage = getConstraintConflictMessage(
+          constraint,
+          scheduledItem?.plannedStart ?? null,
+          scheduledItem?.plannedEnd ?? null,
+          historicalStartWeek,
+        );
+        if (!conflictMessage) return null;
+        return {
+          severity: scheduledItem ? 'warning' : 'error',
+          code: 'constraint_infeasible',
+          itemRef: buildItemRef(projectId),
+          message: `${project.name}: ${conflictMessage}`,
+        } as ScenarioWarning;
+      })
+      .filter((warning) => !!warning)
+      .sort((a, b) =>
+        (a.itemRef?.projectId ?? '').localeCompare(b.itemRef?.projectId ?? '')
+        || a.message.localeCompare(b.message));
 
     return {
       schedule,
       reservations,
       unschedulable,
       explanations,
+      scenarioWarnings,
       roadmapEndDate: maxRoadmapEnd ? toYmdUtc(maxRoadmapEnd) : null,
       weeklyProjectLoad,
     };

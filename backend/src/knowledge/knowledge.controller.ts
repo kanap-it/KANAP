@@ -15,14 +15,19 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
+import { DataSource } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { Public } from '../auth/public.decorator';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { REFRESH_TOKEN_COOKIE_NAME, parseCookieValue } from '../auth/auth-cookie.util';
 import { contentDisposition } from '../common/content-disposition';
-import { attachmentMulterOptions, inlineImageMulterOptions } from '../common/upload';
+import { attachmentMulterOptions, documentImportMulterOptions, inlineImageMulterOptions } from '../common/upload';
+import { createRequestReleaseConnection } from '../common/import-connection';
+import { RATE_LIMITS } from '../common/rate-limit';
+import { RateLimitGuard } from '../common/rate-limit.guard';
 import { resolveTenantAppBaseUrl } from '../common/url';
 import { StorageService } from '../common/storage/storage.service';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
@@ -38,6 +43,7 @@ export class KnowledgeController {
     private readonly relations: KnowledgeRelationsService,
     private readonly workflows: KnowledgeWorkflowService,
     private readonly storage: StorageService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private resolveWorkflowBaseUrl(req: any): string | null {
@@ -141,7 +147,7 @@ export class KnowledgeController {
     if (contentLength != null) {
       res.setHeader('Content-Length', String(contentLength));
     }
-    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    res.setHeader('Cache-Control', 'private, max-age=300');
     res.setHeader('Vary', 'Cookie');
     obj.stream.pipe(res);
   }
@@ -548,6 +554,20 @@ export class KnowledgeController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('knowledge', 'member')
+  @Post(':idOrRef/attachments/inline/import')
+  importInlineAttachmentFromUrl(
+    @Param('idOrRef') idOrRef: string,
+    @Body() body: { source_field?: string; source_url?: string },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.docs.importInlineAttachmentFromUrl(idOrRef, body?.source_url || '', ctx.userId || null, {
+      manager: ctx.manager,
+      sourceField: body?.source_field || 'content_markdown',
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'member')
   @Delete(':idOrRef/attachments/:attachmentId')
   deleteAttachment(
     @Param('idOrRef') idOrRef: string,
@@ -602,5 +622,24 @@ export class KnowledgeController {
     res.setHeader('Content-Type', output.mimeType);
     res.setHeader('Content-Disposition', contentDisposition(output.filename));
     res.send(output.buffer);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'member')
+  @UseGuards(RateLimitGuard)
+  @Throttle({ default: RATE_LIMITS.documentImport })
+  @Post(':idOrRef/import')
+  @UseInterceptors(FileInterceptor('file', documentImportMulterOptions))
+  importDocument(
+    @Param('idOrRef') idOrRef: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Headers('x-lock-token') lockToken: string | undefined,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.docs.importDocument(idOrRef, file, ctx.userId || null, lockToken, {
+      manager: ctx.manager,
+      releaseConnection: createRequestReleaseConnection(req, this.dataSource, ctx.tenantId),
+    });
   }
 }

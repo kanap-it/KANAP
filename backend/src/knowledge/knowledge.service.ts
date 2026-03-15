@@ -14,15 +14,19 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
+import { extractInlineImageUrls } from '../common/content-image-urls';
 import { ItemNumberService } from '../common/item-number.service';
+import { DocumentImportService, ImportedDocumentResult } from '../common/document-import.service';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { DocumentExportService } from '../common/document-export.service';
 import { BulkDeleteResult } from '../common/delete.types';
+import { ImportExecutionOptions, readUploadedFileBuffer } from '../common/import-connection';
 import { fixMulterFilename } from '../common/upload';
 import { validateUploadedFile } from '../common/upload-validation';
 import { parsePagination } from '../common/pagination';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { StorageService } from '../common/storage/storage.service';
+import { RemoteInlineImageImportService } from '../common/remote-inline-image-import.service';
 import { Features } from '../config/features';
 import { EmailService } from '../email/email.service';
 import { PermissionLevel, PermissionsService } from '../permissions/permissions.service';
@@ -288,7 +292,9 @@ export class KnowledgeService {
     private readonly itemNumbers: ItemNumberService,
     private readonly audit: AuditService,
     private readonly exportService: DocumentExportService,
+    private readonly importService: DocumentImportService,
     private readonly storage: StorageService,
+    private readonly remoteInlineImages: RemoteInlineImageImportService,
     private readonly dataSource: DataSource,
     private readonly permissions: PermissionsService,
     private readonly users: UsersService,
@@ -3096,6 +3102,10 @@ export class KnowledgeService {
 
     await this.auditDocumentChange('update', saved.id, before, saved, userId, manager);
 
+    if (body?.content_markdown !== undefined && before.content_markdown !== saved.content_markdown) {
+      await this.cleanupOrphanedInlineAttachments(saved.id, before.content_markdown, saved.content_markdown, manager);
+    }
+
     return this.get(saved.id, { manager });
   }
 
@@ -3583,50 +3593,60 @@ export class KnowledgeService {
     await this.assertWorkflowAllowsEditing(documentId, manager);
 
     const repo = manager.getRepository(DocumentEditLock);
-    const lock = await repo.findOne({ where: { document_id: documentId } as any });
     const nowMs = Date.now();
+    const now = new Date(nowMs);
     const expiresAt = new Date(nowMs + LOCK_TTL_SECONDS * 1000);
-
-    if (lock && new Date(lock.expires_at).getTime() > nowMs && lock.holder_user_id !== userId) {
-      throw new HttpException({
-        message: 'Document is already locked by another user',
-        lock: {
-          holder_user_id: lock.holder_user_id,
-          holder_name: await this.getUserDisplayName(lock.holder_user_id, manager),
-          acquired_at: lock.acquired_at,
-          heartbeat_at: lock.heartbeat_at,
-          expires_at: lock.expires_at,
-        },
-      }, 423);
-    }
-
     const token = randomUUID();
     const tokenHash = hashLockToken(token);
 
-    if (!lock) {
-      const created = repo.create({
-        document_id: documentId,
-        holder_user_id: userId,
-        lock_token_hash: tokenHash,
-        acquired_at: new Date(),
-        heartbeat_at: new Date(),
-        expires_at: expiresAt,
-      });
-      await repo.save(created);
-    } else {
-      lock.holder_user_id = userId;
-      lock.lock_token_hash = tokenHash;
-      lock.acquired_at = new Date();
-      lock.heartbeat_at = new Date();
-      lock.expires_at = expiresAt;
-      await repo.save(lock);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const rows = await manager.query<Array<{ holder_user_id: string }>>(
+        `INSERT INTO document_edit_locks (
+           tenant_id,
+           document_id,
+           holder_user_id,
+           lock_token_hash,
+           acquired_at,
+           heartbeat_at,
+           expires_at
+         )
+         VALUES (app_current_tenant(), $1, $2, $3, $4, $4, $5)
+         ON CONFLICT (tenant_id, document_id) DO UPDATE
+         SET holder_user_id = EXCLUDED.holder_user_id,
+             lock_token_hash = EXCLUDED.lock_token_hash,
+             acquired_at = EXCLUDED.acquired_at,
+             heartbeat_at = EXCLUDED.heartbeat_at,
+             expires_at = EXCLUDED.expires_at
+         WHERE document_edit_locks.holder_user_id = EXCLUDED.holder_user_id
+            OR document_edit_locks.expires_at <= EXCLUDED.acquired_at
+         RETURNING holder_user_id`,
+        [documentId, userId, tokenHash, now, expiresAt],
+      );
+
+      if (rows.length > 0) {
+        return {
+          lock_token: token,
+          expires_at: expiresAt,
+          holder_user_id: userId,
+        };
+      }
+
+      const lock = await repo.findOne({ where: { document_id: documentId } as any });
+      if (lock && new Date(lock.expires_at).getTime() > nowMs && lock.holder_user_id !== userId) {
+        throw new HttpException({
+          message: 'Document is already locked by another user',
+          lock: {
+            holder_user_id: lock.holder_user_id,
+            holder_name: await this.getUserDisplayName(lock.holder_user_id, manager),
+            acquired_at: lock.acquired_at,
+            heartbeat_at: lock.heartbeat_at,
+            expires_at: lock.expires_at,
+          },
+        }, 423);
+      }
     }
 
-    return {
-      lock_token: token,
-      expires_at: expiresAt,
-      holder_user_id: userId,
-    };
+    throw new ConflictException('Failed to acquire document lock');
   }
 
   async heartbeatLock(
@@ -4201,6 +4221,16 @@ export class KnowledgeService {
     return saved;
   }
 
+  async importInlineAttachmentFromUrl(
+    documentId: string,
+    sourceUrl: string,
+    userId?: string | null,
+    opts?: { manager?: EntityManager; sourceField?: string | null },
+  ) {
+    const file = await this.remoteInlineImages.importFromUrl(sourceUrl);
+    return this.uploadAttachment(documentId, file, userId || null, opts);
+  }
+
   async getAttachmentMeta(attachmentId: string, opts?: { manager?: EntityManager }) {
     const manager = this.getManager(opts);
     const found = await manager.getRepository(DocumentAttachment).findOne({ where: { id: attachmentId } });
@@ -4246,6 +4276,136 @@ export class KnowledgeService {
     return { ok: true };
   }
 
+  async importDocument(
+    idOrRef: string,
+    file: Express.Multer.File,
+    userId: string | null,
+    lockToken: string | null | undefined,
+    opts?: ImportExecutionOptions,
+  ): Promise<{ markdown: string; warnings: string[] }> {
+    let manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+
+    await this.assertWorkflowAllowsEditing(documentId, manager);
+    await this.ensureValidLock(documentId, String(userId || ''), lockToken, manager);
+
+    const buffer = readUploadedFileBuffer(file);
+    let converted: ImportedDocumentResult;
+    if (opts?.releaseConnection) {
+      const released = await opts.releaseConnection(
+        () => this.importService.convertToMarkdown(buffer, file.mimetype, file.originalname),
+      );
+      converted = released.result;
+      manager = released.manager;
+    } else {
+      converted = await this.importService.convertToMarkdown(
+        buffer,
+        file.mimetype,
+        file.originalname,
+      );
+    }
+
+    return this.finalizeImportedDocument(documentId, converted, userId, lockToken, { manager });
+  }
+
+  async finalizeImportedDocument(
+    documentId: string,
+    converted: ImportedDocumentResult,
+    userId: string | null,
+    lockToken: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ): Promise<{ markdown: string; warnings: string[] }> {
+    const manager = this.getManager(opts);
+
+    await this.assertWorkflowAllowsEditing(documentId, manager);
+    await this.ensureValidLock(documentId, String(userId || ''), lockToken, manager);
+
+    const tenantSlug = await this.loadCurrentTenantSlug(manager);
+    const replacements = new Map<string, string>();
+
+    for (const image of converted.images) {
+      const attachment = await this.uploadAttachment(documentId, image.file, userId, {
+        manager,
+        sourceField: 'content_markdown',
+      });
+      replacements.set(image.sourcePath, this.buildInlineAttachmentPath(tenantSlug, attachment.id));
+    }
+
+    return {
+      markdown: this.importService.rewriteImageTargets(converted.markdown, replacements, converted.omittedTargets),
+      warnings: converted.warnings,
+    };
+  }
+
+  private async loadCurrentTenantSlug(manager: EntityManager): Promise<string> {
+    const currentTenantRows = await manager.query<Array<{ tenant_id: string | null }>>(
+      'SELECT app_current_tenant() AS tenant_id',
+    );
+    const tenantId = String(currentTenantRows[0]?.tenant_id || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required');
+    }
+
+    const tenantRows = await manager.query<Array<{ slug: string | null }>>(
+      `SELECT slug
+       FROM tenants
+       WHERE id = $1
+       LIMIT 1`,
+      [tenantId],
+    );
+    const slug = String(tenantRows[0]?.slug || '').trim();
+    return slug || tenantId;
+  }
+
+  private buildInlineAttachmentPath(tenantSlug: string, attachmentId: string): string {
+    return `/api/knowledge/inline/${tenantSlug}/${attachmentId}`;
+  }
+
+  private async cleanupOrphanedInlineAttachments(
+    documentId: string,
+    oldContent: string | null,
+    newContent: string | null,
+    manager: EntityManager,
+  ): Promise<void> {
+    const previousUrls = extractInlineImageUrls(oldContent);
+    const nextUrls = new Set(extractInlineImageUrls(newContent));
+    if (previousUrls.length === 0) {
+      return;
+    }
+
+    const repo = manager.getRepository(DocumentAttachment);
+    for (const url of previousUrls) {
+      if (nextUrls.has(url)) {
+        continue;
+      }
+      const match = url.match(/\/knowledge\/inline\/[^/]+\/([a-f0-9-]+)(?:[/?#].*)?$/i);
+      if (!match) {
+        continue;
+      }
+
+      const attachment = await repo.findOne({
+        where: {
+          id: match[1],
+          document_id: documentId,
+          source_field: 'content_markdown',
+        } as any,
+      });
+      if (!attachment) {
+        continue;
+      }
+
+      const referencedElsewhere = await this.isStoragePathReferencedElsewhere(manager, attachment.storage_path, [attachment.id]);
+      if (!referencedElsewhere) {
+        try {
+          await this.storage.deleteObject(attachment.storage_path);
+        } catch {
+          // Ignore storage delete failures during inline attachment cleanup.
+        }
+      }
+      await repo.delete({ id: attachment.id } as any);
+    }
+  }
+
   async getInlineAttachmentMeta(
     tenantSlug: string,
     attachmentId: string,
@@ -4274,6 +4434,7 @@ export class KnowledgeService {
 
       const tenantId = String(tenantRows[0].id || '').trim();
       await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
+
       const rows = await runner.query(
         `SELECT a.storage_path,
                 a.mime_type,
@@ -4287,7 +4448,12 @@ export class KnowledgeService {
            AND a.source_field IS NOT NULL
          LIMIT 1`,
         [attachmentId],
-      );
+      ) as Array<{
+        storage_path: string;
+        mime_type: string | null;
+        size: number | null;
+        source_entity_type: 'requests' | 'projects' | null;
+      }>;
       if (!rows.length) {
         await runner.rollbackTransaction();
         return null;
@@ -4303,10 +4469,9 @@ export class KnowledgeService {
       }
 
       await runner.commitTransaction();
-
       return {
         storagePath: rows[0].storage_path,
-        mimeType: rows[0].mime_type,
+        mimeType: rows[0].mime_type ?? null,
         size: rows[0].size == null ? null : Number(rows[0].size),
       };
     } catch (error) {

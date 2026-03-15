@@ -9,6 +9,10 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
+import { RemoteInlineImageImportService } from '../common/remote-inline-image-import.service';
+import { DocumentImportService, ImportedDocumentResult } from '../common/document-import.service';
+import { extractInlineImageUrls } from '../common/content-image-urls';
+import { ImportExecutionOptions, readUploadedFileBuffer } from '../common/import-connection';
 
 @Injectable()
 export class TaskAttachmentsService {
@@ -17,6 +21,8 @@ export class TaskAttachmentsService {
     private readonly repo: Repository<TaskAttachment>,
     private readonly storage: StorageService,
     private readonly audit: AuditService,
+    private readonly remoteInlineImages: RemoteInlineImageImportService,
+    private readonly importService: DocumentImportService,
   ) {}
 
   async listAttachments(taskId: string, opts?: { manager?: EntityManager }): Promise<TaskAttachment[]> {
@@ -104,6 +110,103 @@ export class TaskAttachmentsService {
     return found;
   }
 
+  async importInlineAttachmentFromUrl(
+    taskId: string,
+    sourceUrl: string,
+    userId?: string | null,
+    opts?: { manager?: EntityManager; sourceField?: string | null },
+  ): Promise<TaskAttachment> {
+    const file = await this.remoteInlineImages.importFromUrl(sourceUrl);
+    return this.uploadAttachment(taskId, file, userId || undefined, opts);
+  }
+
+  async importDocument(
+    taskId: string,
+    file: Express.Multer.File,
+    userId?: string | null,
+    opts?: ImportExecutionOptions & { sourceField?: string | null },
+  ): Promise<{ markdown: string; warnings: string[] }> {
+    const sourceField = String(opts?.sourceField || '').trim() || 'description';
+    const buffer = readUploadedFileBuffer(file);
+    let manager = opts?.manager ?? this.repo.manager;
+    let converted: ImportedDocumentResult;
+    if (opts?.releaseConnection) {
+      const released = await opts.releaseConnection(
+        () => this.importService.convertToMarkdown(buffer, file.mimetype, file.originalname),
+      );
+      converted = released.result;
+      manager = released.manager;
+    } else {
+      converted = await this.importService.convertToMarkdown(
+        buffer,
+        file.mimetype,
+        file.originalname,
+      );
+    }
+
+    const tenantSlug = await this.loadCurrentTenantSlug(manager);
+    const replacements = new Map<string, string>();
+    for (const image of converted.images) {
+      const attachment = await this.uploadAttachment(taskId, image.file, userId || undefined, {
+        manager,
+        sourceField,
+      });
+      replacements.set(image.sourcePath, this.buildInlineAttachmentPath(tenantSlug, attachment.id));
+    }
+
+    return {
+      markdown: this.importService.rewriteImageTargets(converted.markdown, replacements, converted.omittedTargets),
+      warnings: converted.warnings,
+    };
+  }
+
+  async cleanupOrphanedImages(
+    taskId: string,
+    sourceField: string,
+    oldContent: string | null,
+    newContent: string | null,
+    opts?: { manager?: EntityManager },
+  ): Promise<void> {
+    const mg = opts?.manager ?? this.repo.manager;
+    const attachRepo = mg.getRepository(TaskAttachment);
+    const oldUrls = extractInlineImageUrls(oldContent);
+    const newUrls = new Set(extractInlineImageUrls(newContent));
+
+    for (const url of oldUrls) {
+      if (newUrls.has(url)) {
+        continue;
+      }
+      const match = url.match(/\/tasks\/attachments\/[^/]+\/([a-f0-9-]+)\/inline(?:[/?#].*)?$/i);
+      if (!match) {
+        continue;
+      }
+      const attachment = await attachRepo.findOne({
+        where: { id: match[1], task_id: taskId, source_field: sourceField },
+      });
+      if (!attachment) {
+        continue;
+      }
+
+      const refs = await mg.query<Array<{ exists: number }>>(
+        `SELECT 1 AS exists
+         FROM task_attachments
+         WHERE storage_path = $1
+           AND id <> $2
+         LIMIT 1`,
+        [attachment.storage_path, attachment.id],
+      );
+      if (refs.length === 0) {
+        try {
+          await this.storage.deleteObject(attachment.storage_path);
+        } catch {
+          // Ignore storage errors during delete.
+        }
+      }
+
+      await attachRepo.delete({ id: attachment.id });
+    }
+  }
+
   async deleteAttachment(
     attachmentId: string,
     userId?: string,
@@ -135,5 +238,29 @@ export class TaskAttachmentsService {
       { manager: mg },
     );
     return { ok: true };
+  }
+
+  private async loadCurrentTenantSlug(manager: EntityManager): Promise<string> {
+    const currentTenantRows = await manager.query<Array<{ tenant_id: string | null }>>(
+      'SELECT app_current_tenant() AS tenant_id',
+    );
+    const tenantId = String(currentTenantRows[0]?.tenant_id || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException('Tenant context is required');
+    }
+
+    const tenantRows = await manager.query<Array<{ slug: string | null }>>(
+      `SELECT slug
+       FROM tenants
+       WHERE id = $1
+       LIMIT 1`,
+      [tenantId],
+    );
+    const tenantSlug = String(tenantRows[0]?.slug || '').trim();
+    return tenantSlug || tenantId;
+  }
+
+  private buildInlineAttachmentPath(tenantSlug: string, attachmentId: string): string {
+    return `/api/tasks/attachments/${tenantSlug}/${attachmentId}/inline`;
   }
 }

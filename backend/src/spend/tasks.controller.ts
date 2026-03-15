@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UseGuards, UseInterceptors, UploadedFile, ParseUUIDPipe, BadRequestException } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import { DataSource } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
@@ -14,8 +16,11 @@ import { TaskTimeEntriesService } from '../tasks/task-time-entries.service';
 import { TasksCsvService } from '../tasks/tasks-csv.service';
 import { StorageService } from '../common/storage/storage.service';
 import { resolveToUuid } from '../common/resolve-item-id';
-import { attachmentMulterOptions, csvImportMulterOptions } from '../common/upload';
+import { attachmentMulterOptions, csvImportMulterOptions, documentImportMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
+import { createRequestReleaseConnection } from '../common/import-connection';
+import { RATE_LIMITS } from '../common/rate-limit';
+import { RateLimitGuard } from '../common/rate-limit.guard';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 
@@ -32,6 +37,7 @@ export class TasksController {
     private readonly csvSvc: TasksCsvService,
     private readonly storage: StorageService,
     private readonly knowledge: KnowledgeService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private resolve(idOrRef: string, req: any): Promise<string> {
@@ -495,6 +501,40 @@ export class TasksController {
     return this.attachmentsSvc.uploadAttachment(id, file, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
       sourceField: body?.source_field || null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('tasks', 'member')
+  @Post(':id/attachments/inline/import')
+  async importInlineAttachment(
+    @Param('id') idOrRef: string,
+    @Body() body: { source_field?: string; source_url?: string },
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.attachmentsSvc.importInlineAttachmentFromUrl(id, body?.source_url || '', req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+      sourceField: body?.source_field || null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('tasks', 'member')
+  @UseGuards(RateLimitGuard)
+  @Throttle({ default: RATE_LIMITS.documentImport })
+  @Post(':id/import')
+  @UseInterceptors(FileInterceptor('file', documentImportMulterOptions))
+  async importDocument(
+    @Param('id') idOrRef: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.attachmentsSvc.importDocument(id, file, req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+      releaseConnection: createRequestReleaseConnection(req, this.dataSource, req?.tenant?.id ?? ''),
+      sourceField: 'description',
     });
   }
 }

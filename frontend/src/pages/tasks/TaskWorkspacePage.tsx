@@ -26,6 +26,8 @@ import { useTaskNav } from '../../hooks/useTaskNav';
 import { useClassificationDefaults } from '../../hooks/useClassificationDefaults';
 import { useAuth } from '../../auth/AuthContext';
 import ExportButton from '../../components/ExportButton';
+import ImportButton from '../../components/ImportButton';
+import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../../api/endpoints/import';
 import TaskSidebar from './components/TaskSidebar';
 import TaskActivity from './components/TaskActivity';
 import TaskAttachments, { TaskAttachment } from './components/TaskAttachments';
@@ -304,6 +306,7 @@ export default function TaskWorkspacePage() {
 
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [convertToRequestOpen, setConvertToRequestOpen] = React.useState(false);
+  const [descriptionResetNonce, setDescriptionResetNonce] = React.useState(0);
 
   // Attachments
   const [showUploadArea, setShowUploadArea] = React.useState(false);
@@ -349,6 +352,37 @@ export default function TaskWorkspacePage() {
     const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
     return buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
   };
+
+  const handleImportImageUrl = async (sourceUrl: string): Promise<string> => {
+    const res = await api.post<{ id: string }>(`/tasks/${id}/attachments/inline/import`, {
+      source_field: 'description',
+      source_url: sourceUrl,
+    });
+    refetchAttachments();
+    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
+    return buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
+  };
+
+  const handleDescriptionImport = React.useCallback(async (selectedFile: File): Promise<ImportDocumentResult> => {
+    if (isCreate || !task?.id) {
+      throw new Error('Document import is available after the task is created');
+    }
+    return importMarkdownDocument(`/tasks/${task.id}/import`, selectedFile);
+  }, [isCreate, task?.id]);
+
+  const handleDescriptionImported = React.useCallback((result: ImportDocumentResult) => {
+    setError(null);
+    setDescription(result.markdown);
+    setDirty(true);
+    setDescriptionResetNonce((prev) => prev + 1);
+    window.setTimeout(() => {
+      setDescriptionFocusNonce((prev) => prev + 1);
+    }, 0);
+  }, []);
+
+  const handleDescriptionImportError = React.useCallback((error: unknown) => {
+    setError((error as any)?.response?.data?.message || (error as any)?.message || 'Document import failed');
+  }, []);
 
   const handleDeleteAttachment = async (attachmentId: string) => {
     await api.patch(`/tasks/attachments/${attachmentId}/delete`);
@@ -919,6 +953,10 @@ export default function TaskWorkspacePage() {
   // Check if create form is valid for enabling save button
   // Title is required. Relation is optional (standalone tasks are allowed).
   const isCreateValid = Boolean(title.trim());
+  const taskImportDisabled = isCreate || !canManage;
+  const taskImportDisabledTitle = isCreate
+    ? 'Save the task first to import a document.'
+    : (!canManage ? 'You need edit permission to import a document.' : undefined);
   const contentSpacing = {
     section: 3,
     sectionLarge: 4,
@@ -1150,21 +1188,34 @@ export default function TaskWorkspacePage() {
                 <Typography variant="subtitle2" fontWeight="bold">
                   Description
                 </Typography>
-                <ExportButton
-                  content={description}
-                  title={title || 'task-description'}
-                  disabled={!description.trim()}
-                />
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <ImportButton
+                    onImportFile={handleDescriptionImport}
+                    onImported={handleDescriptionImported}
+                    onError={handleDescriptionImportError}
+                    hasContent={!!description.trim()}
+                    disabled={taskImportDisabled}
+                    disabledTitle={taskImportDisabledTitle}
+                    size="small"
+                  />
+                  <ExportButton
+                    content={description}
+                    title={title || 'task-description'}
+                    disabled={!description.trim()}
+                  />
+                </Stack>
               </Stack>
               {initialized ? (
                 <React.Suspense fallback={<Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                   <MarkdownEditor
+                    key={`task-description:${id || 'create'}:${descriptionResetNonce}`}
                     value={description}
                     onChange={(val) => setDescription(val)}
                     placeholder="Add a description..."
                     minRows={10}
                     maxRows={26}
                     focusNonce={descriptionFocusNonce}
+                    refreshNonce={descriptionResetNonce}
                   />
                 </React.Suspense>
               ) : (
@@ -1492,15 +1543,27 @@ export default function TaskWorkspacePage() {
               <Typography variant="subtitle2" fontWeight="bold">
                 Description
               </Typography>
-              <ExportButton
-                content={description}
-                title={title || task.title || 'task-description'}
-                disabled={!description.trim()}
-              />
+              <Stack direction="row" spacing={1} alignItems="center">
+                <ImportButton
+                  onImportFile={handleDescriptionImport}
+                  onImported={handleDescriptionImported}
+                  onError={handleDescriptionImportError}
+                  hasContent={!!description.trim()}
+                  disabled={taskImportDisabled}
+                  disabledTitle={taskImportDisabledTitle}
+                  size="small"
+                />
+                <ExportButton
+                  content={description}
+                  title={title || task.title || 'task-description'}
+                  disabled={!description.trim()}
+                />
+              </Stack>
             </Stack>
             {initialized ? (
               <React.Suspense fallback={<Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                 <MarkdownEditor
+                  key={`task-description:${id || 'create'}:${descriptionResetNonce}`}
                   value={description}
                   onChange={(val) => { setDescription(val); setDirty(true); }}
                   placeholder="Add a description..."
@@ -1508,6 +1571,9 @@ export default function TaskWorkspacePage() {
                   maxRows={26}
                   disabled={!canManage}
                   onImageUpload={handleUploadImage}
+                  onImageUrlImport={handleImportImageUrl}
+                  focusNonce={descriptionFocusNonce}
+                  refreshNonce={descriptionResetNonce}
                 />
               </React.Suspense>
             ) : (

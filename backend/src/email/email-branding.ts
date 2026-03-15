@@ -15,10 +15,30 @@ const DEFAULT_PRIMARY_COLOR = '#2D69E0';
 const LOGO_CID = 'kanap-branding-logo';
 
 let cachedDefaultLogo: Buffer | null = null;
+let didSearchDefaultLogo = false;
 
 function getDefaultLogo(): Buffer {
   if (cachedDefaultLogo) return cachedDefaultLogo;
-  cachedDefaultLogo = fs.readFileSync(path.join(__dirname, 'assets', 'kanap-logo.png'));
+
+  if (didSearchDefaultLogo) return Buffer.alloc(0);
+  didSearchDefaultLogo = true;
+
+  const candidates = [
+    path.join(__dirname, 'assets', 'kanap-logo.png'),
+    path.join(process.cwd(), 'dist', 'email', 'assets', 'kanap-logo.png'),
+    path.join(process.cwd(), 'src', 'email', 'assets', 'kanap-logo.png'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      cachedDefaultLogo = fs.readFileSync(candidate);
+      return cachedDefaultLogo;
+    } catch {
+      // Try the next known runtime/layout path.
+    }
+  }
+
+  cachedDefaultLogo = Buffer.alloc(0);
   return cachedDefaultLogo;
 }
 

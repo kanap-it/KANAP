@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -16,11 +16,17 @@ export class DocumentExportController {
   @Post()
   @UseGuards(RateLimitGuard)
   @Throttle({ default: RATE_LIMITS.documentExport })
-  async exportDocument(@Body() body: ExportDto, @Res() res: Response) {
+  async exportDocument(@Body() body: ExportDto, @Req() req: any, @Res() res: Response) {
+    const imageFetchHeaders: Record<string, string> = {};
+    if (req.headers.cookie) {
+      imageFetchHeaders['cookie'] = req.headers.cookie;
+    }
+
     const result = await this.documentExportService.exportMarkdown(
       body.content,
       body.format,
       body.title,
+      { imageFetchHeaders },
     );
 
     res.setHeader('Content-Type', result.mimeType);

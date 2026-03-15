@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { PortfolioActivity, ActivityType } from '../portfolio/portfolio-activity.entity';
@@ -41,6 +41,8 @@ export type ActivityBodyDto = CreateTaskActivityDto | CreateUnifiedActivityDto;
 
 @Injectable()
 export class TaskActivitiesService {
+  private readonly logger = new Logger(TaskActivitiesService.name);
+
   constructor(
     @InjectRepository(PortfolioActivity)
     private readonly activityRepo: Repository<PortfolioActivity>,
@@ -50,6 +52,18 @@ export class TaskActivitiesService {
     private readonly timeEntriesSvc: TaskTimeEntriesService,
     private readonly audit: AuditService,
   ) {}
+
+  private notifyCommentSafely(params: Parameters<NotificationsService['notifyComment']>[0]): void {
+    void this.notifications.notifyComment(params).catch((error) => {
+      this.logger.error(`Failed to notify task comment for task ${params.itemId}: ${error}`);
+    });
+  }
+
+  private notifyUnifiedActionSafely(params: Parameters<NotificationsService['notifyUnifiedAction']>[0]): void {
+    void this.notifications.notifyUnifiedAction(params).catch((error) => {
+      this.logger.error(`Failed to notify unified task activity for task ${params.taskId}: ${error}`);
+    });
+  }
 
   /**
    * List activities for a task
@@ -133,7 +147,7 @@ export class TaskActivitiesService {
       const author = await mg.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
       const authorName = author.length > 0 ? `${author[0].first_name} ${author[0].last_name}`.trim() || 'Someone' : 'Someone';
       const recipients = await this.notifications.getTaskRecipients(taskId, mg);
-      this.notifications.notifyComment({
+      this.notifyCommentSafely({
         itemType: 'task',
         itemId: taskId,
         itemName: task.title,
@@ -269,7 +283,7 @@ export class TaskActivitiesService {
         ? `${author[0].first_name} ${author[0].last_name}`.trim() || 'Someone'
         : 'Someone';
 
-      this.notifications.notifyUnifiedAction({
+      this.notifyUnifiedActionSafely({
         taskId,
         taskTitle: task.title,
         oldStatus,

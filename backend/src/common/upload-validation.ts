@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import * as path from 'path';
 import AdmZip = require('adm-zip');
 
-export type UploadValidationScope = 'attachment' | 'inline-image';
+export type UploadValidationScope = 'attachment' | 'inline-image' | 'document-import';
 
 export type ValidateUploadOptions = {
   scope?: UploadValidationScope;
@@ -71,6 +71,10 @@ const ATTACHMENT_ALLOWED_MIME_TYPES = new Set(Object.values(EXTENSION_TO_MIME));
 
 const INLINE_IMAGE_ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
 const INLINE_IMAGE_ALLOWED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+const DOCUMENT_IMPORT_ALLOWED_EXTENSIONS = new Set(['.docx']);
+const DOCUMENT_IMPORT_ALLOWED_MIME_TYPES = new Set([
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
 
 const ZIP_BASED_EXTENSION_MIME: Record<string, string> = {
   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -116,6 +120,12 @@ function getScopeAllowedSets(scope: UploadValidationScope): {
   allowedExtensions: Set<string>;
   allowedMimeTypes: Set<string>;
 } {
+  if (scope === 'document-import') {
+    return {
+      allowedExtensions: DOCUMENT_IMPORT_ALLOWED_EXTENSIONS,
+      allowedMimeTypes: DOCUMENT_IMPORT_ALLOWED_MIME_TYPES,
+    };
+  }
   if (scope === 'inline-image') {
     return {
       allowedExtensions: INLINE_IMAGE_ALLOWED_EXTENSIONS,
@@ -248,6 +258,9 @@ function areMimeTypesEquivalent(a: string, b: string): boolean {
 }
 
 function unsupportedTypeMessage(scope: UploadValidationScope): string {
+  if (scope === 'document-import') {
+    return 'Unsupported file type. Allowed: DOCX';
+  }
   if (scope === 'inline-image') {
     return 'Unsupported image type. Allowed: PNG, JPG, JPEG, GIF, WEBP';
   }
@@ -326,4 +339,3 @@ export function validateUploadedFile(
     size,
   };
 }
-

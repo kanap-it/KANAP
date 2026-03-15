@@ -57,7 +57,9 @@ interface MarkdownEditorProps {
   fillHeight?: boolean;
   disabled?: boolean;
   focusNonce?: number;
+  refreshNonce?: number;
   onImageUpload?: (file: File) => Promise<string>;
+  onImageUrlImport?: (sourceUrl: string) => Promise<string>;
 }
 
 const EMOJI_OPTIONS = [
@@ -118,7 +120,9 @@ export default function MarkdownEditor({
   fillHeight = false,
   disabled = false,
   focusNonce,
+  refreshNonce,
   onImageUpload,
+  onImageUrlImport,
 }: MarkdownEditorProps) {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
@@ -130,7 +134,9 @@ export default function MarkdownEditor({
   const internalChangeRef = React.useRef(false);
   const currentMarkdownRef = React.useRef(value || '');
   const imageUploadHandlerRef = React.useRef<MarkdownEditorProps['onImageUpload']>(onImageUpload);
+  const imageUrlImportHandlerRef = React.useRef<MarkdownEditorProps['onImageUrlImport']>(onImageUrlImport);
   imageUploadHandlerRef.current = onImageUpload;
+  imageUrlImportHandlerRef.current = onImageUrlImport;
   const [editorInstanceKey, setEditorInstanceKey] = React.useState(0);
   const mdxRootClassName = React.useMemo(
     () => `kanap-mdx-root ${isDarkMode ? 'dark-theme' : 'light-theme'}`,
@@ -223,6 +229,12 @@ export default function MarkdownEditor({
   }, [value]);
 
   React.useEffect(() => {
+    if (refreshNonce === undefined || refreshNonce < 1) return;
+    currentMarkdownRef.current = value || '';
+    setEditorInstanceKey((prev) => prev + 1);
+  }, [refreshNonce, value]);
+
+  React.useEffect(() => {
     if (!mdxRef.current || disabled || focusNonce === undefined || focusNonce < 1) return;
     mdxRef.current.focus();
   }, [focusNonce, disabled]);
@@ -260,6 +272,7 @@ export default function MarkdownEditor({
         plainText,
         imageFiles,
         uploadImage: imageUploadHandlerRef.current || undefined,
+        importRemoteImage: imageUrlImportHandlerRef.current || undefined,
       })
         .then((markdown) => {
           const content = String(markdown || '').trim();
@@ -300,7 +313,10 @@ export default function MarkdownEditor({
       thematicBreakPlugin(),
       tablePlugin(),
       frontmatterPlugin(),
-      directivesPlugin({ directiveDescriptors: [AdmonitionDirectiveDescriptor] }),
+      directivesPlugin({
+        directiveDescriptors: [AdmonitionDirectiveDescriptor],
+        escapeUnknownTextDirectives: true,
+      }),
       codeBlockPlugin({ defaultCodeBlockLanguage: 'txt' }),
       codeMirrorPlugin({ codeBlockLanguages }),
       diffSourcePlugin({ viewMode: 'rich-text' }),
@@ -391,6 +407,9 @@ export default function MarkdownEditor({
           },
           '.kanap-mdx-root [data-editor-dialog]::placeholder': {
             color: `${theme.palette.text.secondary} !important`,
+          },
+          '.kanap-mdx-root .cm-cursor, .kanap-mdx-root .cm-cursor-primary': {
+            borderLeftColor: `${theme.palette.text.primary} !important`,
           },
           '.kanap-mdx-root.dark-theme .cm-editor': {
             backgroundColor: `${alpha(theme.palette.background.default, 0.66)} !important`,

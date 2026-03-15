@@ -3,6 +3,7 @@ type ClipboardMarkdownImportOptions = {
   plainText?: string | null;
   imageFiles?: File[];
   uploadImage?: ((file: File) => Promise<string>) | null;
+  importRemoteImage?: ((sourceUrl: string) => Promise<string>) | null;
 };
 
 const BLOCK_TAGS = new Set([
@@ -45,12 +46,55 @@ const BLOCK_TAGS = new Set([
 type ConversionContext = {
   clipboardImages: File[];
   uploadImage?: ((file: File) => Promise<string>) | null;
+  importRemoteImage?: ((sourceUrl: string) => Promise<string>) | null;
 };
 
 const WORD_LIST_MARKER_REGEX = /^\s*(?:[\u2022\u00b7\u25cf\u25e6\u25aa\u25a0o]|(?:\d+|[A-Za-z])[.)])\s+/;
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ');
+}
+
+function isWordLikeCharacter(value: string): boolean {
+  return /[\p{L}\p{N}]/u.test(value);
+}
+
+function getNodeTextBoundary(node: Node): {
+  firstChar: string | null;
+  lastChar: string | null;
+  startsWithSpace: boolean;
+  endsWithSpace: boolean;
+} {
+  const normalized = normalizeWhitespace(node.textContent || '');
+  const trimmed = normalized.trim();
+  return {
+    firstChar: trimmed[0] || null,
+    lastChar: trimmed ? trimmed.slice(-1) : null,
+    startsWithSpace: /^\s/.test(normalized),
+    endsWithSpace: /\s$/.test(normalized),
+  };
+}
+
+function shouldInsertInlineSeparator(
+  previousNode: Node | null,
+  previousFragment: string | undefined,
+  nextNode: Node,
+  nextFragment: string,
+): boolean {
+  if (!previousNode || !previousFragment || !nextFragment) return false;
+  if (/\s$/.test(previousFragment) || /^\s/.test(nextFragment)) return false;
+  if (previousFragment.endsWith('\n') || nextFragment.startsWith('\n')) return false;
+
+  const previousBoundary = getNodeTextBoundary(previousNode);
+  const nextBoundary = getNodeTextBoundary(nextNode);
+  if (!previousBoundary.lastChar || !nextBoundary.firstChar) return false;
+  if (previousBoundary.endsWithSpace || nextBoundary.startsWithSpace) return true;
+
+  if (previousBoundary.lastChar === ':' && isWordLikeCharacter(nextBoundary.firstChar)) {
+    return true;
+  }
+
+  return isWordLikeCharacter(previousBoundary.lastChar) && isWordLikeCharacter(nextBoundary.firstChar);
 }
 
 function trimTrailingWhitespace(value: string): string {
@@ -169,6 +213,31 @@ function isExternalUrl(value: string): boolean {
   return /^(https?:)?\/\//i.test(value) || value.startsWith('/');
 }
 
+function nodeContainsOnlyImages(node: Node): boolean {
+  if (node instanceof Comment) return true;
+  if (node instanceof Text) {
+    return normalizeWhitespace(node.textContent || '').trim().length === 0;
+  }
+  if (!(node instanceof HTMLElement)) return false;
+
+  const tag = node.tagName.toLowerCase();
+  if (tag === 'img') return true;
+  if (tag === 'br') return true;
+
+  return Array.from(node.childNodes).every((child) => nodeContainsOnlyImages(child));
+}
+
+function normalizeExternalImageUrlForImport(value: string): string | null {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  if (trimmed.startsWith('/') && typeof window !== 'undefined' && window.location?.origin) {
+    return new URL(trimmed, window.location.origin).toString();
+  }
+  return null;
+}
+
 function stripWordListMarker(value: string): string {
   return value.replace(WORD_LIST_MARKER_REGEX, '');
 }
@@ -281,6 +350,10 @@ async function resolveImageSource(element: HTMLImageElement, ctx: ConversionCont
   }
 
   if (isExternalUrl(src)) {
+    const normalizedImportUrl = normalizeExternalImageUrlForImport(src);
+    if (normalizedImportUrl && ctx.importRemoteImage) {
+      return ctx.importRemoteImage(normalizedImportUrl);
+    }
     return src.startsWith('//') ? `https:${src}` : src;
   }
 
@@ -296,93 +369,115 @@ async function resolveImageSource(element: HTMLImageElement, ctx: ConversionCont
 
 async function convertInlineNodes(nodes: Node[], ctx: ConversionContext): Promise<string> {
   const parts: string[] = [];
+  let previousMeaningfulNode: Node | null = null;
+  let previousMeaningfulFragment: string | undefined;
 
   for (const node of nodes) {
     if (isSkippableNode(node)) continue;
 
+    let fragment = '';
+
     if (node instanceof Text) {
       const normalized = normalizeWhitespace(node.textContent || '');
       if (normalized) {
-        parts.push(normalized);
+        fragment = normalized;
       }
-      continue;
-    }
+    } else if (node instanceof HTMLElement) {
+      const tag = node.tagName.toLowerCase();
 
-    if (!(node instanceof HTMLElement)) continue;
-
-    const tag = node.tagName.toLowerCase();
-
-    if (tag === 'br') {
-      parts.push('\n');
-      continue;
-    }
-
-    if (tag === 'img') {
-      const imageMarkdown = await convertImageNode(node as HTMLImageElement, ctx);
-      if (imageMarkdown) {
-        parts.push(imageMarkdown);
-      }
-      continue;
-    }
-
-    if (BLOCK_TAGS.has(tag)) {
-      const blockMarkdown = await convertBlockNode(node, ctx);
-      if (blockMarkdown) {
-        parts.push(blockMarkdown);
-      }
-      continue;
-    }
-
-    const childMarkdown = await convertInlineNodes(Array.from(node.childNodes), ctx);
-    if (!childMarkdown.trim()) continue;
-
-    switch (tag) {
-      case 'strong':
-      case 'b':
-        parts.push(wrapWith(childMarkdown, '**'));
-        break;
-      case 'em':
-      case 'i':
-        parts.push(wrapWith(childMarkdown, '*'));
-        break;
-      case 's':
-      case 'strike':
-      case 'del':
-        parts.push(wrapWith(childMarkdown, '~~'));
-        break;
-      case 'mark':
-        parts.push(childMarkdown);
-        break;
-      case 'code':
-        parts.push(`\`${escapeInlineCode(childMarkdown)}\``);
-        break;
-      case 'a': {
-        const href = String(node.getAttribute('href') || '').trim();
-        if (!href || /^javascript:/i.test(href)) {
-          parts.push(childMarkdown);
-          break;
+      if (tag === 'br') {
+        fragment = '\n';
+      } else if (tag === 'img') {
+        const imageMarkdown = await convertImageNode(node as HTMLImageElement, ctx);
+        if (imageMarkdown) {
+          fragment = imageMarkdown;
         }
-        parts.push(`[${childMarkdown.trim() || href}](${formatLinkDestination(href)})`);
-        break;
+      } else if (BLOCK_TAGS.has(tag)) {
+        const blockMarkdown = await convertBlockNode(node, ctx);
+        if (blockMarkdown) {
+          fragment = blockMarkdown;
+        }
+      } else {
+        const childMarkdown = await convertInlineNodes(Array.from(node.childNodes), ctx);
+        if (!childMarkdown.trim()) {
+          const nodeText = normalizeWhitespace(node.textContent || '');
+          if (nodeText.trim().length === 0 && nodeText.length > 0) {
+            fragment = ' ';
+          }
+        } else {
+          const inlineStyle = String(node.getAttribute('style') || '').toLowerCase();
+          switch (tag) {
+            case 'strong':
+            case 'b':
+              if (node.style.fontWeight === 'normal' || /font-weight\s*:\s*normal/.test(inlineStyle)) {
+                fragment = childMarkdown;
+              } else {
+                fragment = wrapWith(childMarkdown, '**');
+              }
+              break;
+            case 'em':
+            case 'i':
+              if (node.style.fontStyle === 'normal' || /font-style\s*:\s*normal/.test(inlineStyle)) {
+                fragment = childMarkdown;
+              } else {
+                fragment = wrapWith(childMarkdown, '*');
+              }
+              break;
+            case 's':
+            case 'strike':
+            case 'del':
+              fragment = wrapWith(childMarkdown, '~~');
+              break;
+            case 'mark':
+              fragment = childMarkdown;
+              break;
+            case 'code':
+              fragment = `\`${escapeInlineCode(childMarkdown)}\``;
+              break;
+            case 'a': {
+              const href = String(node.getAttribute('href') || '').trim();
+              if (!href || /^javascript:/i.test(href)) {
+                fragment = childMarkdown;
+                break;
+              }
+              if (Array.from(node.childNodes).every((child) => nodeContainsOnlyImages(child))) {
+                fragment = childMarkdown;
+                break;
+              }
+              fragment = `[${childMarkdown.trim() || href}](${formatLinkDestination(href)})`;
+              break;
+            }
+            case 'span':
+            case 'font': {
+              let styled = childMarkdown;
+              const style = String(node.getAttribute('style') || '').toLowerCase();
+              const fontWeight = node.style.fontWeight || '';
+              const isBold = /font-weight\s*:\s*(bold|[6-9]00)/.test(style) || /^(bold|[6-9]00)$/.test(fontWeight);
+              const isItalic = /font-style\s*:\s*italic/.test(style) || node.style.fontStyle === 'italic';
+              const isStruck = /text-decoration[^;]*line-through/.test(style);
+              if (isBold) styled = wrapWith(styled, '**');
+              if (isItalic) styled = wrapWith(styled, '*');
+              if (isStruck) styled = wrapWith(styled, '~~');
+              fragment = styled;
+              break;
+            }
+            default:
+              fragment = childMarkdown;
+              break;
+          }
+        }
       }
-      case 'span':
-      case 'font': {
-        let styled = childMarkdown;
-        const style = String(node.getAttribute('style') || '').toLowerCase();
-        const fontWeight = node.style.fontWeight || '';
-        const isBold = /font-weight\s*:\s*(bold|[6-9]00)/.test(style) || /^(bold|[6-9]00)$/.test(fontWeight);
-        const isItalic = /font-style\s*:\s*italic/.test(style) || node.style.fontStyle === 'italic';
-        const isStruck = /text-decoration[^;]*line-through/.test(style);
-        if (isBold) styled = wrapWith(styled, '**');
-        if (isItalic) styled = wrapWith(styled, '*');
-        if (isStruck) styled = wrapWith(styled, '~~');
-        parts.push(styled);
-        break;
-      }
-      default:
-        parts.push(childMarkdown);
-        break;
     }
+
+    if (!fragment) continue;
+
+    if (shouldInsertInlineSeparator(previousMeaningfulNode, previousMeaningfulFragment, node, fragment)) {
+      parts.push(' ');
+    }
+
+    parts.push(fragment);
+    previousMeaningfulNode = node;
+    previousMeaningfulFragment = fragment;
   }
 
   return parts.join('').replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').trim();
@@ -417,6 +512,10 @@ async function convertListNode(element: HTMLOListElement | HTMLUListElement, ctx
   const start = Number(element.getAttribute('start') || '1');
   const items = Array.from(element.children)
     .filter((child): child is HTMLLIElement => child instanceof HTMLLIElement);
+
+  if (items.length === 0) {
+    return convertBlockContainer(Array.from(element.childNodes), ctx);
+  }
 
   const markdownItems: string[] = [];
   for (const [index, item] of items.entries()) {
@@ -574,6 +673,7 @@ export async function convertRichClipboardToMarkdown(
   const ctx: ConversionContext = {
     clipboardImages: imageFiles,
     uploadImage: opts.uploadImage,
+    importRemoteImage: opts.importRemoteImage,
   };
 
   if (!html) {

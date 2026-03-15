@@ -7,8 +7,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { marked } from 'marked';
 import { EntityManager, Repository } from 'typeorm';
+import { DocumentImportService } from '../common/document-import.service';
 import { extractInlineImageUrls } from '../common/content-image-urls';
 import { containsInlineDataImage, htmlToMarkdown, isHtmlContent } from '../common/html-to-markdown';
+import { ImportExecutionOptions, readUploadedFileBuffer } from '../common/import-connection';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
 import { PortfolioActivity } from '../portfolio/portfolio-activity.entity';
@@ -194,6 +196,7 @@ export class IntegratedDocumentsService {
     private readonly bindingsRepo: Repository<IntegratedDocumentBinding>,
     private readonly knowledge: KnowledgeService,
     private readonly permissions: PermissionsService,
+    private readonly importService: DocumentImportService,
   ) {}
 
   private getManager(opts?: { manager?: EntityManager }): EntityManager {
@@ -2723,6 +2726,76 @@ export class IntegratedDocumentsService {
       manager,
     );
     return this.knowledge.uploadAttachment(documentId, file, normalizedUserId, {
+      manager,
+      sourceField: 'content_markdown',
+    });
+  }
+
+  async importDocumentBySource(
+    sourceEntityType: SourceScopedEntityType,
+    sourceEntityId: string,
+    slotKey: string,
+    file: Express.Multer.File,
+    userId: string | null | undefined,
+    lockToken: string | null | undefined,
+    opts?: ImportExecutionOptions,
+  ): Promise<{ markdown: string; warnings: string[] }> {
+    if (!opts?.releaseConnection) {
+      const manager = this.getManager(opts);
+      const normalizedUserId = this.normalizeUserId(userId);
+      const documentId = await this.resolveManagedDocumentId(
+        sourceEntityType,
+        sourceEntityId,
+        slotKey,
+        'edit',
+        normalizedUserId,
+        manager,
+      );
+      return this.knowledge.importDocument(documentId, file, normalizedUserId, lockToken, { manager });
+    }
+
+    let manager = this.getManager(opts);
+    const normalizedUserId = this.normalizeUserId(userId);
+    this.assertSupportedSlot(sourceEntityType, slotKey);
+    await this.assertSourcePermission(sourceEntityType, 'edit', normalizedUserId, manager);
+    await this.assertSourceEntityExists(sourceEntityType, sourceEntityId, manager);
+
+    const buffer = readUploadedFileBuffer(file);
+    const released = await opts.releaseConnection(
+      () => this.importService.convertToMarkdown(buffer, file.mimetype, file.originalname),
+    );
+    manager = released.manager;
+
+    const documentId = await this.resolveManagedDocumentId(
+      sourceEntityType,
+      sourceEntityId,
+      slotKey,
+      'edit',
+      normalizedUserId,
+      manager,
+    );
+    return this.knowledge.finalizeImportedDocument(documentId, released.result, normalizedUserId, lockToken, { manager });
+  }
+
+  async importInlineAttachmentBySourceUrl(
+    sourceEntityType: SourceScopedEntityType,
+    sourceEntityId: string,
+    slotKey: string,
+    sourceUrl: string,
+    userId: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const normalizedUserId = this.normalizeUserId(userId);
+    const documentId = await this.resolveManagedDocumentId(
+      sourceEntityType,
+      sourceEntityId,
+      slotKey,
+      'edit',
+      normalizedUserId,
+      manager,
+    );
+    return this.knowledge.importInlineAttachmentFromUrl(documentId, sourceUrl, normalizedUserId, {
       manager,
       sourceField: 'content_markdown',
     });

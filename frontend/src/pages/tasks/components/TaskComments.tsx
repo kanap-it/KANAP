@@ -75,6 +75,15 @@ export default function TaskComments({
     return buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
   };
 
+  const handleImportImageUrl = async (sourceUrl: string): Promise<string> => {
+    const res = await api.post<{ id: string }>(`/tasks/${taskId}/attachments/inline/import`, {
+      source_field: 'content',
+      source_url: sourceUrl,
+    });
+    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
+    return buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
+  };
+
   const { data: activities = [], isLoading, refetch } = useQuery({
     queryKey: ['task-activities', taskId],
     queryFn: async () => {
@@ -172,6 +181,7 @@ export default function TaskComments({
             queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
           }}
           onImageUpload={handleUploadImage}
+          onImageUrlImport={handleImportImageUrl}
         />
       )}
 
@@ -238,6 +248,7 @@ export default function TaskComments({
                         maxRows={12}
                         disabled={editSubmitting}
                         onImageUpload={handleUploadImage}
+                        onImageUrlImport={handleImportImageUrl}
                       />
                     </React.Suspense>
                     <Stack direction="row" spacing={1} sx={{ mt: 1, justifyContent: 'flex-end' }}>

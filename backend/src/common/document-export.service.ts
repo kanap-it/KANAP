@@ -37,6 +37,7 @@ export class DocumentExportService {
   private readonly logger = new Logger(DocumentExportService.name);
   private readonly allowedImageHostPatterns = this.buildAllowedImageHostPatterns();
   private readonly mediaBaseUrl = this.resolveMediaBaseUrl();
+  private readonly selfHostnames = this.buildSelfHostnames();
 
   async exportMarkdown(
     content: string,
@@ -336,6 +337,12 @@ export class DocumentExportService {
         continue;
       }
 
+      const responseContentType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+      if (responseContentType && !responseContentType.startsWith('image/') && responseContentType !== 'application/octet-stream' && responseContentType !== 'application/pdf') {
+        lastError = `unexpected content-type: ${responseContentType}`;
+        continue;
+      }
+
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       if (buffer.length === 0) {
@@ -383,6 +390,21 @@ export class DocumentExportService {
 
     if (isLoopback && parsed.port !== backendPort) {
       const backendDirect = new URL(parsed.toString());
+      backendDirect.port = backendPort;
+      add(backendDirect.toString());
+
+      if (hasApiPrefix) {
+        const backendStripped = new URL(backendDirect.toString());
+        backendStripped.pathname = backendStripped.pathname.replace(/^\/api/, '') || '/';
+        add(backendStripped.toString());
+      }
+    }
+
+    const isSelfHost = this.selfHostnames.has(parsed.hostname.toLowerCase());
+    if (isSelfHost && !isLoopback) {
+      const backendDirect = new URL(parsed.toString());
+      backendDirect.protocol = 'http:';
+      backendDirect.hostname = '127.0.0.1';
       backendDirect.port = backendPort;
       add(backendDirect.toString());
 
@@ -621,6 +643,7 @@ export class DocumentExportService {
   private resolveMediaBaseUrl(): string | null {
     const candidates = [
       process.env.EXPORT_MEDIA_BASE_URL,
+      process.env.APP_URL,
       process.env.APP_BASE_URL,
       process.env.PUBLIC_APP_URL,
     ];
@@ -636,6 +659,25 @@ export class DocumentExportService {
     return null;
   }
 
+  private buildSelfHostnames(): Set<string> {
+    const hosts = new Set<string>();
+    for (const candidate of [
+      process.env.EXPORT_MEDIA_BASE_URL,
+      process.env.APP_URL,
+      process.env.APP_BASE_URL,
+      process.env.PUBLIC_APP_URL,
+    ]) {
+      const raw = String(candidate || '').trim();
+      if (!raw) continue;
+      try {
+        hosts.add(new URL(raw).hostname.toLowerCase());
+      } catch {
+        // ignore malformed entries
+      }
+    }
+    return hosts;
+  }
+
   private buildAllowedImageHostPatterns(): string[] {
     const patterns = new Set<string>();
     const rawList = String(process.env.EXPORT_ALLOWED_IMAGE_HOSTS || '')
@@ -649,6 +691,7 @@ export class DocumentExportService {
 
     const urlCandidates = [
       process.env.EXPORT_MEDIA_BASE_URL,
+      process.env.APP_URL,
       process.env.APP_BASE_URL,
       process.env.PUBLIC_APP_URL,
     ];
@@ -662,10 +705,8 @@ export class DocumentExportService {
       }
     }
 
-    if (patterns.size === 0) {
-      patterns.add('localhost');
-      patterns.add('127.0.0.1');
-      patterns.add('::1');
+    for (const host of LOOPBACK_HOSTS) {
+      patterns.add(host);
     }
 
     return [...patterns];

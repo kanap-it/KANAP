@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Task, TaskPriorityLevel } from './task.entity';
@@ -11,6 +11,7 @@ import { UserTimeAggregateService } from '../portfolio/services/user-time-aggreg
 import { NotificationsService } from '../notifications/notifications.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { TaskActivitiesService } from './task-activities.service';
+import { TaskAttachmentsService } from './task-attachments.service';
 import { detectChanges, resolveDisplayNames, TASK_TRACKED_FIELDS, FieldConfig } from '../common/change-detection';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 
@@ -24,6 +25,8 @@ type ProjectDefaults = {
 
 @Injectable()
 export class TasksUnifiedService {
+  private readonly logger = new Logger(TasksUnifiedService.name);
+
   constructor(
     @InjectRepository(Task) private readonly repo: Repository<Task>,
     private readonly audit: AuditService,
@@ -32,6 +35,7 @@ export class TasksUnifiedService {
     private readonly notifications: NotificationsService,
     private readonly itemNumberService: ItemNumberService,
     private readonly taskActivitiesSvc: TaskActivitiesService,
+    private readonly taskAttachmentsSvc: TaskAttachmentsService,
   ) {}
 
   /**
@@ -49,6 +53,58 @@ export class TasksUnifiedService {
 
   private hasOwn(payload: Partial<Task>, key: keyof Task): boolean {
     return Object.prototype.hasOwnProperty.call(payload, key);
+  }
+
+  private notifyTaskAssignedSafely(params: Parameters<NotificationsService['notifyTaskAssigned']>[0]): void {
+    void this.notifications.notifyTaskAssigned(params).catch((error) => {
+      this.logger.error(`Failed to notify task assignment for task ${params.taskId}: ${error}`);
+    });
+  }
+
+  private notifyStatusChangeSafely(params: Parameters<NotificationsService['notifyStatusChange']>[0]): void {
+    void this.notifications.notifyStatusChange(params).catch((error) => {
+      this.logger.error(`Failed to notify task status change for task ${params.itemId}: ${error}`);
+    });
+  }
+
+  private async queueTaskAssignmentNotification(
+    saved: Task,
+    previousAssigneeId: string | null,
+    userId: string | undefined,
+    tenantId: string | undefined,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (!tenantId || !saved.assignee_user_id || previousAssigneeId === saved.assignee_user_id) {
+      return;
+    }
+
+    const assignee = await manager.query(
+      `SELECT u.email FROM users u
+       JOIN roles ro ON ro.id = u.role_id
+       WHERE u.id = $1 AND u.status = 'enabled'
+         AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
+      [saved.assignee_user_id],
+    );
+
+    if (assignee.length === 0) return;
+
+    const assigner = userId
+      ? await manager.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId])
+      : [];
+    const assignerName = assigner.length > 0
+      ? `${assigner[0].first_name} ${assigner[0].last_name}`.trim() || 'Someone'
+      : 'Someone';
+
+    this.notifyTaskAssignedSafely({
+      taskId: saved.id,
+      taskTitle: saved.title,
+      assigneeId: saved.assignee_user_id,
+      assigneeEmail: assignee[0].email,
+      assignerName,
+      dueDate: saved.due_date ? String(saved.due_date).split('T')[0] : undefined,
+      tenantId,
+      manager,
+    });
   }
 
   private async resolveRelatedObjectName(
@@ -234,6 +290,8 @@ export class TasksUnifiedService {
       });
     }
 
+    await this.queueTaskAssignmentNotification(saved, null, userId, opts?.tenantId, manager);
+
     return saved;
   }
 
@@ -293,6 +351,12 @@ export class TasksUnifiedService {
     const saved = await repo.save(next);
     await this.audit.log({ table: 'tasks', recordId: saved.id, action: 'update', before: existing, after: saved, userId }, { manager });
 
+    if (this.hasOwn(payload, 'description') && before.description !== saved.description) {
+      await this.taskAttachmentsSvc.cleanupOrphanedImages(saved.id, 'description', before.description, saved.description, {
+        manager,
+      });
+    }
+
     const changes = detectChanges(before as unknown as Record<string, unknown>, saved as unknown as Record<string, unknown>, TASK_TRACKED_FIELDS);
     if (changes.length > 0) {
       if (!tenantId) throw new BadRequestException('tenantId is required for task change activity logging');
@@ -303,36 +367,12 @@ export class TasksUnifiedService {
 
     // Fire-and-forget notifications
     if (tenantId) {
-      // Notify on task assignment change
-      // Exclude users with system roles (e.g., Contact) who cannot log in
-      if (before.assignee_user_id !== saved.assignee_user_id && saved.assignee_user_id) {
-        const assignee = await manager.query(
-          `SELECT u.email FROM users u
-           JOIN roles ro ON ro.id = u.role_id
-           WHERE u.id = $1 AND u.status = 'enabled'
-             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
-          [saved.assignee_user_id]
-        );
-        if (assignee.length > 0) {
-          const assigner = await manager.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
-          const assignerName = assigner.length > 0 ? `${assigner[0].first_name} ${assigner[0].last_name}`.trim() || 'Someone' : 'Someone';
-          this.notifications.notifyTaskAssigned({
-            taskId: saved.id,
-            taskTitle: saved.title,
-            assigneeId: saved.assignee_user_id,
-            assigneeEmail: assignee[0].email,
-            assignerName,
-            dueDate: saved.due_date ? String(saved.due_date).split('T')[0] : undefined,
-            tenantId,
-            manager,
-          });
-        }
-      }
+      await this.queueTaskAssignmentNotification(saved, before.assignee_user_id, userId, tenantId, manager);
 
       // Notify on status change
       if (before.status !== saved.status) {
         const recipients = await this.notifications.getTaskRecipients(saved.id, manager);
-        this.notifications.notifyStatusChange({
+        this.notifyStatusChangeSafely({
           itemType: 'task',
           itemId: saved.id,
           itemName: saved.title,
@@ -492,36 +532,12 @@ export class TasksUnifiedService {
 
     // Fire-and-forget notifications
     if (tenantId) {
-      // Notify on task assignment change
-      // Exclude users with system roles (e.g., Contact) who cannot log in
-      if (before.assignee_user_id !== saved.assignee_user_id && saved.assignee_user_id) {
-        const assignee = await manager.query(
-          `SELECT u.email FROM users u
-           JOIN roles ro ON ro.id = u.role_id
-           WHERE u.id = $1 AND u.status = 'enabled'
-             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
-          [saved.assignee_user_id]
-        );
-        if (assignee.length > 0) {
-          const assigner = await manager.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
-          const assignerName = assigner.length > 0 ? `${assigner[0].first_name} ${assigner[0].last_name}`.trim() || 'Someone' : 'Someone';
-          this.notifications.notifyTaskAssigned({
-            taskId: saved.id,
-            taskTitle: saved.title,
-            assigneeId: saved.assignee_user_id,
-            assigneeEmail: assignee[0].email,
-            assignerName,
-            dueDate: saved.due_date ? String(saved.due_date).split('T')[0] : undefined,
-            tenantId,
-            manager,
-          });
-        }
-      }
+      await this.queueTaskAssignmentNotification(saved, before.assignee_user_id, userId, tenantId, manager);
 
       // Notify on status change
       if (before.status !== saved.status) {
         const recipients = await this.notifications.getTaskRecipients(saved.id, manager);
-        this.notifications.notifyStatusChange({
+        this.notifyStatusChangeSafely({
           itemType: 'task',
           itemId: saved.id,
           itemName: saved.title,

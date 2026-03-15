@@ -18,6 +18,10 @@ const buildFileFilter = (scope: UploadValidationScope): NonNullable<MulterOption
       cb(new BadRequestException('Unsupported image type. Allowed: PNG, JPG, JPEG, GIF, WEBP'), false);
       return;
     }
+    if (scope === 'document-import') {
+      cb(new BadRequestException('Unsupported file type. Allowed: DOCX'), false);
+      return;
+    }
 
     cb(new BadRequestException('Unsupported file type'), false);
   };
@@ -31,6 +35,11 @@ export const attachmentMulterOptions: MulterOptions = {
 export const inlineImageMulterOptions: MulterOptions = {
   limits: { fileSize: ATTACHMENT_MAX_BYTES },
   fileFilter: buildFileFilter('inline-image'),
+};
+
+export const documentImportMulterOptions: MulterOptions = {
+  limits: { fileSize: ATTACHMENT_MAX_BYTES },
+  fileFilter: buildFileFilter('document-import'),
 };
 
 export const csvImportMulterOptions: MulterOptions = {

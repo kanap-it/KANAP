@@ -22,4 +22,5 @@ export const RATE_LIMITS = {
   publicContact: { limit: 5, ttl: 10 * 60_000 },
   publicRequestSupportInvoice: { limit: 3, ttl: 10 * 60_000 },
   documentExport: { limit: 5, ttl: 60_000 },
+  documentImport: { limit: 5, ttl: 60_000 },
 };

@@ -518,6 +518,15 @@ export default function ProjectWorkspacePage() {
     return buildInlineImageUrl(`/portfolio/projects/inline/${tenantSlug}/${res.data.id}`);
   }, [id]);
 
+  const handleImageUrlImport = React.useCallback(async (sourceUrl: string, sourceField: string): Promise<string> => {
+    const res = await api.post<{ id: string }>(`/portfolio/projects/${id}/attachments/inline/import`, {
+      source_field: sourceField,
+      source_url: sourceUrl,
+    });
+    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
+    return buildInlineImageUrl(`/portfolio/projects/inline/${tenantSlug}/${res.data.id}`);
+  }, [id]);
+
   const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'summary') return;
     if (hasUnsavedChanges) {
@@ -931,6 +940,7 @@ export default function ProjectWorkspacePage() {
               currentUserId={profile?.id}
               readOnly={!canManage}
               onImageUpload={handleImageUpload}
+              onImageUrlImport={handleImageUrlImport}
             />
           </React.Suspense>
         )}

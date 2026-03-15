@@ -15,7 +15,7 @@ import * as argon2 from 'argon2';
 import { Request, Response, NextFunction } from 'express';
 import { TenantInterceptor } from './common/tenant.interceptor';
 import { TenantInitGuard } from './common/tenant-init.guard';
-import { HttpAdapterHost } from '@nestjs/core';
+import { HttpAdapterHost, Reflector } from '@nestjs/core';
 import { ReleaseTenantRunnerFilter } from './common/filters/release-tenant-runner.filter';
 import { isProductionEnv, parseBoolean, parseCorsPatterns, matchesCorsOrigin, requireAppBaseUrl, requireEnv } from './common/env';
 import { shouldTrustProxyForRateLimit } from './common/rate-limit';
@@ -35,6 +35,7 @@ function validateStartupEnv() {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   validateStartupEnv();
+  const reflector = app.get(Reflector);
   if (shouldTrustProxyForRateLimit()) {
     const expressApp = app.getHttpAdapter().getInstance();
     expressApp.set('trust proxy', 1);
@@ -407,9 +408,9 @@ async function bootstrap() {
   };
   app.use(tenancy);
   // Initialize tenant DB context before guards
-  app.useGlobalGuards(new TenantInitGuard(ds));
+  app.useGlobalGuards(new TenantInitGuard(ds, reflector));
   // Bind tenant to DB session (reuse or create) around controller handling
-  app.useGlobalInterceptors(new TenantInterceptor(ds));
+  app.useGlobalInterceptors(new TenantInterceptor(ds, reflector));
 
   // Finalizer middleware: ensure any leftover queryRunner is released on finish/close
   app.use((req: any, res: any, next: any) => {

@@ -22,6 +22,7 @@ interface UnifiedActivityFormProps {
   initialStatus?: TaskStatus | null;
   focusNonce?: number;
   onImageUpload?: (file: File) => Promise<string>;
+  onImageUrlImport?: (sourceUrl: string) => Promise<string>;
 }
 
 export default function UnifiedActivityForm({
@@ -35,6 +36,7 @@ export default function UnifiedActivityForm({
   initialStatus = null,
   focusNonce,
   onImageUpload,
+  onImageUrlImport,
 }: UnifiedActivityFormProps) {
   const queryClient = useQueryClient();
   const [comment, setComment] = React.useState('');
@@ -149,6 +151,7 @@ export default function UnifiedActivityForm({
           disabled={submitting || readOnly}
           focusNonce={focusNonce}
           onImageUpload={onImageUpload}
+          onImageUrlImport={onImageUrlImport}
         />
       </React.Suspense>
 

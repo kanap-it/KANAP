@@ -4,6 +4,8 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import { DataSource } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
@@ -12,9 +14,12 @@ import { PortfolioProjectsService } from './services';
 import { PortfolioProjectsCsvService } from './portfolio-projects-csv.service';
 import { StorageService } from '../common/storage/storage.service';
 import { resolveToUuid } from '../common/resolve-item-id';
-import { attachmentMulterOptions, inlineImageMulterOptions } from '../common/upload';
+import { attachmentMulterOptions, documentImportMulterOptions, inlineImageMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
+import { createRequestReleaseConnection } from '../common/import-connection';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
+import { RATE_LIMITS } from '../common/rate-limit';
+import { RateLimitGuard } from '../common/rate-limit.guard';
 import {
   CreateProjectInput,
   UpdateProjectInput,
@@ -33,6 +38,7 @@ export class PortfolioProjectsController {
     private readonly storage: StorageService,
     private readonly knowledge: KnowledgeService,
     private readonly integratedDocuments: IntegratedDocumentsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private resolve(idOrRef: string, ctx: TenantRequest): Promise<string> {
@@ -343,6 +349,54 @@ export class PortfolioProjectsController {
       file,
       ctx.userId || null,
       { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @Post(':id/integrated-documents/:slotKey/attachments/inline/import')
+  async importIntegratedDocumentInlineAttachment(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Body() body: { source_url?: string },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.integratedDocuments.importInlineAttachmentBySourceUrl(
+      'projects',
+      id,
+      slotKey,
+      body?.source_url || '',
+      ctx.userId || null,
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @UseGuards(RateLimitGuard)
+  @Throttle({ default: RATE_LIMITS.documentImport })
+  @Post(':id/integrated-documents/:slotKey/import')
+  @UseInterceptors(FileInterceptor('file', documentImportMulterOptions))
+  async importIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.integratedDocuments.importDocumentBySource(
+      'projects',
+      id,
+      slotKey,
+      file,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      {
+        manager: ctx.manager,
+        releaseConnection: createRequestReleaseConnection(req, this.dataSource, ctx.tenantId),
+      },
     );
   }
 
@@ -768,6 +822,24 @@ export class PortfolioProjectsController {
     return this.svc.uploadInlineAttachment(id, file, sourceField || 'content', ctx.userId || null, {
       manager: ctx.manager,
     });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_projects', 'contributor')
+  @Post(':id/attachments/inline/import')
+  async importInlineAttachment(
+    @Param('id') idOrRef: string,
+    @Body() body: { source_field?: string; source_url?: string },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolve(idOrRef, ctx);
+    return this.svc.importInlineAttachmentFromUrl(
+      id,
+      body?.source_url || '',
+      body?.source_field || 'content',
+      ctx.userId || null,
+      { manager: ctx.manager },
+    );
   }
 
   @UseGuards(PermissionGuard)

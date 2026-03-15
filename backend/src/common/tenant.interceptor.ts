@@ -1,13 +1,24 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Observable, from } from 'rxjs';
 import { DataSource, QueryRunner } from 'typeorm';
 import { finalize, mergeMap } from 'rxjs/operators';
+import { IS_PUBLIC_KEY } from '../auth/public.decorator';
 
 @Injectable()
 export class TenantInterceptor implements NestInterceptor {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly reflector: Reflector,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return next.handle();
+
     const http = context.switchToHttp();
     const req: any = http.getRequest();
     const tenantId: string | undefined = req?.tenant?.id;
@@ -28,42 +39,63 @@ export class TenantInterceptor implements NestInterceptor {
     })()).pipe(
       mergeMap(() => next.handle()),
       finalize(async () => {
+        const finishRunner = async (
+          candidate: QueryRunner | undefined,
+          labels: { commit: string; rollback: string; release: string },
+        ) => {
+          if (!candidate || candidate.isReleased) {
+            return;
+          }
+
+          try {
+            if (candidate.isTransactionActive) {
+              try {
+                await candidate.commitTransaction();
+              } catch (commitError) {
+                console.error(labels.commit, commitError);
+                try {
+                  if (candidate.isTransactionActive) {
+                    await candidate.rollbackTransaction();
+                  }
+                } catch (rollbackError) {
+                  console.error(labels.rollback, rollbackError);
+                }
+              }
+            }
+          } finally {
+            if (!candidate.isReleased) {
+              try {
+                await candidate.release();
+                (req as any)._tenantRunnerReleased = true;
+              } catch (releaseError) {
+                console.error(labels.release, releaseError);
+              }
+            }
+          }
+        };
+
+        const activeRunner: QueryRunner | undefined = (req as any).queryRunner;
+        if (activeRunner && activeRunner !== runner) {
+          await finishRunner(activeRunner, {
+            commit: '[TenantInterceptor] Swapped runner commit failed:',
+            rollback: '[TenantInterceptor] Swapped runner rollback failed:',
+            release: '[TenantInterceptor] CRITICAL: Swapped runner release failed:',
+          });
+          return;
+        }
+
         if (!existing) {
-          try {
-            await runner.commitTransaction();
-          } catch (commitError) {
-            console.error('[TenantInterceptor] Commit failed:', commitError);
-            try {
-              await runner.rollbackTransaction();
-            } catch (rollbackError) {
-              console.error('[TenantInterceptor] Rollback failed:', rollbackError);
-            }
-          } finally {
-            try {
-              await runner.release();
-              (req as any)._tenantRunnerReleased = true;
-            } catch (releaseError) {
-              console.error('[TenantInterceptor] CRITICAL: Connection release failed:', releaseError);
-            }
-          }
+          await finishRunner(runner, {
+            commit: '[TenantInterceptor] Commit failed:',
+            rollback: '[TenantInterceptor] Rollback failed:',
+            release: '[TenantInterceptor] CRITICAL: Connection release failed:',
+          });
         } else if (ownedByGuard) {
-          try {
-            await runner.commitTransaction();
-          } catch (commitError) {
-            console.error('[TenantInterceptor] Guard-owned commit failed:', commitError);
-            try {
-              await runner.rollbackTransaction();
-            } catch (rollbackError) {
-              console.error('[TenantInterceptor] Guard-owned rollback failed:', rollbackError);
-            }
-          } finally {
-            try {
-              await runner.release();
-              (req as any)._tenantRunnerReleased = true;
-            } catch (releaseError) {
-              console.error('[TenantInterceptor] CRITICAL: Guard-owned connection release failed:', releaseError);
-            }
-          }
+          await finishRunner(runner, {
+            commit: '[TenantInterceptor] Guard-owned commit failed:',
+            rollback: '[TenantInterceptor] Guard-owned rollback failed:',
+            release: '[TenantInterceptor] CRITICAL: Guard-owned connection release failed:',
+          });
         }
       }),
     );

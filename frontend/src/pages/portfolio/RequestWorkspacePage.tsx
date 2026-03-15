@@ -567,6 +567,15 @@ export default function RequestWorkspacePage() {
     return buildInlineImageUrl(`/portfolio/requests/inline/${tenantSlug}/${res.data.id}`);
   }, [id]);
 
+  const handleImageUrlImport = React.useCallback(async (sourceUrl: string, sourceField: string): Promise<string> => {
+    const res = await api.post<{ id: string }>(`/portfolio/requests/${id}/attachments/inline/import`, {
+      source_field: sourceField,
+      source_url: sourceUrl,
+    });
+    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
+    return buildInlineImageUrl(`/portfolio/requests/inline/${tenantSlug}/${res.data.id}`);
+  }, [id]);
+
   const onTabChange = (_: React.SyntheticEvent | null, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'summary') return;
     if (hasUnsavedChanges) {
@@ -972,6 +981,7 @@ export default function RequestWorkspacePage() {
               currentUserId={profile?.id}
               readOnly={!canManage}
               onImageUpload={handleImageUpload}
+              onImageUrlImport={handleImageUrlImport}
             />
           </React.Suspense>
         )}
@@ -1002,6 +1012,7 @@ export default function RequestWorkspacePage() {
         onClose={() => setRecommendationDialogOpen(false)}
         onSubmit={handleSubmitRecommendation}
         onImageUpload={handleImageUpload}
+        onImageUrlImport={handleImageUrlImport}
       />
 
       <StatusChangeDialog

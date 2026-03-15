@@ -58,10 +58,26 @@ export default function ExportButton({
       const fallbackName = `${sanitizeFilename(title || 'document')}.${format}`;
       triggerDownload(result.blob, result.filename || fallbackName);
     } catch (error) {
-      // Keep failure visible to the user without introducing page-level state.
-      window.alert('Export failed. Please try again.');
       // eslint-disable-next-line no-console
       console.error('Document export failed', error);
+      // Extract error message from blob response (axios returns blob even for errors when responseType is 'blob')
+      const blobData = (error as any)?.response?.data;
+      if (blobData instanceof Blob) {
+        blobData.text().then((text: string) => {
+          // eslint-disable-next-line no-console
+          console.error('[ExportButton] server error body:', text);
+          try {
+            const parsed = JSON.parse(text);
+            window.alert(`Export failed: ${parsed?.message || text}`);
+          } catch {
+            window.alert(`Export failed: ${text}`);
+          }
+        }).catch(() => {
+          window.alert('Export failed. Please try again.');
+        });
+      } else {
+        window.alert('Export failed. Please try again.');
+      }
     } finally {
       setExporting(null);
     }

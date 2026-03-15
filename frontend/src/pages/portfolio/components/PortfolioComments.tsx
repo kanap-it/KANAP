@@ -78,6 +78,7 @@ interface PortfolioCommentsProps {
   currentUserId?: string | null;
   readOnly?: boolean;
   onImageUpload?: (file: File, sourceField: string) => Promise<string>;
+  onImageUrlImport?: (sourceUrl: string, sourceField: string) => Promise<string>;
 }
 
 export default function PortfolioComments({
@@ -92,6 +93,7 @@ export default function PortfolioComments({
   currentUserId,
   readOnly = false,
   onImageUpload,
+  onImageUrlImport,
 }: PortfolioCommentsProps) {
   const [commentContent, setCommentContent] = React.useState('');
   const [commentContext, setCommentContext] = React.useState('');
@@ -150,6 +152,13 @@ export default function PortfolioComments({
       throw new Error('Image upload not configured');
     }
     return onImageUpload(file, 'content');
+  };
+
+  const handleImageUrlImport = async (sourceUrl: string): Promise<string> => {
+    if (!onImageUrlImport) {
+      throw new Error('Image URL import not configured');
+    }
+    return onImageUrlImport(sourceUrl, 'content');
   };
 
   const handleStartEdit = (activity: Activity) => {
@@ -312,6 +321,7 @@ export default function PortfolioComments({
                   maxRows={14}
                   disabled={submitting}
                   onImageUpload={onImageUpload ? handleImageUpload : undefined}
+                  onImageUrlImport={onImageUrlImport ? handleImageUrlImport : undefined}
                 />
               </React.Suspense>
             </Box>
@@ -454,6 +464,7 @@ export default function PortfolioComments({
                           maxRows={12}
                           disabled={editSubmitting}
                           onImageUpload={onImageUpload ? handleImageUpload : undefined}
+                          onImageUrlImport={onImageUrlImport ? handleImageUrlImport : undefined}
                         />
                       </React.Suspense>
                       <Stack direction="row" spacing={1} sx={{ mt: 1, justifyContent: 'flex-end' }}>

@@ -21,6 +21,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import api from '../../api';
 import ExportButton from '../../components/ExportButton';
+import ImportButton from '../../components/ImportButton';
+import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../../api/endpoints/import';
 import { useAuth } from '../../auth/AuthContext';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
 import { useRecentKnowledgeDocuments } from '../workspace/hooks/useRecentKnowledgeDocuments';
@@ -218,6 +220,7 @@ export default function KnowledgeWorkspacePage() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const canManageDocument = hasLevel('knowledge', 'member');
   const [contentFocusNonce, setContentFocusNonce] = React.useState(0);
+  const [contentResetNonce, setContentResetNonce] = React.useState(0);
   const [editorRows, setEditorRows] = React.useState(30);
   const hydratedDocumentIdRef = React.useRef<string | null>(null);
   const hasLocalWorkspaceChangesRef = React.useRef(false);
@@ -837,6 +840,14 @@ export default function KnowledgeWorkspacePage() {
     return buildInlineImageUrl(`/knowledge/inline/${tenantSlug}/${res.data.id}`);
   };
 
+  const importInlineImageUrl = async (sourceUrl: string): Promise<string> => {
+    const res = await api.post<{ id: string }>(`/knowledge/${id}/attachments/inline/import`, {
+      source_url: sourceUrl,
+    });
+    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
+    return buildInlineImageUrl(`/knowledge/inline/${tenantSlug}/${res.data.id}`);
+  };
+
   // Edit mode transitions
   const startEdit = React.useCallback(async (opts?: { silentConflict?: boolean }) => {
     try {
@@ -1016,6 +1027,48 @@ export default function KnowledgeWorkspacePage() {
     });
     setDirty(true);
   }, []);
+
+  const handleDocumentImportError = React.useCallback((e: unknown) => {
+    const status = Number((e as any)?.response?.status || 0);
+    const lockInfo = parseLockInfoFromError(e) || parseLockInfo(doc?.edit_lock);
+    if (status === 423) {
+      setEditMode(false);
+      setLockToken(null);
+      setLockExpiresAt(null);
+      setActiveLockInfo(lockInfo);
+      setError(null);
+      return;
+    }
+    if (status === 410) {
+      setEditMode(false);
+      setLockToken(null);
+      setLockExpiresAt(null);
+      setError('Editing lock expired. Re-enter edit mode to continue.');
+      return;
+    }
+    setError((e as any)?.response?.data?.message || (e as any)?.message || 'Document import failed');
+  }, [doc?.edit_lock, parseLockInfo, parseLockInfoFromError]);
+
+  const handleDocumentImport = React.useCallback(async (selectedFile: File): Promise<ImportDocumentResult> => {
+    if (isCreate) {
+      throw new Error('Document import is available after the document is created');
+    }
+    if (!lockToken) {
+      throw new Error('Acquire an editing lock before importing a document');
+    }
+    return importMarkdownDocument(`/knowledge/${id}/import`, selectedFile, {
+      headers: { 'X-Lock-Token': lockToken },
+    });
+  }, [id, isCreate, lockToken]);
+
+  const handleDocumentImported = React.useCallback((result: ImportDocumentResult) => {
+    setError(null);
+    handleFormChange('content_markdown', result.markdown);
+    setContentResetNonce((prev) => prev + 1);
+    window.setTimeout(() => {
+      setContentFocusNonce((prev) => prev + 1);
+    }, 0);
+  }, [handleFormChange]);
 
   // Save relations
   const saveRelationsMutation = useMutation({
@@ -1289,6 +1342,15 @@ export default function KnowledgeWorkspacePage() {
               Discard
             </Button>
           )}
+          {!isCreate && canEditContent && (
+            <ImportButton
+              onImportFile={handleDocumentImport}
+              onImported={handleDocumentImported}
+              onError={handleDocumentImportError}
+              hasContent={!!String(form.content_markdown || '').trim()}
+              size="small"
+            />
+          )}
           <ExportButton
             content={form.content_markdown || ''}
             title={String(form.title || (!isCreate ? doc?.item_ref : '') || 'knowledge-document')}
@@ -1447,12 +1509,14 @@ export default function KnowledgeWorkspacePage() {
               <Box ref={editorHostRef} sx={{ flex: 1, minHeight: 0 }}>
                 <React.Suspense fallback={<MarkdownEditorLoadingFallback minRows={editorRows} />}>
                   <MarkdownEditor
-                    key={activeEditorDocumentId}
+                    key={`${activeEditorDocumentId}:${contentResetNonce}`}
                     value={displayContentMarkdown}
                     onChange={(value) => handleFormChange('content_markdown', value)}
                     disabled={!canEditContent}
                     focusNonce={contentFocusNonce}
+                    refreshNonce={contentResetNonce}
                     onImageUpload={!isCreate ? uploadInlineImage : undefined}
+                    onImageUrlImport={!isCreate ? importInlineImageUrl : undefined}
                     minRows={editorRows}
                     maxRows={editorRows}
                   />

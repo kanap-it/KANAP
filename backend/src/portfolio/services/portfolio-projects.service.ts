@@ -435,6 +435,16 @@ export class PortfolioProjectsService {
     return this.attachmentsService.uploadInlineAttachment(projectId, file, sourceField, userId, opts);
   }
 
+  importInlineAttachmentFromUrl(
+    projectId: string,
+    sourceUrl: string,
+    sourceField: string,
+    userId: string | null,
+    opts?: ServiceOpts,
+  ) {
+    return this.attachmentsService.importInlineAttachmentFromUrl(projectId, sourceUrl, sourceField, userId, opts);
+  }
+
   cleanupOrphanedImages(
     projectId: string,
     sourceField: string,

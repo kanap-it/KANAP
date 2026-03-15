@@ -15,6 +15,7 @@ type ProjectActivityTabProps = {
     new_status?: string;
   }) => Promise<void>;
   onImageUpload: (file: File, sourceField: string) => Promise<string>;
+  onImageUrlImport: (sourceUrl: string, sourceField: string) => Promise<string>;
   onUpdateComment: (activityId: string, content: string) => Promise<void>;
   readOnly: boolean;
   statusOptions: Array<{ value: string; label: string }>;
@@ -28,6 +29,7 @@ export default function ProjectActivityTab({
   entityId,
   onAddComment,
   onImageUpload,
+  onImageUrlImport,
   onUpdateComment,
   readOnly,
   statusOptions,
@@ -45,6 +47,7 @@ export default function ProjectActivityTab({
       currentUserId={currentUserId}
       readOnly={readOnly}
       onImageUpload={onImageUpload}
+      onImageUrlImport={onImageUrlImport}
     />
   );
 }

@@ -4,6 +4,8 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import { DataSource } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
@@ -12,10 +14,13 @@ import { PortfolioRequestsService } from './portfolio-requests.service';
 import { PortfolioRequestsCsvService } from './portfolio-requests-csv.service';
 import { PortfolioProjectsService } from './services';
 import { StorageService } from '../common/storage/storage.service';
-import { attachmentMulterOptions, inlineImageMulterOptions } from '../common/upload';
+import { attachmentMulterOptions, documentImportMulterOptions, inlineImageMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
+import { createRequestReleaseConnection } from '../common/import-connection';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { resolveToUuid } from '../common/resolve-item-id';
+import { RATE_LIMITS } from '../common/rate-limit';
+import { RateLimitGuard } from '../common/rate-limit.guard';
 import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
@@ -38,6 +43,7 @@ export class PortfolioRequestsController {
     private readonly permissionsSvc: PermissionsService,
     private readonly knowledge: KnowledgeService,
     private readonly integratedDocuments: IntegratedDocumentsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private resolve(idOrRef: string, req: any): Promise<string> {
@@ -370,6 +376,53 @@ export class PortfolioRequestsController {
       file,
       req?.user?.sub ?? null,
       { manager: req?.queryRunner?.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Post(':id/integrated-documents/:slotKey/attachments/inline/import')
+  async importIntegratedDocumentInlineAttachment(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Body() body: { source_url?: string },
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.integratedDocuments.importInlineAttachmentBySourceUrl(
+      'requests',
+      id,
+      slotKey,
+      body?.source_url || '',
+      req?.user?.sub ?? null,
+      { manager: req?.queryRunner?.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @UseGuards(RateLimitGuard)
+  @Throttle({ default: RATE_LIMITS.documentImport })
+  @Post(':id/integrated-documents/:slotKey/import')
+  @UseInterceptors(FileInterceptor('file', documentImportMulterOptions))
+  async importIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.integratedDocuments.importDocumentBySource(
+      'requests',
+      id,
+      slotKey,
+      file,
+      req?.user?.sub ?? null,
+      req?.headers?.['x-lock-token'],
+      {
+        manager: req?.queryRunner?.manager,
+        releaseConnection: createRequestReleaseConnection(req, this.dataSource, req?.tenant?.id ?? ''),
+      },
     );
   }
 
@@ -750,6 +803,24 @@ export class PortfolioRequestsController {
     return this.svc.uploadInlineAttachment(id, file, sourceField || 'content', req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_requests', 'member')
+  @Post(':id/attachments/inline/import')
+  async importInlineAttachment(
+    @Param('id') idOrRef: string,
+    @Body() body: { source_field?: string; source_url?: string },
+    @Req() req: any,
+  ) {
+    const id = await this.resolve(idOrRef, req);
+    return this.svc.importInlineAttachmentFromUrl(
+      id,
+      body?.source_url || '',
+      body?.source_field || 'content',
+      req.user?.sub ?? null,
+      { manager: req?.queryRunner?.manager },
+    );
   }
 
   @UseGuards(PermissionGuard)

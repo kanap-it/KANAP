@@ -84,6 +84,7 @@ export function emailWrapper(
 ): EmailWrapperResult {
   const branding = options?.branding ?? getDefaultEmailBranding();
   const pc = branding.primaryColor;
+  const hasLogo = branding.logoBuffer.length > 0;
   const preferencesLink = options?.preferencesUrl
     ? `<a href="${options.preferencesUrl}" style="color:#9ca3af;text-decoration:none;font-size:11px;">Manage notification preferences</a>`
     : '';
@@ -103,8 +104,10 @@ ${body}
 </td></tr>
 <!-- Footer -->
 <tr><td style="padding:20px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-<img src="cid:${branding.logoCid}" alt="KANAP" width="24" height="24" style="display:inline-block;vertical-align:middle;max-height:24px;width:auto;max-width:24px;" />
-<span style="display:inline-block;vertical-align:middle;margin-left:6px;color:#9ca3af;font-size:11px;font-weight:600;letter-spacing:0.5px;">Powered by KANAP</span>
+${hasLogo
+    ? `<img src="cid:${branding.logoCid}" alt="KANAP" width="24" height="24" style="display:inline-block;vertical-align:middle;max-height:24px;width:auto;max-width:24px;" />
+<span style="display:inline-block;vertical-align:middle;margin-left:6px;color:#9ca3af;font-size:11px;font-weight:600;letter-spacing:0.5px;">Powered by KANAP</span>`
+    : '<span style="display:inline-block;vertical-align:middle;color:#9ca3af;font-size:11px;font-weight:600;letter-spacing:0.5px;">Powered by KANAP</span>'}
 ${preferencesLink ? `<br />${preferencesLink}` : ''}
 </td></tr>
 </table>
@@ -113,14 +116,16 @@ ${preferencesLink ? `<br />${preferencesLink}` : ''}
 </body>
 </html>`;
 
-  const attachments: EmailAttachment[] = [
-    {
-      filename: 'logo.png',
-      content: branding.logoBuffer.toString('base64'),
-      contentType: branding.logoContentType,
-      contentId: branding.logoCid,
-    },
-  ];
+  const attachments: EmailAttachment[] = hasLogo
+    ? [
+      {
+        filename: 'logo.png',
+        content: branding.logoBuffer.toString('base64'),
+        contentType: branding.logoContentType,
+        contentId: branding.logoCid,
+      },
+    ]
+    : [];
 
   return { html, attachments };
 }

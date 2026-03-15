@@ -43,6 +43,7 @@ interface RecommendationDialogProps {
     new_status?: string;
   }) => Promise<void>;
   onImageUpload?: (file: File, sourceField: string) => Promise<string>;
+  onImageUrlImport?: (sourceUrl: string, sourceField: string) => Promise<string>;
 }
 
 export default function RecommendationDialog({
@@ -54,6 +55,7 @@ export default function RecommendationDialog({
   onClose,
   onSubmit,
   onImageUpload,
+  onImageUrlImport,
 }: RecommendationDialogProps) {
   const [decisionOutcome, setDecisionOutcome] = React.useState('');
   const [newStatus, setNewStatus] = React.useState('');
@@ -76,6 +78,13 @@ export default function RecommendationDialog({
       throw new Error('Image upload not configured');
     }
     return onImageUpload(file, 'content');
+  };
+
+  const handleImageUrlImport = async (sourceUrl: string): Promise<string> => {
+    if (!onImageUrlImport) {
+      throw new Error('Image URL import not configured');
+    }
+    return onImageUrlImport(sourceUrl, 'content');
   };
 
   const handleSubmit = async () => {
@@ -171,6 +180,7 @@ export default function RecommendationDialog({
                 maxRows={18}
                 disabled={submitting}
                 onImageUpload={onImageUpload ? handleImageUpload : undefined}
+                onImageUrlImport={onImageUrlImport ? handleImageUrlImport : undefined}
               />
             </React.Suspense>
           </Box>

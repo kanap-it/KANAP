@@ -11,6 +11,7 @@ import { PortfolioProjectsBaseService, ServiceOpts } from './portfolio-projects-
 import { validateUploadedFile } from '../../common/upload-validation';
 import { fixMulterFilename } from '../../common/upload';
 import { extractInlineImageUrls } from '../../common/content-image-urls';
+import { RemoteInlineImageImportService } from '../../common/remote-inline-image-import.service';
 
 /**
  * Service for managing project attachments.
@@ -21,6 +22,7 @@ export class PortfolioAttachmentsService extends PortfolioProjectsBaseService {
     @InjectRepository(PortfolioProject) projectRepo: Repository<PortfolioProject>,
     private readonly audit: AuditService,
     private readonly storage: StorageService,
+    private readonly remoteInlineImages: RemoteInlineImageImportService,
   ) {
     super(projectRepo);
   }
@@ -201,6 +203,17 @@ export class PortfolioAttachmentsService extends PortfolioProjectsBaseService {
     }));
 
     return saved;
+  }
+
+  async importInlineAttachmentFromUrl(
+    projectId: string,
+    sourceUrl: string,
+    sourceField: string,
+    userId: string | null,
+    opts?: ServiceOpts,
+  ) {
+    const file = await this.remoteInlineImages.importFromUrl(sourceUrl);
+    return this.uploadInlineAttachment(projectId, file, sourceField, userId, opts);
   }
 
   /**
