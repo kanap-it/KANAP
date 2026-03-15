@@ -132,6 +132,19 @@ export function extractClipboardImageFiles(dataTransfer: DataTransfer | null | u
     .filter((file): file is File => file instanceof File);
 }
 
+export function looksLikeMarkdown(text: string): boolean {
+  if (!text || text.length < 20) return false;
+  let score = 0;
+  for (const line of text.split('\n')) {
+    if (/^#{1,6}\s/.test(line)) score += 2;
+    if (/^`{3}/.test(line)) score += 2;
+    if (/^\|.+\|$/.test(line)) score += 1;
+    if (/^>\s/.test(line)) score += 1;
+    if (score >= 4) return true;
+  }
+  return false;
+}
+
 export function shouldHandleRichClipboardImport(opts: ClipboardMarkdownImportOptions): boolean {
   const html = String(opts.html || '').trim();
   const plainText = String(opts.plainText || '');

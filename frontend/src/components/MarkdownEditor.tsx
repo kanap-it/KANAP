@@ -45,6 +45,7 @@ import '@mdxeditor/editor/style.css';
 import {
   convertRichClipboardToMarkdown,
   extractClipboardImageFiles,
+  looksLikeMarkdown,
   shouldHandleRichClipboardImport,
 } from '../lib/richClipboardMarkdown';
 
@@ -180,6 +181,7 @@ export default function MarkdownEditor({
 
   const codeBlockLanguages = React.useMemo<Record<string, string>>(
     () => ({
+      '': 'Plain text',
       txt: 'Plain text',
       md: 'Markdown',
       abap: 'ABAP (plain)',
@@ -261,6 +263,15 @@ export default function MarkdownEditor({
       const imageFiles = extractClipboardImageFiles(clipboardData);
 
       if (!shouldHandleRichClipboardImport({ html, plainText, imageFiles })) {
+        if (plainText && looksLikeMarkdown(plainText)) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          const content = plainText.trim();
+          if (content) {
+            mdxRef.current?.insertMarkdown(content);
+          }
+        }
         return;
       }
 
@@ -499,7 +510,8 @@ export default function MarkdownEditor({
             overflowX: 'hidden',
             overscrollBehavior: 'contain',
             outline: 'none',
-            '& p': { my: 1 },
+            '& p': { my: 2 },
+            '& hr': { my: 4 },
             '& h1': { fontSize: '1.5rem', fontWeight: 600, mt: 2, mb: 1 },
             '& h2': { fontSize: '1.25rem', fontWeight: 600, mt: 1.5, mb: 0.75 },
             '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 1, mb: 0.5 },
