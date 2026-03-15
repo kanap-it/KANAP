@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gantt } from '@svar-ui/react-gantt';
 import type { ITask, IApi } from '@svar-ui/react-gantt';
@@ -50,6 +50,7 @@ interface Props {
   milestones?: ProjectMilestone[];
   onUpdate?: () => void;
   onProjectClick?: (projectId: string) => void;
+  onProjectPinStart?: (projectId: string, startWeek: string) => Promise<void> | void;
   months?: number;
   monthOffset?: number; // How many months to offset from current month (negative = past, positive = future)
   readOnly?: boolean;
@@ -148,6 +149,15 @@ const formatLocalDate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+const getWeekStartMondayLocal = (date: Date): Date => {
+  const monday = new Date(date);
+  monday.setHours(0, 0, 0, 0);
+  const day = monday.getDay();
+  const offset = (day + 6) % 7;
+  monday.setDate(monday.getDate() - offset);
+  return monday;
+};
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export function PortfolioGantt({
@@ -156,6 +166,7 @@ export function PortfolioGantt({
   milestones = [],
   onUpdate,
   onProjectClick,
+  onProjectPinStart,
   months = 3,
   monthOffset = 0,
   readOnly = false,
@@ -163,6 +174,13 @@ export function PortfolioGantt({
   const navigate = useNavigate();
   const apiRef = useRef<IApi | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [chartVersion, setChartVersion] = useState(0);
+  const pinStartMode = readOnly && !!onProjectPinStart;
+  const ganttReadOnly = readOnly && !pinStartMode;
+
+  const resetRenderedChart = useCallback(() => {
+    setChartVersion((current) => current + 1);
+  }, []);
 
   // Calculate date range based on months and offset
   const { startDate, endDate } = useMemo(() => {
@@ -424,6 +442,14 @@ export function PortfolioGantt({
   // Ref for storing onUpdate callback (to avoid stale closure in init)
   const onUpdateRef = useRef(onUpdate || (() => {}));
   onUpdateRef.current = onUpdate || (() => {});
+  const onProjectPinStartRef = useRef(onProjectPinStart);
+  onProjectPinStartRef.current = onProjectPinStart;
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
+  const pinStartModeRef = useRef(pinStartMode);
+  pinStartModeRef.current = pinStartMode;
 
   // Init callback to set up all event handlers
   const handleInit = useCallback((ganttApi: IApi) => {
@@ -431,12 +457,12 @@ export function PortfolioGantt({
 
     // Intercept show-editor (double-click). In read-only mode this is disabled.
     ganttApi.intercept('show-editor', (ev: { id: string | number }) => {
-      if (readOnly) return false;
+      if (readOnlyRef.current || pinStartModeRef.current) return false;
       if (ev?.id) {
         const taskId = String(ev.id);
         // Check if it's a milestone or project
         if (taskId.startsWith('milestone-')) {
-          const task = tasks.find(t => t.id === taskId) as any;
+          const task = tasksRef.current.find(t => t.id === taskId) as any;
           if (task && task._projectId) {
             navigate(`/portfolio/projects/${task._projectId}/timeline`);
           }
@@ -447,38 +473,69 @@ export function PortfolioGantt({
       return false; // Prevent default editor
     });
 
-    if (!readOnly) {
-      // Handle task update (after drag) - use api.on for reliable event handling
-      ganttApi.on('update-task', async (ev: { id: string | number; task: Partial<ITask>; inProgress?: boolean }) => {
-        // Only process when drag is complete
-        if (ev.inProgress) return;
+    // Handle task update (after drag) - use api.on for reliable event handling
+    ganttApi.on('update-task', async (ev: { id: string | number; task: Partial<ITask>; inProgress?: boolean }) => {
+      // Only process when drag is complete
+      if (ev.inProgress) return;
 
-        const taskId = String(ev.id);
-        // Don't allow milestone editing
-        if (taskId.startsWith('milestone-')) return;
+      const taskId = String(ev.id);
+      const currentTask = tasksRef.current.find((taskEntry) => String(taskEntry.id) === taskId) as (typeof tasks[number] | undefined);
+      const isReservation = !!(currentTask && '_isReservation' in currentTask && currentTask._isReservation);
+      const { task } = ev;
 
-        const { task } = ev;
-        if (!task.start || !task.end) return;
+      // Don't allow milestone editing
+      if (taskId.startsWith('milestone-')) {
+        if (pinStartModeRef.current) resetRenderedChart();
+        return;
+      }
 
-        // Validate end >= start
-        if (new Date(task.end) < new Date(task.start)) {
-          alert('End date cannot be before start date');
-          onUpdateRef.current?.();
+      if (!task.start) {
+        if (pinStartModeRef.current) resetRenderedChart();
+        return;
+      }
+
+      if (pinStartModeRef.current) {
+        const pinStartHandler = onProjectPinStartRef.current;
+        if (isReservation || !pinStartHandler) {
+          resetRenderedChart();
           return;
         }
-
-        try {
-          await api.patch(`/portfolio/projects/${taskId}`, {
-            planned_start: formatLocalDate(new Date(task.start)),
-            planned_end: formatLocalDate(new Date(task.end)),
-          });
-          onUpdateRef.current?.();
-        } catch (e: any) {
-          alert(e?.response?.data?.message || 'Failed to update dates');
-          onUpdateRef.current?.();
+        const startWeek = formatLocalDate(getWeekStartMondayLocal(new Date(task.start)));
+        const currentStartWeek = currentTask?.start
+          ? formatLocalDate(getWeekStartMondayLocal(new Date(currentTask.start)))
+          : null;
+        if (currentStartWeek === startWeek) {
+          resetRenderedChart();
+          return;
         }
-      });
-    }
+        try {
+          await pinStartHandler(taskId, startWeek);
+        } catch {
+          resetRenderedChart();
+        }
+        return;
+      }
+
+      if (readOnlyRef.current || !task.end) return;
+
+      // Validate end >= start
+      if (new Date(task.end) < new Date(task.start)) {
+        alert('End date cannot be before start date');
+        onUpdateRef.current?.();
+        return;
+      }
+
+      try {
+        await api.patch(`/portfolio/projects/${taskId}`, {
+          planned_start: formatLocalDate(new Date(task.start)),
+          planned_end: formatLocalDate(new Date(task.end)),
+        });
+        onUpdateRef.current?.();
+      } catch (e: any) {
+        alert(e?.response?.data?.message || 'Failed to update dates');
+        onUpdateRef.current?.();
+      }
+    });
     // Ensure line is drawn after chart mounts.
     window.setTimeout(syncTodayLine, 0);
     window.setTimeout(syncTodayLine, 140);
@@ -488,7 +545,13 @@ export function PortfolioGantt({
       window.setTimeout(scrollTodayIntoView, 0);
       window.setTimeout(scrollTodayIntoView, 140);
     }
-  }, [navigate, tasks, monthOffset, readOnly, scrollTodayIntoView, syncTodayLine]);
+  }, [
+    monthOffset,
+    navigate,
+    resetRenderedChart,
+    scrollTodayIntoView,
+    syncTodayLine,
+  ]);
 
   // Keep line synchronized when the chart reflows (resize / range changes / data changes).
   useEffect(() => {
@@ -568,7 +631,14 @@ export function PortfolioGantt({
     const contributorWindowPart = data._focusContributorName && data._focusContributorActiveStart && data._focusContributorActiveEnd
       ? `\nContributor: ${data._focusContributorName}\nContributor Active: ${formatDateShort(new Date(data._focusContributorActiveStart))} - ${formatDateShort(new Date(data._focusContributorActiveEnd))}${fullStartStr && fullEndStr && (fullStartStr !== startStr || fullEndStr !== endStr) ? `\nProject Window: ${fullStartStr} - ${fullEndStr}` : ''}`
       : '';
-    const tooltip = `${data.text}\nStatus: ${data._statusLabel || data._status}\nProgress: ${progress}%\nStart: ${startStr}\nEnd: ${endStr}${contributorWindowPart}${isReservation ? `\nType: Capacity Reservation${reservationReason ? `\nReason: ${reservationReason}` : ''}` : ''}${hasSleepLead && historicalStartStr ? `\nHistorical Start: ${historicalStartStr}\nPaused: ~${sleepWeeks} week(s)` : ''}${inactiveTooltipPart}`;
+    const interactionHint = [
+      pinStartMode && !isReservation ? 'Drag to pin start week' : null,
+      !isReservation && onProjectClick ? 'Click for explanation' : null,
+    ]
+      .filter((value): value is string => !!value)
+      .map((value) => `\n${value}`)
+      .join('');
+    const tooltip = `${data.text}\nStatus: ${data._statusLabel || data._status}\nProgress: ${progress}%\nStart: ${startStr}\nEnd: ${endStr}${contributorWindowPart}${isReservation ? `\nType: Capacity Reservation${reservationReason ? `\nReason: ${reservationReason}` : ''}` : ''}${hasSleepLead && historicalStartStr ? `\nHistorical Start: ${historicalStartStr}\nPaused: ~${sleepWeeks} week(s)` : ''}${inactiveTooltipPart}${interactionHint}`;
 
     // Compute overlay positions for inactive segments as percentages of the bar
     const barStartMs = data.start ? new Date(data.start).getTime() : 0;
@@ -597,7 +667,9 @@ export function PortfolioGantt({
           position: 'relative',
           height: '100%',
           overflow: 'visible',
-          cursor: data._isProject && onProjectClick ? 'pointer' : 'default',
+          cursor: data._isProject && !isReservation && pinStartMode
+            ? 'grab'
+            : (data._isProject && onProjectClick ? 'pointer' : 'default'),
         }}
       >
         {hasSleepLead && (
@@ -692,7 +764,7 @@ export function PortfolioGantt({
         </div>
       </div>
     );
-  }, [onProjectClick]);
+  }, [onProjectClick, pinStartMode]);
 
   // Empty state
   if (tasks.length === 0) {
@@ -753,12 +825,18 @@ export function PortfolioGantt({
         '& .wx-gantt-tooltip': {
           display: 'none !important',
         },
+        ...(pinStartMode ? {
+          '& .wx-progress-marker, & .wx-link, & .wx-delete-button': {
+            display: 'none !important',
+          },
+        } : {}),
       }}
     >
       <Gantt
+        key={chartVersion}
         tasks={tasks}
         links={links}
-        readonly={readOnly}
+        readonly={ganttReadOnly}
         scales={scales}
         start={startDate}
         end={endDate}

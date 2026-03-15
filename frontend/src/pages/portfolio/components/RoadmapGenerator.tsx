@@ -2009,6 +2009,12 @@ export default function RoadmapGenerator({ onApplied }: Props) {
 
   const setScenarioPinStart = async (projectId: string, startWeek: string) => {
     const currentOverride = projectOverrideById.get(projectId);
+    if (
+      currentOverride?.constraint?.type === 'pin_start'
+      && currentOverride.constraint.startWeek === startWeek
+    ) {
+      return;
+    }
     const nextOverrides = roadmapScenario.projectOverrides
       .filter((override) => override.projectId !== projectId);
     nextOverrides.push({
@@ -3227,6 +3233,9 @@ export default function RoadmapGenerator({ onApplied }: Props) {
             <Typography variant="caption" color="text.secondary" sx={{ px: 1, pb: 0.5, display: 'block' }}>
               Solid bar shows active scheduled work. Dashed lead-in marks earlier historical start with pause before resumed work. Hatched bars are capacity reservations. Dotted overlay marks scheduling gaps; diagonal gray overlay marks on-hold periods.
             </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ px: 1, pb: 1, display: 'block' }}>
+              Drag a project bar to create or update a scenario-only pinned start. Click a project bar to open its explanation.
+            </Typography>
             <LightModeIsland sx={{ p: 1 }}>
               <Box sx={{ height: `${ganttHeight}px` }}>
                 <PortfolioGantt
@@ -3234,6 +3243,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                   dependencies={ganttDependencies}
                   milestones={[]}
                   onProjectClick={openExplanation}
+                  onProjectPinStart={loading ? undefined : (projectId, startWeek) => setScenarioPinStart(projectId, startWeek)}
                   readOnly
                   months={monthsForGantt}
                   monthOffset={monthOffsetForGantt}
