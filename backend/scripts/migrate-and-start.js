@@ -214,6 +214,13 @@ async function runMigrationsIfNeeded() {
       await ds.destroy();
       return;
     } catch (err) {
+      if (ds.isInitialized) {
+        try {
+          await ds.destroy();
+        } catch (destroyErr) {
+          console.warn('[entrypoint] Failed to reset DB connection after migration error:', destroyErr?.message || destroyErr);
+        }
+      }
       if (attempt >= maxAttempts) {
         console.error('[entrypoint] Failed to initialize DB after max attempts:', err?.message || err);
         if (process.env.DEBUG_MIGRATIONS) {
