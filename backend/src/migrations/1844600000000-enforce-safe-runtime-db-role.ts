@@ -67,11 +67,25 @@ export class EnforceSafeRuntimeDbRole1844600000000 implements MigrationInterface
     console.log(
       `[Migration] Hardening PostgreSQL role "${current.currentUser}" from ${currentFlags} to NOSUPERUSER NOBYPASSRLS`,
     );
-    await queryRunner.query(`
-      DO $$ BEGIN
-        EXECUTE format('ALTER ROLE %I NOSUPERUSER NOBYPASSRLS', current_user);
-      END $$;
-    `);
+    try {
+      await queryRunner.query(`
+        DO $$ BEGIN
+          EXECUTE format('ALTER ROLE %I NOSUPERUSER NOBYPASSRLS', current_user);
+        END $$;
+      `);
+    } catch (error: any) {
+      const detail = typeof error?.detail === 'string' ? error.detail : '';
+      const message = typeof error?.message === 'string' ? error.message : String(error);
+      const bootstrapRoleFailure = /bootstrap user/i.test(detail) || /bootstrap user/i.test(message);
+      if (error?.code === '0A000' && bootstrapRoleFailure) {
+        throw new Error(
+          `Unsafe DATABASE_URL role "${current.currentUser}" with ${currentFlags}. `
+          + 'PostgreSQL will not remove SUPERUSER from the cluster bootstrap role. '
+          + 'Use a dedicated application role for DATABASE_URL instead of the initdb/bootstrap user, then rerun migrations.',
+        );
+      }
+      throw error;
+    }
 
     const hardened = await this.loadRoleState(queryRunner);
     if (hardened.isSuperuser || hardened.canBypassRls) {

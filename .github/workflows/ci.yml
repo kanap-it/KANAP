@@ -13,11 +13,11 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: appdb
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: app
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
         options: >-
-          --health-cmd "pg_isready -U app -d appdb"
+          --health-cmd "pg_isready -U postgres -d postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -39,6 +39,17 @@ jobs:
       - name: Build backend (${{ matrix.mode }})
         working-directory: backend
         run: npm ci && npm run build
+      - name: Prepare CI PostgreSQL role/database (${{ matrix.mode }})
+        if: matrix.mode == 'cloud'
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE app LOGIN PASSWORD 'app' NOSUPERUSER NOBYPASSRLS;"
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE appdb OWNER app;"
+          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS citext;"
+          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "GRANT ALL ON SCHEMA public TO app;"
       - name: Prepare backend database (${{ matrix.mode }})
         if: matrix.mode == 'cloud'
         working-directory: backend
