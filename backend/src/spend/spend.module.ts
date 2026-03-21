@@ -81,5 +81,8 @@ import { KnowledgeModule } from '../knowledge/knowledge.module';
     ChargebackReportService,
     SpendItemContactsService,
   ],
+  exports: [
+    TasksService,
+  ],
 })
 export class SpendModule {}

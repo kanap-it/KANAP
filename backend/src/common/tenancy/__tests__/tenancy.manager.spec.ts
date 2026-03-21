@@ -1,6 +1,33 @@
 import * as assert from 'node:assert/strict';
 import { TenancyManager, TenantContext } from '../tenancy.manager';
 
+async function withEnv(
+  vars: Record<string, string | undefined>,
+  fn: () => Promise<void>,
+) {
+  const previous = new Map<string, string | undefined>();
+  for (const [key, value] of Object.entries(vars)) {
+    previous.set(key, process.env[key]);
+    if (value == null) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+
+  try {
+    await fn();
+  } finally {
+    for (const [key, value] of previous.entries()) {
+      if (value == null) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
 // Mock DataSource
 function createMockDataSource() {
   const mockQueryRunner = {
@@ -31,6 +58,12 @@ function createMockDataSource() {
         const slug = params?.[0];
         if (slug === 'acme') {
           return [{ id: 'tenant-uuid-123', slug: 'acme', name: 'Acme Corp' }];
+        }
+        if (slug === 'default') {
+          return [{ id: 'tenant-uuid-default', slug: 'default', name: 'Default Tenant' }];
+        }
+        if (slug === 'platform-admin') {
+          return [{ id: 'tenant-uuid-platform', slug: 'platform-admin', name: 'Platform Administration' }];
         }
         return [];
       },
@@ -99,6 +132,54 @@ async function testResolveFromHostReturnsNullForUnknownTenant() {
 
   const context = await manager.resolveFromHost('unknown.lvh.me');
   assert.equal(context, null, 'Should return null for unknown tenant');
+}
+
+async function testResolveFromHostUsesDefaultTenantInSingleTenantMode() {
+  await withEnv(
+    {
+      DEPLOYMENT_MODE: 'single-tenant',
+      DEFAULT_TENANT_SLUG: 'default',
+      PLATFORM_ADMIN_HOST: undefined,
+    },
+    async () => {
+      const { manager } = createTenancyManager();
+      const context = await manager.resolveFromHost('192.168.1.83');
+      assert.ok(context, 'Should resolve default tenant in single-tenant mode');
+      assert.equal(context!.subdomain, 'default');
+      assert.equal(context!.tenantId, 'tenant-uuid-default');
+    },
+  );
+}
+
+async function testResolveFromHostReturnsNullForIpInMultiTenantMode() {
+  await withEnv(
+    {
+      DEPLOYMENT_MODE: undefined,
+      DEFAULT_TENANT_SLUG: undefined,
+      PLATFORM_ADMIN_HOST: undefined,
+    },
+    async () => {
+      const { manager } = createTenancyManager();
+      const context = await manager.resolveFromHost('192.168.1.83');
+      assert.equal(context, null, 'Should not resolve IP hosts in multi-tenant mode');
+    },
+  );
+}
+
+async function testResolveFromPlatformAdminHost() {
+  await withEnv(
+    {
+      DEPLOYMENT_MODE: undefined,
+      PLATFORM_ADMIN_HOST: 'admin.kanap.net',
+    },
+    async () => {
+      const { manager } = createTenancyManager();
+      const context = await manager.resolveFromHost('admin.kanap.net:443');
+      assert.ok(context, 'Should resolve platform admin host');
+      assert.equal(context!.subdomain, 'platform-admin');
+      assert.equal(context!.tenantId, 'tenant-uuid-platform');
+    },
+  );
 }
 
 async function testSetAndGetContext() {
@@ -320,6 +401,9 @@ async function testExtractSubdomainEdgeCases() {
   await testExtractSubdomainFromDevQa();
   await testExtractSubdomainFromProd();
   await testResolveFromHostReturnsNullForUnknownTenant();
+  await testResolveFromHostUsesDefaultTenantInSingleTenantMode();
+  await testResolveFromHostReturnsNullForIpInMultiTenantMode();
+  await testResolveFromPlatformAdminHost();
   await testSetAndGetContext();
   await testGetQueryRunnerCreatesConnection();
   await testGetQueryRunnerThrowsWithoutContext();

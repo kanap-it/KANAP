@@ -24,6 +24,7 @@ import { ImportExecutionOptions, readUploadedFileBuffer } from '../common/import
 import { fixMulterFilename } from '../common/upload';
 import { validateUploadedFile } from '../common/upload-validation';
 import { parsePagination } from '../common/pagination';
+import { normalizeAgFilterModel } from '../common/ag-grid-filtering';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { StorageService } from '../common/storage/storage.service';
 import { RemoteInlineImageImportService } from '../common/remote-inline-image-import.service';
@@ -117,6 +118,61 @@ const WORKFLOW_STAGE_TO_ROLE: Record<'reviewer' | 'approver', 'reviewer' | 'vali
 type DocumentWorkflowStage = 'reviewer' | 'approver';
 type DocumentWorkflowStatus = 'pending_review' | 'pending_approval' | 'changes_requested' | 'approved' | 'cancelled';
 type DocumentWorkflowDecision = 'pending' | 'approved' | 'changes_requested';
+
+const compileDateFilterCondition = (
+  rawModel: any,
+  expression: string,
+  nextParam: () => string,
+): { sql: string; params: Record<string, any> } | null => {
+  const model = normalizeAgFilterModel(rawModel);
+  if (!model || typeof model !== 'object') return null;
+
+  const filterCategory = String(model.filterType ?? 'date');
+  const type = String(model.type ?? 'equals');
+  const fromRaw = model.dateFrom ?? model.filter ?? model.value;
+  const toRaw = model.dateTo ?? model.filterTo ?? model.valueTo;
+
+  if (filterCategory !== 'date' && filterCategory !== 'text') return null;
+
+  if (type === 'blank') {
+    return { sql: `${expression} IS NULL`, params: {} };
+  }
+  if (type === 'notBlank') {
+    return { sql: `${expression} IS NOT NULL`, params: {} };
+  }
+
+  const castParam = (param: string): string => `:${param}::date`;
+
+  if (type === 'inRange') {
+    if (!fromRaw || !toRaw) return null;
+    const fromParam = nextParam();
+    const toParam = nextParam();
+    return {
+      sql: `${expression} BETWEEN ${castParam(fromParam)} AND ${castParam(toParam)}`,
+      params: { [fromParam]: fromRaw, [toParam]: toRaw },
+    };
+  }
+
+  if (!fromRaw) return null;
+  const param = nextParam();
+
+  switch (type) {
+    case 'equals':
+      return { sql: `${expression} = ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'notEqual':
+      return { sql: `${expression} <> ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'lessThan':
+      return { sql: `${expression} < ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'lessThanOrEqual':
+      return { sql: `${expression} <= ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'greaterThan':
+      return { sql: `${expression} > ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'greaterThanOrEqual':
+      return { sql: `${expression} >= ${castParam(param)}`, params: { [param]: fromRaw } };
+    default:
+      return null;
+  }
+};
 
 type WorkflowParticipantView = {
   id: string;
@@ -1625,6 +1681,8 @@ export class KnowledgeService {
   async list(query: any, opts?: { manager?: EntityManager }) {
     const manager = this.getManager(opts);
     const { page, limit, skip, sort, q, filters } = parsePagination(query, { field: 'updated_at', direction: 'DESC' });
+    let reviewDueDateParamIndex = 0;
+    const nextReviewDueDateParam = () => `reviewDueDate${reviewDueDateParamIndex++}`;
 
     const allowedSort = new Set([
       'updated_at',
@@ -1756,6 +1814,22 @@ export class KnowledgeService {
     const templateId = query?.template_document_id || (filters as any)?.template_document_id?.filter;
     if (templateId) {
       qb.andWhere('d.template_document_id = :templateId', { templateId: String(templateId) });
+    }
+
+    const reviewDueDateFilter = (filters as any)?.review_due_at ?? query?.review_due_at;
+    if (reviewDueDateFilter) {
+      if (typeof reviewDueDateFilter === 'string') {
+        qb.andWhere('d.review_due_at = :reviewDueDate', { reviewDueDate: reviewDueDateFilter });
+      } else {
+        const reviewDueDateCondition = compileDateFilterCondition(
+          reviewDueDateFilter,
+          'd.review_due_at',
+          nextReviewDueDateParam,
+        );
+        if (reviewDueDateCondition) {
+          qb.andWhere(reviewDueDateCondition.sql, reviewDueDateCondition.params);
+        }
+      }
     }
 
     const ownerId = query?.owner_id || (filters as any)?.owner_id?.filter;

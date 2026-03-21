@@ -3,9 +3,9 @@ import { MigrationInterface, QueryRunner } from "typeorm";
 /**
  * Critical tenant isolation safety fix
  *
- * PROBLEM 1: app_current_tenant() falls back to 'lohr' tenant when context isn't set.
- * This is dangerous because 'lohr' is a real customer tenant, and any code path that
- * forgets to set tenant context would silently create/read data in the wrong tenant.
+ * PROBLEM 1: app_current_tenant() falls back to a tenant when context isn't set.
+ * This is dangerous because any code path that forgets to set tenant context would
+ * silently create/read data in the wrong tenant.
  *
  * PROBLEM 2: role_permissions may have mismatched tenant_id values (from migration
  * 1776000000000 bug). This causes RLS to filter them out, making roles appear to
@@ -24,7 +24,7 @@ export class FixTenantIsolationSafety1810000000000 implements MigrationInterface
     // ==========================================================================
     // FIX 1: Remove dangerous fallback from app_current_tenant()
     // ==========================================================================
-    console.log('[Migration] Updating app_current_tenant() to remove fallback to lohr tenant');
+    console.log('[Migration] Updating app_current_tenant() to remove legacy tenant fallback');
 
     // Check if we own the function before trying to update it
     // (to avoid aborting the transaction on permission error)
@@ -166,7 +166,7 @@ export class FixTenantIsolationSafety1810000000000 implements MigrationInterface
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Revert to the previous version with environment-configurable fallback
-    // (still not ideal, but better than hardcoded 'lohr')
+    // (still not ideal, but preserves the legacy fallback behavior)
     console.log('[Migration] Reverting app_current_tenant() - WARNING: This restores the fallback behavior');
 
     // Check ownership before attempting update
@@ -194,11 +194,14 @@ export class FixTenantIsolationSafety1810000000000 implements MigrationInterface
           END;
 
           IF t IS NULL THEN
-            default_slug := COALESCE(current_setting('app.default_tenant_slug', true), 'lohr');
-            IF default_slug = '' THEN
-              default_slug := 'lohr';
+            default_slug := NULLIF(current_setting('app.default_tenant_slug', true), '');
+            IF default_slug IS NOT NULL THEN
+              SELECT id INTO t FROM tenants WHERE slug = default_slug LIMIT 1;
             END IF;
-            SELECT id INTO t FROM tenants WHERE slug = default_slug LIMIT 1;
+          END IF;
+
+          IF t IS NULL THEN
+            SELECT id INTO t FROM tenants ORDER BY created_at, id LIMIT 1;
           END IF;
 
           RETURN t;

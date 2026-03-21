@@ -33,20 +33,47 @@ export class TenancyManager {
 
   /**
    * Resolve tenant from the host header.
-   * Extracts subdomain and looks up tenant in the database.
+   * Supports single-tenant fixed resolution, platform-admin host mapping,
+   * and SaaS subdomain extraction.
    * @param host The host header value (e.g., "acme.kanap.net:3000")
    * @returns TenantContext if found, null if no tenant subdomain or not found
    */
   async resolveFromHost(host: string): Promise<TenantContext | null> {
+    const hostname = host.split(':')[0]?.toLowerCase() ?? '';
+    if (!hostname) {
+      return null;
+    }
+
+    if (this.isSingleTenantMode()) {
+      return this.resolveTenantBySlug((process.env.DEFAULT_TENANT_SLUG || 'default').trim());
+    }
+
+    const platformAdminHost = (process.env.PLATFORM_ADMIN_HOST || '').trim().toLowerCase();
+    if (platformAdminHost && hostname === platformAdminHost) {
+      return this.resolveTenantBySlug('platform-admin');
+    }
+
     const subdomain = this.extractSubdomain(host);
     if (!subdomain) {
       return null;
     }
 
-    // Query tenant by slug (subdomain)
+    return this.resolveTenantBySlug(subdomain);
+  }
+
+  private isSingleTenantMode(): boolean {
+    return (process.env.DEPLOYMENT_MODE || '').trim().toLowerCase() === 'single-tenant';
+  }
+
+  private async resolveTenantBySlug(slug: string): Promise<TenantContext | null> {
+    const normalizedSlug = String(slug || '').trim();
+    if (!normalizedSlug) {
+      return null;
+    }
+
     const rows = await this.dataSource.query(
       'SELECT id, slug, name FROM tenants WHERE slug = $1 AND deleted_at IS NULL LIMIT 1',
-      [subdomain],
+      [normalizedSlug],
     );
 
     if (!rows || rows.length === 0) {

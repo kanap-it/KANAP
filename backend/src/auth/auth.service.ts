@@ -35,6 +35,19 @@ function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+function buildAccessTokenPayload(user: { id: string; email: string; role?: any; tenant_id?: string | null }) {
+  return {
+    sub: user.id,
+    email: user.email,
+    role: user.role,
+    tenant_id: user.tenant_id ?? null,
+  };
+}
+
+function bindTenantId(tenantId: string | null | undefined): string {
+  return tenantId ?? '';
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -80,7 +93,7 @@ export class AuthService {
    * Refresh token: longer-lived with sliding expiration (default 4h)
    */
   async signTokens(
-    user: { id: string; email: string; role?: any; tenant_id?: string },
+    user: { id: string; email: string; role?: any; tenant_id?: string | null },
     manager?: import('typeorm').EntityManager,
   ): Promise<{ access_token: string; refresh_token: string; expires_in: number; refresh_expires_in: number }> {
     const secret = requireJwtSecret();
@@ -92,7 +105,7 @@ export class AuthService {
     const refreshExpiresInMs = parseDurationMs(refreshTtl);
 
     // Sign access token
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = buildAccessTokenPayload(user);
     const accessToken = jwt.sign(payload, secret, { expiresIn: accessExpiresInSec });
 
     // Generate refresh token (random bytes)
@@ -105,7 +118,7 @@ export class AuthService {
       user_id: user.id,
       token_hash: refreshTokenHash,
       expires_at: new Date(Date.now() + refreshExpiresInMs),
-      tenant_id: user.tenant_id || '',
+      tenant_id: bindTenantId(user.tenant_id),
     });
     await repo.save(refreshTokenEntity);
 
@@ -120,11 +133,11 @@ export class AuthService {
   /**
    * Legacy method for backwards compatibility (e.g., provisioning token exchange)
    */
-  signToken(user: { id: string; email: string; role?: any }) {
+  signToken(user: { id: string; email: string; role?: any; tenant_id?: string | null }) {
     const secret = requireJwtSecret();
     const accessTtl = process.env.JWT_ACCESS_TOKEN_TTL || DEFAULT_ACCESS_TOKEN_TTL;
     const accessExpiresInSec = parseDurationSec(accessTtl);
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = buildAccessTokenPayload(user);
     const token = jwt.sign(payload, secret, { expiresIn: accessExpiresInSec });
     return { access_token: token };
   }
@@ -135,13 +148,14 @@ export class AuthService {
    */
   async refreshAccessToken(
     refreshToken: string,
+    tenantId: string | null | undefined,
     manager?: import('typeorm').EntityManager,
   ): Promise<{ access_token: string; expires_in: number; refresh_expires_in: number }> {
     const tokenHash = hashToken(refreshToken);
     const repo = manager ? manager.getRepository(RefreshToken) : this.refreshTokenRepo;
 
     const storedToken = await repo.findOne({
-      where: { token_hash: tokenHash },
+      where: { token_hash: tokenHash, tenant_id: bindTenantId(tenantId) },
       relations: ['user', 'user.role'],
     });
 
@@ -172,7 +186,12 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = buildAccessTokenPayload({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      tenant_id: storedToken.tenant_id,
+    });
     const accessToken = jwt.sign(payload, secret, { expiresIn: accessExpiresInSec });
 
     return {
@@ -185,10 +204,14 @@ export class AuthService {
   /**
    * Revoke a specific refresh token (logout from one device).
    */
-  async revokeToken(refreshToken: string, manager?: import('typeorm').EntityManager): Promise<void> {
+  async revokeToken(
+    refreshToken: string,
+    tenantId: string | null | undefined,
+    manager?: import('typeorm').EntityManager,
+  ): Promise<void> {
     const tokenHash = hashToken(refreshToken);
     const repo = manager ? manager.getRepository(RefreshToken) : this.refreshTokenRepo;
-    await repo.delete({ token_hash: tokenHash });
+    await repo.delete({ token_hash: tokenHash, tenant_id: bindTenantId(tenantId) });
   }
 
   /**

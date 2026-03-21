@@ -66,7 +66,7 @@ export class RbacPermissionsOverhaul1776000000000 implements MigrationInterface 
     for (const tenant of tenants) {
       const tenantId = tenant.id;
 
-      // Define built-in roles with their permissions (captured from lohr tenant configuration)
+      // Define built-in roles with their permissions (captured from production tenant configuration)
       const builtInRoles = [
         // Budget Roles
         {

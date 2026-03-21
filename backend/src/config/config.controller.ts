@@ -13,8 +13,14 @@ export class ConfigController {
         billing: Features.STRIPE_BILLING,
         sso: Features.ENTRA_SSO,
         email: Features.EMAIL_ENABLED,
+        aiChat: Features.AI_CHAT_ENABLED,
+        aiMcp: Features.AI_MCP_ENABLED,
+        aiSettings: Features.AI_SETTINGS_ENABLED,
       },
       version,
+      tenantSlug: Features.SINGLE_TENANT
+        ? (process.env.DEFAULT_TENANT_SLUG || 'default').trim()
+        : undefined,
     };
   }
 }

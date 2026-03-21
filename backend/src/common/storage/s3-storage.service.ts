@@ -7,6 +7,7 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -47,10 +48,11 @@ export class S3StorageService extends StorageService {
     return { code, status, message };
   }
 
-  private isInvalidArgumentError(error: any): boolean {
+  private isSseUnsupportedError(error: any): boolean {
     const code = String(error?.name || error?.Code || error?.code || '').toLowerCase();
     const status = error?.$metadata?.httpStatusCode ?? error?.statusCode ?? error?.status;
-    return code === 'invalidargument' || Number(status) === 400;
+    return code === 'invalidargument' || code === 'notimplemented'
+      || Number(status) === 400 || Number(status) === 501;
   }
 
   private toReadable(body: any): Readable {
@@ -90,9 +92,10 @@ export class S3StorageService extends StorageService {
         ServerSideEncryption: params.sse || undefined,
       }));
     } catch (e: any) {
-      // Some S3-compatible providers reject explicit SSE headers (400 InvalidArgument)
-      // while still applying bucket-level default encryption.
-      if (params.sse && this.isInvalidArgumentError(e)) {
+      // Some S3-compatible providers reject explicit SSE headers:
+      // - 400 InvalidArgument (e.g. Cloudflare R2)
+      // - 501 NotImplemented (e.g. MinIO without KMS)
+      if (params.sse && this.isSseUnsupportedError(e)) {
         try {
           await this.client.send(new PutObjectCommand(baseInput as any));
           if (!this.hasLoggedSseFallback) {
@@ -182,5 +185,27 @@ export class S3StorageService extends StorageService {
       const { code, status, message } = this.getAwsErrorInfo(e);
       throw new Error(`${code} (${status}): ${message}`);
     }
+  }
+
+  async *listObjects(prefix: string): AsyncGenerator<{ key: string; lastModified: Date | null; size: number }> {
+    if (!this.bucket) throw new Error('S3_BUCKET is not configured');
+    let continuationToken: string | undefined;
+    do {
+      const result = await this.client.send(new ListObjectsV2Command({
+        Bucket: this.bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }));
+      for (const obj of result.Contents ?? []) {
+        if (obj.Key) {
+          yield {
+            key: obj.Key,
+            lastModified: obj.LastModified ?? null,
+            size: obj.Size ?? 0,
+          };
+        }
+      }
+      continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
+    } while (continuationToken);
   }
 }

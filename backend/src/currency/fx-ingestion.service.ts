@@ -6,6 +6,7 @@ import { CurrencySettingsService } from './currency-settings.service';
 import { FxRateService } from './fx-rate.service';
 import { Tenant } from '../tenants/tenant.entity';
 import { WorldBankClient } from './world-bank-client';
+import { withTenantExecution } from '../common/tenant-runner';
 
 type RateSnapshot = Record<string, number | null>;
 
@@ -28,6 +29,12 @@ interface TenantCurrencyContext {
   reportingCurrency: string;
   currencies: string[];
 }
+
+type RefreshTenantOptions = {
+  manual?: boolean;
+  label?: string;
+  manager?: EntityManager;
+};
 
 @Injectable()
 export class FxIngestionService implements OnModuleInit, OnModuleDestroy {
@@ -204,13 +211,11 @@ export class FxIngestionService implements OnModuleInit, OnModuleDestroy {
   async refreshTenant(
     tenantId: string,
     years?: number | number[],
-    opts?: { manual?: boolean; label?: string },
+    opts?: RefreshTenantOptions,
   ): Promise<CurrencyRateSet[]> {
-    const manager = this.rateSets.manager;
-    const context = await this.buildTenantContext(tenantId, manager);
-    const now = new Date().getFullYear();
     const isManual = opts?.manual ?? false;
     const label = opts?.label ?? (isManual ? 'manual' : 'scheduled');
+    const now = new Date().getFullYear();
 
     if (isManual) {
       this.manualInProgress += 1;
@@ -228,67 +233,71 @@ export class FxIngestionService implements OnModuleInit, OnModuleDestroy {
         uniqueYears.push(now);
       }
 
-      this.logger.log(
-        `[${label}] refreshing World Bank FX rates for tenant ${tenantId}: years ${uniqueYears
-          .slice()
-          .sort((a, b) => a - b)
-          .join(', ')}`,
-      );
+      return this.withTenantManager(tenantId, opts?.manager, async (manager) => {
+        const context = await this.buildTenantContext(tenantId, manager);
 
-      const supportYears = new Set(uniqueYears);
-      const hasFuture = uniqueYears.some((year) => year > now);
-      if (hasFuture) {
-        supportYears.add(now);
-      }
+        this.logger.log(
+          `[${label}] refreshing World Bank FX rates for tenant ${tenantId}: years ${uniqueYears
+            .slice()
+            .sort((a, b) => a - b)
+            .join(', ')}`,
+        );
 
-      const snapshots = await this.buildYearlySnapshots(context, Array.from(supportYears).sort((a, b) => a - b));
-      const results: CurrencyRateSet[] = [];
-      const failures: string[] = [];
-
-      for (const year of uniqueYears.sort((a, b) => a - b)) {
-        const snapshot = snapshots.find((entry) => entry.year === year);
-        if (!snapshot) {
-          failures.push(`year ${year}: World Bank data unavailable`);
-          continue;
+        const supportYears = new Set(uniqueYears);
+        const hasFuture = uniqueYears.some((year) => year > now);
+        if (hasFuture) {
+          supportYears.add(now);
         }
-        const baseCode = context.reportingCurrency.toUpperCase();
-        const baseQuote = snapshot.quotes[baseCode];
-        if (typeof baseQuote !== 'number' || !Number.isFinite(baseQuote) || baseQuote <= 0) {
-          const existing = await this.fxRates.getLatestRateSet(
-            context.tenantId,
-            year,
-            context.reportingCurrency,
-            { manager },
-          );
-          if (existing) {
-            this.logger.warn(
-              `[${label}] World Bank missing base currency ${baseCode} for ${year}; reusing existing snapshot ${existing.id}`,
-            );
-            results.push(existing);
+
+        const snapshots = await this.buildYearlySnapshots(context, Array.from(supportYears).sort((a, b) => a - b));
+        const results: CurrencyRateSet[] = [];
+        const failures: string[] = [];
+
+        for (const year of uniqueYears.sort((a, b) => a - b)) {
+          const snapshot = snapshots.find((entry) => entry.year === year);
+          if (!snapshot) {
+            failures.push(`year ${year}: World Bank data unavailable`);
             continue;
           }
-          failures.push(`year ${year}: missing World Bank rate for base currency ${baseCode}`);
-          continue;
+          const baseCode = context.reportingCurrency.toUpperCase();
+          const baseQuote = snapshot.quotes[baseCode];
+          if (typeof baseQuote !== 'number' || !Number.isFinite(baseQuote) || baseQuote <= 0) {
+            const existing = await this.fxRates.getLatestRateSet(
+              context.tenantId,
+              year,
+              context.reportingCurrency,
+              { manager },
+            );
+            if (existing) {
+              this.logger.warn(
+                `[${label}] World Bank missing base currency ${baseCode} for ${year}; reusing existing snapshot ${existing.id}`,
+              );
+              results.push(existing);
+              continue;
+            }
+            failures.push(`year ${year}: missing World Bank rate for base currency ${baseCode}`);
+            continue;
+          }
+          try {
+            const set = await this.saveRateSet(context, snapshot, manager);
+            if (set) results.push(set);
+          } catch (err) {
+            const reason = err instanceof Error ? err.message : String(err);
+            failures.push(`year ${year}: ${reason}`);
+            this.logger.warn(`[${label}] Unable to store World Bank rates for ${year}: ${reason}`);
+          }
         }
-        try {
-          const set = await this.saveRateSet(context, snapshot, manager);
-          if (set) results.push(set);
-        } catch (err) {
-          const reason = err instanceof Error ? err.message : String(err);
-          failures.push(`year ${year}: ${reason}`);
-          this.logger.warn(`[${label}] Unable to store World Bank rates for ${year}: ${reason}`);
+
+        if (!results.length) {
+          const detail = failures.length ? ` (${failures.join('; ')})` : '';
+          throw new Error(`Failed to capture FX rates${detail}`);
         }
-      }
+        if (failures.length) {
+          this.logger.warn(`[${label}] Partial FX refresh for tenant ${context.tenantId}; skipped ${failures.join(', ')}`);
+        }
 
-      if (!results.length) {
-        const detail = failures.length ? ` (${failures.join('; ')})` : '';
-        throw new Error(`Failed to capture FX rates${detail}`);
-      }
-      if (failures.length) {
-        this.logger.warn(`[${label}] Partial FX refresh for tenant ${context.tenantId}; skipped ${failures.join(', ')}`);
-      }
-
-      return results;
+        return results;
+      });
     } finally {
       if (isManual) {
         this.manualInProgress = Math.max(0, this.manualInProgress - 1);
@@ -330,6 +339,20 @@ export class FxIngestionService implements OnModuleInit, OnModuleDestroy {
       reportingCurrency: settings.reportingCurrency,
       currencies: Array.from(currencies).map((code) => code.toUpperCase()),
     };
+  }
+
+  private async withTenantManager<T>(
+    tenantId: string,
+    manager: EntityManager | undefined,
+    fn: (manager: EntityManager) => Promise<T>,
+  ): Promise<T> {
+    if (manager?.queryRunner) {
+      await manager.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
+      return fn(manager);
+    }
+
+    const dataSource = manager?.connection ?? this.rateSets.manager.connection;
+    return withTenantExecution(dataSource, tenantId, fn, { transaction: true });
   }
 
   private determineSource(year: number, currentYear: number): WorldBankRateSource {

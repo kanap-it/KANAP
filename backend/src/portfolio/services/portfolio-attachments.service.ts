@@ -12,6 +12,7 @@ import { validateUploadedFile } from '../../common/upload-validation';
 import { fixMulterFilename } from '../../common/upload';
 import { extractInlineImageUrls } from '../../common/content-image-urls';
 import { RemoteInlineImageImportService } from '../../common/remote-inline-image-import.service';
+import { isStoragePathReferencedInAnyTable } from '../../common/storage-path-refs';
 
 /**
  * Service for managing project attachments.
@@ -298,12 +299,11 @@ export class PortfolioAttachmentsService extends PortfolioProjectsBaseService {
             where: { id: attachmentId, project_id: projectId, source_field: sourceField },
           });
           if (attachment) {
-            try {
-              await this.storage.deleteObject(attachment.storage_path);
-            } catch {
-              // Log but don't fail
-            }
+            const referenced = await isStoragePathReferencedInAnyTable(mg, attachment.storage_path, [attachment.id]);
             await repo.delete({ id: attachmentId });
+            if (!referenced) {
+              try { await this.storage.deleteObject(attachment.storage_path); } catch {}
+            }
           }
         } catch {
           // Ignore errors - image may have already been deleted

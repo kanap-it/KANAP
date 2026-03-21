@@ -29,13 +29,6 @@ export class PermissionsAndSubscriptions1756687000000 implements MigrationInterf
         updated_at timestamptz NOT NULL DEFAULT now()
       );
     `);
-
-    // seed Contact role if missing
-    await queryRunner.query(`
-      INSERT INTO roles(role_name, role_description)
-      VALUES ('Contact','Directory contact without app access by default')
-      ON CONFLICT (role_name) DO NOTHING;
-    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
@@ -43,4 +36,3 @@ export class PermissionsAndSubscriptions1756687000000 implements MigrationInterf
     await queryRunner.query(`DROP TABLE IF EXISTS subscriptions`);
   }
 }
-

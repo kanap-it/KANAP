@@ -1,0 +1,229 @@
+import { TENANT_SCOPED_TABLES } from '../../common/tenant-isolation.inventory';
+
+export const TENANT_PURGE_TABLES = [
+  // Portfolio: purge in FK order (children before parents)
+  'portfolio_project_time_entries',
+  'portfolio_project_milestones',
+  'portfolio_project_phases',
+  'portfolio_project_opex',
+  'portfolio_project_capex',
+  'portfolio_project_attachments',
+  'portfolio_project_urls',
+  'portfolio_project_dependencies',
+  'portfolio_project_contacts',
+  'portfolio_project_effort_allocations',
+  'portfolio_project_team',
+  'application_projects',
+  'asset_projects',
+  'portfolio_request_projects',
+  'portfolio_request_opex',
+  'portfolio_request_capex',
+  'portfolio_request_business_processes',
+  'portfolio_request_applications',
+  'portfolio_request_assets',
+  'portfolio_request_attachments',
+  'portfolio_request_urls',
+  'portfolio_request_dependencies',
+  'portfolio_request_contacts',
+  'portfolio_request_team',
+  'portfolio_activities',
+  'portfolio_projects',
+  'portfolio_requests',
+  // portfolio_criterion_values: no tenant_id (dropped in migration 1767200000000)
+  // Records deleted via ON DELETE CASCADE from portfolio_criteria
+  'portfolio_criteria',
+  'portfolio_team_member_configs',
+  'portfolio_teams',
+  'portfolio_phase_template_items',
+  'portfolio_phase_templates',
+  'portfolio_streams',
+  'portfolio_categories',
+  'portfolio_sources',
+  'portfolio_skills',
+  'portfolio_settings',
+  // Knowledge
+  'integrated_document_bindings',
+  'integrated_document_slot_settings',
+  'document_references',
+  'document_applications',
+  'document_assets',
+  'document_projects',
+  'document_requests',
+  'document_tasks',
+  'document_classifications',
+  'document_contributors',
+  'document_workflow_participants',
+  'document_workflows',
+  'document_activities',
+  'document_attachments',
+  'document_edit_locks',
+  'document_versions',
+  'documents',
+  'document_types',
+  'document_folders',
+  'document_libraries',
+  // AI
+  'ai_messages',
+  'ai_conversations',
+  'ai_api_keys',
+  'ai_settings',
+  // Applications: purge attachments and links first
+  'application_attachments',
+  'application_links',
+  'application_contracts',
+  'application_capex_items',
+  'application_spend_items',
+  'application_departments',
+  'application_companies',
+  'application_owners',
+  'application_data_residency',
+  'application_support_contacts',
+  'application_suites',
+  // Interfaces: purge interface-level tables before base interfaces
+  'interface_attachments',
+  'interface_links',
+  'interface_data_residency',
+  'interface_key_identifiers',
+  'interface_dependencies',
+  'interface_companies',
+  'interface_owners',
+  'interface_middleware_applications',
+  'interface_legs',
+  'interface_connection_links',
+  'interface_bindings',
+  'connection_legs',
+  'connection_protocols',
+  'connection_servers',
+  'connections',
+  'app_asset_assignments',
+  'interfaces',
+  'app_instances',
+  // Asset extension tables must be purged before assets
+  'asset_attachments',
+  'asset_links',
+  'asset_support_contacts',
+  'asset_hardware_info',
+  'asset_support_info',
+  'asset_relations',
+  'asset_spend_items',
+  'asset_capex_items',
+  'asset_contracts',
+  'asset_cluster_members',
+  'assets',
+  'location_links',
+  'location_contacts',
+  'location_user_contacts',
+  'locations',
+  'applications',
+  'contract_attachments',
+  'contract_tasks',
+  'contract_links',
+  'contract_spend_items',
+  'contract_capex_items',
+  'contract_contacts',
+  'contracts',
+  // unified tasks table (attachments and time entries before tasks due to FK)
+  'task_attachments',
+  'task_time_entries',
+  'user_time_monthly_aggregates',
+  'tasks',
+  'portfolio_task_types',
+  // Per-tenant item numbering for tasks, requests, projects, and documents
+  'item_sequences',
+  'spend_amounts',
+  'spend_allocations',
+  'spend_versions',
+  'spend_tasks',
+  'spend_links',
+  'spend_attachments',
+  'spend_item_contacts',
+  'spend_items',
+  'business_process_category_links',
+  'business_processes',
+  'business_process_categories',
+  'analytics_categories',
+  'capex_amounts',
+  'capex_allocations',
+  'capex_versions',
+  'capex_links',
+  'capex_attachments',
+  'capex_item_contacts',
+  // currency rate snapshots per-tenant
+  'currency_rate_sets',
+  'capex_items',
+  'freeze_states',
+  'department_metrics',
+  'company_metrics',
+  'departments',
+  'companies',
+  'user_page_roles',
+  'user_roles',
+  'role_permissions',
+  'user_dashboard_config',
+  'user_notification_preferences',
+  'refresh_tokens',
+  'users',
+  'roles',
+  // Contacts must be purged before suppliers (supplier_contacts has FKs to both)
+  'supplier_contacts',
+  'contacts',
+  'suppliers',
+  'accounts',
+  // Chart of Accounts introduced recently; ensure CoAs are purged per-tenant
+  'chart_of_accounts',
+  'allocation_rules',
+  'audit_log',
+  'subscriptions',
+] as const;
+
+export const TENANT_PURGE_ATTACHMENT_TABLES = [
+  'portfolio_project_attachments',
+  'portfolio_request_attachments',
+  'task_attachments',
+  'contract_attachments',
+  'capex_attachments',
+  'spend_attachments',
+  'application_attachments',
+  'interface_attachments',
+  'document_attachments',
+  'asset_attachments',
+] as const;
+
+export function validateTenantPurgeConfiguration(): string[] {
+  const failures: string[] = [];
+  const purgeTables = new Set<string>();
+  for (const table of TENANT_PURGE_TABLES) {
+    if (purgeTables.has(table)) {
+      failures.push(`tenant purge defines duplicate table ${table}`);
+      continue;
+    }
+    purgeTables.add(table);
+  }
+
+  const attachmentTables = new Set<string>();
+  for (const table of TENANT_PURGE_ATTACHMENT_TABLES) {
+    if (attachmentTables.has(table)) {
+      failures.push(`tenant purge defines duplicate attachment cleanup table ${table}`);
+      continue;
+    }
+    attachmentTables.add(table);
+    if (!purgeTables.has(table)) {
+      failures.push(`tenant purge attachment cleanup table ${table} is missing from purge order`);
+    }
+  }
+
+  for (const table of TENANT_SCOPED_TABLES) {
+    if (!purgeTables.has(table)) {
+      failures.push(`tenant purge is missing tenant-scoped table ${table}`);
+    }
+  }
+
+  return failures;
+}
+
+export function assertTenantPurgeConfiguration(): void {
+  const failures = validateTenantPurgeConfiguration();
+  if (failures.length > 0) {
+    throw new Error(failures.join('; '));
+  }
+}

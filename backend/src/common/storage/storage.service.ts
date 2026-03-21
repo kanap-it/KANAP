@@ -22,5 +22,6 @@ export abstract class StorageService {
   abstract headObject(key: string): Promise<{ contentType?: string | null; contentLength?: number | null; metadata?: Record<string, string> } | null>;
   abstract deleteObject(key: string): Promise<void>;
   abstract getPresignedUrl(key: string, expirySeconds?: number): Promise<string>;
+  abstract listObjects(prefix: string): AsyncGenerator<{ key: string; lastModified: Date | null; size: number }>;
 }
 

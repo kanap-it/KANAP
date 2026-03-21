@@ -32,7 +32,9 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import HistoryIcon from '@mui/icons-material/History';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 import BrushIcon from '@mui/icons-material/Brush';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useAuth } from '../auth/AuthContext';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -44,6 +46,7 @@ import { useFeatures } from '../config/FeaturesContext';
 import { useThemeMode } from '../config/ThemeContext';
 import { getDocUrl } from '../utils/docUrls';
 import SubscriptionBanner from './SubscriptionBanner';
+import { useAiCapabilities } from '../ai/useAiCapabilities';
 
 const drawerWidth = 240;
 
@@ -115,6 +118,7 @@ const tenantAdminNav: NavEntry[] = [
   { to: '/admin/billing', label: 'Billing', icon: <CreditCardIcon />, resource: 'billing' },
   { to: '/admin/auth', label: 'Authentication', icon: <AdminPanelSettingsIcon />, resource: 'users' },
   { to: '/admin/branding', label: 'Branding', icon: <BrushIcon />, resource: 'users' },
+  { to: '/admin/ai', label: 'AI', icon: <AutoAwesomeIcon />, resource: 'ai_settings' },
 ];
 
 const platformAdminNav: NavEntry[] = [
@@ -123,6 +127,7 @@ const platformAdminNav: NavEntry[] = [
   { to: '/admin/standard-accounts', label: 'Standard Accounts', icon: <AccountBalanceIcon /> },
   { divider: '' },
   { to: '/admin/ops-dashboard', label: 'Ops Dashboard', icon: <MonitorHeartIcon /> },
+  { to: '/admin/scheduled-tasks', label: 'Scheduled Tasks', icon: <ScheduleIcon /> },
 ];
 
 // Helper to extract resource strings from a nav array (filtering out dividers)
@@ -136,6 +141,7 @@ const getWorkspaceResources = (ws: string): string[] => {
     case 'master-data': return getNavResources(masterData);
     case 'it': return getNavResources(itOperations);
     case 'portfolio': return getNavResources(portfolioNav);
+    case 'ai': return ['ai_chat'];
     case 'knowledge': return ['knowledge'];
     case 'admin': return getNavResources(tenantAdminNav);
     default: return [];
@@ -149,6 +155,7 @@ export default function Layout() {
   const { isPlatformHost, tenantName, logoUrl, useLogoInDark } = useTenant();
   const { config } = useFeatures();
   const { mode, resolvedMode, setMode } = useThemeMode();
+  const aiCapabilities = useAiCapabilities();
   const isSingleTenant = config.deploymentMode === 'single-tenant';
   const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
   const openMenu = (e: React.MouseEvent<HTMLElement>) => setMenuAnchor(e.currentTarget);
@@ -156,24 +163,43 @@ export default function Layout() {
 
   // Check if user has access to any resource in a workspace
   const hasWorkspaceAccess = React.useCallback((ws: string): boolean => {
+    if (ws === 'ai') {
+      if (!config.features.aiChat) return false;
+      return aiCapabilities.data?.surfaces.chat.available === true;
+    }
     if (claims?.isGlobalAdmin || claims?.isPlatformAdmin) return true;
+    if (ws === 'admin' && !isPlatformHost) {
+      const resources = getWorkspaceResources(ws).filter((resource) => {
+        if (resource === 'ai_settings') {
+          return aiCapabilities.data?.surfaces.settings.available === true;
+        }
+        return true;
+      });
+      if (!config.features.aiSettings) {
+        return resources
+          .filter((resource) => resource !== 'ai_settings')
+          .some((resource) => hasLevel(resource, 'reader'));
+      }
+      return resources.some((resource) => hasLevel(resource, 'reader'));
+    }
     const resources = getWorkspaceResources(ws);
     return resources.some(r => hasLevel(r, 'reader'));
-  }, [hasLevel, claims]);
+  }, [hasLevel, claims, config.features.aiChat, config.features.aiSettings, isPlatformHost, aiCapabilities.data]);
 
   // Determine which workspaces are visible
   const visibleWorkspaces = React.useMemo(() => {
     if (isPlatformHost) return ['admin'];
-    const all = ['portfolio', 'knowledge', 'it', 'ops', 'master-data', 'admin'] as const;
+    const all = ['ai', 'portfolio', 'knowledge', 'it', 'ops', 'master-data', 'admin'] as const;
     return all.filter(ws => hasWorkspaceAccess(ws));
   }, [isPlatformHost, hasWorkspaceAccess]);
 
   // Derive active workspace from the current route to keep the top bar highlight in sync
-  const workspace: 'ops' | 'it' | 'master-data' | 'portfolio' | 'knowledge' | 'admin' | 'home' = React.useMemo(() => {
+  const workspace: 'ops' | 'it' | 'master-data' | 'portfolio' | 'ai' | 'knowledge' | 'admin' | 'home' = React.useMemo(() => {
     if (isPlatformHost) return 'admin';
     const p = location.pathname;
     if (p === '/') return 'home';
     if (p.startsWith('/admin')) return 'admin';
+    if (p.startsWith('/ai')) return 'ai';
     if (p.startsWith('/master-data')) return 'master-data';
     if (p.startsWith('/portfolio')) return 'portfolio';
     if (p.startsWith('/knowledge')) return 'knowledge';
@@ -250,6 +276,8 @@ export default function Layout() {
                 navigate(
                   val === 'ops'
                     ? '/ops'
+                    : val === 'ai'
+                      ? '/ai'
                     : val === 'it'
                       ? '/it'
                       : val === 'master-data'
@@ -279,6 +307,7 @@ export default function Layout() {
               }}
               aria-label="Section navigation"
             >
+              {visibleWorkspaces.includes('ai') && <Tab value="ai" label="AI" />}
               {visibleWorkspaces.includes('portfolio') && <Tab value="portfolio" label="Portfolio" />}
               {visibleWorkspaces.includes('it') && <Tab value="it" label="IT Operations" />}
               {visibleWorkspaces.includes('knowledge') && <Tab value="knowledge" label="Knowledge" />}
@@ -333,7 +362,7 @@ export default function Layout() {
         </Toolbar>
       </AppBar>
 
-      {workspace !== 'home' && workspace !== 'knowledge' && <Drawer
+      {workspace !== 'home' && workspace !== 'knowledge' && workspace !== 'ai' && <Drawer
         variant="permanent"
         sx={{
           width: (theme) => (navOpen ? drawerWidth : `calc(${theme.spacing(7)} + 1px)`),
@@ -360,8 +389,14 @@ export default function Layout() {
                 if (!isNavItem(entry)) return true;
                 if (entry.to === '/admin/billing' && !config.features.billing) return false;
                 if (entry.to === '/admin/auth' && !config.features.sso) return false;
+                if (entry.to === '/admin/ai' && !config.features.aiSettings) return false;
+                if (entry.to === '/admin/ai' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
                 return true;
               });
+              // In single-tenant mode, append Scheduled Tasks for admin users
+              if (isSingleTenant && claims?.isGlobalAdmin) {
+                entries = [...entries, { to: '/admin/scheduled-tasks', label: 'Scheduled Tasks', icon: <ScheduleIcon /> }];
+              }
             } else if (isPlatformHost) {
               entries = [];
             } else {
@@ -378,6 +413,9 @@ export default function Layout() {
             // Filter items by permission (dividers pass through)
             const visible = entries.filter((entry) => {
               if (!isNavItem(entry)) return true;
+              if (entry.to === '/admin/ai') {
+                return aiCapabilities.data?.surfaces.settings.available === true;
+              }
               return !entry.resource || hasLevel(entry.resource, 'reader');
             });
 

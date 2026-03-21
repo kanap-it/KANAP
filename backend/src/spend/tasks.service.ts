@@ -51,7 +51,18 @@ function parsePagination(query: any) {
   const [field, direction] = sortRaw.split(':');
   const sort = { field: field || 'created_at', direction: (direction?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC') as 'ASC' | 'DESC' };
   const q = (query.q as string) || '';
-  const filters = query.filters ? JSON.parse(query.filters) : {};
+  let filters: AgFilterModel = {};
+  if (query.filters) {
+    if (typeof query.filters === 'string') {
+      try {
+        filters = JSON.parse(query.filters);
+      } catch {
+        filters = {};
+      }
+    } else if (typeof query.filters === 'object') {
+      filters = query.filters;
+    }
+  }
   return { page, limit, skip, sort, q, filters };
 }
 
@@ -270,8 +281,10 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
 }
 
 const TASK_FILTER_VALUE_FIELDS: Record<string, string> = {
+  assignee_name: `COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email)`,
   task_type_name: 'tt.name',
   status: 't.status',
+  priority_level: 't.priority_level',
   related_object_type: 't.related_object_type',
   source_name: 'ps.name',
   category_name: 'pc.name',

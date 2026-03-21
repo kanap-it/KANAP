@@ -35,11 +35,13 @@ import {
   FilterTargetConfig,
   CompiledCondition,
   buildQuickSearchConditions,
+  normalizeAgFilterModel,
 } from '../common/ag-grid-filtering';
 import { PortfolioCriteriaService } from './portfolio-criteria.service';
 import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
 import { extractInlineImageUrls } from '../common/content-image-urls';
+import { isStoragePathReferencedInAnyTable } from '../common/storage-path-refs';
 import { detectChanges, REQUEST_TRACKED_FIELDS, resolveDisplayNames } from '../common/change-detection';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { RemoteInlineImageImportService } from '../common/remote-inline-image-import.service';
@@ -122,6 +124,64 @@ const applyRequestInvolvementScope = (
   }
 
   qb.andWhere(teamCondition, { involvedTeamId });
+};
+
+const requestDateFields = new Map<string, string>([
+  ['target_delivery_date', 'r.target_delivery_date'],
+]);
+
+const compileDateFilterCondition = (
+  rawModel: any,
+  expression: string,
+  nextParam: () => string,
+): CompiledCondition | null => {
+  const model = normalizeAgFilterModel(rawModel);
+  if (!model || typeof model !== 'object') return null;
+
+  const filterCategory = String(model.filterType ?? 'date');
+  const type = String(model.type ?? 'equals');
+  const fromRaw = model.dateFrom ?? model.filter ?? model.value;
+  const toRaw = model.dateTo ?? model.filterTo ?? model.valueTo;
+
+  if (filterCategory !== 'date' && filterCategory !== 'text') return null;
+
+  if (type === 'blank') {
+    return { sql: `${expression} IS NULL`, params: {} };
+  }
+  if (type === 'notBlank') {
+    return { sql: `${expression} IS NOT NULL`, params: {} };
+  }
+
+  const castParam = (param: string): string => `:${param}::date`;
+
+  if (type === 'inRange') {
+    if (!fromRaw || !toRaw) return null;
+    const fromParam = nextParam();
+    const toParam = nextParam();
+    return {
+      sql: `${expression} BETWEEN ${castParam(fromParam)} AND ${castParam(toParam)}`,
+      params: { [fromParam]: fromRaw, [toParam]: toRaw },
+    };
+  }
+
+  if (!fromRaw) return null;
+  const param = nextParam();
+  switch (type) {
+    case 'equals':
+      return { sql: `${expression} = ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'notEqual':
+      return { sql: `${expression} <> ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'lessThan':
+      return { sql: `${expression} < ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'lessThanOrEqual':
+      return { sql: `${expression} <= ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'greaterThan':
+      return { sql: `${expression} > ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'greaterThanOrEqual':
+      return { sql: `${expression} >= ${castParam(param)}`, params: { [param]: fromRaw } };
+    default:
+      return null;
+  }
 };
 
 @Injectable()
@@ -208,6 +268,14 @@ export class PortfolioRequestsService {
     const compiledFilters: CompiledCondition[] = [];
     if (fm) {
       for (const [field, model] of Object.entries(fm)) {
+        const dateField = requestDateFields.get(field);
+        if (dateField) {
+          const cond = compileDateFilterCondition(model, dateField, nextParam);
+          if (cond) {
+            compiledFilters.push(cond);
+            continue;
+          }
+        }
         const target = targets[field];
         if (!target) continue;
         const cond = compileAgFilterCondition(model, target, nextParam);
@@ -486,6 +554,14 @@ export class PortfolioRequestsService {
       const compiledFilters: CompiledCondition[] = [];
       if (filtersForField) {
         for (const [filterField, model] of Object.entries(filtersForField)) {
+          const dateField = requestDateFields.get(filterField);
+          if (dateField) {
+            const cond = compileDateFilterCondition(model, dateField, nextParam);
+            if (cond) {
+              compiledFilters.push(cond);
+              continue;
+            }
+          }
           const target = targets[filterField];
           if (!target) continue;
           const cond = compileAgFilterCondition(model, target, nextParam);
@@ -2226,7 +2302,7 @@ export class PortfolioRequestsService {
     const attachment = await repo.findOne({ where: { id: attachmentId } });
     if (!attachment) throw new NotFoundException('Attachment not found');
 
-    const isReferencedElsewhere = await this.isStoragePathReferencedElsewhere(
+    const isReferencedElsewhere = await isStoragePathReferencedInAnyTable(
       mg,
       attachment.storage_path,
       [attachment.id],
@@ -2363,71 +2439,17 @@ export class PortfolioRequestsService {
             where: { id: attachmentId, request_id: requestId, source_field: sourceField },
           });
           if (attachment) {
-            try {
-              await this.storage.deleteObject(attachment.storage_path);
-            } catch {
-              // Log but don't fail
-            }
+            const referenced = await isStoragePathReferencedInAnyTable(mg, attachment.storage_path, [attachment.id]);
             await repo.delete({ id: attachmentId });
+            if (!referenced) {
+              try { await this.storage.deleteObject(attachment.storage_path); } catch {}
+            }
           }
         } catch {
           // Ignore errors - image may have already been deleted
         }
       }
     }
-  }
-
-  // ==================== HELPERS ====================
-  private async isStoragePathReferencedElsewhere(
-    mg: EntityManager,
-    storagePath: string,
-    excludedRequestAttachmentIds: string[] = [],
-  ): Promise<boolean> {
-    const requestRefs = excludedRequestAttachmentIds.length > 0
-      ? await mg.query<Array<{ exists: number }>>(
-          `SELECT 1 AS exists
-           FROM portfolio_request_attachments
-           WHERE storage_path = $1
-             AND id <> ALL($2::uuid[])
-           LIMIT 1`,
-          [storagePath, excludedRequestAttachmentIds],
-        )
-      : await mg.query<Array<{ exists: number }>>(
-          `SELECT 1 AS exists
-           FROM portfolio_request_attachments
-           WHERE storage_path = $1
-           LIMIT 1`,
-          [storagePath],
-        );
-    if (requestRefs.length > 0) return true;
-
-    const projectRefs = await mg.query<Array<{ exists: number }>>(
-      `SELECT 1 AS exists
-       FROM portfolio_project_attachments
-       WHERE storage_path = $1
-       LIMIT 1`,
-      [storagePath],
-    );
-    if (projectRefs.length > 0) return true;
-
-    const documentRefs = await mg.query<Array<{ exists: number }>>(
-      `SELECT 1 AS exists
-       FROM document_attachments
-       WHERE storage_path = $1
-       LIMIT 1`,
-      [storagePath],
-    );
-    if (documentRefs.length > 0) return true;
-
-    const taskRefs = await mg.query<Array<{ exists: number }>>(
-      `SELECT 1 AS exists
-       FROM task_attachments
-       WHERE storage_path = $1
-       LIMIT 1`,
-      [storagePath],
-    );
-
-    return taskRefs.length > 0;
   }
 
   private normalizeNullable(value: unknown): string | null {
@@ -2558,7 +2580,7 @@ export class PortfolioRequestsService {
     const excludedRequestAttachmentIds = attachments.map((att) => att.id);
 
     for (const att of attachments) {
-      const isReferencedElsewhere = await this.isStoragePathReferencedElsewhere(
+      const isReferencedElsewhere = await isStoragePathReferencedInAnyTable(
         mg,
         att.storage_path,
         excludedRequestAttachmentIds,

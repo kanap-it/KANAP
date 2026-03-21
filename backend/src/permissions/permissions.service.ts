@@ -45,6 +45,9 @@ export const RESOURCES = [
   'portfolio_planning',
   'portfolio_reports',
   'portfolio_settings',
+  'ai_chat',
+  'ai_mcp',
+  'ai_settings',
 ] as const;
 
 export type Resource = typeof RESOURCES[number];

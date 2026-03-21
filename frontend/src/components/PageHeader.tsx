@@ -28,6 +28,7 @@ function useBreadcrumbs(): Crumb[] {
       case 'it': return 'IT Operations';
       case 'master-data': return 'Master Data';
       case 'portfolio': return 'Portfolio';
+      case 'ai': return 'AI';
       case 'opex': return 'OPEX';
       case 'capex': return 'CAPEX';
       case 'projects': return 'Projects';
@@ -41,6 +42,7 @@ function useBreadcrumbs(): Crumb[] {
       case 'analytics': return 'Analytics Dimensions';
       case 'users': return 'Users';
       case 'roles': return 'Roles';
+      case 'scheduled-tasks': return 'Scheduled Tasks';
       case 'billing': return 'Billing';
       case 'reports': return 'Reporting';
       case 'contracts': return 'Contracts';

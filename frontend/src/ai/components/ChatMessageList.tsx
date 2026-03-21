@@ -1,0 +1,143 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Box,
+  Chip,
+  CircularProgress,
+  Collapse,
+  IconButton,
+  Stack,
+  Typography,
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import BuildIcon from '@mui/icons-material/Build';
+import { MarkdownContent } from '../../components/MarkdownContent';
+import { ChatMessage } from '../aiTypes';
+import ToolResultRenderer from './ToolResultRenderer';
+
+type ChatMessageListProps = {
+  messages: ChatMessage[];
+};
+
+function UserBubble({ message }: { message: ChatMessage }) {
+  return (
+    <Box sx={{ pl: 10, pr: 2 }}>
+      <Box
+        sx={{
+          bgcolor: 'primary.main',
+          color: 'primary.contrastText',
+          px: 2,
+          py: 1,
+          borderRadius: 2,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          width: 'fit-content',
+          maxWidth: '85%',
+        }}
+      >
+        <Typography variant="body2">{message.content}</Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function ToolCallsPanel({ message }: { message: ChatMessage }) {
+  const [expanded, setExpanded] = useState(false);
+  const toolCalls = message.toolCalls || [];
+  const toolResults = message.toolResults || [];
+  const count = toolCalls.length;
+
+  if (count === 0) return null;
+
+  const isStreaming = message.isStreaming && toolResults.length < toolCalls.length;
+  const label = isStreaming
+    ? `${toolResults.length} / ${count} tool use${count !== 1 ? 's' : ''}...`
+    : `${count} tool use${count !== 1 ? 's' : ''}`;
+
+  return (
+    <Box
+      sx={{
+        bgcolor: 'action.hover',
+        borderRadius: 1,
+        overflow: 'hidden',
+      }}
+    >
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{ px: 1.5, py: 0.5, cursor: 'pointer' }}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <BuildIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+        <Typography variant="caption" fontWeight={600} sx={{ flex: 1 }}>
+          {label}
+        </Typography>
+        {isStreaming && <CircularProgress size={12} />}
+        <IconButton size="small">
+          {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+        </IconButton>
+      </Stack>
+      <Collapse in={expanded}>
+        <Stack spacing={0.5} sx={{ px: 1.5, pb: 1 }}>
+          {toolCalls.map((tc, i) => {
+            const result = toolResults.find((tr) => tr.id === tc.id);
+            return (
+              <ToolResultRenderer
+                key={tc.id || i}
+                name={tc.name}
+                arguments={tc.arguments}
+                result={result?.result}
+              />
+            );
+          })}
+        </Stack>
+      </Collapse>
+    </Box>
+  );
+}
+
+function AssistantBubble({ message }: { message: ChatMessage }) {
+  return (
+    <Box sx={{ px: 2, maxWidth: '90%' }}>
+      <Stack spacing={0.5}>
+        <ToolCallsPanel message={message} />
+
+        {message.content && (
+          <Box>
+            <MarkdownContent content={message.content} />
+          </Box>
+        )}
+
+        {message.isStreaming && !message.content && !(message.toolCalls?.length) && (
+          <Box sx={{ px: 1 }}>
+            <CircularProgress size={16} />
+          </Box>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
+export default function ChatMessageList({ messages }: ChatMessageListProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  if (!messages.length) return null;
+
+  return (
+    <Stack spacing={2} sx={{ py: 2, pb: 8 }}>
+      {messages.map((msg) =>
+        msg.role === 'user' ? (
+          <UserBubble key={msg.id} message={msg} />
+        ) : msg.role === 'assistant' ? (
+          <AssistantBubble key={msg.id} message={msg} />
+        ) : null,
+      )}
+      <div ref={bottomRef} />
+    </Stack>
+  );
+}

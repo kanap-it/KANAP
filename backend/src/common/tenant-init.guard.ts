@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { IS_PUBLIC_KEY } from '../auth/public.decorator';
+import { SKIP_TENANT_TRANSACTION_KEY } from './skip-tenant-transaction.decorator';
 
 @Injectable()
 export class TenantInitGuard implements CanActivate {
@@ -16,6 +17,12 @@ export class TenantInitGuard implements CanActivate {
       context.getClass(),
     ]);
     if (isPublic) return true;
+
+    const skipTenantTransaction = this.reflector.getAllAndOverride<boolean>(
+      SKIP_TENANT_TRANSACTION_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (skipTenantTransaction) return true;
 
     const req: any = context.switchToHttp().getRequest();
     const tenantId: string | undefined = req?.tenant?.id;

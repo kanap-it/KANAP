@@ -244,6 +244,7 @@ export class AssetsListService extends AssetsBaseService {
     const FILTER_VALUE_FIELDS: Record<string, string> = {
       kind: 'a.kind',
       environment: 'a.environment',
+      provider: 'a.provider',
       operating_system: 'a.operating_system',
       status: 'a.status',
       location_name: 'l.name',

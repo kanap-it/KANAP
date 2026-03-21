@@ -9,11 +9,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: appdb
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+        options: >-
+          --health-cmd "pg_isready -U app -d appdb"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     strategy:
       matrix:
         mode: [cloud, onprem]
     env:
       DEPLOYMENT_MODE: ${{ matrix.mode == 'onprem' && 'single-tenant' || '' }}
+      DATABASE_URL: postgres://app:app@127.0.0.1:5432/appdb
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,6 +39,14 @@ jobs:
       - name: Build backend (${{ matrix.mode }})
         working-directory: backend
         run: npm ci && npm run build
+      - name: Prepare backend database (${{ matrix.mode }})
+        if: matrix.mode == 'cloud'
+        working-directory: backend
+        run: npm run typeorm -- migration:run
+      - name: Run backend hardening checks (${{ matrix.mode }})
+        if: matrix.mode == 'cloud'
+        working-directory: backend
+        run: npm run test:tenant-isolation && npm run test:rls && npm run test:ai
       - name: Build frontend (${{ matrix.mode }})
         working-directory: frontend
         run: npm ci && npm run build

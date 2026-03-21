@@ -11,6 +11,10 @@ function normalizeBasePath(input: string): string {
 
 export function getTenantSlugFromHostname(hostname: string): string {
   const host = String(hostname || '').split(':')[0];
+  // IPv4 addresses and localhost don't carry tenant slug info (on-prem / dev)
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host === 'localhost') {
+    return 'default';
+  }
   const slug = host.split('.')[0];
   return slug || host || 'default';
 }

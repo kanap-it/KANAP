@@ -196,7 +196,7 @@ export class AuthController {
       return this.users.findByEmail(payload.email, { manager });
     });
     if (!user) throw new BadRequestException('user not found');
-    return this.auth.signToken({ id: user.id, email: user.email, role: user.role });
+    return this.auth.signToken({ id: user.id, email: user.email, role: user.role, tenant_id: tenantId });
   }
 
   @Post('password-reset/request')
@@ -233,7 +233,7 @@ export class AuthController {
     const refreshToken = this.resolveRefreshToken(req, body);
     if (!refreshToken) throw new BadRequestException('refresh_token is required');
     const manager = req?.queryRunner?.manager;
-    const refreshed = await this.auth.refreshAccessToken(refreshToken, manager);
+    const refreshed = await this.auth.refreshAccessToken(refreshToken, req?.tenant?.id, manager);
     setRefreshTokenCookie(res, refreshToken, refreshed.refresh_expires_in, req.secure);
     return refreshed;
   }
@@ -244,7 +244,7 @@ export class AuthController {
     clearRefreshTokenCookie(res);
     const manager = req?.queryRunner?.manager;
     if (refreshToken) {
-      await this.auth.revokeToken(refreshToken, manager);
+      await this.auth.revokeToken(refreshToken, req?.tenant?.id, manager);
     }
     return { ok: true };
   }

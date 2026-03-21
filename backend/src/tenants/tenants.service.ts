@@ -178,6 +178,31 @@ const BUILT_IN_ROLES: Array<{
     name: 'Tasks Reader',
     description: 'Read-only access to tasks',
     permissions: { tasks: 'reader' }
+  },
+  // AI Roles
+  {
+    name: 'AI Chat User',
+    description: 'Can use read-only AI chat tools that respect existing business permissions',
+    permissions: { ai_chat: 'reader' }
+  },
+  {
+    name: 'AI Chat Operator',
+    description: 'Can use AI chat features that prepare future confirmed AI actions',
+    permissions: { ai_chat: 'member' }
+  },
+  {
+    name: 'AI MCP User',
+    description: 'Can use personal MCP API keys for read-only AI tools',
+    permissions: { ai_mcp: 'reader' }
+  },
+  {
+    name: 'AI Administrator',
+    description: 'Can manage tenant AI settings and use both native chat and MCP read tools',
+    permissions: {
+      ai_chat: 'member',
+      ai_mcp: 'reader',
+      ai_settings: 'admin',
+    }
   }
 ];
 
@@ -309,13 +334,14 @@ export class TenantsService {
       const existing = await rolesRepo.findOne({ where: { role_name: builtIn.name } });
       let role: Role;
       if (existing) {
-        // Update to ensure it's marked as built-in
-        if (!existing.is_built_in) {
-          existing.is_built_in = true;
+        if (existing.is_built_in) {
           existing.role_description = builtIn.description;
           await rolesRepo.save(existing);
+          role = existing;
+        } else {
+          // Never promote a tenant-created role to built-in based on a name collision.
+          continue;
         }
-        role = existing;
       } else {
         // Create new built-in role
         role = await this.roles.createRole(

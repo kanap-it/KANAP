@@ -2,13 +2,28 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 
 export type FeaturesConfig = {
   deploymentMode: 'single-tenant' | 'multi-tenant';
-  features: { billing: boolean; sso: boolean; email: boolean };
+  features: {
+    billing: boolean;
+    sso: boolean;
+    email: boolean;
+    aiChat: boolean;
+    aiMcp: boolean;
+    aiSettings: boolean;
+  };
   version: string;
+  tenantSlug?: string;
 };
 
 const CLOUD_DEFAULTS: FeaturesConfig = {
   deploymentMode: 'multi-tenant',
-  features: { billing: true, sso: true, email: true },
+  features: {
+    billing: true,
+    sso: true,
+    email: true,
+    aiChat: false,
+    aiMcp: false,
+    aiSettings: false,
+  },
   version: 'unknown',
 };
 

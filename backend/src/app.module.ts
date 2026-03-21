@@ -50,6 +50,9 @@ import { RateLimitGuard } from './common/rate-limit.guard';
 import { TurnstileService } from './public/turnstile.service';
 import { ConfigController } from './config/config.controller';
 import { KnowledgeModule } from './knowledge/knowledge.module';
+import { AiModule } from './ai/ai.module';
+import { ScheduledTasksModule } from './admin/scheduled-tasks/scheduled-tasks.module';
+import { CleanupModule } from './cleanup/cleanup.module';
 
 @Module({
   imports: [
@@ -126,6 +129,9 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
     DashboardModule,
     NotificationsModule,
     KnowledgeModule,
+    AiModule,
+    ScheduledTasksModule,
+    CleanupModule,
   ],
   controllers: [HealthController, PublicController, ConfigController],
   providers: [RateLimitGuard, TurnstileService],

@@ -13,14 +13,6 @@ export class CreateRolesTable1756685300000 implements MigrationInterface {
         updated_at timestamptz NOT NULL DEFAULT now()
       );
     `);
-
-    // Prepopulate roles
-    await queryRunner.query(`
-      INSERT INTO roles(role_name, role_description) VALUES
-      ('Administrator', 'Full system administrator with access to all features'),
-      ('Master data manager', 'Manages master data including companies, departments, and suppliers'),
-      ('Budget manager', 'Manages budget and financial data')
-    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

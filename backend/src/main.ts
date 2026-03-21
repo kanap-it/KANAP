@@ -23,6 +23,7 @@ import { Features } from './config/features';
 import { TenantsService } from './tenants/tenants.service';
 import { OpsMetricsStore } from './admin/ops/ops-metrics.store';
 import { createRequestMetricsMiddleware } from './admin/ops/request-metrics.middleware';
+import { assertSafeDatabaseRole } from './common/database-role-safety';
 
 function validateStartupEnv() {
   requireEnv('DATABASE_URL');
@@ -94,6 +95,9 @@ async function bootstrap() {
 
   // Seed admin user (dev-only convenience). Enable explicitly via SEED_ADMIN=true.
   const ds = app.get(DataSource);
+  const roleState = await assertSafeDatabaseRole(ds, 'startup');
+  // eslint-disable-next-line no-console
+  console.log(`[DB] Connected as PostgreSQL role "${roleState.currentUser}" with native RLS enforcement`);
   const shouldSeedAdmin = parseBoolean(process.env.SEED_ADMIN);
   if (shouldSeedAdmin) {
     const adminEmail = requireEnv('ADMIN_EMAIL');

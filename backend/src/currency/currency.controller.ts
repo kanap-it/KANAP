@@ -49,7 +49,10 @@ export class CurrencyController {
     }
 
     const next = await this.settings.updateSettings(tenantId, payload, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
-    await this.fxIngestion.refreshTenant(tenantId, new Date().getFullYear(), { manual: true });
+    await this.fxIngestion.refreshTenant(tenantId, new Date().getFullYear(), {
+      manual: true,
+      manager: req?.queryRunner?.manager,
+    });
     return next;
   }
 

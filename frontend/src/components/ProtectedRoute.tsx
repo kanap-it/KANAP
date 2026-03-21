@@ -4,12 +4,14 @@ import { useAuth } from '../auth/AuthContext';
 import { useTenant } from '../tenant/TenantContext';
 import { useFeatures } from '../config/FeaturesContext';
 import { Box, CircularProgress } from '@mui/material';
+import { useAiCapabilities } from '../ai/useAiCapabilities';
 
 export default function ProtectedRoute() {
   const { token, isAuthenticating, claims, hasLevel, subscription } = useAuth();
   const location = useLocation();
   const { isPlatformHost } = useTenant();
   const { config } = useFeatures();
+  const aiCapabilities = useAiCapabilities();
 
   // Show loading spinner while authenticating
   if (isAuthenticating) {
@@ -47,11 +49,50 @@ export default function ProtectedRoute() {
   // Minimal per-route gating based on path prefix and resource name
   if (token && claims) {
     const path = location.pathname;
+    const isAiWorkspaceRoute = path === '/ai' || path.startsWith('/ai/');
+    const isAdminAiRoute = path === '/admin/ai' || path.startsWith('/admin/ai/');
     if (isPlatformHost && !path.startsWith('/admin')) {
       return <Navigate to="/admin/tenants" replace />;
     }
-    if (claims.isPlatformAdmin) {
-      return <Outlet />;
+    if (isAiWorkspaceRoute) {
+      if (!config.features.aiChat) {
+        return <Navigate to="/403" replace />;
+      }
+      if (aiCapabilities.isLoading || (!aiCapabilities.data && aiCapabilities.isFetching)) {
+        return (
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            minHeight="100vh"
+          >
+            <CircularProgress />
+          </Box>
+        );
+      }
+      if (aiCapabilities.isError || aiCapabilities.data?.surfaces.chat.available !== true) {
+        return <Navigate to="/403" replace />;
+      }
+    }
+    if (isAdminAiRoute) {
+      if (!config.features.aiSettings) {
+        return <Navigate to="/403" replace />;
+      }
+      if (aiCapabilities.isLoading || (!aiCapabilities.data && aiCapabilities.isFetching)) {
+        return (
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            minHeight="100vh"
+          >
+            <CircularProgress />
+          </Box>
+        );
+      }
+      if (aiCapabilities.isError || aiCapabilities.data?.surfaces.settings.available !== true) {
+        return <Navigate to="/403" replace />;
+      }
     }
 
     let resource: string | null = null;
@@ -65,6 +106,8 @@ export default function ProtectedRoute() {
       branding: 'users',
       'audit-logs': 'users',
       'choose-plan': 'billing',
+      ai: 'ai_settings',
+      'scheduled-tasks': 'users',
     };
     const opsAliases: Record<string, string> = { reports: 'reporting', servers: 'infrastructure', operations: 'opex' };
     const itAliases: Record<string, string> = {
@@ -118,6 +161,8 @@ export default function ProtectedRoute() {
     } else if (path.startsWith('/admin/')) {
       const seg = path.split('/')[2] || null;
       resource = seg ? (adminAliases[seg] || seg) : null;
+    } else if (path === '/ai' || path.startsWith('/ai/')) {
+      resource = 'ai_chat';
     } else if (path.startsWith('/ops/')) {
       const seg = path.split('/')[2] || null;
       resource = seg ? (opsAliases[seg] || seg) : null;
@@ -136,7 +181,11 @@ export default function ProtectedRoute() {
     } else {
       resource = null; // dashboard and other root pages allowed
     }
-    if (resource && !hasLevel(resource, 'reader')) {
+    if (isAdminAiRoute) {
+      if (!hasLevel('ai_settings', 'admin')) {
+        return <Navigate to="/403" replace />;
+      }
+    } else if (resource && !hasLevel(resource, 'reader')) {
       return <Navigate to="/403" replace />;
     }
 

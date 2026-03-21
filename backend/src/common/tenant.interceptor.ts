@@ -4,6 +4,7 @@ import { Observable, from } from 'rxjs';
 import { DataSource, QueryRunner } from 'typeorm';
 import { finalize, mergeMap } from 'rxjs/operators';
 import { IS_PUBLIC_KEY } from '../auth/public.decorator';
+import { SKIP_TENANT_TRANSACTION_KEY } from './skip-tenant-transaction.decorator';
 
 @Injectable()
 export class TenantInterceptor implements NestInterceptor {
@@ -18,6 +19,12 @@ export class TenantInterceptor implements NestInterceptor {
       context.getClass(),
     ]);
     if (isPublic) return next.handle();
+
+    const skipTenantTransaction = this.reflector.getAllAndOverride<boolean>(
+      SKIP_TENANT_TRANSACTION_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (skipTenantTransaction) return next.handle();
 
     const http = context.switchToHttp();
     const req: any = http.getRequest();

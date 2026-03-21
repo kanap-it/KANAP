@@ -151,6 +151,7 @@ export class AssetsValidationService {
     value: unknown,
     tenantId: string,
     manager?: EntityManager,
+    excludeAssetId?: string,
   ): Promise<Array<{ type: string; ip: string; subnet_cidr: string | null }> | null> {
     if (value == null) return null;
     if (!Array.isArray(value)) return null;
@@ -185,7 +186,40 @@ export class AssetsValidationService {
       normalized.push({ type, ip, subnet_cidr: subnet_cidr || null });
     }
 
+    if (normalized.length > 0 && manager) {
+      await this.checkDuplicateIps(normalized, tenantId, manager, excludeAssetId);
+    }
+
     return normalized.length > 0 ? normalized : null;
+  }
+
+  private async checkDuplicateIps(
+    entries: Array<{ ip: string; subnet_cidr: string | null }>,
+    tenantId: string,
+    manager: EntityManager,
+    excludeAssetId?: string,
+  ): Promise<void> {
+    const withSubnet = entries.filter((e) => e.subnet_cidr != null);
+    if (withSubnet.length === 0) return;
+
+    for (const entry of withSubnet) {
+      const rows: Array<{ id: string; name: string }> = await manager.query(
+        `SELECT a.id, a.name
+         FROM assets a, jsonb_array_elements(a.ip_addresses) AS elem
+         WHERE a.tenant_id = $1
+           AND ($2::uuid IS NULL OR a.id != $2)
+           AND elem->>'ip' = $3
+           AND elem->>'subnet_cidr' = $4
+         LIMIT 1`,
+        [tenantId, excludeAssetId || null, entry.ip, entry.subnet_cidr],
+      );
+
+      if (rows.length > 0) {
+        throw new BadRequestException(
+          `IP address "${entry.ip}" is already used by asset "${rows[0].name}" in subnet "${entry.subnet_cidr}"`,
+        );
+      }
+    }
   }
 
   async normalizeLifecycleStatus(

@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
+import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from './auth/AuthContext';
 import DashboardPage from './pages/DashboardPage';
 import ForbiddenPage from './pages/ForbiddenPage';
@@ -95,11 +96,37 @@ import SettingsPage from './pages/settings/SettingsPage';
 import AdminBrandingPage from './pages/admin/AdminBrandingPage';
 import KnowledgePage from './pages/knowledge/KnowledgePage';
 import KnowledgeWorkspacePage from './pages/knowledge/KnowledgeWorkspacePage';
+import AiWorkspacePage from './pages/ai/AiWorkspacePage';
+import AdminAiPage from './pages/admin/AdminAiPage';
+import ScheduledTasksPage from './pages/admin/ScheduledTasksPage';
+import { useAiCapabilities } from './ai/useAiCapabilities';
 
 function HomeRoute() {
   const { isPlatformHost } = useTenant();
   if (isPlatformHost) return <Navigate to="/admin/tenants" replace />;
   return <WorkspaceDashboardPage />;
+}
+
+function AdminDefaultRedirect() {
+  const { hasLevel } = useAuth();
+  const { config } = useFeatures();
+  const { isPlatformHost } = useTenant();
+  const aiCapabilities = useAiCapabilities();
+
+  if (isPlatformHost) return <Navigate to="/admin/tenants" replace />;
+  if (hasLevel('users', 'reader')) return <Navigate to="/admin/users" replace />;
+  if (config.features.aiSettings && hasLevel('ai_settings', 'admin') && !aiCapabilities.data && aiCapabilities.isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+  if (config.features.aiSettings && aiCapabilities.data?.surfaces.settings.available === true) {
+    return <Navigate to="/admin/ai" replace />;
+  }
+  if (config.features.billing && hasLevel('billing', 'reader')) return <Navigate to="/admin/billing" replace />;
+  return <Navigate to="/403" replace />;
 }
 
 function PortfolioDefaultRedirect() {
@@ -211,14 +238,16 @@ function AppRoutes() {
           <Route path="/master-data/operations" element={<MasterDataOperationsPage />} />
           <Route path="/master-data/operations/freeze" element={<MasterDataFreezePage />} />
           <Route path="/master-data/operations/copy" element={<MasterDataCopyPage />} />
-          <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
+          <Route path="/admin" element={<AdminDefaultRedirect />} />
           <Route path="/admin/users" element={<UsersPage />} />
           <Route path="/admin/roles" element={<RolesPage />} />
           <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
           {config.features.billing && <Route path="/admin/billing" element={<BillingCenter />} />}
           {config.features.billing && <Route path="/admin/choose-plan" element={<Navigate to="/admin/billing" replace />} />}
           {config.features.sso && <Route path="/admin/auth" element={<AdminAuthPage />} />}
+          <Route path="/admin/ai" element={<AdminAiPage />} />
           <Route path="/admin/branding" element={<AdminBrandingPage />} />
+          <Route path="/admin/scheduled-tasks" element={<ScheduledTasksPage />} />
           {!isSingleTenant && <Route path="/admin/ops-dashboard" element={<OpsDashboardPage />} />}
           {!isSingleTenant && <Route path="/admin/tenants" element={<AdminTenantsPage />} />}
           {!isSingleTenant && <Route path="/admin/coa-templates" element={<AdminCoaTemplatesPage />} />}
@@ -265,6 +294,8 @@ function AppRoutes() {
           <Route path="/portfolio/tasks" element={<TasksPage />} />
           <Route path="/portfolio/tasks/:id" element={<TaskWorkspacePage />} />
           <Route path="/portfolio/tasks/:id/:tab" element={<TaskWorkspacePage />} />
+          {/* AI */}
+          <Route path="/ai" element={<AiWorkspacePage />} />
           {/* Knowledge Center */}
           <Route path="/knowledge" element={<KnowledgePage />} />
           <Route path="/knowledge/new" element={<KnowledgeWorkspacePage />} />

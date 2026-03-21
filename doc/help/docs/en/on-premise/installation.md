@@ -14,7 +14,7 @@
 
 | Component | Requirement |
 |-----------|-------------|
-| PostgreSQL | Version 16+ with `citext`, `pgcrypto`, `uuid-ossp` extensions |
+| PostgreSQL | Version 16+ with `citext`, `pgcrypto`, `uuid-ossp` extensions, and a dedicated application role for `DATABASE_URL` |
 | S3 Storage | Any S3-compatible: AWS S3, MinIO, Cloudflare R2, Hetzner, etc. |
 | Reverse Proxy | TLS termination and routing (nginx, Traefik, Caddy, etc.) |
 | Domain | DNS pointing to your server |
@@ -58,6 +58,8 @@ docker compose -f infra/compose.onprem.yml logs -f api
 ```
 
 **Important:** Complete the configuration (step 2) before starting containers. The API reads `.env` at startup and creates the tenant and admin user on first boot using those values.
+
+**Database role requirement:** `DATABASE_URL` must use a dedicated PostgreSQL application role. Do not point it at `postgres` or another cluster-admin role. KANAP will fail startup rather than run without effective RLS enforcement.
 
 ## Reverse Proxy Example (nginx)
 

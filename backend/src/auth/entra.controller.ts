@@ -239,7 +239,7 @@ export class EntraController {
     const businessPhone = Array.isArray(graphProfile?.businessPhones) ? graphProfile.businessPhones[0] || null : null;
     const mobilePhone = (graphProfile?.mobilePhone as string | undefined) || null;
 
-    const user = await withTenant(this.dataSource, tenantId, async (manager) => {
+    const tokens = await withTenant(this.dataSource, tenantId, async (manager) => {
       const repo = manager.getRepository(User);
 
       let found = await repo.findOne({
@@ -303,10 +303,12 @@ export class EntraController {
         found = await repo.save(found);
       }
 
-      return found;
+      return this.auth.signTokens(
+        { id: found.id, email: found.email, role: found.role, tenant_id: tenantId },
+        manager,
+      );
     });
 
-    const tokens = await this.auth.signTokens({ id: user.id, email: user.email, role: user.role, tenant_id: tenantId });
     // Keep refresh tokens out of JS storage by issuing an httpOnly cookie on callback.
     setRefreshTokenCookie(res, tokens.refresh_token, tokens.refresh_expires_in);
     const baseUrl = resolveTenantAppBaseUrl(req, tenantSlug);

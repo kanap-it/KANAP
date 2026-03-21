@@ -37,7 +37,7 @@ On first boot, KANAP automatically creates a tenant using these values. The defa
 CORS_ORIGINS=https://kanap.company.com
 ```
 
-**Startup validation:** The application will refuse to start if `JWT_SECRET`, `DATABASE_URL`, or `APP_BASE_URL` are missing or empty.
+**Startup validation:** The application will refuse to start if `JWT_SECRET`, `DATABASE_URL`, or `APP_BASE_URL` are missing or empty. It also refuses to run if the PostgreSQL role from `DATABASE_URL` is still `SUPERUSER` or `BYPASSRLS`.
 
 ## Required: Database
 
@@ -50,13 +50,15 @@ CORS_ORIGINS=https://kanap.company.com
 - Extensions: `citext`, `pgcrypto`, `uuid-ossp`
 - User needs CREATE TABLE / ALTER TABLE permissions for migrations
 - Recommended: dedicated database
+- `DATABASE_URL` must use a dedicated application role, not `postgres` or another cluster-admin role
+- Recommended: create the app role as `NOSUPERUSER NOBYPASSRLS` from the start
 
 **Database setup (example):**
 
 ```sql
--- 1. Create database and user
+-- 1. Create database and dedicated app role
 CREATE DATABASE kanap;
-CREATE USER kanap WITH PASSWORD 'secure-password';
+CREATE USER kanap WITH PASSWORD 'secure-password' NOSUPERUSER NOBYPASSRLS;
 GRANT ALL PRIVILEGES ON DATABASE kanap TO kanap;
 
 -- 2. Connect to kanap database and enable extensions
@@ -68,6 +70,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 3. Grant schema permissions (for migrations)
 GRANT ALL ON SCHEMA public TO kanap;
 ```
+
+If a dedicated application role was initially created with too many privileges, KANAP's first migration will harden it automatically to `NOSUPERUSER NOBYPASSRLS`. If `DATABASE_URL` points to a protected cluster-admin role such as `postgres`, startup fails and you must switch to a dedicated app role.
 
 ## Required: Storage
 
@@ -154,7 +158,7 @@ JWT_SECRET=
 # APPLICATION URL (required)
 APP_BASE_URL=https://kanap.your-domain.com
 
-# DATABASE (required)
+# DATABASE (required - use a dedicated app role, never postgres)
 DATABASE_URL=postgres://kanap:password@your-postgres:5432/kanap?sslmode=require
 
 # STORAGE (required)

@@ -9,6 +9,7 @@ import {
   FilterTargetConfig,
   CompiledCondition,
   buildQuickSearchConditions,
+  normalizeAgFilterModel,
 } from '../../common/ag-grid-filtering';
 import { PortfolioProjectsBaseService, ServiceOpts } from './portfolio-projects-base.service';
 
@@ -77,6 +78,65 @@ const applyProjectInvolvementScope = (
   }
 
   qb.andWhere(teamCondition, { involvedTeamId });
+};
+
+const projectDateFields = new Map<string, string>([
+  ['planned_start', 'p.planned_start'],
+  ['planned_end', 'p.planned_end'],
+]);
+
+const compileDateFilterCondition = (
+  rawModel: any,
+  expression: string,
+  nextParam: () => string,
+): CompiledCondition | null => {
+  const model = normalizeAgFilterModel(rawModel);
+  if (!model || typeof model !== 'object') return null;
+
+  const filterCategory = String(model.filterType ?? 'date');
+  const type = String(model.type ?? 'equals');
+  const fromRaw = model.dateFrom ?? model.filter ?? model.value;
+  const toRaw = model.dateTo ?? model.filterTo ?? model.valueTo;
+
+  if (filterCategory !== 'date' && filterCategory !== 'text') return null;
+
+  if (type === 'blank') {
+    return { sql: `${expression} IS NULL`, params: {} };
+  }
+  if (type === 'notBlank') {
+    return { sql: `${expression} IS NOT NULL`, params: {} };
+  }
+
+  const castParam = (param: string): string => `:${param}::date`;
+
+  if (type === 'inRange') {
+    if (!fromRaw || !toRaw) return null;
+    const fromParam = nextParam();
+    const toParam = nextParam();
+    return {
+      sql: `${expression} BETWEEN ${castParam(fromParam)} AND ${castParam(toParam)}`,
+      params: { [fromParam]: fromRaw, [toParam]: toRaw },
+    };
+  }
+
+  if (!fromRaw) return null;
+  const param = nextParam();
+  switch (type) {
+    case 'equals':
+      return { sql: `${expression} = ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'notEqual':
+      return { sql: `${expression} <> ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'lessThan':
+      return { sql: `${expression} < ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'lessThanOrEqual':
+      return { sql: `${expression} <= ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'greaterThan':
+      return { sql: `${expression} > ${castParam(param)}`, params: { [param]: fromRaw } };
+    case 'greaterThanOrEqual':
+      return { sql: `${expression} >= ${castParam(param)}`, params: { [param]: fromRaw } };
+    default:
+      return null;
+  }
 };
 
 /**
@@ -154,6 +214,14 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     const compiledFilters: CompiledCondition[] = [];
     if (fm) {
       for (const [field, model] of Object.entries(fm)) {
+        const dateField = projectDateFields.get(field);
+        if (dateField) {
+          const cond = compileDateFilterCondition(model, dateField, nextParam);
+          if (cond) {
+            compiledFilters.push(cond);
+            continue;
+          }
+        }
         const target = targets[field];
         if (!target) continue;
         const cond = compileAgFilterCondition(model, target, nextParam);
@@ -379,6 +447,14 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     const compiledFilters: CompiledCondition[] = [];
     if (fm) {
       for (const [field, model] of Object.entries(fm)) {
+        const dateField = projectDateFields.get(field);
+        if (dateField) {
+          const cond = compileDateFilterCondition(model, dateField, nextParam);
+          if (cond) {
+            compiledFilters.push(cond);
+            continue;
+          }
+        }
         const target = targets[field];
         if (!target) continue;
         const cond = compileAgFilterCondition(model, target, nextParam);

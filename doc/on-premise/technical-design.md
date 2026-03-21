@@ -14,7 +14,7 @@ This document describes the technical design for on-premise deployments. User-fa
 
 ## Works Out of the Box
 
-- **Database & RLS:** PostgreSQL 16 with Row-Level Security works unchanged
+- **Database & RLS:** PostgreSQL 16 with Row-Level Security works unchanged when `DATABASE_URL` uses a dedicated application role; startup fails instead of running with a role that can bypass RLS
 - **Storage:** S3-compatible storage via AWS SDK v3 S3 client (`S3_ENDPOINT`, supports MinIO/R2/B2/AWS)
 - **Billing:** Disabled when `STRIPE_SECRET_KEY` is not set (backend returns `FEATURE_DISABLED`, UI hides billing features)
 - **Migrations:** Run automatically on container startup (`migrate-and-start.js`)
@@ -86,6 +86,14 @@ Frontend recognizes `FEATURE_DISABLED` in the API client and does not redirect o
 - If tenant not yet provisioned (first-boot race), returns `503 TENANT_NOT_READY`
 
 **Important:** `Host` is still used for URL generation (password reset/invites). Ensure the reverse proxy forwards `Host` and `X-Forwarded-Proto`, or set `APP_BASE_URL`.
+
+## Database Role Safety
+
+- `DATABASE_URL` must point to a dedicated application role, not `postgres` or another cluster-admin role.
+- KANAP never intentionally runs application traffic as a PostgreSQL role with `SUPERUSER` or `BYPASSRLS`.
+- On first migration, a dedicated but over-privileged app role is hardened to `NOSUPERUSER NOBYPASSRLS`.
+- Protected cluster-admin roles are rejected during migration/startup so tenant isolation cannot silently degrade.
+- Startup performs a runtime safety check before seeding/admin bootstrap work begins.
 
 ## Platform-Admin Handling
 

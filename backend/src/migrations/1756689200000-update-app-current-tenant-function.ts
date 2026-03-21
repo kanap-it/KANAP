@@ -4,7 +4,7 @@ export class UpdateAppCurrentTenantFunction1756689200000 implements MigrationInt
   name = 'UpdateAppCurrentTenantFunction1756689200000'
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Update the app_current_tenant() function to use environment-specific default tenant
+    // Update app_current_tenant() to use the configured default slug, then the first tenant.
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION app_current_tenant() RETURNS uuid AS $$
       DECLARE 
@@ -18,15 +18,17 @@ export class UpdateAppCurrentTenantFunction1756689200000 implements MigrationInt
           t := NULL; -- ignore if not set
         END;
         
-        -- If no tenant set, fall back to environment-specific default
+        -- If no tenant set, try the configured default slug first.
         IF t IS NULL THEN
-          -- Get default tenant slug from environment, fallback to 'lohr' for backward compatibility
-          default_slug := COALESCE(current_setting('app.default_tenant_slug', true), 'lohr');
-          IF default_slug = '' THEN
-            default_slug := 'lohr';
+          default_slug := NULLIF(current_setting('app.default_tenant_slug', true), '');
+          IF default_slug IS NOT NULL THEN
+            SELECT id INTO t FROM tenants WHERE slug = default_slug LIMIT 1;
           END IF;
-          
-          SELECT id INTO t FROM tenants WHERE slug = default_slug LIMIT 1;
+        END IF;
+
+        -- Final fallback for legacy flows: use the oldest tenant if one exists.
+        IF t IS NULL THEN
+          SELECT id INTO t FROM tenants ORDER BY created_at, id LIMIT 1;
         END IF;
         
         RETURN t;
@@ -36,10 +38,12 @@ export class UpdateAppCurrentTenantFunction1756689200000 implements MigrationInt
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Revert to the original hardcoded 'lohr' fallback
+    // Revert to the legacy fallback behavior without a customer-specific slug.
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION app_current_tenant() RETURNS uuid AS $$
-      DECLARE t uuid;
+      DECLARE
+        t uuid;
+        default_slug text;
       BEGIN
         BEGIN
           t := NULLIF(current_setting('app.current_tenant', true), '')::uuid;
@@ -47,7 +51,13 @@ export class UpdateAppCurrentTenantFunction1756689200000 implements MigrationInt
           t := NULL; -- ignore if not set
         END;
         IF t IS NULL THEN
-          SELECT id INTO t FROM tenants WHERE slug = 'lohr' LIMIT 1;
+          default_slug := NULLIF(current_setting('app.default_tenant_slug', true), '');
+          IF default_slug IS NOT NULL THEN
+            SELECT id INTO t FROM tenants WHERE slug = default_slug LIMIT 1;
+          END IF;
+        END IF;
+        IF t IS NULL THEN
+          SELECT id INTO t FROM tenants ORDER BY created_at, id LIMIT 1;
         END IF;
         RETURN t;
       END;

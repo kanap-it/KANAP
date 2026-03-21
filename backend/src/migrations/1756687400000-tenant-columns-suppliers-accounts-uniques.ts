@@ -6,7 +6,7 @@ export class TenantColumnsSuppliersAccountsUniques1756687400000 implements Migra
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Suppliers
     await queryRunner.query(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS tenant_id uuid`);
-    await queryRunner.query(`UPDATE suppliers SET tenant_id = (SELECT id FROM tenants WHERE slug='lohr') WHERE tenant_id IS NULL`);
+    await queryRunner.query(`UPDATE suppliers SET tenant_id = (SELECT id FROM tenants ORDER BY created_at, id LIMIT 1) WHERE tenant_id IS NULL`);
     await queryRunner.query(`ALTER TABLE suppliers ALTER COLUMN tenant_id SET DEFAULT app_current_tenant()`);
     await queryRunner.query(`ALTER TABLE suppliers ALTER COLUMN tenant_id SET NOT NULL`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_suppliers_tenant_id ON suppliers(tenant_id)`);
@@ -23,7 +23,7 @@ export class TenantColumnsSuppliersAccountsUniques1756687400000 implements Migra
 
     // Accounts
     await queryRunner.query(`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS tenant_id uuid`);
-    await queryRunner.query(`UPDATE accounts SET tenant_id = (SELECT id FROM tenants WHERE slug='lohr') WHERE tenant_id IS NULL`);
+    await queryRunner.query(`UPDATE accounts SET tenant_id = (SELECT id FROM tenants ORDER BY created_at, id LIMIT 1) WHERE tenant_id IS NULL`);
     await queryRunner.query(`ALTER TABLE accounts ALTER COLUMN tenant_id SET DEFAULT app_current_tenant()`);
     await queryRunner.query(`ALTER TABLE accounts ALTER COLUMN tenant_id SET NOT NULL`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_accounts_tenant_id ON accounts(tenant_id)`);

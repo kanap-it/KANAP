@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import * as dayjs from 'dayjs';
 import * as utc from 'dayjs/plugin/utc';
@@ -12,6 +11,7 @@ import { resolveNotificationBaseUrl } from '../common/url';
 import { ACTIVE_TASK_STATUSES } from '../tasks/task.entity';
 import { StorageService } from '../common/storage/storage.service';
 import { type EmailBranding, resolveEmailBranding, getDefaultEmailBranding } from '../email/email-branding';
+import { ScheduledTasksService } from '../admin/scheduled-tasks/scheduled-tasks.service';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -26,11 +26,26 @@ export class ScheduledNotificationsService implements OnModuleInit {
     private readonly preferencesService: NotificationPreferencesService,
     private readonly notificationsService: NotificationsService,
     private readonly storage: StorageService,
+    private readonly scheduledTasks: ScheduledTasksService,
   ) {}
 
   onModuleInit() {
-    this.logger.log('ScheduledNotificationsService initialized - cron jobs registered');
+    this.logger.log('ScheduledNotificationsService initialized');
     this.logger.log(`Current server time: ${dayjs().format('YYYY-MM-DD HH:mm:ss')} UTC`);
+
+    this.scheduledTasks.register({
+      name: 'check-expirations',
+      description: 'Sends expiration warnings for contracts and OPEX items nearing their end date',
+      defaultCron: '0 8 * * *',
+      handler: () => this.checkExpirations(),
+    });
+
+    this.scheduledTasks.register({
+      name: 'send-weekly-reviews',
+      description: 'Sends weekly review digest emails to opted-in users at their preferred schedule',
+      defaultCron: '0 * * * *',
+      handler: () => this.sendWeeklyReviews(),
+    });
   }
 
   // Cache for tenant slugs (tenantId -> slug)
@@ -79,51 +94,51 @@ export class ScheduledNotificationsService implements OnModuleInit {
   // EXPIRATION WARNINGS - Daily at 8 AM UTC
   // ============================================
 
-  @Cron('0 8 * * *')
-  async checkExpirations(): Promise<void> {
+  async checkExpirations(): Promise<Record<string, any>> {
     this.logger.log('[Expirations] Running expiration warnings check...');
 
-    try {
-      // Get all active tenants (tenants table has no RLS)
-      const tenants = await this.dataSource.query(`
-        SELECT id FROM tenants WHERE status = 'active'
-      `);
+    const summary = { tenantsProcessed: 0, contractWarnings: 0, opexWarnings: 0, errors: [] as string[] };
 
-      this.logger.log(`[Expirations] Processing ${tenants.length} active tenants`);
+    const tenants = await this.dataSource.query(`
+      SELECT id, slug FROM tenants WHERE status = 'active'
+    `);
 
-      let totalContracts = 0;
-      let totalOpex = 0;
+    this.logger.log(`[Expirations] Processing ${tenants.length} active tenants`);
 
-      for (const tenant of tenants) {
-        const runner = this.dataSource.createQueryRunner();
-        await runner.connect();
-        await runner.startTransaction();
+    for (const tenant of tenants) {
+      const runner = this.dataSource.createQueryRunner();
+      await runner.connect();
+      await runner.startTransaction();
 
-        try {
-          // Set tenant context for RLS
-          await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenant.id]);
+      try {
+        await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenant.id]);
 
-          const contractCount = await this.checkContractExpirationsForTenant(runner.manager, tenant.id);
-          const opexCount = await this.checkOpexExpirationsForTenant(runner.manager, tenant.id);
+        const contractCount = await this.checkContractExpirationsForTenant(runner.manager, tenant.id);
+        const opexCount = await this.checkOpexExpirationsForTenant(runner.manager, tenant.id);
 
-          totalContracts += contractCount;
-          totalOpex += opexCount;
+        summary.contractWarnings += contractCount;
+        summary.opexWarnings += opexCount;
+        summary.tenantsProcessed++;
 
-          await runner.commitTransaction();
-        } catch (error) {
-          await runner.rollbackTransaction().catch(() => {});
-          throw error;
-        } finally {
-          await runner.release();
-        }
+        await runner.commitTransaction();
+      } catch (error: any) {
+        await runner.rollbackTransaction().catch(() => {});
+        summary.errors.push(`Tenant ${tenant.slug ?? tenant.id}: ${error.message}`);
+        this.logger.warn(`[Expirations] Failed for tenant ${tenant.id}: ${error}`);
+      } finally {
+        await runner.release();
       }
-
-      this.logger.log(
-        `[Expirations] Complete: ${totalContracts} contracts, ${totalOpex} OPEX items processed`,
-      );
-    } catch (error) {
-      this.logger.error(`[Expirations] Failed: ${error}`);
     }
+
+    if (summary.errors.length > 0 && summary.tenantsProcessed === 0) {
+      throw new Error(`All tenants failed: ${summary.errors[0]}`);
+    }
+
+    this.logger.log(
+      `[Expirations] Complete: ${summary.contractWarnings} contracts, ${summary.opexWarnings} OPEX items processed`,
+    );
+
+    return summary;
   }
 
   private async checkContractExpirationsForTenant(mg: any, tenantId: string): Promise<number> {
@@ -339,108 +354,100 @@ export class ScheduledNotificationsService implements OnModuleInit {
   // WEEKLY REVIEW - Every hour at minute 0
   // ============================================
 
-  @Cron('0 * * * *')
-  async sendWeeklyReviews(): Promise<void> {
+  async sendWeeklyReviews(): Promise<Record<string, any>> {
     const now = dayjs();
     this.logger.log(
       `[WeeklyReview] Cron triggered at ${now.format('YYYY-MM-DD HH:mm:ss')} UTC`,
     );
 
-    try {
-      // First, get all active tenants (tenants table has no RLS)
-      const tenants = await this.dataSource.query(`
-        SELECT id FROM tenants WHERE status = 'active'
-      `);
+    const summary = { tenantsProcessed: 0, totalUsers: 0, sent: 0, skipped: 0, errors: [] as string[] };
 
-      this.logger.log(`[WeeklyReview] Processing ${tenants.length} active tenants`);
+    const tenants = await this.dataSource.query(`
+      SELECT id, slug FROM tenants WHERE status = 'active'
+    `);
 
-      let totalSent = 0;
-      let totalSkipped = 0;
-      let totalUsers = 0;
+    this.logger.log(`[WeeklyReview] Processing ${tenants.length} active tenants`);
 
-      for (const tenant of tenants) {
-        try {
-          // Create a query runner with tenant context for RLS
-          const runner = this.dataSource.createQueryRunner();
-          await runner.connect();
-          await runner.startTransaction();
+    for (const tenant of tenants) {
+      const runner = this.dataSource.createQueryRunner();
+      await runner.connect();
+      await runner.startTransaction();
 
+      try {
+        await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenant.id]);
+
+        const users = await runner.query(`
+          SELECT
+            u.id as user_id,
+            u.tenant_id,
+            COALESCE(p.weekly_review_day, 1) as weekly_review_day,
+            COALESCE(p.weekly_review_hour, 8) as weekly_review_hour,
+            COALESCE(p.timezone, 'Europe/Paris') as timezone,
+            p.weekly_review_last_sent_at,
+            p.updated_at as preferences_updated_at,
+            u.email,
+            u.first_name,
+            u.last_name
+          FROM users u
+          JOIN roles ro ON ro.id = u.role_id
+          LEFT JOIN user_notification_preferences p
+            ON p.user_id = u.id AND p.tenant_id = u.tenant_id
+          WHERE u.status = 'enabled'
+            AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')
+            AND COALESCE(p.weekly_review_enabled, false) = true
+            AND COALESCE(p.emails_enabled, false) = true
+        `);
+
+        summary.totalUsers += users.length;
+        this.logger.log(`[WeeklyReview] Tenant ${tenant.id}: ${users.length} eligible users`);
+
+        for (const user of users) {
           try {
-            // Set tenant context for RLS
-            await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenant.id]);
-
-            // Find users opted in to weekly reviews within this tenant.
-            const users = await runner.query(`
-              SELECT
-                u.id as user_id,
-                u.tenant_id,
-                COALESCE(p.weekly_review_day, 1) as weekly_review_day,
-                COALESCE(p.weekly_review_hour, 8) as weekly_review_hour,
-                COALESCE(p.timezone, 'Europe/Paris') as timezone,
-                p.weekly_review_last_sent_at,
-                p.updated_at as preferences_updated_at,
-                u.email,
-                u.first_name,
-                u.last_name
-              FROM users u
-              JOIN roles ro ON ro.id = u.role_id
-              LEFT JOIN user_notification_preferences p
-                ON p.user_id = u.id AND p.tenant_id = u.tenant_id
-              WHERE u.status = 'enabled'
-                AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')
-                AND COALESCE(p.weekly_review_enabled, false) = true
-                AND COALESCE(p.emails_enabled, false) = true
-            `);
-
-            totalUsers += users.length;
-            this.logger.log(`[WeeklyReview] Tenant ${tenant.id}: ${users.length} eligible users`);
-
-            for (const user of users) {
-              try {
-                const schedule = this.evaluateWeeklyReviewSchedule(now, user);
-                if (schedule.shouldSend) {
-                  this.logger.log(
-                    `[WeeklyReview] Sending to ${user.email} (tz=${user.timezone}, local=${schedule.userNow.format('ddd HH:mm')}, due=${schedule.dueAt.format('ddd HH:mm')})`,
-                  );
-                  const sent = await this.sendWeeklyReviewForUser(user, runner.manager);
-                  if (sent) {
-                    await this.markWeeklyReviewSent(runner.manager, user.user_id, user.tenant_id);
-                    totalSent++;
-                  } else {
-                    totalSkipped++;
-                  }
-                } else {
-                  totalSkipped++;
-                  // Log first few skipped users for debugging
-                  if (totalSkipped <= 3) {
-                    this.logger.debug(
-                      `[WeeklyReview] Skipped ${user.email}: reason=${schedule.reason}, local=${schedule.userNow.format('ddd HH:mm')}, due=${schedule.dueAt.format('ddd HH:mm')}, wants day=${user.weekly_review_day} hour=${user.weekly_review_hour}`,
-                    );
-                  }
-                }
-              } catch (tzError) {
-                this.logger.warn(`[WeeklyReview] Failed for ${user.user_id}: ${tzError}`);
+            const schedule = this.evaluateWeeklyReviewSchedule(now, user);
+            if (schedule.shouldSend) {
+              this.logger.log(
+                `[WeeklyReview] Sending to ${user.email} (tz=${user.timezone}, local=${schedule.userNow.format('ddd HH:mm')}, due=${schedule.dueAt.format('ddd HH:mm')})`,
+              );
+              const sent = await this.sendWeeklyReviewForUser(user, runner.manager);
+              if (sent) {
+                await this.markWeeklyReviewSent(runner.manager, user.user_id, user.tenant_id);
+                summary.sent++;
+              } else {
+                summary.skipped++;
+              }
+            } else {
+              summary.skipped++;
+              if (summary.skipped <= 3) {
+                this.logger.debug(
+                  `[WeeklyReview] Skipped ${user.email}: reason=${schedule.reason}, local=${schedule.userNow.format('ddd HH:mm')}, due=${schedule.dueAt.format('ddd HH:mm')}, wants day=${user.weekly_review_day} hour=${user.weekly_review_hour}`,
+                );
               }
             }
-
-            await runner.commitTransaction();
-          } catch (error) {
-            await runner.rollbackTransaction().catch(() => {});
-            throw error;
-          } finally {
-            await runner.release();
+          } catch (tzError: any) {
+            this.logger.warn(`[WeeklyReview] Failed for ${user.user_id}: ${tzError}`);
           }
-        } catch (tenantError) {
-          this.logger.warn(`[WeeklyReview] Failed for tenant ${tenant.id}: ${tenantError}`);
         }
-      }
 
-      this.logger.log(
-        `[WeeklyReview] Complete: ${totalUsers} users found, sent=${totalSent}, skipped=${totalSkipped}`,
-      );
-    } catch (error) {
-      this.logger.error(`[WeeklyReview] Failed: ${error}`);
+        await runner.commitTransaction();
+        summary.tenantsProcessed++;
+      } catch (error: any) {
+        await runner.rollbackTransaction().catch(() => {});
+        summary.errors.push(`Tenant ${tenant.slug ?? tenant.id}: ${error.message}`);
+        this.logger.warn(`[WeeklyReview] Failed for tenant ${tenant.id}: ${error}`);
+      } finally {
+        await runner.release();
+      }
     }
+
+    if (summary.errors.length > 0 && summary.tenantsProcessed === 0) {
+      throw new Error(`All tenants failed: ${summary.errors[0]}`);
+    }
+
+    this.logger.log(
+      `[WeeklyReview] Complete: ${summary.totalUsers} users found, sent=${summary.sent}, skipped=${summary.skipped}`,
+    );
+
+    return summary;
   }
 
   /**

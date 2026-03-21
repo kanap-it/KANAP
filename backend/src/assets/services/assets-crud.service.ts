@@ -59,7 +59,7 @@ export class AssetsCrudService extends AssetsBaseService {
     const location_id = await this.resolveLocationId((body as any).location_id, tenant, opts?.manager);
     const operating_system = await this.validation.resolveOperatingSystem((body as any).operating_system, tenant, opts?.manager);
     const is_cluster = body.is_cluster === undefined ? false : this.normalizeBooleanFlag((body as any).is_cluster, 'is_cluster');
-    const ip_addresses = await this.validation.validateIpAddresses((body as any).ip_addresses, tenant, opts?.manager);
+    const ip_addresses = await this.validation.validateIpAddresses((body as any).ip_addresses, tenant, this.getManager(opts));
     const notes = this.normalizeNullable((body as any).notes);
 
     // Handle domain, hostname, and FQDN
@@ -181,7 +181,7 @@ export class AssetsCrudService extends AssetsBaseService {
     }
 
     if (has('ip_addresses')) {
-      existing.ip_addresses = await this.validation.validateIpAddresses((body as any).ip_addresses, tenant, opts?.manager);
+      existing.ip_addresses = await this.validation.validateIpAddresses((body as any).ip_addresses, tenant, this.getManager(opts), existing.id);
     }
     if (has('notes')) {
       existing.notes = this.normalizeNullable((body as any).notes);

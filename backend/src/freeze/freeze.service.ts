@@ -68,7 +68,7 @@ export class FreezeService {
     const tenantId = await this.currentTenantId(manager);
     if (!tenantId) return;
 
-    await this.fxIngestion.refreshTenant(tenantId, year, { manual: true });
+    await this.fxIngestion.refreshTenant(tenantId, year, { manual: true, manager });
     const settings = await this.currencySettings.getSettings(tenantId, { manager });
     const rateSet = await this.fxRates.getLatestRateSet(tenantId, year, settings.reportingCurrency, { manager });
     if (!rateSet) return;

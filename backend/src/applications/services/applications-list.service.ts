@@ -28,6 +28,12 @@ const parseOwnerScope = (query: any): OwnerScope => ({
   ownerTeamId: normalizeScopeValue(query?.ownerTeamId),
 });
 
+const parseIncludeInactive = (query: any): boolean => {
+  const raw = query?.include_inactive;
+  if (raw === true || raw === 'true' || raw === '1') return true;
+  return false;
+};
+
 const applyOwnerScopeCondition = (qb: SelectQueryBuilder<Application>, scope: OwnerScope) => {
   const ownerUserId = scope.ownerUserId;
   const ownerTeamId = scope.ownerTeamId;
@@ -156,6 +162,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     const repo = mg.getRepository(Application);
     const { page, limit, skip, sort, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
     const ownerScope = parseOwnerScope(query);
+    const includeInactive = parseIncludeInactive(query);
     const includeRaw = String(query?.include || '').trim();
     const include = new Set(includeRaw.split(',').map((s) => s.trim()).filter(Boolean));
     const fm = (filters && typeof filters === 'object') ? filters : undefined;
@@ -275,9 +282,11 @@ export class ApplicationsListService extends ApplicationsBaseService {
     // Count query
     const qbBase = repo.createQueryBuilder('a');
     if (needsSupplierJoin) qbBase.leftJoin('suppliers', 's', 's.id = a.supplier_id');
-    qbBase.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
+    if (!includeInactive) {
+      qbBase.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
+    }
     applyOwnerScopeCondition(qbBase, ownerScope);
-    if (!lifecycleFilterPresent) qbBase.andWhere(`a.lifecycle <> 'retired'`);
+    if (!includeInactive && !lifecycleFilterPresent) qbBase.andWhere(`a.lifecycle <> 'retired'`);
     applyCompiledFilters(qbBase);
     applyQuickSearch(qbBase);
     const total = await qbBase.getCount();
@@ -288,9 +297,11 @@ export class ApplicationsListService extends ApplicationsBaseService {
       qb.leftJoin('suppliers', 's', 's.id = a.supplier_id');
       qb.addSelect('s.name', 's_name');
     }
-    qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
+    if (!includeInactive) {
+      qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
+    }
     applyOwnerScopeCondition(qb, ownerScope);
-    if (!lifecycleFilterPresent) qb.andWhere(`a.lifecycle <> 'retired'`);
+    if (!includeInactive && !lifecycleFilterPresent) qb.andWhere(`a.lifecycle <> 'retired'`);
     applyCompiledFilters(qb);
     applyQuickSearch(qb);
 
@@ -382,6 +393,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     const repo = mg.getRepository(Application);
     const { sort, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
     const ownerScope = parseOwnerScope(query);
+    const includeInactive = parseIncludeInactive(query);
     const fm = (filters && typeof filters === 'object') ? filters : undefined;
 
     // Define filter targets for AG Grid model -> SQL translation
@@ -454,9 +466,11 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     // Build query
     const qb = repo.createQueryBuilder('a').select('a.id');
-    qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
+    if (!includeInactive) {
+      qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
+    }
     applyOwnerScopeCondition(qb, ownerScope);
-    if (!lifecycleFilterPresent) qb.andWhere(`a.lifecycle <> 'retired'`);
+    if (!includeInactive && !lifecycleFilterPresent) qb.andWhere(`a.lifecycle <> 'retired'`);
 
     // Apply compiled filter conditions
     compiledFilters.forEach((c) => {
@@ -501,15 +515,19 @@ export class ApplicationsListService extends ApplicationsBaseService {
     const repo = mg.getRepository(Application);
     const { q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
     const ownerScope = parseOwnerScope(query);
+    const includeInactive = parseIncludeInactive(query);
     const fm = (filters && typeof filters === 'object') ? filters : undefined;
 
     const rawFields = String(query?.fields || query?.field || '').split(',').map((f) => f.trim()).filter(Boolean);
     const allowed = new Set([
       'category',
+      'status',
       'environments',
       'lifecycle',
       'criticality',
+      'hosting_model',
       'hosting_types',
+      'supplier_name',
       'external_facing',
       'sso_enabled',
       'mfa_supported',
@@ -583,14 +601,21 @@ export class ApplicationsListService extends ApplicationsBaseService {
       );
     };
 
-    const buildBaseQuery = (filtersForField: any, lifecycleFilterPresent: boolean, skipLifecycleDefault: boolean) => {
+    const buildBaseQuery = (
+      filtersForField: any,
+      lifecycleFilterPresent: boolean,
+      skipLifecycleDefault: boolean,
+      needsSupplierJoin: boolean,
+    ) => {
       const qb = repo.createQueryBuilder('a');
-      if (filtersForField && Object.prototype.hasOwnProperty.call(filtersForField, 'supplier_name')) {
+      if (needsSupplierJoin) {
         qb.leftJoin('suppliers', 's', 's.id = a.supplier_id');
       }
-      qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
+      if (!includeInactive) {
+        qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
+      }
       applyOwnerScopeCondition(qb, ownerScope);
-      if (!lifecycleFilterPresent && !skipLifecycleDefault) qb.andWhere(`a.lifecycle <> 'retired'`);
+      if (!includeInactive && !lifecycleFilterPresent && !skipLifecycleDefault) qb.andWhere(`a.lifecycle <> 'retired'`);
       return qb;
     };
 
@@ -601,6 +626,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       }
 
       const lifecycleFilterPresent = !!(filtersForField && Object.prototype.hasOwnProperty.call(filtersForField, 'lifecycle'));
+      const needsSupplierJoin = field === 'supplier_name' || (filtersForField && Object.prototype.hasOwnProperty.call(filtersForField, 'supplier_name'));
       const nextParam = createParamNameGenerator('p');
       const compiledFilters: CompiledCondition[] = [];
 
@@ -628,7 +654,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       }
 
       const quickSearch = q ? buildQuickSearchConditions(q, ['a.name'], nextParam) : [];
-      const baseQb = buildBaseQuery(filtersForField, lifecycleFilterPresent, field === 'lifecycle');
+      const baseQb = buildBaseQuery(filtersForField, lifecycleFilterPresent, field === 'lifecycle', needsSupplierJoin);
       applyCompiledFilters(baseQb, compiledFilters);
       applyQuickSearch(baseQb, quickSearch);
 
@@ -662,14 +688,23 @@ export class ApplicationsListService extends ApplicationsBaseService {
         case 'category':
           expression = 'a.category';
           break;
+        case 'status':
+          expression = 'a.status';
+          break;
         case 'lifecycle':
           expression = 'a.lifecycle';
           break;
         case 'criticality':
           expression = 'a.criticality';
           break;
+        case 'hosting_model':
+          expression = 'a.hosting_model';
+          break;
         case 'data_class':
           expression = 'a.data_class';
+          break;
+        case 'supplier_name':
+          expression = 's.name';
           break;
         case 'external_facing':
           expression = 'COALESCE(a.external_facing, false)';
