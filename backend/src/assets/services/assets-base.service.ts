@@ -101,6 +101,28 @@ export abstract class AssetsBaseService {
     return normalized;
   }
 
+  protected async resolveSubLocationId(
+    value: unknown,
+    locationId: string | null,
+    tenantId: string,
+    manager?: EntityManager,
+  ): Promise<string | null> {
+    const normalized = this.normalizeNullable(value);
+    if (!normalized) return null;
+    if (!locationId) {
+      throw new BadRequestException('Cannot set sub_location_id without a location');
+    }
+    const mg = manager ?? this.assetRepo.manager;
+    const rows = await mg.query(
+      `SELECT id FROM location_sub_items WHERE id = $1 AND location_id = $2 AND tenant_id = $3 LIMIT 1`,
+      [normalized, locationId, tenantId],
+    );
+    if (!rows || rows.length === 0) {
+      throw new BadRequestException('Invalid sub_location_id');
+    }
+    return normalized;
+  }
+
   protected getManager(opts?: ServiceOpts): EntityManager {
     return opts?.manager ?? this.assetRepo.manager;
   }

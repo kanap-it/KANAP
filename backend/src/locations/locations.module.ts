@@ -4,6 +4,7 @@ import { Location } from './location.entity';
 import { LocationUserContact } from './location-user-contact.entity';
 import { LocationContactLink } from './location-contact.entity';
 import { LocationLink } from './location-link.entity';
+import { LocationSubItem } from './location-sub-item.entity';
 import { LocationsService } from './locations.service';
 import { LocationsController } from './locations.controller';
 import { AuditModule } from '../audit/audit.module';
@@ -22,6 +23,7 @@ import { UsersModule } from '../users/users.module';
       LocationUserContact,
       LocationContactLink,
       LocationLink,
+      LocationSubItem,
       Asset,
       Company,
       User,

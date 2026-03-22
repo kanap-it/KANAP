@@ -110,6 +110,7 @@ export const TENANT_PURGE_TABLES = [
   'asset_contracts',
   'asset_cluster_members',
   'assets',
+  'location_sub_items',
   'location_links',
   'location_contacts',
   'location_user_contacts',

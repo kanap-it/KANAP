@@ -27,6 +27,7 @@ type AssetRow = {
   end_of_life_date: string | null;
   location_id: string | null;
   location_name: string | null;
+  sub_location_name: string | null;
   hosting_type: string | null;
   operating_system: string | null;
   network_segment: string | null;
@@ -279,6 +280,19 @@ export default function AssetsPage() {
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
         getValues: getAssetFilterValues('location_name', { emptyLabel: '(No location)' }),
+        searchable: false,
+      },
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'Sub-location',
+      field: 'sub_location_name',
+      width: 160,
+      hide: true,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        getValues: getAssetFilterValues('sub_location_name', { emptyLabel: '(No sub-location)' }),
         searchable: false,
       },
       cellRenderer: ClickToWorkspace,

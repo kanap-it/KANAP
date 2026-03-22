@@ -20,6 +20,7 @@ export interface Asset {
   is_cluster: boolean;
   status: string;
   location_id?: string | null;
+  sub_location_id?: string | null;
   operating_system?: string | null;
   notes?: string | null;
   created_at: string;
@@ -41,6 +42,7 @@ export interface IpAddressEntry {
 export interface AssetSummary extends Asset {
   location_name?: string | null;
   location_code?: string | null;
+  sub_location_name?: string | null;
   assignments_count?: number;
   cluster_name?: string | null;
 }
@@ -142,6 +144,7 @@ export interface CreateAssetInput {
   operating_system?: string | null;
   status?: string;
   location_id?: string | null;
+  sub_location_id?: string | null;
   notes?: string | null;
 }
 
@@ -169,6 +172,16 @@ export interface CreateLocationInput {
  * Payload for updating a location
  */
 export type UpdateLocationInput = Partial<CreateLocationInput>;
+
+/**
+ * Location sub-item (building, room, rack, etc.)
+ */
+export interface LocationSubItem {
+  id: string;
+  name: string;
+  description?: string | null;
+  display_order: number;
+}
 
 /**
  * Assets API endpoints
@@ -280,4 +293,19 @@ export const locationsApi = {
    */
   getServers: (id: string, params?: PaginationParams): Promise<PaginatedResponse<AssetSummary>> =>
     api.paginated<AssetSummary>(`/locations/${id}/servers`, params),
+
+  listSubItems: (id: string): Promise<LocationSubItem[]> =>
+    api.get<LocationSubItem[]>(`/locations/${id}/sub-items`),
+
+  createSubItem: (id: string, data: { name: string; description?: string | null }): Promise<LocationSubItem> =>
+    api.post<LocationSubItem>(`/locations/${id}/sub-items`, data),
+
+  updateSubItem: (id: string, subItemId: string, data: { name?: string; description?: string | null }): Promise<LocationSubItem> =>
+    api.patch<LocationSubItem>(`/locations/${id}/sub-items/${subItemId}`, data),
+
+  deleteSubItem: (id: string, subItemId: string): Promise<void> =>
+    api.delete(`/locations/${id}/sub-items/${subItemId}`),
+
+  reorderSubItems: (id: string, orderedIds: string[]): Promise<void> =>
+    api.patch(`/locations/${id}/sub-items/reorder`, { ordered_ids: orderedIds }),
 };

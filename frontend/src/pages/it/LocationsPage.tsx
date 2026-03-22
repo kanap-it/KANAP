@@ -129,7 +129,7 @@ export default function LocationsPage() {
 
   const actions = (
     <Stack direction="row" spacing={1}>
-      {hasLevel('locations', 'manager') && (
+      {hasLevel('locations', 'member') && (
         <Button variant="contained" onClick={() => navigate('/it/locations/new/overview')}>
           Add Location
         </Button>

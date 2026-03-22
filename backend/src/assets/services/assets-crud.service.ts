@@ -57,6 +57,7 @@ export class AssetsCrudService extends AssetsBaseService {
     const provider = await this.validation.resolveProvider(body.provider, tenant, opts?.manager);
     const status = await this.validation.normalizeLifecycleStatus(body.status, tenant, opts?.manager, 'active');
     const location_id = await this.resolveLocationId((body as any).location_id, tenant, opts?.manager);
+    const sub_location_id = await this.resolveSubLocationId((body as any).sub_location_id, location_id, tenant, opts?.manager);
     const operating_system = await this.validation.resolveOperatingSystem((body as any).operating_system, tenant, opts?.manager);
     const is_cluster = body.is_cluster === undefined ? false : this.normalizeBooleanFlag((body as any).is_cluster, 'is_cluster');
     const ip_addresses = await this.validation.validateIpAddresses((body as any).ip_addresses, tenant, this.getManager(opts));
@@ -101,6 +102,7 @@ export class AssetsCrudService extends AssetsBaseService {
       go_live_date: this.normalizeNullable((body as any).go_live_date),
       end_of_life_date: this.normalizeNullable((body as any).end_of_life_date),
       location_id,
+      sub_location_id,
       notes,
     });
 
@@ -208,7 +210,24 @@ export class AssetsCrudService extends AssetsBaseService {
       );
     }
     if (has('location_id')) {
-      existing.location_id = await this.resolveLocationId((body as any).location_id, tenant, opts?.manager);
+      const newLocationId = await this.resolveLocationId((body as any).location_id, tenant, opts?.manager);
+      const locationChanged = newLocationId !== existing.location_id;
+      existing.location_id = newLocationId;
+
+      if (locationChanged) {
+        // Location changed: resolve explicit sub_location_id against new location, or clear it
+        if (has('sub_location_id')) {
+          existing.sub_location_id = await this.resolveSubLocationId((body as any).sub_location_id, newLocationId, tenant, opts?.manager);
+        } else {
+          existing.sub_location_id = null;
+        }
+      } else if (has('sub_location_id')) {
+        // Location same: just resolve sub_location_id against current location
+        existing.sub_location_id = await this.resolveSubLocationId((body as any).sub_location_id, newLocationId, tenant, opts?.manager);
+      }
+    } else if (has('sub_location_id')) {
+      // Location unchanged: validate sub_location_id against current location
+      existing.sub_location_id = await this.resolveSubLocationId((body as any).sub_location_id, existing.location_id, tenant, opts?.manager);
     }
     if (has('go_live_date')) {
       existing.go_live_date = this.normalizeNullable((body as any).go_live_date);

@@ -71,7 +71,7 @@ export class LocationsController {
   }
 
   @UseGuards(PermissionGuard)
-  @RequireLevel('locations', 'admin')
+  @RequireLevel('locations', 'member')
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
     return this.svc.delete(id, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
@@ -186,6 +186,58 @@ export class LocationsController {
   @Delete(':id/links/:linkId')
   deleteLink(@Param('id') id: string, @Param('linkId') linkId: string, @Req() req: any) {
     return this.svc.deleteLink(id, linkId, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+  }
+
+  // Sub-items (reorder MUST be declared before :subItemId to avoid param capture)
+  @UseGuards(PermissionGuard)
+  @RequireLevel('locations', 'member')
+  @Patch(':id/sub-items/reorder')
+  reorderSubItems(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    const tenantId = this.requireTenantId(req);
+    return this.svc.reorderSubItems(id, body?.ordered_ids, tenantId, req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('locations', 'reader')
+  @Get(':id/sub-items')
+  listSubItems(@Param('id') id: string, @Req() req: any) {
+    return this.svc.listSubItems(id, { manager: req?.queryRunner?.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('locations', 'member')
+  @Post(':id/sub-items')
+  createSubItem(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    const tenantId = this.requireTenantId(req);
+    return this.svc.createSubItem(id, body, tenantId, req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('locations', 'member')
+  @Patch(':id/sub-items/:subItemId')
+  updateSubItem(
+    @Param('id') id: string,
+    @Param('subItemId') subItemId: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    const tenantId = this.requireTenantId(req);
+    return this.svc.updateSubItem(id, subItemId, body, tenantId, req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('locations', 'member')
+  @Delete(':id/sub-items/:subItemId')
+  deleteSubItem(@Param('id') id: string, @Param('subItemId') subItemId: string, @Req() req: any) {
+    return this.svc.deleteSubItem(id, subItemId, req.user?.sub ?? null, {
+      manager: req?.queryRunner?.manager,
+    });
   }
 
   // Relations (endpoint kept as /servers for backwards compatibility)

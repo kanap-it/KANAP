@@ -22,6 +22,7 @@ import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import LocationOverviewEditor, { LocationFormState } from './editors/LocationOverviewEditor';
 import LocationContactsPanel, { LocationContactsPanelHandle } from './editors/LocationContactsPanel';
+import LocationSubItemsPanel, { LocationSubItemsPanelHandle } from './editors/LocationSubItemsPanel';
 import LocationRelationsPanel from './editors/LocationRelationsPanel';
 
 type TabKey = 'overview' | 'contacts' | 'relations';
@@ -65,10 +66,12 @@ export default function LocationWorkspacePage() {
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [contactsDirty, setContactsDirty] = React.useState(false);
+  const [subItemsDirty, setSubItemsDirty] = React.useState(false);
   const contactsRef = React.useRef<LocationContactsPanelHandle>(null);
+  const subItemsRef = React.useRef<LocationSubItemsPanelHandle>(null);
 
-  const canManage = hasLevel('locations', 'manager');
-  const canDelete = hasLevel('locations', 'admin');
+  const canManage = hasLevel('locations', 'member');
+  const canDelete = hasLevel('locations', 'member');
 
   const normalize = React.useCallback((form: LocationFormState) => {
     return {
@@ -89,7 +92,7 @@ export default function LocationWorkspacePage() {
     return JSON.stringify(normalize(overviewData)) !== JSON.stringify(normalize(baselineData));
   }, [normalize, overviewData, baselineData]);
 
-  const dirty = overviewDirty || contactsDirty;
+  const dirty = overviewDirty || contactsDirty || subItemsDirty;
 
   const load = React.useCallback(async () => {
     if (isCreate) {
@@ -215,6 +218,13 @@ export default function LocationWorkspacePage() {
     if (!canManage) return;
     if (tab === 'overview') {
       await handleSaveOverview();
+      if (!isCreate) {
+        try {
+          await subItemsRef.current?.save();
+        } catch {
+          // error handled inside panel
+        }
+      }
     } else if (tab === 'contacts' && !isCreate) {
       try {
         await contactsRef.current?.save();
@@ -228,6 +238,7 @@ export default function LocationWorkspacePage() {
     if (tab === 'overview') {
       setOverviewData(baselineData);
       setSaveError(null);
+      subItemsRef.current?.reset();
     } else if (tab === 'contacts') {
       contactsRef.current?.reset();
     }
@@ -338,14 +349,27 @@ export default function LocationWorkspacePage() {
         </Tabs>
         <Box sx={{ flex: 1, pl: 3 }}>
           {tab === 'overview' && (
-            <LocationOverviewEditor
-              data={overviewData}
-              onChange={(patch) => {
-                setOverviewData((prev) => ({ ...prev, ...patch }));
-              }}
-              readOnly={!canManage}
-              disabled={loading}
-            />
+            <>
+              <LocationOverviewEditor
+                data={overviewData}
+                onChange={(patch) => {
+                  setOverviewData((prev) => ({ ...prev, ...patch }));
+                }}
+                readOnly={!canManage}
+                disabled={loading}
+              />
+              <Box sx={{ mt: 3 }}>
+                {isCreate ? (
+                  <Alert severity="info">Sub-locations are available after you create the location.</Alert>
+                ) : (
+                  <LocationSubItemsPanel
+                    id={locationId}
+                    ref={subItemsRef}
+                    onDirtyChange={(d) => setSubItemsDirty(d)}
+                  />
+                )}
+              </Box>
+            </>
           )}
           {tab === 'contacts' && !isCreate && (
             <LocationContactsPanel

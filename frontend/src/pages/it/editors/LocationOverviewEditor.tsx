@@ -63,7 +63,6 @@ export default function LocationOverviewEditor({ data, onChange, readOnly = fals
           hosting_type: nextType,
           provider: '',
           region: '',
-          additional_info: '',
         });
       } else {
         onChange({
@@ -143,20 +142,12 @@ export default function LocationOverviewEditor({ data, onChange, readOnly = fals
       <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Location details</Typography>
       <Stack spacing={2}>
         {category === 'on_prem' && (
-          <>
-            <CompanySelect
-              label="Operating company"
-              value={data.operating_company_id}
-              onChange={handleCompanyChange}
-              disabled={readOnly || disabled}
-            />
-            <TextField
-              label="Datacenter"
-              value={data.datacenter}
-              onChange={(e) => onChange({ datacenter: e.target.value })}
-              disabled={readOnly || disabled}
-            />
-          </>
+          <CompanySelect
+            label="Operating company"
+            value={data.operating_company_id}
+            onChange={handleCompanyChange}
+            disabled={readOnly || disabled}
+          />
         )}
         {category === 'cloud' && (
           <>
@@ -179,14 +170,6 @@ export default function LocationOverviewEditor({ data, onChange, readOnly = fals
               onChange={(e) => onChange({ region: e.target.value })}
               disabled={readOnly || disabled}
             />
-            <TextField
-              label="Additional info"
-              value={data.additional_info}
-              onChange={(e) => onChange({ additional_info: e.target.value })}
-              disabled={readOnly || disabled}
-              multiline
-              minRows={3}
-            />
           </>
         )}
         <Autocomplete
@@ -204,6 +187,14 @@ export default function LocationOverviewEditor({ data, onChange, readOnly = fals
           value={data.city}
           onChange={(e) => onChange({ city: e.target.value })}
           disabled={readOnly || disabled}
+        />
+        <TextField
+          label="Additional info"
+          value={data.additional_info}
+          onChange={(e) => onChange({ additional_info: e.target.value })}
+          disabled={readOnly || disabled}
+          multiline
+          minRows={3}
         />
       </Stack>
     </Stack>

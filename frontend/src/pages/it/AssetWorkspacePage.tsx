@@ -228,6 +228,9 @@ export default function AssetWorkspacePage() {
   const [goLiveDate, setGoLiveDate] = React.useState<string>('');
   const [endOfLifeDate, setEndOfLifeDate] = React.useState<string>('');
   const [locationId, setLocationId] = React.useState<string | null>(null);
+  const [subLocationId, setSubLocationId] = React.useState<string | null>(null);
+  const [subLocationOptions, setSubLocationOptions] = React.useState<Array<{ id: string; name: string; description?: string | null }>>([]);
+  const [subLocationLoading, setSubLocationLoading] = React.useState(false);
   const [operatingSystem, setOperatingSystem] = React.useState<string>('');
   const [notes, setNotes] = React.useState<string>('');
   const [domain, setDomain] = React.useState<string>('');
@@ -488,6 +491,7 @@ export default function AssetWorkspacePage() {
     setGoLiveDate(data.go_live_date || '');
     setEndOfLifeDate(data.end_of_life_date || '');
     setLocationId(data.location_id || null);
+    setSubLocationId((data as any).sub_location_id || null);
     setOperatingSystem(data.operating_system || '');
     setNotes(data.notes || '');
     setDirty(false);
@@ -593,6 +597,31 @@ export default function AssetWorkspacePage() {
     };
   }, [locationId, getHostingCategory, fallbackProviderCode]);
 
+  // Fetch sub-location options when locationId changes
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!locationId) {
+      setSubLocationOptions([]);
+      setSubLocationLoading(false);
+      return () => { cancelled = true; };
+    }
+    setSubLocationLoading(true);
+    const fetchSubLocations = async () => {
+      try {
+        const res = await api.get(`/locations/${locationId}/sub-items`);
+        if (cancelled) return;
+        setSubLocationOptions((res.data || []) as Array<{ id: string; name: string; description?: string | null }>);
+      } catch {
+        if (cancelled) return;
+        setSubLocationOptions([]);
+      } finally {
+        if (!cancelled) setSubLocationLoading(false);
+      }
+    };
+    void fetchSubLocations();
+    return () => { cancelled = true; };
+  }, [locationId]);
+
   const handleSave = async () => {
     if (!locationId) {
       setError('Location is required.');
@@ -624,6 +653,7 @@ export default function AssetWorkspacePage() {
       go_live_date: goLiveDate || null,
       end_of_life_date: endOfLifeDate || null,
       location_id: locationId || null,
+      sub_location_id: subLocationId || null,
       notes: notes || null,
     };
       if (isCreate) {
@@ -969,10 +999,41 @@ export default function AssetWorkspacePage() {
               )}
               <LocationSelect
                 value={locationId}
-                onChange={(val) => { setLocationId(val); setDirty(true); }}
+                onChange={(val) => {
+                  if (val !== locationId) {
+                    setSubLocationId(null);
+                  }
+                  setLocationId(val);
+                  setDirty(true);
+                }}
                 label="Location"
                 required
               />
+              {subLocationOptions.length > 0 && (
+                <Autocomplete
+                  options={subLocationOptions}
+                  getOptionLabel={(option) => option.name}
+                  value={subLocationOptions.find((o) => o.id === subLocationId) || null}
+                  onChange={(_, val) => { setSubLocationId(val?.id || null); setDirty(true); }}
+                  loading={subLocationLoading}
+                  disabled={!locationId}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Sub-location" size="small" placeholder="Select sub-location" />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.id}>
+                      <Box>
+                        <Typography variant="body2">{option.name}</Typography>
+                        {option.description && (
+                          <Typography variant="caption" color="text.secondary">{option.description}</Typography>
+                        )}
+                      </Box>
+                    </li>
+                  )}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  size="small"
+                />
+              )}
               {locationInfoError && <Alert severity="warning">{locationInfoError}</Alert>}
               <Stack spacing={2}>
                 <TextField

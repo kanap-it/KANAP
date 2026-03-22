@@ -42,6 +42,7 @@ export class AssetsListService extends AssetsBaseService {
       updated_at: 'a.updated_at',
       location_name: 'l.name',
       hosting_type: 'l.hosting_type',
+      sub_location_name: 'sl.name',
       cluster: 'cluster_asset.name',
     };
     const sortField = sortFieldMap[sort.field] || 'a.created_at';
@@ -51,6 +52,7 @@ export class AssetsListService extends AssetsBaseService {
       SELECT COUNT(DISTINCT a.id)::int as count
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
+      LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
       LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
       LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
       WHERE ${whereConditions}
@@ -64,12 +66,14 @@ export class AssetsListService extends AssetsBaseService {
         a.id, a.tenant_id, a.name, a.kind, a.provider, a.environment,
         a.region, a.zone, a.hostname, a.domain, a.fqdn, a.aliases,
         a.ip_addresses, a.cluster, a.is_cluster, a.operating_system,
-        a.location_id, a.status, a.notes, a.created_at, a.updated_at,
+        a.location_id, a.sub_location_id, a.status, a.notes, a.created_at, a.updated_at,
         l.name AS location_name,
         l.hosting_type AS hosting_type,
+        sl.name AS sub_location_name,
         a.ip_addresses->0->>'network_segment' AS network_segment
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
+      LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
       LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
       LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
       WHERE ${whereConditions}
@@ -81,6 +85,7 @@ export class AssetsListService extends AssetsBaseService {
       SELECT DISTINCT a.id, ${sortField} as sort_value
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
+      LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
       LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
       LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
       WHERE ${whereConditions}
@@ -101,12 +106,14 @@ export class AssetsListService extends AssetsBaseService {
         a.id, a.tenant_id, a.name, a.kind, a.provider, a.environment,
         a.region, a.zone, a.hostname, a.domain, a.fqdn, a.aliases,
         a.ip_addresses, a.cluster, a.is_cluster, a.operating_system,
-        a.location_id, a.status, a.notes, a.created_at, a.updated_at,
+        a.location_id, a.sub_location_id, a.status, a.notes, a.created_at, a.updated_at,
         l.name AS location_name,
         l.hosting_type AS hosting_type,
+        sl.name AS sub_location_name,
         a.ip_addresses->0->>'network_segment' AS network_segment
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
+      LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
       WHERE a.id = ANY($1) AND a.tenant_id = $2
     `;
     const itemsRaw = await mg.query(itemsQuery, [ids, tenantId]);
@@ -147,6 +154,7 @@ export class AssetsListService extends AssetsBaseService {
       updated_at: 'a.updated_at',
       location_name: 'l.name',
       hosting_type: 'l.hosting_type',
+      sub_location_name: 'sl.name',
       cluster: 'cluster_asset.name',
     };
     const sortField = sortFieldMap[sort.field] || 'a.created_at';
@@ -155,6 +163,7 @@ export class AssetsListService extends AssetsBaseService {
       SELECT DISTINCT a.id
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
+      LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
       LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
       LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
       WHERE ${whereConditions}
@@ -166,6 +175,7 @@ export class AssetsListService extends AssetsBaseService {
       SELECT DISTINCT a.id, ${sortField} as sort_value
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
+      LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
       LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
       LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
       WHERE ${whereConditions}
@@ -191,18 +201,20 @@ export class AssetsListService extends AssetsBaseService {
     }
 
     // Get location info for grid display
-    const locationRows: Array<{ id: string; location_name: string; hosting_type: string }> = await mg.query(
-      `SELECT a.id, l.name AS location_name, l.hosting_type
+    const locationRows: Array<{ id: string; location_name: string; hosting_type: string; sub_location_name: string | null }> = await mg.query(
+      `SELECT a.id, l.name AS location_name, l.hosting_type, sl.name AS sub_location_name
        FROM assets a
        LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
+       LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
        WHERE a.id = ANY($1) AND a.tenant_id = $2`,
       [ids, tenantId],
     );
-    const locationMap = new Map(locationRows.map((r) => [r.id, { location_name: r.location_name, hosting_type: r.hosting_type }]));
+    const locationMap = new Map(locationRows.map((r) => [r.id, { location_name: r.location_name, hosting_type: r.hosting_type, sub_location_name: r.sub_location_name }]));
     for (const item of items) {
       const loc = locationMap.get(item.id);
       (item as any).location_name = loc?.location_name ?? null;
       (item as any).hosting_type = loc?.hosting_type ?? null;
+      (item as any).sub_location_name = loc?.sub_location_name ?? null;
     }
 
     // Populate cluster names for member assets
@@ -249,6 +261,7 @@ export class AssetsListService extends AssetsBaseService {
       status: 'a.status',
       location_name: 'l.name',
       hosting_type: 'l.hosting_type',
+      sub_location_name: 'sl.name',
       network_segment: "a.ip_addresses->0->>'network_segment'",
       cluster: 'cluster_asset.name',
     };
@@ -273,6 +286,7 @@ export class AssetsListService extends AssetsBaseService {
         SELECT DISTINCT ${expression} as value
         FROM assets a
         LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
+        LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
         ${clusterJoin}
         WHERE ${whereConditions}
         ORDER BY value ASC NULLS LAST
@@ -309,11 +323,12 @@ export class AssetsListService extends AssetsBaseService {
       status: 'a.status',
       location_name: 'l.name',
       hosting_type: 'l.hosting_type',
+      sub_location_name: 'sl.name',
       network_segment: "a.ip_addresses->0->>'network_segment'",
       cluster: 'cluster_asset.name',
     };
 
-    // Apply set filters
+    // Apply set and text filters
     for (const [field, model] of Object.entries(filters)) {
       if (shouldSkip(field)) continue;
       const expression = fieldExpressions[field];
@@ -338,6 +353,26 @@ export class AssetsListService extends AssetsBaseService {
         if (clauses.length > 0) {
           whereConditions += ` AND (${clauses.join(' OR ')})`;
         }
+      } else if (model && model.filterType === 'text' && model.filter) {
+        const filterText = String(model.filter);
+        const type = model.type || 'contains';
+        if (type === 'contains') {
+          params.push(`%${filterText}%`);
+          whereConditions += ` AND ${expression} ILIKE $${params.length}`;
+        } else if (type === 'equals') {
+          params.push(filterText);
+          whereConditions += ` AND ${expression} = $${params.length}`;
+        } else if (type === 'startsWith') {
+          params.push(`${filterText}%`);
+          whereConditions += ` AND ${expression} ILIKE $${params.length}`;
+        } else if (type === 'endsWith') {
+          params.push(`%${filterText}`);
+          whereConditions += ` AND ${expression} ILIKE $${params.length}`;
+        } else if (type === 'blank') {
+          whereConditions += ` AND (${expression} IS NULL OR ${expression} = '')`;
+        } else if (type === 'notBlank') {
+          whereConditions += ` AND ${expression} IS NOT NULL AND ${expression} != ''`;
+        }
       }
     }
 
@@ -351,6 +386,7 @@ export class AssetsListService extends AssetsBaseService {
         OR a.ip_addresses::text ILIKE $${qIdx}
         OR cluster_asset.name ILIKE $${qIdx}
         OR a.fqdn ILIKE $${qIdx}
+        OR sl.name ILIKE $${qIdx}
       )`;
     }
 

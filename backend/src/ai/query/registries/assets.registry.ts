@@ -63,6 +63,16 @@ export const assetsRegistry: AiEntityFilterRegistry = {
       sortable: true,
       groupable: true,
     },
+    sub_location: {
+      ai: 'sub_location',
+      grid: 'sub_location_name',
+      type: 'text',
+      description: 'Sub-location name within the location (for example building, room, or rack).',
+      dynamic: true,
+      discoverable: true,
+      sortable: true,
+      groupable: true,
+    },
   },
   sortFields: {
     label: 'name',
@@ -72,6 +82,7 @@ export const assetsRegistry: AiEntityFilterRegistry = {
     provider: 'provider',
     os: 'operating_system',
     location: 'location_name',
+    sub_location: 'sub_location_name',
     created_at: 'created_at',
     updated_at: 'updated_at',
   },
@@ -92,6 +103,12 @@ export const assetsRegistry: AiEntityFilterRegistry = {
         expression: 'l.name',
         joins: [
           `LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id`,
+        ],
+      },
+      sub_location: {
+        expression: 'sl.name',
+        joins: [
+          `LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id`,
         ],
       },
     },

@@ -55,6 +55,9 @@ export class Asset {
   @Column('uuid', { nullable: true })
   location_id!: string | null;
 
+  @Column('uuid', { nullable: true })
+  sub_location_id!: string | null;
+
   @Column('text', { default: 'active' })
   status!: string;
 

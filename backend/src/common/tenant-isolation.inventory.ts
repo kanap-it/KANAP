@@ -97,6 +97,7 @@ export const TENANT_SCOPED_TABLES = [
   'item_sequences',
   'location_contacts',
   'location_links',
+  'location_sub_items',
   'location_user_contacts',
   'locations',
   'portfolio_activities',

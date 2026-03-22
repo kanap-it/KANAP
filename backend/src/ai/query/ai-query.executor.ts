@@ -359,6 +359,7 @@ export class AiQueryExecutor {
         environment: scalar(row.environment),
         os: scalar(row.operating_system),
         location: scalar(row.location_name),
+        sub_location: scalar(row.sub_location_name),
       },
     });
   }

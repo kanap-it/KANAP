@@ -24,6 +24,8 @@ type ServerRow = {
   region: string | null;
   zone: string | null;
   status: string;
+  sub_location_id?: string | null;
+  sub_location_name?: string | null;
 };
 
 type ApplicationRow = {
@@ -40,6 +42,7 @@ export default function LocationRelationsPanel({ id }: Props) {
   const navigate = useNavigate();
   const [servers, setServers] = React.useState<ServerRow[]>([]);
   const [applications, setApplications] = React.useState<ApplicationRow[]>([]);
+  const [hasSubLocations, setHasSubLocations] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -47,11 +50,13 @@ export default function LocationRelationsPanel({ id }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const [serversRes, appsRes] = await Promise.all([
+      const [serversRes, appsRes, subItemsRes] = await Promise.all([
         api.get(`/locations/${id}/servers`),
         api.get(`/locations/${id}/applications`),
+        api.get(`/locations/${id}/sub-items`),
       ]);
       setServers(serversRes.data || []);
+      setHasSubLocations(Array.isArray(subItemsRes.data) && subItemsRes.data.length > 0);
       setApplications(
         (appsRes.data || []).map((app: any) => ({
           id: app.id,
@@ -81,6 +86,7 @@ export default function LocationRelationsPanel({ id }: Props) {
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
+              {hasSubLocations && <TableCell>Sub-location</TableCell>}
               <TableCell>Environment</TableCell>
               <TableCell>Type</TableCell>
               <TableCell>Provider</TableCell>
@@ -91,7 +97,7 @@ export default function LocationRelationsPanel({ id }: Props) {
           <TableBody>
             {servers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={hasSubLocations ? 7 : 6}>
                   <Typography variant="body2" color="text.secondary">No assets linked to this location.</Typography>
                 </TableCell>
               </TableRow>
@@ -108,6 +114,7 @@ export default function LocationRelationsPanel({ id }: Props) {
                     {server.name}
                   </MuiLink>
                 </TableCell>
+                {hasSubLocations && <TableCell>{server.sub_location_name || '—'}</TableCell>}
                 <TableCell>{server.environment}</TableCell>
                 <TableCell>{server.kind}</TableCell>
                 <TableCell>{server.provider}</TableCell>

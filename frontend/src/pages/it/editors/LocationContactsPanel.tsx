@@ -74,7 +74,7 @@ function normalizeLinks(list: LinkRow[]) {
 
 export default forwardRef<LocationContactsPanelHandle, Props>(function LocationContactsPanel({ id, onDirtyChange }, ref) {
   const { hasLevel } = useAuth();
-  const readOnly = !hasLevel('locations', 'manager');
+  const readOnly = !hasLevel('locations', 'member');
 
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);

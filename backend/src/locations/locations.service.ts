@@ -5,6 +5,7 @@ import { Location } from './location.entity';
 import { LocationUserContact } from './location-user-contact.entity';
 import { LocationContactLink } from './location-contact.entity';
 import { LocationLink } from './location-link.entity';
+import { LocationSubItem } from './location-sub-item.entity';
 import { buildWhereFromAgFilters, parsePagination } from '../common/pagination';
 import { AuditService } from '../audit/audit.service';
 import { ItOpsSettings, ItOpsSettingsService } from '../it-ops-settings/it-ops-settings.service';
@@ -235,10 +236,9 @@ export class LocationsService {
       countryIso = countryIso ?? this.normalizeCountryIso(operatingCompany.company.country_iso);
       city = city ?? this.normalizeNullable(operatingCompany.company.city);
     }
-    const datacenter = category === 'on_prem' ? this.normalizeNullable(body.datacenter) : null;
     const provider = category === 'cloud' ? await this.resolveProvider(body.provider, tenant, { manager: mg, settings }) : null;
     const region = category === 'cloud' ? this.normalizeNullable(body.region) : null;
-    const additionalInfo = category === 'cloud' ? this.normalizeNullable(body.additional_info) : null;
+    const additionalInfo = this.normalizeNullable(body.additional_info);
     const entity = repo.create({
       code,
       name,
@@ -246,7 +246,7 @@ export class LocationsService {
       operating_company_id: operatingCompany?.id ?? null,
       country_iso: countryIso,
       city,
-      datacenter,
+      datacenter: null,
       provider,
       region,
       additional_info: additionalInfo,
@@ -295,7 +295,6 @@ export class LocationsService {
           if (nextCategory === 'on_prem') {
             existing.provider = null;
             existing.region = null;
-            existing.additional_info = null;
           } else {
             existing.operating_company_id = null;
             existing.datacenter = null;
@@ -318,9 +317,6 @@ export class LocationsService {
           }
         }
       }
-      if (has('datacenter')) {
-        existing.datacenter = this.normalizeNullable(body.datacenter);
-      }
     } else {
       existing.operating_company_id = null;
       existing.datacenter = null;
@@ -333,13 +329,13 @@ export class LocationsService {
       if (has('region')) {
         existing.region = this.normalizeNullable(body.region);
       }
-      if (has('additional_info')) {
-        existing.additional_info = this.normalizeNullable(body.additional_info);
-      }
     } else {
       existing.provider = null;
       existing.region = null;
-      existing.additional_info = null;
+    }
+
+    if (has('additional_info')) {
+      existing.additional_info = this.normalizeNullable(body.additional_info);
     }
 
     if (has('country_iso')) {
@@ -688,19 +684,29 @@ export class LocationsService {
   async listAssets(locationId: string, opts?: { manager?: EntityManager }) {
     await this.loadLocationOrThrow(locationId, opts?.manager);
     const mg = opts?.manager ?? this.repo.manager;
-    const servers = await mg
-      .getRepository(Asset)
-      .find({ where: { location_id: locationId } as any, order: { name: 'ASC' as any } });
-    return servers.map((server) => ({
-      id: server.id,
-      name: server.name,
-      kind: server.kind,
-      provider: server.provider,
-      environment: server.environment,
-      region: server.region,
-      zone: server.zone,
-      status: server.status,
-      created_at: server.created_at,
+    const rows: Array<Record<string, any>> = await mg.query(
+      `SELECT a.id, a.name, a.kind, a.provider, a.environment,
+              a.region, a.zone, a.status, a.created_at,
+              a.sub_location_id,
+              sl.name AS sub_location_name
+       FROM assets a
+       LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
+       WHERE a.location_id = $1
+       ORDER BY a.name ASC`,
+      [locationId],
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      kind: r.kind,
+      provider: r.provider,
+      environment: r.environment,
+      region: r.region,
+      zone: r.zone,
+      status: r.status,
+      created_at: r.created_at,
+      sub_location_id: r.sub_location_id ?? null,
+      sub_location_name: r.sub_location_name ?? null,
     }));
   }
 
@@ -728,6 +734,179 @@ export class LocationsService {
         ? row.environments.filter((env) => env && env.length > 0)
         : [],
     }));
+  }
+
+  // ── Sub-item CRUD ──────────────────────────────────────────────────
+
+  async listSubItems(locationId: string, opts?: { manager?: EntityManager }) {
+    await this.loadLocationOrThrow(locationId, opts?.manager);
+    const mg = opts?.manager ?? this.repo.manager;
+    return mg
+      .getRepository(LocationSubItem)
+      .find({
+        where: { location_id: locationId } as any,
+        order: { name: 'ASC' as any },
+      });
+  }
+
+  async createSubItem(
+    locationId: string,
+    body: any,
+    tenantId: string,
+    userId: string | null,
+    opts?: { manager?: EntityManager },
+  ) {
+    this.requireTenantId(tenantId);
+    await this.loadLocationOrThrow(locationId, opts?.manager);
+    if (!body || typeof body !== 'object') throw new BadRequestException('Body is required');
+    const name = this.normalizeRequired(body.name, 'name');
+    const mg = opts?.manager ?? this.repo.manager;
+    const repo = mg.getRepository(LocationSubItem);
+
+    // Case-insensitive uniqueness within the location
+    const duplicate = await repo
+      .createQueryBuilder('si')
+      .where('si.location_id = :locationId', { locationId })
+      .andWhere('si.tenant_id = :tenantId', { tenantId })
+      .andWhere('lower(si.name) = lower(:name)', { name })
+      .getOne();
+    if (duplicate) {
+      throw new BadRequestException(`Sub-location "${name}" already exists at this location`);
+    }
+
+    // Assign display_order = MAX + 1
+    const maxResult = await repo
+      .createQueryBuilder('si')
+      .select('COALESCE(MAX(si.display_order), -1)', 'max_order')
+      .where('si.location_id = :locationId', { locationId })
+      .andWhere('si.tenant_id = :tenantId', { tenantId })
+      .getRawOne();
+    const displayOrder = (maxResult?.max_order ?? -1) + 1;
+
+    const description = this.normalizeNullable(body.description);
+    const entity = repo.create({ location_id: locationId, name, description, display_order: displayOrder });
+    const saved = await repo.save(entity);
+    await this.audit.log(
+      { table: 'location_sub_items', recordId: saved.id, action: 'create', before: null, after: saved, userId },
+      { manager: mg },
+    );
+    return saved;
+  }
+
+  async updateSubItem(
+    locationId: string,
+    subItemId: string,
+    body: any,
+    tenantId: string,
+    userId: string | null,
+    opts?: { manager?: EntityManager },
+  ) {
+    this.requireTenantId(tenantId);
+    await this.loadLocationOrThrow(locationId, opts?.manager);
+    const mg = opts?.manager ?? this.repo.manager;
+    const repo = mg.getRepository(LocationSubItem);
+    const existing = await repo.findOne({ where: { id: subItemId } });
+    if (!existing || existing.location_id !== locationId) {
+      throw new NotFoundException('Sub-location not found');
+    }
+    const before = { ...existing };
+
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, 'name')) {
+      const name = this.normalizeRequired(body.name, 'name');
+      // Case-insensitive uniqueness check (exclude self)
+      const duplicate = await repo
+        .createQueryBuilder('si')
+        .where('si.location_id = :locationId', { locationId })
+        .andWhere('si.tenant_id = :tenantId', { tenantId })
+        .andWhere('lower(si.name) = lower(:name)', { name })
+        .andWhere('si.id != :id', { id: subItemId })
+        .getOne();
+      if (duplicate) {
+        throw new BadRequestException(`Sub-location "${name}" already exists at this location`);
+      }
+      existing.name = name;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, 'description')) {
+      existing.description = this.normalizeNullable(body.description);
+    }
+
+    existing.updated_at = new Date();
+    const saved = await repo.save(existing);
+    await this.audit.log(
+      { table: 'location_sub_items', recordId: saved.id, action: 'update', before, after: saved, userId },
+      { manager: mg },
+    );
+    return saved;
+  }
+
+  async deleteSubItem(
+    locationId: string,
+    subItemId: string,
+    userId: string | null,
+    opts?: { manager?: EntityManager },
+  ) {
+    await this.loadLocationOrThrow(locationId, opts?.manager);
+    const mg = opts?.manager ?? this.repo.manager;
+    const repo = mg.getRepository(LocationSubItem);
+    const existing = await repo.findOne({ where: { id: subItemId } });
+    if (!existing || existing.location_id !== locationId) {
+      return { ok: true };
+    }
+
+    // Clear sub_location_id on affected assets before deleting
+    await mg.query(
+      `UPDATE assets SET sub_location_id = NULL, updated_at = now() WHERE sub_location_id = $1`,
+      [subItemId],
+    );
+
+    await repo.delete({ id: subItemId } as any);
+    await this.audit.log(
+      { table: 'location_sub_items', recordId: subItemId, action: 'delete', before: existing, after: null, userId },
+      { manager: mg },
+    );
+    return { ok: true };
+  }
+
+  async reorderSubItems(
+    locationId: string,
+    orderedIds: string[],
+    tenantId: string,
+    userId: string | null,
+    opts?: { manager?: EntityManager },
+  ) {
+    this.requireTenantId(tenantId);
+    await this.loadLocationOrThrow(locationId, opts?.manager);
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      throw new BadRequestException('ordered_ids must be a non-empty array');
+    }
+    const mg = opts?.manager ?? this.repo.manager;
+    const repo = mg.getRepository(LocationSubItem);
+
+    const currentItems = await repo.find({
+      where: { location_id: locationId } as any,
+      select: ['id'],
+    });
+    const currentIds = new Set(currentItems.map((i) => i.id));
+
+    // Validate orderedIds is an exact permutation
+    if (orderedIds.length !== currentIds.size || !orderedIds.every((id) => currentIds.has(id))) {
+      throw new BadRequestException('ordered_ids must be an exact permutation of current sub-location IDs');
+    }
+
+    // Batch update display_order
+    for (let i = 0; i < orderedIds.length; i++) {
+      await mg.query(
+        `UPDATE location_sub_items SET display_order = $1, updated_at = now() WHERE id = $2 AND tenant_id = $3`,
+        [i, orderedIds[i], tenantId],
+      );
+    }
+
+    await this.audit.log(
+      { table: 'location_sub_items', recordId: locationId, action: 'update', before: null, after: { ordered_ids: orderedIds }, userId },
+      { manager: mg },
+    );
+    return { ok: true };
   }
 
   private serializeUser(user: User | undefined) {
