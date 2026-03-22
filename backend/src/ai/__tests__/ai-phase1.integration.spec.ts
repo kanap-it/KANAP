@@ -12,9 +12,11 @@ import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.ser
 import { PortfolioProject } from '../../portfolio/portfolio-project.entity';
 import { PortfolioProjectsListService } from '../../portfolio/services/portfolio-projects-list.service';
 import { TasksService } from '../../spend/tasks.service';
+import { AiAdminOverviewService } from '../ai-admin-overview.service';
 import { AiEntityService } from '../ai-entity.service';
 import { AiToolRegistry } from '../ai-tool.registry';
 import { AiToolName } from '../ai.types';
+import { AiConversationRetentionService } from '../../cleanup/ai-conversation-retention.service';
 import { AiAggregateExecutor } from '../query/ai-aggregate.executor';
 import { AiQueryExecutor } from '../query/ai-query.executor';
 
@@ -35,12 +37,138 @@ type SeededKnowledge = {
   documentId: string;
 };
 
+type SeededPerson = {
+  id: string;
+  email: string;
+  name: string;
+};
+
+type SeededAiPeople = {
+  projectBusinessLead: SeededPerson;
+  projectItLead: SeededPerson;
+  projectContributor: SeededPerson;
+  requestRequestor: SeededPerson;
+  requestBusinessLead: SeededPerson;
+  requestItLead: SeededPerson;
+  requestContributor: SeededPerson;
+  taskCreator: SeededPerson;
+  applicationItOwner: SeededPerson;
+};
+
 async function seedTenant(runner: any, tenantId: string, slug: string, name: string) {
   await runner.query(
     `INSERT INTO tenants (id, slug, name, status, metadata, branding, created_at, updated_at)
      VALUES ($1, $2, $3, 'active', '{}'::jsonb, '{"logo_version":0,"use_logo_in_dark":true}'::jsonb, now(), now())`,
     [tenantId, slug, name],
   );
+}
+
+async function seedRole(runner: any, tenantId: string, roleName: string) {
+  await setCurrentTenant(runner, tenantId);
+  const roleId = randomUUID();
+  await runner.query(
+    `INSERT INTO roles (
+       id, tenant_id, role_name, role_description, is_system, is_built_in, created_at, updated_at
+     )
+     VALUES ($1, $2, $3, $4, false, false, now(), now())`,
+    [roleId, tenantId, roleName, `${roleName} role`],
+  );
+  return roleId;
+}
+
+async function seedUser(
+  runner: any,
+  tenantId: string,
+  userId: string,
+  email: string,
+  roleId: string,
+  opts?: {
+    firstName?: string;
+    lastName?: string;
+  },
+) {
+  await setCurrentTenant(runner, tenantId);
+  await runner.query(
+    `INSERT INTO users (
+       id, tenant_id, email, first_name, last_name, role_id, created_at, updated_at
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, now(), now())`,
+    [userId, tenantId, email, opts?.firstName || null, opts?.lastName || null, roleId],
+  );
+}
+
+async function seedAiPeopleAssignments(
+  runner: any,
+  tenantId: string,
+  graph: SeededGraph,
+  tag: string,
+): Promise<SeededAiPeople> {
+  const roleId = await seedRole(runner, tenantId, `AI People ${tag}`);
+
+  const createPerson = async (slug: string, firstName: string, lastName: string): Promise<SeededPerson> => {
+    const id = randomUUID();
+    const email = `${slug}-${tag}-${tenantId.slice(0, 8)}@example.com`;
+    await seedUser(runner, tenantId, id, email, roleId, { firstName, lastName });
+    return { id, email, name: `${firstName} ${lastName}` };
+  };
+
+  const people: SeededAiPeople = {
+    projectBusinessLead: await createPerson('project-biz', 'Paula', `ProjectBiz${tag}`),
+    projectItLead: await createPerson('project-it', 'Peter', `ProjectIt${tag}`),
+    projectContributor: await createPerson('project-contrib', 'Casey', `ProjectContrib${tag}`),
+    requestRequestor: await createPerson('requestor', 'Ronan', `Requestor${tag}`),
+    requestBusinessLead: await createPerson('request-biz', 'Rita', `RequestBiz${tag}`),
+    requestItLead: await createPerson('request-it', 'Iris', `RequestIt${tag}`),
+    requestContributor: await createPerson('request-contrib', 'Remy', `RequestContrib${tag}`),
+    taskCreator: await createPerson('task-creator', 'Taylor', `TaskCreator${tag}`),
+    applicationItOwner: await createPerson('app-owner', 'Aiden', `AppOwner${tag}`),
+  };
+
+  await setCurrentTenant(runner, tenantId);
+  await runner.query(
+    `UPDATE portfolio_projects
+     SET business_lead_id = $1,
+         it_lead_id = $2
+     WHERE id = $3
+       AND tenant_id = $4`,
+    [people.projectBusinessLead.id, people.projectItLead.id, graph.projectId, tenantId],
+  );
+  await runner.query(
+    `INSERT INTO portfolio_project_team (id, tenant_id, project_id, user_id, role, created_at)
+     VALUES ($1, $2, $3, $4, 'business_team', now())`,
+    [randomUUID(), tenantId, graph.projectId, people.projectContributor.id],
+  );
+
+  await runner.query(
+    `UPDATE portfolio_requests
+     SET requestor_id = $1,
+         business_lead_id = $2,
+         it_lead_id = $3
+     WHERE id = $4
+       AND tenant_id = $5`,
+    [people.requestRequestor.id, people.requestBusinessLead.id, people.requestItLead.id, graph.requestId, tenantId],
+  );
+  await runner.query(
+    `INSERT INTO portfolio_request_team (id, tenant_id, request_id, user_id, role, created_at)
+     VALUES ($1, $2, $3, $4, 'it_team', now())`,
+    [randomUUID(), tenantId, graph.requestId, people.requestContributor.id],
+  );
+
+  await runner.query(
+    `UPDATE tasks
+     SET creator_id = $1
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [people.taskCreator.id, graph.taskId, tenantId],
+  );
+
+  await runner.query(
+    `INSERT INTO application_owners (id, tenant_id, application_id, user_id, owner_type, created_at)
+     VALUES ($1, $2, $3, $4, 'it', now())`,
+    [randomUUID(), tenantId, graph.applicationId, people.applicationItOwner.id],
+  );
+
+  return people;
 }
 
 async function setCurrentTenant(runner: any, tenantId: string) {
@@ -450,6 +578,17 @@ function getRelatedIdsByRelation(context: any, relation: string) {
   return group ? group.items.map((item: any) => item.id).sort() : [];
 }
 
+function getPersonName(value: any): string | null {
+  if (!value || typeof value !== 'object') return null;
+  return typeof value.name === 'string' ? value.name : null;
+}
+
+function getPersonNames(value: any): string[] {
+  return Array.isArray(value)
+    ? value.map((item: any) => getPersonName(item)).filter((item: string | null): item is string => !!item).sort()
+    : [];
+}
+
 async function resolveDocumentId(manager: any, idOrRef: string): Promise<string | null> {
   const raw = String(idOrRef || '').trim();
   if (/^[0-9a-f-]{36}$/i.test(raw)) {
@@ -684,44 +823,119 @@ function buildToolIsolationCases(
     graphA: SeededGraph;
     graphB: SeededGraph;
     knowledgeA: SeededKnowledge;
+    peopleA: SeededAiPeople;
   },
 ) {
   switch (toolName) {
     case 'search_all':
-      return [{
-        label: 'search-all',
-        input: {
-          query: 'Shared Boundary',
-          entity_types: ['applications', 'assets', 'projects', 'requests', 'tasks', 'documents'],
-          limit: 20,
+      return [
+        {
+          label: 'search-all',
+          input: {
+            query: 'Shared Boundary',
+            entity_types: ['applications', 'assets', 'projects', 'requests', 'tasks', 'documents'],
+            limit: 20,
+          },
+          assertResult: (result: any) => {
+            assert.equal(
+              result.items.some((item: any) => item.id === fixtures.graphA.applicationId),
+              true,
+            );
+            assert.equal(
+              result.items.some((item: any) => item.id === fixtures.graphA.assetId),
+              true,
+            );
+            assert.equal(
+              result.items.some((item: any) => item.id === fixtures.graphA.projectId),
+              true,
+            );
+            assert.equal(
+              result.items.some((item: any) => item.id === fixtures.graphA.requestId),
+              true,
+            );
+            assert.equal(
+              result.items.some((item: any) => item.id === fixtures.graphA.taskId),
+              true,
+            );
+            assert.equal(
+              result.items.some((item: any) => item.id === fixtures.knowledgeA.documentId),
+              true,
+            );
+          },
         },
-        assertResult: (result: any) => {
-          assert.equal(
-            result.items.some((item: any) => item.id === fixtures.graphA.applicationId),
-            true,
-          );
-          assert.equal(
-            result.items.some((item: any) => item.id === fixtures.graphA.assetId),
-            true,
-          );
-          assert.equal(
-            result.items.some((item: any) => item.id === fixtures.graphA.projectId),
-            true,
-          );
-          assert.equal(
-            result.items.some((item: any) => item.id === fixtures.graphA.requestId),
-            true,
-          );
-          assert.equal(
-            result.items.some((item: any) => item.id === fixtures.graphA.taskId),
-            true,
-          );
-          assert.equal(
-            result.items.some((item: any) => item.id === fixtures.knowledgeA.documentId),
-            true,
-          );
+        {
+          label: 'projects-business-lead',
+          input: {
+            query: fixtures.peopleA.projectBusinessLead.name,
+            entity_types: ['projects'],
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.projectId]);
+            assert.equal(result.items[0].metadata.business_lead, fixtures.peopleA.projectBusinessLead.name);
+          },
         },
-      }];
+        {
+          label: 'projects-contributors',
+          input: {
+            query: fixtures.peopleA.projectContributor.name,
+            entity_types: ['projects'],
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.projectId]);
+            assert.equal(String(result.items[0].metadata.contributors).includes(fixtures.peopleA.projectContributor.name), true);
+          },
+        },
+        {
+          label: 'requests-business-lead',
+          input: {
+            query: fixtures.peopleA.requestBusinessLead.name,
+            entity_types: ['requests'],
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.requestId]);
+            assert.equal(result.items[0].metadata.business_lead, fixtures.peopleA.requestBusinessLead.name);
+          },
+        },
+        {
+          label: 'requests-contributors',
+          input: {
+            query: fixtures.peopleA.requestContributor.name,
+            entity_types: ['requests'],
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.requestId]);
+            assert.equal(String(result.items[0].metadata.contributors).includes(fixtures.peopleA.requestContributor.name), true);
+          },
+        },
+        {
+          label: 'tasks-creator',
+          input: {
+            query: fixtures.peopleA.taskCreator.name,
+            entity_types: ['tasks'],
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.taskId]);
+            assert.equal(result.items[0].metadata.creator, fixtures.peopleA.taskCreator.name);
+          },
+        },
+        {
+          label: 'applications-it-owner',
+          input: {
+            query: fixtures.peopleA.applicationItOwner.name,
+            entity_types: ['applications'],
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.applicationId]);
+            assert.equal(String(result.items[0].metadata.it_owner).includes(fixtures.peopleA.applicationItOwner.name), true);
+          },
+        },
+      ];
 
     case 'get_entity_context':
       return [
@@ -732,6 +946,7 @@ function buildToolIsolationCases(
             assert.equal(result.entity.id, fixtures.graphA.applicationId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_requests'), [fixtures.graphA.requestId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_projects'), [fixtures.graphA.projectId]);
+            assert.deepEqual(getPersonNames(result.entity.metadata.it_owners), [fixtures.peopleA.applicationItOwner.name]);
           },
         },
         {
@@ -750,6 +965,9 @@ function buildToolIsolationCases(
             assert.equal(result.entity.id, fixtures.graphA.projectId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_applications'), [fixtures.graphA.applicationId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_assets'), [fixtures.graphA.assetId]);
+            assert.equal(getPersonName(result.entity.metadata.business_lead), fixtures.peopleA.projectBusinessLead.name);
+            assert.equal(getPersonName(result.entity.metadata.it_lead), fixtures.peopleA.projectItLead.name);
+            assert.deepEqual(getPersonNames(result.entity.metadata.contributors), [fixtures.peopleA.projectContributor.name]);
           },
         },
         {
@@ -759,6 +977,10 @@ function buildToolIsolationCases(
             assert.equal(result.entity.id, fixtures.graphA.requestId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_applications'), [fixtures.graphA.applicationId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_assets'), [fixtures.graphA.assetId]);
+            assert.equal(getPersonName(result.entity.metadata.requestor), fixtures.peopleA.requestRequestor.name);
+            assert.equal(getPersonName(result.entity.metadata.business_lead), fixtures.peopleA.requestBusinessLead.name);
+            assert.equal(getPersonName(result.entity.metadata.it_lead), fixtures.peopleA.requestItLead.name);
+            assert.deepEqual(getPersonNames(result.entity.metadata.contributors), [fixtures.peopleA.requestContributor.name]);
           },
         },
         {
@@ -768,6 +990,7 @@ function buildToolIsolationCases(
             assert.equal(result.entity.id, fixtures.graphA.taskId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'related_project'), [fixtures.graphA.projectId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'converted_request'), [fixtures.graphA.requestId]);
+            assert.equal(getPersonName(result.entity.metadata.creator), fixtures.peopleA.taskCreator.name);
           },
         },
       ];
@@ -807,6 +1030,76 @@ function buildToolIsolationCases(
             );
           },
         },
+        {
+          label: 'projects-business-lead',
+          input: {
+            entity_type: 'projects',
+            filters: { business_lead: [fixtures.peopleA.projectBusinessLead.name] },
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.filters_applied, ['business_lead']);
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.projectId]);
+            assert.equal(result.items[0].metadata.business_lead, fixtures.peopleA.projectBusinessLead.name);
+          },
+        },
+        {
+          label: 'requests-business-lead',
+          input: {
+            entity_type: 'requests',
+            filters: { business_lead: [fixtures.peopleA.requestBusinessLead.name] },
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.filters_applied, ['business_lead']);
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.requestId]);
+            assert.equal(result.items[0].metadata.business_lead, fixtures.peopleA.requestBusinessLead.name);
+          },
+        },
+        {
+          label: 'requests-contributors',
+          input: {
+            entity_type: 'requests',
+            filters: { contributors: fixtures.peopleA.requestContributor.name },
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.filters_applied, ['contributors']);
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.requestId]);
+            assert.equal(String(result.items[0].metadata.contributors).includes(fixtures.peopleA.requestContributor.name), true);
+          },
+        },
+        {
+          label: 'tasks-creator',
+          input: {
+            entity_type: 'tasks',
+            filters: { creator: [fixtures.peopleA.taskCreator.name] },
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.filters_applied, ['creator']);
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.taskId]);
+            assert.equal(result.items[0].metadata.creator, fixtures.peopleA.taskCreator.name);
+          },
+        },
+        {
+          label: 'applications-it-owner',
+          input: {
+            entity_type: 'applications',
+            filters: { it_owner: fixtures.peopleA.applicationItOwner.name },
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.filters_applied, ['it_owner']);
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.applicationId]);
+            assert.equal(String(result.items[0].metadata.it_owner).includes(fixtures.peopleA.applicationItOwner.name), true);
+          },
+        },
       ];
 
     case 'aggregate_entities':
@@ -826,18 +1119,58 @@ function buildToolIsolationCases(
       }];
 
     case 'get_filter_values':
-      return [{
-        label: 'applications-values',
-        input: {
-          entity_type: 'applications',
-          fields: ['status', 'lifecycle'],
+      return [
+        {
+          label: 'applications-values',
+          input: {
+            entity_type: 'applications',
+            fields: ['status', 'lifecycle', 'it_owner'],
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.values.status.includes('enabled'), true);
+            assert.equal(result.values.lifecycle.includes('active'), true);
+            assert.equal(result.values.it_owner.includes(fixtures.peopleA.applicationItOwner.name), true);
+            assert.deepEqual(result.fields_ignored, []);
+          },
         },
-        assertResult: (result: any) => {
-          assert.equal(result.values.status.includes('enabled'), true);
-          assert.equal(result.values.lifecycle.includes('active'), true);
-          assert.deepEqual(result.fields_ignored, []);
+        {
+          label: 'projects-people-values',
+          input: {
+            entity_type: 'projects',
+            fields: ['business_lead', 'it_lead', 'contributors'],
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.values.business_lead.includes(fixtures.peopleA.projectBusinessLead.name), true);
+            assert.equal(result.values.it_lead.includes(fixtures.peopleA.projectItLead.name), true);
+            assert.equal(result.values.contributors.includes(fixtures.peopleA.projectContributor.name), true);
+            assert.deepEqual(result.fields_ignored, []);
+          },
         },
-      }];
+        {
+          label: 'requests-people-values',
+          input: {
+            entity_type: 'requests',
+            fields: ['business_lead', 'it_lead', 'contributors'],
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.values.business_lead.includes(fixtures.peopleA.requestBusinessLead.name), true);
+            assert.equal(result.values.it_lead.includes(fixtures.peopleA.requestItLead.name), true);
+            assert.equal(result.values.contributors.includes(fixtures.peopleA.requestContributor.name), true);
+            assert.deepEqual(result.fields_ignored, []);
+          },
+        },
+        {
+          label: 'tasks-creator-values',
+          input: {
+            entity_type: 'tasks',
+            fields: ['creator'],
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.values.creator.includes(fixtures.peopleA.taskCreator.name), true);
+            assert.deepEqual(result.fields_ignored, []);
+          },
+        },
+      ];
 
     case 'search_knowledge':
       return [{
@@ -1056,6 +1389,8 @@ async function testAiToolRegistryIsolationCoverageTracksRegisteredTools() {
       projectName: 'Shared Boundary Project',
       taskTitle: 'Shared Boundary Task',
     });
+    const peopleA = await seedAiPeopleAssignments(runner, tenantA, graphA, '5101');
+    await seedAiPeopleAssignments(runner, tenantB, graphB, '6101');
 
     const knowledgeA = await seedKnowledgeGraph(runner, tenantA, graphA, '5101', {
       documentTitle: 'Shared Boundary Knowledge',
@@ -1102,7 +1437,7 @@ async function testAiToolRegistryIsolationCoverageTracksRegisteredTools() {
 
     for (const tool of registry.listRegisteredTools()) {
       assert.equal(tool.surfaces.includes('chat'), true, `${tool.name} should be callable on chat for coverage`);
-      for (const testCase of buildToolIsolationCases(tool.name, { graphA, graphB, knowledgeA })) {
+      for (const testCase of buildToolIsolationCases(tool.name, { graphA, graphB, knowledgeA, peopleA })) {
         await setCurrentTenant(runner, tenantA);
         const result = await registry.execute(tenantAContext, tool.name, testCase.input);
         assertNoTenantLeak(tool.name, testCase.label, result, forbiddenIds);
@@ -1190,12 +1525,237 @@ async function testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScope
   }
 }
 
+async function testAiAdminOverviewAggregatesUsageAndIsTenantScoped() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  const tenantA = randomUUID();
+  const tenantB = randomUUID();
+  const tenantAUser1 = randomUUID();
+  const tenantAUser2 = randomUUID();
+  const tenantBUser = randomUUID();
+  const tenantAConversation1 = randomUUID();
+  const tenantAConversation2 = randomUUID();
+  const tenantAConversation3 = randomUUID();
+  const tenantBConversation = randomUUID();
+
+  try {
+    await seedTenant(runner, tenantA, `ai-overview-a-${tenantA.slice(0, 8)}`, 'AI Overview Tenant A');
+    await seedTenant(runner, tenantB, `ai-overview-b-${tenantB.slice(0, 8)}`, 'AI Overview Tenant B');
+    const tenantARoleId = await seedRole(runner, tenantA, 'AI Overview Member');
+    const tenantBRoleId = await seedRole(runner, tenantB, 'AI Overview Member');
+    await seedUser(runner, tenantA, tenantAUser1, `overview-a1-${tenantA.slice(0, 8)}@example.com`, tenantARoleId);
+    await seedUser(runner, tenantA, tenantAUser2, `overview-a2-${tenantA.slice(0, 8)}@example.com`, tenantARoleId);
+    await seedUser(runner, tenantB, tenantBUser, `overview-b-${tenantB.slice(0, 8)}@example.com`, tenantBRoleId);
+
+    await setCurrentTenant(runner, tenantA);
+    await runner.query(
+      `INSERT INTO ai_conversations (id, tenant_id, user_id, title, provider, model, created_at, updated_at)
+       VALUES
+         ($1, $2, $3, 'Recent AI work', 'openai', 'gpt-4o-mini', now() - interval '1 day', now() - interval '1 day'),
+         ($4, $2, $5, 'Second recent AI work', 'anthropic', 'claude-sonnet-4-20250514', now() - interval '3 days', now() - interval '3 days'),
+         ($6, $2, $3, 'Older AI work', 'openai', 'gpt-4o-mini', now() - interval '40 days', now() - interval '40 days')`,
+      [
+        tenantAConversation1,
+        tenantA,
+        tenantAUser1,
+        tenantAConversation2,
+        tenantAUser2,
+        tenantAConversation3,
+      ],
+    );
+    await runner.query(
+      `INSERT INTO ai_messages (conversation_id, tenant_id, user_id, role, content, usage_json, created_at)
+       VALUES
+         ($1, $2, $3, 'assistant', 'Current month usage', '{"input_tokens":10,"output_tokens":20}'::jsonb, date_trunc('month', now()) + interval '1 day'),
+         ($1, $2, $3, 'assistant', 'Null usage should count as zero', NULL, date_trunc('month', now()) + interval '2 days'),
+         ($4, $2, $5, 'assistant', 'Recent usage outside current month', '{"input_tokens":4,"output_tokens":6}'::jsonb, date_trunc('month', now()) - interval '1 day')`,
+      [
+        tenantAConversation1,
+        tenantA,
+        tenantAUser1,
+        tenantAConversation2,
+        tenantAUser2,
+      ],
+    );
+
+    await setCurrentTenant(runner, tenantB);
+    await runner.query(
+      `INSERT INTO ai_conversations (id, tenant_id, user_id, title, provider, model, created_at, updated_at)
+       VALUES ($1, $2, $3, 'Other tenant activity', 'openai', 'gpt-4o', '2026-03-21T09:00:00.000Z', '2026-03-21T09:00:00.000Z')`,
+      [tenantBConversation, tenantB, tenantBUser],
+    );
+    await runner.query(
+      `INSERT INTO ai_messages (conversation_id, tenant_id, user_id, role, content, usage_json, created_at)
+       VALUES ($1, $2, $3, 'assistant', 'Tenant B usage must not leak', '{"input_tokens":999,"output_tokens":888}'::jsonb, '2026-03-21T09:01:00.000Z')`,
+      [tenantBConversation, tenantB, tenantBUser],
+    );
+
+    await setCurrentTenant(runner, tenantA);
+    const service = new AiAdminOverviewService();
+    const overview = await service.getOverview(tenantA, runner.manager);
+
+    assert.equal(overview.totals.conversations_all, 3);
+    assert.equal(overview.totals.conversations_7d, 2);
+    assert.equal(overview.totals.conversations_30d, 2);
+    assert.equal(overview.totals.active_users_30d, 2);
+    assert.equal(overview.usage.current_month.input_tokens, 10);
+    assert.equal(overview.usage.current_month.output_tokens, 20);
+    assert.equal(overview.usage.current_month.total_tokens, 30);
+    assert.equal(overview.usage.current_month.message_count, 2);
+    assert.equal(overview.usage.last_30_days.input_tokens, 14);
+    assert.equal(overview.usage.last_30_days.output_tokens, 26);
+    assert.equal(overview.usage.last_30_days.total_tokens, 40);
+    assert.equal(overview.usage.last_30_days.message_count, 3);
+    assert.equal(overview.recent_activity.length, 3);
+    assert.equal(overview.recent_activity[0].conversation_id, tenantAConversation1);
+    assert.equal(
+      overview.recent_activity.some((item) => item.conversation_id === tenantBConversation),
+      false,
+    );
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
+async function testAiConversationRetentionArchivesAndPurgesOldConversations() {
+  const previousGrace = process.env.AI_RETENTION_PURGE_GRACE_DAYS;
+  process.env.AI_RETENTION_PURGE_GRACE_DAYS = '30';
+
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  const tenantA = randomUUID();
+  const tenantB = randomUUID();
+  const tenantAUser = randomUUID();
+  const tenantBUser = randomUUID();
+  const archiveConversationId = randomUUID();
+  const purgeConversationId = randomUUID();
+  const freshConversationId = randomUUID();
+  const tenantBConversationId = randomUUID();
+
+  try {
+    await seedTenant(runner, tenantA, `ai-retention-a-${tenantA.slice(0, 8)}`, 'AI Retention Tenant A');
+    await seedTenant(runner, tenantB, `ai-retention-b-${tenantB.slice(0, 8)}`, 'AI Retention Tenant B');
+    const tenantARoleId = await seedRole(runner, tenantA, 'AI Administrator');
+    const tenantBRoleId = await seedRole(runner, tenantB, 'Member');
+    await seedUser(runner, tenantA, tenantAUser, `retention-a-${tenantA.slice(0, 8)}@example.com`, tenantARoleId);
+    await seedUser(runner, tenantB, tenantBUser, `retention-b-${tenantB.slice(0, 8)}@example.com`, tenantBRoleId);
+
+    await setCurrentTenant(runner, tenantA);
+    await runner.query(
+      `INSERT INTO ai_settings (
+         tenant_id, chat_enabled, mcp_enabled, conversation_retention_days, web_enrichment_enabled, created_at, updated_at
+       )
+       VALUES ($1, false, false, 7, false, now(), now())`,
+      [tenantA],
+    );
+    await runner.query(
+      `INSERT INTO ai_conversations (id, tenant_id, user_id, title, provider, model, created_at, updated_at, archived_at)
+       VALUES
+         ($1, $2, $3, 'Archive candidate', 'openai', 'gpt-4o-mini', now() - interval '10 days', now() - interval '10 days', NULL),
+         ($4, $2, $3, 'Purge candidate', 'openai', 'gpt-4o-mini', now() - interval '60 days', now() - interval '60 days', now() - interval '40 days'),
+         ($5, $2, $3, 'Fresh conversation', 'openai', 'gpt-4o-mini', now() - interval '1 day', now() - interval '1 day', NULL)`,
+      [archiveConversationId, tenantA, tenantAUser, purgeConversationId, freshConversationId],
+    );
+    await runner.query(
+      `INSERT INTO ai_messages (conversation_id, tenant_id, user_id, role, content, usage_json, created_at)
+       VALUES
+         ($1, $2, $3, 'assistant', 'Archive me', '{"input_tokens":5,"output_tokens":7}'::jsonb, now() - interval '9 days'),
+         ($4, $2, $3, 'assistant', 'Purge me', '{"input_tokens":8,"output_tokens":11}'::jsonb, now() - interval '59 days'),
+         ($5, $2, $3, 'assistant', 'Stay fresh', '{"input_tokens":1,"output_tokens":2}'::jsonb, now() - interval '1 day')`,
+      [archiveConversationId, tenantA, tenantAUser, purgeConversationId, freshConversationId],
+    );
+
+    await setCurrentTenant(runner, tenantB);
+    await runner.query(
+      `INSERT INTO ai_conversations (id, tenant_id, user_id, title, provider, model, created_at, updated_at, archived_at)
+       VALUES ($1, $2, $3, 'Tenant B old conversation', 'anthropic', 'claude-sonnet-4-20250514', now() - interval '60 days', now() - interval '60 days', NULL)`,
+      [tenantBConversationId, tenantB, tenantBUser],
+    );
+
+    const service = new AiConversationRetentionService(
+      dataSource,
+      { register: () => undefined } as any,
+    );
+    const summary = await service.run({ manager: runner.manager });
+
+    assert.equal(summary.tenantsProcessed, 1);
+    assert.ok(summary.archived >= 1);
+    assert.equal(summary.purged_conversations, 1);
+    assert.equal(summary.purged_messages, 1);
+    assert.deepEqual(summary.errors, []);
+
+    await setCurrentTenant(runner, tenantA);
+    const archiveRows = await runner.query(
+      `SELECT archived_at
+       FROM ai_conversations
+       WHERE id = $1`,
+      [archiveConversationId],
+    );
+    assert.equal(archiveRows.length, 1);
+    assert.equal(archiveRows[0].archived_at == null, false);
+
+    const archiveMessageRows = await runner.query(
+      `SELECT count(*)::int AS count
+       FROM ai_messages
+       WHERE conversation_id = $1`,
+      [archiveConversationId],
+    );
+    assert.equal(Number(archiveMessageRows[0].count), 1);
+
+    const purgeConversationRows = await runner.query(
+      `SELECT id
+       FROM ai_conversations
+       WHERE id = $1`,
+      [purgeConversationId],
+    );
+    assert.equal(purgeConversationRows.length, 0);
+
+    const purgeMessageRows = await runner.query(
+      `SELECT id
+       FROM ai_messages
+       WHERE conversation_id = $1`,
+      [purgeConversationId],
+    );
+    assert.equal(purgeMessageRows.length, 0);
+
+    const freshRows = await runner.query(
+      `SELECT archived_at
+       FROM ai_conversations
+       WHERE id = $1`,
+      [freshConversationId],
+    );
+    assert.equal(freshRows.length, 1);
+    assert.equal(freshRows[0].archived_at, null);
+
+    await setCurrentTenant(runner, tenantB);
+    const tenantBRows = await runner.query(
+      `SELECT archived_at
+       FROM ai_conversations
+       WHERE id = $1`,
+      [tenantBConversationId],
+    );
+    assert.equal(tenantBRows.length, 1);
+    assert.equal(tenantBRows[0].archived_at, null);
+  } finally {
+    process.env.AI_RETENTION_PURGE_GRACE_DAYS = previousGrace;
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 async function run() {
   await dataSource.initialize();
   try {
     await testAiPhase1RepairMigrationReassertsCriticalRls();
     await testAiEntityServicePhase1TenantDefenseInDepth();
     await testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScoped();
+    await testAiAdminOverviewAggregatesUsageAndIsTenantScoped();
+    await testAiConversationRetentionArchivesAndPurgesOldConversations();
     await testAiToolRegistryIsolationCoverageTracksRegisteredTools();
   } finally {
     await dataSource.destroy();

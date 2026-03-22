@@ -17,7 +17,7 @@
     "integrated-docs:verify": "ts-node ./scripts/verify-integrated-docs.ts",
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
-    "test:ai:unit": "ts-node src/common/__tests__/tenant-runner.spec.ts && ts-node src/ai/__tests__/ai-filter.adapter.spec.ts && ts-node src/ai/__tests__/ai-policy.service.spec.ts && ts-node src/ai/__tests__/ai-tool.registry.spec.ts && ts-node src/ai/__tests__/ai-system-prompt.service.spec.ts && ts-node src/ai/__tests__/mcp-api-key-auth.guard.spec.ts && ts-node src/ai/__tests__/ai-api-keys.service.spec.ts && ts-node src/ai/__tests__/ai-chat-orchestrator.service.spec.ts && ts-node src/ai/__tests__/ai-key-management.spec.ts && ts-node src/ai/__tests__/ai-controllers.spec.ts",
+    "test:ai:unit": "ts-node src/common/__tests__/tenant-runner.spec.ts && ts-node src/ai/__tests__/ai-filter.adapter.spec.ts && ts-node src/ai/__tests__/ai-policy.service.spec.ts && ts-node src/ai/__tests__/ai-tool.registry.spec.ts && ts-node src/ai/__tests__/ai-system-prompt.service.spec.ts && ts-node src/ai/__tests__/mcp-api-key-auth.guard.spec.ts && ts-node src/ai/__tests__/ai-api-keys.service.spec.ts && ts-node src/ai/__tests__/ai-chat-orchestrator.service.spec.ts && ts-node src/ai/__tests__/ai-key-management.spec.ts && ts-node src/ai/__tests__/ai-provider-test.service.spec.ts && ts-node src/ai/__tests__/ai-controllers.spec.ts",
     "test:ai:integration": "ts-node src/ai/__tests__/ai-phase0.integration.spec.ts && ts-node src/ai/__tests__/ai-phase1.integration.spec.ts",
     "test:ai": "npm run test:ai:unit && npm run test:ai:integration",
     "test:tenant-isolation": "ts-node ./scripts/tenant-isolation-audit.ts",

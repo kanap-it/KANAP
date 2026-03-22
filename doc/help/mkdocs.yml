@@ -154,6 +154,7 @@ nav:
   - On-Premise:
     - Overview: on-premise/index.md
     - Installation: on-premise/installation.md
+    - "Installation Example (Ubuntu)": on-premise/installation-example.md
     - Configuration: on-premise/configuration.md
     - Operations: on-premise/operations.md
     - Microsoft Entra SSO: on-premise/sso-entra.md

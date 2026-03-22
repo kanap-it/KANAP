@@ -2,6 +2,76 @@ import { getAccessToken } from '../auth/accessTokenStore';
 import api from '../api';
 import { ChatStreamEvent, AiApiKeyRecord, ChatConversation } from './aiTypes';
 
+export type ProviderDescriptor = {
+  id: string;
+  label: string;
+  description: string;
+  capabilities: {
+    supportsStreaming: boolean;
+    supportsToolCalling: boolean;
+    requiresApiKey: boolean;
+    allowsCustomEndpoint: boolean;
+  };
+};
+
+export type AiSettingsPayload = {
+  instance_features: { ai_chat: boolean; ai_mcp: boolean; ai_settings: boolean };
+  settings: {
+    chat_enabled: boolean;
+    mcp_enabled: boolean;
+    llm_provider: string | null;
+    llm_endpoint_url: string | null;
+    llm_model: string | null;
+    mcp_key_max_lifetime_days: number | null;
+    conversation_retention_days: number | null;
+    web_enrichment_enabled: boolean;
+    has_llm_api_key: boolean;
+    provider_secret_writable: boolean;
+    provider_validation_errors: string[];
+    chat_ready: boolean;
+    created_at: string;
+    updated_at: string;
+  };
+  available_providers: ProviderDescriptor[];
+};
+
+export type AiProviderTestResult = {
+  ok: boolean;
+  provider: string | null;
+  model: string | null;
+  latency_ms: number | null;
+  message: string;
+  validation_errors: string[];
+};
+
+export type AiUsageWindow = {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  message_count: number;
+};
+
+export type AiAdminOverview = {
+  totals: {
+    conversations_all: number;
+    conversations_7d: number;
+    conversations_30d: number;
+    active_users_30d: number;
+  };
+  usage: {
+    current_month: AiUsageWindow;
+    last_30_days: AiUsageWindow;
+  };
+  recent_activity: Array<{
+    conversation_id: string;
+    title: string | null;
+    user_id: string | null;
+    provider: string | null;
+    model: string | null;
+    updated_at: string;
+  }>;
+};
+
 function getBaseURL(): string {
   const env = import.meta.env.VITE_API_URL as string | undefined;
   if (!env) return 'http://localhost:8080';
@@ -79,6 +149,25 @@ export const aiConversationsApi = {
   },
   async archive(id: string) {
     const res = await api.delete(`/ai/conversations/${id}`);
+    return res.data;
+  },
+};
+
+export const aiAdminApi = {
+  async getSettings(): Promise<AiSettingsPayload> {
+    const res = await api.get('/ai/settings');
+    return res.data;
+  },
+  async updateSettings(payload: Record<string, unknown>): Promise<{ settings: AiSettingsPayload['settings'] }> {
+    const res = await api.patch('/ai/settings', payload);
+    return res.data;
+  },
+  async testProvider(payload: Record<string, unknown>): Promise<AiProviderTestResult> {
+    const res = await api.post('/ai/settings/test-provider', payload);
+    return res.data;
+  },
+  async getOverview(): Promise<AiAdminOverview> {
+    const res = await api.get('/ai/admin/overview');
     return res.data;
   },
 };

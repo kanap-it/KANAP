@@ -20,6 +20,7 @@ type SearchRow = {
   status: string | null;
   updated_at: Date | string | null;
   score?: number;
+  metadata?: Record<string, string | number | null> | null;
 };
 
 function buildRequestSummarySql(alias: string): string {
@@ -43,6 +44,42 @@ function buildProjectSummarySql(alias: string): string {
       THEN CONCAT('Target end: ', ${alias}.planned_end::text)
       ELSE NULL
     END
+  ), '')`;
+}
+
+function buildUserNameSql(alias: string): string {
+  return `COALESCE(NULLIF(TRIM(CONCAT(${alias}.first_name, ' ', ${alias}.last_name)), ''), ${alias}.email)`;
+}
+
+function buildContributorNamesSql(
+  entityAlias: string,
+  teamTable: 'portfolio_project_team' | 'portfolio_request_team',
+  teamAlias: string,
+  entityColumn: 'project_id' | 'request_id',
+): string {
+  return `COALESCE((
+    SELECT string_agg(contributor.name, ', ' ORDER BY contributor.name)
+    FROM (
+      SELECT DISTINCT ${buildUserNameSql('u_tm')} AS name
+      FROM ${teamTable} ${teamAlias}
+      JOIN users u_tm ON u_tm.id = ${teamAlias}.user_id AND u_tm.tenant_id = ${entityAlias}.tenant_id
+      WHERE ${teamAlias}.${entityColumn} = ${entityAlias}.id
+        AND ${teamAlias}.tenant_id = ${entityAlias}.tenant_id
+    ) contributor
+  ), '')`;
+}
+
+function buildApplicationOwnerNamesSql(alias: string, ownerType: 'business' | 'it'): string {
+  return `COALESCE((
+    SELECT string_agg(owner.name, ', ' ORDER BY owner.name)
+    FROM (
+      SELECT DISTINCT ${buildUserNameSql('u_owner')} AS name
+      FROM application_owners ao
+      JOIN users u_owner ON u_owner.id = ao.user_id AND u_owner.tenant_id = ${alias}.tenant_id
+      WHERE ao.application_id = ${alias}.id
+        AND ao.tenant_id = ${alias}.tenant_id
+        AND ao.owner_type = '${ownerType}'
+    ) owner
   ), '')`;
 }
 
@@ -81,6 +118,34 @@ function toSummary(
     summary: row.summary ?? null,
     updated_at: toIso(row.updated_at),
     match_context: matchContext ?? null,
+    metadata: row.metadata ?? null,
+  };
+}
+
+function toContextEntityBase(
+  type: AiContextEntityType,
+  row: SearchRow,
+  matchContext?: string | null,
+): Omit<AiEntitySummaryDto, 'metadata'> {
+  const { metadata: _metadata, ...entity } = toSummary(type, row, matchContext);
+  return entity;
+}
+
+function personDisplayName(row: any): string | null {
+  if (!row) return null;
+  if (typeof row === 'string') {
+    const trimmed = row.trim();
+    return trimmed || null;
+  }
+  const combined = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
+  return combined || row.name || row.email || null;
+}
+
+function toPersonMetadata(row: any): { id: string | null; name: string | null; email: string | null } {
+  return {
+    id: row?.id ?? row?.user_id ?? null,
+    name: personDisplayName(row),
+    email: row?.email ?? null,
   };
 }
 
@@ -105,12 +170,14 @@ export class AiEntityService {
     limit: number,
   ) {
     const like = `%${query}%`;
+    const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT a.id,
               a.name AS label,
               a.description AS summary,
               a.status,
               a.updated_at,
+              ${itOwnerNamesSql} AS it_owner_names,
               CASE
                 WHEN a.name ILIKE $1 THEN 3
                 WHEN COALESCE(a.description, '') ILIKE $1 THEN 2
@@ -134,13 +201,22 @@ export class AiEntityService {
            OR COALESCE(a.data_class, '') ILIKE $1
            OR COALESCE(a.hosting_model, '') ILIKE $1
            OR COALESCE(s.name, '') ILIKE $1
+           OR ${itOwnerNamesSql} ILIKE $1
          )
        ORDER BY score DESC, a.updated_at DESC, a.name ASC
        LIMIT $3`,
       [like, context.tenantId, limit],
     );
 
-    return rows.map((row) => ({ ...toSummary('applications', row, row.summary), _score: row.score ?? 1 }));
+    return rows.map((row: any) => ({
+      ...toSummary('applications', {
+        ...row,
+        metadata: {
+          it_owner: row.it_owner_names || null,
+        },
+      }, row.summary),
+      _score: row.score ?? 1,
+    }));
   }
 
   private async searchAssets(
@@ -194,6 +270,7 @@ export class AiEntityService {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
     const summarySql = buildProjectSummarySql('p');
+    const contributorNamesSql = buildContributorNamesSql('p', 'portfolio_project_team', 'pt', 'project_id');
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT p.id,
               p.item_number,
@@ -201,6 +278,9 @@ export class AiEntityService {
               ${summarySql} AS summary,
               p.status,
               p.updated_at,
+              ${buildUserNameSql('u_bl')} AS business_lead_name,
+              ${buildUserNameSql('u_il')} AS it_lead_name,
+              ${contributorNamesSql} AS contributor_names,
               CASE
                 WHEN $1::int IS NOT NULL AND p.item_number = $1 THEN 4
                 WHEN p.name ILIKE $2 THEN 3
@@ -211,10 +291,10 @@ export class AiEntityService {
        LEFT JOIN portfolio_streams ps ON ps.id = p.stream_id AND ps.tenant_id = $3
        LEFT JOIN companies co ON co.id = p.company_id AND co.tenant_id = $3
        LEFT JOIN departments dep ON dep.id = p.department_id AND dep.tenant_id = $3
-       LEFT JOIN users u_bs ON u_bs.id = p.business_sponsor_id
-       LEFT JOIN users u_bl ON u_bl.id = p.business_lead_id
-       LEFT JOIN users u_is ON u_is.id = p.it_sponsor_id
-       LEFT JOIN users u_il ON u_il.id = p.it_lead_id
+       LEFT JOIN users u_bs ON u_bs.id = p.business_sponsor_id AND u_bs.tenant_id = p.tenant_id
+       LEFT JOIN users u_bl ON u_bl.id = p.business_lead_id AND u_bl.tenant_id = p.tenant_id
+       LEFT JOIN users u_is ON u_is.id = p.it_sponsor_id AND u_is.tenant_id = p.tenant_id
+       LEFT JOIN users u_il ON u_il.id = p.it_lead_id AND u_il.tenant_id = p.tenant_id
        WHERE p.tenant_id = $3
          AND (
            ($1::int IS NOT NULL AND p.item_number = $1)
@@ -226,15 +306,17 @@ export class AiEntityService {
            OR COALESCE(ps.name, '') ILIKE $2
            OR COALESCE(co.name, '') ILIKE $2
            OR COALESCE(dep.name, '') ILIKE $2
-           OR CONCAT_WS(' ', u_bs.first_name, u_bs.last_name) ILIKE $2
-           OR CONCAT_WS(' ', u_bl.first_name, u_bl.last_name) ILIKE $2
-           OR CONCAT_WS(' ', u_is.first_name, u_is.last_name) ILIKE $2
-           OR CONCAT_WS(' ', u_il.first_name, u_il.last_name) ILIKE $2
+           OR ${buildUserNameSql('u_bs')} ILIKE $2
+           OR ${buildUserNameSql('u_bl')} ILIKE $2
+           OR ${buildUserNameSql('u_is')} ILIKE $2
+           OR ${buildUserNameSql('u_il')} ILIKE $2
            OR EXISTS (
-             SELECT 1 FROM portfolio_project_team pt
-             JOIN users u_tm ON u_tm.id = pt.user_id
-             WHERE pt.project_id = p.id AND pt.tenant_id = $3
-               AND CONCAT_WS(' ', u_tm.first_name, u_tm.last_name) ILIKE $2
+             SELECT 1
+             FROM portfolio_project_team pt
+             JOIN users u_tm ON u_tm.id = pt.user_id AND u_tm.tenant_id = p.tenant_id
+             WHERE pt.project_id = p.id
+               AND pt.tenant_id = p.tenant_id
+               AND ${buildUserNameSql('u_tm')} ILIKE $2
            )
          )
        ORDER BY score DESC, p.updated_at DESC, p.name ASC
@@ -242,7 +324,17 @@ export class AiEntityService {
       [ref, like, context.tenantId, limit],
     );
 
-    return rows.map((row) => ({ ...toSummary('projects', row, row.summary), _score: row.score ?? 1 }));
+    return rows.map((row: any) => ({
+      ...toSummary('projects', {
+        ...row,
+        metadata: {
+          business_lead: row.business_lead_name || null,
+          it_lead: row.it_lead_name || null,
+          contributors: row.contributor_names || null,
+        },
+      }, row.summary),
+      _score: row.score ?? 1,
+    }));
   }
 
   private async searchRequests(
@@ -253,6 +345,7 @@ export class AiEntityService {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
     const summarySql = buildRequestSummarySql('r');
+    const contributorNamesSql = buildContributorNamesSql('r', 'portfolio_request_team', 'rt', 'request_id');
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT r.id,
               r.item_number,
@@ -260,6 +353,10 @@ export class AiEntityService {
               ${summarySql} AS summary,
               r.status,
               r.updated_at,
+              ${buildUserNameSql('u_req')} AS requestor_name,
+              ${buildUserNameSql('u_bl')} AS business_lead_name,
+              ${buildUserNameSql('u_il')} AS it_lead_name,
+              ${contributorNamesSql} AS contributor_names,
               CASE
                 WHEN $1::int IS NOT NULL AND r.item_number = $1 THEN 4
                 WHEN r.name ILIKE $2 THEN 3
@@ -270,11 +367,11 @@ export class AiEntityService {
        LEFT JOIN portfolio_streams ps ON ps.id = r.stream_id AND ps.tenant_id = $3
        LEFT JOIN companies co ON co.id = r.company_id AND co.tenant_id = $3
        LEFT JOIN departments dep ON dep.id = r.department_id AND dep.tenant_id = $3
-       LEFT JOIN users u_req ON u_req.id = r.requestor_id
-       LEFT JOIN users u_bs ON u_bs.id = r.business_sponsor_id
-       LEFT JOIN users u_bl ON u_bl.id = r.business_lead_id
-       LEFT JOIN users u_is ON u_is.id = r.it_sponsor_id
-       LEFT JOIN users u_il ON u_il.id = r.it_lead_id
+       LEFT JOIN users u_req ON u_req.id = r.requestor_id AND u_req.tenant_id = r.tenant_id
+       LEFT JOIN users u_bs ON u_bs.id = r.business_sponsor_id AND u_bs.tenant_id = r.tenant_id
+       LEFT JOIN users u_bl ON u_bl.id = r.business_lead_id AND u_bl.tenant_id = r.tenant_id
+       LEFT JOIN users u_is ON u_is.id = r.it_sponsor_id AND u_is.tenant_id = r.tenant_id
+       LEFT JOIN users u_il ON u_il.id = r.it_lead_id AND u_il.tenant_id = r.tenant_id
        WHERE r.tenant_id = $3
          AND (
            ($1::int IS NOT NULL AND r.item_number = $1)
@@ -287,16 +384,18 @@ export class AiEntityService {
            OR COALESCE(ps.name, '') ILIKE $2
            OR COALESCE(co.name, '') ILIKE $2
            OR COALESCE(dep.name, '') ILIKE $2
-           OR CONCAT_WS(' ', u_req.first_name, u_req.last_name) ILIKE $2
-           OR CONCAT_WS(' ', u_bs.first_name, u_bs.last_name) ILIKE $2
-           OR CONCAT_WS(' ', u_bl.first_name, u_bl.last_name) ILIKE $2
-           OR CONCAT_WS(' ', u_is.first_name, u_is.last_name) ILIKE $2
-           OR CONCAT_WS(' ', u_il.first_name, u_il.last_name) ILIKE $2
+           OR ${buildUserNameSql('u_req')} ILIKE $2
+           OR ${buildUserNameSql('u_bs')} ILIKE $2
+           OR ${buildUserNameSql('u_bl')} ILIKE $2
+           OR ${buildUserNameSql('u_is')} ILIKE $2
+           OR ${buildUserNameSql('u_il')} ILIKE $2
            OR EXISTS (
-             SELECT 1 FROM portfolio_request_team rt
-             JOIN users u_tm ON u_tm.id = rt.user_id
-             WHERE rt.request_id = r.id AND rt.tenant_id = $3
-               AND CONCAT_WS(' ', u_tm.first_name, u_tm.last_name) ILIKE $2
+             SELECT 1
+             FROM portfolio_request_team rt
+             JOIN users u_tm ON u_tm.id = rt.user_id AND u_tm.tenant_id = r.tenant_id
+             WHERE rt.request_id = r.id
+               AND rt.tenant_id = r.tenant_id
+               AND ${buildUserNameSql('u_tm')} ILIKE $2
            )
          )
        ORDER BY score DESC, r.updated_at DESC, r.name ASC
@@ -304,7 +403,18 @@ export class AiEntityService {
       [ref, like, context.tenantId, limit],
     );
 
-    return rows.map((row) => ({ ...toSummary('requests', row, row.summary), _score: row.score ?? 1 }));
+    return rows.map((row: any) => ({
+      ...toSummary('requests', {
+        ...row,
+        metadata: {
+          requestor: row.requestor_name || null,
+          business_lead: row.business_lead_name || null,
+          it_lead: row.it_lead_name || null,
+          contributors: row.contributor_names || null,
+        },
+      }, row.summary),
+      _score: row.score ?? 1,
+    }));
   }
 
   private async searchTasks(
@@ -321,13 +431,16 @@ export class AiEntityService {
               t.description AS summary,
               t.status,
               t.updated_at,
+              ${buildUserNameSql('u_assign')} AS assignee_name,
+              ${buildUserNameSql('u_creator')} AS creator_name,
               CASE
                 WHEN $1::int IS NOT NULL AND t.item_number = $1 THEN 4
                 WHEN COALESCE(t.title, '') ILIKE $2 THEN 3
                 ELSE 1
               END AS score
        FROM tasks t
-       LEFT JOIN users u_assign ON u_assign.id = t.assignee_user_id
+       LEFT JOIN users u_assign ON u_assign.id = t.assignee_user_id AND u_assign.tenant_id = t.tenant_id
+       LEFT JOIN users u_creator ON u_creator.id = t.creator_id AND u_creator.tenant_id = t.tenant_id
        LEFT JOIN portfolio_task_types tt ON tt.id = t.task_type_id AND tt.tenant_id = $3
        LEFT JOIN companies co ON co.id = t.company_id AND co.tenant_id = $3
        LEFT JOIN portfolio_categories pc ON pc.id = t.category_id AND pc.tenant_id = $3
@@ -344,7 +457,8 @@ export class AiEntityService {
            OR COALESCE(t.status, '') ILIKE $2
            OR COALESCE(t.priority_level, '') ILIKE $2
            OR COALESCE(t.related_object_type, '') ILIKE $2
-           OR CONCAT_WS(' ', u_assign.first_name, u_assign.last_name) ILIKE $2
+           OR ${buildUserNameSql('u_assign')} ILIKE $2
+           OR ${buildUserNameSql('u_creator')} ILIKE $2
            OR COALESCE(tt.name, '') ILIKE $2
            OR COALESCE(co.name, '') ILIKE $2
            OR COALESCE(pc.name, '') ILIKE $2
@@ -360,7 +474,16 @@ export class AiEntityService {
       [ref, like, context.tenantId, limit],
     );
 
-    return rows.map((row) => ({ ...toSummary('tasks', row, row.summary), _score: row.score ?? 1 }));
+    return rows.map((row: any) => ({
+      ...toSummary('tasks', {
+        ...row,
+        metadata: {
+          assignee: row.assignee_name || null,
+          creator: row.creator_name || null,
+        },
+      }, row.summary),
+      _score: row.score ?? 1,
+    }));
   }
 
   private async listApplications(context: AiExecutionContextWithManager) {
@@ -462,7 +585,7 @@ export class AiEntityService {
               t.priority_level
        FROM tasks t
        LEFT JOIN portfolio_task_types tt ON tt.id = t.task_type_id AND tt.tenant_id = $1
-       LEFT JOIN users u_assign ON u_assign.id = t.assignee_user_id
+       LEFT JOIN users u_assign ON u_assign.id = t.assignee_user_id AND u_assign.tenant_id = t.tenant_id
        LEFT JOIN portfolio_projects rel_proj ON rel_proj.id = t.related_object_id AND t.related_object_type = 'project' AND rel_proj.tenant_id = $1
        LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $1
        LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $1
@@ -628,7 +751,7 @@ export class AiEntityService {
       throw new NotFoundException('Application not found.');
     }
 
-    const [requestRows, projectRows, relatedApplicationRows, assetRows] = await Promise.all([
+    const [requestRows, projectRows, relatedApplicationRows, assetRows, ownerRows] = await Promise.all([
       manager.query<SearchRow[]>(
         `SELECT r.id, r.item_number, r.name AS label, ${requestSummarySql} AS summary, r.status, r.updated_at
          FROM portfolio_request_applications l
@@ -671,11 +794,23 @@ export class AiEntityService {
          ORDER BY a.updated_at DESC`,
         [applicationId, tenantId],
       ),
+      manager.query<any[]>(
+        `SELECT ao.owner_type, ao.user_id, u.email, u.first_name, u.last_name
+         FROM application_owners ao
+         JOIN users u ON u.id = ao.user_id AND u.tenant_id = ao.tenant_id
+         WHERE ao.application_id = $1
+           AND ao.tenant_id = $2
+         ORDER BY ao.owner_type ASC, u.last_name ASC NULLS LAST, u.first_name ASC NULLS LAST, u.email ASC NULLS LAST`,
+        [applicationId, tenantId],
+      ),
     ]);
+
+    const businessOwners = ownerRows.filter((row) => row.owner_type === 'business').map((row) => toPersonMetadata(row));
+    const itOwners = ownerRows.filter((row) => row.owner_type === 'it').map((row) => toPersonMetadata(row));
 
     return {
       entity: {
-        ...toSummary('applications', {
+        ...toContextEntityBase('applications', {
           id: application.id,
           label: application.name,
           summary: application.description,
@@ -688,6 +823,8 @@ export class AiEntityService {
           editor: application.editor,
           criticality: application.criticality,
           hosting_model: application.hosting_model,
+          business_owners: businessOwners,
+          it_owners: itOwners,
         },
       },
       related: [
@@ -804,9 +941,18 @@ export class AiEntityService {
               r.status,
               r.updated_at,
               r.target_delivery_date,
+              r.requestor_id,
+              ${buildUserNameSql('u_req')} AS requestor_name,
+              r.business_lead_id,
+              ${buildUserNameSql('u_bl')} AS business_lead_name,
+              r.it_lead_id,
+              ${buildUserNameSql('u_il')} AS it_lead_name,
               CASE WHEN ot.id IS NOT NULL THEN CONCAT('T-', ot.item_number, ' ', COALESCE(ot.title, 'Untitled task')) ELSE NULL END AS origin_task_ref
        FROM portfolio_requests r
        LEFT JOIN tasks ot ON ot.id = r.origin_task_id AND ot.tenant_id = $2
+       LEFT JOIN users u_req ON u_req.id = r.requestor_id AND u_req.tenant_id = r.tenant_id
+       LEFT JOIN users u_bl ON u_bl.id = r.business_lead_id AND u_bl.tenant_id = r.tenant_id
+       LEFT JOIN users u_il ON u_il.id = r.it_lead_id AND u_il.tenant_id = r.tenant_id
        WHERE r.id = $1
          AND r.tenant_id = $2
        LIMIT 1`,
@@ -817,7 +963,7 @@ export class AiEntityService {
       throw new NotFoundException('Request not found.');
     }
 
-    const [projectRows, dependencyRows, applicationRows, assetRows] = await Promise.all([
+    const [projectRows, dependencyRows, applicationRows, assetRows, contributorRows] = await Promise.all([
       manager.query<SearchRow[]>(
         `SELECT p.id, p.item_number, p.name AS label, ${projectSummarySql} AS summary, p.status, p.updated_at
          FROM portfolio_request_projects rp
@@ -865,6 +1011,15 @@ export class AiEntityService {
          ORDER BY a.updated_at DESC`,
         [requestId, tenantId],
       ),
+      manager.query<any[]>(
+        `SELECT rt.user_id, u.email, u.first_name, u.last_name
+         FROM portfolio_request_team rt
+         JOIN users u ON u.id = rt.user_id AND u.tenant_id = rt.tenant_id
+         WHERE rt.request_id = $1
+           AND rt.tenant_id = $2
+         ORDER BY u.last_name ASC NULLS LAST, u.first_name ASC NULLS LAST, u.email ASC NULLS LAST`,
+        [requestId, tenantId],
+      ),
     ]);
 
     const dependencyItems = dependencyRows.flatMap((row) => {
@@ -894,7 +1049,7 @@ export class AiEntityService {
 
     return {
       entity: {
-        ...toSummary('requests', {
+        ...toContextEntityBase('requests', {
           id: request.id,
           item_number: request.item_number,
           label: request.name,
@@ -907,6 +1062,10 @@ export class AiEntityService {
           expected_benefits: request.expected_benefits ?? null,
           target_delivery_date: request.target_delivery_date ?? null,
           origin_task: request.origin_task_ref ?? null,
+          requestor: request.requestor_id ? toPersonMetadata({ id: request.requestor_id, name: request.requestor_name }) : null,
+          business_lead: request.business_lead_id ? toPersonMetadata({ id: request.business_lead_id, name: request.business_lead_name }) : null,
+          it_lead: request.it_lead_id ? toPersonMetadata({ id: request.it_lead_id, name: request.it_lead_name }) : null,
+          contributors: contributorRows.map((row) => toPersonMetadata(row)),
         },
       },
       related: [
@@ -935,8 +1094,14 @@ export class AiEntityService {
               p.planned_start,
               p.planned_end,
               p.actual_start,
-              p.actual_end
+              p.actual_end,
+              p.business_lead_id,
+              ${buildUserNameSql('u_bl')} AS business_lead_name,
+              p.it_lead_id,
+              ${buildUserNameSql('u_il')} AS it_lead_name
        FROM portfolio_projects p
+       LEFT JOIN users u_bl ON u_bl.id = p.business_lead_id AND u_bl.tenant_id = p.tenant_id
+       LEFT JOIN users u_il ON u_il.id = p.it_lead_id AND u_il.tenant_id = p.tenant_id
        WHERE p.id = $1
          AND p.tenant_id = $2
        LIMIT 1`,
@@ -947,7 +1112,7 @@ export class AiEntityService {
       throw new NotFoundException('Project not found.');
     }
 
-    const [requestRows, dependencyRows, applicationRows, assetRows] = await Promise.all([
+    const [requestRows, dependencyRows, applicationRows, assetRows, contributorRows] = await Promise.all([
       manager.query<SearchRow[]>(
         `SELECT r.id, r.item_number, r.name AS label, ${requestSummarySql} AS summary, r.status, r.updated_at
          FROM portfolio_request_projects rp
@@ -984,11 +1149,20 @@ export class AiEntityService {
          ORDER BY a.updated_at DESC`,
         [projectId, tenantId],
       ),
+      manager.query<any[]>(
+        `SELECT pt.user_id, u.email, u.first_name, u.last_name
+         FROM portfolio_project_team pt
+         JOIN users u ON u.id = pt.user_id AND u.tenant_id = pt.tenant_id
+         WHERE pt.project_id = $1
+           AND pt.tenant_id = $2
+         ORDER BY u.last_name ASC NULLS LAST, u.first_name ASC NULLS LAST, u.email ASC NULLS LAST`,
+        [projectId, tenantId],
+      ),
     ]);
 
     return {
       entity: {
-        ...toSummary('projects', {
+        ...toContextEntityBase('projects', {
           id: project.id,
           item_number: project.item_number,
           label: project.name,
@@ -1003,6 +1177,9 @@ export class AiEntityService {
           planned_end: project.planned_end ?? null,
           actual_start: project.actual_start ?? null,
           actual_end: project.actual_end ?? null,
+          business_lead: project.business_lead_id ? toPersonMetadata({ id: project.business_lead_id, name: project.business_lead_name }) : null,
+          it_lead: project.it_lead_id ? toPersonMetadata({ id: project.it_lead_id, name: project.it_lead_name }) : null,
+          contributors: contributorRows.map((row) => toPersonMetadata(row)),
         },
       },
       related: [
@@ -1027,7 +1204,10 @@ export class AiEntityService {
               t.related_object_type,
               t.related_object_id,
               t.assignee_user_id,
-              CONCAT_WS(' ', u_assign.first_name, u_assign.last_name) AS assignee_name,
+              ${buildUserNameSql('u_assign')} AS assignee_name,
+              t.creator_id,
+              ${buildUserNameSql('u_creator')} AS creator_name,
+              u_creator.email AS creator_email,
               t.priority_level,
               tt.name AS task_type_name,
               COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description) AS related_object_name,
@@ -1039,7 +1219,8 @@ export class AiEntityService {
               pr.updated_at AS converted_request_updated_at
        FROM tasks t
        LEFT JOIN portfolio_task_types tt ON tt.id = t.task_type_id AND tt.tenant_id = $2
-       LEFT JOIN users u_assign ON u_assign.id = t.assignee_user_id
+       LEFT JOIN users u_assign ON u_assign.id = t.assignee_user_id AND u_assign.tenant_id = t.tenant_id
+       LEFT JOIN users u_creator ON u_creator.id = t.creator_id AND u_creator.tenant_id = t.tenant_id
        LEFT JOIN portfolio_projects rel_proj ON rel_proj.id = t.related_object_id AND t.related_object_type = 'project' AND rel_proj.tenant_id = $2
        LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $2
        LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $2
@@ -1091,7 +1272,7 @@ export class AiEntityService {
 
     return {
       entity: {
-        ...toSummary('tasks', {
+        ...toContextEntityBase('tasks', {
           id: task.id,
           item_number: task.item_number,
           label: task.title,
@@ -1104,6 +1285,7 @@ export class AiEntityService {
           related_to: task.related_object_type ?? null,
           related_object_name: task.related_object_name ?? null,
           assignee: task.assignee_name || null,
+          creator: task.creator_id ? toPersonMetadata({ id: task.creator_id, name: task.creator_name, email: task.creator_email }) : null,
           priority_level: task.priority_level ?? null,
         },
       },

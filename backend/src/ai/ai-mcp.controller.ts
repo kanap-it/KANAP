@@ -1,7 +1,8 @@
-import { Controller, Delete, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { validate as isUuid } from 'uuid';
 import { SkipTenantTransaction } from '../common/skip-tenant-transaction.decorator';
 import { McpApiKeyAuthGuard } from './auth/mcp-api-key-auth.guard';
 import { AiToolRegistry } from './ai-tool.registry';
@@ -16,9 +17,17 @@ export class AiMcpController {
     private readonly tenantExecutor: AiTenantExecutionService,
   ) {}
 
+  private requireTenantId(req: Request): string {
+    const tenantId = (req as any)?.tenant?.id;
+    if (typeof tenantId !== 'string' || tenantId.trim() === '' || !isUuid(tenantId)) {
+      throw new UnauthorizedException('Invalid tenant context.');
+    }
+    return tenantId;
+  }
+
   private buildContext(req: Request): AiExecutionContext {
     return {
-      tenantId: String((req as any)?.tenant?.id || ''),
+      tenantId: this.requireTenantId(req),
       userId: String((req as any)?.user?.sub || ''),
       isPlatformHost: (req as any)?.isPlatformHost === true,
       surface: 'mcp',

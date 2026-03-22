@@ -5,7 +5,8 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
   const client = new OpenAI({
     apiKey: params.apiKey || 'unused',
     ...(params.endpointUrl ? { baseURL: params.endpointUrl } : {}),
-    timeout: 120_000,
+    timeout: params.timeoutMs ?? 120_000,
+    maxRetries: params.maxRetries ?? 2,
   });
 
   const tools: OpenAI.ChatCompletionTool[] = params.tools.map((t) => ({

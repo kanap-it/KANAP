@@ -22,6 +22,15 @@ export interface AiProviderSettingsSnapshot {
   has_llm_api_key: boolean;
 }
 
+export type AiProviderTestResult = {
+  ok: boolean;
+  provider: string | null;
+  model: string | null;
+  latency_ms: number | null;
+  message: string;
+  validation_errors: string[];
+};
+
 export type AiProviderMessage = {
   role: 'user' | 'assistant' | 'tool';
   content: string;
@@ -49,6 +58,8 @@ export type AiStreamParams = {
   messages: AiProviderMessage[];
   tools: AiProviderToolDef[];
   maxTokens: number;
+  timeoutMs?: number;
+  maxRetries?: number;
 };
 
 export type AiStreamEvent =

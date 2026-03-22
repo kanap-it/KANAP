@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { validate as isUuid } from 'uuid';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SkipTenantTransaction } from '../common/skip-tenant-transaction.decorator';
 import { Features } from '../config/features';
 import { AiPolicyService } from './ai-policy.service';
+import { AiProviderTestService } from './ai-provider-test.service';
 import { AiSettingsService } from './ai-settings.service';
 import { UpdateAiSettingsDto } from './dto/update-ai-settings.dto';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
@@ -17,12 +19,21 @@ export class AiSettingsController {
     private readonly tenantExecutor: AiTenantExecutionService,
     private readonly policy: AiPolicyService,
     private readonly settingsService: AiSettingsService,
+    private readonly providerTest: AiProviderTestService,
     private readonly providerRegistry: AiProviderRegistry,
   ) {}
 
+  private requireTenantId(req: any): string {
+    const tenantId = req?.tenant?.id;
+    if (typeof tenantId !== 'string' || tenantId.trim() === '' || !isUuid(tenantId)) {
+      throw new UnauthorizedException('Invalid tenant context.');
+    }
+    return tenantId;
+  }
+
   private buildContext(req: any): AiExecutionContext {
     return {
-      tenantId: String(req?.tenant?.id || ''),
+      tenantId: this.requireTenantId(req),
       userId: String(req?.user?.sub || ''),
       isPlatformHost: req?.isPlatformHost === true,
       surface: 'chat',
@@ -69,6 +80,27 @@ export class AiSettingsController {
         };
       },
       { transaction: true },
+    );
+  }
+
+  @Post('test-provider')
+  async testProvider(
+    @Body() body: {
+      llm_provider?: string | null;
+      llm_model?: string | null;
+      llm_endpoint_url?: string | null;
+      llm_api_key?: string | null;
+    },
+    @Req() req: any,
+  ) {
+    const context = this.buildContext(req);
+    return this.tenantExecutor.run(
+      context.tenantId,
+      async (manager) => {
+        await this.policy.assertSettingsAccess(context, manager);
+        return this.providerTest.testProvider(context.tenantId, body, { manager });
+      },
+      { transaction: false },
     );
   }
 }

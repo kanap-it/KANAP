@@ -31,7 +31,11 @@ export class AnthropicAiProviderAdapter implements AiProviderAdapter {
   }
 
   async *createStream(params: AiStreamParams): AsyncGenerator<AiStreamEvent> {
-    const client = new Anthropic({ apiKey: params.apiKey || '' });
+    const client = new Anthropic({
+      apiKey: params.apiKey || '',
+      timeout: params.timeoutMs ?? 120_000,
+      maxRetries: params.maxRetries ?? 2,
+    });
 
     const messages: Anthropic.MessageParam[] = [];
     for (const msg of params.messages) {

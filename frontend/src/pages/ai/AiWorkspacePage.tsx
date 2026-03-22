@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Box, Divider, IconButton, Stack, Typography } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -21,6 +21,15 @@ export default function AiWorkspacePage() {
   const inputRef = useRef<ChatInputHandle>(null);
 
   const isEmpty = chat.messages.length === 0;
+
+  // Auto-focus input when AI finishes responding
+  const wasStreamingRef = useRef(false);
+  useEffect(() => {
+    if (wasStreamingRef.current && !chat.isStreaming) {
+      inputRef.current?.focus();
+    }
+    wasStreamingRef.current = chat.isStreaming;
+  }, [chat.isStreaming]);
 
   const handleSelect = useCallback(
     (id: string) => {

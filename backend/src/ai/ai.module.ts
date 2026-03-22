@@ -25,7 +25,10 @@ import { AiEntityService } from './ai-entity.service';
 import { AiMcpController } from './ai-mcp.controller';
 import { AiMessage } from './ai-message.entity';
 import { AiPolicyService } from './ai-policy.service';
+import { AiProviderTestService } from './ai-provider-test.service';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
+import { AiAdminOverviewController } from './ai-admin-overview.controller';
+import { AiAdminOverviewService } from './ai-admin-overview.service';
 import { AiSettingsController } from './ai-settings.controller';
 import { AiSettings } from './ai-settings.entity';
 import { AiSettingsService } from './ai-settings.service';
@@ -66,6 +69,7 @@ import { AiQueryExecutor } from './query/ai-query.executor';
   controllers: [
     AiCapabilitiesController,
     AiSettingsController,
+    AiAdminOverviewController,
     AiChatController,
     AiConversationsController,
     AiApiKeysController,
@@ -81,9 +85,11 @@ import { AiQueryExecutor } from './query/ai-query.executor';
     CustomAiProviderAdapter,
     AiProviderRegistry,
     AiSettingsService,
+    AiAdminOverviewService,
     AiApiKeysService,
     AiConversationService,
     AiPolicyService,
+    AiProviderTestService,
     AiEntityService,
     AiQueryExecutor,
     AiAggregateExecutor,
@@ -96,9 +102,11 @@ import { AiQueryExecutor } from './query/ai-query.executor';
     AiTenantExecutionService,
     AiProviderRegistry,
     AiSettingsService,
+    AiAdminOverviewService,
     AiApiKeysService,
     AiConversationService,
     AiPolicyService,
+    AiProviderTestService,
     AiEntityService,
     AiQueryExecutor,
     AiAggregateExecutor,

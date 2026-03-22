@@ -139,6 +139,24 @@ const compileDateFilterCondition = (
   }
 };
 
+const buildUserDisplayNameSql = (userIdExpression: string, tenantIdExpression: string): string => `COALESCE((
+  SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email)
+  FROM users u
+  WHERE u.id = ${userIdExpression}
+    AND u.tenant_id = ${tenantIdExpression}
+), '')`;
+
+const buildProjectContributorNamesSql = (alias: string): string => `COALESCE((
+  SELECT string_agg(contributor.name, ', ' ORDER BY contributor.name)
+  FROM (
+    SELECT DISTINCT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) AS name
+    FROM portfolio_project_team pt
+    JOIN users u ON u.id = pt.user_id AND u.tenant_id = ${alias}.tenant_id
+    WHERE pt.project_id = ${alias}.id
+      AND pt.tenant_id = ${alias}.tenant_id
+  ) contributor
+), '')`;
+
 /**
  * Service for listing and filtering portfolio projects.
  */
@@ -207,6 +225,21 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
         textExpression: `COALESCE((SELECT c.name FROM companies c WHERE c.id = p.company_id), '')`,
         dataType: 'string',
       },
+      business_lead_name: {
+        expression: 'p.business_lead_id',
+        textExpression: buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
+        dataType: 'string',
+      },
+      it_lead_name: {
+        expression: 'p.it_lead_id',
+        textExpression: buildUserDisplayNameSql('p.it_lead_id', 'p.tenant_id'),
+        dataType: 'string',
+      },
+      contributor_name: {
+        expression: 'p.id',
+        textExpression: buildProjectContributorNamesSql('p'),
+        dataType: 'string',
+      },
     };
 
     // Compile AG Grid filters
@@ -238,6 +271,9 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       `(SELECT cat.name FROM portfolio_categories cat WHERE cat.id = p.category_id)`,
       `(SELECT s.name FROM portfolio_streams s WHERE s.id = p.stream_id)`,
       `(SELECT c.name FROM companies c WHERE c.id = p.company_id)`,
+      buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
+      buildUserDisplayNameSql('p.it_lead_id', 'p.tenant_id'),
+      buildProjectContributorNamesSql('p'),
     ];
     const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
 
@@ -292,7 +328,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     const items = await qb.getMany();
 
     // Enrich with related data if requested
-    if (items.length > 0 && (include.has('company') || include.has('source_requests') || include.has('classification'))) {
+    if (items.length > 0 && (include.has('company') || include.has('source_requests') || include.has('classification') || include.has('sponsors') || include.has('team'))) {
       await this.enrichItems(items, include as Set<string>, mg);
     }
 
@@ -385,6 +421,55 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
         });
       }
     }
+
+    if (include.has('sponsors') || include.has('team')) {
+      const tenantIds = [...new Set(items.map((item: any) => item.tenant_id).filter(Boolean))] as string[];
+      const userIds = [...new Set(items.flatMap((item) => [
+        item.business_sponsor_id,
+        item.business_lead_id,
+        item.it_sponsor_id,
+        item.it_lead_id,
+      ]).filter(Boolean))] as string[];
+
+      if (userIds.length > 0) {
+        const users = await mg.query(
+          `SELECT id, email, first_name, last_name FROM users WHERE id = ANY($1) AND tenant_id = ANY($2)`,
+          [userIds, tenantIds],
+        );
+        const userMap = Object.fromEntries(users.map((user: any) => [user.id, user]));
+        items.forEach((item: any) => {
+          item.business_sponsor = item.business_sponsor_id ? userMap[item.business_sponsor_id] || null : null;
+          item.business_lead = item.business_lead_id ? userMap[item.business_lead_id] || null : null;
+          item.it_sponsor = item.it_sponsor_id ? userMap[item.it_sponsor_id] || null : null;
+          item.it_lead = item.it_lead_id ? userMap[item.it_lead_id] || null : null;
+        });
+      }
+    }
+
+    if (include.has('team')) {
+      const teamRows = await mg.query(
+        `SELECT pt.project_id, pt.role, pt.user_id, u.email, u.first_name, u.last_name
+         FROM portfolio_project_team pt
+         JOIN users u ON u.id = pt.user_id AND u.tenant_id = pt.tenant_id
+         WHERE pt.project_id = ANY($1)
+         ORDER BY u.last_name ASC NULLS LAST, u.first_name ASC NULLS LAST, u.email ASC NULLS LAST`,
+        [ids],
+      );
+
+      const teamsByProject = new Map<string, { business: any[]; it: any[] }>();
+      for (const row of teamRows) {
+        const entry = teamsByProject.get(row.project_id) ?? { business: [], it: [] };
+        if (row.role === 'business_team') entry.business.push(row);
+        if (row.role === 'it_team') entry.it.push(row);
+        teamsByProject.set(row.project_id, entry);
+      }
+
+      items.forEach((item: any) => {
+        const teams = teamsByProject.get(item.id) ?? { business: [], it: [] };
+        item.business_team = teams.business;
+        item.it_team = teams.it;
+      });
+    }
   }
 
   /**
@@ -440,6 +525,21 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
         textExpression: `COALESCE((SELECT c.name FROM companies c WHERE c.id = p.company_id), '')`,
         dataType: 'string',
       },
+      business_lead_name: {
+        expression: 'p.business_lead_id',
+        textExpression: buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
+        dataType: 'string',
+      },
+      it_lead_name: {
+        expression: 'p.it_lead_id',
+        textExpression: buildUserDisplayNameSql('p.it_lead_id', 'p.tenant_id'),
+        dataType: 'string',
+      },
+      contributor_name: {
+        expression: 'p.id',
+        textExpression: buildProjectContributorNamesSql('p'),
+        dataType: 'string',
+      },
     };
 
     // Compile AG Grid filters
@@ -467,6 +567,9 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       'p.name',
       'p.status',
       'p.origin',
+      buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
+      buildUserDisplayNameSql('p.it_lead_id', 'p.tenant_id'),
+      buildProjectContributorNamesSql('p'),
     ];
     const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
 
@@ -523,7 +626,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     const fm = filters && typeof filters === 'object' ? filters : undefined;
 
     const rawFields = String(query?.fields || query?.field || '').split(',').map((f) => f.trim()).filter(Boolean);
-    const allowed = new Set(['status', 'origin', 'source_name', 'category_name', 'stream_name', 'company_name']);
+    const allowed = new Set(['status', 'origin', 'source_name', 'category_name', 'stream_name', 'company_name', 'business_lead_name', 'it_lead_name', 'contributor_name']);
     const fields = rawFields.filter((field) => allowed.has(field));
     if (fields.length === 0) return {};
 
@@ -564,6 +667,21 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
         textExpression: `COALESCE((SELECT c.name FROM companies c WHERE c.id = p.company_id), '')`,
         dataType: 'string',
       },
+      business_lead_name: {
+        expression: 'p.business_lead_id',
+        textExpression: buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
+        dataType: 'string',
+      },
+      it_lead_name: {
+        expression: 'p.it_lead_id',
+        textExpression: buildUserDisplayNameSql('p.it_lead_id', 'p.tenant_id'),
+        dataType: 'string',
+      },
+      contributor_name: {
+        expression: 'p.id',
+        textExpression: buildProjectContributorNamesSql('p'),
+        dataType: 'string',
+      },
     };
 
     const valueExpressions: Record<string, string> = {
@@ -573,6 +691,8 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       category_name: `(SELECT cat.name FROM portfolio_categories cat WHERE cat.id = p.category_id)`,
       stream_name: `(SELECT s.name FROM portfolio_streams s WHERE s.id = p.stream_id)`,
       company_name: `(SELECT c.name FROM companies c WHERE c.id = p.company_id)`,
+      business_lead_name: buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
+      it_lead_name: buildUserDisplayNameSql('p.it_lead_id', 'p.tenant_id'),
     };
 
     const quickSearchExpressions = [
@@ -583,6 +703,9 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       `(SELECT cat.name FROM portfolio_categories cat WHERE cat.id = p.category_id)`,
       `(SELECT s.name FROM portfolio_streams s WHERE s.id = p.stream_id)`,
       `(SELECT c.name FROM companies c WHERE c.id = p.company_id)`,
+      buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
+      buildUserDisplayNameSql('p.it_lead_id', 'p.tenant_id'),
+      buildProjectContributorNamesSql('p'),
     ];
 
     for (const field of fields) {
@@ -622,6 +745,17 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
 
       if (!hasStatusFilter && query?.status !== 'all' && field !== 'status') {
         qb.andWhere(`p.status <> :excludedStatus`, { excludedStatus: 'done' });
+      }
+
+      if (field === 'contributor_name') {
+        const contributorRows = await qb
+          .innerJoin('portfolio_project_team', 'pt', 'pt.project_id = p.id AND pt.tenant_id = p.tenant_id')
+          .innerJoin('users', 'u_team', 'u_team.id = pt.user_id AND u_team.tenant_id = p.tenant_id')
+          .select(`DISTINCT COALESCE(NULLIF(TRIM(CONCAT(u_team.first_name, ' ', u_team.last_name)), ''), u_team.email)`, 'value')
+          .orderBy('value', 'ASC')
+          .getRawMany();
+        results[field] = contributorRows.map((row: any) => row.value);
+        continue;
       }
 
       const expr = valueExpressions[field];

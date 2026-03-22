@@ -73,6 +73,16 @@ export const applicationsRegistry: AiEntityFilterRegistry = {
       sortable: true,
       groupable: true,
     },
+    it_owner: {
+      ai: 'it_owner',
+      grid: 'owners_it',
+      type: 'text',
+      description: 'IT owner display names.',
+      dynamic: true,
+      discoverable: true,
+      sortable: false,
+      groupable: false,
+    },
   },
   sortFields: {
     label: 'name',

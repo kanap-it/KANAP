@@ -64,44 +64,91 @@ docker compose -f infra/compose.onprem.yml logs -f api
 ## Reverse Proxy Example (nginx)
 
 **Reverse proxy requirements:**
+
 1. Terminate TLS on port 443
-2. Route `/api/*` to `api:8080`
-3. Route all other requests to `web:80`
-4. Set `X-Forwarded-Proto: https`
-5. Preserve `Host` (and ideally `X-Forwarded-Host`) for correct email links
+2. Route `/api/*` to the API container (port 8080)
+3. Route all other requests to the web container (port 80)
+4. Set `X-Forwarded-Proto: https` and preserve `Host` / `X-Forwarded-Host`
+5. Support WebSocket upgrade (used by real-time features)
+
+Since containers bind to `127.0.0.1`, nginx runs on the same host and proxies to `localhost`.
 
 ```nginx
 server {
     listen 443 ssl;
+    listen [::]:443 ssl;
     server_name kanap.company.com;
 
     ssl_certificate     /path/to/fullchain.pem;
     ssl_certificate_key /path/to/privkey.pem;
 
-    # File upload limit (KANAP supports up to 20MB)
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    # File upload limit (KANAP supports up to 20 MB)
     client_max_body_size 20m;
 
-    location /api/ {
-        proxy_pass http://api:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Host $host;
+    # Canonicalize /api → /api/
+    location = /api { return 301 /api/; }
+
+    # API: strip /api prefix before proxying
+    location ^~ /api/ {
+        proxy_pass http://127.0.0.1:8080/;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Long-running requests (exports, imports)
+        proxy_read_timeout  300s;
+        proxy_send_timeout  300s;
+        proxy_redirect off;
     }
 
+    # Everything else → SPA
     location / {
-        proxy_pass http://web:80;
-        proxy_set_header Host $host;
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_redirect off;
     }
 }
 
 server {
     listen 80;
+    listen [::]:80;
     server_name kanap.company.com;
     return 301 https://$host$request_uri;
 }
 ```
+
+**Self-signed TLS (no domain):** If you don't have a domain and access KANAP by IP address, generate a self-signed certificate:
+
+```bash
+sudo mkdir -p /etc/ssl/kanap
+sudo openssl req -x509 -nodes -days 365 \
+  -newkey rsa:2048 \
+  -keyout /etc/ssl/kanap/server.key \
+  -out /etc/ssl/kanap/server.crt \
+  -subj "/CN=YOUR_IP" \
+  -addext "subjectAltName=IP:YOUR_IP"
+```
+
+Replace `YOUR_IP` with your server's IP and update `server_name`, `APP_BASE_URL`, and `CORS_ORIGINS` accordingly. Users will need to accept the browser certificate warning on first access.
+
+**`host.docker.internal`:** When PostgreSQL or S3 storage runs on the Docker host (not in a container), use `host.docker.internal` as the hostname in `DATABASE_URL` and `S3_ENDPOINT`. The `compose.onprem.yml` file includes the `extra_hosts` mapping that makes this work.
 
 ## Network Architecture
 

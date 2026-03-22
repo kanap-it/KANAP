@@ -39,6 +39,37 @@ function scalar(value: unknown): string | number | null {
   return String(value);
 }
 
+function displayName(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || null;
+  }
+  if (typeof value !== 'object') return null;
+
+  const row = value as {
+    name?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+  };
+  if (typeof row.name === 'string' && row.name.trim()) return row.name.trim();
+  const combined = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
+  return combined || row.email || null;
+}
+
+function joinDisplayNames(values: unknown[]): string | null {
+  const names = Array.from(new Set(values.map((value) => displayName(value)).filter((value): value is string => !!value)));
+  return names.length > 0 ? names.join(', ') : null;
+}
+
+function extractContributorNames(row: any): string | null {
+  return joinDisplayNames([
+    ...(Array.isArray(row?.business_team) ? row.business_team : []),
+    ...(Array.isArray(row?.it_team) ? row.it_team : []),
+  ]);
+}
+
 function toEntitySummary(
   entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
   row: {
@@ -110,17 +141,17 @@ export class AiQueryExecutor {
     if (Object.keys(adapted.filters).length > 0) query.filters = adapted.filters;
 
     if (entityType === 'projects') {
-      query.include = 'classification,company';
+      query.include = 'classification,company,sponsors,team';
       if (!Object.prototype.hasOwnProperty.call(adapted.filters, 'status')) {
         query.status = 'all';
       }
     } else if (entityType === 'requests') {
-      query.include = 'classification,company,requestor';
+      query.include = 'classification,company,requestor,sponsors,team';
       if (!Object.prototype.hasOwnProperty.call(adapted.filters, 'status')) {
         query.status = 'all';
       }
     } else if (entityType === 'applications') {
-      query.include = 'supplier';
+      query.include = 'supplier,owners';
       query.include_inactive = true;
     }
 
@@ -151,6 +182,7 @@ export class AiQueryExecutor {
       updated_at: row.updated_at ?? null,
       metadata: {
         assignee: scalar(row.assignee_name),
+        creator: scalar(row.creator_name),
         priority: scalar(row.priority_level),
         type: scalar(row.task_type_name),
         related: scalar(row.related_object_type),
@@ -176,6 +208,9 @@ export class AiQueryExecutor {
         category: scalar(row.category_name),
         stream: scalar(row.stream_name),
         company: scalar(row.company?.name ?? row.company_name),
+        business_lead: scalar(displayName(row.business_lead) ?? row.business_lead_name),
+        it_lead: scalar(displayName(row.it_lead) ?? row.it_lead_name),
+        contributors: scalar(extractContributorNames(row)),
         execution_progress: scalar(row.execution_progress),
         planned_start: scalar(row.planned_start),
         planned_end: scalar(row.planned_end),
@@ -192,10 +227,13 @@ export class AiQueryExecutor {
       summary: row.current_situation ?? row.expected_benefits ?? null,
       updated_at: row.updated_at ?? null,
       metadata: {
-        requestor: scalar(row.requestor_name),
+        requestor: scalar(displayName(row.requestor) ?? row.requestor_name),
         category: scalar(row.category_name),
         stream: scalar(row.stream_name),
         company: scalar(row.company?.name ?? row.company_name),
+        business_lead: scalar(displayName(row.business_lead) ?? row.business_lead_name),
+        it_lead: scalar(displayName(row.it_lead) ?? row.it_lead_name),
+        contributors: scalar(extractContributorNames(row)),
         target_date: scalar(row.target_delivery_date),
       },
     });
@@ -215,6 +253,7 @@ export class AiQueryExecutor {
         hosting_model: scalar(row.hosting_model),
         data_class: scalar(row.data_class),
         supplier: scalar(row.supplier_name),
+        it_owner: scalar(joinDisplayNames(Array.isArray(row.owners_it) ? row.owners_it : [])),
       },
     });
   }

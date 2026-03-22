@@ -184,6 +184,24 @@ const compileDateFilterCondition = (
   }
 };
 
+const buildUserDisplayNameSql = (userIdExpression: string, tenantIdExpression: string): string => `COALESCE((
+  SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email)
+  FROM users u
+  WHERE u.id = ${userIdExpression}
+    AND u.tenant_id = ${tenantIdExpression}
+), '')`;
+
+const buildRequestContributorNamesSql = (alias: string): string => `COALESCE((
+  SELECT string_agg(contributor.name, ', ' ORDER BY contributor.name)
+  FROM (
+    SELECT DISTINCT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) AS name
+    FROM portfolio_request_team rt
+    JOIN users u ON u.id = rt.user_id AND u.tenant_id = ${alias}.tenant_id
+    WHERE rt.request_id = ${alias}.id
+      AND rt.tenant_id = ${alias}.tenant_id
+  ) contributor
+), '')`;
+
 @Injectable()
 export class PortfolioRequestsService {
   constructor(
@@ -261,6 +279,21 @@ export class PortfolioRequestsService {
         textExpression: `COALESCE((SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id), '')`,
         dataType: 'string',
       },
+      business_lead_name: {
+        expression: 'r.business_lead_id',
+        textExpression: buildUserDisplayNameSql('r.business_lead_id', 'r.tenant_id'),
+        dataType: 'string',
+      },
+      it_lead_name: {
+        expression: 'r.it_lead_id',
+        textExpression: buildUserDisplayNameSql('r.it_lead_id', 'r.tenant_id'),
+        dataType: 'string',
+      },
+      contributor_name: {
+        expression: 'r.id',
+        textExpression: buildRequestContributorNamesSql('r'),
+        dataType: 'string',
+      },
     };
 
     // Compile AG Grid filters
@@ -292,6 +325,9 @@ export class PortfolioRequestsService {
       `(SELECT s.name FROM portfolio_streams s WHERE s.id = r.stream_id)`,
       `(SELECT c.name FROM companies c WHERE c.id = r.company_id)`,
       `(SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id)`,
+      buildUserDisplayNameSql('r.business_lead_id', 'r.tenant_id'),
+      buildUserDisplayNameSql('r.it_lead_id', 'r.tenant_id'),
+      buildRequestContributorNamesSql('r'),
     ];
     const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
 
@@ -343,7 +379,7 @@ export class PortfolioRequestsService {
     const items = await qb.getMany();
 
     // Enrich with related data if requested
-    if (items.length > 0 && (include.has('company') || include.has('requestor') || include.has('classification'))) {
+    if (items.length > 0 && (include.has('company') || include.has('requestor') || include.has('classification') || include.has('sponsors') || include.has('team'))) {
       await this.enrichItems(items, include as Set<string>, mg);
     }
 
@@ -404,6 +440,21 @@ export class PortfolioRequestsService {
         textExpression: `COALESCE((SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id), '')`,
         dataType: 'string',
       },
+      business_lead_name: {
+        expression: 'r.business_lead_id',
+        textExpression: buildUserDisplayNameSql('r.business_lead_id', 'r.tenant_id'),
+        dataType: 'string',
+      },
+      it_lead_name: {
+        expression: 'r.it_lead_id',
+        textExpression: buildUserDisplayNameSql('r.it_lead_id', 'r.tenant_id'),
+        dataType: 'string',
+      },
+      contributor_name: {
+        expression: 'r.id',
+        textExpression: buildRequestContributorNamesSql('r'),
+        dataType: 'string',
+      },
     };
 
     // Compile AG Grid filters
@@ -422,6 +473,9 @@ export class PortfolioRequestsService {
     const quickSearchExpressions = [
       'r.name',
       'r.status',
+      buildUserDisplayNameSql('r.business_lead_id', 'r.tenant_id'),
+      buildUserDisplayNameSql('r.it_lead_id', 'r.tenant_id'),
+      buildRequestContributorNamesSql('r'),
     ];
     const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
 
@@ -476,7 +530,7 @@ export class PortfolioRequestsService {
     const fm = filters && typeof filters === 'object' ? filters : undefined;
 
     const rawFields = String(query?.fields || query?.field || '').split(',').map((f) => f.trim()).filter(Boolean);
-    const allowed = new Set(['status', 'source_name', 'category_name', 'stream_name', 'company_name', 'requestor_name']);
+    const allowed = new Set(['status', 'source_name', 'category_name', 'stream_name', 'company_name', 'requestor_name', 'business_lead_name', 'it_lead_name', 'contributor_name']);
     const fields = rawFields.filter((field) => allowed.has(field));
     if (fields.length === 0) return {};
 
@@ -522,6 +576,21 @@ export class PortfolioRequestsService {
         textExpression: `COALESCE((SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id), '')`,
         dataType: 'string',
       },
+      business_lead_name: {
+        expression: 'r.business_lead_id',
+        textExpression: buildUserDisplayNameSql('r.business_lead_id', 'r.tenant_id'),
+        dataType: 'string',
+      },
+      it_lead_name: {
+        expression: 'r.it_lead_id',
+        textExpression: buildUserDisplayNameSql('r.it_lead_id', 'r.tenant_id'),
+        dataType: 'string',
+      },
+      contributor_name: {
+        expression: 'r.id',
+        textExpression: buildRequestContributorNamesSql('r'),
+        dataType: 'string',
+      },
     };
 
     const valueExpressions: Record<string, string> = {
@@ -531,6 +600,8 @@ export class PortfolioRequestsService {
       stream_name: `(SELECT s.name FROM portfolio_streams s WHERE s.id = r.stream_id)`,
       company_name: `(SELECT c.name FROM companies c WHERE c.id = r.company_id)`,
       requestor_name: `(SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id)`,
+      business_lead_name: buildUserDisplayNameSql('r.business_lead_id', 'r.tenant_id'),
+      it_lead_name: buildUserDisplayNameSql('r.it_lead_id', 'r.tenant_id'),
     };
 
     const quickSearchExpressions = [
@@ -541,6 +612,9 @@ export class PortfolioRequestsService {
       `(SELECT s.name FROM portfolio_streams s WHERE s.id = r.stream_id)`,
       `(SELECT c.name FROM companies c WHERE c.id = r.company_id)`,
       `(SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id)`,
+      buildUserDisplayNameSql('r.business_lead_id', 'r.tenant_id'),
+      buildUserDisplayNameSql('r.it_lead_id', 'r.tenant_id'),
+      buildRequestContributorNamesSql('r'),
     ];
 
     for (const field of fields) {
@@ -589,6 +663,17 @@ export class PortfolioRequestsService {
 
       if (!hasStatusFilter && query?.status !== 'all' && field !== 'status') {
         qb.andWhere(`r.status <> :excludedStatus`, { excludedStatus: 'converted' });
+      }
+
+      if (field === 'contributor_name') {
+        const contributorRows = await qb
+          .innerJoin('portfolio_request_team', 'rt', 'rt.request_id = r.id AND rt.tenant_id = r.tenant_id')
+          .innerJoin('users', 'u_team', 'u_team.id = rt.user_id AND u_team.tenant_id = r.tenant_id')
+          .select(`DISTINCT COALESCE(NULLIF(TRIM(CONCAT(u_team.first_name, ' ', u_team.last_name)), ''), u_team.email)`, 'value')
+          .orderBy('value', 'ASC')
+          .getRawMany();
+        results[field] = contributorRows.map((row: any) => row.value);
+        continue;
       }
 
       const expr = valueExpressions[field];
@@ -686,6 +771,57 @@ export class PortfolioRequestsService {
         });
       }
     }
+
+    if (include.has('sponsors') || include.has('team')) {
+      const tenantIds = [...new Set(items.map((item: any) => item.tenant_id).filter(Boolean))] as string[];
+      const userIds = [...new Set(items.flatMap((item) => [
+        item.requestor_id,
+        item.business_sponsor_id,
+        item.business_lead_id,
+        item.it_sponsor_id,
+        item.it_lead_id,
+      ]).filter(Boolean))] as string[];
+
+      if (userIds.length > 0) {
+        const users = await mg.query(
+          `SELECT id, email, first_name, last_name FROM users WHERE id = ANY($1) AND tenant_id = ANY($2)`,
+          [userIds, tenantIds],
+        );
+        const userMap = Object.fromEntries(users.map((user: any) => [user.id, user]));
+        items.forEach((item: any) => {
+          item.requestor = item.requestor_id ? userMap[item.requestor_id] || null : null;
+          item.business_sponsor = item.business_sponsor_id ? userMap[item.business_sponsor_id] || null : null;
+          item.business_lead = item.business_lead_id ? userMap[item.business_lead_id] || null : null;
+          item.it_sponsor = item.it_sponsor_id ? userMap[item.it_sponsor_id] || null : null;
+          item.it_lead = item.it_lead_id ? userMap[item.it_lead_id] || null : null;
+        });
+      }
+    }
+
+    if (include.has('team')) {
+      const teamRows = await mg.query(
+        `SELECT rt.request_id, rt.role, rt.user_id, u.email, u.first_name, u.last_name
+         FROM portfolio_request_team rt
+         JOIN users u ON u.id = rt.user_id AND u.tenant_id = rt.tenant_id
+         WHERE rt.request_id = ANY($1)
+         ORDER BY u.last_name ASC NULLS LAST, u.first_name ASC NULLS LAST, u.email ASC NULLS LAST`,
+        [ids],
+      );
+
+      const teamsByRequest = new Map<string, { business: any[]; it: any[] }>();
+      for (const row of teamRows) {
+        const entry = teamsByRequest.get(row.request_id) ?? { business: [], it: [] };
+        if (row.role === 'business_team') entry.business.push(row);
+        if (row.role === 'it_team') entry.it.push(row);
+        teamsByRequest.set(row.request_id, entry);
+      }
+
+      items.forEach((item: any) => {
+        const teams = teamsByRequest.get(item.id) ?? { business: [], it: [] };
+        item.business_team = teams.business;
+        item.it_team = teams.it;
+      });
+    }
   }
 
   // ==================== GET ====================
@@ -708,7 +844,7 @@ export class PortfolioRequestsService {
       const team = await mg.query(
         `SELECT rt.*, u.email, u.first_name, u.last_name
          FROM portfolio_request_team rt
-         JOIN users u ON u.id = rt.user_id
+         JOIN users u ON u.id = rt.user_id AND u.tenant_id = rt.tenant_id
          WHERE rt.request_id = $1`,
         [id]
       );
@@ -728,8 +864,8 @@ export class PortfolioRequestsService {
 
       if (userIds.length > 0) {
         const users = await mg.query(
-          `SELECT id, email, first_name, last_name FROM users WHERE id = ANY($1)`,
-          [userIds]
+          `SELECT id, email, first_name, last_name FROM users WHERE id = ANY($1) AND tenant_id = $2`,
+          [userIds, request.tenant_id]
         );
         const userMap = Object.fromEntries(users.map((u: any) => [u.id, u]));
         result.requestor = request.requestor_id ? userMap[request.requestor_id] : null;

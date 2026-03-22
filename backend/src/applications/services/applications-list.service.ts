@@ -105,6 +105,18 @@ const buildActiveInstanceCondition = (alias = 'ai') => {
   )`;
 };
 
+const buildApplicationOwnerNamesSql = (ownerType: 'business' | 'it', alias = 'a'): string => `COALESCE((
+  SELECT string_agg(owner.name, ', ' ORDER BY owner.name)
+  FROM (
+    SELECT DISTINCT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) AS name
+    FROM application_owners o
+    LEFT JOIN users u ON u.id = o.user_id AND u.tenant_id = ${alias}.tenant_id
+    WHERE o.application_id = ${alias}.id
+      AND o.tenant_id = ${alias}.tenant_id
+      AND o.owner_type = '${ownerType}'
+  ) owner
+), '')`;
+
 const compileEnvironmentsSetFilter = (model: any, nextParam: ParamNameFactory): CompiledCondition | null => {
   const normalized = normalizeSetFilterModel(model);
   if (!normalized) return null;
@@ -217,8 +229,8 @@ export class ApplicationsListService extends ApplicationsBaseService {
     targets['contracts_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_contracts l WHERE l.application_id = a.id)`, dataType: 'number' };
     targets['suites_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_suites l WHERE l.application_id = a.id)`, dataType: 'number' };
     targets['components_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_suites l WHERE l.suite_id = a.id)`, dataType: 'number' };
-    targets['owners_business'] = { expression: 'a.id', textExpression: `COALESCE((SELECT string_agg(COALESCE(NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)), ''), u.email), ',') FROM application_owners o LEFT JOIN users u ON u.id = o.user_id WHERE o.application_id = a.id AND o.owner_type = 'business'), '')`, dataType: 'string' };
-    targets['owners_it'] = { expression: 'a.id', textExpression: `COALESCE((SELECT string_agg(COALESCE(NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)), ''), u.email), ',') FROM application_owners o LEFT JOIN users u ON u.id = o.user_id WHERE o.application_id = a.id AND o.owner_type = 'it'), '')`, dataType: 'string' };
+    targets['owners_business'] = { expression: 'a.id', textExpression: buildApplicationOwnerNamesSql('business'), dataType: 'string' };
+    targets['owners_it'] = { expression: 'a.id', textExpression: buildApplicationOwnerNamesSql('it'), dataType: 'string' };
     targets['data_residency'] = { expression: 'a.id', textExpression: `COALESCE((SELECT string_agg(dr.country_iso, ',') FROM application_data_residency dr WHERE dr.application_id = a.id), '')`, dataType: 'string' };
     targets['hosting_types'] = {
       expression: 'a.id',
@@ -230,7 +242,6 @@ export class ApplicationsListService extends ApplicationsBaseService {
         WHERE ai.application_id = a.id AND l.hosting_type IS NOT NULL), '')`,
       dataType: 'string',
     };
-
     const lifecycleFilterPresent = !!(fm && Object.prototype.hasOwnProperty.call(fm, 'lifecycle'));
 
     const nextParam = createParamNameGenerator('p');
@@ -257,7 +268,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
         if (cond) compiledFilters.push(cond);
       }
     }
-    const quickSearch = q ? buildQuickSearchConditions(q, ['a.name'], nextParam) : [];
+    const quickSearch = q ? buildQuickSearchConditions(q, ['a.name', buildApplicationOwnerNamesSql('it')], nextParam) : [];
 
     const applyCompiledFilters = (builder: ReturnType<typeof repo.createQueryBuilder>) => {
       compiledFilters.forEach((c) => {
@@ -281,7 +292,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     // Count query
     const qbBase = repo.createQueryBuilder('a');
-    if (needsSupplierJoin) qbBase.leftJoin('suppliers', 's', 's.id = a.supplier_id');
+    if (needsSupplierJoin) qbBase.leftJoin('suppliers', 's', 's.id = a.supplier_id AND s.tenant_id = a.tenant_id');
     if (!includeInactive) {
       qbBase.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
     }
@@ -294,7 +305,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     // Page query
     const qb = repo.createQueryBuilder('a');
     if (needsSupplierJoin) {
-      qb.leftJoin('suppliers', 's', 's.id = a.supplier_id');
+      qb.leftJoin('suppliers', 's', 's.id = a.supplier_id AND s.tenant_id = a.tenant_id');
       qb.addSelect('s.name', 's_name');
     }
     if (!includeInactive) {
@@ -462,7 +473,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
         if (cond) compiledFilters.push(cond);
       }
     }
-    const quickSearch = q ? buildQuickSearchConditions(q, ['a.name'], nextParam) : [];
+    const quickSearch = q ? buildQuickSearchConditions(q, ['a.name', buildApplicationOwnerNamesSql('it')], nextParam) : [];
 
     // Build query
     const qb = repo.createQueryBuilder('a').select('a.id');
@@ -528,6 +539,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       'hosting_model',
       'hosting_types',
       'supplier_name',
+      'owners_it',
       'external_facing',
       'sso_enabled',
       'mfa_supported',
@@ -563,6 +575,11 @@ export class ApplicationsListService extends ApplicationsBaseService {
       created_at: { expression: 'a.created_at', textExpression: 'CAST(a.created_at AS TEXT)', dataType: 'string' },
       updated_at: { expression: 'a.updated_at', textExpression: 'CAST(a.updated_at AS TEXT)', dataType: 'string' },
       supplier_name: { expression: 's.name', dataType: 'string' },
+      owners_it: {
+        expression: 'a.id',
+        textExpression: buildApplicationOwnerNamesSql('it'),
+        dataType: 'string',
+      },
       environments: {
         expression: 'a.id',
         textExpression:
@@ -609,7 +626,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     ) => {
       const qb = repo.createQueryBuilder('a');
       if (needsSupplierJoin) {
-        qb.leftJoin('suppliers', 's', 's.id = a.supplier_id');
+        qb.leftJoin('suppliers', 's', 's.id = a.supplier_id AND s.tenant_id = a.tenant_id');
       }
       if (!includeInactive) {
         qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
@@ -653,7 +670,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
         }
       }
 
-      const quickSearch = q ? buildQuickSearchConditions(q, ['a.name'], nextParam) : [];
+      const quickSearch = q ? buildQuickSearchConditions(q, ['a.name', buildApplicationOwnerNamesSql('it')], nextParam) : [];
       const baseQb = buildBaseQuery(filtersForField, lifecycleFilterPresent, field === 'lifecycle', needsSupplierJoin);
       applyCompiledFilters(baseQb, compiledFilters);
       applyQuickSearch(baseQb, quickSearch);
@@ -677,6 +694,17 @@ export class ApplicationsListService extends ApplicationsBaseService {
         qb.leftJoin('locations', 'l', 'l.id = ast.location_id');
         qb.andWhere('l.hosting_type IS NOT NULL');
         qb.select('DISTINCT l.hosting_type', 'value');
+        qb.orderBy('value', 'ASC');
+        const rows = await qb.getRawMany();
+        results[field] = rows.map((r: any) => r.value);
+        continue;
+      }
+
+      if (field === 'owners_it') {
+        const qb = baseQb.clone();
+        qb.innerJoin('application_owners', 'ao', `ao.application_id = a.id AND ao.tenant_id = a.tenant_id AND ao.owner_type = 'it'`);
+        qb.innerJoin('users', 'u_owner', 'u_owner.id = ao.user_id AND u_owner.tenant_id = a.tenant_id');
+        qb.select(`DISTINCT COALESCE(NULLIF(TRIM(CONCAT(u_owner.first_name, ' ', u_owner.last_name)), ''), u_owner.email)`, 'value');
         qb.orderBy('value', 'ASC');
         const rows = await qb.getRawMany();
         results[field] = rows.map((r: any) => r.value);
@@ -747,7 +775,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
         await mg.query(
           `SELECT o.application_id, u.first_name, u.last_name, u.email, o.owner_type
            FROM application_owners o
-           LEFT JOIN users u ON u.id = o.user_id
+           LEFT JOIN users u ON u.id = o.user_id AND u.tenant_id = o.tenant_id
            WHERE o.application_id = ANY($1)
            ORDER BY o.owner_type ASC, u.last_name ASC NULLS LAST, u.first_name ASC NULLS LAST, u.email ASC NULLS LAST`,
           [pageIds],
@@ -949,7 +977,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       await mg.query(
         `SELECT ao.owner_type, ao.user_id, u.first_name, u.last_name, u.email
          FROM application_owners ao
-         JOIN users u ON u.id = ao.user_id
+         JOIN users u ON u.id = ao.user_id AND u.tenant_id = ao.tenant_id
          WHERE ao.application_id = $1
          ORDER BY ao.owner_type ASC, u.last_name ASC NULLS LAST, u.first_name ASC NULLS LAST`,
         [id],

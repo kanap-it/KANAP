@@ -37,6 +37,7 @@ export interface TaskListItem {
   company_id: string | null;
   company_name: string | null;
   creator_id: string | null;
+  creator_name: string | null;
   owner_ids: string[];
   viewer_ids: string[];
   converted_request_id?: string | null;
@@ -234,9 +235,18 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
     }
   }
 
-  if (!shouldSkip('assignee_name') && filters.assignee_name?.filter) {
-    params.push(`%${filters.assignee_name.filter}%`);
-    whereConditions += ` AND (u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`;
+  if (!shouldSkip('assignee_name') && filters.assignee_name) {
+    if (!applySetFilter(filters.assignee_name, `COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email)`) && filters.assignee_name?.filter) {
+      params.push(`%${filters.assignee_name.filter}%`);
+      whereConditions += ` AND (u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`;
+    }
+  }
+
+  if (!shouldSkip('creator_name') && filters.creator_name) {
+    if (!applySetFilter(filters.creator_name, `COALESCE(NULLIF(TRIM(CONCAT(uc.first_name, ' ', uc.last_name)), ''), uc.email)`) && filters.creator_name?.filter) {
+      params.push(`%${filters.creator_name.filter}%`);
+      whereConditions += ` AND (uc.first_name ILIKE $${params.length} OR uc.last_name ILIKE $${params.length} OR uc.email ILIKE $${params.length})`;
+    }
   }
 
   if (!shouldSkip('description') && filters.description?.filter) {
@@ -260,7 +270,10 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
         pp.name ILIKE $${params.length} OR
         u.first_name ILIKE $${params.length} OR
         u.last_name ILIKE $${params.length} OR
-        u.email ILIKE $${params.length}
+        u.email ILIKE $${params.length} OR
+        uc.first_name ILIKE $${params.length} OR
+        uc.last_name ILIKE $${params.length} OR
+        uc.email ILIKE $${params.length}
       )`;
     } else {
       params.push(`%${q}%`);
@@ -272,7 +285,10 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
         pp.name ILIKE $${params.length} OR
         u.first_name ILIKE $${params.length} OR
         u.last_name ILIKE $${params.length} OR
-        u.email ILIKE $${params.length}
+        u.email ILIKE $${params.length} OR
+        uc.first_name ILIKE $${params.length} OR
+        uc.last_name ILIKE $${params.length} OR
+        uc.email ILIKE $${params.length}
       )`;
     }
   }
@@ -282,6 +298,7 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
 
 const TASK_FILTER_VALUE_FIELDS: Record<string, string> = {
   assignee_name: `COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email)`,
+  creator_name: `COALESCE(NULLIF(TRIM(CONCAT(uc.first_name, ' ', uc.last_name)), ''), uc.email)`,
   task_type_name: 'tt.name',
   status: 't.status',
   priority_level: 't.priority_level',
@@ -305,7 +322,8 @@ export class TasksService {
     const countQuery = `
       SELECT COUNT(*)::int as count
       FROM tasks t
-      LEFT JOIN users u ON t.assignee_user_id = u.id
+      LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
+      LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
       LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
       LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
       LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
@@ -333,6 +351,7 @@ export class TasksService {
       due_date: 't.due_date',
       start_date: 't.start_date',
       assignee_name: 'assignee_name',
+      creator_name: 'creator_name',
       related_object_name: 'related_object_name',
       related_object_type: 't.related_object_type',
       task_type_name: 'task_type_name',
@@ -361,6 +380,7 @@ export class TasksService {
         t.updated_at,
         t.assignee_user_id,
         COALESCE(u.first_name || ' ' || u.last_name, u.email) as assignee_name,
+        COALESCE(uc.first_name || ' ' || uc.last_name, uc.email) as creator_name,
         t.related_object_type,
         t.related_object_id,
         CASE
@@ -415,7 +435,8 @@ export class TasksService {
         pr_origin.id as converted_request_id,
         pr_origin.item_number as converted_request_item_number
       FROM tasks t
-      LEFT JOIN users u ON t.assignee_user_id = u.id
+      LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
+      LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
       LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
       LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
       LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
@@ -452,6 +473,7 @@ export class TasksService {
       due_date: 't.due_date',
       start_date: 't.start_date',
       assignee_name: 'assignee_name',
+      creator_name: 'creator_name',
       related_object_name: 'related_object_name',
       related_object_type: 't.related_object_type',
       task_type_name: 'tt.name',
@@ -490,7 +512,8 @@ export class TasksService {
             END
         END as priority_score
       FROM tasks t
-      LEFT JOIN users u ON t.assignee_user_id = u.id
+      LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
+      LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
       LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
       LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
       LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
@@ -539,7 +562,8 @@ export class TasksService {
       const distinctQuery = `
         SELECT DISTINCT ${expression} as value
         FROM tasks t
-        LEFT JOIN users u ON t.assignee_user_id = u.id
+        LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
+        LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
         LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
         LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
         LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
@@ -577,6 +601,7 @@ export class TasksService {
         t.created_at,
         t.assignee_user_id,
         COALESCE(u.first_name || ' ' || u.last_name, u.email) as assignee_name,
+        COALESCE(uc.first_name || ' ' || uc.last_name, uc.email) as creator_name,
         t.related_object_type,
         t.related_object_id,
         CASE
@@ -631,7 +656,8 @@ export class TasksService {
         pr_origin.id as converted_request_id,
         pr_origin.item_number as converted_request_item_number
       FROM tasks t
-      LEFT JOIN users u ON t.assignee_user_id = u.id
+      LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
+      LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
       LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
       LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
       LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)

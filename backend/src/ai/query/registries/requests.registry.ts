@@ -53,6 +53,36 @@ export const requestsRegistry: AiEntityFilterRegistry = {
       sortable: false,
       groupable: true,
     },
+    business_lead: {
+      ai: 'business_lead',
+      grid: 'business_lead_name',
+      type: 'set',
+      description: 'Business lead display name.',
+      dynamic: true,
+      discoverable: true,
+      sortable: false,
+      groupable: true,
+    },
+    it_lead: {
+      ai: 'it_lead',
+      grid: 'it_lead_name',
+      type: 'set',
+      description: 'IT lead display name.',
+      dynamic: true,
+      discoverable: true,
+      sortable: false,
+      groupable: true,
+    },
+    contributors: {
+      ai: 'contributors',
+      grid: 'contributor_name',
+      type: 'text',
+      description: 'Contributor display names.',
+      dynamic: true,
+      discoverable: true,
+      sortable: false,
+      groupable: false,
+    },
     target_date: {
       ai: 'target_date',
       grid: 'target_delivery_date',
@@ -100,6 +130,18 @@ export const requestsRegistry: AiEntityFilterRegistry = {
         expression: `COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email)`,
         joins: [
           `LEFT JOIN users u ON u.id = r.requestor_id AND u.tenant_id = r.tenant_id`,
+        ],
+      },
+      business_lead: {
+        expression: `COALESCE(NULLIF(TRIM(CONCAT(u_bl.first_name, ' ', u_bl.last_name)), ''), u_bl.email)`,
+        joins: [
+          `LEFT JOIN users u_bl ON u_bl.id = r.business_lead_id AND u_bl.tenant_id = r.tenant_id`,
+        ],
+      },
+      it_lead: {
+        expression: `COALESCE(NULLIF(TRIM(CONCAT(u_il.first_name, ' ', u_il.last_name)), ''), u_il.email)`,
+        joins: [
+          `LEFT JOIN users u_il ON u_il.id = r.it_lead_id AND u_il.tenant_id = r.tenant_id`,
         ],
       },
     },

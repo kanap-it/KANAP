@@ -23,6 +23,16 @@ export const tasksRegistry: AiEntityFilterRegistry = {
       sortable: true,
       groupable: true,
     },
+    creator: {
+      ai: 'creator',
+      grid: 'creator_name',
+      type: 'set',
+      description: 'Task creator display name.',
+      dynamic: true,
+      discoverable: true,
+      sortable: false,
+      groupable: true,
+    },
     priority: {
       ai: 'priority',
       grid: 'priority_level',
@@ -121,6 +131,12 @@ export const tasksRegistry: AiEntityFilterRegistry = {
         expression: `COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email)`,
         joins: [
           `LEFT JOIN users u ON u.id = t.assignee_user_id AND u.tenant_id = t.tenant_id`,
+        ],
+      },
+      creator: {
+        expression: `COALESCE(NULLIF(TRIM(CONCAT(u_creator.first_name, ' ', u_creator.last_name)), ''), u_creator.email)`,
+        joins: [
+          `LEFT JOIN users u_creator ON u_creator.id = t.creator_id AND u_creator.tenant_id = t.tenant_id`,
         ],
       },
       priority: { expression: 't.priority_level' },

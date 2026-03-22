@@ -101,7 +101,7 @@ export type AiKnowledgeContextDto = {
 };
 
 export type AiEntityContextDto = {
-  entity: AiEntitySummaryDto & {
+  entity: Omit<AiEntitySummaryDto, 'metadata'> & {
     metadata: Record<string, unknown>;
   };
   related: AiEntityRelationshipGroupDto[];

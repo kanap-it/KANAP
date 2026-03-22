@@ -133,14 +133,36 @@ export default function OverviewTab({
     [],
   );
 
-  const sourceOptionsCombined = React.useMemo(
-    () => combinedOptions(sourceServerOptions, entityOptions),
-    [combinedOptions, sourceServerOptions, entityOptions],
-  );
-  const destinationOptionsCombined = React.useMemo(
-    () => combinedOptions(destinationServerOptions, entityOptions),
-    [combinedOptions, destinationServerOptions, entityOptions],
-  );
+  const sourceOptionsCombined = React.useMemo(() => {
+    const combined = combinedOptions(sourceServerOptions, entityOptions);
+    if (data?.source_server_id && data.source_server && !combined.some((o) => o.value === data.source_server_id)) {
+      combined.push({
+        label: data.source_server.is_cluster ? `Cluster: ${data.source_server.name}` : data.source_server.name,
+        value: data.source_server.id,
+        kind: data.source_server.is_cluster ? 'cluster' : 'server',
+        isCluster: !!data.source_server.is_cluster,
+      });
+    }
+    if (data?.source_entity_code && !combined.some((o) => o.kind === 'entity' && o.value === data.source_entity_code)) {
+      combined.push({ label: data.source_entity_code, value: data.source_entity_code, kind: 'entity' });
+    }
+    return combined;
+  }, [combinedOptions, sourceServerOptions, entityOptions, data]);
+  const destinationOptionsCombined = React.useMemo(() => {
+    const combined = combinedOptions(destinationServerOptions, entityOptions);
+    if (data?.destination_server_id && data.destination_server && !combined.some((o) => o.value === data.destination_server_id)) {
+      combined.push({
+        label: data.destination_server.is_cluster ? `Cluster: ${data.destination_server.name}` : data.destination_server.name,
+        value: data.destination_server.id,
+        kind: data.destination_server.is_cluster ? 'cluster' : 'server',
+        isCluster: !!data.destination_server.is_cluster,
+      });
+    }
+    if (data?.destination_entity_code && !combined.some((o) => o.kind === 'entity' && o.value === data.destination_entity_code)) {
+      combined.push({ label: data.destination_entity_code, value: data.destination_entity_code, kind: 'entity' });
+    }
+    return combined;
+  }, [combinedOptions, destinationServerOptions, entityOptions, data]);
 
   const serversValue = (data?.servers || []) as ServerOption[];
   const multiServerOptionsMerged = React.useMemo(() => {
