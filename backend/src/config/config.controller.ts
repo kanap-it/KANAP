@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 import { Features } from './features';
 
+const SUPPORTED_LOCALES = ['en', 'fr', 'de', 'es'] as const;
+
 @Controller('config')
 export class ConfigController {
   @Get('public')
@@ -18,6 +20,7 @@ export class ConfigController {
         aiSettings: Features.AI_SETTINGS_ENABLED,
       },
       version,
+      supportedLocales: [...SUPPORTED_LOCALES],
       tenantSlug: Features.SINGLE_TENANT
         ? (process.env.DEFAULT_TENANT_SLUG || 'default').trim()
         : undefined,

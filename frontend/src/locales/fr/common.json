@@ -1,0 +1,27 @@
+{
+  "buttons": {
+    "saveChanges": "Enregistrer les modifications",
+    "reset": "Réinitialiser",
+    "chooseColumns": "Choisir les colonnes",
+    "resetColumns": "Réinitialiser les colonnes"
+  },
+  "status": {
+    "loading": "Chargement...",
+    "saving": "Enregistrement..."
+  },
+  "filters": {
+    "quickFilter": "Filtre rapide",
+    "clearQuickFilter": "Effacer le filtre rapide"
+  },
+  "labels": {
+    "show": "Afficher",
+    "all": "Tous",
+    "enabled": "Activés",
+    "disabled": "Désactivés",
+    "email": "E-mail",
+    "totalWithCount": "Total ({{count}})"
+  },
+  "messages": {
+    "loadFailed": "Échec du chargement des données"
+  }
+}

@@ -50,6 +50,9 @@ export class User {
   @Column({ type: 'text', nullable: true })
   mobile_phone!: string | null;
 
+  @Column({ type: 'varchar', length: 5, nullable: true, default: null })
+  locale!: string | null;
+
   @Column({ type: 'text', nullable: true })
   password_hash!: string | null;
 

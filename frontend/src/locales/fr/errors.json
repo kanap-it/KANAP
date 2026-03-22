@@ -1,0 +1,9 @@
+{
+  "INVALID_LOCALE": "Sélection de langue invalide.",
+  "USER_NOT_FOUND": "Utilisateur introuvable.",
+  "FORBIDDEN_PROFILE_UPDATE": "Vous pouvez uniquement mettre à jour votre propre profil.",
+  "PASSWORD_UPDATE_NOT_ALLOWED": "Les mises à jour du mot de passe ne sont pas prises en charge sur ce point d'accès.",
+  "INVALID_CREDENTIALS": "E-mail ou mot de passe invalide.",
+  "TRIAL_EXPIRED": "Votre période d'essai a expiré. Veuillez choisir une offre pour continuer.",
+  "SUBSCRIPTION_FROZEN": "Votre abonnement est suspendu."
+}

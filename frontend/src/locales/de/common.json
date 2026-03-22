@@ -1,0 +1,27 @@
+{
+  "buttons": {
+    "saveChanges": "Änderungen speichern",
+    "reset": "Zurücksetzen",
+    "chooseColumns": "Spalten auswählen",
+    "resetColumns": "Spalten zurücksetzen"
+  },
+  "status": {
+    "loading": "Wird geladen...",
+    "saving": "Wird gespeichert..."
+  },
+  "filters": {
+    "quickFilter": "Schnellfilter",
+    "clearQuickFilter": "Schnellfilter löschen"
+  },
+  "labels": {
+    "show": "Anzeigen",
+    "all": "Alle",
+    "enabled": "Aktiv",
+    "disabled": "Deaktiviert",
+    "email": "E-Mail",
+    "totalWithCount": "Gesamt ({{count}})"
+  },
+  "messages": {
+    "loadFailed": "Daten konnten nicht geladen werden"
+  }
+}

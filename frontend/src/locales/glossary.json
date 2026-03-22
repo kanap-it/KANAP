@@ -1,0 +1,16 @@
+{
+  "_meta": "Feed this file to AI when generating translations. Listed terms must use these exact translations.",
+  "terms": {
+    "OPEX": { "fr": "OPEX", "de": "OPEX", "es": "OPEX", "note": "Keep as-is, industry acronym" },
+    "CAPEX": { "fr": "CAPEX", "de": "CAPEX", "es": "CAPEX" },
+    "request": { "fr": "demande", "de": "Anfrage", "es": "solicitud", "note": "Portfolio context" },
+    "contributor": { "fr": "contributeur", "de": "Mitwirkender", "es": "colaborador" },
+    "supplier": { "fr": "fournisseur", "de": "Lieferant", "es": "proveedor" },
+    "chart of accounts": { "fr": "plan comptable", "de": "Kontenplan", "es": "plan de cuentas" },
+    "master data": { "fr": "données de référence", "de": "Stammdaten", "es": "datos maestros" },
+    "interface": { "fr": "interface", "de": "Schnittstelle", "es": "interfaz", "note": "IT data flow" },
+    "business process": { "fr": "processus métier", "de": "Geschäftsprozess", "es": "proceso de negocio" },
+    "knowledge": { "fr": "base de connaissances", "de": "Wissensdatenbank", "es": "base de conocimiento" },
+    "budget management": { "fr": "gestion budgétaire", "de": "Budgetverwaltung", "es": "gestión presupuestaria" }
+  }
+}

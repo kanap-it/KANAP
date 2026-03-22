@@ -1,0 +1,9 @@
+{
+  "INVALID_LOCALE": "Ungültige Sprachauswahl.",
+  "USER_NOT_FOUND": "Benutzer nicht gefunden.",
+  "FORBIDDEN_PROFILE_UPDATE": "Sie können nur Ihr eigenes Profil aktualisieren.",
+  "PASSWORD_UPDATE_NOT_ALLOWED": "Passwortänderungen werden über diesen Endpunkt nicht unterstützt.",
+  "INVALID_CREDENTIALS": "Ungültige E-Mail-Adresse oder ungültiges Passwort.",
+  "TRIAL_EXPIRED": "Ihre Testphase ist abgelaufen. Bitte wählen Sie einen Tarif, um fortzufahren.",
+  "SUBSCRIPTION_FROZEN": "Ihr Abonnement ist eingefroren."
+}

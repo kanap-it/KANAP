@@ -83,6 +83,14 @@ export const projectsRegistry: AiEntityFilterRegistry = {
       sortable: true,
       groupable: true,
     },
+    priority_score: {
+      ai: 'priority_score',
+      grid: 'priority_score',
+      type: 'number',
+      description: 'Project priority score.',
+      sortable: true,
+      groupable: false,
+    },
     planned_start: {
       ai: 'planned_start',
       grid: 'planned_start',
@@ -104,6 +112,7 @@ export const projectsRegistry: AiEntityFilterRegistry = {
     label: 'name',
     status: 'status',
     origin: 'origin',
+    priority_score: 'priority_score',
     planned_start: 'planned_start',
     planned_end: 'planned_end',
     created_at: 'created_at',

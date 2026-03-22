@@ -5,7 +5,7 @@ import { KnowledgeService } from '../../knowledge/knowledge.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
 import { TasksService } from '../../spend/tasks.service';
-import { AiEntitySummaryDto, AiExecutionContextWithManager } from '../ai.types';
+import { AiEntitySummaryDto, AiExecutionContextWithManager, AiQueryScope } from '../ai.types';
 import { adaptFilters } from './ai-filter.adapter';
 import {
   AiFilterValue,
@@ -37,6 +37,13 @@ function scalar(value: unknown): string | number | null {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (value instanceof Date) return toIso(value);
   return String(value);
+}
+
+function numericScalar(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function displayName(value: unknown): string | null {
@@ -94,6 +101,12 @@ function toEntitySummary(
   };
 }
 
+type ResolvedAiScope = {
+  requested: AiQueryScope;
+  resolved: boolean;
+  team_name?: string | null;
+};
+
 @Injectable()
 export class AiQueryExecutor {
   constructor(
@@ -104,6 +117,79 @@ export class AiQueryExecutor {
     private readonly assets: AssetsService,
     private readonly knowledge: KnowledgeService,
   ) {}
+
+  private async resolveCurrentUserTeam(
+    context: AiExecutionContextWithManager,
+  ): Promise<{ teamId: string | null; teamName: string | null }> {
+    const rows = await context.manager.query(
+      `SELECT tmc.team_id,
+              pt.name AS team_name
+       FROM portfolio_team_member_configs tmc
+       LEFT JOIN portfolio_teams pt
+         ON pt.id = tmc.team_id
+        AND pt.tenant_id = tmc.tenant_id
+       WHERE tmc.tenant_id = $1
+         AND tmc.user_id = $2
+       LIMIT 1`,
+      [context.tenantId, context.userId],
+    );
+    return {
+      teamId: rows[0]?.team_id ?? null,
+      teamName: rows[0]?.team_name ?? null,
+    };
+  }
+
+  private async applyScopeToQuery(
+    context: AiExecutionContextWithManager,
+    entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
+    query: Record<string, any>,
+    scope?: AiQueryScope,
+  ): Promise<{ query: Record<string, any>; scope: ResolvedAiScope | null }> {
+    if (!scope) {
+      return { query, scope: null };
+    }
+
+    if (scope === 'me') {
+      if (entityType === 'tasks') {
+        return {
+          query: { ...query, assigneeUserId: context.userId },
+          scope: { requested: scope, resolved: true },
+        };
+      }
+      if (entityType === 'projects' || entityType === 'requests') {
+        return {
+          query: { ...query, involvedUserId: context.userId },
+          scope: { requested: scope, resolved: true },
+        };
+      }
+      throw new BadRequestException(`scope "${scope}" is not supported for ${entityType}.`);
+    }
+
+    if (scope === 'my_team') {
+      const { teamId, teamName } = await this.resolveCurrentUserTeam(context);
+      if (!teamId) {
+        return {
+          query,
+          scope: { requested: scope, resolved: false, team_name: teamName },
+        };
+      }
+      if (entityType === 'tasks') {
+        return {
+          query: { ...query, teamId },
+          scope: { requested: scope, resolved: true, team_name: teamName },
+        };
+      }
+      if (entityType === 'projects' || entityType === 'requests') {
+        return {
+          query: { ...query, involvedTeamId: teamId },
+          scope: { requested: scope, resolved: true, team_name: teamName },
+        };
+      }
+      throw new BadRequestException(`scope "${scope}" is not supported for ${entityType}.`);
+    }
+
+    return { query, scope: null };
+  }
 
   private resolveSort(
     entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
@@ -211,6 +297,7 @@ export class AiQueryExecutor {
         business_lead: scalar(displayName(row.business_lead) ?? row.business_lead_name),
         it_lead: scalar(displayName(row.it_lead) ?? row.it_lead_name),
         contributors: scalar(extractContributorNames(row)),
+        priority_score: numericScalar(row.priority_score),
         execution_progress: scalar(row.execution_progress),
         planned_start: scalar(row.planned_start),
         planned_end: scalar(row.planned_end),
@@ -234,6 +321,7 @@ export class AiQueryExecutor {
         business_lead: scalar(displayName(row.business_lead) ?? row.business_lead_name),
         it_lead: scalar(displayName(row.it_lead) ?? row.it_lead_name),
         contributors: scalar(extractContributorNames(row)),
+        priority_score: numericScalar(row.priority_score),
         target_date: scalar(row.target_delivery_date),
       },
     });
@@ -301,67 +389,84 @@ export class AiQueryExecutor {
       q?: string;
       sort?: { field: string; direction: 'asc' | 'desc' };
       limit?: number;
+      scope?: AiQueryScope;
     },
   ): Promise<AiQueryResult> {
     const { query, filtersApplied, filtersIgnored } = this.buildBaseQuery(input.entity_type, input);
+    const scoped = await this.applyScopeToQuery(context, input.entity_type, query, input.scope);
+    if (scoped.scope && scoped.scope.resolved === false) {
+      return {
+        items: [],
+        total: 0,
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: scoped.scope,
+      };
+    }
 
     if (input.entity_type === 'tasks') {
-      const result = await this.tasks.listAllTasks(this.serializeFiltersForTasks(query), { manager: context.manager });
+      const result = await this.tasks.listAllTasks(this.serializeFiltersForTasks(scoped.query), { manager: context.manager });
       return {
         items: (result.items || []).map((row: any) => this.mapTask(row)),
         total: result.total ?? 0,
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
+        scope: scoped.scope,
       };
     }
 
     if (input.entity_type === 'projects') {
-      const result = await this.projects.list(query, { manager: context.manager });
+      const result = await this.projects.list(scoped.query, { manager: context.manager });
       return {
         items: (result.items || []).map((row: any) => this.mapProject(row)),
         total: result.total ?? 0,
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
+        scope: scoped.scope,
       };
     }
 
     if (input.entity_type === 'requests') {
-      const result = await this.requests.list(query, { manager: context.manager });
+      const result = await this.requests.list(scoped.query, { manager: context.manager });
       return {
         items: (result.items || []).map((row: any) => this.mapRequest(row)),
         total: result.total ?? 0,
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
+        scope: scoped.scope,
       };
     }
 
     if (input.entity_type === 'applications') {
-      const result = await this.applications.list(query, { manager: context.manager });
+      const result = await this.applications.list(scoped.query, { manager: context.manager });
       return {
         items: (result.items || []).map((row: any) => this.mapApplication(row)),
         total: result.total ?? 0,
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
+        scope: scoped.scope,
       };
     }
 
     if (input.entity_type === 'assets') {
-      const result = await this.assets.list(query, { manager: context.manager, tenantId: context.tenantId });
+      const result = await this.assets.list(scoped.query, { manager: context.manager, tenantId: context.tenantId });
       return {
         items: (result.items || []).map((row: any) => this.mapAsset(row)),
         total: result.total ?? 0,
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
+        scope: scoped.scope,
       };
     }
 
     if (input.entity_type === 'documents') {
-      const result = await this.knowledge.list(query, { manager: context.manager });
+      const result = await this.knowledge.list(scoped.query, { manager: context.manager });
       return {
         items: (result.items || []).map((row: any) => this.mapDocument(row)),
         total: result.total ?? 0,
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
+        scope: scoped.scope,
       };
     }
 

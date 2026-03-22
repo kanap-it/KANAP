@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Tooltip, Typography } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
+import { useLocale } from '../../../i18n/useLocale';
 
 /**
  * Date format options
@@ -80,7 +81,7 @@ function formatDate(
         minute: '2-digit',
       });
     case 'relative':
-      return getRelativeTime(date);
+      return getRelativeTime(date, locale);
     case 'iso':
       return date.toISOString();
     default:
@@ -91,7 +92,7 @@ function formatDate(
 /**
  * Get relative time string (e.g., "2 days ago", "in 3 hours")
  */
-function getRelativeTime(date: Date, now: Date = new Date()): string {
+function getRelativeTime(date: Date, locale: string, now: Date = new Date()): string {
   const diffMs = date.getTime() - now.getTime();
   const diffSeconds = Math.round(diffMs / 1000);
   const diffMinutes = Math.round(diffSeconds / 60);
@@ -101,7 +102,7 @@ function getRelativeTime(date: Date, now: Date = new Date()): string {
   const diffMonths = Math.round(diffDays / 30);
   const diffYears = Math.round(diffDays / 365);
 
-  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
 
   if (Math.abs(diffSeconds) < 60) {
     return rtf.format(diffSeconds, 'second');
@@ -154,17 +155,19 @@ function isWithinDays(date: Date, days: number): boolean {
 export function DateCellRenderer<T = unknown>(
   props: DateCellRendererProps<T>
 ): React.ReactElement | null {
+  const activeLocale = useLocale();
   const {
     value,
     data,
     format = 'date',
     formatOptions,
-    locale = 'en-US',
+    locale,
     showTooltip = true,
     emptyText = '',
     relativeWithinDays = 0,
     onClick,
   } = props;
+  const resolvedLocale = locale ?? activeLocale;
 
   const date = parseDate(value);
 
@@ -182,9 +185,9 @@ export function DateCellRenderer<T = unknown>(
     displayFormat = 'relative';
   }
 
-  const displayText = formatDate(date, displayFormat, locale, formatOptions);
+  const displayText = formatDate(date, displayFormat, resolvedLocale, formatOptions);
   const tooltipText = displayFormat !== 'datetime'
-    ? formatDate(date, 'datetime', locale)
+    ? formatDate(date, 'datetime', resolvedLocale)
     : undefined;
 
   const handleClick = onClick && data

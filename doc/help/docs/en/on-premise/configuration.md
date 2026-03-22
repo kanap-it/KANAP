@@ -189,19 +189,53 @@ S3_FORCE_PATH_STYLE=false   # true for MinIO
 # RATE_LIMIT_TRUST_PROXY=false
 ```
 
-## External Connections (Firewall)
+## Firewall Rules
 
-| Service | Endpoint | Purpose | Required |
-|---------|----------|---------|----------|
-| GitHub | github.com | Clone source code | Once (initial setup) |
-| npm registry | registry.npmjs.org | Download dependencies | During build |
-| Resend API | api.resend.com | Send emails | If using Resend |
-| Microsoft Entra | login.microsoftonline.com | SSO metadata/token | If using Entra |
-| Microsoft Graph | graph.microsoft.com | Profile enrichment | Optional |
-| World Bank API | api.worldbank.org | FX rates (annual) | Optional |
-| Exchange Rate API | v6.exchangerate-api.com | FX rates (spot) | Optional |
+After initial build, KANAP can run fully air-gapped if email, SSO, and FX rate features are all disabled.
 
-After initial build, KANAP can run without internet access (except for email/SSO or optional FX rates).
+### Inbound
+
+| Port | Protocol | Purpose |
+|------|----------|---------|
+| 443 | TCP | HTTPS — nginx reverse proxy serving the application |
+| 80 | TCP | HTTP — redirects to HTTPS |
+
+### Outbound — Initial Setup & Build
+
+These destinations are only needed during installation and `docker build`. They can be closed once the application is running.
+
+| Destination | Port | Purpose |
+|-------------|------|---------|
+| `github.com` | 443 | Clone KANAP source code |
+| `download.docker.com` | 443 | Docker APT repository |
+| `dl.min.io` | 443 | MinIO binary download |
+| `registry.npmjs.org` | 443 | npm dependencies during `docker build` |
+| `registry-1.docker.io`, `production.cloudflare.docker.com` | 443 | Pull base Docker images (`node:20-alpine`, `nginx:alpine`) |
+| Ubuntu APT mirrors | 80/443 | System packages (PostgreSQL, nginx, etc.) |
+
+### Outbound — Runtime (Conditional)
+
+Only required if the corresponding feature is enabled.
+
+| Destination | Port | Purpose | When |
+|-------------|------|---------|------|
+| `api.resend.com` | 443 | Transactional email | If `RESEND_API_KEY` is set |
+| `login.microsoftonline.com` | 443 | Entra ID SSO metadata & tokens | If Entra SSO is configured |
+| `graph.microsoft.com` | 443 | User profile enrichment | If Entra SSO is configured |
+| `api.worldbank.org` | 443 | Annual FX rates | Optional |
+| `v6.exchangerate-api.com` | 443 | Spot FX rates | Optional |
+
+### Internal (No Firewall Rule Needed)
+
+These connections stay on the server — loopback or Docker bridge network only.
+
+| Connection | Port | Notes |
+|------------|------|-------|
+| nginx → API container | 8080 | Bound to `127.0.0.1` |
+| nginx → Web container | 8081 | Bound to `127.0.0.1` |
+| API container → PostgreSQL | 5432 | Via `host.docker.internal` (Docker bridge `172.16.0.0/12`) |
+| API container → MinIO | 9000 | Via `host.docker.internal` |
+| MinIO console | 9001 | Local administration only, not exposed externally |
 
 ## Background Jobs
 

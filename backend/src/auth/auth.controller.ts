@@ -159,6 +159,10 @@ export class AuthController {
       email: user.email,
       first_name: user.first_name,
       last_name: user.last_name,
+      job_title: user.job_title,
+      business_phone: user.business_phone,
+      mobile_phone: user.mobile_phone,
+      locale: user.locale,
       status: user.status,
       role: user.role?.role_name ?? null, // Primary role name (backwards compat)
       roles, // All assigned roles

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, ILike, Repository } from 'typeorm';
 import { User } from './user.entity';
@@ -17,6 +17,20 @@ import * as fs from 'fs';
 import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
 import { EmailService } from '../email/email.service';
 import { createPasswordResetToken as buildPasswordResetToken, getPasswordResetExpirationMinutes } from '../auth/password-reset.util';
+
+const SUPPORTED_USER_LOCALES = ['en', 'fr', 'de', 'es'] as const;
+const SELF_SERVICE_FIELDS = ['first_name', 'last_name', 'job_title', 'business_phone', 'mobile_phone', 'locale'] as const;
+const ADMIN_FIELDS = [...SELF_SERVICE_FIELDS, 'email', 'status', 'company_id', 'department_id', 'role_id'] as const;
+
+type UpdateUserField = (typeof ADMIN_FIELDS)[number];
+type UpdateUserActor =
+  | {
+      actorUserId?: string | null;
+      canManageUsers?: boolean;
+    }
+  | string
+  | null
+  | undefined;
 
 @Injectable()
 export class UsersService {
@@ -158,14 +172,64 @@ export class UsersService {
   async updateUser(
     id: string,
     body: Partial<User> & { password?: string },
-    userId?: string | null,
+    actor?: UpdateUserActor,
     opts?: { manager?: EntityManager },
   ) {
     const repo = this.getRepo(opts?.manager);
     const existing = await repo.findOne({ where: { id } });
-    if (!existing) throw new Error('User not found');
-    const next = { ...existing, ...body } as User;
+    if (!existing) {
+      throw new NotFoundException({ code: 'USER_NOT_FOUND', message: 'User not found' });
+    }
+
+    const isInternalUpdate = actor == null;
+    const actorUserId = typeof actor === 'string' ? actor : actor?.actorUserId ?? null;
+    const canManageUsers = typeof actor === 'string' ? false : actor?.canManageUsers === true;
+    const isSelfService = actorUserId === id;
+
+    if (!isInternalUpdate && !isSelfService && !canManageUsers) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN_PROFILE_UPDATE',
+        message: 'You can only update your own profile.',
+      });
+    }
+
+    const allowedFields = (isInternalUpdate || canManageUsers ? ADMIN_FIELDS : SELF_SERVICE_FIELDS) as readonly UpdateUserField[];
+    const safeFields: Partial<User> = {};
+    for (const field of allowedFields) {
+      if (!Object.prototype.hasOwnProperty.call(body, field)) continue;
+      const value = body[field];
+      if (field === 'locale') {
+        if (value === null) {
+          safeFields.locale = null;
+          continue;
+        }
+        if (typeof value !== 'string') {
+          throw new BadRequestException({
+            code: 'INVALID_LOCALE',
+            message: `Invalid locale. Allowed: ${SUPPORTED_USER_LOCALES.join(', ')}`,
+          });
+        }
+        const normalizedLocale = value.trim().toLowerCase();
+        if (!SUPPORTED_USER_LOCALES.includes(normalizedLocale as (typeof SUPPORTED_USER_LOCALES)[number])) {
+          throw new BadRequestException({
+            code: 'INVALID_LOCALE',
+            message: `Invalid locale. Allowed: ${SUPPORTED_USER_LOCALES.join(', ')}`,
+          });
+        }
+        safeFields.locale = normalizedLocale;
+        continue;
+      }
+      (safeFields as Record<string, unknown>)[field] = value;
+    }
+
+    const next = { ...existing, ...safeFields } as User;
     if (body.password) {
+      if (!isInternalUpdate) {
+        throw new BadRequestException({
+          code: 'PASSWORD_UPDATE_NOT_ALLOWED',
+          message: 'Password updates are not supported on this endpoint.',
+        });
+      }
       next.password_hash = await argon2.hash(body.password, { type: argon2.argon2id });
     }
     const saved = await repo.save(next);
@@ -177,7 +241,7 @@ export class UsersService {
           action: 'update',
           before: { ...existing, password_hash: undefined },
           after: { ...saved, password_hash: undefined },
-          userId: userId ?? null,
+          userId: actorUserId,
         },
         { manager: opts?.manager ?? repo.manager },
       );

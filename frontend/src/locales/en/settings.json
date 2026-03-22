@@ -1,0 +1,27 @@
+{
+  "profile": {
+    "sections": {
+      "accountInformation": "Account Information",
+      "portfolioContributor": "Portfolio Contributor"
+    },
+    "fields": {
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "jobTitle": "Job Title",
+      "businessPhone": "Business Phone",
+      "mobilePhone": "Mobile Phone",
+      "language": "Language"
+    },
+    "locale": {
+      "autoDetect": "Auto-detect (browser)"
+    },
+    "messages": {
+      "saveSuccess": "Profile updated successfully",
+      "saveFailed": "Failed to save profile",
+      "portfolioDescription": "Manage your contributor profile, skills, availability, and classification defaults."
+    },
+    "actions": {
+      "viewContributorProfile": "View Contributor Profile"
+    }
+  }
+}

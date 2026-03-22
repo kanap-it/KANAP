@@ -8,7 +8,7 @@ import { KnowledgeService } from '../../knowledge/knowledge.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
 import { TasksService } from '../../spend/tasks.service';
-import { AiExecutionContextWithManager } from '../ai.types';
+import { AiExecutionContextWithManager, AiQueryScope } from '../ai.types';
 import { adaptFilters } from './ai-filter.adapter';
 import {
   AiAggregateResult,
@@ -104,6 +104,12 @@ function compileDateFilterCondition(
   }
 }
 
+type ResolvedAiScope = {
+  requested: AiQueryScope;
+  resolved: boolean;
+  team_name?: string | null;
+};
+
 @Injectable()
 export class AiAggregateExecutor {
   constructor(
@@ -115,6 +121,79 @@ export class AiAggregateExecutor {
     private readonly knowledge: KnowledgeService,
   ) {}
 
+  private async resolveCurrentUserTeam(
+    context: AiExecutionContextWithManager,
+  ): Promise<{ teamId: string | null; teamName: string | null }> {
+    const rows = await context.manager.query(
+      `SELECT tmc.team_id,
+              pt.name AS team_name
+       FROM portfolio_team_member_configs tmc
+       LEFT JOIN portfolio_teams pt
+         ON pt.id = tmc.team_id
+        AND pt.tenant_id = tmc.tenant_id
+       WHERE tmc.tenant_id = $1
+         AND tmc.user_id = $2
+       LIMIT 1`,
+      [context.tenantId, context.userId],
+    );
+    return {
+      teamId: rows[0]?.team_id ?? null,
+      teamName: rows[0]?.team_name ?? null,
+    };
+  }
+
+  private async applyScopeToListQuery(
+    context: AiExecutionContextWithManager,
+    entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
+    query: Record<string, any>,
+    scope?: AiQueryScope,
+  ): Promise<{ query: Record<string, any>; scope: ResolvedAiScope | null }> {
+    if (!scope) {
+      return { query, scope: null };
+    }
+
+    if (scope === 'me') {
+      if (entityType === 'tasks') {
+        return {
+          query: { ...query, assigneeUserId: context.userId },
+          scope: { requested: scope, resolved: true },
+        };
+      }
+      if (entityType === 'projects' || entityType === 'requests') {
+        return {
+          query: { ...query, involvedUserId: context.userId },
+          scope: { requested: scope, resolved: true },
+        };
+      }
+      throw new BadRequestException(`scope "${scope}" is not supported for ${entityType}.`);
+    }
+
+    if (scope === 'my_team') {
+      const { teamId, teamName } = await this.resolveCurrentUserTeam(context);
+      if (!teamId) {
+        return {
+          query,
+          scope: { requested: scope, resolved: false, team_name: teamName },
+        };
+      }
+      if (entityType === 'tasks') {
+        return {
+          query: { ...query, teamId },
+          scope: { requested: scope, resolved: true, team_name: teamName },
+        };
+      }
+      if (entityType === 'projects' || entityType === 'requests') {
+        return {
+          query: { ...query, involvedTeamId: teamId },
+          scope: { requested: scope, resolved: true, team_name: teamName },
+        };
+      }
+      throw new BadRequestException(`scope "${scope}" is not supported for ${entityType}.`);
+    }
+
+    return { query, scope: null };
+  }
+
   private serializeFiltersForTasks(filters: Record<string, any>): string | undefined {
     return Object.keys(filters).length > 0 ? JSON.stringify(filters) : undefined;
   }
@@ -124,53 +203,111 @@ export class AiAggregateExecutor {
     entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
     q: string | undefined,
     adaptedFilters: Record<string, any>,
-  ): Promise<string[]> {
+    scope?: AiQueryScope,
+  ): Promise<{ ids: string[]; scope: ResolvedAiScope | null }> {
     if (entityType === 'tasks') {
-      const result = await this.tasks.listIds({
-        q,
-        limit: 1000000,
-        filters: this.serializeFiltersForTasks(adaptedFilters),
-      }, { manager: context.manager });
-      return result.ids || [];
+      const scoped = await this.applyScopeToListQuery(
+        context,
+        entityType,
+        {
+          q,
+          limit: 1000000,
+          filters: this.serializeFiltersForTasks(adaptedFilters),
+        },
+        scope,
+      );
+      if (scoped.scope && scoped.scope.resolved === false) {
+        return { ids: [], scope: scoped.scope };
+      }
+      const result = await this.tasks.listIds(scoped.query, { manager: context.manager });
+      return { ids: result.ids || [], scope: scoped.scope };
     }
 
     if (entityType === 'projects') {
-      const result = await this.projects.listIds({
-        q,
-        filters: adaptedFilters,
-        status: Object.prototype.hasOwnProperty.call(adaptedFilters, 'status') ? undefined : 'all',
-      }, { manager: context.manager });
-      return result.ids || [];
+      const scoped = await this.applyScopeToListQuery(
+        context,
+        entityType,
+        {
+          q,
+          filters: adaptedFilters,
+          status: Object.prototype.hasOwnProperty.call(adaptedFilters, 'status') ? undefined : 'all',
+        },
+        scope,
+      );
+      if (scoped.scope && scoped.scope.resolved === false) {
+        return { ids: [], scope: scoped.scope };
+      }
+      const result = await this.projects.listIds(scoped.query, { manager: context.manager });
+      return { ids: result.ids || [], scope: scoped.scope };
     }
 
     if (entityType === 'requests') {
-      const result = await this.requests.listIds({
-        q,
-        filters: adaptedFilters,
-        status: Object.prototype.hasOwnProperty.call(adaptedFilters, 'status') ? undefined : 'all',
-      }, { manager: context.manager });
-      return result.ids || [];
+      const scoped = await this.applyScopeToListQuery(
+        context,
+        entityType,
+        {
+          q,
+          filters: adaptedFilters,
+          status: Object.prototype.hasOwnProperty.call(adaptedFilters, 'status') ? undefined : 'all',
+        },
+        scope,
+      );
+      if (scoped.scope && scoped.scope.resolved === false) {
+        return { ids: [], scope: scoped.scope };
+      }
+      const result = await this.requests.listIds(scoped.query, { manager: context.manager });
+      return { ids: result.ids || [], scope: scoped.scope };
     }
 
     if (entityType === 'applications') {
-      const result = await this.applications.listIds({
-        q,
-        filters: adaptedFilters,
-        include_inactive: true,
-      }, { manager: context.manager });
-      return result.ids || [];
+      const scoped = await this.applyScopeToListQuery(
+        context,
+        entityType,
+        {
+          q,
+          filters: adaptedFilters,
+          include_inactive: true,
+        },
+        scope,
+      );
+      if (scoped.scope && scoped.scope.resolved === false) {
+        return { ids: [], scope: scoped.scope };
+      }
+      const result = await this.applications.listIds(scoped.query, { manager: context.manager });
+      return { ids: result.ids || [], scope: scoped.scope };
     }
 
     if (entityType === 'assets') {
-      const result = await this.assets.listIds({
-        q,
-        filters: adaptedFilters,
-      }, { manager: context.manager, tenantId: context.tenantId });
-      return result.ids || [];
+      const scoped = await this.applyScopeToListQuery(
+        context,
+        entityType,
+        {
+          q,
+          filters: adaptedFilters,
+        },
+        scope,
+      );
+      if (scoped.scope && scoped.scope.resolved === false) {
+        return { ids: [], scope: scoped.scope };
+      }
+      const result = await this.assets.listIds(scoped.query, { manager: context.manager, tenantId: context.tenantId });
+      return { ids: result.ids || [], scope: scoped.scope };
     }
 
     if (entityType === 'documents') {
-      return this.listDocumentIds(context, q, adaptedFilters);
+      const scoped = await this.applyScopeToListQuery(
+        context,
+        entityType,
+        { q, filters: adaptedFilters },
+        scope,
+      );
+      if (scoped.scope && scoped.scope.resolved === false) {
+        return { ids: [], scope: scoped.scope };
+      }
+      return {
+        ids: await this.listDocumentIds(context, q, adaptedFilters),
+        scope: scoped.scope,
+      };
     }
 
     throw new BadRequestException('Unsupported entity type.');
@@ -288,6 +425,7 @@ export class AiAggregateExecutor {
       group_by: string;
       filters?: Record<string, AiFilterValue>;
       q?: string;
+      scope?: AiQueryScope;
     },
   ): Promise<AiAggregateResult> {
     const registry = getAiEntityRegistry(input.entity_type);
@@ -297,7 +435,14 @@ export class AiAggregateExecutor {
     }
 
     const adapted = adaptFilters(registry, input.filters);
-    const ids = await this.listIdsForEntity(context, input.entity_type, input.q?.trim(), adapted.filters);
+    const scoped = await this.listIdsForEntity(
+      context,
+      input.entity_type,
+      input.q?.trim(),
+      adapted.filters,
+      input.scope,
+    );
+    const ids = scoped.ids;
     if (ids.length === 0) {
       return {
         group_by: input.group_by,
@@ -305,6 +450,7 @@ export class AiAggregateExecutor {
         total: 0,
         filters_applied: adapted.applied,
         filters_ignored: adapted.ignored,
+        scope: scoped.scope,
       };
     }
 
@@ -315,6 +461,7 @@ export class AiAggregateExecutor {
       total: ids.length,
       filters_applied: adapted.applied,
       filters_ignored: adapted.ignored,
+      scope: scoped.scope,
     };
   }
 }

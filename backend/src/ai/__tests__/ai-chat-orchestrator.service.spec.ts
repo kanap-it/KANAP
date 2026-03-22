@@ -23,7 +23,26 @@ function createOrchestrator(options?: {
       fn({
         ...context,
         manager: {
-          query: async () => [{ name: 'Test Tenant' }],
+          query: async (sql: string) => {
+            if (sql.includes('FROM tenants')) {
+              return [{ name: 'Test Tenant' }];
+            }
+            if (sql.includes('FROM users u')) {
+              return [{
+                email: 'alex@example.com',
+                first_name: 'Alex',
+                last_name: 'Operator',
+                primary_role_name: 'Administrator',
+              }];
+            }
+            if (sql.includes('FROM user_roles')) {
+              return [];
+            }
+            if (sql.includes('FROM portfolio_team_member_configs')) {
+              return [{ team_name: 'Strategy' }];
+            }
+            return [];
+          },
           getRepository: () => ({
             find: async () => [],
             findOne: async () => null,
@@ -256,11 +275,19 @@ async function testSystemPromptGuidance() {
       },
     ],
     readableEntityTypes: ['applications', 'tasks'],
+    currentUser: {
+      displayName: 'Alex Operator',
+      email: 'alex@example.com',
+      roleNames: ['Administrator'],
+      teamName: 'Strategy',
+    },
   });
 
   assert.match(prompt, /query_entities/);
   assert.match(prompt, /aggregate_entities/);
   assert.match(prompt, /get_filter_values/);
+  assert.match(prompt, /Alex Operator/);
+  assert.match(prompt, /scope: "me"/);
   assert.ok(!prompt.includes('list_entities'));
   assert.ok(!prompt.includes('always search first'));
 }

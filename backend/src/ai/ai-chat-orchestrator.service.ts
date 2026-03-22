@@ -29,6 +29,13 @@ type ChatStreamParams = {
   userMessage: string;
 };
 
+type CurrentUserPromptContext = {
+  displayName: string;
+  email: string | null;
+  roleNames: string[];
+  teamName: string | null;
+};
+
 @Injectable()
 export class AiChatOrchestratorService {
   private readonly logger = new Logger(AiChatOrchestratorService.name);
@@ -43,6 +50,67 @@ export class AiChatOrchestratorService {
     private readonly toolRegistry: AiToolRegistry,
     private readonly systemPrompt: AiSystemPromptService,
   ) {}
+
+  private buildDisplayName(row: {
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+  }): string {
+    const name = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
+    return name || row.email || 'Current user';
+  }
+
+  private async loadCurrentUserPromptContext(ctx: AiExecutionContext & { manager: any }): Promise<CurrentUserPromptContext> {
+    const userRows = await ctx.manager.query(
+      `SELECT u.email,
+              u.first_name,
+              u.last_name,
+              r.role_name AS primary_role_name
+       FROM users u
+       LEFT JOIN roles r
+         ON r.id = u.role_id
+        AND r.tenant_id = u.tenant_id
+       WHERE u.id = $1
+         AND u.tenant_id = $2
+       LIMIT 1`,
+      [ctx.userId, ctx.tenantId],
+    );
+    const roleRows = await ctx.manager.query(
+      `SELECT DISTINCT r.role_name
+       FROM user_roles ur
+       JOIN roles r
+         ON r.id = ur.role_id
+        AND r.tenant_id = ur.tenant_id
+       WHERE ur.user_id = $1
+         AND ur.tenant_id = $2
+       ORDER BY r.role_name ASC`,
+      [ctx.userId, ctx.tenantId],
+    );
+    const teamRows = await ctx.manager.query(
+      `SELECT pt.name AS team_name
+       FROM portfolio_team_member_configs tmc
+       LEFT JOIN portfolio_teams pt
+         ON pt.id = tmc.team_id
+        AND pt.tenant_id = tmc.tenant_id
+       WHERE tmc.user_id = $1
+         AND tmc.tenant_id = $2
+       LIMIT 1`,
+      [ctx.userId, ctx.tenantId],
+    );
+
+    const user = userRows[0] ?? {};
+    const roleNames = Array.from(new Set([
+      user.primary_role_name,
+      ...roleRows.map((row: any) => row.role_name),
+    ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)));
+
+    return {
+      displayName: this.buildDisplayName(user),
+      email: typeof user.email === 'string' && user.email.trim() ? user.email.trim() : null,
+      roleNames,
+      teamName: teamRows[0]?.team_name ?? null,
+    };
+  }
 
   async *stream(params: ChatStreamParams): AsyncGenerator<ChatStreamEvent> {
     const { context, userMessage } = params;
@@ -150,11 +218,13 @@ export class AiChatOrchestratorService {
           ['applications', 'assets', 'projects', 'requests', 'tasks', 'documents'],
           ctx.manager,
         );
+        const currentUser = await this.loadCurrentUserPromptContext(ctx);
 
         const sysPrompt = this.systemPrompt.build({
           tenantName,
           availableTools,
           readableEntityTypes: readableTypes,
+          currentUser,
         });
 
         return {

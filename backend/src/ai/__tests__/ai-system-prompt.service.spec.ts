@@ -37,11 +37,20 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
       },
     ],
     readableEntityTypes: ['tasks', 'projects', 'documents'],
+    currentUser: {
+      displayName: 'Alex Operator',
+      email: 'alex@example.com',
+      roleNames: ['Administrator'],
+      teamName: 'Strategy',
+    },
   });
 
   assert.match(prompt, /\bquery_entities\b/);
   assert.match(prompt, /\baggregate_entities\b/);
   assert.match(prompt, /\bget_filter_values\b/);
+  assert.match(prompt, /Alex Operator/);
+  assert.match(prompt, /scope: "me"/);
+  assert.match(prompt, /scope: "my_team"/);
   assert.doesNotMatch(prompt, /\blist_entities\b/);
   assert.doesNotMatch(prompt, /always search first/i);
 }

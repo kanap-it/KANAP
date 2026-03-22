@@ -1,10 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { AiToolListItemDto } from './ai.types';
 
+type CurrentUserPromptContext = {
+  displayName: string;
+  email: string | null;
+  roleNames: string[];
+  teamName: string | null;
+};
+
 type SystemPromptParams = {
   tenantName: string;
   availableTools: AiToolListItemDto[];
   readableEntityTypes: string[];
+  currentUser: CurrentUserPromptContext;
 };
 
 @Injectable()
@@ -14,6 +22,18 @@ export class AiSystemPromptService {
 
     sections.push(
       `You are KANAP AI, an assistant for the "${params.tenantName}" workspace on the KANAP IT governance platform.`,
+    );
+
+    const roleSummary = params.currentUser.roleNames.length > 0
+      ? params.currentUser.roleNames.join(', ')
+      : 'unknown';
+    sections.push(
+      'Current user context:\n' +
+      `- Current user: **${params.currentUser.displayName}**` +
+      (params.currentUser.email ? ` (${params.currentUser.email})` : '') +
+      '\n' +
+      `- Roles: ${roleSummary}\n` +
+      `- Team: ${params.currentUser.teamName ?? 'no team assigned'}`,
     );
 
     sections.push(
@@ -69,7 +89,12 @@ export class AiSystemPromptService {
       '- **For counting, filtering, list, or analytical questions** (e.g., "how many tasks are in progress?", "list all projects in category X"), ' +
       'use the query-layer tools: query_entities, aggregate_entities, and get_filter_values. ' +
       'query_entities returns exact totals for filtered lists. aggregate_entities returns exact grouped counts.\n' +
+      '- When the user says **"me"**, **"my"**, **"mine"**, or **"myself"**, use `scope: "me"` on query_entities or aggregate_entities for tasks, projects, and requests instead of matching names.\n' +
+      '- When the user says **"my team"**, use `scope: "my_team"` on query_entities or aggregate_entities for tasks, projects, and requests instead of matching names.\n' +
+      '- Explicit third-person references such as "Alice", "Bob", or "John Doe" are NOT the current user scope. Handle them with normal filters, search, or entity lookups.\n' +
       '- Use get_filter_values to discover exact values for set-like fields before filtering when the user asks about a named status, owner, library, supplier, assignee, and similar fields.\n' +
+      '- For projects and requests, "top priority" usually means sorting by `priority_score` descending.\n' +
+      '- For "current projects", use get_filter_values on project status and exclude terminal statuses such as `done` and `cancelled`.\n' +
       '- get_filter_values is for exact set-like values. Do not use it for date ranges or free-form text questions.\n' +
       '- Do NOT use search_all as a fallback for structured count/filter/list/breakdown questions. If the query-layer tools do not confirm a value, explain that uncertainty instead of switching to fuzzy search.\n' +
       '- search_all is a fuzzy text search tool with result limits and may be incomplete for counting, filtering, or breakdown questions.',

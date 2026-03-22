@@ -22,6 +22,7 @@ export const AiSearchEntityTypeSchema = z.enum([
 ]);
 
 export const AiQueryEntityTypeSchema = AiSearchEntityTypeSchema;
+export const AiQueryScopeSchema = z.enum(['me', 'my_team']);
 
 export const AiContextEntityTypeSchema = z.enum([
   'applications',
@@ -34,6 +35,7 @@ export const AiContextEntityTypeSchema = z.enum([
 export type AiSearchEntityType = z.infer<typeof AiSearchEntityTypeSchema>;
 export type AiContextEntityType = z.infer<typeof AiContextEntityTypeSchema>;
 export type AiQueryEntityType = z.infer<typeof AiQueryEntityTypeSchema>;
+export type AiQueryScope = z.infer<typeof AiQueryScopeSchema>;
 
 export type AiExecutionContext = {
   tenantId: string;

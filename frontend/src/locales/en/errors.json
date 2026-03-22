@@ -1,0 +1,9 @@
+{
+  "INVALID_LOCALE": "Invalid language selection.",
+  "USER_NOT_FOUND": "User not found.",
+  "FORBIDDEN_PROFILE_UPDATE": "You can only update your own profile.",
+  "PASSWORD_UPDATE_NOT_ALLOWED": "Password updates are not supported on this endpoint.",
+  "INVALID_CREDENTIALS": "Invalid email or password.",
+  "TRIAL_EXPIRED": "Your trial has expired. Please choose a plan to continue.",
+  "SUBSCRIPTION_FROZEN": "Your subscription is frozen."
+}

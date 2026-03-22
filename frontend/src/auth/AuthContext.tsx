@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState, useCall
 import api from '../api';
 import { clearSessionActivity, isIdleExpired, setRefreshTtlMs, touchLastActivity } from './sessionStorage';
 import { setAccessToken } from './accessTokenStore';
+import i18n, { detectBrowserLocale, LANGUAGE_OVERRIDE_STORAGE_KEY, SupportedLocale } from '../i18n';
 
 type PermissionLevel = 'reader' | 'contributor' | 'member' | 'manager' | 'admin';
 type Claims = {
@@ -16,8 +17,13 @@ type Profile = {
   email: string;
   first_name?: string | null;
   last_name?: string | null;
+  job_title?: string | null;
+  business_phone?: string | null;
+  mobile_phone?: string | null;
+  locale?: SupportedLocale | null;
   status: 'contact' | 'invited' | 'enabled' | 'disabled' | string;
   role?: string | null;
+  roles?: Array<{ id: string; name: string }>;
   external_auth_provider?: string | null;
 };
 
@@ -89,6 +95,7 @@ type AuthContextType = {
   tenantAuth: TenantAuth | null;
   login: (response: LoginResponse) => void;
   logout: () => void;
+  refreshMe: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
   hasLevel: (resource: string, level: PermissionLevel) => boolean;
 };
@@ -217,6 +224,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (token) void refreshMe();
   }, [token, refreshMe]);
 
+  useEffect(() => {
+    if (!profile) return;
+
+    if (profile.locale) {
+      try {
+        localStorage.setItem(LANGUAGE_OVERRIDE_STORAGE_KEY, profile.locale);
+      } catch {
+        // Ignore localStorage failures
+      }
+      void i18n.changeLanguage(profile.locale);
+      return;
+    }
+
+    if (profile.locale === null) {
+      try {
+        localStorage.removeItem(LANGUAGE_OVERRIDE_STORAGE_KEY);
+      } catch {
+        // Ignore localStorage failures
+      }
+      void i18n.changeLanguage(detectBrowserLocale());
+    }
+  }, [profile]);
+
   const hasLevel = (resource: string, level: PermissionLevel) => {
     if (claims?.isGlobalAdmin || claims?.isPlatformAdmin) return true;
     const map = claims?.permissions || {};
@@ -228,8 +258,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ token, tokenExpiresAt, isAuthenticating, profile, claims, subscription, tenantAuth, login, logout, refreshAccessToken, hasLevel }),
-    [token, tokenExpiresAt, isAuthenticating, profile, claims, subscription, tenantAuth, login, logout, refreshAccessToken, hasLevel]
+    () => ({ token, tokenExpiresAt, isAuthenticating, profile, claims, subscription, tenantAuth, login, logout, refreshMe, refreshAccessToken, hasLevel }),
+    [token, tokenExpiresAt, isAuthenticating, profile, claims, subscription, tenantAuth, login, logout, refreshMe, refreshAccessToken, hasLevel]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

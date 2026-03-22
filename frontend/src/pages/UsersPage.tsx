@@ -30,6 +30,7 @@ export default function UsersPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const gridApiRef = useRef<any>(null);
+  const canManageUsers = hasLevel('users', 'admin');
   const { mutateAsync: createItem, isPending: creating } = useMutation({
     mutationFn: async (payload: UserInput) => {
       const res = await api.post('/users', payload);
@@ -75,6 +76,7 @@ export default function UsersPage() {
     setOpen(true);
   };
   const handleEdit = async (row: any) => {
+    if (!canManageUsers) return;
     setMode('edit');
     setServerError(undefined);
     setCurrentId(row.id);
@@ -139,36 +141,41 @@ export default function UsersPage() {
   }, []);
 
   const ClickableCell: React.FC<ICellRendererParams<any, any>> = (params) => (
-    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => handleEdit(params.data)}>
+    <Box
+      component="span"
+      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+      onClick={() => handleEdit(params.data)}
+    >
       {params.value}
     </Box>
   );
   const ClickableCellGeneric: React.FC<ICellRendererParams<any, any>> = (params) => (
-    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={() => handleEdit(params.data)}>
+    <Box
+      component="span"
+      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+      onClick={() => handleEdit(params.data)}
+    >
       {params.valueFormatted ?? params.value}
     </Box>
   );
 
   const columns: EnhancedColDef<any>[] = useMemo(() => [
-    { field: 'last_name', headerName: 'Last Name', width: 150, cellRenderer: ClickableCellGeneric },
-    { field: 'first_name', headerName: 'First Name', width: 150, cellRenderer: ClickableCellGeneric },
-    { field: 'email', headerName: 'Email Address', flex: 1, minWidth: 220, required: true, cellRenderer: ClickableCell },
-    { field: 'job_title', headerName: 'Job Title', width: 200, cellRenderer: ClickableCellGeneric },
-    { field: 'role', headerName: 'Role', width: 140, valueGetter: (params) => params.data?.role?.role_name || '', cellRenderer: ClickableCellGeneric },
-    { field: 'company', headerName: 'Company', width: 200, valueGetter: (params) => params.data?.company?.name || '', cellRenderer: ClickableCellGeneric },
-    { field: 'department', headerName: 'Department', width: 200, valueGetter: (params) => params.data?.department?.name || '', cellRenderer: ClickableCellGeneric },
-    { field: 'business_phone', headerName: 'Business Phone', width: 180, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-    { field: 'mobile_phone', headerName: 'Mobile Phone', width: 160, defaultHidden: true, cellRenderer: ClickableCellGeneric },
-    { field: 'mfa_enabled', headerName: 'MFA Enabled', width: 120, defaultHidden: true, valueGetter: (params) => params.data?.mfa_enabled ? 'Yes' : 'No', cellRenderer: ClickableCellGeneric },
-    { field: 'created_at', headerName: 'Created', width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''), defaultHidden: true, cellRenderer: ClickableCellGeneric },
-  ], [ClickableCell]);
+    { field: 'last_name', headerName: 'Last Name', width: 150, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'first_name', headerName: 'First Name', width: 150, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'email', headerName: 'Email Address', flex: 1, minWidth: 220, required: true, cellRenderer: canManageUsers ? ClickableCell : undefined },
+    { field: 'job_title', headerName: 'Job Title', width: 200, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'role', headerName: 'Role', width: 140, valueGetter: (params) => params.data?.role?.role_name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'company', headerName: 'Company', width: 200, valueGetter: (params) => params.data?.company?.name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'department', headerName: 'Department', width: 200, valueGetter: (params) => params.data?.department?.name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'business_phone', headerName: 'Business Phone', width: 180, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'mobile_phone', headerName: 'Mobile Phone', width: 160, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'mfa_enabled', headerName: 'MFA Enabled', width: 120, defaultHidden: true, valueGetter: (params) => params.data?.mfa_enabled ? 'Yes' : 'No', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'created_at', headerName: 'Created', width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''), defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+  ], [ClickableCell, ClickableCellGeneric, canManageUsers]);
 
   if (!hasLevel('users', 'reader')) {
     return <ForbiddenPage />;
   }
-
-  const canCreate = hasLevel('users','manager');
-  const canAdmin = hasLevel('users','admin');
 
   const handleInviteSelected = async () => {
     if (!selectedRows.length) return;
@@ -195,10 +202,10 @@ export default function UsersPage() {
 
   const actions = (
     <Stack direction="row" spacing={1} alignItems="center">
-      {canCreate && <Button variant="contained" onClick={handleNew}>New</Button>}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
-      {canAdmin && (
+      {canManageUsers && <Button variant="contained" onClick={handleNew}>New</Button>}
+      {canManageUsers && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
+      {canManageUsers && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canManageUsers && (
         <Button
           variant="outlined"
           onClick={handleInviteSelected}
@@ -207,7 +214,7 @@ export default function UsersPage() {
           {inviting ? 'Inviting…' : `Invite (${selectedRows.length})`}
         </Button>
       )}
-      {canAdmin && (
+      {canManageUsers && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
           endpoint="/users/bulk"
@@ -244,7 +251,7 @@ export default function UsersPage() {
             sortModel: [{ colId: 'last_name', sort: 'asc' }]
           }
         }}
-        enableRowSelection={canAdmin}
+        enableRowSelection={canManageUsers}
         onSelectionChanged={setSelectedRows}
         onGridApiReady={(api) => { gridApiRef.current = api; }}
         statusScopeConfig={{ defaultScope: 'enabled' }}

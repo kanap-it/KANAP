@@ -1,4 +1,4 @@
-import { AiEntitySummaryDto } from '../ai.types';
+import { AiEntitySummaryDto, AiQueryScope } from '../ai.types';
 
 export type AiFilterFieldType = 'set' | 'text' | 'number' | 'date';
 export type AiQueryEntityType =
@@ -73,6 +73,11 @@ export type AiQueryResult = {
   total: number;
   filters_applied: string[];
   filters_ignored: string[];
+  scope: {
+    requested: AiQueryScope;
+    resolved: boolean;
+    team_name?: string | null;
+  } | null;
 };
 
 export type AiAggregateResult = {
@@ -81,6 +86,11 @@ export type AiAggregateResult = {
   total: number;
   filters_applied: string[];
   filters_ignored: string[];
+  scope: {
+    requested: AiQueryScope;
+    resolved: boolean;
+    team_name?: string | null;
+  } | null;
 };
 
 export type AiFilterValuesResult = {

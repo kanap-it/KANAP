@@ -25,6 +25,7 @@ import type {
   SortModelItem,
   ColumnState,
 } from 'ag-grid-community';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import useDebouncedValue from '../hooks/useDebouncedValue';
 import ClearableColumnFloatingFilter from './ClearableColumnFloatingFilter';
@@ -32,6 +33,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useTenant } from '../tenant/TenantContext';
 import { useThemeMode } from '../config/ThemeContext';
+import { useLocale } from '../i18n/useLocale';
 
 type ServerResponse<T> = { items: T[]; total: number; page: number; limit: number };
 
@@ -244,9 +246,11 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
   toolbarExtras,
   showRowCount,
 }: ServerDataGridProps<T>) {
+  const { t, i18n } = useTranslation(['common', 'grid']);
   const { profile } = useAuth();
   const { tenantSlug } = useTenant();
   const { resolvedMode } = useThemeMode();
+  const locale = useLocale();
 
   // Determine which column gets the row-count label (first column without a valueFormatter)
   const rowCountField = useMemo(() => {
@@ -254,6 +258,14 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
     const col = columns.find(c => !c.valueFormatter) || columns[0];
     return col?.field || col?.colId || '';
   }, [showRowCount, columns]);
+
+  const localeText = useMemo(() => {
+    const bundle = i18n.getResourceBundle(locale, 'grid');
+    if (!bundle || typeof bundle !== 'object') {
+      return {};
+    }
+    return { ...(bundle as Record<string, string>) };
+  }, [i18n, locale]);
 
   // Process columns to move custom properties to context to avoid AG Grid warnings
   const processedColumns = useMemo(() => {
@@ -843,13 +855,13 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
   const mergedPinnedBottomRowData = useMemo(() => {
     const rows: any[] = [];
     if (showRowCount && totalRowCount !== null && rowCountField) {
-      rows.push({ [rowCountField]: `Total (${totalRowCount})` });
+      rows.push({ [rowCountField]: t('common:labels.totalWithCount', { count: totalRowCount }) });
     }
     if (pinnedBottomRowData) {
       rows.push(...pinnedBottomRowData);
     }
     return rows.length > 0 ? rows : undefined;
-  }, [showRowCount, totalRowCount, rowCountField, pinnedBottomRowData]);
+  }, [showRowCount, totalRowCount, rowCountField, pinnedBottomRowData, t]);
 
   const showAuxHorizontalScrollbar = showTopScroll && !enablePagination;
 
@@ -860,14 +872,14 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
           {enableSearch && (
             <TextField
               size="small"
-              placeholder="Quick filter"
+              placeholder={t('common:filters.quickFilter')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               InputProps={{
                 endAdornment: search ? (
                   <IconButton
                     size="small"
-                    aria-label="Clear quick filter"
+                    aria-label={t('common:filters.clearQuickFilter')}
                     onClick={() => setSearch('')}
                     edge="end"
                   >
@@ -879,29 +891,29 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
           )}
           {statusScopeConfig && (
             <Stack direction="row" spacing={0.5} alignItems="center">
-              <Typography variant="body2">Show:</Typography>
+              <Typography variant="body2">{t('common:labels.show')}:</Typography>
               <RadioGroup
                 row
                 value={statusScope}
                 onChange={(event) => setStatusScope(event.target.value as StatusScope)}
                 sx={{ '& .MuiFormControlLabel-root': { mr: 1 } }}
               >
-                <FormControlLabel value="all" control={<Radio size="small" />} label="All" />
-                <FormControlLabel value="enabled" control={<Radio size="small" />} label="Enabled" />
-                <FormControlLabel value="disabled" control={<Radio size="small" />} label="Disabled" />
+                <FormControlLabel value="all" control={<Radio size="small" />} label={t('common:labels.all')} />
+                <FormControlLabel value="enabled" control={<Radio size="small" />} label={t('common:labels.enabled')} />
+                <FormControlLabel value="disabled" control={<Radio size="small" />} label={t('common:labels.disabled')} />
               </RadioGroup>
             </Stack>
           )}
           {toolbarExtras}
         </Stack>
-        {!!loadError && <Alert severity="error">{(loadError as any)?.message || 'Failed to load data'}</Alert>}
+        {!!loadError && <Alert severity="error">{(loadError as any)?.message || t('common:messages.loadFailed')}</Alert>}
         {enableColumnChooser && (
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Button size="small" onClick={handleShowColumnChooser}>
-              Choose Columns
+              {t('common:buttons.chooseColumns')}
             </Button>
             <Button size="small" onClick={handleResetColumns}>
-              Reset Columns
+              {t('common:buttons.resetColumns')}
             </Button>
           </Stack>
         )}
@@ -925,6 +937,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
           initialState={initialState}
           defaultColDef={defaultColDef}
           context={gridContext}
+          localeText={localeText}
           pinnedBottomRowData={mergedPinnedBottomRowData}
           cacheBlockSize={cacheBlockSize}
           maxConcurrentDatasourceRequests={1}

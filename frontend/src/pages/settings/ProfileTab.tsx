@@ -1,52 +1,41 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   Box,
   Button,
   Card,
   CardContent,
+  FormControl,
+  InputLabel,
   Link,
+  MenuItem,
+  Select,
+  SelectChangeEvent,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
-
-interface UserProfile {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  job_title: string | null;
-  business_phone: string | null;
-  mobile_phone: string | null;
-}
+import { SUPPORTED_LANGUAGES } from '../../i18n';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 export default function ProfileTab() {
-  const { hasLevel } = useAuth();
-  const queryClient = useQueryClient();
+  const { t } = useTranslation(['common', 'settings']);
+  const { hasLevel, isAuthenticating, profile, refreshMe } = useAuth();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [businessPhone, setBusinessPhone] = useState('');
   const [mobilePhone, setMobilePhone] = useState('');
+  const [selectedLocale, setSelectedLocale] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState('');
-
-  // Fetch current user profile from /auth/me
-  const { data: userData, isLoading } = useQuery({
-    queryKey: ['user-profile-me'],
-    queryFn: async () => {
-      const res = await api.get('/auth/me');
-      return res.data?.profile as UserProfile | undefined;
-    },
-  });
+  const [saveSucceeded, setSaveSucceeded] = useState(false);
 
   const hasAnyPortfolioReader = (
     hasLevel('tasks', 'reader') ||
@@ -57,54 +46,60 @@ export default function ProfileTab() {
     hasLevel('portfolio_settings', 'reader')
   );
 
-  // Initialize form from user data
   useEffect(() => {
-    if (userData) {
-      setFirstName(userData.first_name || '');
-      setLastName(userData.last_name || '');
-      setJobTitle(userData.job_title || '');
-      setBusinessPhone(userData.business_phone || '');
-      setMobilePhone(userData.mobile_phone || '');
+    if (profile) {
+      setFirstName(profile.first_name || '');
+      setLastName(profile.last_name || '');
+      setJobTitle(profile.job_title || '');
+      setBusinessPhone(profile.business_phone || '');
+      setMobilePhone(profile.mobile_phone || '');
+      setSelectedLocale(profile.locale || '');
     }
-  }, [userData]);
+  }, [profile]);
 
   const handleSave = useCallback(async () => {
-    if (!userData?.id) return;
+    if (!profile?.id) return;
     setSaving(true);
     setError(null);
-    setSuccessMessage('');
+    setSaveSucceeded(false);
 
     try {
-      await api.patch(`/users/${userData.id}`, {
+      await api.patch(`/users/${profile.id}`, {
         first_name: firstName.trim() || null,
         last_name: lastName.trim() || null,
         job_title: jobTitle.trim() || null,
         business_phone: businessPhone.trim() || null,
         mobile_phone: mobilePhone.trim() || null,
+        locale: selectedLocale || null,
       });
-      setSuccessMessage('Profile updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['user-profile-me'] });
+      await refreshMe();
+      setSaveSucceeded(true);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save profile');
+      setError(getApiErrorMessage(e, t, t('settings:profile.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
-  }, [userData?.id, firstName, lastName, jobTitle, businessPhone, mobilePhone, queryClient]);
+  }, [profile?.id, firstName, lastName, jobTitle, businessPhone, mobilePhone, selectedLocale, refreshMe, t]);
 
   const handleReset = useCallback(() => {
-    if (userData) {
-      setFirstName(userData.first_name || '');
-      setLastName(userData.last_name || '');
-      setJobTitle(userData.job_title || '');
-      setBusinessPhone(userData.business_phone || '');
-      setMobilePhone(userData.mobile_phone || '');
+    if (profile) {
+      setFirstName(profile.first_name || '');
+      setLastName(profile.last_name || '');
+      setJobTitle(profile.job_title || '');
+      setBusinessPhone(profile.business_phone || '');
+      setMobilePhone(profile.mobile_phone || '');
+      setSelectedLocale(profile.locale || '');
     }
-    setSuccessMessage('');
+    setSaveSucceeded(false);
     setError(null);
-  }, [userData]);
+  }, [profile]);
 
-  if (isLoading) {
-    return <Typography>Loading...</Typography>;
+  const handleLocaleChange = useCallback((event: SelectChangeEvent<string>) => {
+    setSelectedLocale(event.target.value);
+  }, []);
+
+  if (isAuthenticating || !profile) {
+    return <Typography>{t('common:status.loading')}</Typography>;
   }
 
   return (
@@ -114,31 +109,31 @@ export default function ProfileTab() {
           {error}
         </Alert>
       )}
-      {successMessage && (
-        <Alert severity="success" onClose={() => setSuccessMessage('')}>
-          {successMessage}
+      {saveSucceeded && (
+        <Alert severity="success" onClose={() => setSaveSucceeded(false)}>
+          {t('settings:profile.messages.saveSuccess')}
         </Alert>
       )}
 
       <Card>
         <CardContent>
           <Typography variant="subtitle2" gutterBottom>
-            Account Information
+            {t('settings:profile.sections.accountInformation')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Email: {userData?.email}
+            {t('common:labels.email')}: {profile.email}
           </Typography>
 
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
-                label="First Name"
+                label={t('settings:profile.fields.firstName')}
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 fullWidth
               />
               <TextField
-                label="Last Name"
+                label={t('settings:profile.fields.lastName')}
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 fullWidth
@@ -146,7 +141,7 @@ export default function ProfileTab() {
             </Stack>
 
             <TextField
-              label="Job Title"
+              label={t('settings:profile.fields.jobTitle')}
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
               fullWidth
@@ -154,30 +149,58 @@ export default function ProfileTab() {
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
-                label="Business Phone"
+                label={t('settings:profile.fields.businessPhone')}
                 value={businessPhone}
                 onChange={(e) => setBusinessPhone(e.target.value)}
                 fullWidth
                 placeholder="+1 (555) 123-4567"
               />
               <TextField
-                label="Mobile Phone"
+                label={t('settings:profile.fields.mobilePhone')}
                 value={mobilePhone}
                 onChange={(e) => setMobilePhone(e.target.value)}
                 fullWidth
                 placeholder="+1 (555) 987-6543"
               />
             </Stack>
+
+            <FormControl fullWidth>
+              <InputLabel id="profile-language-label">
+                {t('settings:profile.fields.language')}
+              </InputLabel>
+              <Select
+                labelId="profile-language-label"
+                value={selectedLocale}
+                displayEmpty
+                label={t('settings:profile.fields.language')}
+                onChange={handleLocaleChange}
+                renderValue={(value) => {
+                  if (!value) {
+                    return t('settings:profile.locale.autoDetect')
+                  }
+                  return SUPPORTED_LANGUAGES.find((language) => language.code === value)?.nativeLabel ?? value
+                }}
+              >
+                <MenuItem value="">
+                  {t('settings:profile.locale.autoDetect')}
+                </MenuItem>
+                {SUPPORTED_LANGUAGES.map((language) => (
+                  <MenuItem key={language.code} value={language.code}>
+                    {language.nativeLabel}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Stack>
         </CardContent>
       </Card>
 
       <Stack direction="row" spacing={1}>
         <Button variant="contained" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? t('common:status.saving') : t('common:buttons.saveChanges')}
         </Button>
         <Button variant="outlined" onClick={handleReset} disabled={saving}>
-          Reset
+          {t('common:buttons.reset')}
         </Button>
       </Stack>
 
@@ -185,10 +208,10 @@ export default function ProfileTab() {
         <Card>
           <CardContent>
             <Typography variant="subtitle2" gutterBottom>
-              Portfolio Contributor
+              {t('settings:profile.sections.portfolioContributor')}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Manage your contributor profile, skills, availability, and classification defaults.
+              {t('settings:profile.messages.portfolioDescription')}
             </Typography>
             <Box>
               <Link
@@ -196,7 +219,7 @@ export default function ProfileTab() {
                 to="/portfolio/contributors/me/defaults"
                 sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
               >
-                View Contributor Profile
+                {t('settings:profile.actions.viewContributorProfile')}
                 <ArrowForwardIcon fontSize="small" />
               </Link>
             </Box>

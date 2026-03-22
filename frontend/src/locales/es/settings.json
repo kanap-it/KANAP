@@ -1,0 +1,27 @@
+{
+  "profile": {
+    "sections": {
+      "accountInformation": "Información de la cuenta",
+      "portfolioContributor": "Colaborador del portafolio"
+    },
+    "fields": {
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "jobTitle": "Cargo",
+      "businessPhone": "Teléfono profesional",
+      "mobilePhone": "Teléfono móvil",
+      "language": "Idioma"
+    },
+    "locale": {
+      "autoDetect": "Detección automática (navegador)"
+    },
+    "messages": {
+      "saveSuccess": "Perfil actualizado correctamente",
+      "saveFailed": "No se pudo guardar el perfil",
+      "portfolioDescription": "Administra tu perfil de colaborador, habilidades, disponibilidad y valores predeterminados de clasificación."
+    },
+    "actions": {
+      "viewContributorProfile": "Ver perfil de colaborador"
+    }
+  }
+}

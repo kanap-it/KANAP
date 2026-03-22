@@ -72,7 +72,15 @@ export class UsersController {
   @UseGuards(PermissionGuard)
   @RequireLevel('users', 'member')
   update(@Param('id') id: string, @Body() body: any, @Req() req: any) {
-    return this.svc.updateUser(id, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+    return this.svc.updateUser(
+      id,
+      body,
+      {
+        actorUserId: req.user?.sub ?? null,
+        canManageUsers: req.isAdmin === true || req.permissionLevel === 'admin',
+      },
+      { manager: req?.queryRunner?.manager },
+    );
   }
 
   @Post('import')

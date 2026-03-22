@@ -1,0 +1,27 @@
+{
+  "buttons": {
+    "saveChanges": "Save Changes",
+    "reset": "Reset",
+    "chooseColumns": "Choose Columns",
+    "resetColumns": "Reset Columns"
+  },
+  "status": {
+    "loading": "Loading...",
+    "saving": "Saving..."
+  },
+  "filters": {
+    "quickFilter": "Quick filter",
+    "clearQuickFilter": "Clear quick filter"
+  },
+  "labels": {
+    "show": "Show",
+    "all": "All",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "email": "Email",
+    "totalWithCount": "Total ({{count}})"
+  },
+  "messages": {
+    "loadFailed": "Failed to load data"
+  }
+}

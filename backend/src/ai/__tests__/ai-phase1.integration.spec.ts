@@ -55,6 +55,14 @@ type SeededAiPeople = {
   applicationItOwner: SeededPerson;
 };
 
+type ScopedAiUsers = {
+  actor: SeededPerson;
+  teammate: SeededPerson;
+  outsider: SeededPerson;
+  teamId: string;
+  teamName: string;
+};
+
 async function seedTenant(runner: any, tenantId: string, slug: string, name: string) {
   await runner.query(
     `INSERT INTO tenants (id, slug, name, status, metadata, branding, created_at, updated_at)
@@ -169,6 +177,153 @@ async function seedAiPeopleAssignments(
   );
 
   return people;
+}
+
+async function seedAiScopeUsers(
+  runner: any,
+  tenantId: string,
+  graphs: {
+    mePrimary: SeededGraph;
+    meSecondary: SeededGraph;
+    teamOnly: SeededGraph;
+    outsider: SeededGraph;
+  },
+  tag: string,
+): Promise<ScopedAiUsers> {
+  const roleId = await seedRole(runner, tenantId, `AI Scope ${tag}`);
+
+  const createPerson = async (slug: string, firstName: string, lastName: string): Promise<SeededPerson> => {
+    const id = randomUUID();
+    const email = `${slug}-${tag}-${tenantId.slice(0, 8)}@example.com`;
+    await seedUser(runner, tenantId, id, email, roleId, { firstName, lastName });
+    return { id, email, name: `${firstName} ${lastName}` };
+  };
+
+  const users: ScopedAiUsers = {
+    actor: await createPerson('actor', 'Avery', `Actor${tag}`),
+    teammate: await createPerson('teammate', 'Taylor', `Teammate${tag}`),
+    outsider: await createPerson('outsider', 'Olivia', `Outsider${tag}`),
+    teamId: randomUUID(),
+    teamName: `AI Scope Team ${tag}`,
+  };
+
+  await setCurrentTenant(runner, tenantId);
+  await runner.query(
+    `INSERT INTO portfolio_teams (
+       id, tenant_id, name, description, is_active, display_order, is_system, parent_id, created_at, updated_at
+     )
+     VALUES ($1, $2, $3, $4, true, 0, false, null, now(), now())`,
+    [users.teamId, tenantId, users.teamName, `AI scope team ${tag}`],
+  );
+
+  for (const user of [users.actor, users.teammate]) {
+    await runner.query(
+      `INSERT INTO portfolio_team_member_configs (
+         id, tenant_id, user_id, areas_of_expertise, skills, project_availability, notes, team_id, created_at, updated_at
+       )
+       VALUES (
+         $1, $2, $3, '[]'::jsonb, '[]'::jsonb, 5, null, $4, now(), now()
+       )`,
+      [randomUUID(), tenantId, user.id, users.teamId],
+    );
+  }
+
+  await runner.query(
+    `UPDATE portfolio_projects
+     SET business_lead_id = $1,
+         priority_score = 30
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.actor.id, graphs.mePrimary.projectId, tenantId],
+  );
+  await runner.query(
+    `UPDATE portfolio_projects
+     SET it_lead_id = $1,
+         priority_score = 80
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.actor.id, graphs.meSecondary.projectId, tenantId],
+  );
+  await runner.query(
+    `UPDATE portfolio_projects
+     SET business_lead_id = $1,
+         priority_score = 95
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.teammate.id, graphs.teamOnly.projectId, tenantId],
+  );
+  await runner.query(
+    `UPDATE portfolio_projects
+     SET business_lead_id = $1,
+         priority_score = 60
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.outsider.id, graphs.outsider.projectId, tenantId],
+  );
+
+  await runner.query(
+    `UPDATE portfolio_requests
+     SET requestor_id = $1,
+         priority_score = 25
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.actor.id, graphs.mePrimary.requestId, tenantId],
+  );
+  await runner.query(
+    `UPDATE portfolio_requests
+     SET business_lead_id = $1,
+         priority_score = 70
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.actor.id, graphs.meSecondary.requestId, tenantId],
+  );
+  await runner.query(
+    `UPDATE portfolio_requests
+     SET requestor_id = $1,
+         priority_score = 90
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.teammate.id, graphs.teamOnly.requestId, tenantId],
+  );
+  await runner.query(
+    `UPDATE portfolio_requests
+     SET requestor_id = $1,
+         priority_score = 50
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.outsider.id, graphs.outsider.requestId, tenantId],
+  );
+
+  await runner.query(
+    `UPDATE tasks
+     SET assignee_user_id = $1
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.actor.id, graphs.mePrimary.taskId, tenantId],
+  );
+  await runner.query(
+    `UPDATE tasks
+     SET assignee_user_id = $1
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.actor.id, graphs.meSecondary.taskId, tenantId],
+  );
+  await runner.query(
+    `UPDATE tasks
+     SET assignee_user_id = $1
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.teammate.id, graphs.teamOnly.taskId, tenantId],
+  );
+  await runner.query(
+    `UPDATE tasks
+     SET assignee_user_id = $1
+     WHERE id = $2
+       AND tenant_id = $3`,
+    [users.outsider.id, graphs.outsider.taskId, tenantId],
+  );
+
+  return users;
 }
 
 async function setCurrentTenant(runner: any, tenantId: string) {
@@ -1525,6 +1680,175 @@ async function testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScope
   }
 }
 
+async function testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  const tenantId = randomUUID();
+
+  try {
+    await seedTenant(runner, tenantId, `ai-scope-${tenantId.slice(0, 8)}`, 'AI Scope Tenant');
+
+    const mePrimary = await seedApplicationAssetGraph(runner, tenantId, '7101', {
+      projectName: 'Scope Me Project Low',
+      requestName: 'Scope Me Request Low',
+      taskTitle: 'Scope Me Task Low',
+    });
+    const meSecondary = await seedApplicationAssetGraph(runner, tenantId, '7102', {
+      projectName: 'Scope Me Project High',
+      requestName: 'Scope Me Request High',
+      taskTitle: 'Scope Me Task High',
+    });
+    const teamOnly = await seedApplicationAssetGraph(runner, tenantId, '7103', {
+      projectName: 'Scope Team Project',
+      requestName: 'Scope Team Request',
+      taskTitle: 'Scope Team Task',
+    });
+    const outsider = await seedApplicationAssetGraph(runner, tenantId, '7104', {
+      projectName: 'Scope Outsider Project',
+      requestName: 'Scope Outsider Request',
+      taskTitle: 'Scope Outsider Task',
+    });
+    const scopedUsers = await seedAiScopeUsers(
+      runner,
+      tenantId,
+      { mePrimary, meSecondary, teamOnly, outsider },
+      '7101',
+    );
+
+    const policy = createPermissivePolicyStub();
+    const { knowledge, queryExecutor, aggregateExecutor } = createAiQueryHarness(runner.manager);
+    const entityService = new AiEntityService(knowledge as any, policy);
+    const registry = new AiToolRegistry(
+      entityService,
+      knowledge as any,
+      policy,
+      queryExecutor,
+      aggregateExecutor,
+    );
+
+    await setCurrentTenant(runner, tenantId);
+    const actorContext = {
+      tenantId,
+      userId: scopedUsers.actor.id,
+      isPlatformHost: false,
+      surface: 'chat' as const,
+      authMethod: 'jwt' as const,
+      manager: runner.manager,
+    };
+
+    const meProjects = await registry.execute(actorContext, 'query_entities', {
+      entity_type: 'projects',
+      scope: 'me',
+      q: 'Scope Me Project',
+      sort: { field: 'priority_score', direction: 'desc' },
+      limit: 10,
+    }) as any;
+    assert.equal(meProjects.total, 2);
+    assert.deepEqual(
+      meProjects.items.map((item: any) => item.id),
+      [meSecondary.projectId, mePrimary.projectId],
+    );
+    assert.deepEqual(
+      meProjects.items.map((item: any) => item.metadata.priority_score),
+      [80, 30],
+    );
+    assert.deepEqual(meProjects.scope, { requested: 'me', resolved: true });
+
+    const meRequests = await registry.execute(actorContext, 'query_entities', {
+      entity_type: 'requests',
+      scope: 'me',
+      q: 'Scope Me Request',
+      sort: { field: 'priority_score', direction: 'desc' },
+      limit: 10,
+    }) as any;
+    assert.equal(meRequests.total, 2);
+    assert.deepEqual(
+      meRequests.items.map((item: any) => item.id),
+      [meSecondary.requestId, mePrimary.requestId],
+    );
+    assert.deepEqual(
+      meRequests.items.map((item: any) => item.metadata.priority_score),
+      [70, 25],
+    );
+    assert.deepEqual(meRequests.scope, { requested: 'me', resolved: true });
+
+    const meTasks = await registry.execute(actorContext, 'query_entities', {
+      entity_type: 'tasks',
+      scope: 'me',
+      q: 'Scope Me Task',
+      sort: { field: 'label', direction: 'asc' },
+      limit: 10,
+    }) as any;
+    assert.equal(meTasks.total, 2);
+    assert.deepEqual(
+      meTasks.items.map((item: any) => item.id),
+      [meSecondary.taskId, mePrimary.taskId],
+    );
+    assert.deepEqual(meTasks.scope, { requested: 'me', resolved: true });
+
+    const teamProjects = await registry.execute(actorContext, 'query_entities', {
+      entity_type: 'projects',
+      scope: 'my_team',
+      q: 'Scope',
+      sort: { field: 'priority_score', direction: 'desc' },
+      limit: 10,
+    }) as any;
+    assert.equal(teamProjects.total, 3);
+    assert.deepEqual(
+      teamProjects.items.map((item: any) => item.id),
+      [teamOnly.projectId, meSecondary.projectId, mePrimary.projectId],
+    );
+    assert.deepEqual(teamProjects.scope, {
+      requested: 'my_team',
+      resolved: true,
+      team_name: scopedUsers.teamName,
+    });
+    assert.equal(
+      teamProjects.items.some((item: any) => item.id === outsider.projectId),
+      false,
+    );
+
+    const teamTaskAggregate = await registry.execute(actorContext, 'aggregate_entities', {
+      entity_type: 'tasks',
+      scope: 'my_team',
+      group_by: 'assignee',
+      q: 'Scope',
+    }) as any;
+    assert.equal(teamTaskAggregate.total, 3);
+    assert.deepEqual(teamTaskAggregate.groups, [
+      { key: scopedUsers.actor.name, count: 2 },
+      { key: scopedUsers.teammate.name, count: 1 },
+    ]);
+    assert.deepEqual(teamTaskAggregate.scope, {
+      requested: 'my_team',
+      resolved: true,
+      team_name: scopedUsers.teamName,
+    });
+
+    const outsiderContext = {
+      ...actorContext,
+      userId: scopedUsers.outsider.id,
+    };
+    const unresolvedTeamScope = await registry.execute(outsiderContext, 'query_entities', {
+      entity_type: 'projects',
+      scope: 'my_team',
+      q: 'Scope',
+      limit: 10,
+    }) as any;
+    assert.equal(unresolvedTeamScope.total, 0);
+    assert.deepEqual(unresolvedTeamScope.scope, {
+      requested: 'my_team',
+      resolved: false,
+      team_name: null,
+    });
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 async function testAiAdminOverviewAggregatesUsageAndIsTenantScoped() {
   const runner = dataSource.createQueryRunner();
   await runner.connect();
@@ -1754,6 +2078,7 @@ async function run() {
     await testAiPhase1RepairMigrationReassertsCriticalRls();
     await testAiEntityServicePhase1TenantDefenseInDepth();
     await testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScoped();
+    await testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting();
     await testAiAdminOverviewAggregatesUsageAndIsTenantScoped();
     await testAiConversationRetentionArchivesAndPurgesOldConversations();
     await testAiToolRegistryIsolationCoverageTracksRegisteredTools();

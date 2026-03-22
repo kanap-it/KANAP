@@ -83,6 +83,14 @@ export const requestsRegistry: AiEntityFilterRegistry = {
       sortable: false,
       groupable: false,
     },
+    priority_score: {
+      ai: 'priority_score',
+      grid: 'priority_score',
+      type: 'number',
+      description: 'Request priority score.',
+      sortable: true,
+      groupable: false,
+    },
     target_date: {
       ai: 'target_date',
       grid: 'target_delivery_date',
@@ -95,6 +103,7 @@ export const requestsRegistry: AiEntityFilterRegistry = {
   sortFields: {
     label: 'name',
     status: 'status',
+    priority_score: 'priority_score',
     target_date: 'target_delivery_date',
     created_at: 'created_at',
     updated_at: 'updated_at',

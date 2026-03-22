@@ -1,0 +1,9 @@
+{
+  "INVALID_LOCALE": "Selección de idioma no válida.",
+  "USER_NOT_FOUND": "Usuario no encontrado.",
+  "FORBIDDEN_PROFILE_UPDATE": "Solo puedes actualizar tu propio perfil.",
+  "PASSWORD_UPDATE_NOT_ALLOWED": "Las actualizaciones de contraseña no se admiten en este endpoint.",
+  "INVALID_CREDENTIALS": "Correo electrónico o contraseña no válidos.",
+  "TRIAL_EXPIRED": "Tu periodo de prueba ha finalizado. Elige un plan para continuar.",
+  "SUBSCRIPTION_FROZEN": "Tu suscripción está congelada."
+}

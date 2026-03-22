@@ -14,6 +14,7 @@ import {
   AiExecutionContextWithManager,
   AiKnowledgeSearchResultDto,
   AiQueryEntityTypeSchema,
+  AiQueryScopeSchema,
   AiSearchEntityTypeSchema,
   AiToolDefinition,
   AiToolListItemDto,
@@ -57,6 +58,7 @@ const AiFilterValueSchema = z.union([
 
 const QueryEntitiesInputSchema = z.object({
   entity_type: AiQueryEntityTypeSchema,
+  scope: AiQueryScopeSchema.optional(),
   filters: z.record(z.string(), AiFilterValueSchema).optional(),
   q: z.string().trim().optional(),
   sort: z.object({
@@ -68,6 +70,7 @@ const QueryEntitiesInputSchema = z.object({
 
 const AggregateEntitiesInputSchema = z.object({
   entity_type: AiQueryEntityTypeSchema,
+  scope: AiQueryScopeSchema.optional(),
   group_by: z.string().trim().min(1),
   filters: z.record(z.string(), AiFilterValueSchema).optional(),
   q: z.string().trim().optional(),
@@ -126,6 +129,7 @@ export class AiToolRegistry {
           inputSchema: QueryEntitiesInputSchema,
           inputSummary: {
             entity_type: 'One of applications, assets, projects, requests, tasks, or documents.',
+            scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             filters: 'Optional field filters keyed by AI field name.',
             q: 'Optional quick-search text.',
             sort: 'Optional sort field and direction.',
@@ -147,6 +151,7 @@ export class AiToolRegistry {
           inputSchema: AggregateEntitiesInputSchema,
           inputSummary: {
             entity_type: 'One of applications, assets, projects, requests, tasks, or documents.',
+            scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             group_by: 'A supported group-by field from the query layer registry.',
             filters: 'Optional field filters keyed by AI field name.',
             q: 'Optional quick-search text.',

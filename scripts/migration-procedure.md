@@ -235,10 +235,23 @@ Required changes:
 
 | Variable | Value | Reason |
 |---|---|---|
-| `ADMIN_EMAIL` | Email of an existing imported user | This user is treated as the admin. Pick the primary admin. |
+| `ADMIN_EMAIL` | Email of an existing imported **local** user | This user is treated as the admin. Must be a user who can log in with email + password (not SSO-only). If the tenant uses Entra ID, domain users won't be able to authenticate until the on-prem Entra app registration is configured (see SSO / Entra ID section below). Pick a local account (e.g. a platform admin or service account) to ensure you can log in immediately after migration and complete the setup. |
 | `ADMIN_PASSWORD` | *(empty)* | If set, the app resets the admin password on every boot, overwriting the imported hash. |
 | `AI_SETTINGS_ENCRYPTION_SECRET` | Any new value | The cloud encryption secret is not transferred. The AI API key is cleared during import. Re-enter it in Admin > AI Settings after first login. |
 | `DEFAULT_TENANT_SLUG` | `default` | Should already be set. Must match the `destination_slug` used in Phase 4. |
+
+> **Tip:** Run this query against the export to list candidate admin accounts — look
+> for users whose email domain is *not* the tenant's SSO domain:
+> ```bash
+> grep -m5 '' "$LOCAL_EXPORT_DIR/users.csv" | head -1  # show columns
+> # Then in the on-prem database after import:
+> sudo -u postgres psql -d "$ONPREM_DB_NAME" --no-psqlrc -c "
+>   SELECT email, first_name, last_name FROM users
+>   WHERE tenant_id = '$TENANT_ID' AND status = 'enabled'
+>     AND email NOT LIKE '%@<tenant-sso-domain>'
+>   ORDER BY email
+> "
+> ```
 
 ### 5b. Start the application
 

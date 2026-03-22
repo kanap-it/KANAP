@@ -1,0 +1,27 @@
+{
+  "profile": {
+    "sections": {
+      "accountInformation": "Kontoinformationen",
+      "portfolioContributor": "Portfolio-Mitwirkender"
+    },
+    "fields": {
+      "firstName": "Vorname",
+      "lastName": "Nachname",
+      "jobTitle": "Position",
+      "businessPhone": "Geschäftstelefon",
+      "mobilePhone": "Mobiltelefon",
+      "language": "Sprache"
+    },
+    "locale": {
+      "autoDetect": "Automatisch erkennen (Browser)"
+    },
+    "messages": {
+      "saveSuccess": "Profil erfolgreich aktualisiert",
+      "saveFailed": "Profil konnte nicht gespeichert werden",
+      "portfolioDescription": "Verwalten Sie Ihr Mitwirkendenprofil, Ihre Fähigkeiten, Verfügbarkeit und Standardklassifizierungen."
+    },
+    "actions": {
+      "viewContributorProfile": "Mitwirkendenprofil anzeigen"
+    }
+  }
+}

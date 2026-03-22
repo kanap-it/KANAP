@@ -1,0 +1,27 @@
+{
+  "profile": {
+    "sections": {
+      "accountInformation": "Informations du compte",
+      "portfolioContributor": "Contributeur portefeuille"
+    },
+    "fields": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "jobTitle": "Poste",
+      "businessPhone": "Téléphone professionnel",
+      "mobilePhone": "Téléphone portable",
+      "language": "Langue"
+    },
+    "locale": {
+      "autoDetect": "Détection automatique (navigateur)"
+    },
+    "messages": {
+      "saveSuccess": "Profil mis à jour avec succès",
+      "saveFailed": "Impossible d'enregistrer le profil",
+      "portfolioDescription": "Gérez votre profil contributeur, vos compétences, votre disponibilité et vos valeurs par défaut de classification."
+    },
+    "actions": {
+      "viewContributorProfile": "Voir le profil contributeur"
+    }
+  }
+}
