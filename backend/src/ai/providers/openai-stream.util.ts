@@ -51,7 +51,7 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
     model: params.model,
     messages,
     ...(tools.length > 0 ? { tools } : {}),
-    max_tokens: params.maxTokens,
+    max_completion_tokens: params.maxTokens,
     stream: true,
   });
 

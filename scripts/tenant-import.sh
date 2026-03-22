@@ -44,6 +44,12 @@ psql_exec() {
   psql -d "$DB_NAME" --no-psqlrc "$@"
 }
 
+# Read the CSV header and return it as a comma-separated column list
+# e.g. "id,name,tenant_id" — for use in \COPY table(...) FROM ...
+csv_columns() {
+  head -1 "$1" | sed 's/"//g'
+}
+
 # ---------------------------------------------------------------------------
 # Validate: check we're superuser
 # ---------------------------------------------------------------------------
@@ -306,11 +312,12 @@ echo "  Importing global reference tables..."
 for table in account_classifications spread_profiles; do
   csv_file="$EXPORT_DIR/${table}.csv"
   if [[ -f "$csv_file" ]]; then
+    cols=$(csv_columns "$csv_file")
     psql_exec <<SQL
 SET session_replication_role = 'replica';
 CREATE TEMP TABLE _tmp_import (LIKE ${table} INCLUDING ALL);
-\\COPY _tmp_import FROM '$(realpath "$csv_file")' WITH (FORMAT csv, HEADER true);
-INSERT INTO ${table} SELECT * FROM _tmp_import ON CONFLICT DO NOTHING;
+\\COPY _tmp_import($cols) FROM '$(realpath "$csv_file")' WITH (FORMAT csv, HEADER true);
+INSERT INTO ${table}($cols) SELECT $cols FROM _tmp_import ON CONFLICT DO NOTHING;
 DROP TABLE _tmp_import;
 SQL
     echo "    $table: done"
@@ -319,10 +326,11 @@ done
 
 # -- Import tenant row (with transformations) --------------------------------
 echo "  Importing tenant row..."
+tenant_cols=$(csv_columns "$EXPORT_DIR/tenants.csv")
 psql_exec <<SQL
 SET session_replication_role = 'replica';
 CREATE TEMP TABLE _tmp_tenant (LIKE tenants INCLUDING ALL);
-\\COPY _tmp_tenant FROM '$(realpath "$EXPORT_DIR/tenants.csv")' WITH (FORMAT csv, HEADER true);
+\\COPY _tmp_tenant($tenant_cols) FROM '$(realpath "$EXPORT_DIR/tenants.csv")' WITH (FORMAT csv, HEADER true);
 UPDATE _tmp_tenant SET
   slug = '$DEST_SLUG',
   stripe_customer_id = NULL,
@@ -333,7 +341,7 @@ UPDATE _tmp_tenant SET
   billing_address = NULL,
   billing_customer_info = NULL,
   billing_invoice_info = NULL;
-INSERT INTO tenants SELECT * FROM _tmp_tenant;
+INSERT INTO tenants($tenant_cols) SELECT $tenant_cols FROM _tmp_tenant;
 DROP TABLE _tmp_tenant;
 SQL
 echo "    tenant '$SOURCE_SLUG' imported as '$DEST_SLUG'"
@@ -361,9 +369,10 @@ for table in "${IMPORT_ORDER[@]}"; do
     continue  # Skip empty tables
   fi
 
+  cols=$(csv_columns "$csv_file")
   psql_exec <<SQL
 SET session_replication_role = 'replica';
-\\COPY ${table} FROM '$(realpath "$csv_file")' WITH (FORMAT csv, HEADER true);
+\\COPY ${table}($cols) FROM '$(realpath "$csv_file")' WITH (FORMAT csv, HEADER true);
 SQL
 
   imported_count=$(( imported_count + 1 ))
@@ -379,9 +388,10 @@ pcv_file="$EXPORT_DIR/portfolio_criterion_values.csv"
 if [[ -f "$pcv_file" ]]; then
   row_count=$(( $(wc -l < "$pcv_file") - 1 ))
   if [[ $row_count -gt 0 ]]; then
+    pcv_cols=$(csv_columns "$pcv_file")
     psql_exec <<SQL
 SET session_replication_role = 'replica';
-\\COPY portfolio_criterion_values FROM '$(realpath "$pcv_file")' WITH (FORMAT csv, HEADER true);
+\\COPY portfolio_criterion_values($pcv_cols) FROM '$(realpath "$pcv_file")' WITH (FORMAT csv, HEADER true);
 SQL
     imported_count=$(( imported_count + 1 ))
     imported_rows=$(( imported_rows + row_count ))
@@ -390,7 +400,7 @@ SQL
 fi
 
 # -- Re-enable FK triggers ---------------------------------------------------
-psql_cmd -c "SET session_replication_role = 'DEFAULT'"
+psql_cmd -c "SET session_replication_role = 'origin'"
 
 # ---------------------------------------------------------------------------
 # Phase 3: Post-import fixes
@@ -405,8 +415,8 @@ psql_cmd -c "
     plan_name = 'On-Prem',
     seat_limit = 1000,
     status = 'active',
-    subscription_type = 'ANNUAL',
-    payment_mode = 'CARD',
+    subscription_type = 'annual',
+    payment_mode = 'card',
     stripe_customer_id = NULL,
     stripe_subscription_id = NULL,
     stripe_product_id = NULL,

@@ -50,6 +50,17 @@ psql_copy() {
   psql "$DB_URL" --no-psqlrc "$@"
 }
 
+# RLS-aware copy: sets app.current_tenant in the same session as \COPY
+# so that RLS policies pass for non-superuser roles.
+psql_copy_tenant() {
+  local copy_cmd="$1"
+  local outfile="$2"
+  psql "$DB_URL" --no-psqlrc <<SQL | grep -v '^SET$' > "$outfile"
+SET app.current_tenant = '$TENANT_ID';
+$copy_cmd
+SQL
+}
+
 # ---------------------------------------------------------------------------
 # Resolve tenant
 # ---------------------------------------------------------------------------
@@ -261,7 +272,7 @@ should_skip() {
 # Export tenant row
 # ---------------------------------------------------------------------------
 echo "Exporting tenant row..."
-psql_copy -c "\\COPY (SELECT * FROM tenants WHERE id = '$TENANT_ID') TO STDOUT WITH (FORMAT csv, HEADER true, FORCE_QUOTE *)" > "$OUTPUT_DIR/tenants.csv"
+psql_copy_tenant "\\COPY (SELECT * FROM tenants WHERE id = '$TENANT_ID') TO STDOUT WITH (FORMAT csv, HEADER true, FORCE_QUOTE *)" "$OUTPUT_DIR/tenants.csv"
 
 # ---------------------------------------------------------------------------
 # Export tenant-scoped tables
@@ -276,7 +287,7 @@ for table in "${TENANT_TABLES[@]}"; do
   fi
 
   csv_file="$OUTPUT_DIR/${table}.csv"
-  psql_copy -c "\\COPY (SELECT * FROM ${table} WHERE tenant_id = '$TENANT_ID') TO STDOUT WITH (FORMAT csv, HEADER true, FORCE_QUOTE *)" > "$csv_file"
+  psql_copy_tenant "\\COPY (SELECT * FROM ${table} WHERE tenant_id = '$TENANT_ID') TO STDOUT WITH (FORMAT csv, HEADER true, FORCE_QUOTE *)" "$csv_file"
 
   # Count rows (subtract 1 for header)
   row_count=$(( $(wc -l < "$csv_file") - 1 ))
@@ -294,7 +305,7 @@ done
 # ---------------------------------------------------------------------------
 echo "Exporting allocation_rules..."
 csv_file="$OUTPUT_DIR/allocation_rules.csv"
-psql_copy -c "\\COPY (SELECT * FROM allocation_rules WHERE tenant_id = '$TENANT_ID') TO STDOUT WITH (FORMAT csv, HEADER true, FORCE_QUOTE *)" > "$csv_file"
+psql_copy_tenant "\\COPY (SELECT * FROM allocation_rules WHERE tenant_id = '$TENANT_ID') TO STDOUT WITH (FORMAT csv, HEADER true, FORCE_QUOTE *)" "$csv_file"
 row_count=$(( $(wc -l < "$csv_file") - 1 ))
 if [[ $row_count -lt 0 ]]; then row_count=0; fi
 ROW_COUNTS[allocation_rules]=$row_count
@@ -306,7 +317,7 @@ echo "  allocation_rules: $row_count rows"
 # ---------------------------------------------------------------------------
 echo "Exporting portfolio_criterion_values..."
 csv_file="$OUTPUT_DIR/portfolio_criterion_values.csv"
-psql_copy -c "\\COPY (SELECT pcv.* FROM portfolio_criterion_values pcv JOIN portfolio_criteria pc ON pcv.criterion_id = pc.id WHERE pc.tenant_id = '$TENANT_ID') TO STDOUT WITH (FORMAT csv, HEADER true, FORCE_QUOTE *)" > "$csv_file"
+psql_copy_tenant "\\COPY (SELECT pcv.* FROM portfolio_criterion_values pcv JOIN portfolio_criteria pc ON pcv.criterion_id = pc.id WHERE pc.tenant_id = '$TENANT_ID') TO STDOUT WITH (FORMAT csv, HEADER true, FORCE_QUOTE *)" "$csv_file"
 row_count=$(( $(wc -l < "$csv_file") - 1 ))
 if [[ $row_count -lt 0 ]]; then row_count=0; fi
 ROW_COUNTS[portfolio_criterion_values]=$row_count
@@ -319,7 +330,7 @@ echo "  portfolio_criterion_values: $row_count rows"
 echo "Exporting global reference tables..."
 for table in account_classifications spread_profiles; do
   csv_file="$OUTPUT_DIR/${table}.csv"
-  psql_copy -c "\\COPY (SELECT * FROM ${table}) TO STDOUT WITH (FORMAT csv, HEADER true, FORCE_QUOTE *)" > "$csv_file"
+  psql_copy_tenant "\\COPY (SELECT * FROM ${table}) TO STDOUT WITH (FORMAT csv, HEADER true, FORCE_QUOTE *)" "$csv_file"
   row_count=$(( $(wc -l < "$csv_file") - 1 ))
   if [[ $row_count -lt 0 ]]; then row_count=0; fi
   ROW_COUNTS[$table]=$row_count
