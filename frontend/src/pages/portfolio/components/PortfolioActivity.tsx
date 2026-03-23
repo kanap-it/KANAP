@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import CommentIcon from '@mui/icons-material/Comment';
 import HistoryIcon from '@mui/icons-material/History';
+import { useTranslation } from 'react-i18next';
 import PortfolioComments from './PortfolioComments';
 import PortfolioHistory from './PortfolioHistory';
 
@@ -61,6 +62,7 @@ export default function PortfolioActivity({
   onImageUpload,
   onImageUrlImport,
 }: PortfolioActivityProps) {
+  const { t } = useTranslation('portfolio');
   const [activeTab, setActiveTab] = React.useState<ActivityTab>('comments');
 
   const handleTabChange = (_: React.MouseEvent<HTMLElement>, newTab: ActivityTab | null) => {
@@ -73,7 +75,7 @@ export default function PortfolioActivity({
     <Box>
       <Box sx={{ mb: 2 }}>
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-          Activity
+          {t('activity.title')}
         </Typography>
         <ToggleButtonGroup
           value={activeTab}
@@ -83,11 +85,11 @@ export default function PortfolioActivity({
         >
           <ToggleButton value="comments">
             <CommentIcon fontSize="small" sx={{ mr: 0.5 }} />
-            Comments
+            {t('activity.tabs.comments')}
           </ToggleButton>
           <ToggleButton value="history">
             <HistoryIcon fontSize="small" sx={{ mr: 0.5 }} />
-            History
+            {t('activity.tabs.history')}
           </ToggleButton>
         </ToggleButtonGroup>
       </Box>

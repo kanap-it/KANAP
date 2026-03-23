@@ -202,6 +202,14 @@ const buildRequestContributorNamesSql = (alias: string): string => `COALESCE((
   ) contributor
 ), '')`;
 
+const applyExplicitTenantConstraint = (
+  qb: SelectQueryBuilder<PortfolioRequest>,
+  tenantId?: string,
+) => {
+  if (!tenantId) return;
+  qb.andWhere('r.tenant_id = :tenantId', { tenantId });
+};
+
 @Injectable()
 export class PortfolioRequestsService {
   constructor(
@@ -220,9 +228,10 @@ export class PortfolioRequestsService {
   ) {}
 
   // ==================== LIST ====================
-  async list(query: any, opts?: { manager?: EntityManager }) {
+  async list(query: any, opts?: { manager?: EntityManager; tenantId?: string }) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequest);
+    const tenantId = String(opts?.tenantId || '').trim();
     const involvementScope = parseInvolvementScope(query);
 
     const { page, limit, skip, sort, q, filters } = parsePagination(query, {
@@ -342,6 +351,9 @@ export class PortfolioRequestsService {
 
     // Build query
     const qb = repo.createQueryBuilder('r');
+    if (tenantId) {
+      qb.andWhere('r.tenant_id = :tenantId', { tenantId });
+    }
     applyRequestInvolvementScope(qb, involvementScope, 'r');
 
     // Apply compiled filter conditions
@@ -387,9 +399,10 @@ export class PortfolioRequestsService {
   }
 
   // ==================== LIST IDS ====================
-  async listIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[] }> {
+  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ ids: string[] }> {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequest);
+    const tenantId = String(opts?.tenantId || '').trim();
     const involvementScope = parseInvolvementScope(query);
 
     const { sort, q, filters } = parsePagination(query, {
@@ -481,6 +494,9 @@ export class PortfolioRequestsService {
 
     // Build query
     const qb = repo.createQueryBuilder('r').select('r.id');
+    if (tenantId) {
+      qb.andWhere('r.tenant_id = :tenantId', { tenantId });
+    }
     applyRequestInvolvementScope(qb, involvementScope, 'r');
 
     // Apply compiled filter conditions
@@ -519,9 +535,10 @@ export class PortfolioRequestsService {
   /**
    * Return scoped filter values for checkbox set filters.
    */
-  async listFilterValues(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {
+  async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<Record<string, Array<string | null>>> {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequest);
+    const tenantId = String(opts?.tenantId || '').trim();
     const involvementScope = parseInvolvementScope(query);
     const { q, filters } = parsePagination(query, {
       field: 'created_at',
@@ -646,6 +663,9 @@ export class PortfolioRequestsService {
       const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
 
       const qb = repo.createQueryBuilder('r');
+      if (tenantId) {
+        qb.andWhere('r.tenant_id = :tenantId', { tenantId });
+      }
       applyRequestInvolvementScope(qb, involvementScope, 'r');
 
       compiledFilters.forEach((c) => {
@@ -1627,8 +1647,8 @@ export class PortfolioRequestsService {
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const request = await this.getRequestOrThrow(requestId, mg);
-    const rows = await mg.query<Array<{ id: string; name: string | null }>>(
-      `SELECT l.application_id AS id, a.name
+    const rows = await mg.query<Array<{ id: string; name: string | null; description: string | null }>>(
+      `SELECT l.application_id AS id, a.name, a.description
        FROM portfolio_request_applications l
        JOIN applications a ON a.id = l.application_id
        WHERE l.request_id = $1

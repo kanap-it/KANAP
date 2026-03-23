@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Alert, Stack, Typography, TextField, Button, CircularProgress, Autocomplete, IconButton, LinearProgress, Chip, Box } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
@@ -15,6 +17,7 @@ type Props = { id: string; onDirtyChange?: (dirty: boolean) => void };
 
 export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({ id, onDirtyChange }, ref) {
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(['ops', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -72,7 +75,7 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
       const resAtt = await api.get(`/spend-items/${id}/attachments`);
       setAttachments(resAtt.data || []);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load relations');
+      setError(getApiErrorMessage(e, t, t('opex.relations.failedToLoad')));
       setLinkedProjects([]); setBaselineProjects([]);
       setLinkedContracts([]);
       setBaselineContracts([]);
@@ -186,7 +189,7 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
       for (const u of urls) { if (!u.url) continue; if (u.id) await api.patch(`/spend-items/${id}/links/${u.id}`, { description: u.description, url: u.url }); else await api.post(`/spend-items/${id}/links`, { description: u.description, url: u.url }); }
       setBaselineUrls(urls);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save relations');
+      setError(getApiErrorMessage(e, t, t('opex.relations.failedToSave')));
       throw e;
     } finally { setSaving(false); }
   };
@@ -197,7 +200,7 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
   return (
     <Stack spacing={2}>
       {!!error && <Alert severity="error">{error}</Alert>}
-      <Typography variant="subtitle2">Projects</Typography>
+      <Typography variant="subtitle2">{t('opex.relations.projects')}</Typography>
       <Autocomplete
         multiple
         options={projectOptions}
@@ -215,8 +218,8 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Projects"
-            placeholder="Select projects"
+            label={t('opex.relations.projects')}
+            placeholder={t('opex.relations.selectProjects')}
             InputLabelProps={{ shrink: true }}
             InputProps={{
               ...params.InputProps,
@@ -230,7 +233,7 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
         fullWidth
       />
 
-      <Typography variant="subtitle2">Applications</Typography>
+      <Typography variant="subtitle2">{t('opex.relations.applications')}</Typography>
       <Autocomplete
         multiple
         options={appOptions}
@@ -274,8 +277,8 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Applications"
-            placeholder="Select applications/services"
+            label={t('opex.relations.applications')}
+            placeholder={t('opex.relations.selectApplications')}
             InputLabelProps={{ shrink: true }}
             InputProps={{
               ...params.InputProps,
@@ -293,7 +296,7 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
         fullWidth
       />
 
-      <Typography variant="subtitle2">Contracts</Typography>
+      <Typography variant="subtitle2">{t('opex.relations.contracts')}</Typography>
       <Autocomplete
         multiple
         options={contractOptions}
@@ -327,8 +330,8 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Contracts"
-            placeholder="Select contracts"
+            label={t('opex.relations.contracts')}
+            placeholder={t('opex.relations.selectContracts')}
             InputLabelProps={{ shrink: true }}
             InputProps={{
               ...params.InputProps,
@@ -348,7 +351,7 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
 
       <ItemContactsSection itemType="spend-items" itemId={id} canManage={!readOnly} />
 
-      <Typography variant="subtitle2">Relevant websites</Typography>
+      <Typography variant="subtitle2">{t('opex.relations.relevantWebsites')}</Typography>
       <Stack spacing={1}>
         {urls.map((l, idx) => (
           <Stack key={l.id || idx} direction="row" spacing={1} alignItems="center">
@@ -357,10 +360,10 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
             {!readOnly && <IconButton aria-label="delete" onClick={() => setUrls(prev => prev.filter((_, i) => i!==idx))}><DeleteIcon fontSize="small"/></IconButton>}
           </Stack>
         ))}
-        {!readOnly && <Button size="small" onClick={() => setUrls(prev => [...prev, { url: '' }])}>Add URL</Button>}
+        {!readOnly && <Button size="small" onClick={() => setUrls(prev => [...prev, { url: '' }])}>{t('opex.relations.addUrl')}</Button>}
       </Stack>
 
-      <Typography variant="subtitle2">Attachments</Typography>
+      <Typography variant="subtitle2">{t('opex.relations.attachments')}</Typography>
       <Stack spacing={1}>
         <Box
           onDragOver={(e) => { if (!readOnly) { e.preventDefault(); setHover(true); } }}
@@ -378,10 +381,10 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
           }}
           sx={{ border: '2px dashed', borderColor: hover ? 'primary.main' : 'divider', borderRadius: 1, p: 2, textAlign: 'center', cursor: readOnly ? 'default' : 'pointer', opacity: readOnly ? 0.6 : 1 }}
         >
-          <Typography variant="body2" color="text.secondary">{readOnly ? 'You do not have permission to upload attachments.' : 'Drag & drop files here, or use the button to select'}</Typography>
+          <Typography variant="body2" color="text.secondary">{readOnly ? t('opex.relations.noUploadPermission') : t('opex.relations.dragDrop')}</Typography>
           <Box sx={{ mt: 1 }}>
             <Button component="label" size="small" variant="outlined" disabled={readOnly || uploading}>
-              Select files
+              {t('opex.relations.selectFiles')}
               <input type="file" hidden multiple onChange={async (e) => {
                 const input = e.currentTarget as HTMLInputElement | null;
                 const files = Array.from((e.target as HTMLInputElement)?.files || []);
@@ -395,14 +398,14 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
             </Button>
           </Box>
           {uploading && <LinearProgress sx={{ mt: 1 }} />}
-          {uploading && (<Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>Uploading {uploadCount} file{uploadCount === 1 ? '' : 's'}…</Typography>)}
+          {uploading && (<Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>{t('opex.relations.uploadingFiles', { count: uploadCount })}…</Typography>)}
         </Box>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
           {attachments.map((a) => {
             const canDelete = hasLevel('opex','manager') && !readOnly;
             const onDelete = async () => {
               if (!canDelete) return;
-              const ok = window.confirm(`Delete attachment \"${a.original_filename}\"?`);
+              const ok = window.confirm(t('confirmations.deleteAttachment', { name: a.original_filename }));
               if (!ok) return;
               try { await api.patch(`/spend-items/attachments/${a.id}/delete`, {}); await loadAttachments(); } catch {}
             };

@@ -4,7 +4,9 @@ import {
   FormControlLabel, Slider, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography, Divider,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 interface CriterionValue {
   id: string;
@@ -61,6 +63,7 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
     },
     ref,
   ) {
+    const { t } = useTranslation(['portfolio', 'errors']);
     const [criteria, setCriteria] = useState<Criterion[]>([]);
     const [values, setValues] = useState<Record<string, string>>(initialValues || {});
     const [override, setOverride] = useState(initialOverride);
@@ -85,12 +88,12 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
           const res = await api.get('/portfolio/criteria');
           const enabledCriteria = (res.data || []).filter((c: Criterion) => c.enabled);
           setCriteria(enabledCriteria);
-        } catch (e) {
-          console.error('Failed to load criteria', e);
+        } catch (e: any) {
+          setError(getApiErrorMessage(e, t, t('editors.scoring.messages.loadCriteriaFailed')));
         }
       };
       load();
-    }, []);
+    }, [t]);
 
     // Load original request scoring when accordion is expanded
     useEffect(() => {
@@ -102,14 +105,14 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
           .then((res) => {
             setOriginalRequest(res.data);
           })
-          .catch((e) => {
-            console.error('Failed to load original request', e);
+          .catch((e: any) => {
+            setError(getApiErrorMessage(e, t, t('editors.scoring.messages.loadOriginalFailed')));
           })
           .finally(() => {
             setLoadingOriginal(false);
           });
       }
-    }, [originalExpanded, sourceRequestId, originalRequest, loadingOriginal]);
+    }, [originalExpanded, sourceRequestId, originalRequest, loadingOriginal, t]);
 
     // Only sync from props on INITIAL load (not when dirty)
     useEffect(() => {
@@ -274,7 +277,7 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
 
           return finalScore;
         } catch (e: any) {
-          setError(e?.response?.data?.message || 'Failed to save scoring');
+          setError(getApiErrorMessage(e, t, t('editors.scoring.messages.saveFailed')));
           throw e;
         }
       },
@@ -286,7 +289,7 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
         setDirty(false);
         onDirtyChange?.(false);
       },
-    }), [dirty, values, override, overrideVal, justification, projectId, initialOverride, initialValues, initialOverrideValue, initialJustification, onScoreChange, onDirtyChange]);
+    }), [dirty, values, override, overrideVal, justification, projectId, initialOverride, initialValues, initialOverrideValue, initialJustification, onScoreChange, onDirtyChange, t]);
 
     const liveScore = bypassActive ? 100 : calculateLocalScore(criteria, values);
     const displayScore = override && !bypassActive ? overrideVal : liveScore;
@@ -294,11 +297,11 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
     // Helper to get selected value label for a criterion
     const getValueLabel = (criterionId: string, criteriaVals: Record<string, string>) => {
       const criterion = criteria.find(c => c.id === criterionId);
-      if (!criterion) return '-';
+      if (!criterion) return t('editors.scoring.values.none');
       const valueId = criteriaVals[criterionId];
-      if (!valueId) return '-';
+      if (!valueId) return t('editors.scoring.values.none');
       const value = criterion.values.find(v => v.id === valueId);
-      return value?.label || '-';
+      return value?.label || t('editors.scoring.values.none');
     };
 
     return (
@@ -319,19 +322,19 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
             {displayScore != null && !isNaN(displayScore) ? Math.round(displayScore) : '-'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Priority Score
-            {bypassActive && ' (Mandatory Bypass)'}
-            {override && !bypassActive && ' (Override)'}
+            {t('editors.scoring.labels.priorityScore')}
+            {bypassActive && ` ${t('editors.scoring.labels.mandatoryBypassSuffix')}`}
+            {override && !bypassActive && ` ${t('editors.scoring.labels.overrideSuffix')}`}
           </Typography>
         </Box>
 
         <Divider />
 
         {/* Criteria Evaluation */}
-        <Typography variant="h6">Evaluation Criteria</Typography>
+        <Typography variant="h6">{t('editors.scoring.sections.evaluationCriteria')}</Typography>
 
         {criteria.length === 0 && (
-          <Alert severity="info">No evaluation criteria configured. Configure criteria in Portfolio Settings.</Alert>
+          <Alert severity="info">{t('editors.scoring.states.noCriteria')}</Alert>
         )}
 
         {criteria.map((criterion) => (
@@ -340,12 +343,12 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
               {criterion.name}
               {criterion.weight !== 1 && (
                 <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                  (weight: {criterion.weight})
+                  {t('editors.scoring.values.weight', { weight: criterion.weight })}
                 </Typography>
               )}
               {criterion.inverted && (
                 <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                  (inverted)
+                  {t('editors.scoring.values.inverted')}
                 </Typography>
               )}
             </Typography>
@@ -390,11 +393,11 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
                 disabled={readOnly || bypassActive}
               />
             }
-            label="Enable priority override"
+            label={t('editors.scoring.fields.enablePriorityOverride')}
           />
           {bypassActive && (
             <Typography variant="caption" color="text.secondary" display="block">
-              Manual override is disabled when mandatory bypass is active
+              {t('editors.scoring.messages.overrideDisabled')}
             </Typography>
           )}
         </Box>
@@ -402,7 +405,9 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
         {override && !bypassActive && (
           <Stack spacing={2}>
             <Box>
-              <Typography gutterBottom>Override Value: {overrideVal}</Typography>
+              <Typography gutterBottom>
+                {t('editors.scoring.fields.overrideValue', { value: overrideVal })}
+              </Typography>
               <Slider
                 value={overrideVal}
                 onChange={(_, val) => handleOverrideValChange(val as number)}
@@ -412,7 +417,7 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
               />
             </Box>
             <TextField
-              label="Justification"
+              label={t('editors.scoring.fields.justification')}
               value={justification}
               onChange={(e) => handleJustificationChange(e.target.value)}
               multiline
@@ -420,7 +425,7 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
               required
               disabled={readOnly}
               fullWidth
-              helperText="Justification is required when using priority override"
+              helperText={t('editors.scoring.helper.justification')}
             />
           </Stack>
         )}
@@ -444,10 +449,12 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Stack spacing={0.25}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Original Request Scoring
+                    {t('editors.scoring.sections.originalRequestScoring')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Frozen scoring from: {sourceRequestName || 'Source Request'}
+                    {t('editors.scoring.values.frozenScoringFrom', {
+                      name: sourceRequestName || t('editors.scoring.values.sourceRequest'),
+                    })}
                   </Typography>
                 </Stack>
               </AccordionSummary>
@@ -455,7 +462,7 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
                 {loadingOriginal ? (
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <CircularProgress size={16} />
-                    <Typography variant="body2">Loading original scoring...</Typography>
+                    <Typography variant="body2">{t('editors.scoring.states.loadingOriginal')}</Typography>
                   </Stack>
                 ) : originalRequest ? (
                   <Stack spacing={2}>
@@ -467,8 +474,8 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
                           : '-'}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Original Score
-                        {originalRequest.priority_override && ' (Override)'}
+                        {t('editors.scoring.labels.originalScore')}
+                        {originalRequest.priority_override && ` ${t('editors.scoring.labels.overrideSuffix')}`}
                       </Typography>
                     </Box>
 
@@ -478,13 +485,19 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
                         <Box component="thead">
                           <Box component="tr" sx={{ bgcolor: 'background.paper' }}>
                             <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'divider' }}>
-                              <Typography variant="caption" fontWeight={600}>Criterion</Typography>
+                              <Typography variant="caption" fontWeight={600}>
+                                {t('editors.scoring.columns.criterion')}
+                              </Typography>
                             </Box>
                             <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'divider' }}>
-                              <Typography variant="caption" fontWeight={600}>Original</Typography>
+                              <Typography variant="caption" fontWeight={600}>
+                                {t('editors.scoring.columns.original')}
+                              </Typography>
                             </Box>
                             <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'divider' }}>
-                              <Typography variant="caption" fontWeight={600}>Current</Typography>
+                              <Typography variant="caption" fontWeight={600}>
+                                {t('editors.scoring.columns.current')}
+                              </Typography>
                             </Box>
                           </Box>
                         </Box>
@@ -522,14 +535,16 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
 
                     {originalRequest.priority_override && originalRequest.override_justification && (
                       <Box sx={{ p: 1, bgcolor: 'background.paper', borderRadius: 1 }}>
-                        <Typography variant="caption" color="text.secondary">Override Justification:</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {t('editors.scoring.labels.overrideJustification')}
+                        </Typography>
                         <Typography variant="body2">{originalRequest.override_justification}</Typography>
                       </Box>
                     )}
                   </Stack>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
-                    Unable to load original request scoring.
+                    {t('editors.scoring.states.unableToLoadOriginal')}
                   </Typography>
                 )}
               </AccordionDetails>

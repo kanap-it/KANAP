@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Stack, TextField, Alert, Typography, Autocomplete } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import SupplierSelect from '../../../components/fields/SupplierSelect';
 import AccountSelect from '../../../components/fields/AccountSelect';
 import CompanySelect from '../../../components/fields/CompanySelect';
@@ -22,6 +24,7 @@ export type SpendInfoCreateEditorHandle = {
 type Props = { onDirtyChange?: (dirty: boolean) => void };
 
 export default forwardRef<SpendInfoCreateEditorHandle, Props>(function SpendInfoCreateEditor({ onDirtyChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
   const [productName, setProductName] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [supplierId, setSupplierId] = React.useState<string>('');
@@ -153,12 +156,12 @@ export default forwardRef<SpendInfoCreateEditorHandle, Props>(function SpendInfo
       setError(null);
       try {
         // Minimal validation modeled after existing create flow
-        if (productName.trim().length === 0) throw new Error('Product name is required');
-        if (!supplierId) throw new Error('Supplier is required');
-        if ((currency || '').trim().length !== 3) throw new Error('Currency must be 3 letters');
-        if (!payingCompanyId) throw new Error('Paying company is required');
-        if (!accountId) throw new Error('Account is required');
-        if (!effectiveStart) throw new Error('Effective start is required');
+        if (productName.trim().length === 0) throw new Error(t('opex.editor.productNameRequired'));
+        if (!supplierId) throw new Error(t('opex.editor.supplierRequired'));
+        if ((currency || '').trim().length !== 3) throw new Error(t('opex.editor.currencyMust3'));
+        if (!payingCompanyId) throw new Error(t('opex.editor.payingCompanyRequired'));
+        if (!accountId) throw new Error(t('opex.editor.accountRequired'));
+        if (!effectiveStart) throw new Error(t('opex.editor.effectiveStartRequired'));
 
         const toNull = (v: any) => (v === '' || v === undefined ? null : v);
         const disabled_at = disabledAt ?? null;
@@ -181,10 +184,10 @@ export default forwardRef<SpendInfoCreateEditorHandle, Props>(function SpendInfo
         };
         const res = await api.post('/spend-items', payload);
         const id = res.data?.id as string;
-        if (!id) throw new Error('Failed to create item');
+        if (!id) throw new Error(t('opex.editor.failedToCreate'));
         return id;
       } catch (e: any) {
-        setError(e?.response?.data?.message || e?.message || 'Failed to create item');
+        setError(getApiErrorMessage(e, t, t('opex.editor.failedToCreate')));
         throw e;
       } finally { setSaving(false); }
     },
@@ -212,10 +215,10 @@ export default forwardRef<SpendInfoCreateEditorHandle, Props>(function SpendInfo
       {!!error && <Alert severity="error">{error}</Alert>}
       {hasObsoleteAccount && (
         <Alert severity="warning">
-          Obsolete account detected. The selected account does not belong to the company's Chart of Accounts. Please update the account.
+          {t('opex.editor.obsoleteAccount')}
         </Alert>
       )}
-      <Typography variant="subtitle2">General Information</Typography>
+      <Typography variant="subtitle2">{t('opex.editor.generalInfo')}</Typography>
       <TextField label="Product Name" value={productName} onChange={(e) => setProductName(e.target.value)} disabled={saving} required fullWidth InputLabelProps={{ shrink: true }} />
       <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={2} disabled={saving} fullWidth InputLabelProps={{ shrink: true }} />
       <SupplierSelect value={supplierId} onChange={(v) => setSupplierId(v ?? '')} disabled={saving} required />
@@ -241,7 +244,7 @@ export default forwardRef<SpendInfoCreateEditorHandle, Props>(function SpendInfo
             {...params}
             label="Currency"
             required
-            helperText={`Default ${defaultCurrency}`}
+            helperText={t('opex.editor.defaultCurrency', { currency: defaultCurrency })}
             InputLabelProps={{ shrink: true }}
           />
         )}

@@ -1,4 +1,10 @@
 {
+  "pageTitle": "Settings",
+  "tabs": {
+    "profile": "Profile",
+    "notifications": "Notifications",
+    "appearance": "Appearance"
+  },
   "profile": {
     "sections": {
       "accountInformation": "Kontoinformationen",
@@ -22,6 +28,60 @@
     },
     "actions": {
       "viewContributorProfile": "Mitwirkendenprofil anzeigen"
+    }
+  },
+  "appearance": {
+    "title": "Appearance",
+    "description": "Choose how Kanap should look in this browser.",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "activeMode": "Active mode: {{mode}}"
+  },
+  "notifications": {
+    "emailNotifications": "Email Notifications",
+    "emailDescription": "Receive email notifications for updates and activity",
+    "portfolio": {
+      "title": "Portfolio Notifications",
+      "statusChanges": "Status changes",
+      "teamAdditions": "When I'm added to a team",
+      "teamChangesAsLead": "Team changes on items I lead",
+      "comments": "Comments"
+    },
+    "tasks": {
+      "title": "Task Notifications",
+      "notifyWhen": "Notify me when I am:",
+      "asAssignee": "Assigned to a task",
+      "asRequestor": "Requestor of a task",
+      "asViewer": "Viewer of a task",
+      "viewerHint": "Can be noisy - off by default",
+      "eventTypes": "Event types:",
+      "statusChanges": "Status changes",
+      "comments": "Comments"
+    },
+    "budget": {
+      "title": "Budget Notifications",
+      "expirationWarnings": "Expiration warnings",
+      "statusChanges": "Status changes",
+      "comments": "Comments"
+    },
+    "weeklyReview": {
+      "title": "Weekly Review Email",
+      "description": "Receive a summary of your activity and upcoming items",
+      "day": "Day",
+      "time": "Time",
+      "timezone": "Timezone",
+      "previewEmail": "Preview email",
+      "sending": "Sending..."
+    },
+    "days": {
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday"
     }
   }
 }

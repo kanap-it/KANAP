@@ -27,6 +27,7 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -40,6 +41,7 @@ import {
   type AiAdminOverview,
   type AiProviderTestResult,
   type AiSettingsPayload,
+  type AiWebSearchTestResult,
   type ProviderDescriptor,
 } from '../../ai/aiApi';
 import { AiApiKeyRecord } from '../../ai/aiTypes';
@@ -53,6 +55,7 @@ type AiSettingsForm = {
   llm_api_key: string;
   mcp_key_max_lifetime_days: string | number;
   conversation_retention_days: string | number;
+  web_search_enabled: boolean;
   web_enrichment_enabled: boolean;
 };
 
@@ -65,6 +68,7 @@ const EMPTY_FORM: AiSettingsForm = {
   llm_api_key: '',
   mcp_key_max_lifetime_days: '',
   conversation_retention_days: '',
+  web_search_enabled: false,
   web_enrichment_enabled: false,
 };
 
@@ -105,6 +109,7 @@ function buildSettingsForm(settings: AiSettingsPayload['settings']): AiSettingsF
     llm_api_key: '',
     mcp_key_max_lifetime_days: settings.mcp_key_max_lifetime_days ?? '',
     conversation_retention_days: settings.conversation_retention_days ?? '',
+    web_search_enabled: settings.web_search_enabled,
     web_enrichment_enabled: settings.web_enrichment_enabled,
   };
 }
@@ -139,6 +144,9 @@ function buildSettingsUpdatePayload(
     payload.conversation_retention_days = retention;
   }
 
+  if (form.web_search_enabled !== settings.web_search_enabled) {
+    payload.web_search_enabled = form.web_search_enabled;
+  }
   if (form.web_enrichment_enabled !== settings.web_enrichment_enabled) {
     payload.web_enrichment_enabled = form.web_enrichment_enabled;
   }
@@ -157,14 +165,8 @@ function buildProviderTestPayload(form: AiSettingsForm): Record<string, unknown>
 
 function providerInfoText(provider: ProviderDescriptor | undefined): string | null {
   switch (provider?.id) {
-    case 'anthropic':
-      return 'Anthropic: provide your API key and a model name (for example claude-sonnet-4-20250514). No endpoint URL is needed.';
-    case 'openai':
-      return 'OpenAI: provide your API key and a model name (for example gpt-4o). No endpoint URL is needed.';
     case 'ollama':
-      return 'Ollama / LMStudio: provide the endpoint URL and model name. In Docker, use http://host.docker.internal:<port>/v1 instead of localhost.';
-    case 'custom':
-      return 'Custom OpenAI-compatible provider: provide endpoint URL, API key, and model name.';
+      return 'In Docker, use http://host.docker.internal:<port>/v1 instead of localhost.';
     default:
       return null;
   }
@@ -331,6 +333,7 @@ export default function AdminAiPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [providerTestResult, setProviderTestResult] = useState<AiProviderTestResult | null>(null);
+  const [webSearchTestResult, setWebSearchTestResult] = useState<AiWebSearchTestResult | null>(null);
   const [createKeyDialog, setCreateKeyDialog] = useState(false);
   const [newKeyLabel, setNewKeyLabel] = useState('');
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -409,6 +412,23 @@ export default function AdminAiPage() {
     },
   });
 
+  const testWebSearchMutation = useMutation({
+    mutationFn: async () => aiAdminApi.testWebSearch(),
+    onMutate: () => {
+      setWebSearchTestResult(null);
+    },
+    onSuccess: (result) => {
+      setWebSearchTestResult(result);
+    },
+    onError: (error: any) => {
+      setWebSearchTestResult({
+        ok: false,
+        message: getErrorMessage(error, 'Web search test failed.'),
+        latency_ms: null,
+      });
+    },
+  });
+
   const createKeyMutation = useMutation({
     mutationFn: (label: string) => aiKeysApi.create({ label }),
     onMutate: () => {
@@ -451,49 +471,6 @@ export default function AdminAiPage() {
             <Card>
               <CardContent>
                 {settingsQuery.isLoading ? (
-                  <Box display="flex" justifyContent="center" py={2}>
-                    <CircularProgress size={28} />
-                  </Box>
-                ) : settingsQuery.isError ? (
-                  <Alert severity="error">
-                    {getErrorMessage(settingsQuery.error, 'Failed to load AI settings.')}
-                  </Alert>
-                ) : settingsQuery.data ? (
-                  <Stack spacing={2}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <AutoAwesomeIcon color="primary" />
-                      <Typography variant="h6">AI Configuration</Typography>
-                    </Stack>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                      <Chip
-                        label={settingsQuery.data.settings.chat_enabled ? 'Chat enabled' : 'Chat disabled'}
-                        size="small"
-                        color={settingsQuery.data.settings.chat_enabled ? 'success' : 'default'}
-                      />
-                      <Chip
-                        label={settingsQuery.data.settings.mcp_enabled ? 'MCP enabled' : 'MCP disabled'}
-                        size="small"
-                        color={settingsQuery.data.settings.mcp_enabled ? 'success' : 'default'}
-                      />
-                      <Chip
-                        label={settingsQuery.data.settings.chat_ready ? 'Provider ready' : 'Provider incomplete'}
-                        size="small"
-                        color={settingsQuery.data.settings.chat_ready ? 'success' : 'default'}
-                      />
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                      {settingsQuery.data.settings.llm_provider
-                        ? `Current provider: ${settingsQuery.data.settings.llm_provider}${settingsQuery.data.settings.llm_model ? ` / ${settingsQuery.data.settings.llm_model}` : ''}`
-                        : 'No provider configured yet.'}
-                    </Typography>
-                  </Stack>
-                ) : null}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                {settingsQuery.isLoading ? (
                   <Box display="flex" justifyContent="center" py={4}>
                     <CircularProgress size={28} />
                   </Box>
@@ -503,7 +480,27 @@ export default function AdminAiPage() {
                   </Alert>
                 ) : settingsQuery.data ? (
                   <Stack spacing={2.5}>
-                    <Typography variant="h6">Provider settings</Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <AutoAwesomeIcon color="primary" />
+                      <Typography variant="h6">Provider</Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ ml: 'auto' }}>
+                        <Chip
+                          label={settingsQuery.data.settings.chat_enabled ? 'Chat enabled' : 'Chat disabled'}
+                          size="small"
+                          color={settingsQuery.data.settings.chat_enabled ? 'success' : 'default'}
+                        />
+                        <Chip
+                          label={settingsQuery.data.settings.mcp_enabled ? 'MCP enabled' : 'MCP disabled'}
+                          size="small"
+                          color={settingsQuery.data.settings.mcp_enabled ? 'success' : 'default'}
+                        />
+                        <Chip
+                          label={settingsQuery.data.settings.chat_ready ? 'Provider ready' : 'Provider incomplete'}
+                          size="small"
+                          color={settingsQuery.data.settings.chat_ready ? 'success' : 'default'}
+                        />
+                      </Stack>
+                    </Stack>
 
                     {currentSettings?.provider_validation_errors.length ? (
                       <Alert severity="warning" variant="outlined">
@@ -535,10 +532,6 @@ export default function AdminAiPage() {
                         </Stack>
                       </Alert>
                     ) : null}
-
-                    <Alert severity="info" variant="outlined">
-                      Test connection uses the current form values. Leave API key blank to reuse the stored key for this tenant.
-                    </Alert>
 
                     <FormControl size="small" fullWidth>
                       <InputLabel>Provider</InputLabel>
@@ -610,6 +603,8 @@ export default function AdminAiPage() {
 
                     <Divider />
 
+                    <Typography variant="subtitle2" color="text.secondary">Features</Typography>
+
                     <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
                       <FormControlLabel
                         control={
@@ -629,10 +624,36 @@ export default function AdminAiPage() {
                         }
                         label="Enable MCP"
                       />
+                      <Tooltip title={settingsQuery.data?.instance_features.ai_web_search ? '' : 'BRAVE_SEARCH_API_KEY not configured'}>
+                        <span>
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={form.web_search_enabled}
+                                disabled={!settingsQuery.data?.instance_features.ai_web_search}
+                                onChange={(event) => {
+                                  const checked = event.target.checked;
+                                  setForm((prev) => ({
+                                    ...prev,
+                                    web_search_enabled: checked,
+                                    ...(checked ? {} : { web_enrichment_enabled: false }),
+                                  }));
+                                  if (checked) {
+                                    setWebSearchTestResult(null);
+                                    testWebSearchMutation.mutate();
+                                  }
+                                }}
+                              />
+                            }
+                            label="Web search"
+                          />
+                        </span>
+                      </Tooltip>
                       <FormControlLabel
                         control={
                           <Switch
                             checked={form.web_enrichment_enabled}
+                            disabled={!form.web_search_enabled}
                             onChange={(event) => setForm((prev) => ({ ...prev, web_enrichment_enabled: event.target.checked }))}
                           />
                         }
@@ -640,24 +661,30 @@ export default function AdminAiPage() {
                       />
                     </Stack>
 
-                    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-                      <TextField
-                        size="small"
-                        label="MCP key max lifetime (days)"
-                        type="number"
-                        value={form.mcp_key_max_lifetime_days}
-                        onChange={(event) => setForm((prev) => ({ ...prev, mcp_key_max_lifetime_days: event.target.value }))}
-                        sx={{ width: 240 }}
-                      />
-                      <TextField
-                        size="small"
-                        label="Conversation retention (days)"
-                        type="number"
-                        value={form.conversation_retention_days}
-                        onChange={(event) => setForm((prev) => ({ ...prev, conversation_retention_days: event.target.value }))}
-                        sx={{ width: 240 }}
-                      />
-                    </Stack>
+                    {webSearchTestResult ? (
+                      <Alert
+                        severity={webSearchTestResult.ok ? 'success' : 'error'}
+                        onClose={() => setWebSearchTestResult(null)}
+                      >
+                        {webSearchTestResult.message}
+                        {webSearchTestResult.latency_ms != null ? ` (${webSearchTestResult.latency_ms}ms)` : ''}
+                      </Alert>
+                    ) : testWebSearchMutation.isPending ? (
+                      <Alert severity="info">Testing web search connectivity...</Alert>
+                    ) : null}
+
+                    <Divider />
+
+                    <Typography variant="subtitle2" color="text.secondary">Retention</Typography>
+
+                    <TextField
+                      size="small"
+                      label="Conversation retention (days)"
+                      type="number"
+                      value={form.conversation_retention_days}
+                      onChange={(event) => setForm((prev) => ({ ...prev, conversation_retention_days: event.target.value }))}
+                      sx={{ width: 240 }}
+                    />
 
                     {saveSuccess ? <Alert severity="success">Settings saved.</Alert> : null}
                     {saveError ? <Alert severity="error">{saveError}</Alert> : null}
@@ -700,6 +727,16 @@ export default function AdminAiPage() {
                       Create key
                     </Button>
                   </Stack>
+
+                  <TextField
+                    size="small"
+                    label="Key max lifetime (days)"
+                    type="number"
+                    value={form.mcp_key_max_lifetime_days}
+                    onChange={(event) => setForm((prev) => ({ ...prev, mcp_key_max_lifetime_days: event.target.value }))}
+                    helperText="Leave empty for no expiration limit"
+                    sx={{ width: 240 }}
+                  />
 
                   {keyActionError ? <Alert severity="error">{keyActionError}</Alert> : null}
 

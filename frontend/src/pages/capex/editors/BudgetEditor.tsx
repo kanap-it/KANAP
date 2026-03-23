@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Box, Stack, Alert, Typography, Divider, RadioGroup, FormControlLabel, Radio, IconButton, TextField } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import DeleteIcon from '@mui/icons-material/Delete';
 import YearTabs from '../../../components/navigation/YearTabs';
 import FormattedNumberField from '../../../components/inputs/FormattedNumberField';
@@ -57,6 +59,7 @@ function monthLabel(m: number) {
 }
 
 export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id, year, availableYears, onYearChange, onDirtyChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -150,7 +153,7 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
       setLockedCells(new Set());
       onDirtyChange?.(false);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load budget');
+      setError(getApiErrorMessage(e, t, t('capex.budget.failedToLoad')));
     } finally { setLoading(false); }
   }, [id, year, onDirtyChange]);
 
@@ -236,7 +239,7 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
         }
         onDirtyChange?.(false);
       } catch (e: any) {
-        setError(e?.response?.data?.message || e?.message || 'Failed to save budget');
+        setError(getApiErrorMessage(e, t, t('capex.budget.failedToSave')));
         throw e;
       } finally { setSaving(false); }
     },
@@ -255,15 +258,15 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
     <Stack spacing={2}>
       {!!error && <Alert severity="error">{error}</Alert>}
       <Box>
-        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Year</Typography>
+        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>{t('capex.budget.year')}</Typography>
         {YTabs}
       </Box>
 
       <Box>
-        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Input Mode</Typography>
+        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>{t('capex.budget.inputMode')}</Typography>
         <RadioGroup row value={mode} onChange={(e) => { setMode(e.target.value as any); onDirtyChange?.(true); }}>
-          <FormControlLabel value="flat" control={<Radio />} label="Flat totals" />
-          <FormControlLabel value="manual" control={<Radio />} label="Manual by month" />
+          <FormControlLabel value="flat" control={<Radio />} label={t('capex.budget.flatTotals')} />
+          <FormControlLabel value="manual" control={<Radio />} label={t('capex.budget.manualByMonth')} />
         </RadioGroup>
       </Box>
 
@@ -285,7 +288,7 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
                 <FormattedNumberField label={`Revision${revisionFrozen ? ' – frozen' : ''}`} value={m.committed} onChange={handleMonthChange(i, 'committed')} disabled={revisionFrozen} InputProps={revisionFrozen ? { readOnly: true } : undefined} />
                 <FormattedNumberField label={`Follow-up${actualFrozen ? ' – frozen' : ''}`} value={m.actual} onChange={handleMonthChange(i, 'actual')} disabled={actualFrozen} InputProps={actualFrozen ? { readOnly: true } : undefined} />
                 <FormattedNumberField label={`Landing${landingFrozen ? ' – frozen' : ''}`} value={m.expected_landing} onChange={handleMonthChange(i, 'expected_landing')} disabled={landingFrozen} InputProps={landingFrozen ? { readOnly: true } : undefined} />
-                <IconButton size="small" onClick={handleDeleteAndRedistribute(i, 'planned')} title="Delete budget and redistribute" disabled={budgetFrozen}><DeleteIcon fontSize="small" /></IconButton>
+                <IconButton size="small" onClick={handleDeleteAndRedistribute(i, 'planned')} title={t('capex.budget.deleteRedistribute')} disabled={budgetFrozen}><DeleteIcon fontSize="small" /></IconButton>
               </Stack>
             ))}
           </Stack>
@@ -293,7 +296,7 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
       )}
 
       <TextField label="Notes" value={notes} onChange={(e) => { setNotes(e.target.value); onDirtyChange?.(true); }} fullWidth multiline minRows={2} InputLabelProps={{ shrink: true }} />
-      <Typography variant="caption" color="text.secondary">{saveEnabled ? '' : 'Enter budget data or notes to enable save.'}</Typography>
+      <Typography variant="caption" color="text.secondary">{saveEnabled ? '' : t('capex.budget.enterBudgetHint')}</Typography>
     </Stack>
   );
 });

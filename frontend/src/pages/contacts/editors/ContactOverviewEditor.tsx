@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Autocomplete, FormControlLabel, MenuItem, Stack, Switch, TextField } from '@mui/material';
 import { Controller } from 'react-hook-form';
 import useZodForm from '../../../hooks/useZodForm';
@@ -51,6 +52,7 @@ export default forwardRef<ContactOverviewEditorHandle, { id: string; onDirtyChan
   ref,
 ) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['master-data', 'common']);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -94,7 +96,7 @@ export default forwardRef<ContactOverviewEditorHandle, { id: string; onDirtyChan
         onDirtyChange?.(false);
       } catch (e: any) {
         if (!active) return;
-        const msg = e?.response?.data?.message || e?.message || 'Failed to load contact';
+        const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToLoad', { entity: t('contacts.entity') });
         setServerError(msg);
       } finally {
         if (active) setLoading(false);
@@ -128,7 +130,7 @@ export default forwardRef<ContactOverviewEditorHandle, { id: string; onDirtyChan
       // Invalidate supplier-contact link caches so supplier pages refresh contact info immediately
       try { await queryClient.invalidateQueries({ queryKey: ['supplier-contacts'], exact: false }); } catch {}
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save contact';
+      const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToSave', { entity: t('contacts.entity') });
       setServerError(msg);
       throw e;
     } finally {

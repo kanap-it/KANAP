@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Stack, Alert, Typography, Divider, Box, TextField, IconButton, Button } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import YearTabs from '../../../components/navigation/YearTabs';
@@ -38,6 +40,7 @@ type AllocationRow = {
 function withinTolerance(total: number) { return total >= 99.99 && total <= 100.01; }
 
 export default forwardRef<AllocationEditorHandle, Props>(function AllocationEditor({ id, year, availableYears, onYearChange, onDirtyChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -94,7 +97,7 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
         .filter((entry): entry is { idx: number; id: string; weight: number } => entry != null);
       if (selected.length === 0) { return { rows: nextRows.map((row) => ({ ...row, allocation_pct: row.company_id ? Number(row.allocation_pct || 0) : 0 })), weightsMap }; }
       const sum = selected.reduce((acc, entry) => acc + entry.weight, 0);
-      if (sum <= 0) { throw new Error(`Provide ${driver.replace('_', ' ')} for the selected companies.`); }
+      if (sum <= 0) { throw new Error(t('capex.allocations.provideDriverForCompanies', { driver: driver.replace('_', ' ') })); }
       let accPct = 0;
       selected.forEach((entry, i) => {
         let pct = (100 * entry.weight) / sum;
@@ -117,9 +120,9 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
       items.forEach((d: any) => { if (d?.id) hcByDept[d.id] = Number(d.headcount_year ?? 0); });
       let missing = false;
       const weights = selected.map(r => { const id = r.department_id as string; const w = Number(hcByDept[id] || 0); if (!Number.isFinite(w) || w <= 0) missing = true; return { id, w }; });
-      if (missing) { setError('Provide a headcount for the department.'); setRows(baseline); return; }
+      if (missing) { setError(t('capex.allocations.provideHeadcountForDept')); setRows(baseline); return; }
       const sum = weights.reduce((acc, it) => acc + it.w, 0);
-      if (sum <= 0) { setError('Headcount sum is zero. Provide headcount for selected departments.'); setRows(baseline); return; }
+      if (sum <= 0) { setError(t('capex.allocations.headcountSumZero')); setRows(baseline); return; }
       const recalced = baseline.map((r) => {
         if (!r.department_id) return { ...r };
         const w = weights.find(w => w.id === r.department_id);
@@ -158,7 +161,7 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
       setPrefillWeights(weightsMap);
       setError(null);
     } catch (err: any) {
-      setError(err?.message || 'Failed to recompute allocations');
+      setError(err?.message || t('capex.allocations.failedToRecompute'));
       setRows(remaining);
     }
   };
@@ -249,7 +252,7 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
             setError(null);
           } catch (err: any) {
             setRows(rowsFromApi);
-            setError(err?.message || 'Failed to compute allocations');
+            setError(err?.message || t('capex.allocations.failedToCompute'));
           }
           manualCompanyPrefilledRef.current = true;
         } else if (loadedMethod === 'manual_department') {
@@ -266,7 +269,7 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
       }
       setHasUnsavedChanges(false);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load allocations');
+      setError(getApiErrorMessage(e, t, t('capex.allocations.failedToLoad')));
     } finally {
       setLoading(false);
     }
@@ -279,7 +282,7 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
       const items = await fetchCompanies();
       const weights = items.map((c: any) => ({ id: c.id, w: driver === 'headcount' ? Number(c.headcount_year || 0) : driver === 'it_users' ? Number(c.it_users_year || 0) : Number(c.turnover_year || 0) }));
       const sum = weights.reduce((acc: number, it: any) => acc + (Number(it.w) || 0), 0);
-      if (sum <= 0) { setError(`Provide ${driver} for your enabled companies (sum is zero)`); return; }
+      if (sum <= 0) { setError(t('capex.allocations.provideDriverSumZero', { driver })); return; }
       let accPct = 0;
       const newRows = weights.map((w: any, i: number) => {
         let pct = (100 * (Number(w.w) || 0)) / sum;
@@ -292,7 +295,7 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
       setError(null);
       setHasUnsavedChanges(true);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to compute allocations');
+      setError(getApiErrorMessage(e, t, t('capex.allocations.failedToCompute')));
     }
   };
 
@@ -412,7 +415,7 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
       }
       if (!isAuto) {
         if (payload.length === 0) {
-          throw new Error(isManualDept ? 'Select at least one department.' : 'Select at least one company.');
+          throw new Error(isManualDept ? t('capex.allocations.selectAtLeastOneDept') : t('capex.allocations.selectAtLeastOneCompany'));
         }
       }
       console.debug('[CapexAllocationEditor] Saving allocations', { method, isAuto, versionId: v.id, payload, driver: driverForSave });
@@ -422,14 +425,14 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
         if (!verification.ok) {
           const reason = verification.error?.message
             ? verification.error.message
-            : 'Backend returned allocations that differ from what we attempted to save. Check console for details.';
-          throw new Error(`Allocation save verification failed: ${reason}`);
+            : t('capex.allocations.verificationMismatch');
+          throw new Error(t('capex.allocations.verificationFailed', { reason }));
         }
       }
       setHasUnsavedChanges(false);
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save allocations');
+      setError(getApiErrorMessage(e, t, t('capex.allocations.failedToSave')));
       throw e;
     } finally {
       setSaving(false);
@@ -441,7 +444,7 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
   const onYearChangeGuard = (newYear: number) => {
     if (newYear === year) return;
     if (hasUnsavedChanges) {
-      const proceed = window.confirm('You have unsaved changes. Save before switching years?');
+      const proceed = window.confirm(t('confirmations.unsavedSwitchYear'));
       if (proceed) { void save().then(() => onYearChange(newYear)).catch(() => {}); return; }
     }
     onYearChange(newYear);
@@ -450,30 +453,30 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
   return (
     <Stack spacing={2}>
       {!!error && <Alert severity="error">{error}</Alert>}
-      <Typography variant="subtitle2">Allocations</Typography>
+      <Typography variant="subtitle2">{t('capex.allocations.title')}</Typography>
       <YearTabs currentYear={year} availableYears={availableYears} onYearChange={onYearChangeGuard} disabled={saving || loading} />
       <Divider />
       <Stack direction="row" spacing={2} alignItems="center">
         <EnumAutocomplete
-          label="Method"
+          label={t('opex.allocations.method')}
           value={method}
           onChange={(v) => handleMethodChange(v as any)}
           options={[
-            { value: 'default', label: 'Headcount (Default)' },
-            { value: 'it_users', label: 'IT Users' },
-            { value: 'turnover', label: 'Turnover' },
-            { value: 'manual_company', label: 'Manual by Company' },
-            { value: 'manual_department', label: 'Manual by Department' },
+            { value: 'default', label: t('opex.allocations.headcountDefault') },
+            { value: 'it_users', label: t('opex.allocations.itUsers') },
+            { value: 'turnover', label: t('opex.allocations.turnover') },
+            { value: 'manual_company', label: t('opex.allocations.manualByCompany') },
+            { value: 'manual_department', label: t('opex.allocations.manualByDepartment') },
           ]}
           size="small"
           required
         />
         <Typography variant="body2" sx={{ color: (isAuto ? (totalPct <= 100.01) : rows.some(r => r.company_id && (!isManualDept || r.department_id))) ? 'success.main' : 'warning.main' }}>
-          Total: {totalPct.toFixed(2)}% {isAuto ? '(<= 100% allowed; remainder auto-distributed)' : '(preview only – saved totals use live metrics)'}
+          Total: {totalPct.toFixed(2)}% {isAuto ? t('opex.allocations.totalAutoHint') : '(preview only – saved totals use live metrics)'}
         </Typography>
       </Stack>
       {isAuto && (
-        <Alert severity="info">Remainder auto-distributes across enabled companies based on the selected method. No manual selection required.</Alert>
+        <Alert severity="info">{t('opex.allocations.autoDistributeInfo')}</Alert>
       )}
       <Divider />
       {!isAuto && (
@@ -482,13 +485,13 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
             <>
               <Stack direction="row" spacing={1} alignItems="center">
                 <EnumAutocomplete
-                  label="Allocate by"
+                  label={t('opex.allocations.allocateBy')}
                   value={allocationDriver}
                   onChange={(v) => { const d = v as any; handleDriverChange(d); }}
                   options={[
-                    { value: 'headcount', label: 'Headcount' },
-                    { value: 'it_users', label: 'IT Users' },
-                    { value: 'turnover', label: 'Turnover' },
+                    { value: 'headcount', label: t('opex.allocations.headcount') },
+                    { value: 'it_users', label: t('opex.allocations.itUsers') },
+                    { value: 'turnover', label: t('opex.allocations.turnover') },
                   ]}
                   size="small"
                 />
@@ -503,12 +506,12 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
               {isManualDept && (
                 <DepartmentSelect companyId={row.company_id || undefined} value={row.department_id} onChange={(v) => handleDepartmentChange(idx, v)} error={!row.department_id} required size="small" year={year} />
               )}
-              <TextField label="Allocation %" type="number" value={row.allocation_pct} onChange={(e) => handlePctChange(idx, e.target.value)} inputProps={{ step: 0.01 }} size="small" required />
+              <TextField label={t('opex.allocations.allocationPct')} type="number" value={row.allocation_pct} onChange={(e) => handlePctChange(idx, e.target.value)} inputProps={{ step: 0.01 }} size="small" required />
               <IconButton aria-label="Remove" onClick={() => removeRow(idx)} disabled={rows.length <= 1} size="small"><DeleteIcon /></IconButton>
             </Box>
           ))}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button startIcon={<AddIcon />} onClick={addRow} size="small">Add row</Button>
+            <Button startIcon={<AddIcon />} onClick={addRow} size="small">{t('opex.allocations.addRow')}</Button>
           </Box>
         </Stack>
       )}

@@ -5,5 +5,15 @@
   "PASSWORD_UPDATE_NOT_ALLOWED": "Les mises à jour du mot de passe ne sont pas prises en charge sur ce point d'accès.",
   "INVALID_CREDENTIALS": "E-mail ou mot de passe invalide.",
   "TRIAL_EXPIRED": "Votre période d'essai a expiré. Veuillez choisir une offre pour continuer.",
-  "SUBSCRIPTION_FROZEN": "Votre abonnement est suspendu."
+  "SUBSCRIPTION_FROZEN": "Votre abonnement est suspendu.",
+  "USER_DISABLED": "This account has been disabled.",
+  "MISSING_CREDENTIALS": "Email and password are required.",
+  "INVALID_TOKEN": "The link is invalid or has expired.",
+  "TOKEN_REQUIRED": "A reset token is required.",
+  "TOKEN_EXPIRED": "This link has expired. Please request a new one.",
+  "MISSING_TOKEN": "Authentication required. Please sign in.",
+  "WEEKLY_REVIEW_USER_NOT_FOUND": "User not found or disabled.",
+  "WEEKLY_REVIEW_ROLE_INELIGIBLE": "Weekly review is unavailable for your current role.",
+  "WEEKLY_REVIEW_NOT_ENABLED": "Enable both Email Notifications and Weekly Review Email to preview.",
+  "WEEKLY_REVIEW_SEND_FAILED": "Failed to send weekly review email."
 }

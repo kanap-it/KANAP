@@ -1,5 +1,8 @@
 {
   "required": "Ce champ est obligatoire",
   "invalidEmail": "Veuillez saisir une adresse e-mail valide",
-  "minLength": "Veuillez saisir au moins {{count}} caractères"
+  "minLength": "Veuillez saisir au moins {{count}} caractères",
+  "minLengthPassword": "Password must be at least 8 characters long.",
+  "passwordMismatch": "Passwords do not match.",
+  "emailRequired": "Please enter the email associated with your account."
 }

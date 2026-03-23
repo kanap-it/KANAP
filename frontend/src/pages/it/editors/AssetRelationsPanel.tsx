@@ -25,6 +25,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 export type AssetRelationsPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
@@ -58,6 +60,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
   { assetId, onDirtyChange },
   ref
 ) {
+  const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel('infrastructure', 'member');
 
@@ -221,7 +224,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
         setAttachments(res.data || []);
       } catch { setAttachments([]); }
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load relations');
+      setError(getApiErrorMessage(e, t, t('messages.loadRelationsFailed')));
     } finally {
       setLoading(false);
     }
@@ -352,7 +355,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
       }
       setBaselineUrls(urls);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save relations');
+      setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
       throw e;
     } finally {
       setSaving(false);

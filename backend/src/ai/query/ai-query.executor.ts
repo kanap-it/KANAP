@@ -2,11 +2,18 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { ApplicationsService } from '../../applications/services';
 import { AssetsService } from '../../assets/services';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
+import { LocationsService } from '../../locations/locations.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
 import { TasksService } from '../../spend/tasks.service';
-import { AiEntitySummaryDto, AiExecutionContextWithManager, AiQueryScope } from '../ai.types';
+import {
+  AiEntityMetadata,
+  AiEntitySummaryDto,
+  AiExecutionContextWithManager,
+  AiQueryScope,
+} from '../ai.types';
 import { adaptFilters } from './ai-filter.adapter';
+import { applyScopeToAiQuery } from './ai-query-scope.util';
 import {
   AiFilterValue,
   AiFilterValuesResult,
@@ -21,7 +28,7 @@ function toIso(value: Date | string | null | undefined): string | null {
 }
 
 function buildRef(
-  entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
+  entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
   itemNumber?: number | null,
 ): string | null {
   if (!itemNumber) return null;
@@ -78,7 +85,7 @@ function extractContributorNames(row: any): string | null {
 }
 
 function toEntitySummary(
-  entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
+  entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
   row: {
     id: string;
     item_number?: number | null;
@@ -86,7 +93,7 @@ function toEntitySummary(
     status: string | null;
     summary?: string | null;
     updated_at?: Date | string | null;
-    metadata?: Record<string, string | number | null>;
+    metadata?: AiEntityMetadata;
   },
 ): AiEntitySummaryDto {
   return {
@@ -101,12 +108,6 @@ function toEntitySummary(
   };
 }
 
-type ResolvedAiScope = {
-  requested: AiQueryScope;
-  resolved: boolean;
-  team_name?: string | null;
-};
-
 @Injectable()
 export class AiQueryExecutor {
   constructor(
@@ -116,83 +117,11 @@ export class AiQueryExecutor {
     private readonly applications: ApplicationsService,
     private readonly assets: AssetsService,
     private readonly knowledge: KnowledgeService,
+    private readonly locations: LocationsService,
   ) {}
 
-  private async resolveCurrentUserTeam(
-    context: AiExecutionContextWithManager,
-  ): Promise<{ teamId: string | null; teamName: string | null }> {
-    const rows = await context.manager.query(
-      `SELECT tmc.team_id,
-              pt.name AS team_name
-       FROM portfolio_team_member_configs tmc
-       LEFT JOIN portfolio_teams pt
-         ON pt.id = tmc.team_id
-        AND pt.tenant_id = tmc.tenant_id
-       WHERE tmc.tenant_id = $1
-         AND tmc.user_id = $2
-       LIMIT 1`,
-      [context.tenantId, context.userId],
-    );
-    return {
-      teamId: rows[0]?.team_id ?? null,
-      teamName: rows[0]?.team_name ?? null,
-    };
-  }
-
-  private async applyScopeToQuery(
-    context: AiExecutionContextWithManager,
-    entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
-    query: Record<string, any>,
-    scope?: AiQueryScope,
-  ): Promise<{ query: Record<string, any>; scope: ResolvedAiScope | null }> {
-    if (!scope) {
-      return { query, scope: null };
-    }
-
-    if (scope === 'me') {
-      if (entityType === 'tasks') {
-        return {
-          query: { ...query, assigneeUserId: context.userId },
-          scope: { requested: scope, resolved: true },
-        };
-      }
-      if (entityType === 'projects' || entityType === 'requests') {
-        return {
-          query: { ...query, involvedUserId: context.userId },
-          scope: { requested: scope, resolved: true },
-        };
-      }
-      throw new BadRequestException(`scope "${scope}" is not supported for ${entityType}.`);
-    }
-
-    if (scope === 'my_team') {
-      const { teamId, teamName } = await this.resolveCurrentUserTeam(context);
-      if (!teamId) {
-        return {
-          query,
-          scope: { requested: scope, resolved: false, team_name: teamName },
-        };
-      }
-      if (entityType === 'tasks') {
-        return {
-          query: { ...query, teamId },
-          scope: { requested: scope, resolved: true, team_name: teamName },
-        };
-      }
-      if (entityType === 'projects' || entityType === 'requests') {
-        return {
-          query: { ...query, involvedTeamId: teamId },
-          scope: { requested: scope, resolved: true, team_name: teamName },
-        };
-      }
-      throw new BadRequestException(`scope "${scope}" is not supported for ${entityType}.`);
-    }
-
-    return { query, scope: null };
-  }
-
   private resolveSort(
-    entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
+    entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
     sort?: { field: string; direction: 'asc' | 'desc' },
   ): string {
     const registry = getAiEntityRegistry(entityType);
@@ -208,7 +137,7 @@ export class AiQueryExecutor {
   }
 
   private buildBaseQuery(
-    entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
+    entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
     input: {
       filters?: Record<string, AiFilterValue>;
       q?: string;
@@ -340,6 +269,7 @@ export class AiQueryExecutor {
         category: scalar(row.category),
         hosting_model: scalar(row.hosting_model),
         data_class: scalar(row.data_class),
+        version: scalar(row.version),
         supplier: scalar(row.supplier_name),
         it_owner: scalar(joinDisplayNames(Array.isArray(row.owners_it) ? row.owners_it : [])),
       },
@@ -360,6 +290,27 @@ export class AiQueryExecutor {
         os: scalar(row.operating_system),
         location: scalar(row.location_name),
         sub_location: scalar(row.sub_location_name),
+      },
+    });
+  }
+
+  private mapLocation(row: any): AiEntitySummaryDto {
+    const subLocations = Array.isArray(row.sub_locations) && row.sub_locations.length > 0
+      ? row.sub_locations.join(', ')
+      : null;
+    return toEntitySummary('locations', {
+      id: row.id,
+      label: `${row.code} — ${row.name}`,
+      status: null,
+      summary: [row.city, row.country_iso].filter(Boolean).join(', ') || null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        hosting_type: scalar(row.hosting_type),
+        provider: scalar(row.provider) ?? scalar(row.operating_company_name),
+        country: scalar(row.country_iso),
+        city: scalar(row.city),
+        assets: row.servers_count ?? 0,
+        sub_locations: subLocations,
       },
     });
   }
@@ -385,7 +336,7 @@ export class AiQueryExecutor {
   async execute(
     context: AiExecutionContextWithManager,
     input: {
-      entity_type: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents';
+      entity_type: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents';
       filters?: Record<string, AiFilterValue>;
       q?: string;
       sort?: { field: string; direction: 'asc' | 'desc' };
@@ -394,7 +345,7 @@ export class AiQueryExecutor {
     },
   ): Promise<AiQueryResult> {
     const { query, filtersApplied, filtersIgnored } = this.buildBaseQuery(input.entity_type, input);
-    const scoped = await this.applyScopeToQuery(context, input.entity_type, query, input.scope);
+    const scoped = await applyScopeToAiQuery(context, input.entity_type, query, input.scope);
     if (scoped.scope && scoped.scope.resolved === false) {
       return {
         items: [],
@@ -406,7 +357,10 @@ export class AiQueryExecutor {
     }
 
     if (input.entity_type === 'tasks') {
-      const result = await this.tasks.listAllTasks(this.serializeFiltersForTasks(scoped.query), { manager: context.manager });
+      const result = await this.tasks.listAllTasks(this.serializeFiltersForTasks(scoped.query), {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      });
       return {
         items: (result.items || []).map((row: any) => this.mapTask(row)),
         total: result.total ?? 0,
@@ -417,7 +371,10 @@ export class AiQueryExecutor {
     }
 
     if (input.entity_type === 'projects') {
-      const result = await this.projects.list(scoped.query, { manager: context.manager });
+      const result = await this.projects.list(scoped.query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      });
       return {
         items: (result.items || []).map((row: any) => this.mapProject(row)),
         total: result.total ?? 0,
@@ -428,7 +385,10 @@ export class AiQueryExecutor {
     }
 
     if (input.entity_type === 'requests') {
-      const result = await this.requests.list(scoped.query, { manager: context.manager });
+      const result = await this.requests.list(scoped.query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      });
       return {
         items: (result.items || []).map((row: any) => this.mapRequest(row)),
         total: result.total ?? 0,
@@ -439,7 +399,10 @@ export class AiQueryExecutor {
     }
 
     if (input.entity_type === 'applications') {
-      const result = await this.applications.list(scoped.query, { manager: context.manager });
+      const result = await this.applications.list(scoped.query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      });
       return {
         items: (result.items || []).map((row: any) => this.mapApplication(row)),
         total: result.total ?? 0,
@@ -461,7 +424,10 @@ export class AiQueryExecutor {
     }
 
     if (input.entity_type === 'documents') {
-      const result = await this.knowledge.list(scoped.query, { manager: context.manager });
+      const result = await this.knowledge.list(scoped.query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      });
       return {
         items: (result.items || []).map((row: any) => this.mapDocument(row)),
         total: result.total ?? 0,
@@ -471,13 +437,24 @@ export class AiQueryExecutor {
       };
     }
 
+    if (input.entity_type === 'locations') {
+      const result = await this.locations.list(scoped.query, { manager: context.manager, tenantId: context.tenantId });
+      return {
+        items: (result.items || []).map((row: any) => this.mapLocation(row)),
+        total: result.total ?? 0,
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
     throw new BadRequestException('Unsupported entity type.');
   }
 
   async executeFilterValues(
     context: AiExecutionContextWithManager,
     input: {
-      entity_type: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents';
+      entity_type: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents';
       fields: string[];
     },
   ): Promise<AiFilterValuesResult> {
@@ -523,17 +500,34 @@ export class AiQueryExecutor {
 
     let raw: Record<string, Array<string | boolean | null>> = {};
     if (input.entity_type === 'tasks') {
-      raw = await this.tasks.listFilterValues(query, { manager: context.manager }) as any;
+      raw = await this.tasks.listFilterValues(query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }) as any;
     } else if (input.entity_type === 'projects') {
-      raw = await this.projects.listFilterValues(query, { manager: context.manager }) as any;
+      raw = await this.projects.listFilterValues(query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }) as any;
     } else if (input.entity_type === 'requests') {
-      raw = await this.requests.listFilterValues(query, { manager: context.manager }) as any;
+      raw = await this.requests.listFilterValues(query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }) as any;
     } else if (input.entity_type === 'applications') {
-      raw = await this.applications.listFilterValues(query, { manager: context.manager }) as any;
+      raw = await this.applications.listFilterValues(query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }) as any;
     } else if (input.entity_type === 'assets') {
       raw = await this.assets.listFilterValues(query, { manager: context.manager, tenantId: context.tenantId }) as any;
     } else if (input.entity_type === 'documents') {
-      raw = await this.knowledge.listFilterValues(query, { manager: context.manager }) as any;
+      raw = await this.knowledge.listFilterValues(query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }) as any;
+    } else if (input.entity_type === 'locations') {
+      raw = await this.locations.listFilterValues(query, { manager: context.manager, tenantId: context.tenantId }) as any;
     }
 
     for (const [gridField, aiField] of dynamicFieldMap.entries()) {

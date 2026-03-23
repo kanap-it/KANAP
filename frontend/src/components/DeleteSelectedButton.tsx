@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Button, Snackbar, Alert } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useTranslation } from 'react-i18next';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import api from '../api';
+import { getApiErrorMessage } from '../utils/apiErrorMessage';
 
 export interface DeleteSelectedButtonProps<T> {
   selectedRows: T[];
@@ -30,9 +32,10 @@ export default function DeleteSelectedButton<T>({
   onDeleteSuccess,
   gridApi,
   disabled = false,
-  label = 'Delete Selected',
+  label,
   cascadeOption,
 }: DeleteSelectedButtonProps<T>) {
+  const { t } = useTranslation('common');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState<{
@@ -67,7 +70,7 @@ export default function DeleteSelectedButton<T>({
         // All deleted successfully
         setSnackbar({
           open: true,
-          message: `Successfully deleted ${deleted.length} item(s)`,
+          message: t('delete.successAll', { count: deleted.length }),
           severity: 'success',
         });
       } else if (deleted.length === 0) {
@@ -75,14 +78,14 @@ export default function DeleteSelectedButton<T>({
         const reasons = failed.map((f: any) => `${f.productName || f.name || f.description || 'Item'}: ${f.reason}`).join('; ');
         setSnackbar({
           open: true,
-          message: `Failed to delete items: ${reasons}`,
+          message: t('delete.failedAll', { reasons }),
           severity: 'error',
         });
       } else {
         // Partial success
         setSnackbar({
           open: true,
-          message: `Deleted ${deleted.length} item(s). Failed to delete ${failed.length} item(s).`,
+          message: t('delete.partial', { deleted: deleted.length, failed: failed.length }),
           severity: 'warning',
         });
       }
@@ -103,7 +106,7 @@ export default function DeleteSelectedButton<T>({
       console.error('Delete error:', error);
       setSnackbar({
         open: true,
-        message: error?.response?.data?.message || 'Failed to delete items',
+        message: getApiErrorMessage(error, t, t('delete.failedGeneric')),
         severity: 'error',
       });
     } finally {
@@ -130,14 +133,14 @@ export default function DeleteSelectedButton<T>({
         disabled={disabled || selectedRows.length === 0}
         size="small"
       >
-        {label} ({selectedRows.length})
+        {label || t('buttons.deleteSelected')} ({selectedRows.length})
       </Button>
 
       <DeleteConfirmDialog
         open={confirmOpen}
         onClose={handleCloseConfirm}
         onConfirm={handleConfirmDelete}
-        title="Delete Selected Items"
+        title={t('delete.deleteSelectedTitle')}
         itemCount={selectedRows.length}
         items={items}
         loading={loading}

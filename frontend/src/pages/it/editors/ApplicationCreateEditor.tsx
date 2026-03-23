@@ -6,6 +6,8 @@ import DateEUField from '../../../components/fields/DateEUField';
 import api from '../../../api';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 export type ApplicationCreateEditorHandle = {
   isDirty: () => boolean;
   save: () => Promise<string | null>;
@@ -15,6 +17,7 @@ export type ApplicationCreateEditorHandle = {
 type Props = { onDirtyChange?: (dirty: boolean) => void };
 
 export default forwardRef<ApplicationCreateEditorHandle, Props>(function ApplicationCreateEditor({ onDirtyChange }, ref) {
+  const { t } = useTranslation(['it', 'common']);
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [dirty, setDirty] = React.useState(false);
@@ -106,7 +109,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
       setDirty(false);
       return (res.data?.id as string) || null;
     } catch (e: any) {
-      setServerError(e?.response?.data?.message || e?.message || 'Failed to create application');
+      setServerError(getApiErrorMessage(e, t, t('messages.createApplicationFailed')));
       throw e;
     } finally {
       setSaving(false);

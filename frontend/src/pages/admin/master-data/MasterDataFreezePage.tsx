@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Box,
@@ -30,6 +31,7 @@ function useYearOptions() {
 
 export default function MasterDataFreezePage() {
   const years = useYearOptions();
+  const { t } = useTranslation(['master-data', 'common']);
   const { hasLevel } = useAuth();
   const canFreezeCompanies = hasLevel('budget_ops', 'admin') || hasLevel('companies', 'admin');
   const canFreezeDepartments = hasLevel('budget_ops', 'admin') || hasLevel('departments', 'admin');
@@ -44,10 +46,10 @@ export default function MasterDataFreezePage() {
     mutationFn: async (targets: FreezeTarget[]) => freezeTargets(year, targets),
     onSuccess: (res: FreezeStateResponse) => {
       queryClient.setQueryData(['freeze-state', year], res);
-      setFeedback({ type: 'success', message: 'Data frozen successfully.' });
+      setFeedback({ type: 'success', message: t('admin.freeze.frozenSuccessfully') });
     },
     onError: (err: any) => {
-      setFeedback({ type: 'error', message: err?.response?.data?.message || err?.message || 'Unable to freeze data.' });
+      setFeedback({ type: 'error', message: err?.response?.data?.message || err?.message || t('admin.freeze.unableToFreeze') });
     },
   });
 
@@ -55,10 +57,10 @@ export default function MasterDataFreezePage() {
     mutationFn: async (targets: FreezeTarget[]) => unfreezeTargets(year, targets),
     onSuccess: (res: FreezeStateResponse) => {
       queryClient.setQueryData(['freeze-state', year], res);
-      setFeedback({ type: 'success', message: 'Data unfrozen successfully.' });
+      setFeedback({ type: 'success', message: t('admin.freeze.unfrozenSuccessfully') });
     },
     onError: (err: any) => {
-      setFeedback({ type: 'error', message: err?.response?.data?.message || err?.message || 'Unable to unfreeze data.' });
+      setFeedback({ type: 'error', message: err?.response?.data?.message || err?.message || t('admin.freeze.unableToUnfreeze') });
     },
   });
 
@@ -103,7 +105,7 @@ export default function MasterDataFreezePage() {
           <Typography variant="subtitle2" sx={{ mb: 1 }}>{label}</Typography>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color={info?.frozen ? 'error.main' : 'text.secondary'}>
-              {info?.frozen ? 'Frozen' : 'Editable'}
+              {info?.frozen ? t('admin.freeze.frozen') : t('admin.freeze.editable')}
             </Typography>
             {info?.frozenBy && (
               <Typography variant="caption" color="text.secondary">
@@ -117,8 +119,8 @@ export default function MasterDataFreezePage() {
 
     return (
       <Stack spacing={2}>
-        {card('Companies Metrics', scopeSummary.companies)}
-        {card('Departments Metrics', scopeSummary.departments)}
+        {card(t('admin.freeze.companiesMetrics'), scopeSummary.companies)}
+        {card(t('admin.freeze.departmentsMetrics'), scopeSummary.departments)}
       </Stack>
     );
   };
@@ -132,17 +134,17 @@ export default function MasterDataFreezePage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <PageHeader title="Freeze / Unfreeze Data" />
+      <PageHeader title={t('admin.freeze.title')} />
       {!canModify && (
         <Alert severity="info" sx={{ maxWidth: 600 }}>
-          You need the appropriate permissions to freeze or unfreeze master data. You can still review the current status below.
+          {t('admin.freeze.noPermission')}
         </Alert>
       )}
       {feedback && (
         <Alert severity={feedback.type} onClose={() => setFeedback(null)}>{feedback.message}</Alert>
       )}
       {error && (
-        <Alert severity="error">Failed to load freeze status. Try selecting a different year.</Alert>
+        <Alert severity="error">{t('admin.freeze.loadError')}</Alert>
       )}
       <Card variant="outlined">
         <CardContent>
@@ -171,7 +173,7 @@ export default function MasterDataFreezePage() {
                         disabled={!canModify || disabledScopes[scope]}
                       />
                     )}
-                    label={scope === 'companies' ? 'Companies' : 'Departments'}
+                    label={scope === 'companies' ? t('admin.freeze.scopeCompanies') : t('admin.freeze.scopeDepartments')}
                   />
                 ))}
               </FormGroup>
@@ -184,7 +186,7 @@ export default function MasterDataFreezePage() {
                 disabled={!canModify || selectedScopes.length === 0 || loading}
                 startIcon={freezeMutation.isPending ? <CircularProgress size={16} /> : undefined}
               >
-                {freezeMutation.isPending ? 'Freezing…' : 'Freeze Data'}
+                {freezeMutation.isPending ? t('admin.freeze.freezingBtn') : t('admin.freeze.freezeBtn')}
               </Button>
               <Button
                 variant="outlined"
@@ -192,14 +194,14 @@ export default function MasterDataFreezePage() {
                 disabled={!canModify || selectedScopes.length === 0 || loading}
                 startIcon={unfreezeMutation.isPending ? <CircularProgress size={16} /> : undefined}
               >
-                {unfreezeMutation.isPending ? 'Unfreezing…' : 'Unfreeze Data'}
+                {unfreezeMutation.isPending ? t('admin.freeze.unfreezingBtn') : t('admin.freeze.unfreezeBtn')}
               </Button>
             </Stack>
 
             {loading && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CircularProgress size={18} />
-                <Typography variant="body2">Updating freeze status…</Typography>
+                <Typography variant="body2">{t('admin.freeze.updatingStatus')}</Typography>
               </Box>
             )}
           </Stack>

@@ -16,6 +16,7 @@ function createOrchestrator(options?: {
   let conversationCreated = false;
   let messageIndex = 0;
   const recordedRequests: any[] = [];
+  const toolExecuteCount = { value: 0 };
 
   const mockTenantExecutor = {
     run: async (_tenantId: string, fn: Function, _opts?: any) => fn({} as any),
@@ -138,13 +139,14 @@ function createOrchestrator(options?: {
       { name: 'search_all', description: 'Search', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
     ],
     execute: async (_ctx: any, toolName: string, _input: any) => {
+      toolExecuteCount.value++;
       if (options?.toolError) throw new Error(options.toolError);
       return options?.toolResult ?? { items: [], total: 0 };
     },
   };
 
   const mockSystemPrompt = {
-    build: () => 'You are KANAP AI.',
+    build: () => 'You are Plaid.',
   };
 
   const orchestrator = new AiChatOrchestratorService(
@@ -158,7 +160,7 @@ function createOrchestrator(options?: {
     mockSystemPrompt as any,
   );
 
-  return { orchestrator, persistedMessages, providerCallCount, recordedRequests };
+  return { orchestrator, persistedMessages, providerCallCount, recordedRequests, toolExecuteCount };
 }
 
 async function collectEvents(gen: AsyncGenerator<ChatStreamEvent>): Promise<ChatStreamEvent[]> {
@@ -202,12 +204,12 @@ async function testSimpleTextResponse() {
   assert.ok(persistedMessages.length >= 2, `Expected at least 2 persisted messages, got ${persistedMessages.length}`);
   assert.equal(persistedMessages[0].role, 'user');
   assert.equal(persistedMessages[0].content, 'Hello');
-  assert.equal(recordedRequests[0].systemPrompt, 'You are KANAP AI.');
+  assert.equal(recordedRequests[0].systemPrompt, 'You are Plaid.');
   assert.deepEqual(recordedRequests[0].messages.map((message: any) => message.content), ['Hello']);
 }
 
 async function testToolCallFlow() {
-  const { orchestrator, providerCallCount } = createOrchestrator({
+  const { orchestrator, providerCallCount, toolExecuteCount } = createOrchestrator({
     providerEvents: [
       { type: 'text_delta', text: 'Let me search.' },
       { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
@@ -245,6 +247,68 @@ async function testToolCallFlow() {
   const toolResult = events.find((e) => e.type === 'tool_result') as any;
   assert.equal(toolResult.name, 'search_all');
   assert.deepEqual(toolResult.result.items[0].label, 'CRM');
+  assert.equal(toolExecuteCount.value, 1);
+}
+
+async function testProviderReceivesAbortSignal() {
+  const abortController = new AbortController();
+  const { orchestrator, recordedRequests } = createOrchestrator({
+    providerEvents: [{ type: 'done', usage: { input_tokens: 1, output_tokens: 1 } }],
+  });
+
+  await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Hello',
+      signal: abortController.signal,
+    }),
+  );
+
+  assert.equal(recordedRequests[0].signal, abortController.signal);
+}
+
+async function testRepeatedToolCallsStopWithoutFurtherProgress() {
+  const { orchestrator, providerCallCount, toolExecuteCount } = createOrchestrator({
+    providerEvents: [
+      { type: 'text_delta', text: 'Need to search again.' },
+      { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"query":"test"}' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 20 } },
+    ],
+    providerToolEvents: [
+      { type: 'text_delta', text: 'Need to search again.' },
+      { type: 'tool_call_start', id: 'tc-2', name: 'search_all' },
+      { type: 'tool_call_delta', id: 'tc-2', arguments: '{"query":"test"}' },
+      { type: 'tool_call_end', id: 'tc-2' },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 20 } },
+    ],
+    toolResult: { items: [], total: 0 },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Search',
+    }),
+  );
+
+  const errorEvent = events.find((e) => e.type === 'error') as any;
+  assert.equal(errorEvent?.message, 'Maximum tool call iterations reached without progress.');
+  assert.equal(providerCallCount.value, 2);
+  assert.equal(toolExecuteCount.value, 1);
 }
 
 async function testSystemPromptGuidance() {
@@ -364,7 +428,7 @@ async function testContextCompaction() {
 
     assert.equal(recordedRequests.length, 1);
     const requestMessages = recordedRequests[0].messages as any[];
-    assert.equal(recordedRequests[0].systemPrompt, 'You are KANAP AI.');
+    assert.equal(recordedRequests[0].systemPrompt, 'You are Plaid.');
     assert.match(requestMessages[0].content, /^\[tool result truncated: query_entities/);
     assert.match(requestMessages[1].content, /^\[assistant message truncated:/);
     assert.deepEqual(
@@ -430,6 +494,8 @@ async function testToolExecutionError() {
 async function run() {
   await testSimpleTextResponse();
   await testToolCallFlow();
+  await testProviderReceivesAbortSignal();
+  await testRepeatedToolCallsStopWithoutFurtherProgress();
   await testSystemPromptGuidance();
   await testContextCompaction();
   await testToolExecutionError();

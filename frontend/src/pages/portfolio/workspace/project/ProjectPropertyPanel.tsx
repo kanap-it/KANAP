@@ -13,6 +13,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
 import UserSelect from '../../../../components/fields/UserSelect';
 import CompanySelect from '../../../../components/fields/CompanySelect';
@@ -20,6 +21,8 @@ import DepartmentSelect from '../../../../components/fields/DepartmentSelect';
 import DateEUField from '../../../../components/fields/DateEUField';
 import EnumAutocomplete from '../../../../components/fields/EnumAutocomplete';
 import TeamMemberMultiSelect from '../../../../components/fields/TeamMemberMultiSelect';
+import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
+import { getRequestStatusLabel } from '../../../../utils/portfolioI18n';
 import DependencySelector from '../../components/DependencySelector';
 import ProjectRelationsPanel from '../../editors/ProjectRelationsPanel';
 
@@ -99,6 +102,7 @@ export default function ProjectPropertyPanel({
   statusOptions,
   streams,
 }: ProjectPropertyPanelProps) {
+  const { t } = useTranslation(['portfolio', 'errors']);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [nameDraft, setNameDraft] = React.useState(form?.name || '');
@@ -149,10 +153,12 @@ export default function ProjectPropertyPanel({
         await onRefetch();
       }
     } catch (error: any) {
-      setPanelError(error?.response?.data?.message || error?.message || 'Failed to update project details');
+      setPanelError(
+        getApiErrorMessage(error, t, t('workspace.project.messages.savePanelFailed')),
+      );
       await onRefetch();
     }
-  }, [onLocalUpdate, onRefetch]);
+  }, [onLocalUpdate, onRefetch, t]);
 
   const filteredStreams = React.useMemo(() => {
     if (!form?.category_id) return [];
@@ -171,12 +177,12 @@ export default function ProjectPropertyPanel({
         sx={accordionSx}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <SectionHeading title="Core Properties" />
+          <SectionHeading title={t('workspace.project.sections.core')} />
         </AccordionSummary>
         <AccordionDetails>
           <Stack spacing={1.5} sx={compactFieldSx}>
             <TextField
-              label="Project Name"
+              label={t('workspace.project.fields.projectName')}
               value={nameDraft}
               disabled={coreFieldsDisabled}
               onChange={(event) => {
@@ -198,7 +204,7 @@ export default function ProjectPropertyPanel({
 
             {!isCreate && (
               <EnumAutocomplete
-                label="Status"
+                label={t('workspace.project.fields.status')}
                 value={form?.status || 'waiting_list'}
                 onChange={onStatusChange}
                 options={statusOptions}
@@ -209,7 +215,7 @@ export default function ProjectPropertyPanel({
 
             {isCreate ? (
               <EnumAutocomplete
-                label="Origin"
+                label={t('workspace.project.fields.origin')}
                 value={form?.origin || 'fast_track'}
                 onChange={onOriginChange}
                 options={originOptions}
@@ -218,7 +224,7 @@ export default function ProjectPropertyPanel({
               />
             ) : (
               <TextField
-                label="Origin"
+                label={t('workspace.project.fields.origin')}
                 value={originLabels[form?.origin] || form?.origin || ''}
                 size="small"
                 disabled
@@ -227,7 +233,7 @@ export default function ProjectPropertyPanel({
             )}
 
             <EnumAutocomplete
-              label="Source"
+              label={t('workspace.project.fields.source')}
               value={form?.source_id || ''}
               onChange={onSourceChange}
               options={sources.map((source) => ({ value: source.id, label: source.name }))}
@@ -236,7 +242,7 @@ export default function ProjectPropertyPanel({
             />
 
             <EnumAutocomplete
-              label="Category"
+              label={t('workspace.project.fields.category')}
               value={form?.category_id || ''}
               onChange={onCategoryChange}
               options={categories.map((category) => ({ value: category.id, label: category.name }))}
@@ -245,7 +251,7 @@ export default function ProjectPropertyPanel({
             />
 
             <EnumAutocomplete
-              label="Stream"
+              label={t('workspace.project.fields.stream')}
               value={form?.stream_id || ''}
               onChange={onStreamChange}
               options={filteredStreams.map((stream) => ({ value: stream.id, label: stream.name }))}
@@ -254,7 +260,7 @@ export default function ProjectPropertyPanel({
             />
 
             <CompanySelect
-              label="Company"
+              label={t('workspace.project.fields.company')}
               value={form?.company_id || null}
               onChange={onCompanyChange}
               disabled={coreFieldsDisabled}
@@ -262,7 +268,7 @@ export default function ProjectPropertyPanel({
             />
 
             <DepartmentSelect
-              label="Department"
+              label={t('workspace.project.fields.department')}
               companyId={form?.company_id || undefined}
               value={form?.department_id || null}
               onChange={(value) => onUpdate({ department_id: value })}
@@ -271,7 +277,7 @@ export default function ProjectPropertyPanel({
             />
 
             <DateEUField
-              label="Planned Start"
+              label={t('workspace.project.fields.plannedStart')}
               valueYmd={form?.planned_start || ''}
               onChangeYmd={onPlannedStartChange}
               disabled={coreFieldsDisabled}
@@ -279,7 +285,7 @@ export default function ProjectPropertyPanel({
             />
 
             <DateEUField
-              label="Planned End"
+              label={t('workspace.project.fields.plannedEnd')}
               valueYmd={form?.planned_end || ''}
               onChangeYmd={onPlannedEndChange}
               disabled={coreFieldsDisabled}
@@ -300,12 +306,12 @@ export default function ProjectPropertyPanel({
             sx={accordionSx}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <SectionHeading title="Team" />
+              <SectionHeading title={t('workspace.project.sections.team')} />
             </AccordionSummary>
             <AccordionDetails>
               <Stack spacing={1.5} sx={compactFieldSx}>
                 <UserSelect
-                  label="Business Sponsor"
+                  label={t('workspace.project.fields.businessSponsor')}
                   value={form?.business_sponsor_id || null}
                   onChange={(value) => handleImmediateSave(
                     () => api.patch(`/portfolio/projects/${form.id}`, { business_sponsor_id: value }),
@@ -316,7 +322,7 @@ export default function ProjectPropertyPanel({
                 />
 
                 <UserSelect
-                  label="Business Lead"
+                  label={t('workspace.project.fields.businessLead')}
                   value={form?.business_lead_id || null}
                   onChange={(value) => handleImmediateSave(
                     async () => {
@@ -330,7 +336,7 @@ export default function ProjectPropertyPanel({
                 />
 
                 <UserSelect
-                  label="IT Sponsor"
+                  label={t('workspace.project.fields.itSponsor')}
                   value={form?.it_sponsor_id || null}
                   onChange={(value) => handleImmediateSave(
                     () => api.patch(`/portfolio/projects/${form.id}`, { it_sponsor_id: value }),
@@ -341,7 +347,7 @@ export default function ProjectPropertyPanel({
                 />
 
                 <UserSelect
-                  label="IT Lead"
+                  label={t('workspace.project.fields.itLead')}
                   value={form?.it_lead_id || null}
                   onChange={(value) => handleImmediateSave(
                     async () => {
@@ -357,7 +363,7 @@ export default function ProjectPropertyPanel({
                 <Divider />
 
                 <TeamMemberMultiSelect
-                  label="Business Contributors"
+                  label={t('workspace.project.fields.businessContributors')}
                   value={form?.business_team || []}
                   onChange={(userIds) => handleImmediateSave(
                     async () => {
@@ -373,7 +379,7 @@ export default function ProjectPropertyPanel({
                 />
 
                 <TeamMemberMultiSelect
-                  label="IT Contributors"
+                  label={t('workspace.project.fields.itContributors')}
                   value={form?.it_team || []}
                   onChange={(userIds) => handleImmediateSave(
                     async () => {
@@ -404,13 +410,13 @@ export default function ProjectPropertyPanel({
             sx={accordionSx}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <SectionHeading title="Relations" />
+              <SectionHeading title={t('workspace.project.sections.relations')} />
             </AccordionSummary>
             <AccordionDetails>
               <Stack spacing={1.5} sx={compactFieldSx}>
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                    Dependencies
+                    {t('workspace.project.sections.dependencies')}
                   </Typography>
                   <DependencySelector
                     entityType="project"
@@ -461,7 +467,7 @@ export default function ProjectPropertyPanel({
 
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                    Source Requests
+                    {t('workspace.project.sections.sourceRequests')}
                   </Typography>
                   {form?.source_requests?.length > 0 ? (
                     <Stack spacing={1}>
@@ -482,14 +488,14 @@ export default function ProjectPropertyPanel({
                           }}
                         >
                           <Typography variant="body2">
-                            {request.name} ({request.status})
+                            {request.name} ({getRequestStatusLabel(t, request.status)})
                           </Typography>
                         </Box>
                       ))}
                     </Stack>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No source requests linked.
+                      {t('workspace.project.messages.noSourceRequests')}
                     </Typography>
                   )}
                 </Box>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -18,7 +18,9 @@ import {
   Typography,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 interface WorkspaceSettings {
   portfolio: {
@@ -53,15 +55,7 @@ interface NotificationPreferencesData {
   timezone: string;
 }
 
-const DAY_OPTIONS = [
-  { value: 0, label: 'Sunday' },
-  { value: 1, label: 'Monday' },
-  { value: 2, label: 'Tuesday' },
-  { value: 3, label: 'Wednesday' },
-  { value: 4, label: 'Thursday' },
-  { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' },
-];
+const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => ({
   value: i,
@@ -91,11 +85,17 @@ const COMMON_TIMEZONES = [
 
 export default function NotificationsTab() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['settings', 'common', 'errors']);
   const [prefs, setPrefs] = useState<NotificationPreferencesData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dayOptions = useMemo(
+    () => DAY_KEYS.map((key, i) => ({ value: i, label: t(`settings:notifications.days.${key}`) })),
+    [t],
+  );
 
   const sendTestEmail = useCallback(async () => {
     setSendingTest(true);
@@ -103,17 +103,18 @@ export default function NotificationsTab() {
     try {
       const res = await api.post('/users/me/notification-preferences/test-weekly-review');
       if (res.data?.success) {
-        setSuccessMessage(res.data.message || 'Test email sent!');
+        setSuccessMessage(res.data.message || t('common:messages.testEmailSent'));
         setTimeout(() => setSuccessMessage(''), 5000);
       } else {
-        setError(res.data?.message || 'Failed to send test email');
+        const code = res.data?.code;
+        setError(code ? t(`errors:${code}`, { defaultValue: res.data?.message }) : (res.data?.message || t('common:messages.testEmailFailed')));
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to send test email');
+      setError(getApiErrorMessage(e, t, t('common:messages.testEmailFailed')));
     } finally {
       setSendingTest(false);
     }
-  }, []);
+  }, [t]);
 
   // Fetch current preferences
   const { data, isLoading, isError } = useQuery({
@@ -143,11 +144,11 @@ export default function NotificationsTab() {
           await api.patch('/users/me/notification-preferences', updates);
           queryClient.invalidateQueries({ queryKey: ['notification-preferences'] });
         } catch (e: any) {
-          setError(e?.response?.data?.message || 'Failed to save preferences');
+          setError(getApiErrorMessage(e, t, t('common:messages.saveFailed')));
         }
       }, 500);
     },
-    [queryClient]
+    [queryClient, t]
   );
 
   // Cleanup timeout on unmount
@@ -195,13 +196,13 @@ export default function NotificationsTab() {
   );
 
   if (isLoading) {
-    return <Typography>Loading...</Typography>;
+    return <Typography>{t('common:status.loading')}</Typography>;
   }
 
   if (isError || !prefs) {
     return (
       <Alert severity="error">
-        Failed to load notification preferences. Please refresh the page.
+        {t('common:messages.loadFailedRefresh')}
       </Alert>
     );
   }
@@ -233,9 +234,9 @@ export default function NotificationsTab() {
             }
             label={
               <Box>
-                <Typography variant="subtitle1">Email Notifications</Typography>
+                <Typography variant="subtitle1">{t('settings:notifications.emailNotifications')}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Receive email notifications for updates and activity
+                  {t('settings:notifications.emailDescription')}
                 </Typography>
               </Box>
             }
@@ -259,7 +260,7 @@ export default function NotificationsTab() {
                   />
                 }
                 label={
-                  <Typography variant="subtitle1">Portfolio Notifications</Typography>
+                  <Typography variant="subtitle1">{t('settings:notifications.portfolio.title')}</Typography>
                 }
               />
               <Collapse in={prefs.workspace_settings.portfolio.enabled}>
@@ -275,7 +276,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">Status changes</Typography>
+                      <Typography variant="body2">{t('settings:notifications.portfolio.statusChanges')}</Typography>
                     }
                   />
                   <FormControlLabel
@@ -289,7 +290,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">When I'm added to a team</Typography>
+                      <Typography variant="body2">{t('settings:notifications.portfolio.teamAdditions')}</Typography>
                     }
                   />
                   <FormControlLabel
@@ -303,7 +304,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">Team changes on items I lead</Typography>
+                      <Typography variant="body2">{t('settings:notifications.portfolio.teamChangesAsLead')}</Typography>
                     }
                   />
                   <FormControlLabel
@@ -317,7 +318,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">Comments</Typography>
+                      <Typography variant="body2">{t('settings:notifications.portfolio.comments')}</Typography>
                     }
                   />
                 </Stack>
@@ -338,13 +339,13 @@ export default function NotificationsTab() {
                   />
                 }
                 label={
-                  <Typography variant="subtitle1">Task Notifications</Typography>
+                  <Typography variant="subtitle1">{t('settings:notifications.tasks.title')}</Typography>
                 }
               />
               <Collapse in={prefs.workspace_settings.tasks.enabled}>
                 <Stack spacing={1} sx={{ ml: 4, mt: 1 }}>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Notify me when I am:
+                    {t('settings:notifications.tasks.notifyWhen')}
                   </Typography>
                   <FormControlLabel
                     control={
@@ -357,7 +358,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">Assigned to a task</Typography>
+                      <Typography variant="body2">{t('settings:notifications.tasks.asAssignee')}</Typography>
                     }
                   />
                   <FormControlLabel
@@ -371,7 +372,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">Requestor of a task</Typography>
+                      <Typography variant="body2">{t('settings:notifications.tasks.asRequestor')}</Typography>
                     }
                   />
                   <FormControlLabel
@@ -386,16 +387,16 @@ export default function NotificationsTab() {
                     }
                     label={
                       <Stack>
-                        <Typography variant="body2">Viewer of a task</Typography>
+                        <Typography variant="body2">{t('settings:notifications.tasks.asViewer')}</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          Can be noisy - off by default
+                          {t('settings:notifications.tasks.viewerHint')}
                         </Typography>
                       </Stack>
                     }
                   />
                   <Divider sx={{ my: 1 }} />
                   <Typography variant="body2" color="text.secondary">
-                    Event types:
+                    {t('settings:notifications.tasks.eventTypes')}
                   </Typography>
                   <FormControlLabel
                     control={
@@ -408,7 +409,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">Status changes</Typography>
+                      <Typography variant="body2">{t('settings:notifications.tasks.statusChanges')}</Typography>
                     }
                   />
                   <FormControlLabel
@@ -422,7 +423,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">Comments</Typography>
+                      <Typography variant="body2">{t('settings:notifications.tasks.comments')}</Typography>
                     }
                   />
                 </Stack>
@@ -443,7 +444,7 @@ export default function NotificationsTab() {
                   />
                 }
                 label={
-                  <Typography variant="subtitle1">Budget Notifications</Typography>
+                  <Typography variant="subtitle1">{t('settings:notifications.budget.title')}</Typography>
                 }
               />
               <Collapse in={prefs.workspace_settings.budget.enabled}>
@@ -459,7 +460,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">Expiration warnings</Typography>
+                      <Typography variant="body2">{t('settings:notifications.budget.expirationWarnings')}</Typography>
                     }
                   />
                   <FormControlLabel
@@ -473,7 +474,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">Status changes</Typography>
+                      <Typography variant="body2">{t('settings:notifications.budget.statusChanges')}</Typography>
                     }
                   />
                   <FormControlLabel
@@ -487,7 +488,7 @@ export default function NotificationsTab() {
                       />
                     }
                     label={
-                      <Typography variant="body2">Comments</Typography>
+                      <Typography variant="body2">{t('settings:notifications.budget.comments')}</Typography>
                     }
                   />
                 </Stack>
@@ -507,9 +508,9 @@ export default function NotificationsTab() {
                 }
                 label={
                   <Box>
-                    <Typography variant="subtitle1">Weekly Review Email</Typography>
+                    <Typography variant="subtitle1">{t('settings:notifications.weeklyReview.title')}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Receive a summary of your activity and upcoming items
+                      {t('settings:notifications.weeklyReview.description')}
                     </Typography>
                   </Box>
                 }
@@ -518,15 +519,15 @@ export default function NotificationsTab() {
                 <Stack spacing={2} sx={{ ml: 4, mt: 2 }}>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                     <FormControl size="small" sx={{ minWidth: 140 }}>
-                      <InputLabel>Day</InputLabel>
+                      <InputLabel>{t('settings:notifications.weeklyReview.day')}</InputLabel>
                       <Select
                         value={prefs.weekly_review_day}
-                        label="Day"
+                        label={t('settings:notifications.weeklyReview.day')}
                         onChange={(e) =>
                           updatePrefs({ weekly_review_day: e.target.value as number })
                         }
                       >
-                        {DAY_OPTIONS.map((opt) => (
+                        {dayOptions.map((opt) => (
                           <MenuItem key={opt.value} value={opt.value}>
                             {opt.label}
                           </MenuItem>
@@ -534,10 +535,10 @@ export default function NotificationsTab() {
                       </Select>
                     </FormControl>
                     <FormControl size="small" sx={{ minWidth: 100 }}>
-                      <InputLabel>Time</InputLabel>
+                      <InputLabel>{t('settings:notifications.weeklyReview.time')}</InputLabel>
                       <Select
                         value={prefs.weekly_review_hour}
-                        label="Time"
+                        label={t('settings:notifications.weeklyReview.time')}
                         onChange={(e) =>
                           updatePrefs({ weekly_review_hour: e.target.value as number })
                         }
@@ -551,10 +552,10 @@ export default function NotificationsTab() {
                     </FormControl>
                   </Stack>
                   <FormControl size="small" sx={{ maxWidth: 240 }}>
-                    <InputLabel>Timezone</InputLabel>
+                    <InputLabel>{t('settings:notifications.weeklyReview.timezone')}</InputLabel>
                     <Select
                       value={prefs.timezone}
-                      label="Timezone"
+                      label={t('settings:notifications.weeklyReview.timezone')}
                       onChange={(e) => updatePrefs({ timezone: e.target.value })}
                     >
                       {COMMON_TIMEZONES.map((tz) => (
@@ -572,7 +573,7 @@ export default function NotificationsTab() {
                     disabled={sendingTest}
                     sx={{ alignSelf: 'flex-start' }}
                   >
-                    {sendingTest ? 'Sending...' : 'Preview email'}
+                    {sendingTest ? t('settings:notifications.weeklyReview.sending') : t('settings:notifications.weeklyReview.previewEmail')}
                   </Button>
                 </Stack>
               </Collapse>

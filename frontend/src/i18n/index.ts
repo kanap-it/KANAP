@@ -95,6 +95,8 @@ void i18n
     detection: {
       order: ['localStorage', 'navigator'],
       lookupLocalStorage: LANGUAGE_OVERRIDE_STORAGE_KEY,
+      // Explicit overrides are stored manually; browser auto-detect must stay non-sticky.
+      caches: [],
     },
     returnNull: false,
   });

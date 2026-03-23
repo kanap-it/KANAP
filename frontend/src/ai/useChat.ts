@@ -13,19 +13,27 @@ export function useChat() {
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const streamGenerationRef = useRef(0);
+
+  const abortActiveStream = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    streamGenerationRef.current += 1;
+  }, []);
 
   // Abort in-flight stream on unmount
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
     };
-  }, []);
+  }, [abortActiveStream]);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return;
     setError(null);
     setIsStreaming(true);
 
+    const generation = ++streamGenerationRef.current;
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -55,6 +63,10 @@ export function useChat() {
       });
 
       for await (const event of stream) {
+        if (generation !== streamGenerationRef.current) {
+          break;
+        }
+
         switch (event.type) {
           case 'conversation':
             setConversationId(event.id);
@@ -124,7 +136,14 @@ export function useChat() {
             break;
         }
       }
+
+      if (generation !== streamGenerationRef.current) {
+        return;
+      }
     } catch (err: any) {
+      if (generation !== streamGenerationRef.current) {
+        return;
+      }
       if (err.name === 'AbortError') {
         // Navigation away or manual cancel — mark assistant as done, no error
         setMessages((prev) =>
@@ -141,14 +160,18 @@ export function useChat() {
         );
       }
     } finally {
-      abortRef.current = null;
-      setIsStreaming(false);
+      if (generation === streamGenerationRef.current) {
+        abortRef.current = null;
+        setIsStreaming(false);
+      }
     }
   }, [conversationId, isStreaming]);
 
   const loadConversation = useCallback(async (id: string) => {
+    abortActiveStream();
     setError(null);
     setConversationId(id);
+    setIsStreaming(false);
 
     const rawMessages = await aiConversationsApi.getMessages(id);
     const loaded: ChatMessage[] = [];
@@ -224,19 +247,25 @@ export function useChat() {
     }
 
     setMessages(loaded);
-  }, []);
+  }, [abortActiveStream]);
 
   const newConversation = useCallback(() => {
-    abortRef.current?.abort();
+    abortActiveStream();
     setMessages([]);
     setConversationId(null);
     setError(null);
     setIsStreaming(false);
-  }, []);
+  }, [abortActiveStream]);
 
   const cancelStream = useCallback(() => {
-    abortRef.current?.abort();
-  }, []);
+    abortActiveStream();
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.isStreaming ? { ...m, isStreaming: false } : m,
+      ),
+    );
+    setIsStreaming(false);
+  }, [abortActiveStream]);
 
   return useMemo(() => ({
     messages,

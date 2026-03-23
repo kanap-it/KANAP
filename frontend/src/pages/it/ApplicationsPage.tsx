@@ -17,6 +17,7 @@ import CheckboxSetFilter from '../../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
 import { useGridScopePreference } from '../../hooks/useGridScopePreference';
 
+import { useTranslation } from 'react-i18next';
 const ENV_SUMMARY = [
   { value: 'prod', label: 'Production', short: 'Prod' },
   { value: 'pre_prod', label: 'Pre-prod', short: 'Pre' },
@@ -80,6 +81,7 @@ type AppRow = {
 };
 
 export default function ApplicationsPage() {
+  const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const location = useLocation();
   const { hasLevel, profile } = useAuth();
@@ -260,19 +262,19 @@ export default function ApplicationsPage() {
   const categoryLabel = useCallback((value?: string) => labelFor('applicationCategory', value), [labelFor]);
   const criticalityLabel = useCallback((v?: string) => {
     switch (String(v || '')) {
-      case 'business_critical': return 'Business critical';
-      case 'high': return 'High';
-      case 'medium': return 'Medium';
-      case 'low': return 'Low';
+      case 'business_critical': return t('enums.criticality.businessCritical');
+      case 'high': return t('enums.criticality.high');
+      case 'medium': return t('enums.criticality.medium');
+      case 'low': return t('enums.criticality.low');
       default: return String(v || '');
     }
   }, []);
   const hostingModelLabel = useCallback((v?: string) => {
     switch (String(v || '')) {
-      case 'on_premise': return 'On premise';
-      case 'saas': return 'SaaS';
-      case 'public_cloud': return 'Public cloud';
-      case 'private_cloud': return 'Private cloud';
+      case 'on_premise': return t('enums.hostingModel.onPremise');
+      case 'saas': return t('enums.hostingModel.saas');
+      case 'public_cloud': return t('enums.hostingModel.publicCloud');
+      case 'private_cloud': return t('enums.hostingModel.privateCloud');
       default: return String(v || '');
     }
   }, []);
@@ -295,7 +297,7 @@ export default function ApplicationsPage() {
     field: string,
     opts?: { labelFormatter?: (value: any) => string; emptyLabel?: string; coerceBoolean?: boolean },
   ) => {
-    const emptyLabel = opts?.emptyLabel ?? '(Blank)';
+    const emptyLabel = opts?.emptyLabel ?? t('pages.assets.filters.blank');
     const labelFormatter = opts?.labelFormatter;
     const coerceBoolean = opts?.coerceBoolean ?? false;
     return async ({ context }: any) => {
@@ -350,7 +352,7 @@ export default function ApplicationsPage() {
     () => new Map(COUNTRY_OPTIONS.map((c) => [c.code.toUpperCase(), c.name])),
     [],
   );
-  const formatYesNo = useCallback((b?: boolean) => (b ? 'Yes' : 'No'), []);
+  const formatYesNo = useCallback((b?: boolean) => (b ? t('enums.yesNo.yes') : t('enums.yesNo.no')), []);
 
   if (!hasLevel('applications', 'reader')) {
     return <ForbiddenPage />;
@@ -546,11 +548,11 @@ export default function ApplicationsPage() {
 
   const columns: EnhancedColDef<AppRow>[] = useMemo(() => [
     {
-      headerName: 'Name', field: 'name', minWidth: 200,
+      headerName: t('common.name'), field: 'name', minWidth: 200,
       cellRenderer: NameWithSuiteCell,
     },
     {
-      headerName: 'Category',
+      headerName: t('pages.applications.columns.category'),
       field: 'category',
       width: 180,
       filter: CheckboxSetFilter,
@@ -563,7 +565,7 @@ export default function ApplicationsPage() {
       cellRenderer: ClickToOverview,
     },
     {
-      headerName: 'Environments',
+      headerName: t('pages.interfaces.columns.environments'),
       colId: 'environments',
       width: 250,
       sortable: false,
@@ -576,9 +578,9 @@ export default function ApplicationsPage() {
       cellRenderer: EnvironmentCell,
     },
     // Suites is available in chooser but hidden by default
-    { headerName: 'Suites', field: 'suites_count', width: 200, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: SuitesSummaryCell },
+    { headerName: t('pages.applications.columns.suites'), field: 'suites_count', width: 200, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: SuitesSummaryCell },
     {
-      headerName: 'Lifecycle',
+      headerName: t('common.lifecycle'),
       field: 'lifecycle',
       width: 120,
       filter: CheckboxSetFilter,
@@ -592,7 +594,7 @@ export default function ApplicationsPage() {
       cellRenderer: ClickToOverview,
     },
     {
-      headerName: 'Criticality',
+      headerName: t('pages.connections.columns.criticality'),
       field: 'criticality',
       width: 140,
       filter: CheckboxSetFilter,
@@ -604,17 +606,17 @@ export default function ApplicationsPage() {
       valueFormatter: (p: any) => criticalityLabel(p.value),
       cellRenderer: ClickToOverview,
     },
-    { headerName: 'Publisher', field: 'editor', width: 160, cellRenderer: ClickToOverview },
-    { headerName: 'Derived Users (Y)', field: 'derived_total_users', width: 170, cellRenderer: ClickToOwnership },
-    { headerName: 'Created', field: 'created_at', width: 160, cellRenderer: ClickToOverview },
+    { headerName: t('pages.applications.columns.publisher'), field: 'editor', width: 160, cellRenderer: ClickToOverview },
+    { headerName: t('pages.applications.columns.derivedUsers'), field: 'derived_total_users', width: 170, cellRenderer: ClickToOwnership },
+    { headerName: t('pages.assets.columns.created'), field: 'created_at', width: 160, cellRenderer: ClickToOverview },
 
     // Additional chooser columns (hidden by default)
-    { headerName: 'Supplier', field: 'supplier_name', width: 240, defaultHidden: true, sortable: true, filter: 'agTextColumnFilter', cellRenderer: ClickToOverview },
-    { headerName: 'Business Owners', field: 'owners_business', width: 220, defaultHidden: true, sortable: false, filter: 'agTextColumnFilter', cellRenderer: OwnersCell },
-    { headerName: 'IT Owners', field: 'owners_it', width: 200, defaultHidden: true, sortable: false, filter: 'agTextColumnFilter', cellRenderer: OwnersCell },
+    { headerName: t('pages.applications.columns.supplier'), field: 'supplier_name', width: 240, defaultHidden: true, sortable: true, filter: 'agTextColumnFilter', cellRenderer: ClickToOverview },
+    { headerName: t('pages.applications.columns.businessOwners'), field: 'owners_business', width: 220, defaultHidden: true, sortable: false, filter: 'agTextColumnFilter', cellRenderer: OwnersCell },
+    { headerName: t('pages.applications.columns.itOwners'), field: 'owners_it', width: 200, defaultHidden: true, sortable: false, filter: 'agTextColumnFilter', cellRenderer: OwnersCell },
 
     {
-      headerName: 'Hosting',
+      headerName: t('pages.assets.columns.hosting'),
       field: 'hosting_types',
       width: 180,
       defaultHidden: true,
@@ -629,7 +631,7 @@ export default function ApplicationsPage() {
       cellRenderer: ClickToTechnical,
     },
     {
-      headerName: 'External Facing',
+      headerName: t('pages.applications.columns.externalFacing'),
       field: 'external_facing',
       width: 150,
       defaultHidden: true,
@@ -637,14 +639,14 @@ export default function ApplicationsPage() {
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getAppFilterValues('external_facing', { coerceBoolean: true, labelFormatter: (v) => (v ? 'Yes' : 'No') }),
+        getValues: getAppFilterValues('external_facing', { coerceBoolean: true, labelFormatter: (v) => (v ? t('enums.yesNo.yes') : t('enums.yesNo.no')) }),
         searchable: false,
       },
       valueFormatter: (p: any) => formatYesNo(!!p.value),
       cellRenderer: ClickToTechnical,
     },
     {
-      headerName: 'SSO Enabled',
+      headerName: t('pages.applications.columns.ssoEnabled'),
       field: 'sso_enabled',
       width: 140,
       defaultHidden: true,
@@ -652,14 +654,14 @@ export default function ApplicationsPage() {
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getAppFilterValues('sso_enabled', { coerceBoolean: true, labelFormatter: (v) => (v ? 'Yes' : 'No') }),
+        getValues: getAppFilterValues('sso_enabled', { coerceBoolean: true, labelFormatter: (v) => (v ? t('enums.yesNo.yes') : t('enums.yesNo.no')) }),
         searchable: false,
       },
       valueFormatter: (p: any) => formatYesNo(!!p.value),
       cellRenderer: ClickToTechnical,
     },
     {
-      headerName: 'MFA Enabled',
+      headerName: t('pages.applications.columns.mfaEnabled'),
       field: 'mfa_supported',
       width: 140,
       defaultHidden: true,
@@ -667,23 +669,23 @@ export default function ApplicationsPage() {
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getAppFilterValues('mfa_supported', { coerceBoolean: true, labelFormatter: (v) => (v ? 'Yes' : 'No') }),
+        getValues: getAppFilterValues('mfa_supported', { coerceBoolean: true, labelFormatter: (v) => (v ? t('enums.yesNo.yes') : t('enums.yesNo.no')) }),
         searchable: false,
       },
       valueFormatter: (p: any) => formatYesNo(!!p.value),
       cellRenderer: ClickToTechnical,
     },
-    { headerName: 'Data Integration / ETL', field: 'etl_enabled', width: 190, defaultHidden: true, sortable: false, filter: 'agSetColumnFilter', filterParams: { values: [true, false], suppressMiniFilter: true }, valueFormatter: (p: any) => formatYesNo(!!p.value), cellRenderer: ClickToTechnical },
+    { headerName: t('pages.applications.columns.dataIntegrationEtl'), field: 'etl_enabled', width: 190, defaultHidden: true, sortable: false, filter: 'agSetColumnFilter', filterParams: { values: [true, false], suppressMiniFilter: true }, valueFormatter: (p: any) => formatYesNo(!!p.value), cellRenderer: ClickToTechnical },
 
-    { headerName: 'OPEX Items', field: 'spend_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: RelationsSummaryCell },
-    { headerName: 'CAPEX Items', field: 'capex_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: RelationsSummaryCell },
-    { headerName: 'Contracts', field: 'contracts_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: RelationsSummaryCell },
+    { headerName: t('pages.applications.columns.opexItems'), field: 'spend_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: RelationsSummaryCell },
+    { headerName: t('pages.applications.columns.capexItems'), field: 'capex_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: RelationsSummaryCell },
+    { headerName: t('pages.applications.columns.contracts'), field: 'contracts_count', width: 180, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: RelationsSummaryCell },
 
     // Structure: Components column remains optional
-    { headerName: 'Components', field: 'components_count', width: 200, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: ComponentsSummaryCell },
+    { headerName: t('pages.applications.columns.components'), field: 'components_count', width: 200, defaultHidden: true, sortable: true, filter: 'agNumberColumnFilter', cellRenderer: ComponentsSummaryCell },
 
     {
-      headerName: 'Data Class',
+      headerName: t('pages.applications.columns.dataClass'),
       field: 'data_class',
       width: 140,
       defaultHidden: true,
@@ -697,7 +699,7 @@ export default function ApplicationsPage() {
       cellRenderer: ClickToCompliance,
     },
     {
-      headerName: 'Contains PII',
+      headerName: t('pages.interfaces.columns.containsPii'),
       field: 'contains_pii',
       width: 140,
       defaultHidden: true,
@@ -705,13 +707,13 @@ export default function ApplicationsPage() {
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getAppFilterValues('contains_pii', { coerceBoolean: true, labelFormatter: (v) => (v ? 'Yes' : 'No') }),
+        getValues: getAppFilterValues('contains_pii', { coerceBoolean: true, labelFormatter: (v) => (v ? t('enums.yesNo.yes') : t('enums.yesNo.no')) }),
         searchable: false,
       },
       valueFormatter: (p: any) => formatYesNo(!!p.value),
       cellRenderer: ClickToCompliance,
     },
-    { headerName: 'Data Residency', field: 'data_residency', width: 200, defaultHidden: true, sortable: false, filter: 'agTextColumnFilter', cellRenderer: ResidencyCell },
+    { headerName: t('pages.applications.columns.dataResidency'), field: 'data_residency', width: 200, defaultHidden: true, sortable: false, filter: 'agTextColumnFilter', cellRenderer: ResidencyCell },
   ], [
     ClickToCompliance,
     ClickToOverview,
@@ -858,10 +860,10 @@ export default function ApplicationsPage() {
           New App / Service
         </Button>
       )}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canAdmin && <Button onClick={() => setImportOpen(true)}>{t('pages.assets.importCsv')}</Button>}
+      {canAdmin && <Button onClick={() => setExportOpen(true)}>{t('pages.assets.exportCsv')}</Button>}
       {canCreate && (
-        <Button onClick={() => void handleCopy()} disabled={selectedRows.length !== 1}>Copy item</Button>
+        <Button onClick={() => void handleCopy()} disabled={selectedRows.length !== 1}>{t('pages.applications.copyItem')}</Button>
       )}
       {canAdmin && (
         <DeleteSelectedButton
@@ -878,7 +880,7 @@ export default function ApplicationsPage() {
 
   return (
     <>
-      <PageHeader title="Applications" actions={actions} />
+      <PageHeader title={t('pages.applications.title')} actions={actions} />
       <ServerDataGrid<AppRow>
         columns={columns}
         endpoint={'/applications'}
@@ -955,14 +957,14 @@ export default function ApplicationsPage() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         endpoint="/applications"
-        title="Export Applications"
-        presets={[{ name: 'enrichment', label: 'Data Enrichment' }]}
+        title={t('pages.applications.exportTitle')}
+        presets={[{ name: 'enrichment', label: t('pages.assets.dataEnrichment') }]}
       />
       <CsvImportDialogV2
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/applications"
-        title="Import Applications"
+        title={t('pages.applications.importTitle')}
         onImported={() => setRefreshKey((k) => k + 1)}
       />
     </>

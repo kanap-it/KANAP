@@ -12,6 +12,7 @@ import { ServerOption } from '../../../../components/fields/ServerSelect';
 import useItOpsEnumOptions from '../../../../hooks/useItOpsEnumOptions';
 import type { ConnectionDetail, ConnectionLeg, EntityOption, SourceTargetOption } from './types';
 
+import { useTranslation } from 'react-i18next';
 interface LayersTabProps {
   data: ConnectionDetail | null;
   isCreate: boolean;
@@ -49,6 +50,7 @@ export default function LayersTab({
   onSaveLegs,
   onResetLegs,
 }: LayersTabProps) {
+  const { t } = useTranslation(['it', 'common']);
   const { settings } = useItOpsEnumOptions();
 
   const entityOptions: EntityOption[] = React.useMemo(

@@ -28,6 +28,8 @@ import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import DeleteSelectedButton from '../../components/DeleteSelectedButton';
 import api from '../../api';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 type InterfaceRow = {
   id: string;
   interface_id: string;
@@ -47,6 +49,7 @@ type InterfaceRow = {
 };
 
 export default function InterfacesPage() {
+  const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
   const { labelFor } = useItOpsEnumOptions();
@@ -119,7 +122,7 @@ export default function InterfacesPage() {
       console.error('Duplicate error:', error);
       setSnackbar({
         open: true,
-        message: error?.response?.data?.message || 'Failed to duplicate interface',
+        message: getApiErrorMessage(error, t, t('messages.duplicateInterfaceFailed')),
         severity: 'error',
       });
     } finally {
@@ -183,47 +186,47 @@ export default function InterfacesPage() {
 
   const columns: EnhancedColDef<InterfaceRow>[] = [
     {
-      headerName: 'Interface ID',
+      headerName: t('pages.interfaces.columns.interfaceId'),
       field: 'interface_id',
       width: 150,
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Name',
+      headerName: t('common.name'),
       field: 'name',
       minWidth: 220,
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Environments',
+      headerName: t('pages.interfaces.columns.environments'),
       field: 'binding_environments',
       width: 200,
       sortable: false,
       cellRenderer: EnvPills,
     },
-    { headerName: 'Source App', field: 'source_application_name', width: 200, cellRenderer: ClickToWorkspace },
+    { headerName: t('pages.interfaces.columns.sourceApp'), field: 'source_application_name', width: 200, cellRenderer: ClickToWorkspace },
     {
-      headerName: 'Target App',
+      headerName: t('pages.interfaces.columns.targetApp'),
       field: 'target_application_name',
       width: 200,
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Lifecycle',
+      headerName: t('common.lifecycle'),
       field: 'lifecycle',
       width: 140,
        valueFormatter: (p) => labelFor('lifecycleStatus', p.value) || p.value || '',
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Criticality',
+      headerName: t('pages.connections.columns.criticality'),
       field: 'criticality',
       width: 140,
       cellRenderer: ClickToWorkspace,
     },
-    { headerName: 'Created', field: 'created_at', width: 180, cellRenderer: ClickToWorkspace },
+    { headerName: t('pages.assets.columns.created'), field: 'created_at', width: 180, cellRenderer: ClickToWorkspace },
     {
-      headerName: 'Business Process',
+      headerName: t('pages.interfaces.columns.businessProcess'),
       field: 'business_process_id',
       width: 200,
       valueFormatter: (p) => p.data?.business_process_name || '',
@@ -232,7 +235,7 @@ export default function InterfacesPage() {
       defaultHidden: true,
     },
     {
-      headerName: 'Data Category',
+      headerName: t('pages.interfaces.columns.dataCategory'),
       field: 'data_category',
       width: 120,
       filter: 'agSetColumnFilter',
@@ -241,16 +244,16 @@ export default function InterfacesPage() {
       defaultHidden: true,
     },
     {
-      headerName: 'Contains PII',
+      headerName: t('pages.interfaces.columns.containsPii'),
       field: 'contains_pii',
       width: 130,
       filter: 'agSetColumnFilter',
-      valueFormatter: (p) => (p.value ? 'Yes' : 'No'),
+      valueFormatter: (p) => (p.value ? t('enums.yesNo.yes') : t('enums.yesNo.no')),
       cellRenderer: ClickToWorkspace,
       defaultHidden: true,
     },
     {
-      headerName: 'Env Coverage',
+      headerName: t('pages.interfaces.columns.envCoverage'),
       field: 'environment_coverage',
       width: 140,
       sortable: false,
@@ -260,7 +263,7 @@ export default function InterfacesPage() {
       defaultHidden: true,
     },
     {
-      headerName: 'Bindings',
+      headerName: t('pages.interfaces.columns.bindings'),
       field: 'bindings_count',
       width: 120,
       sortable: false,
@@ -299,10 +302,10 @@ export default function InterfacesPage() {
           onDeleteSuccess={() => {
             setRefreshKey((k) => k + 1);
           }}
-          label="Delete interface"
+          label={t('pages.interfaces.deleteInterface')}
           cascadeOption={{
-            label: 'Also delete related bindings',
-            description: 'If unchecked, interfaces with bindings will not be deleted.',
+            label: t('pages.interfaces.alsoDeleteBindings'),
+            description: t('pages.interfaces.deleteBindingsDescription'),
             apiKey: 'deleteRelatedBindings',
           }}
         />
@@ -312,7 +315,7 @@ export default function InterfacesPage() {
 
   return (
     <>
-      <PageHeader title="Interfaces" actions={actions} />
+      <PageHeader title={t('pages.interfaces.title')} actions={actions} />
       <ServerDataGrid<InterfaceRow>
         columns={columns}
         endpoint="/interfaces"

@@ -26,8 +26,10 @@ import type {
   InterfaceLeg,
   InterfaceTabProps,
 } from './types';
+import { useTranslation } from 'react-i18next';
 
 export default function TechnicalTab({ data, update, markDirty }: InterfaceTabProps) {
+  const { t } = useTranslation(['it', 'common']);
   const { byField, labelFor } = useItOpsEnumOptions();
   const links = (data?.links || []) as InterfaceLink[];
   const attachments = (data?.attachments || []) as InterfaceAttachment[];
@@ -60,7 +62,7 @@ export default function TechnicalTab({ data, update, markDirty }: InterfaceTabPr
   };
 
   const handleDeleteTechnicalLink = async (interfaceId: string, linkId: string) => {
-    if (!window.confirm('Remove this technical documentation link?')) return;
+    if (!window.confirm(t('confirmations.removeTechnicalDocLink'))) return;
     try {
       await api.delete(`/interfaces/${interfaceId}/links/${linkId}`);
       const next = links.filter((l) => l.id !== linkId);
@@ -93,7 +95,7 @@ export default function TechnicalTab({ data, update, markDirty }: InterfaceTabPr
   };
 
   const handleDeleteAttachment = async (attachmentId: string) => {
-    if (!window.confirm('Delete this attachment?')) return;
+    if (!window.confirm(t('confirmations.deleteAttachment'))) return;
     try {
       await api.patch(`/interfaces/attachments/${attachmentId}/delete`);
       const next = attachments.filter((a) => a.id !== attachmentId);

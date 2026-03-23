@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Divider, IconButton, Stack, Typography, Button, Table, TableBody, TableCell, TableHead, TableRow, Tooltip } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../../api';
@@ -26,6 +27,7 @@ type Link = {
 
 export default function SupplierContactsPanel({ supplierId, canManage }: { supplierId: string; canManage: boolean }) {
   const navigate = useNavigate();
+  const { t } = useTranslation(['master-data', 'common']);
   const qc = useQueryClient();
   const { data: links } = useQuery({
     queryKey: ['supplier-contacts', supplierId],
@@ -59,10 +61,10 @@ export default function SupplierContactsPanel({ supplierId, canManage }: { suppl
   });
 
   const roles: Array<{ key: 'commercial'|'technical'|'support'|'other'; label: string }> = [
-    { key: 'commercial', label: 'Commercial' },
-    { key: 'technical', label: 'Technical' },
-    { key: 'support', label: 'Support' },
-    { key: 'other', label: 'Other' },
+    { key: 'commercial', label: t('suppliers.contacts.commercial') },
+    { key: 'technical', label: t('suppliers.contacts.technical') },
+    { key: 'support', label: t('suppliers.contacts.support') },
+    { key: 'other', label: t('suppliers.contacts.other') },
   ];
 
   return (
@@ -92,18 +94,18 @@ export default function SupplierContactsPanel({ supplierId, canManage }: { suppl
             )}
 
             {items.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5, mb: 1 }}>No contacts</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5, mb: 1 }}>{t('suppliers.contacts.noContacts')}</Typography>
             ) : (
               <Box sx={{ overflowX: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
                 <Table size="small" sx={{ '& tbody tr': { cursor: 'pointer' }, '& tbody tr:hover': { backgroundColor: 'action.hover' } }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>First name</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Last name</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Job title</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Mobile</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 600, width: 80 }}>Actions</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{t('suppliers.contacts.firstName')}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{t('suppliers.contacts.lastName')}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{t('suppliers.contacts.jobTitle')}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{t('shared.columns.email')}</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{t('suppliers.contacts.mobile')}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, width: 80 }}>{t('suppliers.contacts.actions')}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -115,7 +117,7 @@ export default function SupplierContactsPanel({ supplierId, canManage }: { suppl
                         <TableCell>{l.contact.email}</TableCell>
                         <TableCell>{l.contact.mobile || ''}</TableCell>
                         <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                          <Tooltip title={canManage ? 'Remove link' : 'Insufficient permission'}>
+                          <Tooltip title={canManage ? t('suppliers.contacts.removeLink') : t('suppliers.contacts.insufficientPermission')}>
                             <span>
                               <IconButton size="small" color="error" aria-label="Delete" disabled={!canManage} onClick={() => detach(l.id)}>
                                 <DeleteIcon fontSize="small" />

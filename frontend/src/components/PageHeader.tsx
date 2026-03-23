@@ -1,6 +1,7 @@
 import React from 'react';
 import { Breadcrumbs, Link as MLink, Typography, Stack, Chip } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 type Crumb = { label: string; to?: string };
 
@@ -18,47 +19,51 @@ function humanizeSegment(value: string): string {
 }
 
 function useBreadcrumbs(): Crumb[] {
+  const { t } = useTranslation('nav');
   const location = useLocation();
   const path = location.pathname;
   const parts = path.split('/').filter(Boolean);
-  const mapLabel = (seg: string) => {
-    switch (seg) {
-      case 'ops': return 'Budget Management';
-      case 'admin': return 'Admin';
-      case 'it': return 'IT Operations';
-      case 'master-data': return 'Master Data';
-      case 'portfolio': return 'Portfolio';
-      case 'ai': return 'AI';
-      case 'opex': return 'OPEX';
-      case 'capex': return 'CAPEX';
-      case 'projects': return 'Projects';
-      case 'contributors': return 'Contributors';
-      case 'team-members': return 'Team Members';
-      case 'companies': return 'Companies';
-      case 'departments': return 'Departments';
-      case 'suppliers': return 'Suppliers';
-      case 'accounts': return 'Accounts';
-      case 'coa': return 'Charts of Accounts';
-      case 'analytics': return 'Analytics Dimensions';
-      case 'users': return 'Users';
-      case 'roles': return 'Roles';
-      case 'scheduled-tasks': return 'Scheduled Tasks';
-      case 'billing': return 'Billing';
-      case 'reports': return 'Reporting';
-      case 'contracts': return 'Contracts';
-      case 'applications': return 'Applications';
-      case 'interface-map': return 'Interface Map';
-      case 'connection-map': return 'Connection Map';
-      case 'tasks': return 'Tasks';
-      case 'operations': return 'Administration';
-      default: return seg;
-    }
+  const mapLabel = (seg: string): string => {
+    // Convert route segments to camelCase keys for lookup
+    const keyMap: Record<string, string> = {
+      'ops': 'ops',
+      'admin': 'admin',
+      'it': 'it',
+      'master-data': 'masterData',
+      'portfolio': 'portfolio',
+      'ai': 'ai',
+      'opex': 'opex',
+      'capex': 'capex',
+      'projects': 'projects',
+      'contributors': 'contributors',
+      'team-members': 'teamMembers',
+      'companies': 'companies',
+      'departments': 'departments',
+      'suppliers': 'suppliers',
+      'accounts': 'accounts',
+      'coa': 'coa',
+      'analytics': 'analytics',
+      'users': 'users',
+      'roles': 'roles',
+      'scheduled-tasks': 'scheduledTasks',
+      'billing': 'billing',
+      'reports': 'reports',
+      'contracts': 'contracts',
+      'applications': 'applications',
+      'interface-map': 'interfaceMap',
+      'connection-map': 'connectionMap',
+      'tasks': 'tasks',
+      'operations': 'operations',
+    };
+    const key = keyMap[seg];
+    if (key) return t(`breadcrumbs.${key}`);
+    return humanizeSegment(seg);
   };
 
   // Determine the root based on the first part of the path
   const crumbs: Crumb[] = [];
   if (parts.length === 0) {
-    crumbs.push({ label: 'Dashboard', to: '/ops' });
+    crumbs.push({ label: t('breadcrumbs.dashboard'), to: '/ops' });
     return crumbs;
   }
 
@@ -83,6 +88,7 @@ export default function PageHeader({
   /** Override the last breadcrumb segment (e.g., show name instead of UUID) */
   breadcrumbTitle?: string;
 }) {
+  const { t } = useTranslation('nav');
   let crumbs = useBreadcrumbs();
 
   // For /:id/:tab routes, replace UUID breadcrumb with tab label.
@@ -119,7 +125,7 @@ export default function PageHeader({
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ flexWrap: 'wrap', gap: 1 }}>
         <Stack direction="row" alignItems="center" spacing={1}>
           <Typography variant="h5">{title}</Typography>
-          {isAdmin && <Chip label="Admin" size="small" />}
+          {isAdmin && <Chip label={t('breadcrumbs.admin')} size="small" />}
         </Stack>
         {actions}
       </Stack>

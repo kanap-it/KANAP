@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Gantt } from '@svar-ui/react-gantt';
 import type { ITask, IApi } from '@svar-ui/react-gantt';
 import { Box, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import '@svar-ui/react-gantt/style.css';
 import api from '../../../api';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { computeInactiveSegments, formatInactiveTooltip } from './roadmap-inactive-segments';
 import type { InactiveSegment } from './roadmap-inactive-segments';
 
@@ -65,20 +67,6 @@ const STATUS_COLORS: Record<string, string> = {
   done: '#9e9e9e',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  waiting_list: 'Waiting List',
-  planned: 'Planned',
-  in_progress: 'In Progress',
-  in_testing: 'In Testing',
-  on_hold: 'On Hold',
-  done: 'Done',
-};
-
-const RESERVATION_REASON_LABELS: Record<'not_recalculated' | 'external_blocker', string> = {
-  not_recalculated: 'Not Recalculated',
-  external_blocker: 'External Blocker',
-};
-
 const MILESTONE_STATUS_COLORS: Record<string, string> = {
   pending: '#ffa726',
   achieved: '#66bb6a',
@@ -90,15 +78,13 @@ const DEPENDENCY_TYPE_MAP: Record<string, 'e2s' | 's2s' | 'e2e' | 's2e'> = {
   blocks: 'e2s',
 };
 
-// Date formatting helpers
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
+// Date formatting helpers — locale-aware via Intl
 const formatMonthYear = (date: Date): string => {
-  return `${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
+  return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 };
 
 const formatMonthShort = (date: Date): string => {
-  return MONTH_NAMES[date.getMonth()];
+  return date.toLocaleDateString(undefined, { month: 'short' });
 };
 
 const formatQuarterYear = (date: Date): string => {
@@ -171,6 +157,7 @@ export function PortfolioGantt({
   monthOffset = 0,
   readOnly = false,
 }: Props) {
+  const { t } = useTranslation(['portfolio', 'errors']);
   const navigate = useNavigate();
   const apiRef = useRef<IApi | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -243,7 +230,7 @@ export function PortfolioGantt({
           // Only expand projects that actually have milestones as children
           open: projectsWithMilestones.has(p.id),
           _status: p.status,
-          _statusLabel: STATUS_LABELS[p.status] || p.status,
+          _statusLabel: t(`statuses.project.${p.status}`, { defaultValue: p.status }),
           _progress: p.execution_progress || 0,
           _isProject: true,
           _isReservation: isReservation,
@@ -277,7 +264,7 @@ export function PortfolioGantt({
         type: 'milestone' as const,
         parent: m.project_id, // Group under parent project
         _status: m.status,
-        _statusLabel: m.status.charAt(0).toUpperCase() + m.status.slice(1),
+        _statusLabel: t(`planning.gantt.milestoneStatuses.${m.status}`, { defaultValue: m.status.charAt(0).toUpperCase() + m.status.slice(1) }),
         _progress: m.status === 'achieved' ? 100 : 0,
         _isProject: false,
         _projectId: m.project_id,
@@ -339,8 +326,8 @@ export function PortfolioGantt({
 
   // Columns configuration
   const columns = useMemo(() => [
-    { id: 'text', header: 'Project', width: 320, resize: true, sort: true },
-  ], []);
+    { id: 'text', header: t('planning.gantt.columnProject'), width: 320, resize: true, sort: true },
+  ], [t]);
 
   // Compute today's pixel position on the chart timeline.
   // This is independent from SVAR markers so it works in week-scale mode too.
@@ -520,7 +507,7 @@ export function PortfolioGantt({
 
       // Validate end >= start
       if (new Date(task.end) < new Date(task.start)) {
-        alert('End date cannot be before start date');
+        alert(t('workspace.project.timeline.messages.invalidDateRange'));
         onUpdateRef.current?.();
         return;
       }
@@ -532,7 +519,7 @@ export function PortfolioGantt({
         });
         onUpdateRef.current?.();
       } catch (e: any) {
-        alert(e?.response?.data?.message || 'Failed to update dates');
+        alert(getApiErrorMessage(e, t, t('workspace.project.timeline.messages.updatePhaseFailed')));
         onUpdateRef.current?.();
       }
     });
@@ -593,8 +580,10 @@ export function PortfolioGantt({
       : (isReservationTask ? '#607d8b' : (STATUS_COLORS[status] || STATUS_COLORS.planned));
     const progress = Math.round((data.progress || 0) * 100);
 
+    const na = t('planning.gantt.tooltip.na');
+
     if (data.type === 'milestone') {
-      const tooltip = `${data.text}\nProject: ${data._projectName || 'N/A'}\nStatus: ${data._statusLabel || data._status}\nDate: ${data.start ? formatDateShort(new Date(data.start)) : 'N/A'}`;
+      const tooltip = `${data.text}\n${t('planning.gantt.tooltip.project')}: ${data._projectName || na}\n${t('planning.gantt.tooltip.status')}: ${data._statusLabel || data._status}\n${t('planning.gantt.tooltip.date')}: ${data.start ? formatDateShort(new Date(data.start)) : na}`;
       return (
         <div
           title={tooltip}
@@ -609,8 +598,8 @@ export function PortfolioGantt({
       );
     }
 
-    const startStr = data.start ? formatDateShort(new Date(data.start)) : 'N/A';
-    const endStr = data.end ? formatDateShort(new Date(data.end)) : 'N/A';
+    const startStr = data.start ? formatDateShort(new Date(data.start)) : na;
+    const endStr = data.end ? formatDateShort(new Date(data.end)) : na;
     const isReservation = !!data._isReservation;
     const sleepLeadDays = Number(data._sleepLeadDays || 0);
     const activeSpanDays = Math.max(1, Number(data._activeSpanDays || 1));
@@ -621,7 +610,7 @@ export function PortfolioGantt({
       ? formatDateShort(new Date(data._historicalStart))
       : null;
     const reservationReason = data._reservationReason
-      ? RESERVATION_REASON_LABELS[data._reservationReason as 'not_recalculated' | 'external_blocker']
+      ? t(`planning.gantt.reservationReasons.${data._reservationReason}`, { defaultValue: data._reservationReason })
       : null;
     const sleepWeeks = hasSleepLead ? Math.max(1, Math.round(sleepLeadDays / 7)) : 0;
     const inactiveSegments: InactiveSegment[] = data._inactiveSegments || [];
@@ -629,16 +618,16 @@ export function PortfolioGantt({
     const fullStartStr = data._fullPlannedStart ? formatDateShort(new Date(data._fullPlannedStart)) : null;
     const fullEndStr = data._fullPlannedEnd ? formatDateShort(new Date(data._fullPlannedEnd)) : null;
     const contributorWindowPart = data._focusContributorName && data._focusContributorActiveStart && data._focusContributorActiveEnd
-      ? `\nContributor: ${data._focusContributorName}\nContributor Active: ${formatDateShort(new Date(data._focusContributorActiveStart))} - ${formatDateShort(new Date(data._focusContributorActiveEnd))}${fullStartStr && fullEndStr && (fullStartStr !== startStr || fullEndStr !== endStr) ? `\nProject Window: ${fullStartStr} - ${fullEndStr}` : ''}`
+      ? `\n${t('planning.gantt.tooltip.contributor')}: ${data._focusContributorName}\n${t('planning.gantt.tooltip.contributorActive')}: ${formatDateShort(new Date(data._focusContributorActiveStart))} - ${formatDateShort(new Date(data._focusContributorActiveEnd))}${fullStartStr && fullEndStr && (fullStartStr !== startStr || fullEndStr !== endStr) ? `\n${t('planning.gantt.tooltip.projectWindow')}: ${fullStartStr} - ${fullEndStr}` : ''}`
       : '';
     const interactionHint = [
-      pinStartMode && !isReservation ? 'Drag to pin start week' : null,
-      !isReservation && onProjectClick ? 'Click for explanation' : null,
+      pinStartMode && !isReservation ? t('planning.gantt.tooltip.dragToPin') : null,
+      !isReservation && onProjectClick ? t('planning.gantt.tooltip.clickForExplanation') : null,
     ]
       .filter((value): value is string => !!value)
       .map((value) => `\n${value}`)
       .join('');
-    const tooltip = `${data.text}\nStatus: ${data._statusLabel || data._status}\nProgress: ${progress}%\nStart: ${startStr}\nEnd: ${endStr}${contributorWindowPart}${isReservation ? `\nType: Capacity Reservation${reservationReason ? `\nReason: ${reservationReason}` : ''}` : ''}${hasSleepLead && historicalStartStr ? `\nHistorical Start: ${historicalStartStr}\nPaused: ~${sleepWeeks} week(s)` : ''}${inactiveTooltipPart}${interactionHint}`;
+    const tooltip = `${data.text}\n${t('planning.gantt.tooltip.status')}: ${data._statusLabel || data._status}\n${t('planning.gantt.tooltip.progress')}: ${progress}%\n${t('planning.gantt.tooltip.start')}: ${startStr}\n${t('planning.gantt.tooltip.end')}: ${endStr}${contributorWindowPart}${isReservation ? `\n${t('planning.gantt.tooltip.typeCapacityReservation')}${reservationReason ? `\n${t('planning.gantt.tooltip.reason')}: ${reservationReason}` : ''}` : ''}${hasSleepLead && historicalStartStr ? `\n${t('planning.gantt.tooltip.historicalStart')}: ${historicalStartStr}\n${t('planning.gantt.tooltip.paused', { count: sleepWeeks })}` : ''}${inactiveTooltipPart}${interactionHint}`;
 
     // Compute overlay positions for inactive segments as percentages of the bar
     const barStartMs = data.start ? new Date(data.start).getTime() : 0;
@@ -770,9 +759,9 @@ export function PortfolioGantt({
   if (tasks.length === 0) {
     return (
       <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-        <Typography variant="h6">No projects with planned dates</Typography>
+        <Typography variant="h6">{t('workspace.project.timeline.states.noPlannedProjects')}</Typography>
         <Typography variant="body2">
-          Set planned start and end dates on projects to see them on the timeline.
+          {t('workspace.project.timeline.states.noPlannedProjectsHelp')}
         </Typography>
       </Box>
     );

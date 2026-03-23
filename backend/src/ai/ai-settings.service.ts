@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { AuditService } from '../audit/audit.service';
 import { AiSettings } from './ai-settings.entity';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
+import { Features } from '../config/features';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
 
 export type AiSettingsView = {
@@ -15,6 +17,7 @@ export type AiSettingsView = {
   llm_model: string | null;
   mcp_key_max_lifetime_days: number | null;
   conversation_retention_days: number | null;
+  web_search_enabled: boolean;
   web_enrichment_enabled: boolean;
   has_llm_api_key: boolean;
   provider_secret_writable: boolean;
@@ -33,6 +36,7 @@ export type UpdateAiSettingsInput = {
   llm_model?: string | null;
   mcp_key_max_lifetime_days?: number | null;
   conversation_retention_days?: number | null;
+  web_search_enabled?: boolean;
   web_enrichment_enabled?: boolean;
 };
 
@@ -49,6 +53,7 @@ export class AiSettingsService {
     private readonly repo: Repository<AiSettings>,
     private readonly providerRegistry: AiProviderRegistry,
     private readonly cipher: AiSecretCipherService,
+    private readonly audit?: AuditService,
   ) {}
 
   private getRepo(manager?: EntityManager) {
@@ -80,6 +85,7 @@ export class AiSettingsService {
         tenant_id: tenantId,
         chat_enabled: false,
         mcp_enabled: false,
+        web_search_enabled: false,
         web_enrichment_enabled: false,
       }));
       settings.llm_api_key_encrypted = null;
@@ -91,10 +97,12 @@ export class AiSettingsService {
   async update(
     tenantId: string,
     input: UpdateAiSettingsInput,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; userId?: string | null; sourceRef?: string | null },
   ): Promise<AiSettings> {
     const repo = this.getRepo(opts?.manager);
-    const settings = await this.get(tenantId, opts);
+    const existing = await this.find(tenantId, opts);
+    const settings = existing ?? await this.get(tenantId, opts);
+    const beforeView = existing ? this.toView(settings) : null;
 
     if (Object.prototype.hasOwnProperty.call(input, 'chat_enabled')) {
       settings.chat_enabled = input.chat_enabled === true;
@@ -137,8 +145,24 @@ export class AiSettingsService {
       }
       settings.conversation_retention_days = value ?? null;
     }
+    if (Object.prototype.hasOwnProperty.call(input, 'web_search_enabled')) {
+      const wantEnabled = input.web_search_enabled === true;
+      if (wantEnabled && !Features.AI_WEB_SEARCH_READY) {
+        throw new BadRequestException('Web search cannot be enabled: BRAVE_SEARCH_API_KEY is not configured.');
+      }
+      settings.web_search_enabled = wantEnabled;
+      // Cascade: disabling web search also disables web enrichment
+      if (!wantEnabled) {
+        settings.web_enrichment_enabled = false;
+      }
+    }
     if (Object.prototype.hasOwnProperty.call(input, 'web_enrichment_enabled')) {
       settings.web_enrichment_enabled = input.web_enrichment_enabled === true;
+    }
+
+    // Dependency: web enrichment requires web search
+    if (settings.web_enrichment_enabled && !settings.web_search_enabled) {
+      throw new BadRequestException('Web enrichment requires web search to be enabled.');
     }
 
     if (settings.chat_enabled) {
@@ -154,6 +178,20 @@ export class AiSettingsService {
     settings.updated_at = new Date();
     const saved = await repo.save(settings);
     saved.llm_api_key_encrypted = settings.llm_api_key_encrypted;
+    if (this.audit) {
+      await this.audit.log(
+        {
+          table: 'ai_settings',
+          recordId: saved.id,
+          action: beforeView ? 'update' : 'create',
+          before: beforeView,
+          after: this.toView(saved),
+          userId: opts?.userId ?? null,
+          sourceRef: opts?.sourceRef ?? null,
+        },
+        { manager: opts?.manager },
+      );
+    }
     return saved;
   }
 
@@ -180,6 +218,7 @@ export class AiSettingsService {
       llm_model: settings.llm_model,
       mcp_key_max_lifetime_days: settings.mcp_key_max_lifetime_days,
       conversation_retention_days: settings.conversation_retention_days,
+      web_search_enabled: settings.web_search_enabled,
       web_enrichment_enabled: settings.web_enrichment_enabled,
       has_llm_api_key: snapshot.has_llm_api_key,
       provider_secret_writable: this.cipher.canEncrypt(),

@@ -3,11 +3,41 @@
     "saveChanges": "Änderungen speichern",
     "reset": "Zurücksetzen",
     "chooseColumns": "Spalten auswählen",
-    "resetColumns": "Spalten zurücksetzen"
+    "resetColumns": "Spalten zurücksetzen",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "close": "Close",
+    "create": "Create",
+    "add": "Add",
+    "remove": "Remove",
+    "deleteSelected": "Delete Selected"
   },
   "status": {
     "loading": "Wird geladen...",
-    "saving": "Wird gespeichert..."
+    "saving": "Wird gespeichert...",
+    "deleting": "Deleting..."
+  },
+  "statuses": {
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "active": "Active",
+    "inactive": "Inactive",
+    "proposed": "Proposed",
+    "deprecated": "Deprecated",
+    "retired": "Retired",
+    "draft": "Draft",
+    "submitted": "Submitted",
+    "under_review": "Under Review",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "in_progress": "In Progress",
+    "on_hold": "On Hold",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "pending": "Pending",
+    "open": "Open",
+    "closed": "Closed"
   },
   "filters": {
     "quickFilter": "Schnellfilter",
@@ -21,7 +51,24 @@
     "email": "E-Mail",
     "totalWithCount": "Gesamt ({{count}})"
   },
+  "delete": {
+    "confirmTitle": "Confirm Deletion",
+    "deleteSelectedTitle": "Delete Selected Items",
+    "warningMessage": "This action cannot be undone. If the item is referenced elsewhere, deletion will be blocked; otherwise it will be permanently removed.",
+    "singleItem": "The following item will be deleted:",
+    "multipleItems": "{{count}} items will be deleted:",
+    "andMore": "... and {{count}} more item(s)",
+    "confirmPrompt": "Are you sure you want to proceed?",
+    "successAll": "Successfully deleted {{count}} item(s)",
+    "failedAll": "Failed to delete items: {{reasons}}",
+    "partial": "Deleted {{deleted}} item(s). Failed to delete {{failed}} item(s).",
+    "failedGeneric": "Failed to delete items"
+  },
   "messages": {
-    "loadFailed": "Daten konnten nicht geladen werden"
+    "loadFailed": "Daten konnten nicht geladen werden",
+    "saveFailed": "Failed to save preferences",
+    "loadFailedRefresh": "Failed to load data. Please refresh the page.",
+    "testEmailSent": "Test email sent!",
+    "testEmailFailed": "Failed to send test email"
   }
 }

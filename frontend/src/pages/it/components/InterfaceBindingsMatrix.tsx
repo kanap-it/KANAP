@@ -30,6 +30,8 @@ import api from '../../../api';
 import ApplicationSelect from '../../../components/fields/ApplicationSelect';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 const ENVIRONMENTS = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox'] as const;
 
 type InterfaceLeg = {
@@ -145,6 +147,7 @@ export default function InterfaceBindingsMatrix({
   legs,
   integrationRouteType,
 }: Props) {
+  const { t } = useTranslation(['it', 'common']);
   const { byField, labelFor } = useItOpsEnumOptions();
   const lifecycleOptions = React.useMemo(() => {
     const list = byField.lifecycleStatus || [];
@@ -201,7 +204,7 @@ export default function InterfaceBindingsMatrix({
       });
       setInstancesByAppId(nextInstances);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load bindings');
+      setError(getApiErrorMessage(e, t, t('messages.loadBindingsFailed')));
     } finally {
       setLoading(false);
     }
@@ -219,7 +222,7 @@ export default function InterfaceBindingsMatrix({
         const res = await api.get<{ items: BindingConnection[] }>(`/interface-bindings/${bindingId}/connection-links`);
         setLinksByBindingId((prev) => ({ ...prev, [bindingId]: res.data.items || [] }));
       } catch (e: any) {
-        setLinksError(e?.response?.data?.message || e?.message || 'Failed to load infra connections');
+        setLinksError(getApiErrorMessage(e, t, t('messages.loadConnectionsFailed')));
       } finally {
         setLinksLoadingBindingId((prev) => (prev === bindingId ? null : prev));
       }
@@ -479,18 +482,18 @@ export default function InterfaceBindingsMatrix({
       closeDialog();
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save binding');
+      setError(getApiErrorMessage(e, t, t('messages.saveBindingFailed')));
     }
   };
 
   const handleDeleteBinding = async (binding: BindingRow) => {
-    if (!window.confirm('Remove this binding?')) return;
+    if (!window.confirm(t('confirmations.removeBinding'))) return;
     setError(null);
     try {
       await api.delete(`/interface-bindings/${binding.id}`);
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to delete binding');
+      setError(getApiErrorMessage(e, t, t('messages.deleteBindingFailed')));
     }
   };
 
@@ -505,7 +508,7 @@ export default function InterfaceBindingsMatrix({
       await loadLinksForBinding(manageConnections.binding.id);
       setSelectedConnection(null);
     } catch (e: any) {
-      setLinksError(e?.response?.data?.message || e?.message || 'Failed to link connection');
+      setLinksError(getApiErrorMessage(e, t, t('messages.linkConnectionFailed')));
     } finally {
       setLinkSaving(false);
     }
@@ -519,7 +522,7 @@ export default function InterfaceBindingsMatrix({
         await api.delete(`/interface-bindings/${bindingId}/connection-links/${linkId}`);
         await loadLinksForBinding(bindingId);
       } catch (e: any) {
-        setLinksError(e?.response?.data?.message || e?.message || 'Failed to unlink connection');
+        setLinksError(getApiErrorMessage(e, t, t('messages.unlinkConnectionFailed')));
       } finally {
         setUnlinkingLinkId((prev) => (prev === linkId ? null : prev));
       }
@@ -794,7 +797,7 @@ export default function InterfaceBindingsMatrix({
                     await load();
                   } catch (e: any) {
                     setError(
-                      e?.response?.data?.message || e?.message || 'Failed to delete environment bindings',
+                      getApiErrorMessage(e, t, t('messages.deleteEnvBindingsFailed')),
                     );
                   }
                 } else {
@@ -1143,7 +1146,7 @@ export default function InterfaceBindingsMatrix({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDialog}>Cancel</Button>
+          <Button onClick={closeDialog}>{t('common:buttons.cancel')}</Button>
           <Button
             variant="contained"
             onClick={() => void handleSaveDialog()}
@@ -1173,7 +1176,7 @@ export default function InterfaceBindingsMatrix({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEnvDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setEnvDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button
             variant="contained"
             onClick={() => {

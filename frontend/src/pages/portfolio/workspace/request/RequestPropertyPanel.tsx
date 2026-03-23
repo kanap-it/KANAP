@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
 import UserSelect from '../../../../components/fields/UserSelect';
 import CompanySelect from '../../../../components/fields/CompanySelect';
@@ -19,6 +20,8 @@ import DepartmentSelect from '../../../../components/fields/DepartmentSelect';
 import DateEUField from '../../../../components/fields/DateEUField';
 import EnumAutocomplete from '../../../../components/fields/EnumAutocomplete';
 import TeamMemberMultiSelect from '../../../../components/fields/TeamMemberMultiSelect';
+import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
+import { getProjectStatusLabel } from '../../../../utils/portfolioI18n';
 import DependencySelector from '../../components/DependencySelector';
 import RequestRelationsPanel from '../../editors/RequestRelationsPanel';
 
@@ -90,6 +93,7 @@ export default function RequestPropertyPanel({
   statusOptions,
   streams,
 }: RequestPropertyPanelProps) {
+  const { t } = useTranslation(['portfolio', 'errors']);
   const navigate = useNavigate();
   const [nameDraft, setNameDraft] = React.useState(form?.name || '');
   const coreFieldsDisabled = !isCreate && !canManage;
@@ -139,10 +143,12 @@ export default function RequestPropertyPanel({
         await onRefetch();
       }
     } catch (error: any) {
-      setPanelError(error?.response?.data?.message || error?.message || 'Failed to update request details');
+      setPanelError(
+        getApiErrorMessage(error, t, t('workspace.request.messages.savePanelFailed')),
+      );
       await onRefetch();
     }
-  }, [onLocalUpdate, onRefetch]);
+  }, [onLocalUpdate, onRefetch, t]);
 
   const filteredStreams = React.useMemo(() => {
     if (!form?.category_id) return [];
@@ -161,12 +167,12 @@ export default function RequestPropertyPanel({
         sx={accordionSx}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <SectionHeading title="Core Properties" />
+          <SectionHeading title={t('workspace.request.sections.core')} />
         </AccordionSummary>
         <AccordionDetails>
           <Stack spacing={1.5} sx={compactFieldSx}>
             <TextField
-              label="Request Name"
+              label={t('workspace.request.fields.requestName')}
               value={nameDraft}
               disabled={coreFieldsDisabled}
               onChange={(event) => {
@@ -188,7 +194,7 @@ export default function RequestPropertyPanel({
 
             {!isCreate && (
               <EnumAutocomplete
-                label="Status"
+                label={t('workspace.request.fields.status')}
                 value={form?.status || 'pending_review'}
                 onChange={onStatusChange}
                 options={statusOptions}
@@ -198,7 +204,7 @@ export default function RequestPropertyPanel({
             )}
 
             <EnumAutocomplete
-              label="Source"
+              label={t('workspace.request.fields.source')}
               value={form?.source_id || ''}
               onChange={onSourceChange}
               options={sources.map((source) => ({ value: source.id, label: source.name }))}
@@ -207,7 +213,7 @@ export default function RequestPropertyPanel({
             />
 
             <EnumAutocomplete
-              label="Category"
+              label={t('workspace.request.fields.category')}
               value={form?.category_id || ''}
               onChange={onCategoryChange}
               options={categories.map((category) => ({ value: category.id, label: category.name }))}
@@ -216,7 +222,7 @@ export default function RequestPropertyPanel({
             />
 
             <EnumAutocomplete
-              label="Stream"
+              label={t('workspace.request.fields.stream')}
               value={form?.stream_id || ''}
               onChange={onStreamChange}
               options={filteredStreams.map((stream) => ({ value: stream.id, label: stream.name }))}
@@ -225,7 +231,7 @@ export default function RequestPropertyPanel({
             />
 
             <UserSelect
-              label="Requestor"
+              label={t('workspace.request.fields.requestor')}
               value={form?.requestor_id || null}
               onChange={onRequestorChange}
               disabled={coreFieldsDisabled}
@@ -233,7 +239,7 @@ export default function RequestPropertyPanel({
             />
 
             <CompanySelect
-              label="Company"
+              label={t('workspace.request.fields.company')}
               value={form?.company_id || null}
               onChange={onCompanyChange}
               disabled={coreFieldsDisabled}
@@ -241,7 +247,7 @@ export default function RequestPropertyPanel({
             />
 
             <DepartmentSelect
-              label="Department"
+              label={t('workspace.request.fields.department')}
               companyId={form?.company_id || undefined}
               value={form?.department_id || null}
               onChange={(value) => onUpdate({ department_id: value })}
@@ -250,7 +256,7 @@ export default function RequestPropertyPanel({
             />
 
             <DateEUField
-              label="Target Delivery Date"
+              label={t('workspace.request.fields.targetDeliveryDate')}
               valueYmd={form?.target_delivery_date || ''}
               onChangeYmd={(value) => onUpdate({ target_delivery_date: value })}
               disabled={coreFieldsDisabled}
@@ -271,12 +277,12 @@ export default function RequestPropertyPanel({
             sx={accordionSx}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <SectionHeading title="Team" />
+              <SectionHeading title={t('workspace.request.sections.team')} />
             </AccordionSummary>
             <AccordionDetails>
               <Stack spacing={1.5} sx={compactFieldSx}>
                 <UserSelect
-                  label="Business Sponsor"
+                  label={t('workspace.request.fields.businessSponsor')}
                   value={form?.business_sponsor_id || null}
                   onChange={(value) => handleImmediateSave(
                     () => api.patch(`/portfolio/requests/${form.id}`, { business_sponsor_id: value }),
@@ -287,7 +293,7 @@ export default function RequestPropertyPanel({
                 />
 
                 <UserSelect
-                  label="Business Lead"
+                  label={t('workspace.request.fields.businessLead')}
                   value={form?.business_lead_id || null}
                   onChange={(value) => handleImmediateSave(
                     () => api.patch(`/portfolio/requests/${form.id}`, { business_lead_id: value }),
@@ -298,7 +304,7 @@ export default function RequestPropertyPanel({
                 />
 
                 <UserSelect
-                  label="IT Sponsor"
+                  label={t('workspace.request.fields.itSponsor')}
                   value={form?.it_sponsor_id || null}
                   onChange={(value) => handleImmediateSave(
                     () => api.patch(`/portfolio/requests/${form.id}`, { it_sponsor_id: value }),
@@ -309,7 +315,7 @@ export default function RequestPropertyPanel({
                 />
 
                 <UserSelect
-                  label="IT Lead"
+                  label={t('workspace.request.fields.itLead')}
                   value={form?.it_lead_id || null}
                   onChange={(value) => handleImmediateSave(
                     () => api.patch(`/portfolio/requests/${form.id}`, { it_lead_id: value }),
@@ -322,7 +328,7 @@ export default function RequestPropertyPanel({
                 <Divider />
 
                 <TeamMemberMultiSelect
-                  label="Business Contributors"
+                  label={t('workspace.request.fields.businessContributors')}
                   value={form?.business_team || []}
                   onChange={(userIds) => handleImmediateSave(
                     () => api.post(`/portfolio/requests/${form.id}/business-team/bulk-replace`, {
@@ -335,7 +341,7 @@ export default function RequestPropertyPanel({
                 />
 
                 <TeamMemberMultiSelect
-                  label="IT Contributors"
+                  label={t('workspace.request.fields.itContributors')}
                   value={form?.it_team || []}
                   onChange={(userIds) => handleImmediateSave(
                     () => api.post(`/portfolio/requests/${form.id}/it-team/bulk-replace`, {
@@ -363,13 +369,13 @@ export default function RequestPropertyPanel({
             sx={accordionSx}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <SectionHeading title="Relations" />
+              <SectionHeading title={t('workspace.request.sections.relations')} />
             </AccordionSummary>
             <AccordionDetails>
               <Stack spacing={1.5} sx={compactFieldSx}>
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                    Dependencies
+                    {t('workspace.request.sections.dependencies')}
                   </Typography>
                   <DependencySelector
                     entityType="request"
@@ -420,7 +426,7 @@ export default function RequestPropertyPanel({
 
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                    Resulting Projects
+                    {t('workspace.request.sections.resultingProjects')}
                   </Typography>
                   {form?.resulting_projects?.length > 0 ? (
                     <Stack spacing={1}>
@@ -441,14 +447,14 @@ export default function RequestPropertyPanel({
                           }}
                         >
                           <Typography variant="body2">
-                            {project.name} ({project.status})
+                            {project.name} ({getProjectStatusLabel(t, project.status)})
                           </Typography>
                         </Box>
                       ))}
                     </Stack>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No resulting projects yet.
+                      {t('workspace.request.messages.noResultingProjects')}
                     </Typography>
                   )}
                 </Box>

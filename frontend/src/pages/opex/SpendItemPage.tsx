@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useSpendNav } from '../../hooks/useSpendNav';
 import SpendInfoEditor, { SpendInfoEditorHandle } from './editors/SpendInfoEditor';
@@ -25,15 +26,17 @@ import { readStoredOpexListContext, writeStoredOpexListContext } from './listCon
 
 type TabKey = 'overview' | 'budget' | 'allocations' | 'tasks' | 'relations';
 
-const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'budget', label: 'Budget' },
-  { key: 'allocations', label: 'Allocations' },
-  { key: 'tasks', label: 'Tasks' },
-  { key: 'relations', label: 'Relations' },
-];
+// Tab labels are resolved inside the component via t()
 
 export default function SpendItemPage() {
+  const { t } = useTranslation(['ops', 'common']);
+  const tabs: Array<{ key: TabKey; label: string }> = [
+    { key: 'overview', label: t('opex.tabs.overview') },
+    { key: 'budget', label: t('opex.tabs.budget') },
+    { key: 'allocations', label: t('opex.tabs.allocations') },
+    { key: 'tasks', label: t('opex.tabs.tasks') },
+    { key: 'relations', label: t('opex.tabs.relations') },
+  ];
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -127,7 +130,7 @@ export default function SpendItemPage() {
   const confirmAndNavigate = async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before navigating?');
+      const proceed = window.confirm(t('confirmations.unsavedNavigate'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -146,7 +149,7 @@ export default function SpendItemPage() {
   const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return; // disable during creation
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before switching tabs?');
+      const proceed = window.confirm(t('confirmations.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => {
           const params = buildListContextParams();
@@ -173,16 +176,16 @@ export default function SpendItemPage() {
       {/* Header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Stack>
-          <Typography variant="h6">{isCreate ? 'New Spend Item' : (data?.product_name || 'Spend Item')}</Typography>
+          <Typography variant="h6">{isCreate ? t('opex.workspace.newSpendItem') : (data?.product_name || t('opex.workspace.spendItem'))}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {total > 0 ? `Item ${index + 1} of ${total}` : ''}
+            {total > 0 ? t('opex.workspace.itemOf', { index: index + 1, total }) : ''}
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Button onClick={handlePrev} disabled={!hasPrev}>Prev</Button>
-          <Button onClick={handleReset} disabled={!dirty}>Reset</Button>
-          <Button variant="contained" onClick={() => void handleSave()} disabled={!dirty}>Save</Button>
-          <Button onClick={handleNext} disabled={!hasNext}>Next</Button>
+          <Button onClick={handlePrev} disabled={!hasPrev}>{t('opex.workspace.prev')}</Button>
+          <Button onClick={handleReset} disabled={!dirty}>{t('common:buttons.reset')}</Button>
+          <Button variant="contained" onClick={() => void handleSave()} disabled={!dirty}>{t('common:buttons.saveChanges')}</Button>
+          <Button onClick={handleNext} disabled={!hasNext}>{t('opex.workspace.next')}</Button>
           <IconButton aria-label="Close" title="Close" onClick={() => {
             // Navigate back to list, preserve search context if present
             const sp = buildListContextParams();
@@ -194,7 +197,7 @@ export default function SpendItemPage() {
         </Stack>
       </Stack>
 
-      {!!error && <Alert severity="error">Failed to load item.</Alert>}
+      {!!error && <Alert severity="error">{t('opex.workspace.failedToLoad')}</Alert>}
 
       <Divider sx={{ mb: 2 }} />
 
@@ -214,7 +217,7 @@ export default function SpendItemPage() {
         <Box sx={{ flex: 1, pl: 3 }}>
           {isCreate && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-              Other tabs will be available after you create the item.
+              {t('opex.workspace.tabsAfterCreate')}
             </Typography>
           )}
           {routeTab === 'overview' && (

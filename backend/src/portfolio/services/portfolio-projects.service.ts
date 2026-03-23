@@ -21,6 +21,7 @@ import { PortfolioStatusService } from './portfolio-status.service';
 export interface ServiceOpts {
   manager?: EntityManager;
   userId?: string | null;
+  tenantId?: string;
 }
 
 /**

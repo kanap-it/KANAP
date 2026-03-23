@@ -22,6 +22,8 @@ import UserSelect from '../../../components/fields/UserSelect';
 import ContactSelect from '../../../components/fields/ContactSelect';
 import { useAuth } from '../../../auth/AuthContext';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 export type LocationContactsPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
@@ -73,6 +75,7 @@ function normalizeLinks(list: LinkRow[]) {
 }
 
 export default forwardRef<LocationContactsPanelHandle, Props>(function LocationContactsPanel({ id, onDirtyChange }, ref) {
+  const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel('locations', 'member');
 
@@ -118,7 +121,7 @@ export default forwardRef<LocationContactsPanelHandle, Props>(function LocationC
       setBaselineExternal(externalItems);
       setBaselineLinks(linkItems);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to load contacts';
+      const msg = getApiErrorMessage(e, t, t('messages.loadContactsFailed'));
       setError(msg);
       setInternalContacts([]);
       setExternalContacts([]);
@@ -141,7 +144,7 @@ export default forwardRef<LocationContactsPanelHandle, Props>(function LocationC
         await saveLinks();
         await load();
       } catch (e: any) {
-        const msg = e?.response?.data?.message || e?.message || 'Failed to save contacts';
+        const msg = getApiErrorMessage(e, t, t('messages.saveContactsFailed'));
         setError(msg);
         throw e;
       } finally {

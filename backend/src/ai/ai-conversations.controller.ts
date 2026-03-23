@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Param, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SkipTenantTransaction } from '../common/skip-tenant-transaction.decorator';
 import { AiConversationService } from './ai-conversation.service';
@@ -28,13 +28,32 @@ export class AiConversationsController {
     };
   }
 
+  private parsePositiveInt(rawValue: string | undefined, field: string, defaultValue: number): number {
+    if (rawValue == null || rawValue === '') {
+      return defaultValue;
+    }
+    const value = Number(rawValue);
+    if (!Number.isInteger(value) || value <= 0) {
+      throw new BadRequestException(`${field} must be a positive integer.`);
+    }
+    return value;
+  }
+
   @Get()
-  async list(@Req() req: any) {
+  async list(
+    @Req() req: any,
+    @Query('page') pageRaw?: string,
+    @Query('limit') limitRaw?: string,
+  ) {
     const context = this.buildContext(req);
+    const page = this.parsePositiveInt(pageRaw, 'page', 1);
+    const limit = Math.min(this.parsePositiveInt(limitRaw, 'limit', 100), 100);
     return this.tenantExecutor.runWithContext(context, async (ctx) => {
       await this.policy.assertSurfaceAccess(ctx, ctx.manager);
       const items = await this.conversations.listForUser(ctx.tenantId, ctx.userId, {
         manager: ctx.manager,
+        page,
+        limit,
       });
       return items.map((c) => ({
         id: c.id,

@@ -15,10 +15,12 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import LogTimeDialog, { TimeEntryData } from './LogTimeDialog';
 import TaskLogTimeDialog, { TaskTimeEntryData } from '../../tasks/components/TaskLogTimeDialog';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 type TimeSourceType = 'task' | 'project';
 type TimeEntryCategory = 'it' | 'business';
@@ -60,6 +62,7 @@ const formatHours = (value: number) => {
 };
 
 export default function ContributorTimeLog({ contributorId }: ContributorTimeLogProps) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
   const canManageStandaloneTaskEntries = hasLevel('tasks', 'member');
@@ -118,7 +121,7 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
   ]);
 
   const handleDelete = React.useCallback(async (entry: ContributorTimeEntry) => {
-    if (!window.confirm('Delete this time entry?')) return;
+    if (!window.confirm(t('portfolio:dialogs.logTime.confirmDelete'))) return;
 
     let endpoint: string | null = null;
     if (entry.source_type === 'task' && entry.task_id) {
@@ -130,7 +133,7 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
     }
 
     if (!endpoint) {
-      setError('Time entry is missing required identifiers.');
+      setError(t('portfolio:dialogs.contributorDrilldown.messages.missingIdentifiers'));
       return;
     }
 
@@ -140,13 +143,17 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
       await refetch();
       await invalidateAfterMutation();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete time entry');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:workspace.task.workLog.messages.deleteFailed'),
+      ));
     }
-  }, [invalidateAfterMutation, refetch]);
+  }, [invalidateAfterMutation, refetch, t]);
 
   const openTaskEdit = (entry: ContributorTimeEntry) => {
     if (!entry.task_id) {
-      setError('Task entry is missing task ID.');
+      setError(t('portfolio:dialogs.contributorDrilldown.messages.missingTaskId'));
       return;
     }
     setError(null);
@@ -156,7 +163,7 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
 
   const openProjectEdit = (entry: ContributorTimeEntry) => {
     if (!entry.project_id) {
-      setError('Project entry is missing project ID.');
+      setError(t('portfolio:dialogs.contributorDrilldown.messages.missingProjectId'));
       return;
     }
     setError(null);
@@ -189,11 +196,11 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
     <Stack spacing={2}>
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
 
-      {isLoading && <Typography color="text.secondary">Loading...</Typography>}
+      {isLoading && <Typography color="text.secondary">{t('common:status.loading')}</Typography>}
 
       {!isLoading && entries.length === 0 && (
         <Typography color="text.secondary" variant="body2">
-          No time entries yet.
+          {t('portfolio:dialogs.contributorDrilldown.states.noTimeEntries')}
         </Typography>
       )}
 
@@ -202,12 +209,14 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Source</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell align="right">Time</TableCell>
-                <TableCell>Notes</TableCell>
-                {canSeeActions && <TableCell align="right">Actions</TableCell>}
+                <TableCell>{t('portfolio:dialogs.contributorDrilldown.columns.date')}</TableCell>
+                <TableCell>{t('portfolio:dialogs.contributorDrilldown.columns.source')}</TableCell>
+                <TableCell>{t('portfolio:dialogs.contributorDrilldown.columns.category')}</TableCell>
+                <TableCell align="right">{t('portfolio:dialogs.contributorDrilldown.columns.time')}</TableCell>
+                <TableCell>{t('portfolio:dialogs.contributorDrilldown.columns.notes')}</TableCell>
+                {canSeeActions && (
+                  <TableCell align="right">{t('portfolio:dialogs.contributorDrilldown.columns.actions')}</TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -232,7 +241,7 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
                     </TableCell>
                     <TableCell>
                       <Chip
-                        label={entry.category === 'business' ? 'Business' : 'IT'}
+                        label={t(`portfolio:dialogs.logTime.categories.${entry.category}`)}
                         size="small"
                         color={entry.category === 'business' ? 'secondary' : 'primary'}
                         variant="outlined"
@@ -251,7 +260,7 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
                         }}
                         title={entry.notes || ''}
                       >
-                        {entry.notes || '-'}
+                        {entry.notes || t('portfolio:dialogs.contributorDrilldown.values.emptyNotes')}
                       </Typography>
                     </TableCell>
                     {canSeeActions && (
@@ -261,14 +270,14 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
                             <IconButton
                               size="small"
                               onClick={() => (entry.source_type === 'task' ? openTaskEdit(entry) : openProjectEdit(entry))}
-                              title="Edit"
+                              title={t('portfolio:dialogs.contributorDrilldown.actions.edit')}
                             >
                               <EditIcon fontSize="small" />
                             </IconButton>
                             <IconButton
                               size="small"
                               onClick={() => handleDelete(entry)}
-                              title="Delete"
+                              title={t('portfolio:dialogs.contributorDrilldown.actions.delete')}
                             >
                               <DeleteIcon fontSize="small" />
                             </IconButton>

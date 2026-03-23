@@ -2,6 +2,8 @@ import { getAccessToken } from '../auth/accessTokenStore';
 import api from '../api';
 import { ChatStreamEvent, AiApiKeyRecord, ChatConversation } from './aiTypes';
 
+const MAX_STREAM_BUFFER_CHARS = 1_048_576;
+
 export type ProviderDescriptor = {
   id: string;
   label: string;
@@ -14,8 +16,14 @@ export type ProviderDescriptor = {
   };
 };
 
+export type AiWebSearchTestResult = {
+  ok: boolean;
+  message: string;
+  latency_ms: number | null;
+};
+
 export type AiSettingsPayload = {
-  instance_features: { ai_chat: boolean; ai_mcp: boolean; ai_settings: boolean };
+  instance_features: { ai_chat: boolean; ai_mcp: boolean; ai_settings: boolean; ai_web_search: boolean };
   settings: {
     chat_enabled: boolean;
     mcp_enabled: boolean;
@@ -24,6 +32,7 @@ export type AiSettingsPayload = {
     llm_model: string | null;
     mcp_key_max_lifetime_days: number | null;
     conversation_retention_days: number | null;
+    web_search_enabled: boolean;
     web_enrichment_enabled: boolean;
     has_llm_api_key: boolean;
     provider_secret_writable: boolean;
@@ -109,38 +118,54 @@ export async function* streamChat(params: {
   const decoder = new TextDecoder();
   let buffer = '';
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+      buffer += decoder.decode(value, { stream: true });
+      if (buffer.length > MAX_STREAM_BUFFER_CHARS) {
+        throw new Error('Stream buffer exceeded the maximum allowed size.');
+      }
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        yield JSON.parse(trimmed) as ChatStreamEvent;
-      } catch {
-        // skip malformed lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      if (buffer.length > MAX_STREAM_BUFFER_CHARS) {
+        throw new Error('Stream buffer exceeded the maximum allowed size.');
+      }
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          yield JSON.parse(trimmed) as ChatStreamEvent;
+        } catch {
+          // skip malformed lines
+        }
       }
     }
-  }
 
-  // Process remaining buffer
-  if (buffer.trim()) {
+    // Process remaining buffer
+    if (buffer.trim()) {
+      try {
+        yield JSON.parse(buffer.trim()) as ChatStreamEvent;
+      } catch {
+        // skip
+      }
+    }
+  } finally {
     try {
-      yield JSON.parse(buffer.trim()) as ChatStreamEvent;
+      reader.releaseLock();
     } catch {
-      // skip
+      // ignore reader cleanup errors
     }
   }
 }
 
 export const aiConversationsApi = {
-  async list(): Promise<ChatConversation[]> {
-    const res = await api.get('/ai/conversations');
+  async list(params?: { page?: number; limit?: number }): Promise<ChatConversation[]> {
+    const res = await api.get('/ai/conversations', { params });
     return res.data;
   },
   async getMessages(id: string) {
@@ -164,6 +189,10 @@ export const aiAdminApi = {
   },
   async testProvider(payload: Record<string, unknown>): Promise<AiProviderTestResult> {
     const res = await api.post('/ai/settings/test-provider', payload);
+    return res.data;
+  },
+  async testWebSearch(): Promise<AiWebSearchTestResult> {
+    const res = await api.post('/ai/settings/test-web-search');
     return res.data;
   },
   async getOverview(): Promise<AiAdminOverview> {

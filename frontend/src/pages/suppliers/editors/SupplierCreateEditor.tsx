@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Stack, TextField } from '@mui/material';
 import { Controller } from 'react-hook-form';
 import api from '../../../api';
@@ -50,6 +51,7 @@ export default forwardRef<SupplierCreateEditorHandle, Props>(function SupplierCr
   ref,
 ) {
   const [saving, setSaving] = React.useState(false);
+  const { t } = useTranslation(['master-data', 'common']);
   const [serverError, setServerError] = React.useState<string | null>(null);
 
   const form = useZodForm<SupplierFormValues>({
@@ -79,13 +81,13 @@ export default forwardRef<SupplierCreateEditorHandle, Props>(function SupplierCr
           if (!createdId) createdId = null;
           onDirtyChange?.(false);
         } catch (e: any) {
-          const msg = e?.response?.data?.message || e?.message || 'Failed to create supplier';
+          const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToCreate', { entity: t('suppliers.entity') });
           setServerError(msg);
           throw e;
         }
       },
       async (errors) => {
-        setServerError('Please fix validation errors before saving.');
+        setServerError(t('shared.messages.fixValidationErrors'));
         throw errors;
       },
     );

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import { useAuth } from '../auth/AuthContext';
 import AuthFrame from '../components/AuthFrame';
@@ -10,6 +11,7 @@ import { useFeatures } from '../config/FeaturesContext';
 const marketingUrl = import.meta.env.VITE_MARKETING_URL ?? 'https://kanap.net';
 
 export default function LoginPage() {
+  const { t } = useTranslation(['auth', 'common']);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -20,18 +22,18 @@ export default function LoginPage() {
   const [infoMessage, setInfoMessage] = useState<string | null>(() => {
     const state = location.state as any;
     if (state?.passwordResetSuccess) {
-      return 'Your password has been updated. Please sign in with your new credentials.';
+      return 'passwordUpdated';
     }
     if (state?.passwordResetEmailSent) {
-      return 'If an account matches that email, you will receive password reset instructions shortly.';
+      return 'resetEmailSent';
     }
     if (state?.inviteAccepted) {
-      return 'Your account is ready. Sign in with the password you just set.';
+      return 'accountReady';
     }
     return null;
   });
   const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(() =>
-    sessionExpired ? 'Your session has expired. Please sign in again.' : null
+    sessionExpired ? 'sessionExpired' : null
   );
   const { login } = useAuth();
   const { isPlatformHost } = useTenant();
@@ -82,10 +84,10 @@ export default function LoginPage() {
         <Stack spacing={3}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              Sign in to your account
+              {t('auth:login.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Enter your credentials to access your tenant workspace.
+              {t('auth:login.subtitle')}
             </Typography>
           </Box>
 
@@ -98,13 +100,13 @@ export default function LoginPage() {
                 fullWidth
                 onClick={onMicrosoftSignIn}
               >
-                Sign in with Microsoft
+                {t('auth:login.ssoMicrosoft')}
               </Button>
             )}
 
             <Stack spacing={2}>
               <TextField
-                label="Username or email"
+                label={t('auth:login.emailLabel')}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 type="text"
@@ -114,7 +116,7 @@ export default function LoginPage() {
                 InputLabelProps={{ shrink: true }}
               />
               <TextField
-                label="Password"
+                label={t('auth:login.passwordLabel')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type="password"
@@ -126,13 +128,13 @@ export default function LoginPage() {
 
             {sessionExpiredMessage && (
               <Alert severity="warning" role="status">
-                {sessionExpiredMessage}
+                {t(`auth:login.${sessionExpiredMessage}`)}
               </Alert>
             )}
 
             {infoMessage && (
               <Alert severity="success" role="status">
-                {infoMessage}
+                {t(`auth:login.${infoMessage}`)}
               </Alert>
             )}
 
@@ -153,10 +155,10 @@ export default function LoginPage() {
                     window.location.href = marketingUrl;
                   }}
                 >
-                  Cancel
+                  {t('common:buttons.cancel')}
                 </Button>
                 <Button type="submit" variant="outlined" fullWidth>
-                  Sign in with email
+                  {t('auth:login.submit')}
                 </Button>
               </Stack>
               {config.features.email && (
@@ -167,7 +169,7 @@ export default function LoginPage() {
                   fullWidth
                   onClick={() => navigate('/forgot-password')}
                 >
-                  Forgot password
+                  {t('auth:login.forgotPassword')}
                 </Button>
               )}
             </Stack>

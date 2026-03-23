@@ -58,6 +58,7 @@ export type AiStreamParams = {
   messages: AiProviderMessage[];
   tools: AiProviderToolDef[];
   maxTokens: number;
+  signal?: AbortSignal | null;
   timeoutMs?: number;
   maxRetries?: number;
 };

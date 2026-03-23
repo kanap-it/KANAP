@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
@@ -38,6 +39,7 @@ function pickFallbackCoaId(coas: CoaListItem[]): string | undefined {
 
 export default function CoaPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['master-data', 'common']);
   const [searchParams, setSearchParams] = useSearchParams();
   const { hasLevel } = useAuth();
   const { coas, isLoading, refetch, isError } = useCoaList();
@@ -125,7 +127,7 @@ export default function CoaPage() {
   const columns: EnhancedColDef<AccountRow>[] = useMemo(() => [
     {
       field: 'account_number',
-      headerName: 'Account #',
+      headerName: t('coa.columns.accountNumber'),
       width: 160,
       required: true,
       cellRenderer: (params: any) => (
@@ -134,7 +136,7 @@ export default function CoaPage() {
     },
     {
       field: 'account_name',
-      headerName: 'Name',
+      headerName: t('coa.columns.accountName'),
       flex: 1,
       required: true,
       cellRenderer: (params: any) => (
@@ -143,7 +145,7 @@ export default function CoaPage() {
     },
     {
       field: 'native_name',
-      headerName: 'Native Name',
+      headerName: t('coa.columns.nativeName'),
       width: 220,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -152,7 +154,7 @@ export default function CoaPage() {
     },
     {
       field: 'description',
-      headerName: 'Description',
+      headerName: t('shared.columns.description'),
       width: 250,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -161,7 +163,7 @@ export default function CoaPage() {
     },
     {
       field: 'consolidation_account_number',
-      headerName: 'Consol. Account #',
+      headerName: t('coa.columns.consolAccountNumber'),
       width: 180,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
@@ -169,7 +171,7 @@ export default function CoaPage() {
     },
     {
       field: 'consolidation_account_name',
-      headerName: 'Consol. Name',
+      headerName: t('coa.columns.consolAccountName'),
       width: 250,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
@@ -177,7 +179,7 @@ export default function CoaPage() {
     },
     {
       field: 'consolidation_account_description',
-      headerName: 'Consol. Description',
+      headerName: t('coa.columns.consolDescription'),
       width: 300,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -186,7 +188,7 @@ export default function CoaPage() {
     },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('shared.columns.status'),
       width: 140,
       filter: 'agSetColumnFilter',
       filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
@@ -197,7 +199,7 @@ export default function CoaPage() {
     },
     {
       field: 'created_at',
-      headerName: 'Created',
+      headerName: t('shared.columns.created'),
       width: 200,
       valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
       defaultHidden: true,
@@ -205,7 +207,7 @@ export default function CoaPage() {
         <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
       ),
     },
-  ], [getAccountHref, navigate]);
+  ], [getAccountHref, navigate, t]);
 
   const updateSelectedCoa = useCallback((coaId: string) => {
     const next = new URLSearchParams(searchParams);
@@ -225,17 +227,17 @@ export default function CoaPage() {
           }}
           disabled={!selectedCoaId}
         >
-          New Account
+          {t('coa.newAccount')}
         </Button>
       )}
       {canAdmin && (
         <Button onClick={() => setImportOpen(true)} disabled={!selectedCoaId}>
-          Import CSV
+          {t('shared.labels.importCsv')}
         </Button>
       )}
       {canAdmin && (
         <Button onClick={() => setExportOpen(true)} disabled={!selectedCoaId}>
-          Export CSV
+          {t('shared.labels.exportCsv')}
         </Button>
       )}
       {canAdmin && (
@@ -253,11 +255,11 @@ export default function CoaPage() {
 
   return (
     <>
-      <PageHeader title="Charts of Accounts" actions={actions} />
+      <PageHeader title={t('coa.title')} actions={actions} />
       <Stack spacing={2}>
         {isError && (
           <Alert severity="error">
-            Failed to load charts of accounts.
+            {t('coa.loadError')}
           </Alert>
         )}
 
@@ -275,7 +277,7 @@ export default function CoaPage() {
         {!!selectedCoa && (
           <Stack spacing={0.5}>
             <Typography variant="h6">
-              {selectedCoa.code} · {selectedCoa.accounts_count ?? 0} accounts
+              {selectedCoa.code} · {selectedCoa.accounts_count ?? 0} {t('coa.accounts')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {selectedCoa.name}
@@ -284,7 +286,7 @@ export default function CoaPage() {
           </Stack>
         )}
 
-        {isLoading && <Alert severity="info">Loading Charts of Accounts…</Alert>}
+        {isLoading && <Alert severity="info">{t('coa.loadingCoA')}</Alert>}
 
         {coas.length > 0 && selectedCoaId && (
           <ServerDataGrid<AccountRow>
@@ -350,13 +352,13 @@ export default function CoaPage() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         endpoint={selectedCoaId ? `/chart-of-accounts/${selectedCoaId}/accounts` : '/accounts'}
-        title="Export Accounts"
+        title={t('coa.exportAccounts')}
       />
       <CsvImportDialog
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint={selectedCoaId ? `/chart-of-accounts/${selectedCoaId}/accounts` : '/accounts'}
-        title="Import Accounts into selected CoA"
+        title={t('coa.importAccounts')}
         onImported={() => setAccountsRefreshKey((key) => key + 1)}
       />
     </>

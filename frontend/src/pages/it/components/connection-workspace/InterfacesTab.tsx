@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import useItOpsEnumOptions from '../../../../hooks/useItOpsEnumOptions';
 import type { LinkedInterfaceBinding } from './types';
 
+import { useTranslation } from 'react-i18next';
 interface InterfacesTabProps {
   linkedBindings: LinkedInterfaceBinding[];
   linkedBindingsLoading: boolean;
@@ -22,6 +23,7 @@ export default function InterfacesTab({
   linkedBindingsLoading,
   linkedBindingsError,
 }: InterfacesTabProps) {
+  const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const { byField } = useItOpsEnumOptions();
 

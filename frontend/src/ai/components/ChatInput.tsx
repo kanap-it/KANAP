@@ -41,7 +41,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
           fullWidth
           multiline
           maxRows={6}
-          placeholder="Ask KANAP AI..."
+          placeholder="Ask Plaid..."
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}

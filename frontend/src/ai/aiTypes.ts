@@ -34,6 +34,8 @@ export type AiApiKeyRecord = {
   expires_at: string | null;
   last_used_at: string | null;
   revoked_at: string | null;
+  revoked_by_user_id: string | null;
+  revocation_reason: string | null;
   created_at: string;
   created_by_user_id: string;
 };

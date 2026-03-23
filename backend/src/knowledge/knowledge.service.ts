@@ -1678,8 +1678,9 @@ export class KnowledgeService {
     return manager.transaction(run);
   }
 
-  async list(query: any, opts?: { manager?: EntityManager }) {
+  async list(query: any, opts?: { manager?: EntityManager; tenantId?: string }) {
     const manager = this.getManager(opts);
+    const tenantId = String(opts?.tenantId || '').trim();
     const { page, limit, skip, sort, q, filters } = parsePagination(query, { field: 'updated_at', direction: 'DESC' });
     let reviewDueDateParamIndex = 0;
     const nextReviewDueDateParam = () => `reviewDueDate${reviewDueDateParamIndex++}`;
@@ -1713,6 +1714,7 @@ export class KnowledgeService {
     const qb = manager
       .getRepository(Document)
       .createQueryBuilder('d')
+      .where('d.tenant_id = app_current_tenant()')
       .leftJoin('document_folders', 'f', 'f.id = d.folder_id AND f.tenant_id = d.tenant_id')
       .leftJoin('document_libraries', 'dl', 'dl.id = d.library_id AND dl.tenant_id = d.tenant_id')
       .leftJoin('document_types', 'dtype', 'dtype.id = d.document_type_id AND dtype.tenant_id = d.tenant_id')
@@ -1744,21 +1746,26 @@ export class KnowledgeService {
         `(SELECT w.requested_revision
           FROM document_workflows w
           WHERE w.document_id = d.id
+            AND w.tenant_id = d.tenant_id
             AND w.status = 'approved'
           ORDER BY coalesce(w.completed_at, w.requested_at) DESC
           LIMIT 1) AS validated_revision`,
         `(SELECT w.completed_at
           FROM document_workflows w
           WHERE w.document_id = d.id
+            AND w.tenant_id = d.tenant_id
             AND w.status = 'approved'
           ORDER BY coalesce(w.completed_at, w.requested_at) DESC
           LIMIT 1) AS validated_at`,
-        `(SELECT COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, c.user_id::text)
+      `(SELECT COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, c.user_id::text)
           FROM document_contributors c
           LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = d.tenant_id
-          WHERE c.document_id = d.id AND c.role = 'owner' AND c.is_primary = true
+          WHERE c.document_id = d.id AND c.tenant_id = d.tenant_id AND c.role = 'owner' AND c.is_primary = true
           LIMIT 1) AS primary_owner_name`,
       ]);
+    if (tenantId) {
+      qb.andWhere('d.tenant_id = :tenantId', { tenantId });
+    }
 
     const search = this.getDocumentSearchState(q);
     if (search) {
@@ -1839,6 +1846,7 @@ export class KnowledgeService {
           SELECT 1
           FROM document_contributors c
           WHERE c.document_id = d.id
+            AND c.tenant_id = d.tenant_id
             AND c.user_id = :ownerId
             AND c.role = 'owner'
         )`,
@@ -1854,6 +1862,7 @@ export class KnowledgeService {
           SELECT 1
           FROM document_contributors c
           WHERE c.document_id = d.id
+            AND c.tenant_id = d.tenant_id
             AND c.user_id = :ownerUserId
             AND c.role = 'owner'
         )`,
@@ -1868,6 +1877,7 @@ export class KnowledgeService {
           SELECT 1
           FROM document_contributors c
           WHERE c.document_id = d.id
+            AND c.tenant_id = d.tenant_id
             AND c.role = 'owner'
             AND c.user_id IN (
               SELECT user_id
@@ -1938,8 +1948,8 @@ export class KnowledgeService {
       const nonNull = ownerNameFilter.values.filter((v: any) => v !== null);
       const subquery = `(SELECT COALESCE(NULLIF(trim(concat_ws(' ', u2.first_name, u2.last_name)), ''), u2.email, c2.user_id::text)
         FROM document_contributors c2
-        LEFT JOIN users u2 ON u2.id = c2.user_id
-        WHERE c2.document_id = d.id AND c2.role = 'owner' AND c2.is_primary = true
+        LEFT JOIN users u2 ON u2.id = c2.user_id AND u2.tenant_id = d.tenant_id
+        WHERE c2.document_id = d.id AND c2.tenant_id = d.tenant_id AND c2.role = 'owner' AND c2.is_primary = true
         LIMIT 1)`;
       if (hasNull && nonNull.length > 0) {
         qb.andWhere(`(${subquery} = ANY(:ownerNames) OR ${subquery} IS NULL)`, { ownerNames: nonNull });
@@ -1973,15 +1983,20 @@ export class KnowledgeService {
     return { items, total, page, limit };
   }
 
-  async listIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ ids: string[]; total: number }> {
     const manager = this.getManager(opts);
+    const tenantId = String(opts?.tenantId || '').trim();
     const parsed = parsePagination({ ...query, page: 1, limit: query?.limit ?? 10000 }, { field: 'updated_at', direction: 'DESC' });
     const search = this.getDocumentSearchState(parsed.q);
 
     const qb = manager
       .getRepository(Document)
       .createQueryBuilder('d')
+      .where('d.tenant_id = app_current_tenant()')
       .select('d.id', 'id');
+    if (tenantId) {
+      qb.andWhere('d.tenant_id = :tenantId', { tenantId });
+    }
 
     if (search) {
       const params: Record<string, string | number> = {
@@ -2014,22 +2029,28 @@ export class KnowledgeService {
     return { ids, total: ids.length };
   }
 
-  async listFilterValues(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, any[]>> {
+  async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<Record<string, any[]>> {
     const manager = this.getManager(opts);
+    const tenantId = String(opts?.tenantId || '').trim();
     const fields = query?.fields ? String(query.fields).split(',') : null;
     const shouldReturn = (field: string) => !fields || fields.includes(field);
 
     // Build a base scope subquery for cross-filtering
     const scopeConditions: string[] = ['1=1'];
     const scopeParams: any[] = [];
+    scopeConditions.push(`d.tenant_id = app_current_tenant()`);
+    if (tenantId) {
+      scopeConditions.push(`d.tenant_id = $${scopeParams.length + 1}`);
+      scopeParams.push(tenantId);
+    }
     const ownerUserId = query?.ownerUserId;
     if (ownerUserId) {
-      scopeConditions.push(`EXISTS (SELECT 1 FROM document_contributors c WHERE c.document_id = d.id AND c.role = 'owner' AND c.user_id = $${scopeParams.length + 1})`);
+      scopeConditions.push(`EXISTS (SELECT 1 FROM document_contributors c WHERE c.document_id = d.id AND c.tenant_id = d.tenant_id AND c.role = 'owner' AND c.user_id = $${scopeParams.length + 1})`);
       scopeParams.push(String(ownerUserId));
     }
     const teamId = query?.teamId;
     if (teamId) {
-      scopeConditions.push(`EXISTS (SELECT 1 FROM document_contributors c WHERE c.document_id = d.id AND c.role = 'owner' AND c.user_id IN (SELECT user_id FROM portfolio_team_member_configs WHERE team_id = $${scopeParams.length + 1}))`);
+      scopeConditions.push(`EXISTS (SELECT 1 FROM document_contributors c WHERE c.document_id = d.id AND c.tenant_id = d.tenant_id AND c.role = 'owner' AND c.user_id IN (SELECT user_id FROM portfolio_team_member_configs WHERE team_id = $${scopeParams.length + 1} AND tenant_id = d.tenant_id))`);
       scopeParams.push(String(teamId));
     }
     const libraryId = query?.library_id;
@@ -2122,7 +2143,7 @@ export class KnowledgeService {
           `SELECT DISTINCT (SELECT COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, c.user_id::text)
               FROM document_contributors c
               LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = d.tenant_id
-              WHERE c.document_id = d.id AND c.role = 'owner' AND c.is_primary = true
+              WHERE c.document_id = d.id AND c.tenant_id = d.tenant_id AND c.role = 'owner' AND c.is_primary = true
               LIMIT 1) AS name
            FROM documents d
            WHERE ${scopeWhere}
@@ -2173,6 +2194,7 @@ export class KnowledgeService {
            FROM document_contributors c
            LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = c.tenant_id
            WHERE c.role = 'owner'
+             AND c.tenant_id = app_current_tenant()
            ORDER BY 2`,
         ).then((rows: any[]) => ['owners', rows.map((r: any) => `${r.id}|${r.name}`)]),
       );

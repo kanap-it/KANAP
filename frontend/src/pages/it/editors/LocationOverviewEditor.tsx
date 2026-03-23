@@ -6,6 +6,8 @@ import CompanySelect from '../../../components/fields/CompanySelect';
 import { COUNTRY_OPTIONS, CountryOption } from '../../../constants/isoOptions';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 export type LocationFormState = {
   code: string;
   name: string;
@@ -27,6 +29,7 @@ type Props = {
 };
 
 export default function LocationOverviewEditor({ data, onChange, readOnly = false, disabled = false }: Props) {
+  const { t } = useTranslation(['it', 'common']);
   const { byField, settings } = useItOpsEnumOptions();
   const hostingOptions = byField.hostingType || [];
   const providerOptions = byField.serverProvider || [];
@@ -91,7 +94,7 @@ export default function LocationOverviewEditor({ data, onChange, readOnly = fals
           onChange({ city: company.city || '' });
         }
       } catch (e: any) {
-        const msg = e?.response?.data?.message || e?.message || 'Failed to load company details';
+        const msg = getApiErrorMessage(e, t, t('messages.loadCompanyDetailsFailed'));
         setCompanyError(msg);
       }
     }

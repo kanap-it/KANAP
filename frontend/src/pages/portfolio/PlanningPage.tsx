@@ -27,6 +27,8 @@ import LightModeIsland from '../../components/LightModeIsland';
 import api from '../../api';
 import { PortfolioGantt } from './components/PortfolioGantt';
 import RoadmapGenerator from './components/RoadmapGenerator';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 interface TimelineData {
   projects: Array<{
@@ -60,24 +62,8 @@ interface Category {
   name: string;
 }
 
-const STATUS_OPTIONS = [
-  { value: 'waiting_list', label: 'Waiting List' },
-  { value: 'planned', label: 'Planned' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'in_testing', label: 'In Testing' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'done', label: 'Done' },
-];
-
-const MONTHS_OPTIONS = [
-  { value: 1, label: '1 month' },
-  { value: 3, label: '3 months' },
-  { value: 6, label: '6 months' },
-  { value: 12, label: '1 year' },
-];
-
 // Helper to format the current view period
-const formatViewPeriod = (monthOffset: number, months: number): string => {
+const formatViewPeriod = (monthOffset: number, months: number, locale: string): string => {
   const now = new Date();
   const pastMonths = Math.max(0, Math.round(months * 0.25));
   const start = new Date(now);
@@ -87,18 +73,35 @@ const formatViewPeriod = (monthOffset: number, months: number): string => {
   end.setMonth(end.getMonth() + months);
   end.setDate(0);
 
-  const startStr = start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  const endStr = end.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const startStr = start.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
+  const endStr = end.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
   return `${startStr} - ${endStr}`;
 };
 
 export default function PlanningPage() {
+  const { t, i18n } = useTranslation(['portfolio', 'errors']);
   const [planningView, setPlanningView] = useState<'timeline' | 'roadmap'>('timeline');
   const [months, setMonths] = useState(3);
   const [monthOffset, setMonthOffset] = useState(0); // Offset from current month
   const [category, setCategory] = useState<string>('');
   const [status, setStatus] = useState<string[]>(['planned', 'in_progress', 'in_testing']);
   const [showMilestones, setShowMilestones] = useState(true);
+
+  const statusOptions = [
+    { value: 'waiting_list', label: t('statuses.project.waiting_list') },
+    { value: 'planned', label: t('statuses.project.planned') },
+    { value: 'in_progress', label: t('statuses.project.in_progress') },
+    { value: 'in_testing', label: t('statuses.project.in_testing') },
+    { value: 'on_hold', label: t('statuses.project.on_hold') },
+    { value: 'done', label: t('statuses.project.done') },
+  ];
+
+  const monthOptions = [
+    { value: 1, label: t('planning.timeRanges.oneMonth') },
+    { value: 3, label: t('planning.timeRanges.threeMonths') },
+    { value: 6, label: t('planning.timeRanges.sixMonths') },
+    { value: 12, label: t('planning.timeRanges.oneYear') },
+  ];
 
   // Fetch timeline data
   const { data: timelineData, isLoading, error, refetch } = useQuery({
@@ -129,6 +132,10 @@ export default function PlanningPage() {
     refetch();
   }, [refetch]);
 
+  const loadErrorMessage = error
+    ? getApiErrorMessage(error, t, t('planning.messages.loadFailed'))
+    : null;
+
   const handleMonthsChange = (e: SelectChangeEvent<number>) => {
     setMonths(Number(e.target.value));
   };
@@ -144,7 +151,7 @@ export default function PlanningPage() {
 
   return (
     <Box>
-      <PageHeader title="Portfolio Timeline" />
+      <PageHeader title={t('planning.title')} />
 
       <Stack direction="row" spacing={2} sx={{ px: 3, pb: 2 }}>
         <ToggleButtonGroup
@@ -155,8 +162,8 @@ export default function PlanningPage() {
             if (value) setPlanningView(value);
           }}
         >
-          <ToggleButton value="timeline">Timeline</ToggleButton>
-          <ToggleButton value="roadmap">Roadmap Generator</ToggleButton>
+          <ToggleButton value="timeline">{t('planning.views.timeline')}</ToggleButton>
+          <ToggleButton value="roadmap">{t('planning.views.roadmap')}</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
@@ -173,46 +180,46 @@ export default function PlanningPage() {
           >
             {/* Time Navigation */}
             <ButtonGroup size="small" variant="outlined">
-              <Button onClick={() => setMonthOffset(o => o - 1)} title="Go back 1 month">
+              <Button onClick={() => setMonthOffset(o => o - 1)} title={t('planning.navigation.backOneMonth')}>
                 <ChevronLeftIcon fontSize="small" />
               </Button>
               <Button
                 onClick={() => setMonthOffset(0)}
                 disabled={monthOffset === 0}
-                title="Go to today"
+                title={t('planning.navigation.today')}
               >
                 <TodayIcon fontSize="small" />
               </Button>
-              <Button onClick={() => setMonthOffset(o => o + 1)} title="Go forward 1 month">
+              <Button onClick={() => setMonthOffset(o => o + 1)} title={t('planning.navigation.forwardOneMonth')}>
                 <ChevronRightIcon fontSize="small" />
               </Button>
             </ButtonGroup>
 
             <Typography variant="body2" sx={{ color: 'text.secondary', minWidth: 140 }}>
-              {formatViewPeriod(monthOffset, months)}
+              {formatViewPeriod(monthOffset, months, i18n.language)}
             </Typography>
 
             <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Time Range</InputLabel>
+              <InputLabel>{t('planning.filters.timeRange')}</InputLabel>
               <Select
                 value={months}
-                label="Time Range"
+                label={t('planning.filters.timeRange')}
                 onChange={handleMonthsChange}
               >
-                {MONTHS_OPTIONS.map(opt => (
+                {monthOptions.map(opt => (
                   <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                 ))}
               </Select>
             </FormControl>
 
             <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Category</InputLabel>
+              <InputLabel>{t('planning.filters.category')}</InputLabel>
               <Select
                 value={category}
-                label="Category"
+                label={t('planning.filters.category')}
                 onChange={handleCategoryChange}
               >
-                <MenuItem value="">All Categories</MenuItem>
+                <MenuItem value="">{t('planning.filters.allCategories')}</MenuItem>
                 {(categories || []).map(cat => (
                   <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
                 ))}
@@ -220,22 +227,22 @@ export default function PlanningPage() {
             </FormControl>
 
             <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Status</InputLabel>
+              <InputLabel>{t('planning.filters.status')}</InputLabel>
               <Select
                 multiple
                 value={status}
-                label="Status"
+                label={t('planning.filters.status')}
                 onChange={handleStatusChange}
                 renderValue={(selected) => (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {selected.map((value) => {
-                      const opt = STATUS_OPTIONS.find(o => o.value === value);
+                      const opt = statusOptions.find(o => o.value === value);
                       return <Chip key={value} label={opt?.label || value} size="small" />;
                     })}
                   </Box>
                 )}
               >
-                {STATUS_OPTIONS.map(opt => (
+                {statusOptions.map(opt => (
                   <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                 ))}
               </Select>
@@ -249,7 +256,7 @@ export default function PlanningPage() {
                   size="small"
                 />
               }
-              label="Milestones"
+              label={t('planning.filters.milestones')}
               sx={{ ml: 1 }}
             />
           </Stack>
@@ -262,9 +269,9 @@ export default function PlanningPage() {
               </Box>
             )}
 
-            {error && (
+            {loadErrorMessage && (
               <Alert severity="error" sx={{ mb: 2 }}>
-                Failed to load timeline data. Please try again.
+                {loadErrorMessage}
               </Alert>
             )}
 

@@ -457,7 +457,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
   async sendTestWeeklyReview(
     userId: string,
     tenantId: string,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{ success: boolean; message: string; code?: string }> {
     const runner = this.dataSource.createQueryRunner();
     await runner.connect();
     await runner.startTransaction();
@@ -494,7 +494,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
 
       if (users.length === 0) {
         await runner.rollbackTransaction();
-        return { success: false, message: 'User not found or disabled' };
+        return { success: false, code: 'WEEKLY_REVIEW_USER_NOT_FOUND', message: 'User not found or disabled' };
       }
 
       const user = users[0];
@@ -504,6 +504,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
         await runner.rollbackTransaction();
         return {
           success: false,
+          code: 'WEEKLY_REVIEW_ROLE_INELIGIBLE',
           message: 'Weekly review is unavailable for your current role.',
         };
       }
@@ -512,8 +513,8 @@ export class ScheduledNotificationsService implements OnModuleInit {
         await runner.rollbackTransaction();
         return {
           success: false,
-          message:
-            'Enable both "Email Notifications" and "Weekly Review Email" to preview scheduled weekly reviews.',
+          code: 'WEEKLY_REVIEW_NOT_ENABLED',
+          message: 'Enable both "Email Notifications" and "Weekly Review Email" to preview scheduled weekly reviews.',
         };
       }
 
@@ -522,7 +523,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
       const sent = await this.sendWeeklyReviewForUser(user, runner.manager);
       if (!sent) {
         await runner.rollbackTransaction();
-        return { success: false, message: `Failed to send weekly review to ${user.email}` };
+        return { success: false, code: 'WEEKLY_REVIEW_SEND_FAILED', message: `Failed to send weekly review to ${user.email}` };
       }
 
       const userNow = dayjs().tz(user.timezone);

@@ -18,17 +18,16 @@ import {
   Typography,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
+import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../../components/MarkdownContent';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import {
+  formatRelativeTime,
+  getDecisionOutcomeLabel,
+  getDecisionOutcomeOptions,
+} from '../../../utils/portfolioI18n';
 
 const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
-
-const DECISION_OUTCOME_LABELS: Record<string, string> = {
-  go: 'Go',
-  no_go: 'No-Go',
-  defer: 'Defer',
-  need_info: 'Need Info',
-  analysis_complete: 'Analysis Complete',
-};
 
 const DECISION_OUTCOME_COLORS: Record<string, 'success' | 'error' | 'warning' | 'info'> = {
   go: 'success',
@@ -37,14 +36,6 @@ const DECISION_OUTCOME_COLORS: Record<string, 'success' | 'error' | 'warning' | 
   need_info: 'info',
   analysis_complete: 'info',
 };
-
-const DECISION_OUTCOMES = [
-  { value: 'go', label: 'Go' },
-  { value: 'no_go', label: 'No-Go' },
-  { value: 'defer', label: 'Defer' },
-  { value: 'need_info', label: 'Need Info' },
-  { value: 'analysis_complete', label: 'Analysis Complete' },
-];
 
 interface Activity {
   id: string;
@@ -95,6 +86,7 @@ export default function PortfolioComments({
   onImageUpload,
   onImageUrlImport,
 }: PortfolioCommentsProps) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const [commentContent, setCommentContent] = React.useState('');
   const [commentContext, setCommentContext] = React.useState('');
   const [isDecision, setIsDecision] = React.useState(false);
@@ -113,6 +105,7 @@ export default function PortfolioComments({
   const discussions = activities.filter(
     (a) => a.type === 'comment' || a.type === 'decision'
   );
+  const decisionOutcomes = React.useMemo(() => getDecisionOutcomeOptions(t), [t]);
 
   const handleSubmit = async () => {
     // Validation
@@ -141,7 +134,11 @@ export default function PortfolioComments({
       setNewStatus('');
       setEditorKey((k) => k + 1); // Force editor remount with empty content
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to add comment');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:activity.messages.addCommentFailed'),
+      ));
     } finally {
       setSubmitting(false);
     }
@@ -149,14 +146,14 @@ export default function PortfolioComments({
 
   const handleImageUpload = async (file: File): Promise<string> => {
     if (!onImageUpload) {
-      throw new Error('Image upload not configured');
+      throw new Error(t('portfolio:activity.messages.imageUploadNotConfigured'));
     }
     return onImageUpload(file, 'content');
   };
 
   const handleImageUrlImport = async (sourceUrl: string): Promise<string> => {
     if (!onImageUrlImport) {
-      throw new Error('Image URL import not configured');
+      throw new Error(t('portfolio:activity.messages.imageImportNotConfigured'));
     }
     return onImageUrlImport(sourceUrl, 'content');
   };
@@ -182,7 +179,11 @@ export default function PortfolioComments({
       setEditingId(null);
       setEditContent('');
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to update comment');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:activity.messages.updateCommentFailed'),
+      ));
     } finally {
       setEditSubmitting(false);
     }
@@ -195,21 +196,6 @@ export default function PortfolioComments({
       activity.author_id === currentUserId &&
       onUpdateComment
     );
-  };
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
   };
 
   const getInitials = (firstName: string | null, lastName: string | null) => {
@@ -247,11 +233,13 @@ export default function PortfolioComments({
                     }}
                   />
                 }
-                label="Formal decision"
+                label={t('portfolio:activity.form.formalDecision')}
                 sx={{ mr: 0, flexShrink: 0 }}
               />
               <TextField
-                label={isDecision ? 'Context / Meeting' : 'Context (optional)'}
+                label={isDecision
+                  ? t('portfolio:activity.form.fields.contextMeeting')
+                  : t('portfolio:activity.form.fields.contextOptional')}
                 value={commentContext}
                 onChange={(e) => setCommentContext(e.target.value)}
                 fullWidth
@@ -259,8 +247,8 @@ export default function PortfolioComments({
                 required={isDecision}
                 placeholder={
                   isDecision
-                    ? 'e.g., CAB Meeting 2025-01-03'
-                    : 'e.g., Weekly Review, Stakeholder Meeting'
+                    ? t('portfolio:activity.form.placeholders.decisionContext')
+                    : t('portfolio:activity.form.placeholders.commentContext')
                 }
               />
             </Stack>
@@ -269,13 +257,13 @@ export default function PortfolioComments({
             {isDecision && (
               <Stack direction="row" spacing={2}>
                 <FormControl fullWidth size="small" required>
-                  <InputLabel>Decision Outcome</InputLabel>
+                  <InputLabel>{t('portfolio:activity.form.fields.decisionOutcome')}</InputLabel>
                   <Select
                     value={decisionOutcome}
-                    label="Decision Outcome"
+                    label={t('portfolio:activity.form.fields.decisionOutcome')}
                     onChange={(e) => setDecisionOutcome(e.target.value)}
                   >
-                    {DECISION_OUTCOMES.map((opt) => (
+                    {decisionOutcomes.map((opt) => (
                       <MenuItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </MenuItem>
@@ -283,13 +271,13 @@ export default function PortfolioComments({
                   </Select>
                 </FormControl>
                 <FormControl fullWidth size="small">
-                  <InputLabel>Change Status to...</InputLabel>
+                  <InputLabel>{t('portfolio:activity.form.fields.changeStatus')}</InputLabel>
                   <Select
                     value={newStatus}
-                    label="Change Status to..."
+                    label={t('portfolio:activity.form.fields.changeStatus')}
                     onChange={(e) => setNewStatus(e.target.value)}
                   >
-                    <MenuItem value="">(No change)</MenuItem>
+                    <MenuItem value="">{t('portfolio:activity.form.noChange')}</MenuItem>
                     {allowedTransitions.map((status) => {
                       const opt = statusOptions.find((s) => s.value === status);
                       return (
@@ -305,7 +293,9 @@ export default function PortfolioComments({
 
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                {isDecision ? 'Rationale / Notes' : 'Add a comment'}
+                {isDecision
+                  ? t('portfolio:activity.form.fields.rationaleNotes')
+                  : t('portfolio:activity.form.fields.comment')}
               </Typography>
               <React.Suspense fallback={<Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
                 <MarkdownEditor
@@ -314,8 +304,8 @@ export default function PortfolioComments({
                   onChange={setCommentContent}
                   placeholder={
                     isDecision
-                      ? 'Explain the decision rationale...'
-                      : 'Share your thoughts, updates, or questions...'
+                      ? t('portfolio:activity.form.placeholders.decisionNotes')
+                      : t('portfolio:activity.form.placeholders.comment')
                   }
                   minRows={8}
                   maxRows={14}
@@ -339,10 +329,10 @@ export default function PortfolioComments({
                 }
               >
                 {submitting
-                  ? 'Adding...'
+                  ? t('portfolio:activity.actions.adding')
                   : isDecision
-                  ? 'Add Decision'
-                  : 'Add Comment'}
+                  ? t('portfolio:activity.actions.addDecision')
+                  : t('portfolio:activity.actions.addComment')}
               </Button>
             </Box>
           </Stack>
@@ -358,8 +348,8 @@ export default function PortfolioComments({
       {/* Comments and Decisions List */}
       {discussions.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
-          No comments or decisions yet.
-          {!readOnly && ' Be the first to add one!'}
+          {t('portfolio:activity.messages.noCommentsOrDecisions')}
+          {!readOnly && ` ${t('portfolio:activity.messages.beFirstToAdd')}`}
         </Typography>
       ) : (
         <Stack spacing={2}>
@@ -396,16 +386,15 @@ export default function PortfolioComments({
                     sx={{ mb: 1 }}
                   >
                     <Chip
-                      label={a.type === 'decision' ? 'Decision' : 'Comment'}
+                      label={a.type === 'decision'
+                        ? t('portfolio:activity.labels.decision')
+                        : t('portfolio:activity.labels.comment')}
                       size="small"
                       color={a.type === 'decision' ? 'warning' : 'primary'}
                     />
                     {a.type === 'decision' && a.decision_outcome && (
                       <Chip
-                        label={
-                          DECISION_OUTCOME_LABELS[a.decision_outcome] ||
-                          a.decision_outcome
-                        }
+                        label={getDecisionOutcomeLabel(t, a.decision_outcome)}
                         size="small"
                         color={
                           DECISION_OUTCOME_COLORS[a.decision_outcome] ||
@@ -415,19 +404,19 @@ export default function PortfolioComments({
                       />
                     )}
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {a.first_name || ''} {a.last_name || ''}
+                      {`${a.first_name || ''} ${a.last_name || ''}`.trim() || t('portfolio:activity.authorUnknown')}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {formatTime(a.created_at)}
+                      {formatRelativeTime(t, a.created_at)}
                     </Typography>
                     {a.updated_at && (
                       <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                        (edited)
+                        {t('portfolio:activity.labels.edited')}
                       </Typography>
                     )}
                     <Box sx={{ flex: 1 }} />
                     {canEditComment(a) && editingId !== a.id && (
-                      <Tooltip title="Edit comment">
+                      <Tooltip title={t('portfolio:activity.actions.editComment')}>
                         <IconButton
                           size="small"
                           onClick={() => handleStartEdit(a)}
@@ -459,7 +448,7 @@ export default function PortfolioComments({
                         <MarkdownEditor
                           value={editContent}
                           onChange={setEditContent}
-                          placeholder="Edit your comment..."
+                          placeholder={t('portfolio:activity.placeholders.editComment')}
                           minRows={6}
                           maxRows={12}
                           disabled={editSubmitting}
@@ -473,7 +462,7 @@ export default function PortfolioComments({
                           onClick={handleCancelEdit}
                           disabled={editSubmitting}
                         >
-                          Cancel
+                          {t('common:buttons.cancel')}
                         </Button>
                         <Button
                           size="small"
@@ -481,7 +470,7 @@ export default function PortfolioComments({
                           onClick={handleSaveEdit}
                           disabled={editSubmitting || !editContent.trim()}
                         >
-                          {editSubmitting ? 'Saving...' : 'Save'}
+                          {editSubmitting ? t('common:status.saving') : t('common:buttons.save')}
                         </Button>
                       </Stack>
                     </Box>
@@ -496,8 +485,10 @@ export default function PortfolioComments({
                       color="text.secondary"
                       sx={{ mt: 1 }}
                     >
-                      Status: {String(a.changed_fields.status[0])} &rarr;{' '}
-                      {String(a.changed_fields.status[1])}
+                      {t('portfolio:activity.labels.statusChange', {
+                        from: statusOptions.find((option) => option.value === String(a.changed_fields?.status?.[0]))?.label || String(a.changed_fields.status[0]),
+                        to: statusOptions.find((option) => option.value === String(a.changed_fields?.status?.[1]))?.label || String(a.changed_fields.status[1]),
+                      })}
                     </Typography>
                   )}
                 </Box>

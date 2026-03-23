@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { Stack, TextField } from '@mui/material';
 import { Controller } from 'react-hook-form';
 import { z } from 'zod';
+import type { TFunction } from 'i18next';
 import useZodForm from '../../hooks/useZodForm';
 import FormErrorAlert from '../../components/forms/FormErrorAlert';
 import CompanySelect from '../../components/fields/CompanySelect';
@@ -21,13 +22,18 @@ const optDateTime = () =>
     return typeof v === 'string' ? v : null;
   }, z.string().datetime().nullable());
 
-export const departmentFormSchema = z.object({
-  company_id: z.string().uuid({ message: 'Company is required' }),
-  name: z.string().min(1, 'Name is required'),
-  description: optStr(),
-  status: z.enum(STATUS_VALUES).default(STATUS_ENABLED),
-  disabled_at: optDateTime(),
-});
+export function createDepartmentFormSchema(t: TFunction) {
+  return z.object({
+    company_id: z.string().uuid({ message: t('master-data:formSchemas.department.companyRequired') }),
+    name: z.string().min(1, t('master-data:formSchemas.department.nameRequired')),
+    description: optStr(),
+    status: z.enum(STATUS_VALUES).default(STATUS_ENABLED),
+    disabled_at: optDateTime(),
+  });
+}
+
+/** @deprecated Use createDepartmentFormSchema(t) for i18n support */
+export const departmentFormSchema = createDepartmentFormSchema(((key: string) => key) as unknown as TFunction);
 
 export type DepartmentFormValues = z.infer<typeof departmentFormSchema>;
 export type DepartmentInput = {

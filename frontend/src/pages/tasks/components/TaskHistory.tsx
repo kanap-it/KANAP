@@ -6,10 +6,10 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { contentToPlainText } from '../../../utils/contentToPlainText';
-import { TASK_STATUS_LABELS } from '../task.constants';
-import type { TaskStatus } from '../task.constants';
+import { getPriorityLabel, getTaskStatusLabel } from '../../../utils/portfolioI18n';
 
 interface Activity {
   id: string;
@@ -28,33 +28,25 @@ interface TaskHistoryProps {
   projectId?: string;
 }
 
-const PRIORITY_LABELS: Record<string, string> = {
-  blocker: 'Blocker',
-  high: 'High',
-  normal: 'Normal',
-  low: 'Low',
-  optional: 'Optional',
-};
-
-const FIELD_LABELS: Record<string, string> = {
-  title: 'Title',
-  description: 'Description',
-  status: 'Status',
-  task_type_id: 'Task Type',
-  priority_level: 'Priority',
-  creator_id: 'Requestor',
-  assignee_user_id: 'Assignee',
-  due_date: 'Due Date',
-  start_date: 'Start Date',
-  labels: 'Labels',
-  phase_id: 'Phase',
-  source_id: 'Source',
-  category_id: 'Category',
-  stream_id: 'Stream',
-  company_id: 'Company',
-  related_to: 'Related To',
-  converted_to_request: 'Converted To Request',
-  time_hours: 'Time Logged',
+const FIELD_LABEL_KEYS: Record<string, string> = {
+  title: 'title',
+  description: 'description',
+  status: 'status',
+  task_type_id: 'taskType',
+  priority_level: 'priority',
+  creator_id: 'requestor',
+  assignee_user_id: 'assignee',
+  due_date: 'dueDate',
+  start_date: 'startDate',
+  labels: 'labels',
+  phase_id: 'phase',
+  source_id: 'source',
+  category_id: 'category',
+  stream_id: 'stream',
+  company_id: 'company',
+  related_to: 'relatedTo',
+  converted_to_request: 'convertedToRequest',
+  time_hours: 'timeLogged',
 };
 
 const humanize = (field: string) =>
@@ -71,6 +63,7 @@ const toCommentPreview = (value: string, maxLen = 150): string => {
 };
 
 export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
+  const { t } = useTranslation('portfolio');
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ['task-activities', taskId],
     queryFn: async () => {
@@ -98,40 +91,51 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
   };
 
   const formatFieldValue = (field: string, value: unknown): string => {
-    if (value === null || value === undefined) return '(empty)';
-    if (field === 'status') return TASK_STATUS_LABELS[String(value) as TaskStatus] || String(value);
-    if (field === 'priority_level') return PRIORITY_LABELS[String(value)] || String(value);
+    if (value === null || value === undefined) return t('workspace.task.history.values.empty');
+    if (field === 'status') return getTaskStatusLabel(t, String(value));
+    if (field === 'priority_level') return getPriorityLabel(t, String(value));
     if (Array.isArray(value)) {
-      if (value.length === 0) return '(empty)';
+      if (value.length === 0) return t('workspace.task.history.values.empty');
       return value.map((entry) => String(entry)).join(', ');
     }
     if (field === 'due_date' || field === 'start_date') {
-      return value ? new Date(String(value)).toLocaleDateString('en-GB') : '(none)';
+      return value ? new Date(String(value)).toLocaleDateString('en-GB') : t('workspace.task.history.values.none');
     }
     return String(value);
   };
 
   const formatFieldLabel = (field: string): string => {
-    return FIELD_LABELS[field] || humanize(field);
+    const key = FIELD_LABEL_KEYS[field];
+    return key ? t(`workspace.task.history.fields.${key}`) : humanize(field);
   };
 
   const getActivityDescription = (activity: Activity): string => {
     if (activity.type === 'comment') {
-      return 'Added a comment';
+      return t('activity.history.actions.addedComment');
     }
     if (activity.type === 'change' && activity.changed_fields) {
       const entries = Object.entries(activity.changed_fields);
       if (entries.length === 1) {
         const [field, [oldVal, newVal]] = entries[0];
-        return `Changed ${formatFieldLabel(field)}: ${formatFieldValue(field, oldVal)} → ${formatFieldValue(field, newVal)}`;
+        return t('workspace.task.history.actions.changedField', {
+          field: formatFieldLabel(field),
+          from: formatFieldValue(field, oldVal),
+          to: formatFieldValue(field, newVal),
+        });
       }
-      return `Changed ${entries
-        .map(([field, [oldVal, newVal]]) =>
-          `${formatFieldLabel(field)}: ${formatFieldValue(field, oldVal)} → ${formatFieldValue(field, newVal)}`
-        )
-        .join(' | ')}`;
+      return t('workspace.task.history.actions.changedMultiple', {
+        changes: entries
+          .map(([field, [oldVal, newVal]]) =>
+            t('workspace.task.history.actions.changedField', {
+              field: formatFieldLabel(field),
+              from: formatFieldValue(field, oldVal),
+              to: formatFieldValue(field, newVal),
+            })
+          )
+          .join(' | '),
+      });
     }
-    return 'Activity recorded';
+    return t('activity.history.actions.recorded');
   };
 
   const getActivityColor = (type: string): string => {
@@ -148,13 +152,13 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
   };
 
   if (isLoading) {
-    return <Typography color="text.secondary">Loading history...</Typography>;
+    return <Typography color="text.secondary">{t('portfolio:activity.messages.loadingHistory')}</Typography>;
   }
 
   if (activities.length === 0) {
     return (
       <Typography color="text.secondary" variant="body2">
-        No history recorded yet.
+        {t('portfolio:activity.messages.noHistory')}
       </Typography>
     );
   }
@@ -174,7 +178,11 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
             <Chip
-              label={activity.type === 'comment' ? 'Comment' : activity.type === 'change' ? 'Change' : 'Decision'}
+              label={activity.type === 'comment'
+                ? t('activity.labels.comment')
+                : activity.type === 'change'
+                ? t('activity.labels.change')
+                : t('activity.labels.decision')}
               size="small"
               variant="outlined"
               sx={{ fontSize: '0.7rem' }}
@@ -183,7 +191,7 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
               {getActivityDescription(activity)}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-              {activity.first_name || ''} {activity.last_name || ''} • {formatTime(activity.created_at)}
+              {`${activity.first_name || ''} ${activity.last_name || ''}`.trim() || t('activity.authorUnknown')} • {formatTime(activity.created_at)}
             </Typography>
           </Stack>
           {activity.type === 'comment' && activity.content && (

@@ -10,9 +10,11 @@ import {
   Typography,
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
 import IntegratedDocumentEditor, { IntegratedDocumentEditorHandle } from '../../../../components/IntegratedDocumentEditor';
 import { normalizeFeasibilityReviewValue } from '../../editors/FeasibilityReview';
+import { getFeasibilityStatusLabel } from '../../../../utils/portfolioI18n';
 
 type SummaryTabKey = 'activity' | 'analysis' | 'knowledge';
 
@@ -52,14 +54,6 @@ type KnowledgeContextGroup = {
 
 type KnowledgeContextResponse = {
   groups: KnowledgeContextGroup[];
-};
-
-const FEASIBILITY_STATUS_LABELS: Record<string, string> = {
-  blocker: 'Blocker',
-  major_concerns: 'Major concerns',
-  minor_concerns: 'Minor concerns',
-  no_concerns: 'No concerns',
-  not_assessed: 'Not assessed',
 };
 
 const FEASIBILITY_STATUS_COLORS: Record<string, RecommendationColor> = {
@@ -133,6 +127,7 @@ export default function RequestSummaryTab({
   statusColor,
   statusLabel,
 }: RequestSummaryTabProps) {
+  const { t } = useTranslation('portfolio');
   const [purposeExpanded, setPurposeExpanded] = React.useState(true);
   const { data: knowledgeContext } = useQuery({
     queryKey: ['request-summary-knowledge-context', id],
@@ -189,7 +184,7 @@ export default function RequestSummaryTab({
     })[0];
   }, [recentActivities]);
   const latestActivityActor = latestActivity
-    ? [latestActivity?.first_name, latestActivity?.last_name].filter(Boolean).join(' ') || 'Unknown'
+    ? [latestActivity?.first_name, latestActivity?.last_name].filter(Boolean).join(' ') || t('activity.authorUnknown')
     : null;
   const latestActivityAt = formatDateTime(latestActivity?.created_at);
 
@@ -203,18 +198,20 @@ export default function RequestSummaryTab({
         }}
       >
         <SummaryCard
-          title="Status Snapshot"
+          title={t('workspace.request.summary.cards.statusSnapshot')}
           action={!isCreate ? (
             <Button size="small" endIcon={<OpenInNewIcon />} onClick={() => onOpenTab('activity')}>
-              Activity
+              {t('activity.tabs.comments')}
             </Button>
           ) : undefined}
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Chip label={statusLabel || 'Draft'} color={statusColor} size="small" />
+            <Chip label={statusLabel || t('workspace.request.summary.values.draft')} color={statusColor} size="small" />
             {!isCreate && form?.priority_score != null && (
               <Chip
-                label={`Priority ${Math.round(form.priority_score)}`}
+                label={t('workspace.request.summary.values.priority', {
+                  value: Math.round(form.priority_score),
+                })}
                 size="small"
                 variant="outlined"
                 color={form?.priority_override ? 'warning' : 'default'}
@@ -224,7 +221,7 @@ export default function RequestSummaryTab({
           <Stack spacing={1}>
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
-                Impacted business processes
+                {t('workspace.request.summary.fields.businessProcesses')}
               </Typography>
               {businessProcesses.length > 0 ? (
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -233,26 +230,29 @@ export default function RequestSummaryTab({
                   ))}
                 </Stack>
               ) : (
-                <Typography variant="body2">No business processes linked yet.</Typography>
+                <Typography variant="body2">{t('workspace.request.summary.values.noBusinessProcesses')}</Typography>
               )}
             </Box>
             {latestActivity ? (
               <Typography variant="body2" color="text.secondary">
-                Last activity update {latestActivityAt ? `the ${latestActivityAt}` : 'recently'} by {latestActivityActor || 'Unknown'}
+                {t('workspace.request.summary.values.lastActivityUpdate', {
+                  date: latestActivityAt || t('workspace.request.summary.values.recently'),
+                  actor: latestActivityActor || t('activity.authorUnknown'),
+                })}
               </Typography>
             ) : (
               <Typography variant="body2" color="text.secondary">
-                No activity updates yet.
+                {t('workspace.request.summary.values.noActivityUpdates')}
               </Typography>
             )}
           </Stack>
         </SummaryCard>
 
         <SummaryCard
-          title="Analysis Snapshot"
+          title={t('workspace.request.summary.cards.analysisSnapshot')}
           action={!isCreate ? (
             <Button size="small" endIcon={<OpenInNewIcon />} onClick={() => onOpenTab('analysis')}>
-              Analysis
+              {t('workspace.request.tabs.analysis')}
             </Button>
           ) : undefined}
         >
@@ -261,15 +261,17 @@ export default function RequestSummaryTab({
               <Chip
                 size="small"
                 color={FEASIBILITY_STATUS_COLORS[topFeasibilityStatus]}
-                label={FEASIBILITY_STATUS_LABELS[topFeasibilityStatus]}
+                label={getFeasibilityStatusLabel(t, topFeasibilityStatus)}
               />
               <Typography variant="body2">
-                {7 - (feasibilityCounts.get('not_assessed') || 0)} of 7 dimensions assessed
+                {t('workspace.request.summary.values.dimensionsAssessed', {
+                  count: 7 - (feasibilityCounts.get('not_assessed') || 0),
+                })}
               </Typography>
             </Stack>
             <Stack spacing={1}>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
-                Latest recommendation
+                {t('workspace.request.summary.fields.latestRecommendation')}
               </Typography>
               {latestAnalysisRecommendation ? (
                 <Stack spacing={1}>
@@ -288,48 +290,57 @@ export default function RequestSummaryTab({
                   </Stack>
                   {Array.isArray(latestRecommendationStatusChange) && latestRecommendationStatusChange.length === 2 && (
                     <Typography variant="body2">
-                      Status changed from {String(latestRecommendationStatusChange[0] || '—')} to {String(latestRecommendationStatusChange[1] || '—')}.
+                      {t('workspace.request.summary.values.statusChanged', {
+                        from: String(latestRecommendationStatusChange[0] || '—'),
+                        to: String(latestRecommendationStatusChange[1] || '—'),
+                      })}
                     </Typography>
                   )}
                 </Stack>
               ) : (
-                <Typography variant="body2">No analysis recommendation has been submitted yet.</Typography>
+                <Typography variant="body2">{t('workspace.request.summary.values.noRecommendation')}</Typography>
               )}
             </Stack>
           </Stack>
         </SummaryCard>
 
         <SummaryCard
-          title="Team and Knowledge"
+          title={t('workspace.request.summary.cards.teamAndKnowledge')}
           action={!isCreate ? (
             <Button size="small" endIcon={<OpenInNewIcon />} onClick={() => onOpenTab('knowledge')}>
-              Knowledge
+              {t('workspace.request.tabs.knowledge')}
             </Button>
           ) : undefined}
         >
           <Stack spacing={1.25}>
             <Stack spacing={1}>
               <Typography variant="body2">
-                {filledKeyRoles} of 4 key roles assigned
+                {t('workspace.request.summary.values.keyRolesAssigned', { count: filledKeyRoles })}
               </Typography>
               <Typography variant="body2">
-                {contributorCount} contributor{contributorCount === 1 ? '' : 's'} linked across business and IT teams
+                {t('workspace.request.summary.values.contributorsLinked', { count: contributorCount })}
               </Typography>
               {form?.origin_task?.id && (
                 <Typography variant="body2" color="text.secondary">
-                  Origin task: {form.origin_task.item_number ? `T-${form.origin_task.item_number}` : form.origin_task.title || form.origin_task.id}
+                  {t('workspace.request.summary.values.originTask', {
+                    task: form.origin_task.item_number ? `T-${form.origin_task.item_number}` : form.origin_task.title || form.origin_task.id,
+                  })}
                 </Typography>
               )}
             </Stack>
             <Divider flexItem sx={{ borderColor: 'divider', opacity: 0.75 }} />
             <Stack spacing={1}>
               <Typography variant="body2">
-                {(directKnowledgeGroup?.total || 0)} linked document{directKnowledgeGroup?.total === 1 ? '' : 's'}
-                {relatedKnowledgeCount > 0 ? ` • ${relatedKnowledgeCount} related` : ''}
+                {t('workspace.request.summary.values.knowledgeDocuments', {
+                  count: directKnowledgeGroup?.total || 0,
+                  related: relatedKnowledgeCount > 0
+                    ? ` • ${t('workspace.request.summary.values.relatedCount', { count: relatedKnowledgeCount })}`
+                    : '',
+                })}
               </Typography>
               {(directKnowledgeGroup?.total || 0) + relatedKnowledgeCount === 0 && (
                 <Typography variant="body2" color="text.secondary">
-                  No standalone knowledge documents linked yet.
+                  {t('workspace.request.summary.values.noKnowledgeDocuments')}
                 </Typography>
               )}
             </Stack>
@@ -344,12 +355,12 @@ export default function RequestSummaryTab({
             collapsible
             entityType="requests"
             entityId={isCreate ? null : id}
-            headerTitle={<Typography variant="h6" sx={{ fontWeight: 600 }}>Purpose</Typography>}
+            headerTitle={<Typography variant="h6" sx={{ fontWeight: 600 }}>{t('workspace.request.summary.cards.purpose')}</Typography>}
             slotKey="purpose"
-            label="Purpose"
+            label={t('workspace.request.summary.cards.purpose')}
             hideHeaderLabel
             onToggleCollapsed={() => setPurposeExpanded((prev) => !prev)}
-            placeholder="Describe the purpose of this request..."
+            placeholder={t('workspace.request.summary.placeholders.purpose')}
             minRows={14}
             maxRows={26}
             disabled={!canEditManagedDocs}
@@ -360,12 +371,14 @@ export default function RequestSummaryTab({
           />
       </Paper>
 
-      <SummaryCard title="Recent Activity">
+      <SummaryCard title={t('workspace.request.summary.cards.recentActivity')}>
           <Stack spacing={1.25}>
             {latestActivity ? (
               <>
                 <Typography variant="body2">
-                  Latest entry by {latestActivityActor || 'Unknown'}
+                  {t('workspace.request.summary.values.latestEntryBy', {
+                    actor: latestActivityActor || t('activity.authorUnknown'),
+                  })}
                 </Typography>
                 {latestActivityAt && (
                   <Typography variant="body2" color="text.secondary">
@@ -374,7 +387,7 @@ export default function RequestSummaryTab({
                 )}
               </>
             ) : (
-              <Typography variant="body2">No activity yet.</Typography>
+              <Typography variant="body2">{t('workspace.request.summary.values.noActivity')}</Typography>
             )}
           </Stack>
       </SummaryCard>

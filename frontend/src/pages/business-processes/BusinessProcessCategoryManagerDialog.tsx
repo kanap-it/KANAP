@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Box,
@@ -31,6 +32,7 @@ type Props = {
 
 export default function BusinessProcessCategoryManagerDialog({ open, onClose, onUpdated }: Props) {
   const [categories, setCategories] = useState<BusinessProcessCategory[]>([]);
+  const { t } = useTranslation(['master-data', 'common']);
   const [originalCategories, setOriginalCategories] = useState<BusinessProcessCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -53,7 +55,7 @@ export default function BusinessProcessCategoryManagerDialog({ open, onClose, on
       setCategories(items);
       setOriginalCategories(items);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to load categories';
+      const msg = e?.response?.data?.message || e?.message || t('businessProcesses.categoryManager.failedToLoad');
       setError(msg);
       setCategories([]);
     } finally {
@@ -101,7 +103,7 @@ export default function BusinessProcessCategoryManagerDialog({ open, onClose, on
       // Mark as deleted locally; deletion will be applied on Save
       setCategories((prev) => prev.filter((cat) => cat.id !== id));
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to delete category';
+      const msg = e?.response?.data?.message || e?.message || t('businessProcesses.categoryManager.failedToDelete');
       setError(msg);
     }
   };
@@ -141,7 +143,7 @@ export default function BusinessProcessCategoryManagerDialog({ open, onClose, on
           try {
             await api.delete(`/business-process-categories/${orig.id}`);
           } catch (e: any) {
-            const msg = e?.response?.data?.message || e?.message || 'Failed to delete category';
+            const msg = e?.response?.data?.message || e?.message || t('businessProcesses.categoryManager.failedToDelete');
             setError(msg);
             setSaving(false);
             return;
@@ -160,7 +162,7 @@ export default function BusinessProcessCategoryManagerDialog({ open, onClose, on
               is_active: cat.is_active,
             });
           } catch (e: any) {
-            const msg = e?.response?.data?.message || e?.message || 'Failed to create category';
+            const msg = e?.response?.data?.message || e?.message || t('businessProcesses.categoryManager.failedToCreate');
             setError(msg);
             setSaving(false);
             return;
@@ -175,7 +177,7 @@ export default function BusinessProcessCategoryManagerDialog({ open, onClose, on
                 is_active: cat.is_active,
               });
             } catch (e: any) {
-              const msg = e?.response?.data?.message || e?.message || 'Failed to update category';
+              const msg = e?.response?.data?.message || e?.message || t('businessProcesses.categoryManager.failedToUpdate');
               setError(msg);
               setSaving(false);
               return;

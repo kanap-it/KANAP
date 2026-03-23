@@ -3,7 +3,9 @@ import {
   Alert, Box, Checkbox, FormControlLabel, Slider, Stack, TextField,
   ToggleButton, ToggleButtonGroup, Typography, Divider,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 interface CriterionValue {
   id: string;
@@ -56,6 +58,7 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
     },
     ref,
   ) {
+    const { t } = useTranslation(['portfolio', 'errors']);
     const [criteria, setCriteria] = useState<Criterion[]>([]);
     const [values, setValues] = useState<Record<string, string>>(initialValues || {});
     const [override, setOverride] = useState(initialOverride);
@@ -76,12 +79,12 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
           const res = await api.get('/portfolio/criteria');
           const enabledCriteria = (res.data || []).filter((c: Criterion) => c.enabled);
           setCriteria(enabledCriteria);
-        } catch (e) {
-          console.error('Failed to load criteria', e);
+        } catch (e: any) {
+          setError(getApiErrorMessage(e, t, t('editors.scoring.messages.loadCriteriaFailed')));
         }
       };
       load();
-    }, []);
+    }, [t]);
 
     // Only sync from props on INITIAL load (not when dirty)
     useEffect(() => {
@@ -253,7 +256,7 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
 
           return finalScore;
         } catch (e: any) {
-          setError(e?.response?.data?.message || 'Failed to save scoring');
+          setError(getApiErrorMessage(e, t, t('editors.scoring.messages.saveFailed')));
           throw e;
         }
       },
@@ -265,7 +268,7 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
         setDirty(false);
         onDirtyChange?.(false);
       },
-    }), [dirty, values, override, overrideVal, justification, requestId, initialOverride, initialValues, initialOverrideValue, initialJustification, onScoreChange, onDirtyChange]);
+    }), [dirty, values, override, overrideVal, justification, requestId, initialOverride, initialValues, initialOverrideValue, initialJustification, onScoreChange, onDirtyChange, t]);
 
     // Calculate display score directly from current state (avoids stale calculatedScore issues)
     const liveScore = bypassActive ? 100 : calculateLocalScore(criteria, values);
@@ -289,19 +292,19 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
             {displayScore != null && !isNaN(displayScore) ? Math.round(displayScore) : '-'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Priority Score
-            {bypassActive && ' (Mandatory Bypass)'}
-            {override && !bypassActive && ' (Override)'}
+            {t('editors.scoring.labels.priorityScore')}
+            {bypassActive && ` ${t('editors.scoring.labels.mandatoryBypassSuffix')}`}
+            {override && !bypassActive && ` ${t('editors.scoring.labels.overrideSuffix')}`}
           </Typography>
         </Box>
 
         <Divider />
 
         {/* Criteria Evaluation */}
-        <Typography variant="h6">Evaluation Criteria</Typography>
+        <Typography variant="h6">{t('editors.scoring.sections.evaluationCriteria')}</Typography>
 
         {criteria.length === 0 && (
-          <Alert severity="info">No evaluation criteria configured. Configure criteria in Portfolio Settings.</Alert>
+          <Alert severity="info">{t('editors.scoring.states.noCriteria')}</Alert>
         )}
 
         {criteria.map((criterion) => (
@@ -310,12 +313,12 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
               {criterion.name}
               {criterion.weight !== 1 && (
                 <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                  (weight: {criterion.weight})
+                  {t('editors.scoring.values.weight', { weight: criterion.weight })}
                 </Typography>
               )}
               {criterion.inverted && (
                 <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                  (inverted)
+                  {t('editors.scoring.values.inverted')}
                 </Typography>
               )}
             </Typography>
@@ -360,11 +363,11 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
                 disabled={readOnly || bypassActive}
               />
             }
-            label="Enable priority override"
+            label={t('editors.scoring.fields.enablePriorityOverride')}
           />
           {bypassActive && (
             <Typography variant="caption" color="text.secondary" display="block">
-              Manual override is disabled when mandatory bypass is active
+              {t('editors.scoring.messages.overrideDisabled')}
             </Typography>
           )}
         </Box>
@@ -372,7 +375,9 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
         {override && !bypassActive && (
           <Stack spacing={2}>
             <Box>
-              <Typography gutterBottom>Override Value: {overrideVal}</Typography>
+              <Typography gutterBottom>
+                {t('editors.scoring.fields.overrideValue', { value: overrideVal })}
+              </Typography>
               <Slider
                 value={overrideVal}
                 onChange={(_, val) => handleOverrideValChange(val as number)}
@@ -382,7 +387,7 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
               />
             </Box>
             <TextField
-              label="Justification"
+              label={t('editors.scoring.fields.justification')}
               value={justification}
               onChange={(e) => handleJustificationChange(e.target.value)}
               multiline
@@ -390,7 +395,7 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
               required
               disabled={readOnly}
               fullWidth
-              helperText="Justification is required when using priority override"
+              helperText={t('editors.scoring.helper.justification')}
             />
           </Stack>
         )}

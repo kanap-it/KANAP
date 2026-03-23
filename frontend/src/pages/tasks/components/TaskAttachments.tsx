@@ -8,6 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 
 interface TaskAttachment {
@@ -35,6 +36,7 @@ export default function TaskAttachments({
   canManage,
   showUploadArea,
 }: TaskAttachmentsProps) {
+  const { t } = useTranslation('portfolio');
   const [hover, setHover] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -121,7 +123,7 @@ export default function TaskAttachments({
           }}
         >
           <Typography color="text.secondary">
-            Drag and drop files here, or
+            {t('workspace.task.attachments.dragAndDrop')}
           </Typography>
           <Button
             component="label"
@@ -129,7 +131,7 @@ export default function TaskAttachments({
             sx={{ mt: 1 }}
             disabled={uploading}
           >
-            Browse files
+            {t('workspace.task.attachments.browseFiles')}
             <input
               ref={fileInputRef}
               type="file"

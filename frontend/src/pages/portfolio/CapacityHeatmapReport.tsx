@@ -21,6 +21,7 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
 import api from '../../api';
 import ContributorDrilldownDialog from './components/ContributorDrilldownDialog';
+import { useTranslation } from 'react-i18next';
 
 type CapacityColorBand = 'green' | 'yellow' | 'orange' | 'red' | 'violet' | 'na';
 
@@ -93,22 +94,6 @@ const HEATMAP_COLORS: Record<CapacityColorBand, string> = {
   na: '#E0E0E0',
 };
 
-const formatNumber = (value: number | null | undefined): string => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value);
-};
-
-const formatPercent = (value: number | null | undefined): string => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
-  return `${value.toFixed(1)}%`;
-};
-
-const formatSource = (value: ContributorCapacityRow['capacitySource']) => {
-  if (value === 'historical') return 'Historical';
-  if (value === 'theoretical') return 'Theoretical';
-  return 'N/A';
-};
-
 const exportElementAsPng = async (node: HTMLElement, fileName: string) => {
   const width = node.scrollWidth;
   const height = node.scrollHeight;
@@ -164,6 +149,7 @@ const exportElementAsPng = async (node: HTMLElement, fileName: string) => {
 };
 
 export default function CapacityHeatmapReport() {
+  const { t, i18n } = useTranslation('portfolio');
   const [capacityMode, setCapacityMode] = useState<'historical' | 'theoretical'>('historical');
   const [groupBy, setGroupBy] = useState<'contributor' | 'team'>('contributor');
   const [statuses, setStatuses] = useState<string[]>(DEFAULT_STATUSES);
@@ -184,10 +170,23 @@ export default function CapacityHeatmapReport() {
     },
   });
 
+  const statusOptions = useMemo(
+    () => STATUS_OPTIONS.map((option) => ({
+      ...option,
+      label: t(`statuses.project.${option.value}`, { defaultValue: option.label }),
+    })),
+    [t],
+  );
+
+  const statusLabelMap = useMemo(() => statusOptions.reduce((acc, curr) => {
+    acc[curr.value] = curr.label;
+    return acc;
+  }, {} as Record<string, string>), [statusOptions]);
+
   const teamOptions = useMemo<TeamOption[]>(() => {
     const teams = (teamsData || []).map((t) => ({ id: t.id, name: t.name }));
-    return [...teams, { id: NO_TEAM_ID, name: 'No team' }];
-  }, [teamsData]);
+    return [...teams, { id: NO_TEAM_ID, name: t('reports.capacityHeatmap.values.noTeam') }];
+  }, [t, teamsData]);
 
   useEffect(() => {
     if (initialTeamsSet.current) return;
@@ -232,31 +231,130 @@ export default function CapacityHeatmapReport() {
     return { backgroundColor: HEATMAP_COLORS[band], fontWeight: 600 };
   }, []);
 
+  const formatNumberLabel = useCallback((value: number | null | undefined): string => {
+    if (value == null || !Number.isFinite(value)) return t('reports.capacityHeatmap.values.notAvailable');
+    return new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(value);
+  }, [i18n.language, t]);
+
+  const formatPercentLabel = useCallback((value: number | null | undefined): string => {
+    if (value == null || !Number.isFinite(value)) return t('reports.capacityHeatmap.values.notAvailable');
+    return `${value.toFixed(1)}%`;
+  }, [t]);
+
+  const formatSourceLabel = useCallback((value: ContributorCapacityRow['capacitySource']) => {
+    if (value === 'historical') return t('reports.capacityHeatmap.values.historical');
+    if (value === 'theoretical') return t('reports.capacityHeatmap.values.theoretical');
+    return t('reports.capacityHeatmap.values.notAvailable');
+  }, [t]);
+
   const contributorColumns = useMemo<ColDef[]>(() => ([
-    { field: 'contributorName', headerName: 'Contributor', flex: 1, minWidth: 200 },
-    { field: 'teamName', headerName: 'Team', width: 160, valueGetter: (p) => p.data?.teamName || 'No team' },
-    { field: 'remainingDays', headerName: 'Remaining days', width: 150, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'capacityDaysPerMonth', headerName: 'Capacity / mo', width: 150, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'capacitySource', headerName: 'Source', width: 120, valueFormatter: (p) => formatSource(p.value) },
-    { field: 'monthsOfWork', headerName: 'Months of work', width: 150, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value), cellStyle: heatmapCellStyle },
-  ]), [heatmapCellStyle]);
+    { field: 'contributorName', headerName: t('reports.capacityHeatmap.columns.contributor'), flex: 1, minWidth: 200 },
+    {
+      field: 'teamName',
+      headerName: t('reports.capacityHeatmap.columns.team'),
+      width: 160,
+      valueGetter: (p) => p.data?.teamName || t('reports.capacityHeatmap.values.noTeam'),
+    },
+    {
+      field: 'remainingDays',
+      headerName: t('reports.capacityHeatmap.columns.remainingDays'),
+      width: 150,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumberLabel(p.value),
+    },
+    {
+      field: 'capacityDaysPerMonth',
+      headerName: t('reports.capacityHeatmap.columns.capacityPerMonth'),
+      width: 150,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumberLabel(p.value),
+    },
+    {
+      field: 'capacitySource',
+      headerName: t('reports.capacityHeatmap.columns.source'),
+      width: 120,
+      valueFormatter: (p) => formatSourceLabel(p.value),
+    },
+    {
+      field: 'monthsOfWork',
+      headerName: t('reports.capacityHeatmap.columns.monthsOfWork'),
+      width: 150,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumberLabel(p.value),
+      cellStyle: heatmapCellStyle,
+    },
+  ]), [formatNumberLabel, formatSourceLabel, heatmapCellStyle, t]);
 
   const teamColumns = useMemo<ColDef[]>(() => ([
-    { field: 'teamName', headerName: 'Team', flex: 1, minWidth: 200 },
-    { field: 'memberCount', headerName: 'Members', width: 120, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'remainingDays', headerName: 'Remaining days', width: 150, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'capacityDaysPerMonth', headerName: 'Capacity / mo', width: 150, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'monthsOfWork', headerName: 'Months of work', width: 150, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value), cellStyle: heatmapCellStyle },
-  ]), [heatmapCellStyle]);
+    { field: 'teamName', headerName: t('reports.capacityHeatmap.columns.team'), flex: 1, minWidth: 200 },
+    {
+      field: 'memberCount',
+      headerName: t('reports.capacityHeatmap.columns.members'),
+      width: 120,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumberLabel(p.value),
+    },
+    {
+      field: 'remainingDays',
+      headerName: t('reports.capacityHeatmap.columns.remainingDays'),
+      width: 150,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumberLabel(p.value),
+    },
+    {
+      field: 'capacityDaysPerMonth',
+      headerName: t('reports.capacityHeatmap.columns.capacityPerMonth'),
+      width: 150,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumberLabel(p.value),
+    },
+    {
+      field: 'monthsOfWork',
+      headerName: t('reports.capacityHeatmap.columns.monthsOfWork'),
+      width: 150,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumberLabel(p.value),
+      cellStyle: heatmapCellStyle,
+    },
+  ]), [formatNumberLabel, heatmapCellStyle, t]);
 
   const unassignedColumns = useMemo<ColDef[]>(() => ([
-    { field: 'projectName', headerName: 'Project', flex: 1, minWidth: 220 },
-    { field: 'status', headerName: 'Status', width: 140, valueFormatter: (p) => STATUS_LABELS[p.value] || p.value },
-    { field: 'estimatedEffort', headerName: 'Est. Effort', width: 130, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'remainingEffort', headerName: 'Remaining', width: 130, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'unallocatedPct', headerName: 'Unallocated %', width: 140, type: 'rightAligned', valueFormatter: (p) => formatPercent(p.value) },
-    { field: 'unallocatedDays', headerName: 'Unallocated Days', width: 150, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-  ]), []);
+    { field: 'projectName', headerName: t('reports.capacityHeatmap.columns.project'), flex: 1, minWidth: 220 },
+    {
+      field: 'status',
+      headerName: t('reports.capacityHeatmap.columns.status'),
+      width: 140,
+      valueFormatter: (p) => statusLabelMap[p.value] || p.value,
+    },
+    {
+      field: 'estimatedEffort',
+      headerName: t('reports.capacityHeatmap.columns.estimatedEffort'),
+      width: 130,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumberLabel(p.value),
+    },
+    {
+      field: 'remainingEffort',
+      headerName: t('reports.capacityHeatmap.columns.remaining'),
+      width: 130,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumberLabel(p.value),
+    },
+    {
+      field: 'unallocatedPct',
+      headerName: t('reports.capacityHeatmap.columns.unallocatedPercent'),
+      width: 140,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatPercentLabel(p.value),
+    },
+    {
+      field: 'unallocatedDays',
+      headerName: t('reports.capacityHeatmap.columns.unallocatedDays'),
+      width: 150,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumberLabel(p.value),
+    },
+  ]), [formatNumberLabel, formatPercentLabel, statusLabelMap, t]);
 
   const handleExportCsv = () => {
     heatmapGridRef.current?.exportDataAsCsv?.({ fileName: `capacity-heatmap-${groupBy}` });
@@ -269,10 +367,10 @@ export default function CapacityHeatmapReport() {
 
   return (
     <ReportLayout
-      title="Capacity Heatmap"
-      subtitle="Expected workload vs capacity for contributors and teams"
+      title={t('reports.capacityHeatmap.title')}
+      subtitle={t('reports.capacityHeatmap.subtitle')}
       rootTo="/portfolio/reports"
-      rootLabel="Portfolio Reporting"
+      rootLabel={t('reports.title')}
       filters={(
         <>
           <Autocomplete
@@ -301,14 +399,12 @@ export default function CapacityHeatmapReport() {
             renderInput={(params) => {
               const count = selectedTeamIds.length;
               const label = count === 0 || count === allTeamIds.length
-                ? 'All teams'
-                : count === 1
-                  ? '1 team selected'
-                  : `${count} teams selected`;
+                ? t('reports.capacityHeatmap.filters.allTeams')
+                : t('reports.capacityHeatmap.filters.teamsSelected', { count });
               return (
                 <TextField
                   {...params}
-                  label="Teams"
+                  label={t('reports.capacityHeatmap.filters.teams')}
                   placeholder={label}
                   InputLabelProps={{ shrink: true }}
                   sx={{ minWidth: 220 }}
@@ -320,11 +416,11 @@ export default function CapacityHeatmapReport() {
           <TextField
             select
             size="small"
-            label="Status"
+            label={t('reports.capacityHeatmap.filters.status')}
             value={statuses}
             SelectProps={{
               multiple: true,
-              renderValue: (sel: any) => (sel as string[]).map((s) => STATUS_LABELS[s] || s).join(', '),
+              renderValue: (sel: any) => (sel as string[]).map((s) => statusLabelMap[s] || s).join(', '),
             }}
             onChange={(e) => {
               const value = e.target.value as unknown as string[];
@@ -334,7 +430,7 @@ export default function CapacityHeatmapReport() {
             }}
             sx={{ minWidth: 240 }}
           >
-            {STATUS_OPTIONS.map((s) => (
+            {statusOptions.map((s) => (
               <MenuItem key={s.value} value={s.value}>
                 <Checkbox checked={statuses.includes(s.value)} />
                 <ListItemText primary={s.label} />
@@ -348,8 +444,8 @@ export default function CapacityHeatmapReport() {
             value={capacityMode}
             onChange={(_, v) => { if (v) setCapacityMode(v); }}
           >
-            <ToggleButton value="historical">Historical</ToggleButton>
-            <ToggleButton value="theoretical">Theoretical</ToggleButton>
+            <ToggleButton value="historical">{t('reports.capacityHeatmap.filters.historical')}</ToggleButton>
+            <ToggleButton value="theoretical">{t('reports.capacityHeatmap.filters.theoretical')}</ToggleButton>
           </ToggleButtonGroup>
           <ToggleButtonGroup
             size="small"
@@ -358,8 +454,8 @@ export default function CapacityHeatmapReport() {
             value={groupBy}
             onChange={(_, v) => { if (v) setGroupBy(v); }}
           >
-            <ToggleButton value="contributor">Contributors</ToggleButton>
-            <ToggleButton value="team">Teams</ToggleButton>
+            <ToggleButton value="contributor">{t('reports.capacityHeatmap.filters.contributors')}</ToggleButton>
+            <ToggleButton value="team">{t('reports.capacityHeatmap.filters.teamsGroup')}</ToggleButton>
           </ToggleButtonGroup>
         </>
       )}
@@ -370,26 +466,26 @@ export default function CapacityHeatmapReport() {
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
             <SummaryCard
-              label="Total contributors"
-              value={formatNumber((data?.contributors ?? []).length)}
-              helper={groupBy === 'team' ? `${(data?.teams ?? []).length} team(s)` : undefined}
+              label={t('reports.capacityHeatmap.summary.totalContributors')}
+              value={formatNumberLabel((data?.contributors ?? []).length)}
+              helper={groupBy === 'team' ? t('reports.capacityHeatmap.summary.totalContributorsHelper', { count: (data?.teams ?? []).length }) : undefined}
             />
             <SummaryCard
-              label="Avg months of work"
-              value={avgMonths != null ? formatNumber(avgMonths) : 'N/A'}
-              helper="Based on contributors with capacity"
+              label={t('reports.capacityHeatmap.summary.avgMonthsOfWork')}
+              value={avgMonths != null ? formatNumberLabel(avgMonths) : t('reports.capacityHeatmap.values.notAvailable')}
+              helper={t('reports.capacityHeatmap.summary.avgMonthsOfWorkHelper')}
             />
             <SummaryCard
-              label="Unassigned work"
-              value={`${formatNumber(unassignedSummary.totalUnallocatedDays)} days`}
-              helper={`${unassignedSummary.totalProjects} project(s)`}
+              label={t('reports.capacityHeatmap.summary.unassignedWork')}
+              value={t('reports.capacityHeatmap.summary.unassignedWorkValue', { value: formatNumberLabel(unassignedSummary.totalUnallocatedDays) })}
+              helper={t('reports.capacityHeatmap.summary.unassignedWorkHelper', { count: unassignedSummary.totalProjects })}
               onClick={() => setUnassignedOpen((v) => !v)}
             />
           </Stack>
 
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
-              {groupBy === 'team' ? 'Team Capacity' : 'Contributor Capacity'}
+              {groupBy === 'team' ? t('reports.capacityHeatmap.sections.teamCapacity') : t('reports.capacityHeatmap.sections.contributorCapacity')}
             </Typography>
             <Box ref={heatmapExportRef} sx={{ width: '100%' }}>
               <Box component={AgGridBox} sx={{ height: 420 }}>
@@ -402,29 +498,29 @@ export default function CapacityHeatmapReport() {
                     if (groupBy !== 'contributor') return;
                     const id = e.data?.contributorId;
                     if (!id) return;
-                    setDrilldownContributor({ id, name: e.data?.contributorName || 'Contributor' });
+                    setDrilldownContributor({ id, name: e.data?.contributorName || t('reports.capacityHeatmap.values.contributorFallback') });
                   }}
                 />
               </Box>
             </Box>
             {(isLoading || isFetching) && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Loading capacity data...
+                {t('reports.capacityHeatmap.states.loading')}
               </Typography>
             )}
             {!isLoading && rows.length === 0 && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                No capacity data for the selected filters.
+                {t('reports.capacityHeatmap.states.empty')}
               </Typography>
             )}
           </Paper>
 
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Unassigned Work</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t('reports.capacityHeatmap.sections.unassignedWork')}</Typography>
               <ButtonBase onClick={() => setUnassignedOpen((v) => !v)} sx={{ px: 1, py: 0.5, borderRadius: 1 }}>
                 <Typography variant="body2" color="primary">
-                  {unassignedOpen ? 'Hide details' : 'Show details'}
+                  {unassignedOpen ? t('reports.capacityHeatmap.actions.hideDetails') : t('reports.capacityHeatmap.actions.showDetails')}
                 </Typography>
               </ButtonBase>
             </Stack>
@@ -440,7 +536,7 @@ export default function CapacityHeatmapReport() {
                 </Box>
                 {!isLoading && unassigned.length === 0 && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    No unassigned work for the selected filters.
+                    {t('reports.capacityHeatmap.states.noUnassignedWork')}
                   </Typography>
                 )}
               </Box>

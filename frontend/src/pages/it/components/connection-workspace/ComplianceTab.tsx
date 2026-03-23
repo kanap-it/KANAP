@@ -10,7 +10,9 @@ import EnumAutocomplete from '../../../../components/fields/EnumAutocomplete';
 import useItOpsEnumOptions from '../../../../hooks/useItOpsEnumOptions';
 import type { ConnectionDetail, ConnectionTabProps } from './types';
 
+import { useTranslation } from 'react-i18next';
 export default function ComplianceTab({ data, update }: ConnectionTabProps) {
+  const { t } = useTranslation(['it', 'common']);
   const { byField } = useItOpsEnumOptions();
 
   const dataClassLabel = React.useCallback(

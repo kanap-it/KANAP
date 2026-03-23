@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../../../api';
 import type { InterfaceDetail, ApplicationOption } from './types';
 
+import { useTranslation } from 'react-i18next';
 interface OverviewTabProps {
   data: InterfaceDetail | null;
   update: (patch: Partial<InterfaceDetail>) => void;
@@ -20,6 +21,7 @@ interface OverviewTabProps {
 }
 
 export default function OverviewTab({ data, update, markDirty, isCreate }: OverviewTabProps) {
+  const { t } = useTranslation(['it', 'common']);
   const { byField } = useItOpsEnumOptions();
 
   const { data: etlAppsData, isLoading: loadingEtlApps } = useQuery({

@@ -15,6 +15,7 @@ import {
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
+import { useTranslation } from 'react-i18next';
 import AgGridBox from '../../components/AgGridBox';
 import { useOpexSummaryAll, SummaryRow, pickYearSlot } from '../reports/useOpexSummary';
 import { useQueryClient } from '@tanstack/react-query';
@@ -53,6 +54,7 @@ const budgetToFreezeColumn: Record<BudgetColumn, FreezeColumn> = {
 };
 
 export default function CopyBudgetColumnsPage() {
+  const { t } = useTranslation(['ops']);
   const theme = useTheme();
   const queryClient = useQueryClient();
   const now = new Date();
@@ -158,7 +160,7 @@ export default function CopyBudgetColumnsPage() {
       setShowPreview(true);
     } catch (error) {
       console.error('Dry run failed:', error);
-      alert('Dry run failed. Please check the console for details.');
+      alert(t('operations.copyBudgetColumns.dryRunFailed'));
     } finally {
       setIsProcessing(false);
     }
@@ -190,7 +192,7 @@ Errors: ${result.summary.errors} items`);
       setShowPreview(false);
     } catch (error) {
       console.error('Copy data failed:', error);
-      alert('Copy operation failed. Please check the console for details.');
+      alert(t('operations.copyBudgetColumns.copyFailed'));
     } finally {
       setIsProcessing(false);
     }
@@ -303,8 +305,8 @@ Errors: ${result.summary.errors} items`);
 
   return (
     <ReportLayout
-      title="Copy Budget Columns"
-      subtitle="Copy budget data between years and columns with optional percentage adjustments"
+      title={t('operations.copyBudgetColumns.title')}
+      subtitle={t('operations.copyBudgetColumns.subtitle')}
       filters={
         <>
           <TextField
@@ -376,7 +378,7 @@ Errors: ${result.summary.errors} items`);
                 size="small"
               />
             }
-            label="Overwrite existing data"
+            label={t('operations.copyBudgetColumns.overwriteExisting')}
             sx={{ ml: 1 }}
           />
         </>
@@ -388,7 +390,7 @@ Errors: ${result.summary.errors} items`);
             onClick={handleDryRun}
             disabled={isProcessing || processedData.length === 0 || freezeLoading || destinationFrozen}
           >
-            {isProcessing ? 'Processing...' : 'Dry Run'}
+            {isProcessing ? t('operations.copyBudgetColumns.processing') : t('operations.copyBudgetColumns.dryRun')}
           </Button>
           <Button
             variant="contained"
@@ -396,7 +398,7 @@ Errors: ${result.summary.errors} items`);
             disabled={isProcessing || processedData.length === 0 || !showPreview || freezeLoading || destinationFrozen}
             color="primary"
           >
-            {isProcessing ? 'Processing...' : 'Copy Data'}
+            {isProcessing ? t('operations.copyBudgetColumns.processing') : t('operations.copyBudgetColumns.copyData')}
           </Button>
         </Stack>
       }
@@ -425,7 +427,7 @@ Errors: ${result.summary.errors} items`);
 
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
-            Data Preview
+            {t('operations.copyBudgetColumns.dataPreview')}
           </Typography>
           <Box component={AgGridBox}>
             <AgGridReact
@@ -444,24 +446,24 @@ Errors: ${result.summary.errors} items`);
 
           <Box sx={{ mt: 2, display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))' } }}>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="body2" color="text.secondary">Total items</Typography>
+              <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.totalItems')}</Typography>
               <Typography variant="subtitle2">{stats.totalItems.toLocaleString()}</Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="body2" color="text.secondary">Items to be processed</Typography>
+              <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.itemsToProcess')}</Typography>
               <Typography variant="subtitle2" sx={{ color: 'success.main' }}>{stats.itemsToBeProcessed.toLocaleString()}</Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="body2" color="text.secondary">Source total</Typography>
+              <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.sourceTotal')}</Typography>
               <Typography variant="subtitle2">{formatNumber(stats.totalSource)}</Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="body2" color="text.secondary">Current destination total</Typography>
+              <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.currentDestTotal')}</Typography>
               <Typography variant="subtitle2">{formatNumber(stats.totalDestinationCurrent)}</Typography>
             </Box>
             {showPreview && (
               <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                <Typography variant="body2" color="text.secondary">Preview total</Typography>
+                <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.previewTotal')}</Typography>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
                   {formatNumber(stats.totalPreview)}
                 </Typography>

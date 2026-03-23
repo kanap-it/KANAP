@@ -10,6 +10,7 @@ import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import DeleteSelectedButton from '../../components/DeleteSelectedButton';
 
+import { useTranslation } from 'react-i18next';
 type ConnectionRow = {
   id: string;
   connection_id: string;
@@ -38,6 +39,7 @@ const topologyLabel = (v?: string) => {
 };
 
 export default function ConnectionsPage() {
+  const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
   const { labelFor } = useItOpsEnumOptions();
@@ -85,10 +87,10 @@ export default function ConnectionsPage() {
   }
 
   const columns: EnhancedColDef<ConnectionRow>[] = [
-    { headerName: 'Connection ID', field: 'connection_id', width: 160, cellRenderer: ClickToWorkspace },
-    { headerName: 'Name', field: 'name', minWidth: 200, cellRenderer: ClickToWorkspace },
+    { headerName: t('pages.connections.columns.connectionId'), field: 'connection_id', width: 160, cellRenderer: ClickToWorkspace },
+    { headerName: t('common.name'), field: 'name', minWidth: 200, cellRenderer: ClickToWorkspace },
     {
-      headerName: 'Topology',
+      headerName: t('pages.connections.columns.topology'),
       field: 'topology',
       width: 150,
       valueFormatter: (p) => topologyLabel(p.value),
@@ -96,7 +98,7 @@ export default function ConnectionsPage() {
       filter: 'agSetColumnFilter',
     },
     {
-      headerName: 'Source',
+      headerName: t('pages.connections.columns.source'),
       field: 'source_label',
       minWidth: 180,
       cellRenderer: ClickToWorkspace,
@@ -104,7 +106,7 @@ export default function ConnectionsPage() {
       filter: false,
     },
     {
-      headerName: 'Destination',
+      headerName: t('pages.connections.columns.destination'),
       field: 'destination_label',
       minWidth: 180,
       cellRenderer: ClickToWorkspace,
@@ -112,7 +114,7 @@ export default function ConnectionsPage() {
       filter: false,
     },
     {
-      headerName: 'Servers',
+      headerName: t('pages.connections.columns.servers'),
       field: 'multi_server_count',
       width: 110,
       valueFormatter: (p) => p.value ?? 0,
@@ -122,7 +124,7 @@ export default function ConnectionsPage() {
       defaultHidden: true,
     },
     {
-      headerName: 'Protocols',
+      headerName: t('pages.connections.columns.protocols'),
       field: 'protocol_labels',
       minWidth: 220,
       cellRenderer: ProtocolPills,
@@ -130,17 +132,17 @@ export default function ConnectionsPage() {
       filter: false,
     },
     {
-      headerName: 'Criticality',
+      headerName: t('pages.connections.columns.criticality'),
       field: 'criticality',
       width: 150,
       valueFormatter: (p) => {
         const row = p.data as ConnectionRow | undefined;
         const value = row?.effective_criticality || p.value;
         switch (String(value || '')) {
-          case 'business_critical': return 'Business critical';
-          case 'high': return 'High';
-          case 'medium': return 'Medium';
-          case 'low': return 'Low';
+          case 'business_critical': return t('enums.criticality.businessCritical');
+          case 'high': return t('enums.criticality.high');
+          case 'medium': return t('enums.criticality.medium');
+          case 'low': return t('enums.criticality.low');
           default: return value || '';
         }
       },
@@ -148,7 +150,7 @@ export default function ConnectionsPage() {
       filter: 'agSetColumnFilter',
     },
     {
-      headerName: 'Data class',
+      headerName: t('pages.connections.columns.dataClass'),
       field: 'data_class',
       width: 140,
       valueFormatter: (p) => {
@@ -160,19 +162,19 @@ export default function ConnectionsPage() {
       filter: 'agSetColumnFilter',
     },
     {
-      headerName: 'PII',
+      headerName: t('pages.connections.columns.pii'),
       field: 'contains_pii',
       width: 110,
       valueFormatter: (p) => {
         const row = p.data as ConnectionRow | undefined;
         const value = typeof row?.effective_contains_pii === 'boolean' ? row.effective_contains_pii : p.value;
-        return value ? 'Yes' : 'No';
+        return value ? t('enums.yesNo.yes') : t('enums.yesNo.no');
       },
       cellRenderer: ClickToWorkspace,
       filter: 'agSetColumnFilter',
     },
     {
-      headerName: 'Risk',
+      headerName: t('pages.connections.columns.risk'),
       field: 'risk_mode',
       width: 180,
       valueFormatter: (p) => {
@@ -188,14 +190,14 @@ export default function ConnectionsPage() {
       filter: 'agSetColumnFilter',
     },
     {
-      headerName: 'Lifecycle',
+      headerName: t('common.lifecycle'),
       field: 'lifecycle',
       width: 140,
       valueFormatter: (p) => labelFor('lifecycleStatus', p.value) || (p.value || ''),
       cellRenderer: ClickToWorkspace,
       filter: 'agSetColumnFilter',
     },
-    { headerName: 'Created', field: 'created_at', width: 180, cellRenderer: ClickToWorkspace },
+    { headerName: t('pages.assets.columns.created'), field: 'created_at', width: 180, cellRenderer: ClickToWorkspace },
   ];
 
   const actions = (
@@ -213,7 +215,7 @@ export default function ConnectionsPage() {
           getItemName={(row) => row.name}
           gridApi={gridApiRef.current}
           onDeleteSuccess={() => setRefreshKey((k) => k + 1)}
-          label="Delete connection"
+          label={t('pages.connections.deleteConnection')}
         />
       )}
     </Stack>
@@ -221,7 +223,7 @@ export default function ConnectionsPage() {
 
   return (
     <>
-      <PageHeader title="Connections" actions={actions} />
+      <PageHeader title={t('pages.connections.title')} actions={actions} />
       <ServerDataGrid<ConnectionRow>
         columns={columns}
         endpoint="/connections"

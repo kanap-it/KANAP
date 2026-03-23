@@ -8,6 +8,7 @@ import {
 import CommentIcon from '@mui/icons-material/Comment';
 import HistoryIcon from '@mui/icons-material/History';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import { useTranslation } from 'react-i18next';
 import TaskComments from './TaskComments';
 import TaskHistory from './TaskHistory';
 import TaskWorkLog from './TaskWorkLog';
@@ -39,6 +40,7 @@ export default function TaskActivity({
   initialStatus = null,
   commentFocusNonce = 0,
 }: TaskActivityProps) {
+  const { t } = useTranslation('portfolio');
   const supportsTimeLogging = !TIME_LOGGING_EXCLUDED_TYPES.includes(relatedObjectType || '');
   const [activeTab, setActiveTab] = React.useState<ActivityTab>('comments');
 
@@ -57,7 +59,7 @@ export default function TaskActivity({
     <Box>
       <Box sx={{ mb: 2 }}>
         <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-          Activity
+          {t('activity.title')}
         </Typography>
         <ToggleButtonGroup
           value={activeTab}
@@ -67,16 +69,16 @@ export default function TaskActivity({
         >
           <ToggleButton value="comments">
             <CommentIcon fontSize="small" sx={{ mr: 0.5 }} />
-            Comments
+            {t('activity.tabs.comments')}
           </ToggleButton>
           <ToggleButton value="history">
             <HistoryIcon fontSize="small" sx={{ mr: 0.5 }} />
-            History
+            {t('activity.tabs.history')}
           </ToggleButton>
           {supportsTimeLogging && (
             <ToggleButton value="worklog">
               <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
-              Time Log
+              {t('activity.tabs.workLog')}
             </ToggleButton>
           )}
         </ToggleButtonGroup>

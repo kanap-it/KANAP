@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Box, Stack, Alert, Typography, Divider, RadioGroup, FormControlLabel, Radio, IconButton, TextField } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import DeleteIcon from '@mui/icons-material/Delete';
 import YearTabs from '../../../components/navigation/YearTabs';
 import FormattedNumberField from '../../../components/inputs/FormattedNumberField';
@@ -57,6 +59,7 @@ function monthLabel(m: number) {
 }
 
 export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id, year, availableYears, onYearChange, onDirtyChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -209,7 +212,7 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
       setHasUnsavedChanges(false);
       setLockedCells(new Set());
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load version data');
+      setError(getApiErrorMessage(e, t, t('opex.budget.failedToLoad')));
     } finally {
       setLoading(false);
     }
@@ -282,7 +285,7 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
       }
       setHasUnsavedChanges(false);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save version');
+      setError(getApiErrorMessage(e, t, t('opex.budget.failedToSave')));
       throw e;
     } finally {
       setSaving(false);
@@ -298,7 +301,7 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
   const onYearChangeGuard = (newYear: number) => {
     if (newYear === year) return;
     if (hasUnsavedChanges) {
-      const proceed = window.confirm('You have unsaved changes. Save before switching years?');
+      const proceed = window.confirm(t('confirmations.unsavedSwitchYear'));
       if (proceed) {
         void save().then(() => onYearChange(newYear)).catch(() => {});
         return;
@@ -310,11 +313,11 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
   return (
     <Stack spacing={2}>
       {!!error && <Alert severity="error">{error}</Alert>}
-      <Typography variant="subtitle2">Budget</Typography>
+      <Typography variant="subtitle2">{t('opex.budget.title')}</Typography>
       <YearTabs currentYear={year} availableYears={availableYears} onYearChange={onYearChangeGuard} disabled={saving || loading} />
       <Divider />
       <Stack direction="row" spacing={3} alignItems="center">
-        <Typography variant="subtitle2">Mode</Typography>
+        <Typography variant="subtitle2">{t('opex.budget.mode')}</Typography>
         <RadioGroup
           row
           value={mode}
@@ -323,14 +326,14 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
             setMode((e.target as HTMLInputElement).value as 'flat' | 'manual');
           }}
         >
-          <FormControlLabel value="flat" control={<Radio />} label="Flat (annual totals)" />
-          <FormControlLabel value="manual" control={<Radio />} label="Manual (monthly)" />
+          <FormControlLabel value="flat" control={<Radio />} label={t('opex.budget.flat')} />
+          <FormControlLabel value="manual" control={<Radio />} label={t('opex.budget.manual')} />
         </RadioGroup>
       </Stack>
       <Divider />
       {mode === 'flat' ? (
         <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Annual totals ({year})</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('opex.budget.annualTotals', { year })}</Typography>
           <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
             <FormattedNumberField label={`Budget (planned)${budgetFrozen ? ' – frozen' : ''}`} value={flatBudget} onChange={handleFlatChange(setFlatBudget)} disabled={budgetFrozen || loading || saving} InputProps={budgetFrozen ? { readOnly: true } : undefined} />
             <FormattedNumberField label={`Revision (committed)${revisionFrozen ? ' – frozen' : ''}`} value={flatRevision} onChange={handleFlatChange(setFlatRevision)} disabled={revisionFrozen || loading || saving} InputProps={revisionFrozen ? { readOnly: true } : undefined} />
@@ -340,14 +343,14 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
         </Box>
       ) : (
         <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Monthly entry ({year})</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('opex.budget.monthlyEntry', { year })}</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(120px, 1fr))', gap: 1, alignItems: 'center' }}>
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>Month</Typography>
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>Budget</Typography>
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>Revision</Typography>
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>Follow-up</Typography>
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>Landing</Typography>
-            <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.8 }}>Forecast</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>{t('opex.budget.month')}</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>{t('operations.budgetColumns.budget')}</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>{t('operations.budgetColumns.revision')}</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>{t('operations.budgetColumns.followUp')}</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>{t('operations.budgetColumns.landing')}</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.8 }}>{t('opex.budget.forecast')}</Typography>
             {months.map((row, idx) => (
               <React.Fragment key={row.period}>
                 <Typography variant="body2">{monthLabel(idx + 1)}</Typography>

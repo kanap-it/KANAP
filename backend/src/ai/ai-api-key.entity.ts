@@ -32,6 +32,12 @@ export class AiApiKey {
   @Column('timestamptz', { nullable: true })
   revoked_at!: Date | null;
 
+  @Column('uuid', { nullable: true })
+  revoked_by_user_id!: string | null;
+
+  @Column('text', { nullable: true })
+  revocation_reason!: string | null;
+
   @Column('timestamptz', { default: () => 'now()' })
   created_at!: Date;
 

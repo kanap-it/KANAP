@@ -20,6 +20,7 @@ import { ApplicationsLifecycleService } from './applications-lifecycle.service';
  */
 export interface ServiceOpts {
   manager?: EntityManager;
+  tenantId?: string;
 }
 
 /**

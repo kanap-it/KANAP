@@ -1,5 +1,6 @@
 import React from 'react';
 import { Alert, Stack } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import RequestScoringEditor, { type RequestScoringEditorHandle } from '../../editors/RequestScoringEditor';
 
 type RequestScoringTabProps = {
@@ -19,11 +20,12 @@ export default function RequestScoringTab({
   readOnly,
   scoringEditorRef,
 }: RequestScoringTabProps) {
+  const { t } = useTranslation('portfolio');
   return (
     <Stack spacing={3}>
       {form?.status === 'converted' && (
         <Alert severity="info">
-          Scoring is frozen. This request has been converted to a project.
+          {t('workspace.request.scoring.frozen')}
         </Alert>
       )}
       <RequestScoringEditor

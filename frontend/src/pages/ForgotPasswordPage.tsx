@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Alert, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import AuthFrame from '../components/AuthFrame';
 import { useFeatures } from '../config/FeaturesContext';
+import { getApiErrorMessage } from '../utils/apiErrorMessage';
 
 export default function ForgotPasswordPage() {
   const { config } = useFeatures();
+  const { t } = useTranslation(['auth', 'validation']);
 
   if (!config.features.email) {
     return (
@@ -22,10 +25,10 @@ export default function ForgotPasswordPage() {
         >
           <Stack spacing={3}>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              Password reset unavailable
+              {t('auth:forgot.unavailableTitle')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Password reset requires email to be configured. Contact your administrator.
+              {t('auth:forgot.unavailableMessage')}
             </Typography>
             <Button
               variant="text"
@@ -33,7 +36,7 @@ export default function ForgotPasswordPage() {
               fullWidth
               onClick={() => window.location.href = '/login'}
             >
-              Back to login
+              {t('auth:forgot.backToLogin')}
             </Button>
           </Stack>
         </Paper>
@@ -52,7 +55,7 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      setError('Please enter the email associated with your account.');
+      setError(t('validation:emailRequired'));
       return;
     }
     setError(null);
@@ -61,7 +64,7 @@ export default function ForgotPasswordPage() {
       await api.post('/auth/password-reset/request', { email });
       setStatus('success');
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Unable to send reset instructions. Please try again.';
+      const message = getApiErrorMessage(err, t, 'Unable to send reset instructions. Please try again.');
       setError(message);
       setStatus('idle');
     }
@@ -83,15 +86,15 @@ export default function ForgotPasswordPage() {
         <Stack spacing={3}>
           <Stack spacing={1}>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              Forgot your password?
+              {t('auth:forgot.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Enter the email you use to sign in. We will send a link so you can set a new password.
+              {t('auth:forgot.subtitle')}
             </Typography>
           </Stack>
 
           <TextField
-            label="Email"
+            label={t('auth:forgot.emailLabel')}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -104,7 +107,7 @@ export default function ForgotPasswordPage() {
 
           {isSuccess && (
             <Alert severity="success" role="status">
-              If an account matches that email, reset instructions are on their way.
+              {t('auth:forgot.successMessage')}
             </Alert>
           )}
 
@@ -116,7 +119,7 @@ export default function ForgotPasswordPage() {
 
           <Stack spacing={1.5}>
             <Button type="submit" variant="contained" fullWidth disabled={isSubmitting || isSuccess}>
-              {isSubmitting ? 'Sending…' : isSuccess ? 'Email sent' : 'Send reset email'}
+              {isSubmitting ? t('auth:forgot.submitting') : isSuccess ? t('auth:forgot.submitted') : t('auth:forgot.submit')}
             </Button>
             <Button
               type="button"
@@ -125,7 +128,7 @@ export default function ForgotPasswordPage() {
               fullWidth
               onClick={() => navigate('/login', { replace: true, state: isSuccess ? { passwordResetEmailSent: true } : undefined })}
             >
-              Back to login
+              {t('auth:forgot.backToLogin')}
             </Button>
           </Stack>
         </Stack>

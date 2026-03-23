@@ -1,10 +1,12 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { AuditService } from '../audit/audit.service';
 import { UsersService } from '../users/users.service';
 import { AiApiKey } from './ai-api-key.entity';
 import { AiSettingsService } from './ai-settings.service';
 import { McpApiKeyHashService } from './auth/mcp-api-key-hash.service';
+import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 
 export type CreateAiApiKeyInput = {
   tenantId: string;
@@ -23,6 +25,8 @@ export type AiApiKeyRecordDto = {
   expires_at: string | null;
   last_used_at: string | null;
   revoked_at: string | null;
+  revoked_by_user_id: string | null;
+  revocation_reason: string | null;
   created_at: string;
   created_by_user_id: string;
 };
@@ -30,6 +34,13 @@ export type AiApiKeyRecordDto = {
 export type AiApiKeyAuthentication = {
   apiKey: AiApiKey;
   user: Awaited<ReturnType<UsersService['findById']>>;
+};
+
+type RevokeAiApiKeyOptions = {
+  manager?: EntityManager;
+  userId?: string | null;
+  tenantId?: string;
+  revocationReason?: string | null;
 };
 
 @Injectable()
@@ -40,6 +51,8 @@ export class AiApiKeysService {
     private readonly users: UsersService,
     private readonly hashService: McpApiKeyHashService,
     private readonly aiSettings: AiSettingsService,
+    private readonly audit?: AuditService,
+    private readonly tenantExecutor?: AiTenantExecutionService,
   ) {}
 
   private getRepo(manager?: EntityManager) {
@@ -73,9 +86,31 @@ export class AiApiKeysService {
       expires_at: record.expires_at?.toISOString() ?? null,
       last_used_at: record.last_used_at?.toISOString() ?? null,
       revoked_at: record.revoked_at?.toISOString() ?? null,
+      revoked_by_user_id: record.revoked_by_user_id ?? null,
+      revocation_reason: record.revocation_reason ?? null,
       created_at: record.created_at.toISOString(),
       created_by_user_id: record.created_by_user_id,
     };
+  }
+
+  private async logAudit(
+    params: Parameters<AuditService['log']>[0],
+    opts?: { manager?: EntityManager; tenantId?: string },
+  ) {
+    if (!this.audit) {
+      return;
+    }
+    if (opts?.manager) {
+      await this.audit.log(params, { manager: opts.manager });
+      return;
+    }
+    if (opts?.tenantId && this.tenantExecutor) {
+      await this.tenantExecutor.run(
+        opts.tenantId,
+        async (manager) => this.audit!.log(params, { manager }),
+        { transaction: false },
+      );
+    }
   }
 
   async createKey(input: CreateAiApiKeyInput, opts?: { manager?: EntityManager }) {
@@ -105,6 +140,17 @@ export class AiApiKeysService {
       expires_at: expiresAt,
       created_by_user_id: input.createdByUserId,
     }));
+    await this.logAudit(
+      {
+        table: 'ai_api_keys',
+        recordId: record.id,
+        action: 'create',
+        before: null,
+        after: this.toView(record),
+        userId: input.createdByUserId,
+      },
+      { manager: opts?.manager, tenantId: input.tenantId },
+    );
 
     return {
       key: rawKey,
@@ -132,12 +178,27 @@ export class AiApiKeysService {
     return this.getRepo(opts?.manager).findOne({ where: { id } });
   }
 
-  async revokeKey(id: string, opts?: { manager?: EntityManager }) {
+  async revokeKey(id: string, opts?: RevokeAiApiKeyOptions) {
     const repo = this.getRepo(opts?.manager);
     const record = await repo.findOne({ where: { id } });
     if (!record) return null;
+    const before = this.toView(record);
     record.revoked_at = new Date();
-    return this.toView(await repo.save(record));
+    record.revoked_by_user_id = opts?.userId ?? record.revoked_by_user_id ?? null;
+    record.revocation_reason = opts?.revocationReason ?? record.revocation_reason ?? null;
+    const saved = await repo.save(record);
+    await this.logAudit(
+      {
+        table: 'ai_api_keys',
+        recordId: saved.id,
+        action: 'disable',
+        before,
+        after: this.toView(saved),
+        userId: opts?.userId ?? null,
+      },
+      { manager: opts?.manager, tenantId: saved.tenant_id },
+    );
+    return this.toView(saved);
   }
 
   async authenticatePresentedKey(
@@ -146,6 +207,17 @@ export class AiApiKeysService {
   ): Promise<AiApiKeyAuthentication> {
     const keyPrefix = this.hashService.extractPrefix(presentedKey);
     if (!keyPrefix) {
+      await this.logAudit(
+        {
+          table: 'ai_api_keys',
+          action: 'update',
+          before: null,
+          after: { authentication: 'failed', reason: 'invalid_key_format' },
+          userId: null,
+          source: 'system',
+        },
+        { manager: opts?.manager, tenantId: opts?.tenantId },
+      );
       throw new UnauthorizedException('Invalid MCP API key.');
     }
 
@@ -155,12 +227,52 @@ export class AiApiKeysService {
       (candidate) => !!candidate.key_hash && this.hashService.matches(presentedKey, candidate.key_hash),
     );
     if (!record || !record.key_hash) {
+      await this.logAudit(
+        {
+          table: 'ai_api_keys',
+          recordId: null,
+          action: 'update',
+          before: null,
+          after: {
+            authentication: 'failed',
+            reason: 'invalid_key',
+            key_prefix: keyPrefix,
+          },
+          userId: null,
+          source: 'system',
+        },
+        { manager: opts?.manager, tenantId: opts?.tenantId ?? records[0]?.tenant_id },
+      );
       throw new UnauthorizedException('Invalid MCP API key.');
     }
     if (record.revoked_at) {
+      await this.logAudit(
+        {
+          table: 'ai_api_keys',
+          recordId: record.id,
+          action: 'update',
+          before: null,
+          after: { authentication: 'failed', reason: 'revoked' },
+          userId: record.user_id,
+          source: 'system',
+        },
+        { manager: opts?.manager, tenantId: record.tenant_id },
+      );
       throw new UnauthorizedException('MCP API key has been revoked.');
     }
     if (record.expires_at && record.expires_at.getTime() <= Date.now()) {
+      await this.logAudit(
+        {
+          table: 'ai_api_keys',
+          recordId: record.id,
+          action: 'update',
+          before: null,
+          after: { authentication: 'failed', reason: 'expired' },
+          userId: record.user_id,
+          source: 'system',
+        },
+        { manager: opts?.manager, tenantId: record.tenant_id },
+      );
       throw new UnauthorizedException('MCP API key has expired.');
     }
 
@@ -170,11 +282,36 @@ export class AiApiKeysService {
       && user.status === 'enabled'
       && (!!user.role && (!user.role.is_system || roleName === 'administrator'));
     if (!canAuthenticate) {
+      await this.logAudit(
+        {
+          table: 'ai_api_keys',
+          recordId: record.id,
+          action: 'update',
+          before: null,
+          after: { authentication: 'failed', reason: 'owner_not_allowed' },
+          userId: record.user_id,
+          source: 'system',
+        },
+        { manager: opts?.manager, tenantId: record.tenant_id },
+      );
       throw new UnauthorizedException('The MCP API key owner is not allowed to authenticate.');
     }
 
+    const before = this.toView(record);
     record.last_used_at = new Date();
     await repo.save(record);
+    await this.logAudit(
+      {
+        table: 'ai_api_keys',
+        recordId: record.id,
+        action: 'update',
+        before,
+        after: this.toView(record),
+        userId: record.user_id,
+        source: 'system',
+      },
+      { manager: opts?.manager, tenantId: record.tenant_id },
+    );
 
     return {
       apiKey: record,

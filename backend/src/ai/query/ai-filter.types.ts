@@ -4,6 +4,7 @@ export type AiFilterFieldType = 'set' | 'text' | 'number' | 'date';
 export type AiQueryEntityType =
   | 'applications'
   | 'assets'
+  | 'locations'
   | 'projects'
   | 'requests'
   | 'tasks'

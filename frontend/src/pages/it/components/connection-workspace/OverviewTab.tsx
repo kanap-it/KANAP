@@ -13,6 +13,7 @@ import useItOpsEnumOptions from '../../../../hooks/useItOpsEnumOptions';
 import EnumAutocomplete from '../../../../components/fields/EnumAutocomplete';
 import type { ConnectionDetail, EntityOption, SourceTargetOption, ConnectionTabProps } from './types';
 
+import { useTranslation } from 'react-i18next';
 interface OverviewTabProps extends ConnectionTabProps {
   sourceServerOptions: ServerOption[];
   destinationServerOptions: ServerOption[];
@@ -42,6 +43,7 @@ export default function OverviewTab({
   setMultiServerSearch,
   multiServerSearch,
 }: OverviewTabProps) {
+  const { t } = useTranslation(['it', 'common']);
   const { settings, byField } = useItOpsEnumOptions();
 
   const entityOptions: EntityOption[] = React.useMemo(

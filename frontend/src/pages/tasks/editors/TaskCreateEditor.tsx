@@ -9,11 +9,13 @@ import { Alert, Stack, TextField } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import DateEUField from '../../../components/fields/DateEUField';
 import UserSelect from '../../../components/fields/UserSelect';
-import { TASK_STATUS_OPTIONS } from '../task.constants';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { getTaskStatusOptions } from '../../../utils/portfolioI18n';
 import type { TaskStatus } from '../task.constants';
 
 export type TaskCreateEditorHandle = {
@@ -38,6 +40,7 @@ const DEFAULTS = {
 };
 
 export default forwardRef<TaskCreateEditorHandle, Props>(function TaskCreateEditor({ onDirtyChange }, ref) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const queryClient = useQueryClient();
   const [saving, setSaving] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
@@ -91,7 +94,7 @@ export default forwardRef<TaskCreateEditorHandle, Props>(function TaskCreateEdit
     setSaving(true);
     setServerError(null);
     try {
-      if (!selectedRelated) throw new Error('Please select a related item');
+      if (!selectedRelated) throw new Error(t('portfolio:workspace.task.messages.relatedItemRequired'));
       const payload = {
         title: title.trim(),
         description: description.trim() || null,
@@ -99,7 +102,7 @@ export default forwardRef<TaskCreateEditorHandle, Props>(function TaskCreateEdit
         due_date: dueDate || null,
         assignee_user_id: assigneeId || null,
       };
-      if (!payload.title) throw new Error('Title is required');
+      if (!payload.title) throw new Error(t('portfolio:workspace.task.messages.titleRequired'));
       const base = selectedRelated.type === 'spend_item' ? '/spend-items' : '/contracts';
       const res = await api.post(`${base}/${selectedRelated.id}/tasks`, payload);
       const created = res.data || {};
@@ -107,8 +110,11 @@ export default forwardRef<TaskCreateEditorHandle, Props>(function TaskCreateEdit
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       return created?.id ?? null;
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to create task';
-      setServerError(msg);
+      setServerError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:workspace.task.messages.createFailed'),
+      ));
       throw e;
     } finally {
       setSaving(false);
@@ -142,7 +148,7 @@ export default forwardRef<TaskCreateEditorHandle, Props>(function TaskCreateEdit
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
 
       <TextField
-        label="Task Title"
+        label={t('portfolio:workspace.task.title.label')}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
@@ -158,11 +164,13 @@ export default forwardRef<TaskCreateEditorHandle, Props>(function TaskCreateEdit
         onInputChange={(_, val) => setRelatedSearch(val)}
         getOptionLabel={(opt) => (opt as any)?.label || ''}
         isOptionEqualToValue={(a, b) => (a as any)?.id === (b as any)?.id && (a as any)?.type === (b as any)?.type}
-        groupBy={(opt) => ((opt as any).type === 'spend_item' ? 'OPEX' : 'Contract')}
+        groupBy={(opt) => ((opt as any).type === 'spend_item'
+          ? t('portfolio:context.spend_item')
+          : t('portfolio:context.contract'))}
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Related item"
+            label={t('portfolio:workspace.task.fields.relatedItem')}
             required
             InputLabelProps={{ shrink: true }}
             InputProps={{
@@ -181,7 +189,7 @@ export default forwardRef<TaskCreateEditorHandle, Props>(function TaskCreateEdit
       />
 
       <TextField
-        label="Description"
+        label={t('portfolio:workspace.task.description.label')}
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         multiline
@@ -191,15 +199,23 @@ export default forwardRef<TaskCreateEditorHandle, Props>(function TaskCreateEdit
       />
 
       <EnumAutocomplete
-        label="Status"
+        label={t('portfolio:workspace.task.sidebar.fields.status')}
         value={status}
         onChange={(v) => setStatus(v as any)}
-        options={TASK_STATUS_OPTIONS}
+        options={getTaskStatusOptions(t)}
       />
 
-      <DateEUField label="Due Date" valueYmd={dueDate} onChangeYmd={setDueDate} />
+      <DateEUField
+        label={t('portfolio:workspace.task.sidebar.fields.dueDate')}
+        valueYmd={dueDate}
+        onChangeYmd={setDueDate}
+      />
 
-      <UserSelect label="Responsible" value={assigneeId} onChange={setAssigneeId} />
+      <UserSelect
+        label={t('portfolio:workspace.task.sidebar.fields.assignee')}
+        value={assigneeId}
+        onChange={setAssigneeId}
+      />
     </Stack>
   );
 });

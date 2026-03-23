@@ -10,9 +10,11 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import { TASK_STATUS_COLORS, TASK_STATUS_LABELS } from '../pages/tasks/task.constants';
 import type { TaskStatus } from '../pages/tasks/task.constants';
+import { getApiErrorMessage } from '../utils/apiErrorMessage';
 
 type Task = {
   id: string;
@@ -46,6 +48,14 @@ const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' |
   optional: 'success',
 };
 
+const PRIORITY_LABELS: Record<string, string> = {
+  blocker: 'Blocker',
+  high: 'High',
+  normal: 'Normal',
+  low: 'Low',
+  optional: 'Optional',
+};
+
 // API endpoint for fetching tasks by entity type
 const ENDPOINTS: Record<EntityType, (id: string) => string> = {
   project: (id) => `/portfolio/projects/${id}/tasks`,
@@ -66,6 +76,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { t, i18n } = useTranslation(['portfolio', 'common', 'errors']);
   const isProject = entityType === 'project';
   const projectWorkspaceContextQuery = React.useMemo(() => {
     if (!isProject) return '';
@@ -133,20 +144,20 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
   });
 
   const handleDelete = async (taskId: string) => {
-    if (!window.confirm('Delete this task?')) return;
+    if (!window.confirm(t('portfolio:shared.entityTasksPanel.messages.confirmDelete'))) return;
     try {
       await api.delete(`/tasks/bulk`, { data: { ids: [taskId] } });
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Failed to delete task');
+      alert(getApiErrorMessage(e, t, t('portfolio:shared.entityTasksPanel.messages.deleteFailed')));
     }
   };
 
   const getPhaseLabel = (phaseId: string | null) => {
-    if (!phaseId) return 'Project-level';
+    if (!phaseId) return t('portfolio:shared.entityTasksPanel.phase.projectLevel');
     const phase = phases.find(p => p.id === phaseId);
-    return phase?.name || 'Unknown Phase';
+    return phase?.name || t('portfolio:shared.entityTasksPanel.phase.unknown');
   };
 
   // Filter tasks
@@ -179,30 +190,34 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
     setFilterPhase('all');
   };
 
+  const title = filteredTasks.length !== tasks.length
+    ? t('portfolio:shared.entityTasksPanel.titleFiltered', { count: filteredTasks.length, total: tasks.length })
+    : t('portfolio:shared.entityTasksPanel.title', { count: filteredTasks.length });
+
   return (
     <Stack spacing={2}>
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Stack direction="row" alignItems="center" spacing={1}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            Tasks ({filteredTasks.length}{filteredTasks.length !== tasks.length ? ` / ${tasks.length}` : ''})
+            {title}
           </Typography>
           <IconButton
             size="small"
             onClick={() => setShowFilters(!showFilters)}
             color={hasActiveFilters ? 'primary' : 'default'}
-            title="Toggle filters"
+            title={t('portfolio:shared.entityTasksPanel.toggleFilters')}
           >
             <FilterListIcon fontSize="small" />
           </IconButton>
           {hasActiveFilters && (
-            <IconButton size="small" onClick={clearFilters} title="Clear filters">
+            <IconButton size="small" onClick={clearFilters} title={t('portfolio:shared.entityTasksPanel.clearFilters')}>
               <ClearIcon fontSize="small" />
             </IconButton>
           )}
         </Stack>
         {!disabled && (
           <Button startIcon={<AddIcon />} size="small" onClick={() => handleCreateTask()}>
-            Add Task
+            {t('portfolio:shared.entityTasksPanel.addTask')}
           </Button>
         )}
       </Stack>
@@ -210,32 +225,32 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
       {showFilters && (
         <Stack direction="row" spacing={2} sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
           <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel>Status</InputLabel>
+            <InputLabel>{t('portfolio:shared.entityTasksPanel.filters.status')}</InputLabel>
             <Select
               value={filterStatus}
-              label="Status"
+              label={t('portfolio:shared.entityTasksPanel.filters.status')}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
-              <MenuItem value="all">All</MenuItem>
-              <MenuItem value="active">Active (not done)</MenuItem>
-              <MenuItem value="open">Open</MenuItem>
-              <MenuItem value="in_progress">In Progress</MenuItem>
-              <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem value="in_testing">In Testing</MenuItem>
-              <MenuItem value="done">Done</MenuItem>
-              <MenuItem value="cancelled">Cancelled</MenuItem>
+              <MenuItem value="all">{t('portfolio:shared.entityTasksPanel.filters.all')}</MenuItem>
+              <MenuItem value="active">{t('portfolio:shared.entityTasksPanel.filters.activeNotDone')}</MenuItem>
+              <MenuItem value="open">{t('portfolio:statuses.task.open')}</MenuItem>
+              <MenuItem value="in_progress">{t('portfolio:statuses.task.in_progress')}</MenuItem>
+              <MenuItem value="pending">{t('portfolio:statuses.task.pending')}</MenuItem>
+              <MenuItem value="in_testing">{t('portfolio:statuses.task.in_testing')}</MenuItem>
+              <MenuItem value="done">{t('portfolio:statuses.task.done')}</MenuItem>
+              <MenuItem value="cancelled">{t('portfolio:statuses.task.cancelled')}</MenuItem>
             </Select>
           </FormControl>
           {isProject && phases.length > 0 && (
             <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>Phase</InputLabel>
+              <InputLabel>{t('portfolio:shared.entityTasksPanel.filters.phase')}</InputLabel>
               <Select
                 value={filterPhase}
-                label="Phase"
+                label={t('portfolio:shared.entityTasksPanel.filters.phase')}
                 onChange={(e) => setFilterPhase(e.target.value)}
               >
-                <MenuItem value="all">All Phases</MenuItem>
-                <MenuItem value="project-level">Project-level</MenuItem>
+                <MenuItem value="all">{t('portfolio:shared.entityTasksPanel.filters.allPhases')}</MenuItem>
+                <MenuItem value="project-level">{t('portfolio:shared.entityTasksPanel.filters.projectLevel')}</MenuItem>
                 {phases.map((p) => (
                   <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                 ))}
@@ -245,26 +260,26 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
         </Stack>
       )}
 
-      {isLoading && <Typography color="text.secondary">Loading tasks...</Typography>}
+      {isLoading && <Typography color="text.secondary">{t('portfolio:shared.entityTasksPanel.states.loading')}</Typography>}
 
       {!isLoading && tasks.length === 0 && (
-        <Typography color="text.secondary">No tasks yet.</Typography>
+        <Typography color="text.secondary">{t('portfolio:shared.entityTasksPanel.states.empty')}</Typography>
       )}
 
       {!isLoading && tasks.length > 0 && filteredTasks.length === 0 && (
-        <Typography color="text.secondary">No tasks match the current filters.</Typography>
+        <Typography color="text.secondary">{t('portfolio:shared.entityTasksPanel.states.noMatches')}</Typography>
       )}
 
       {filteredTasks.length > 0 && (
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Title</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Priority</TableCell>
-              {isProject && <TableCell>Phase</TableCell>}
-              <TableCell>Due Date</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>{t('portfolio:shared.entityTasksPanel.table.title')}</TableCell>
+              <TableCell>{t('portfolio:shared.entityTasksPanel.table.status')}</TableCell>
+              <TableCell>{t('portfolio:shared.entityTasksPanel.table.priority')}</TableCell>
+              {isProject && <TableCell>{t('portfolio:shared.entityTasksPanel.table.phase')}</TableCell>}
+              <TableCell>{t('portfolio:shared.entityTasksPanel.table.dueDate')}</TableCell>
+              <TableCell align="right">{t('portfolio:shared.entityTasksPanel.table.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -287,14 +302,14 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={STATUS_LABELS[task.status] || task.status}
+                    label={t(`portfolio:statuses.task.${task.status}`, { defaultValue: STATUS_LABELS[task.status] || task.status })}
                     color={STATUS_COLORS[task.status] || 'default'}
                     size="small"
                   />
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={task.priority_level}
+                    label={t(`portfolio:priority.${task.priority_level}`, { defaultValue: PRIORITY_LABELS[task.priority_level] || task.priority_level })}
                     color={PRIORITY_COLORS[task.priority_level] || 'default'}
                     size="small"
                     variant="outlined"
@@ -308,12 +323,12 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                   </TableCell>
                 )}
                 <TableCell>
-                  {task.due_date ? new Date(task.due_date).toLocaleDateString('en-GB') : '-'}
+                  {task.due_date ? new Date(task.due_date).toLocaleDateString(i18n.language) : '-'}
                 </TableCell>
                 <TableCell align="right">
                   <IconButton
                     size="small"
-                    title="Open task"
+                    title={t('portfolio:shared.entityTasksPanel.actions.openTask')}
                     onClick={() => navigate(buildTaskWorkspacePath(task.id))}
                   >
                     <OpenInNewIcon fontSize="small" />
@@ -321,7 +336,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                   {!disabled && (
                     <IconButton
                       size="small"
-                      title="Delete task"
+                      title={t('portfolio:shared.entityTasksPanel.actions.deleteTask')}
                       onClick={() => handleDelete(task.id)}
                     >
                       <DeleteIcon fontSize="small" />

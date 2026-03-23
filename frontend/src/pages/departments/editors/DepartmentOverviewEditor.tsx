@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Stack, TextField } from '@mui/material';
 import { Controller } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -68,6 +69,7 @@ export default forwardRef<DepartmentOverviewEditorHandle, Props>(function Depart
   ref,
 ) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['master-data', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
@@ -94,7 +96,7 @@ export default forwardRef<DepartmentOverviewEditorHandle, Props>(function Depart
         onDirtyChange?.(false);
       } catch (e: any) {
         if (!active) return;
-        const msg = e?.response?.data?.message || e?.message || 'Failed to load department';
+        const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToLoad', { entity: t('departments.entity') });
         setServerError(msg);
       } finally {
         if (active) setLoading(false);
@@ -152,7 +154,7 @@ export default forwardRef<DepartmentOverviewEditorHandle, Props>(function Depart
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       queryClient.invalidateQueries({ queryKey: ['departments', id] });
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save department';
+      const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToSave', { entity: t('departments.entity') });
       setServerError(msg);
       throw e;
     } finally {
@@ -174,7 +176,7 @@ export default forwardRef<DepartmentOverviewEditorHandle, Props>(function Depart
     <Stack spacing={2}>
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
       {!readOnly ? null : (
-        <Alert severity="info">You need manager access to edit departments.</Alert>
+        <Alert severity="info">{t('shared.messages.readOnlyAccess', { entity: t('departments.title').toLowerCase() })}</Alert>
       )}
       <TextField 
         label="Name" 

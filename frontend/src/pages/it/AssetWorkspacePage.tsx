@@ -49,6 +49,8 @@ import { useAssetNav } from '../../hooks/useAssetNav';
 import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
 import { useAuth } from '../../auth/AuthContext';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 type IpAddressEntry = { type: string; ip: string; subnet_cidr: string | null };
 
 type AssetRecord = {
@@ -140,6 +142,7 @@ const ENV_OPTIONS = [
 ] as const;
 
 export default function AssetWorkspacePage() {
+  const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const params = useParams();
   const navigate = useNavigate();
@@ -178,8 +181,8 @@ export default function AssetWorkspacePage() {
   const [connectionsLoading, setConnectionsLoading] = React.useState(false);
   const { byField, labelFor, settings } = useItOpsEnumOptions();
   const topologyLabel = React.useCallback((v?: string) => {
-    if (v === 'server_to_server') return 'Server to Server';
-    if (v === 'multi_server') return 'Multi-server';
+    if (v === 'server_to_server') return t('enums.topology.serverToServer');
+    if (v === 'multi_server') return t('enums.topology.multiServer');
     return v || '';
   }, []);
   const serverRoleOptions = React.useMemo(
@@ -198,7 +201,7 @@ export default function AssetWorkspacePage() {
       const res = await api.get<AssetRecord>(`/assets/${id}`);
       setData(res.data as any);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load asset');
+      setError(getApiErrorMessage(e, t, t('messages.loadAssetFailed')));
     }
   }, [id, isCreate]);
 
@@ -211,7 +214,7 @@ export default function AssetWorkspacePage() {
       const res = await api.get<AssignmentRow[]>(`/assets/${id}/assignments`);
       setAssignments(res.data as any);
     } catch (e: any) {
-      setAssignmentsError(e?.response?.data?.message || e?.message || 'Failed to load assignments');
+      setAssignmentsError(getApiErrorMessage(e, t, t('messages.loadAssignmentsFailed')));
     }
   }, [id, isCreate]);
 
@@ -269,7 +272,7 @@ export default function AssetWorkspacePage() {
       const res = await api.get<{ items: ClusterMember[] }>(`/assets/${id}/members`);
       setClusterMembers((res.data?.items || []) as ClusterMember[]);
     } catch (e: any) {
-      setClusterError(e?.response?.data?.message || e?.message || 'Failed to load cluster members');
+      setClusterError(getApiErrorMessage(e, t, t('messages.loadClusterMembersFailed')));
       setClusterMembers([]);
     } finally {
       setClusterLoading(false);
@@ -289,7 +292,7 @@ export default function AssetWorkspacePage() {
       const res = await api.get<{ items: ClusterSummary[] }>(`/assets/${id}/clusters`);
       setClustersForServer((res.data?.items || []) as ClusterSummary[]);
     } catch (e: any) {
-      setClustersError(e?.response?.data?.message || e?.message || 'Failed to load clusters');
+      setClustersError(getApiErrorMessage(e, t, t('messages.loadClustersFailed')));
       setClustersForServer([]);
     } finally {
       setClustersLoading(false);
@@ -514,7 +517,7 @@ export default function AssetWorkspacePage() {
         setConnections(res.data?.items || []);
       } catch (e: any) {
         if (cancelled) return;
-        setConnectionsError(e?.response?.data?.message || e?.message || 'Failed to load connections');
+        setConnectionsError(getApiErrorMessage(e, t, t('messages.loadConnectionsFailed')));
         setConnections([]);
       } finally {
         if (!cancelled) setConnectionsLoading(false);
@@ -584,7 +587,7 @@ export default function AssetWorkspacePage() {
         if (cancelled) return;
         setLocationDetails(null);
         setLocationCompanyName(null);
-        setLocationInfoError(err?.response?.data?.message || err?.message || 'Failed to load location details');
+        setLocationInfoError(getApiErrorMessage(err, t, t('messages.loadLocationDetailsFailed')));
       } finally {
         if (!cancelled) {
           setLocationInfoLoading(false);
@@ -671,19 +674,19 @@ export default function AssetWorkspacePage() {
         await load();
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save asset');
+      setError(getApiErrorMessage(e, t, t('messages.saveAssetFailed')));
     } finally {
       setSaving(false);
     }
   };
 
   const handleRemoveAssignment = async (assignment: AssignmentRow) => {
-    if (!window.confirm('Remove this assignment?')) return;
+    if (!window.confirm(t('confirmations.removeAssignment'))) return;
     try {
       await api.delete(`/app-instances/${assignment.app_instance_id}/assets/${assignment.id}`);
       await refreshAssignments();
     } catch (e: any) {
-      setAssignmentsError(e?.response?.data?.message || e?.message || 'Failed to remove assignment');
+      setAssignmentsError(getApiErrorMessage(e, t, t('messages.removeServerFailed')));
     }
   };
 
@@ -708,7 +711,7 @@ export default function AssetWorkspacePage() {
       }));
       setAppInstances((prev) => ({ ...prev, [appId]: instances }));
     } catch (e: any) {
-      setAssignError(e?.response?.data?.message || e?.message || 'Failed to load application instances');
+      setAssignError(getApiErrorMessage(e, t, t('messages.loadAppInstancesFailed')));
       setAppInstances((prev) => ({ ...prev, [appId]: [] }));
     }
   }, [appInstances]);
@@ -762,7 +765,7 @@ export default function AssetWorkspacePage() {
       setAssignDialogOpen(false);
       await refreshAssignments();
     } catch (e: any) {
-      setAssignError(e?.response?.data?.message || e?.message || 'Failed to add assignment');
+      setAssignError(getApiErrorMessage(e, t, t('messages.addAssignmentFailed')));
     } finally {
       setAssigning(false);
     }
@@ -802,7 +805,7 @@ export default function AssetWorkspacePage() {
       setMemberDialogOpen(false);
       await loadClusterMembers();
     } catch (e: any) {
-      setMemberSaveError(e?.response?.data?.message || e?.message || 'Failed to save members');
+      setMemberSaveError(getApiErrorMessage(e, t, t('messages.saveMembersFailed')));
     } finally {
       setMemberSaving(false);
     }
@@ -875,7 +878,7 @@ export default function AssetWorkspacePage() {
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before navigating?');
+      const proceed = window.confirm(t('confirmations.unsavedSaveBeforeNav'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -894,8 +897,8 @@ export default function AssetWorkspacePage() {
   const actions = (
     <Stack direction="row" spacing={1} alignItems="center">
       <IconButton
-        aria-label="Previous"
-        title="Previous"
+        aria-label={t('common.previous')}
+        title={t('common.previous')}
         onClick={() => confirmAndNavigate(prevId)}
         disabled={!hasPrev}
         size="small"
@@ -903,19 +906,19 @@ export default function AssetWorkspacePage() {
         <ArrowBackIcon />
       </IconButton>
       <IconButton
-        aria-label="Next"
-        title="Next"
+        aria-label={t('common.next')}
+        title={t('common.next')}
         onClick={() => confirmAndNavigate(nextId)}
         disabled={!hasNext}
         size="small"
       >
         <ArrowForwardIcon />
       </IconButton>
-      <Button onClick={handleReset}>Reset</Button>
+      <Button onClick={handleReset}>{t('common:buttons.reset')}</Button>
       <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>
         Save
       </Button>
-      <IconButton onClick={handleClose} title="Close">
+      <IconButton onClick={handleClose} title={t('common.close')}>
         <CloseIcon />
       </IconButton>
     </Stack>
@@ -1606,7 +1609,7 @@ export default function AssetWorkspacePage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setMemberDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setMemberDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button variant="contained" onClick={() => void handleSaveMembers()} disabled={memberSaving}>
             Save
           </Button>
@@ -1667,7 +1670,7 @@ export default function AssetWorkspacePage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setAssignDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button
             variant="contained"
             onClick={() => void handleAssignSave()}

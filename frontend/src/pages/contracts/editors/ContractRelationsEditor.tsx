@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Alert, Autocomplete, Box, Button, CircularProgress, Stack, TextField, Typography, IconButton, Chip, LinearProgress } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import api from '../../../api';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useAuth } from '../../../auth/AuthContext';
@@ -17,6 +19,7 @@ type Props = {
 };
 
 export default forwardRef<ContractRelationsEditorHandle, Props>(function ContractRelationsEditor({ id, readOnly, onDirtyChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -66,7 +69,7 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
         setBaselineLinkedCapex(items);
       } catch {}
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load relations');
+      setError(getApiErrorMessage(e, t, t('contracts.relations.failedToLoad')));
       setLinkedOpex([]); setBaselineLinkedOpex([]); setUrls([]); setBaselineUrls([]);
     } finally { setLoading(false); }
   }, [id]);
@@ -150,7 +153,7 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
       }
       setBaselineUrls(urls);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save relations');
+      setError(getApiErrorMessage(e, t, t('contracts.relations.failedToSave')));
       throw e;
     } finally { setSaving(false); }
   };
@@ -161,7 +164,7 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
     <Stack spacing={2}>
       {!!error && <Alert severity="error">{error}</Alert>}
 
-      <Typography variant="subtitle2">Linked OPEX</Typography>
+      <Typography variant="subtitle2">{t('contracts.relations.linkedOpex')}</Typography>
       <Autocomplete
         multiple
         options={opexOptions}
@@ -194,8 +197,8 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
         renderInput={(params) => (
           <TextField
             {...params}
-            label="OPEX items"
-            placeholder="Select OPEX items"
+            label={t('contracts.relations.opexItems')}
+            placeholder={t('contracts.relations.selectOpexItems')}
             InputLabelProps={{ shrink: true }}
             InputProps={{
               ...params.InputProps,
@@ -213,7 +216,7 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
         fullWidth
       />
 
-      <Typography variant="subtitle2">Linked CAPEX</Typography>
+      <Typography variant="subtitle2">{t('contracts.relations.linkedCapex')}</Typography>
       <Autocomplete
         multiple
         options={capexOptions}
@@ -242,8 +245,8 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
         renderInput={(params) => (
           <TextField
             {...params}
-            label="CAPEX items"
-            placeholder="Select CAPEX items"
+            label={t('contracts.relations.capexItems')}
+            placeholder={t('contracts.relations.selectCapexItems')}
             InputLabelProps={{ shrink: true }}
             InputProps={{
               ...params.InputProps,
@@ -265,7 +268,7 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
 
       <ItemContactsSection itemType="contracts" itemId={id} canManage={!readOnly} />
 
-      <Typography variant="subtitle2">Relevant websites</Typography>
+      <Typography variant="subtitle2">{t('contracts.relations.relevantWebsites')}</Typography>
       <Stack spacing={1}>
         {urls.map((l, idx) => (
           <Stack key={l.id || idx} direction="row" spacing={1} alignItems="center">
@@ -276,10 +279,10 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
             )}
           </Stack>
         ))}
-        {!readOnly && <Button size="small" onClick={() => setUrls(prev => [...prev, { url: '' }])}>Add URL</Button>}
+        {!readOnly && <Button size="small" onClick={() => setUrls(prev => [...prev, { url: '' }])}>{t('contracts.relations.addUrl')}</Button>}
       </Stack>
 
-      <Typography variant="subtitle2">Attachments</Typography>
+      <Typography variant="subtitle2">{t('contracts.relations.attachments')}</Typography>
       <Stack spacing={1}>
         <Box
           onDragOver={(e) => { if (!readOnly) { e.preventDefault(); setHover(true); } }}
@@ -310,11 +313,11 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
           }}
         >
           <Typography variant="body2" color="text.secondary">
-            {readOnly ? 'You do not have permission to upload attachments.' : 'Drag & drop files here, or use the button to select'}
+            {readOnly ? t('contracts.relations.noUploadPermission') : t('contracts.relations.dragDrop')}
           </Typography>
           <Box sx={{ mt: 1 }}>
             <Button component="label" size="small" variant="outlined" disabled={readOnly || uploading}>
-              Select files
+              {t('contracts.relations.selectFiles')}
               <input
                 type="file"
                 hidden
@@ -341,7 +344,7 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
           {uploading && <LinearProgress sx={{ mt: 1 }} />}
           {uploading && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Uploading {uploadCount} file{uploadCount === 1 ? '' : 's'}…
+              {t('contracts.relations.uploadingFiles', { count: uploadCount })}…
             </Typography>
           )}
         </Box>
@@ -350,7 +353,7 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
             const canDelete = hasLevel('contracts','manager') && !readOnly;
             const onDelete = async () => {
               if (!canDelete) return;
-              const ok = window.confirm(`Delete attachment \"${a.original_filename}\"?`);
+              const ok = window.confirm(t('confirmations.deleteAttachment', { name: a.original_filename }));
               if (!ok) return;
               try {
                 await api.patch(`/contracts/attachments/${a.id}/delete`, {});

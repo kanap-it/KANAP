@@ -15,6 +15,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getFeasibilityStatusLabel } from '../../../utils/portfolioI18n';
 
 export type FeasibilityReviewStatus =
   | 'not_assessed'
@@ -47,14 +49,6 @@ const FEASIBILITY_STATUSES: FeasibilityReviewStatus[] = [
   'blocker',
 ];
 
-const STATUS_LABELS: Record<FeasibilityReviewStatus, string> = {
-  not_assessed: 'Not assessed',
-  no_concerns: 'No concerns',
-  minor_concerns: 'Minor concerns',
-  major_concerns: 'Major concerns',
-  blocker: 'Blocker',
-};
-
 const STATUS_ACCENT_STYLE: Record<FeasibilityReviewStatus, { border: string; selectBorder: string }> = {
   not_assessed: { border: 'grey.300', selectBorder: 'grey.400' },
   no_concerns: { border: 'success.main', selectBorder: 'success.main' },
@@ -69,42 +63,14 @@ const COMMENT_FIELD_SX = {
   },
 };
 
-const DIMENSIONS: Array<{ key: FeasibilityReviewKey; label: string; description: string }> = [
-  {
-    key: 'technical_feasibility',
-    label: 'Technical Feasibility',
-    description: 'Is the proposed approach technically sound? Are the technologies proven and viable?',
-  },
-  {
-    key: 'integration_compatibility',
-    label: 'Integration & Compatibility',
-    description: 'Interfaces, data flows, and dependencies with existing systems. Landscape fit and architectural coherence.',
-  },
-  {
-    key: 'infrastructure_needs',
-    label: 'Infrastructure Needs',
-    description: 'Platform, network, hosting, and operations requirements.',
-  },
-  {
-    key: 'security_compliance',
-    label: 'Security & Compliance',
-    description: 'Security posture impacts, legal obligations, and control requirements.',
-  },
-  {
-    key: 'resource_skills',
-    label: 'Resource & Skills',
-    description: 'Capacity, ownership, expertise, and vendor availability.',
-  },
-  {
-    key: 'delivery_constraints',
-    label: 'Delivery Constraints',
-    description: 'External dependencies, windows, lead times, and sequencing constraints.',
-  },
-  {
-    key: 'change_management',
-    label: 'Change Management',
-    description: 'Adoption, communication, process changes, and training implications.',
-  },
+const DIMENSIONS: FeasibilityReviewKey[] = [
+  'technical_feasibility',
+  'integration_compatibility',
+  'infrastructure_needs',
+  'security_compliance',
+  'resource_skills',
+  'delivery_constraints',
+  'change_management',
 ];
 
 const EMPTY_REVIEW: FeasibilityReviewValue = {
@@ -124,8 +90,8 @@ export function normalizeFeasibilityReviewValue(value: unknown): FeasibilityRevi
   if (!isObject(value)) return { ...EMPTY_REVIEW };
 
   const normalized = { ...EMPTY_REVIEW };
-  for (const dim of DIMENSIONS) {
-    const raw = value[dim.key];
+  for (const key of DIMENSIONS) {
+    const raw = value[key];
     if (!isObject(raw)) continue;
 
     const rawStatus = String(raw.status || '').trim().toLowerCase();
@@ -133,47 +99,47 @@ export function normalizeFeasibilityReviewValue(value: unknown): FeasibilityRevi
       ? rawStatus as FeasibilityReviewStatus
       : 'not_assessed';
     const comment = String(raw.comment ?? '');
-    normalized[dim.key] = { status, comment };
+    normalized[key] = { status, comment };
   }
 
   return normalized;
 }
 
-const getFocusHint = (categoryName?: string, streamName?: string): string => {
+const getFocusHintKey = (categoryName?: string, streamName?: string) => {
   const category = (categoryName || '').toLowerCase();
   const stream = (streamName || '').toLowerCase();
 
   if (
-    category.includes('infrastructure') ||
-    stream.includes('network') ||
-    stream.includes('cloud') ||
-    stream.includes('virtual') ||
-    stream.includes('storage') ||
-    stream.includes('database')
+    category.includes('infrastructure')
+    || stream.includes('network')
+    || stream.includes('cloud')
+    || stream.includes('virtual')
+    || stream.includes('storage')
+    || stream.includes('database')
   ) {
-    return 'Focus on resilience, capacity, change windows, rollback readiness, and support model fit.';
+    return 'infrastructure';
   }
 
   if (
-    category.includes('business applications') ||
-    stream.includes('sap') ||
-    stream.includes('crm') ||
-    stream.includes('erp') ||
-    stream.includes('reporting')
+    category.includes('business applications')
+    || stream.includes('sap')
+    || stream.includes('crm')
+    || stream.includes('erp')
+    || stream.includes('reporting')
   ) {
-    return 'Focus on business-process fit, data quality/migration impact, integrations, and user adoption readiness.';
+    return 'businessApplications';
   }
 
   if (
-    category.includes('security') ||
-    stream.includes('security') ||
-    stream.includes('compliance') ||
-    stream.includes('risk')
+    category.includes('security')
+    || stream.includes('security')
+    || stream.includes('compliance')
+    || stream.includes('risk')
   ) {
-    return 'Focus on threat reduction, control coverage, regulatory urgency, and residual risk acceptance.';
+    return 'security';
   }
 
-  return 'Keep comments short and concrete: key concern, impact, and required action.';
+  return 'default';
 };
 
 interface FeasibilityReviewProps {
@@ -191,6 +157,7 @@ export default function FeasibilityReview({
   categoryName,
   streamName,
 }: FeasibilityReviewProps) {
+  const { t } = useTranslation('portfolio');
   const normalized = React.useMemo(() => normalizeFeasibilityReviewValue(value), [value]);
   const [expandedRows, setExpandedRows] = React.useState<Record<FeasibilityReviewKey, boolean>>({
     technical_feasibility: false,
@@ -229,25 +196,26 @@ export default function FeasibilityReview({
   return (
     <Stack spacing={1.5}>
       <Typography variant="caption" color="text.secondary">
-        {getFocusHint(categoryName, streamName)}
+        {t(`editors.feasibility.hints.${getFocusHintKey(categoryName, streamName)}`)}
       </Typography>
 
       <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: 'action.hover' }}>
-              <TableCell sx={{ width: '36%' }}>Dimension</TableCell>
-              <TableCell sx={{ width: '18%' }}>Status</TableCell>
-              <TableCell sx={{ width: '46%' }}>Comment</TableCell>
+              <TableCell sx={{ width: '36%' }}>{t('editors.feasibility.columns.dimension')}</TableCell>
+              <TableCell sx={{ width: '18%' }}>{t('editors.feasibility.columns.status')}</TableCell>
+              <TableCell sx={{ width: '46%' }}>{t('editors.feasibility.columns.comment')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {DIMENSIONS.map((dim) => {
-              const current = normalized[dim.key];
+            {DIMENSIONS.map((key) => {
+              const current = normalized[key];
               const accent = STATUS_ACCENT_STYLE[current.status];
-              const isExpanded = expandedRows[dim.key];
+              const isExpanded = expandedRows[key];
+              const label = t(`editors.feasibility.dimensions.${key}.label`);
               return (
-                <React.Fragment key={dim.key}>
+                <React.Fragment key={key}>
                   <TableRow
                     hover
                     sx={{
@@ -259,30 +227,32 @@ export default function FeasibilityReview({
                   >
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {dim.label}
+                        {label}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {dim.description}
+                        {t(`editors.feasibility.dimensions.${key}.description`)}
                       </Typography>
                       <Box sx={{ mt: 0.5 }}>
                         <Button
                           size="small"
                           variant="text"
-                          onClick={() => toggleExpanded(dim.key)}
+                          onClick={() => toggleExpanded(key)}
                           sx={{ px: 0 }}
                         >
-                          {isExpanded ? 'Hide detailed notes' : 'Detailed notes'}
+                          {isExpanded
+                            ? t('editors.feasibility.actions.hideDetailedNotes')
+                            : t('editors.feasibility.actions.showDetailedNotes')}
                         </Button>
                       </Box>
                     </TableCell>
                     <TableCell>
                       <FormControl size="small" fullWidth>
-                        <InputLabel>Status</InputLabel>
+                        <InputLabel>{t('editors.feasibility.fields.status')}</InputLabel>
                         <Select
                           value={current.status}
-                          label="Status"
+                          label={t('editors.feasibility.fields.status')}
                           disabled={disabled}
-                          onChange={(e) => setDimensionStatus(dim.key, e.target.value as FeasibilityReviewStatus)}
+                          onChange={(event) => setDimensionStatus(key, event.target.value as FeasibilityReviewStatus)}
                           sx={{
                             '& .MuiOutlinedInput-notchedOutline': {
                               borderColor: accent.selectBorder,
@@ -291,7 +261,7 @@ export default function FeasibilityReview({
                         >
                           {FEASIBILITY_STATUSES.map((status) => (
                             <MenuItem key={status} value={status}>
-                              {STATUS_LABELS[status]}
+                              {getFeasibilityStatusLabel(t, status)}
                             </MenuItem>
                           ))}
                         </Select>
@@ -305,8 +275,8 @@ export default function FeasibilityReview({
                         minRows={2}
                         maxRows={4}
                         value={current.comment}
-                        placeholder="Key note, blocker, or next action"
-                        onChange={(e) => setDimensionComment(dim.key, e.target.value)}
+                        placeholder={t('editors.feasibility.placeholders.comment')}
+                        onChange={(event) => setDimensionComment(key, event.target.value)}
                         disabled={disabled}
                         sx={COMMENT_FIELD_SX}
                       />
@@ -321,8 +291,8 @@ export default function FeasibilityReview({
                           minRows={4}
                           maxRows={12}
                           value={current.comment}
-                          placeholder={`Detailed notes for ${dim.label}`}
-                          onChange={(e) => setDimensionComment(dim.key, e.target.value)}
+                          placeholder={t('editors.feasibility.placeholders.detailedNotes', { dimension: label })}
+                          onChange={(event) => setDimensionComment(key, event.target.value)}
                           disabled={disabled}
                           sx={COMMENT_FIELD_SX}
                         />

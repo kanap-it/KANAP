@@ -6,6 +6,7 @@ import { AiChatOrchestratorService } from './ai-chat-orchestrator.service';
 import { AiPolicyService } from './ai-policy.service';
 import { AiExecutionContext } from './ai.types';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
+import { isAbortError } from './providers/streaming.util';
 
 @Controller('ai/chat')
 @UseGuards(JwtAuthGuard)
@@ -38,6 +39,7 @@ export class AiChatController {
     @Res() res: Response,
   ) {
     const context = this.buildContext(req);
+    const abortController = new AbortController();
 
     await this.tenantExecutor.runWithContext(context, async (ctx) => {
       await this.policy.assertSurfaceAccess(ctx, ctx.manager);
@@ -49,21 +51,28 @@ export class AiChatController {
     res.flushHeaders();
 
     let clientDisconnected = false;
-    req.on('close', () => {
+    const handleDisconnect = () => {
       clientDisconnected = true;
-    });
+      abortController.abort();
+    };
+    req.on('close', handleDisconnect);
+    req.on('aborted', handleDisconnect);
 
     try {
       for await (const event of this.orchestrator.stream({
         context,
         conversationId: body.conversation_id,
         userMessage: body.message,
+        signal: abortController.signal,
       })) {
         if (!clientDisconnected) {
           res.write(JSON.stringify(event) + '\n');
         }
       }
     } catch (err: any) {
+      if (clientDisconnected || isAbortError(err)) {
+        return;
+      }
       this.logger.error(`Chat stream error: ${err.message}`, err.stack);
       if (!clientDisconnected) {
         try {
@@ -72,6 +81,9 @@ export class AiChatController {
           // Response may already be closed
         }
       }
+    } finally {
+      req.off('close', handleDisconnect);
+      req.off('aborted', handleDisconnect);
     }
 
     if (!clientDisconnected) {

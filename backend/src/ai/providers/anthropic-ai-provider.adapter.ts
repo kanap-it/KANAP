@@ -7,6 +7,7 @@ import {
   AiStreamEvent,
   AiStreamParams,
 } from './ai-provider.types';
+import { isAbortError, parseToolCallArguments } from './streaming.util';
 
 @Injectable()
 export class AnthropicAiProviderAdapter implements AiProviderAdapter {
@@ -31,6 +32,10 @@ export class AnthropicAiProviderAdapter implements AiProviderAdapter {
   }
 
   async *createStream(params: AiStreamParams): AsyncGenerator<AiStreamEvent> {
+    if (params.signal?.aborted) {
+      return;
+    }
+
     const client = new Anthropic({
       apiKey: params.apiKey || '',
       timeout: params.timeoutMs ?? 120_000,
@@ -52,7 +57,7 @@ export class AnthropicAiProviderAdapter implements AiProviderAdapter {
               type: 'tool_use',
               id: tc.id,
               name: tc.name,
-              input: JSON.parse(tc.arguments),
+              input: parseToolCallArguments(tc.arguments),
             });
           }
         }
@@ -83,55 +88,75 @@ export class AnthropicAiProviderAdapter implements AiProviderAdapter {
       system: params.systemPrompt,
       messages,
       ...(tools.length > 0 ? { tools } : {}),
-    });
+    }, params.signal ? { signal: params.signal } : undefined);
 
     let currentToolId: string | null = null;
 
-    for await (const event of stream) {
-      switch (event.type) {
-        case 'content_block_start': {
-          const block = event.content_block;
-          if (block.type === 'tool_use') {
-            currentToolId = block.id;
-            yield { type: 'tool_call_start', id: block.id, name: block.name };
+    try {
+      for await (const event of stream) {
+        switch (event.type) {
+          case 'content_block_start': {
+            const block = event.content_block;
+            if (block.type === 'tool_use') {
+              currentToolId = block.id;
+              yield { type: 'tool_call_start', id: block.id, name: block.name };
+            }
+            break;
           }
-          break;
-        }
-        case 'content_block_delta': {
-          const delta = event.delta;
-          if (delta.type === 'text_delta') {
-            yield { type: 'text_delta', text: delta.text };
-          } else if (delta.type === 'input_json_delta' && currentToolId) {
-            yield { type: 'tool_call_delta', id: currentToolId, arguments: delta.partial_json };
+          case 'content_block_delta': {
+            const delta = event.delta;
+            if (delta.type === 'text_delta') {
+              yield { type: 'text_delta', text: delta.text };
+            } else if (delta.type === 'input_json_delta' && currentToolId) {
+              yield { type: 'tool_call_delta', id: currentToolId, arguments: delta.partial_json };
+            }
+            break;
           }
-          break;
-        }
-        case 'content_block_stop': {
-          if (currentToolId) {
-            yield { type: 'tool_call_end', id: currentToolId };
-            currentToolId = null;
+          case 'content_block_stop': {
+            if (currentToolId) {
+              yield { type: 'tool_call_end', id: currentToolId };
+              currentToolId = null;
+            }
+            break;
           }
-          break;
-        }
-        case 'message_delta': {
-          const usage = (event as any).usage;
-          if (event.delta?.stop_reason === 'end_turn' || event.delta?.stop_reason === 'tool_use') {
-            // Usage comes from message_delta
+          case 'message_delta': {
+            if (event.delta?.stop_reason === 'end_turn' || event.delta?.stop_reason === 'tool_use') {
+              // Usage comes from message_delta
+            }
+            break;
           }
-          break;
+          default:
+            break;
         }
-        default:
-          break;
       }
+    } catch (error) {
+      if (params.signal?.aborted || isAbortError(error)) {
+        return;
+      }
+      throw error;
     }
 
-    const finalMessage = await stream.finalMessage();
-    yield {
-      type: 'done',
-      usage: {
-        input_tokens: finalMessage.usage?.input_tokens ?? 0,
-        output_tokens: finalMessage.usage?.output_tokens ?? 0,
-      },
-    };
+    if (params.signal?.aborted) {
+      return;
+    }
+
+    try {
+      const finalMessage = await stream.finalMessage();
+      yield {
+        type: 'done',
+        usage: {
+          input_tokens: finalMessage.usage?.input_tokens ?? 0,
+          output_tokens: finalMessage.usage?.output_tokens ?? 0,
+        },
+      };
+    } catch (error) {
+      if (params.signal?.aborted || isAbortError(error)) {
+        return;
+      }
+      yield {
+        type: 'error',
+        message: error instanceof Error && error.message.trim() ? error.message : 'Anthropic stream failed.',
+      };
+    }
   }
 }

@@ -16,6 +16,7 @@ import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import { useQueryClient } from '@tanstack/react-query';
 import ReportLayout from '../../components/reports/ReportLayout';
+import { useTranslation } from 'react-i18next';
 import AgGridBox from '../../components/AgGridBox';
 import {
   AllocationCopyOperation,
@@ -42,6 +43,7 @@ function formatActionLabel(action: AllocationCopyResult['action']) {
 }
 
 export default function CopyAllocationsPage() {
+  const { t } = useTranslation(['ops']);
   const theme = useTheme();
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -147,7 +149,7 @@ export default function CopyAllocationsPage() {
       setSummary(response.summary);
     } catch (error) {
       console.error('Dry run failed', error);
-      alert('Dry run failed. Check the console for details.');
+      alert(t('operations.copyAllocations.dryRunFailed'));
     } finally {
       setIsProcessing(false);
     }
@@ -163,13 +165,13 @@ export default function CopyAllocationsPage() {
     setIsProcessing(true);
     try {
       const response = await copyAllocations(payload);
-      alert(`Copy completed.\nProcessed: ${response.summary.processed}\nSkipped: ${response.summary.skipped}\nErrors: ${response.summary.errors}`);
+      alert(t('operations.copyAllocations.copyCompleted', { processed: response.summary.processed, skipped: response.summary.skipped, errors: response.summary.errors }));
       await queryClient.invalidateQueries({ queryKey: ['spend-items-summary'] });
       setPreviewData([]);
       setSummary(null);
     } catch (error) {
       console.error('Copy failed', error);
-      alert('Copy failed. Check the console for details.');
+      alert(t('operations.copyAllocations.copyFailed'));
     } finally {
       setIsProcessing(false);
     }
@@ -177,8 +179,8 @@ export default function CopyAllocationsPage() {
 
   return (
     <ReportLayout
-      title="Copy Allocations"
-      subtitle="Copy allocation methods and percentages from one year to another for all OPEX items"
+      title={t('operations.copyAllocations.title')}
+      subtitle={t('operations.copyAllocations.subtitle')}
       filters={
         <>
           <TextField
@@ -227,7 +229,7 @@ export default function CopyAllocationsPage() {
                 size="small"
               />
             }
-            label="Overwrite existing data"
+            label={t('operations.copyAllocations.overwriteExisting')}
           />
         </>
       }
@@ -238,14 +240,14 @@ export default function CopyAllocationsPage() {
             onClick={handleDryRun}
             disabled={isProcessing || isSameYear}
           >
-            {isProcessing ? 'Processing...' : 'Dry Run'}
+            {isProcessing ? t('operations.copyAllocations.processing') : t('operations.copyAllocations.dryRun')}
           </Button>
           <Button
             variant="contained"
             onClick={handleCopy}
             disabled={isProcessing || previewData.length === 0 || isSameYear}
           >
-            {isProcessing ? 'Processing...' : 'Copy Data'}
+            {isProcessing ? t('operations.copyAllocations.processing') : t('operations.copyAllocations.copyData')}
           </Button>
         </Stack>
       }
@@ -253,7 +255,7 @@ export default function CopyAllocationsPage() {
     >
       <Stack direction="column" spacing={2} alignItems="stretch">
         {isSameYear && (
-          <Alert severity="warning">Source and destination years must be different.</Alert>
+          <Alert severity="warning">{t('operations.copyAllocations.sameYearWarning')}</Alert>
         )}
 
         {summary && (

@@ -4,15 +4,8 @@ import {
   DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem,
   Select, Stack, TextField,
 } from '@mui/material';
-
-const DECISION_OUTCOMES = [
-  { value: '', label: '— Select outcome —' },
-  { value: 'go', label: 'Go' },
-  { value: 'no_go', label: 'No-Go' },
-  { value: 'defer', label: 'Defer' },
-  { value: 'need_info', label: 'Need Info' },
-  { value: 'analysis_complete', label: 'Analysis Complete' },
-];
+import { useTranslation } from 'react-i18next';
+import { getDecisionOutcomeOptions } from '../../../utils/portfolioI18n';
 
 interface StatusChangeDialogProps {
   open: boolean;
@@ -37,10 +30,18 @@ export default function StatusChangeDialog({
   onConfirm,
   onCancel,
 }: StatusChangeDialogProps) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [isDecision, setIsDecision] = useState(false);
   const [outcome, setOutcome] = useState('');
   const [context, setContext] = useState('');
   const [rationale, setRationale] = useState('');
+  const decisionOutcomes = getDecisionOutcomeOptions(t);
+
+  const formatStatusLabel = (status: string) => t(`portfolio:statuses.project.${status}`, {
+    defaultValue: t(`portfolio:statuses.request.${status}`, {
+      defaultValue: formatStatus(status),
+    }),
+  });
 
   const handleConfirm = useCallback(() => {
     onConfirm({
@@ -67,12 +68,14 @@ export default function StatusChangeDialog({
 
   return (
     <Dialog open={open} onClose={handleCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>Change Status</DialogTitle>
+      <DialogTitle>{t('portfolio:dialogs.statusChange.title')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <Alert severity="info">
-            Status will change from <strong>{formatStatus(currentStatus)}</strong> to{' '}
-            <strong>{formatStatus(newStatus)}</strong>
+            {t('portfolio:dialogs.statusChange.summary', {
+              currentStatus: formatStatusLabel(currentStatus),
+              newStatus: formatStatusLabel(newStatus),
+            })}
           </Alert>
 
           <FormControlLabel
@@ -82,35 +85,40 @@ export default function StatusChangeDialog({
                 onChange={(e) => setIsDecision(e.target.checked)}
               />
             }
-            label="Log as formal decision (e.g., CAB decision)"
+            label={t('portfolio:dialogs.statusChange.formalDecision')}
           />
 
           {isDecision && (
             <>
               <FormControl fullWidth required>
-                <InputLabel id="decision-outcome-label">Decision Outcome</InputLabel>
+                <InputLabel id="decision-outcome-label">
+                  {t('portfolio:dialogs.statusChange.fields.decisionOutcome')}
+                </InputLabel>
                 <Select
                   labelId="decision-outcome-label"
                   value={outcome}
-                  label="Decision Outcome"
+                  label={t('portfolio:dialogs.statusChange.fields.decisionOutcome')}
                   onChange={(e) => setOutcome(e.target.value)}
                 >
-                  {DECISION_OUTCOMES.map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value} disabled={opt.value === ''}>
+                  <MenuItem value="" disabled>
+                    {t('portfolio:dialogs.statusChange.fields.selectOutcome')}
+                  </MenuItem>
+                  {decisionOutcomes.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
               <TextField
-                label="Meeting / Context"
-                placeholder="e.g., CAB Meeting 2024-12-15"
+                label={t('portfolio:dialogs.statusChange.fields.meetingContext')}
+                placeholder={t('portfolio:dialogs.statusChange.fields.meetingContextPlaceholder')}
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
                 fullWidth
               />
               <TextField
-                label="Rationale / Notes"
+                label={t('portfolio:dialogs.statusChange.fields.rationaleNotes')}
                 value={rationale}
                 onChange={(e) => setRationale(e.target.value)}
                 multiline
@@ -122,9 +130,9 @@ export default function StatusChangeDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleCancel}>Cancel</Button>
+        <Button onClick={handleCancel}>{t('common:buttons.cancel')}</Button>
         <Button variant="contained" onClick={handleConfirm}>
-          Confirm
+          {t('portfolio:dialogs.statusChange.actions.confirm')}
         </Button>
       </DialogActions>
     </Dialog>

@@ -87,7 +87,13 @@ export function adaptFilters(
           ? [rawValue]
           : [];
       if (values.length > 0) {
-        adapted = { filterType: 'set', values };
+        const allowed = Array.isArray(field.values) ? new Set(field.values) : null;
+        const filteredValues = allowed
+          ? values.filter((value) => allowed.has(value))
+          : values;
+        if (filteredValues.length > 0) {
+          adapted = { filterType: 'set', values: filteredValues };
+        }
       }
     } else if (field.type === 'text') {
       if (typeof rawValue === 'string' && rawValue.trim()) {

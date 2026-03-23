@@ -28,6 +28,8 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import api from '../../../api';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 const ENV_OPTIONS = [
   { value: 'prod', label: 'Prod' },
   { value: 'pre_prod', label: 'Pre-prod' },
@@ -89,6 +91,7 @@ type InstanceDialogProps = {
 };
 
 function InstanceDialog({ open, onClose, onSave, draft, setDraft, mode, instances }: InstanceDialogProps) {
+  const { t } = useTranslation(['it', 'common']);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const { byField } = useItOpsEnumOptions();
@@ -128,7 +131,7 @@ function InstanceDialog({ open, onClose, onSave, draft, setDraft, mode, instance
       await onSave(draft);
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save instance');
+      setError(getApiErrorMessage(e, t, t('messages.saveInstanceFailed')));
     } finally {
       setSaving(false);
     }
@@ -192,14 +195,15 @@ function InstanceDialog({ open, onClose, onSave, draft, setDraft, mode, instance
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={saving}>Cancel</Button>
-        <Button variant="contained" onClick={() => void handleSubmit()} disabled={saving || duplicateEnv}>Save</Button>
+        <Button onClick={onClose} disabled={saving}>{t('common:buttons.cancel')}</Button>
+        <Button variant="contained" onClick={() => void handleSubmit()} disabled={saving || duplicateEnv}>{t('common:buttons.save')}</Button>
       </DialogActions>
     </Dialog>
   );
 }
 
 export default function InstancesEditor({ applicationId, instances, onRefresh, readOnly }: InstancesEditorProps) {
+  const { t } = useTranslation(['it', 'common']);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<'create' | 'edit'>('create');
   const [draft, setDraft] = React.useState<InstanceDraft>(() => createDraft(undefined));
@@ -253,7 +257,7 @@ export default function InstancesEditor({ applicationId, instances, onRefresh, r
       setMessage('Instance saved');
       await onRefresh();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save instance');
+      setError(getApiErrorMessage(e, t, t('messages.saveInstanceFailed')));
       throw e;
     }
   };
@@ -266,7 +270,7 @@ export default function InstancesEditor({ applicationId, instances, onRefresh, r
       setMessage('Instance removed');
       await onRefresh();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to delete instance');
+      setError(getApiErrorMessage(e, t, t('messages.deleteInstanceFailed')));
     }
   };
 
@@ -287,7 +291,7 @@ export default function InstancesEditor({ applicationId, instances, onRefresh, r
       setSelected(new Set());
       await onRefresh();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Bulk update failed');
+      setError(getApiErrorMessage(e, t, t('messages.bulkUpdateFailed')));
     }
   };
 
@@ -365,8 +369,8 @@ export default function InstancesEditor({ applicationId, instances, onRefresh, r
               </TableCell>
               <TableCell>{labelFor('lifecycleStatus', instance.lifecycle) || (instance.lifecycle || '—')}</TableCell>
               <TableCell sx={{ whiteSpace: 'pre-line' }}>{instance.notes?.trim() ? instance.notes : '—'}</TableCell>
-              <TableCell>{instance.sso_enabled ? 'Yes' : 'No'}</TableCell>
-              <TableCell>{instance.mfa_supported ? 'Yes' : 'No'}</TableCell>
+              <TableCell>{instance.sso_enabled ? t('enums.yesNo.yes') : t('enums.yesNo.no')}</TableCell>
+              <TableCell>{instance.mfa_supported ? t('enums.yesNo.yes') : t('enums.yesNo.no')}</TableCell>
               {!readOnly && (
                 <TableCell align="right">
                   <Tooltip title="Edit environment">
@@ -415,7 +419,7 @@ export default function InstancesEditor({ applicationId, instances, onRefresh, r
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setBulkDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setBulkDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button
             variant="contained"
             onClick={() => {

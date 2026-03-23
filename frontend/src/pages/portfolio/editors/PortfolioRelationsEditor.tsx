@@ -18,8 +18,10 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 export type PortfolioRelationsEditorHandle = {
   save: () => Promise<void>;
@@ -38,6 +40,7 @@ type LinkItem = {
 type NamedItem = {
   id: string;
   name: string;
+  summary?: string | null;
 };
 
 type AttachmentItem = {
@@ -88,6 +91,11 @@ function sortByName<T extends NamedItem>(items: T[]) {
   return [...items].sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function normalizeSummary(value: unknown): string | null {
+  const text = String(value ?? '').trim();
+  return text ? text : null;
+}
+
 function sameIdList(a: Array<{ id: string }>, b: Array<{ id: string }>) {
   const left = [...a].map((item) => item.id).sort();
   const right = [...b].map((item) => item.id).sort();
@@ -100,6 +108,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
   entityType,
   onDirtyChange,
 }, ref) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel(permissionByType[entityType], 'manager');
   const endpointBase = `${endpointBaseByType[entityType]}/${entityId}`;
@@ -213,6 +222,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
         const items = sortByName((appsRes.value.data?.items || []).map((item: any) => ({
           id: item.id,
           name: item.name || item.id,
+          summary: normalizeSummary(item.description ?? item.summary),
         })));
         setLinkedApplications(items);
         setBaselineApplications(items);
@@ -233,11 +243,11 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
         setBaselineAssets([]);
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load relations');
+      setError(getApiErrorMessage(e, t, t('editors.relations.messages.loadFailed')));
     } finally {
       setLoading(false);
     }
-  }, [endpointBase]);
+  }, [endpointBase, t]);
 
   React.useEffect(() => {
     void load();
@@ -286,7 +296,11 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
       const params: Record<string, any> = { limit: 50, sort: 'name:ASC' };
       if (query.trim()) params.q = query.trim();
       const res = await api.get(endpoint, { params });
-      setter(sortByName((res.data?.items || []).map((item: any) => ({ id: item.id, name: item.name || item.id }))));
+      setter(sortByName((res.data?.items || []).map((item: any) => ({
+        id: item.id,
+        name: item.name || item.id,
+        summary: endpoint === '/applications' ? normalizeSummary(item.description ?? item.summary) : null,
+      }))));
     } catch {
       setter([]);
     } finally {
@@ -329,12 +343,12 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
       });
       setBaselineLinks(links);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save relations');
+      setError(getApiErrorMessage(e, t, t('editors.relations.messages.saveFailed')));
       throw e;
     } finally {
       setSaving(false);
     }
-  }, [endpointBase, linkedApplications, linkedAssets, linkedCapex, linkedOpex, links, readOnly]);
+  }, [endpointBase, linkedApplications, linkedAssets, linkedCapex, linkedOpex, links, readOnly, t]);
 
   React.useEffect(() => {
     if (!autoSave || !dirty || saving || loading || readOnly) return undefined;
@@ -391,7 +405,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
 
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-            Budget Items
+            {t('editors.relations.sections.budgetItems')}
           </Typography>
           <Stack spacing={1.25}>
             <Autocomplete
@@ -415,8 +429,8 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="OPEX Items"
-                  placeholder="Select OPEX items"
+                  label={t('editors.relations.fields.opexItems')}
+                  placeholder={t('editors.relations.placeholders.opexItems')}
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
@@ -455,8 +469,8 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="CAPEX Items"
-                  placeholder="Select CAPEX items"
+                  label={t('editors.relations.fields.capexItems')}
+                  placeholder={t('editors.relations.placeholders.capexItems')}
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
@@ -478,7 +492,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
 
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-            Apps & Assets
+            {t('editors.relations.sections.appsAndAssets')}
           </Typography>
           <Stack spacing={1.25}>
             <Autocomplete
@@ -498,12 +512,29 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                   void loadNamedOptions('/applications', value, setApplicationOptions, setLoadingApplications);
                 }
               }}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  <Box sx={{ minWidth: 0, py: 0.25 }}>
+                    <Typography variant="body2">{option.name}</Typography>
+                    {option.summary ? (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: 'block', whiteSpace: 'normal' }}
+                      >
+                        {option.summary}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                </li>
+              )}
               renderTags={(value, getTagProps) => value.map((option, index) => (
                 <Chip
                   {...getTagProps({ index })}
                   key={option.id}
                   label={option.name}
                   size="small"
+                  title={option.summary || option.name}
                   onClick={() => window.open(`/it/applications/${option.id}/overview`, '_self')}
                   clickable
                 />
@@ -511,8 +542,8 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Applications"
-                  placeholder="Search applications"
+                  label={t('activity.history.fields.applications')}
+                  placeholder={t('editors.relations.placeholders.applications')}
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
@@ -529,6 +560,20 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
               disabled={saving || readOnly}
               fullWidth
             />
+            {linkedApplications.some((item) => item.summary) && (
+              <Stack spacing={0.75} sx={{ mt: -0.25 }}>
+                {linkedApplications.map((item) => item.summary ? (
+                  <Box key={`${item.id}-summary`}>
+                    <Typography variant="caption" sx={{ display: 'block', fontWeight: 600 }}>
+                      {item.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      {item.summary}
+                    </Typography>
+                  </Box>
+                ) : null)}
+              </Stack>
+            )}
 
             <Autocomplete
               multiple
@@ -560,8 +605,8 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Assets"
-                  placeholder="Search assets"
+                  label={t('activity.history.fields.assets')}
+                  placeholder={t('editors.relations.placeholders.assets')}
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
@@ -584,11 +629,11 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
         <Box>
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              External links
+              {t('editors.relations.sections.externalLinks')}
             </Typography>
             {!readOnly && (
               <Button size="small" startIcon={<AddIcon />} onClick={() => setLinkDialogOpen(true)}>
-                Add URL
+                {t('editors.relations.actions.addUrl')}
               </Button>
             )}
           </Stack>
@@ -627,7 +672,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                     {!readOnly && (
                       <IconButton
                         size="small"
-                        aria-label="delete-link"
+                        aria-label={t('editors.relations.actions.deleteLink')}
                         onClick={() => setLinks((prev) => prev.filter((_, currentIndex) => currentIndex !== index))}
                       >
                         <DeleteIcon fontSize="small" />
@@ -639,14 +684,14 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
             </Stack>
           ) : (
             <Typography variant="body2" color="text.secondary">
-              No external links added.
+              {t('editors.relations.states.noExternalLinks')}
             </Typography>
           )}
         </Box>
 
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-            Attachments
+            {t('editors.relations.sections.attachments')}
           </Typography>
           <Stack spacing={1}>
             <Box
@@ -670,11 +715,11 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
               }}
             >
               <Typography variant="body2" color="text.secondary">
-                Drag & drop files here, or use the button to select
+                {t('editors.relations.messages.dragDropFiles')}
               </Typography>
               <Box sx={{ mt: 1 }}>
                 <Button component="label" size="small" variant="outlined" disabled={uploading || readOnly}>
-                  Select files
+                  {t('editors.relations.actions.selectFiles')}
                   <input
                     type="file"
                     hidden
@@ -693,7 +738,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
             {uploading && <LinearProgress sx={{ mt: 1 }} />}
             {uploading && (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                Uploading {uploadCount} file{uploadCount === 1 ? '' : 's'}...
+                {t('editors.relations.messages.uploadingFiles', { count: uploadCount })}
               </Typography>
             )}
 
@@ -714,7 +759,11 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                     window.URL.revokeObjectURL(url);
                   }}
                   onDelete={!readOnly ? async () => {
-                    const confirmed = window.confirm(`Delete attachment "${attachment.original_filename}"?`);
+                    const confirmed = window.confirm(
+                      t('editors.relations.confirmations.deleteAttachment', {
+                        name: attachment.original_filename,
+                      }),
+                    );
                     if (!confirmed) return;
                     try {
                       await api.delete(`${endpointBase}/attachments/${attachment.id}`);
@@ -732,20 +781,20 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
       </Stack>
 
       <Dialog open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Add external link</DialogTitle>
+        <DialogTitle>{t('editors.relations.dialogs.addExternalLink.title')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <TextField
               size="small"
-              label="Link description"
-              placeholder="Optional"
+              label={t('editors.relations.fields.linkDescription')}
+              placeholder={t('editors.relations.placeholders.linkDescription')}
               value={linkDraft.label}
               onChange={(event) => setLinkDraft((prev) => ({ ...prev, label: event.target.value }))}
             />
             <TextField
               size="small"
-              label="URL"
-              placeholder="https://example.com"
+              label={t('editors.relations.fields.url')}
+              placeholder={t('editors.relations.placeholders.url')}
               value={linkDraft.url}
               onChange={(event) => setLinkDraft((prev) => ({ ...prev, url: event.target.value }))}
               autoFocus
@@ -753,9 +802,9 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setLinkDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setLinkDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button variant="contained" onClick={addLink} disabled={!String(linkDraft.url || '').trim()}>
-            Add
+            {t('common:buttons.add')}
           </Button>
         </DialogActions>
       </Dialog>

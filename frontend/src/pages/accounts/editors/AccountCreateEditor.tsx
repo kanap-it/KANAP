@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Stack, TextField, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { Controller } from 'react-hook-form';
 import api from '../../../api';
@@ -64,6 +65,7 @@ export default forwardRef<AccountCreateEditorHandle, Props>(function AccountCrea
   ref,
 ) {
   const [saving, setSaving] = React.useState(false);
+  const { t } = useTranslation(['master-data', 'common']);
   const [serverError, setServerError] = React.useState<string | null>(null);
 
   const form = useZodForm<AccountCreateFormValues>({
@@ -94,7 +96,7 @@ export default forwardRef<AccountCreateEditorHandle, Props>(function AccountCrea
         }
       } catch (e: any) {
         if (!active) return;
-        setLoadError(e?.response?.data?.message || e?.message || 'Failed to load Charts of Accounts');
+        setLoadError(e?.response?.data?.message || e?.message || t('accounts.fields.loadCoAsError'));
       } finally {
         if (active) setLoadingCoas(false);
       }
@@ -120,7 +122,7 @@ export default forwardRef<AccountCreateEditorHandle, Props>(function AccountCrea
       if (extractCreatedId) return extractCreatedId(res.data);
       return String(res.data?.id ?? res.data?.uuid ?? null);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to create account';
+      const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToCreate', { entity: t('accounts.entity') });
       setServerError(msg);
       throw e;
     } finally {

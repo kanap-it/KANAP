@@ -9,9 +9,14 @@ export type FeaturesConfig = {
     aiChat: boolean;
     aiMcp: boolean;
     aiSettings: boolean;
+    aiWebSearch: boolean;
   };
   version: string;
   tenantSlug?: string;
+};
+
+type FeaturesConfigResponse = Omit<FeaturesConfig, 'features'> & {
+  features?: Partial<FeaturesConfig['features']>;
 };
 
 const CLOUD_DEFAULTS: FeaturesConfig = {
@@ -23,9 +28,21 @@ const CLOUD_DEFAULTS: FeaturesConfig = {
     aiChat: false,
     aiMcp: false,
     aiSettings: false,
+    aiWebSearch: false,
   },
   version: 'unknown',
 };
+
+function normalizeFeaturesConfig(config: FeaturesConfigResponse | null | undefined): FeaturesConfig {
+  return {
+    ...CLOUD_DEFAULTS,
+    ...config,
+    features: {
+      ...CLOUD_DEFAULTS.features,
+      ...(config?.features || {}),
+    },
+  };
+}
 
 const FeaturesContext = createContext<{ config: FeaturesConfig; isLoading: boolean }>({
   config: CLOUD_DEFAULTS,
@@ -48,8 +65,8 @@ export function FeaturesProvider({ children }: { children: React.ReactNode }) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then((data: FeaturesConfig) => {
-        setConfig(data);
+      .then((data: FeaturesConfigResponse) => {
+        setConfig(normalizeFeaturesConfig(data));
       })
       .catch((err) => {
         if (err.name !== 'AbortError') {

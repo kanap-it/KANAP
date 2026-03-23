@@ -87,6 +87,14 @@ const applyOwnerScopeCondition = (qb: SelectQueryBuilder<Application>, scope: Ow
   );
 };
 
+const applyExplicitTenantConstraint = (
+  qb: SelectQueryBuilder<Application>,
+  tenantId?: string,
+) => {
+  if (!tenantId) return;
+  qb.andWhere('a.tenant_id = :tenantId', { tenantId });
+};
+
 const normalizeSetFilterModel = (model: any): SetFilterModel | null => {
   const normalized = normalizeAgFilterModel(model);
   if (normalized && normalized.filterType === 'set' && Array.isArray(normalized.values)) {
@@ -172,6 +180,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
   async list(query: any, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
+    const tenantId = String(opts?.tenantId || '').trim();
     const { page, limit, skip, sort, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
     const ownerScope = parseOwnerScope(query);
     const includeInactive = parseIncludeInactive(query);
@@ -292,6 +301,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     // Count query
     const qbBase = repo.createQueryBuilder('a');
+    applyExplicitTenantConstraint(qbBase, tenantId);
     if (needsSupplierJoin) qbBase.leftJoin('suppliers', 's', 's.id = a.supplier_id AND s.tenant_id = a.tenant_id');
     if (!includeInactive) {
       qbBase.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
@@ -304,6 +314,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     // Page query
     const qb = repo.createQueryBuilder('a');
+    applyExplicitTenantConstraint(qb, tenantId);
     if (needsSupplierJoin) {
       qb.leftJoin('suppliers', 's', 's.id = a.supplier_id AND s.tenant_id = a.tenant_id');
       qb.addSelect('s.name', 's_name');
@@ -402,6 +413,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
   async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[] }> {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
+    const tenantId = String(opts?.tenantId || '').trim();
     const { sort, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
     const ownerScope = parseOwnerScope(query);
     const includeInactive = parseIncludeInactive(query);
@@ -477,6 +489,9 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     // Build query
     const qb = repo.createQueryBuilder('a').select('a.id');
+    if (tenantId) {
+      qb.andWhere('a.tenant_id = :tenantId', { tenantId });
+    }
     if (!includeInactive) {
       qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
     }
@@ -524,6 +539,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
   async listFilterValues(query: any, opts?: ServiceOpts): Promise<Record<string, Array<string | boolean | null>>> {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
+    const tenantId = String(opts?.tenantId || '').trim();
     const { q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
     const ownerScope = parseOwnerScope(query);
     const includeInactive = parseIncludeInactive(query);
@@ -625,6 +641,9 @@ export class ApplicationsListService extends ApplicationsBaseService {
       needsSupplierJoin: boolean,
     ) => {
       const qb = repo.createQueryBuilder('a');
+      if (tenantId) {
+        qb.andWhere('a.tenant_id = :tenantId', { tenantId });
+      }
       if (needsSupplierJoin) {
         qb.leftJoin('suppliers', 's', 's.id = a.supplier_id AND s.tenant_id = a.tenant_id');
       }

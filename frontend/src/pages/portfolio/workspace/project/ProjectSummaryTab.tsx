@@ -10,6 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
 import IntegratedDocumentEditor, { IntegratedDocumentEditorHandle } from '../../../../components/IntegratedDocumentEditor';
 
@@ -109,8 +110,8 @@ function formatVariance(planned?: string | null, baseline?: string | null) {
   const baselineTime = new Date(baseline).getTime();
   if (!Number.isFinite(plannedTime) || !Number.isFinite(baselineTime)) return null;
   const diff = Math.round((plannedTime - baselineTime) / (1000 * 60 * 60 * 24));
-  if (diff === 0) return 'On track';
-  return diff > 0 ? `${diff} day${diff === 1 ? '' : 's'} later` : `${Math.abs(diff)} day${diff === -1 ? '' : 's'} earlier`;
+  if (diff === 0) return 'on_track';
+  return diff > 0 ? `later:${diff}` : `earlier:${Math.abs(diff)}`;
 }
 
 function formatMd(value: number) {
@@ -130,6 +131,7 @@ export default function ProjectSummaryTab({
   statusColor,
   statusLabel,
 }: ProjectSummaryTabProps) {
+  const { t } = useTranslation('portfolio');
   const [purposeExpanded, setPurposeExpanded] = React.useState(true);
 
   const { data: taskSummary } = useQuery({
@@ -199,7 +201,7 @@ export default function ProjectSummaryTab({
     })[0];
   }, [recentActivities]);
   const latestActivityActor = latestActivity
-    ? [latestActivity?.first_name, latestActivity?.last_name].filter(Boolean).join(' ') || 'Unknown'
+    ? [latestActivity?.first_name, latestActivity?.last_name].filter(Boolean).join(' ') || t('activity.authorUnknown')
     : null;
   const latestActivityAt = formatDateTime(latestActivity?.created_at);
   const latestKnowledgeUpdate = React.useMemo(() => {
@@ -213,6 +215,15 @@ export default function ProjectSummaryTab({
   }, [knowledgeContext?.groups]);
   const scheduleStartVariance = formatVariance(form?.planned_start, form?.baseline_start_date);
   const scheduleEndVariance = formatVariance(form?.planned_end, form?.baseline_end_date);
+  const renderVariance = (variance: string | null) => {
+    if (!variance) return null;
+    if (variance === 'on_track') return t('workspace.project.summary.values.onTrack');
+    const [type, value] = variance.split(':');
+    const count = Number(value) || 0;
+    return type === 'later'
+      ? t('workspace.project.summary.values.daysLater', { count })
+      : t('workspace.project.summary.values.daysEarlier', { count });
+  };
 
   return (
     <Stack spacing={2.5}>
@@ -224,18 +235,20 @@ export default function ProjectSummaryTab({
         }}
       >
         <SummaryCard
-          title="Status Snapshot"
+          title={t('workspace.project.summary.cards.statusSnapshot')}
           action={!isCreate ? (
             <Button size="small" endIcon={<OpenInNewIcon />} onClick={() => onOpenTab('activity')}>
-              Activity
+              {t('activity.tabs.comments')}
             </Button>
           ) : undefined}
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Chip label={statusLabel || 'Draft'} color={statusColor} size="small" />
+            <Chip label={statusLabel || t('workspace.project.summary.values.draft')} color={statusColor} size="small" />
             {!isCreate && form?.priority_score != null && (
               <Chip
-                label={`Priority ${Math.round(form.priority_score)}`}
+                label={t('workspace.project.summary.values.priority', {
+                  value: Math.round(form.priority_score),
+                })}
                 size="small"
                 variant="outlined"
                 color={form?.priority_override ? 'warning' : 'default'}
@@ -243,7 +256,7 @@ export default function ProjectSummaryTab({
             )}
             {!isCreate && activePhase?.name && (
               <Chip
-                label={`Phase: ${activePhase.name}`}
+                label={t('workspace.project.summary.values.phase', { name: activePhase.name })}
                 size="small"
                 variant="outlined"
                 color={activePhase.status === 'completed' ? 'success' : activePhase.status === 'in_progress' ? 'primary' : 'default'}
@@ -253,7 +266,7 @@ export default function ProjectSummaryTab({
           <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
               <Typography variant="body2" color="text.secondary">
-                Execution progress
+                {t('workspace.project.summary.fields.executionProgress')}
               </Typography>
               <Typography variant="body2">{progressValue}%</Typography>
             </Stack>
@@ -265,108 +278,130 @@ export default function ProjectSummaryTab({
           </Box>
           <Typography variant="body2" color="text.secondary">
             {form?.actual_start
-              ? `Started ${formatDate(form.actual_start) || 'recently'}`
+              ? t('workspace.project.summary.values.started', {
+                date: formatDate(form.actual_start) || t('workspace.project.summary.values.recently'),
+              })
               : form?.planned_start
-                ? `Planned to start ${formatDate(form.planned_start)}`
-                : 'No start date set yet.'}
+                ? t('workspace.project.summary.values.plannedToStart', {
+                  date: formatDate(form.planned_start),
+                })
+                : t('workspace.project.summary.values.noStartDate')}
           </Typography>
         </SummaryCard>
 
         <SummaryCard
-          title="Delivery Snapshot"
+          title={t('workspace.project.summary.cards.deliverySnapshot')}
           action={!isCreate ? (
             <Button size="small" endIcon={<OpenInNewIcon />} onClick={() => onOpenTab('timeline')}>
-              Timeline
+              {t('workspace.project.tabs.timeline')}
             </Button>
           ) : undefined}
         >
           <Stack spacing={1}>
             <Typography variant="body2">
-              Planned window: {formatDate(form?.planned_start) || 'Not set'} to {formatDate(form?.planned_end) || 'Not set'}
+              {t('workspace.project.summary.values.plannedWindow', {
+                start: formatDate(form?.planned_start) || t('workspace.project.summary.values.notSet'),
+                end: formatDate(form?.planned_end) || t('workspace.project.summary.values.notSet'),
+              })}
             </Typography>
             {(scheduleStartVariance || scheduleEndVariance) ? (
               <Stack spacing={0.5}>
                 {scheduleStartVariance && (
                   <Typography variant="body2" color="text.secondary">
-                    Start variance: {scheduleStartVariance}
+                    {t('workspace.project.summary.values.startVariance', {
+                      value: renderVariance(scheduleStartVariance),
+                    })}
                   </Typography>
                 )}
                 {scheduleEndVariance && (
                   <Typography variant="body2" color="text.secondary">
-                    End variance: {scheduleEndVariance}
+                    {t('workspace.project.summary.values.endVariance', {
+                      value: renderVariance(scheduleEndVariance),
+                    })}
                   </Typography>
                 )}
               </Stack>
             ) : (
               <Typography variant="body2" color="text.secondary">
-                Baseline comparison will appear after the project moves into execution.
+                {t('workspace.project.summary.values.baselineComparisonPending')}
               </Typography>
             )}
             {form?.actual_end && (
               <Typography variant="body2" color="text.secondary">
-                Actual completion: {formatDate(form.actual_end)}
+                {t('workspace.project.summary.values.actualCompletion', {
+                  date: formatDate(form.actual_end),
+                })}
               </Typography>
             )}
           </Stack>
         </SummaryCard>
 
         <SummaryCard
-          title="Effort and Tasks"
+          title={t('workspace.project.summary.cards.effortAndTasks')}
           action={!isCreate ? (
             <Button size="small" endIcon={<OpenInNewIcon />} onClick={() => onOpenTab('effort')}>
-              Progress
+              {t('workspace.project.tabs.progress')}
             </Button>
           ) : undefined}
         >
           <Stack spacing={1}>
             <Typography variant="body2">
-              Effort: {formatMd(actualTotal)} / {formatMd(plannedTotal)} MD actual vs planned
+              {t('workspace.project.summary.values.effortTotal', {
+                actual: formatMd(actualTotal),
+                planned: formatMd(plannedTotal),
+              })}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              IT {formatMd(Number(form?.actual_effort_it) || 0)} / {formatMd(Number(form?.estimated_effort_it) || 0)} MD
+              {t('workspace.project.summary.values.effortIt', {
+                actual: formatMd(Number(form?.actual_effort_it) || 0),
+                planned: formatMd(Number(form?.estimated_effort_it) || 0),
+              })}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Business {formatMd(Number(form?.actual_effort_business) || 0)} / {formatMd(Number(form?.estimated_effort_business) || 0)} MD
+              {t('workspace.project.summary.values.effortBusiness', {
+                actual: formatMd(Number(form?.actual_effort_business) || 0),
+                planned: formatMd(Number(form?.estimated_effort_business) || 0),
+              })}
             </Typography>
             <DividerLine />
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip size="small" label={`Active ${activeTaskCount}`} />
-              <Chip size="small" variant="outlined" label={`In Progress ${inProgressTaskCount}`} />
-              <Chip size="small" variant="outlined" label={`Pending ${pendingTaskCount}`} />
-              <Chip size="small" color="success" variant="outlined" label={`Done ${doneTaskCount}`} />
+              <Chip size="small" label={t('workspace.project.summary.values.activeTasks', { count: activeTaskCount })} />
+              <Chip size="small" variant="outlined" label={t('workspace.project.summary.values.inProgressTasks', { count: inProgressTaskCount })} />
+              <Chip size="small" variant="outlined" label={t('workspace.project.summary.values.pendingTasks', { count: pendingTaskCount })} />
+              <Chip size="small" color="success" variant="outlined" label={t('workspace.project.summary.values.doneTasks', { count: doneTaskCount })} />
               {cancelledTaskCount > 0 && (
-                <Chip size="small" color="default" variant="outlined" label={`Cancelled ${cancelledTaskCount}`} />
+                <Chip size="small" color="default" variant="outlined" label={t('workspace.project.summary.values.cancelledTasks', { count: cancelledTaskCount })} />
               )}
             </Stack>
           </Stack>
         </SummaryCard>
 
         <SummaryCard
-          title="Team and Relations"
+          title={t('workspace.project.summary.cards.teamAndRelations')}
           action={!isCreate ? (
             <Button size="small" endIcon={<OpenInNewIcon />} onClick={() => onOpenTab('tasks')}>
-              Tasks
+              {t('workspace.project.tabs.tasks')}
             </Button>
           ) : undefined}
         >
           <Stack spacing={1.25}>
             <Typography variant="body2">
-              {filledKeyRoles} of 4 key roles assigned
+              {t('workspace.project.summary.values.keyRolesAssigned', { count: filledKeyRoles })}
             </Typography>
             <Typography variant="body2">
-              {contributorCount} contributor{contributorCount === 1 ? '' : 's'} linked across business and IT teams
+              {t('workspace.project.summary.values.contributorsLinked', { count: contributorCount })}
             </Typography>
             <Typography variant="body2">
-              {dependencyCount} dependenc{dependencyCount === 1 ? 'y' : 'ies'} tracked
+              {t('workspace.project.summary.values.dependenciesTracked', { count: dependencyCount })}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {sourceRequestCount > 0
-                ? `${sourceRequestCount} source request${sourceRequestCount === 1 ? '' : 's'} linked`
-                : 'No source requests linked'}
+                ? t('workspace.project.summary.values.sourceRequestsLinked', { count: sourceRequestCount })
+                : t('workspace.project.summary.values.noSourceRequests')}
             </Typography>
             {form?.department?.name && (
               <Typography variant="body2" color="text.secondary">
-                Department: {form.department.name}
+                {t('workspace.project.summary.values.department', { name: form.department.name })}
               </Typography>
             )}
           </Stack>
@@ -380,12 +415,12 @@ export default function ProjectSummaryTab({
           collapsible
           entityType="projects"
           entityId={isCreate ? null : id}
-          headerTitle={<Typography variant="h6" sx={{ fontWeight: 600 }}>Purpose</Typography>}
+          headerTitle={<Typography variant="h6" sx={{ fontWeight: 600 }}>{t('workspace.project.summary.cards.purpose')}</Typography>}
           slotKey="purpose"
-          label="Purpose"
+          label={t('workspace.project.summary.cards.purpose')}
           hideHeaderLabel
           onToggleCollapsed={() => setPurposeExpanded((prev) => !prev)}
-          placeholder="Describe the purpose of this project..."
+          placeholder={t('workspace.project.summary.placeholders.purpose')}
           minRows={14}
           maxRows={26}
           disabled={!canEditManagedDocs}
@@ -404,37 +439,41 @@ export default function ProjectSummaryTab({
         }}
       >
         <SummaryCard
-          title="Knowledge Summary"
+          title={t('workspace.project.summary.cards.knowledgeSummary')}
           action={!isCreate ? (
             <Button size="small" endIcon={<OpenInNewIcon />} onClick={() => onOpenTab('knowledge')}>
-              Knowledge
+              {t('workspace.project.tabs.knowledge')}
             </Button>
           ) : undefined}
         >
           {isCreate ? (
             <Typography variant="body2" color="text.secondary">
-              Knowledge links become available after the first save.
+              {t('workspace.project.summary.values.knowledgeAfterSave')}
             </Typography>
           ) : (
             <Stack spacing={1}>
               <Typography variant="body2">
-                {(directKnowledgeGroup?.total || 0)} linked document{directKnowledgeGroup?.total === 1 ? '' : 's'}
-                {relatedKnowledgeCount > 0 ? ` • ${relatedKnowledgeCount} related` : ''}
+                {t('workspace.project.summary.values.knowledgeDocuments', {
+                  count: directKnowledgeGroup?.total || 0,
+                  related: relatedKnowledgeCount > 0
+                    ? ` • ${t('workspace.project.summary.values.relatedCount', { count: relatedKnowledgeCount })}`
+                    : '',
+                })}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {latestKnowledgeUpdate
-                  ? `Latest update ${latestKnowledgeUpdate}`
-                  : 'No standalone knowledge activity yet.'}
+                  ? t('workspace.project.summary.values.latestKnowledgeUpdate', { date: latestKnowledgeUpdate })
+                  : t('workspace.project.summary.values.noKnowledgeActivity')}
               </Typography>
             </Stack>
           )}
         </SummaryCard>
 
         <SummaryCard
-          title="Recent Activity"
+          title={t('workspace.project.summary.cards.recentActivity')}
           action={!isCreate ? (
             <Button size="small" endIcon={<OpenInNewIcon />} onClick={() => onOpenTab('activity')}>
-              Activity
+              {t('activity.tabs.comments')}
             </Button>
           ) : undefined}
         >
@@ -442,7 +481,9 @@ export default function ProjectSummaryTab({
             {latestActivity ? (
               <>
                 <Typography variant="body2">
-                  Latest entry by {latestActivityActor || 'Unknown'}
+                  {t('workspace.project.summary.values.latestEntryBy', {
+                    actor: latestActivityActor || t('activity.authorUnknown'),
+                  })}
                 </Typography>
                 {latestActivityAt && (
                   <Typography variant="body2" color="text.secondary">
@@ -451,7 +492,7 @@ export default function ProjectSummaryTab({
                 )}
               </>
             ) : (
-              <Typography variant="body2">No activity yet.</Typography>
+              <Typography variant="body2">{t('workspace.project.summary.values.noActivity')}</Typography>
             )}
           </Stack>
         </SummaryCard>

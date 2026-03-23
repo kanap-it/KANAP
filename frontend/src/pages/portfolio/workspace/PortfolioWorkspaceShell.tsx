@@ -12,6 +12,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import { useTranslation } from 'react-i18next';
 
 export type PortfolioWorkspaceShellTab = {
   key: string;
@@ -47,10 +48,11 @@ export default function PortfolioWorkspaceShell({
   sidebarMaxWidth = 440,
   sidebarMinWidth = 280,
   sidebarStorageKey,
-  sidebarTitle = 'Properties',
+  sidebarTitle,
   tabs,
 }: PortfolioWorkspaceShellProps) {
   const theme = useTheme();
+  const { t } = useTranslation('portfolio');
   const isNarrow = useMediaQuery(theme.breakpoints.down('md'));
   const [mobilePanelOpen, setMobilePanelOpen] = React.useState(false);
   const [sidebarWidth, setSidebarWidth] = React.useState(() => {
@@ -63,6 +65,7 @@ export default function PortfolioWorkspaceShell({
   });
   const [isResizing, setIsResizing] = React.useState(false);
   const sidebarRef = React.useRef<HTMLDivElement | null>(null);
+  const resolvedSidebarTitle = sidebarTitle ?? t('workspace.sidebarTitle');
 
   React.useEffect(() => {
     if (!isNarrow) {
@@ -115,9 +118,9 @@ export default function PortfolioWorkspaceShell({
         sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}
       >
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-          {sidebarTitle}
+          {resolvedSidebarTitle}
         </Typography>
-        <IconButton size="small" onClick={() => setMobilePanelOpen(false)} title="Close properties">
+        <IconButton size="small" onClick={() => setMobilePanelOpen(false)} title={t('workspace.closeProperties')}>
           <ChevronLeftIcon />
         </IconButton>
       </Stack>
@@ -160,8 +163,8 @@ export default function PortfolioWorkspaceShell({
               <IconButton
                 size="small"
                 onClick={() => setMobilePanelOpen(true)}
-                title="Open properties"
-                aria-label="Open properties"
+                title={t('workspace.openProperties')}
+                aria-label={t('workspace.openProperties')}
               >
                 <MenuOpenIcon />
               </IconButton>

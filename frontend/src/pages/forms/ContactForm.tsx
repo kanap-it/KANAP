@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TFunction } from 'i18next';
 
 const optStr = <T extends z.ZodTypeAny>(schema: T = z.string() as unknown as T) =>
   z.preprocess((v) => {
@@ -16,29 +17,34 @@ export const SUPPLIER_CONTACT_ROLE_OPTIONS = [
   { value: 'other', label: 'Other' },
 ] as const;
 
-export const contactFormSchema = z.object({
-  first_name: optStr(z.string().max(200)),
-  last_name: optStr(z.string().max(200)),
-  job_title: optStr(z.string().max(200)),
-  email: z.string().email('Valid email is required').max(320),
-  phone: optStr(z.string().max(100)).refine((v) => !v || e164Regex.test(v.replace(/\s+/g, '')), {
-    message: 'Invalid phone number format',
-  }),
-  mobile: optStr(z.string().max(100)).refine((v) => !v || e164Regex.test(v.replace(/\s+/g, '')), {
-    message: 'Invalid mobile number format',
-  }),
-  country: optStr(z.string().length(2, 'Use 2-letter ISO code')),
-  supplier_id: optStr(z.string().uuid()),
-  supplier_role: optStr(z.enum(['commercial', 'technical', 'support', 'other'])),
-  notes: optStr(z.string().max(2000)),
-  active: z.boolean().default(true),
-}).superRefine((values, ctx) => {
-  if (values.supplier_id && !values.supplier_role) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Select a contact type for this supplier', path: ['supplier_role'] });
-  }
-  if (values.supplier_role && !values.supplier_id) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Choose a supplier to set the contact type', path: ['supplier_id'] });
-  }
-});
+export function createContactFormSchema(t: TFunction) {
+  return z.object({
+    first_name: optStr(z.string().max(200)),
+    last_name: optStr(z.string().max(200)),
+    job_title: optStr(z.string().max(200)),
+    email: z.string().email(t('master-data:formSchemas.contact.emailRequired')).max(320),
+    phone: optStr(z.string().max(100)).refine((v) => !v || e164Regex.test(v.replace(/\s+/g, '')), {
+      message: t('master-data:formSchemas.contact.invalidPhone'),
+    }),
+    mobile: optStr(z.string().max(100)).refine((v) => !v || e164Regex.test(v.replace(/\s+/g, '')), {
+      message: t('master-data:formSchemas.contact.invalidMobile'),
+    }),
+    country: optStr(z.string().length(2, t('master-data:formSchemas.contact.countryCodeLength'))),
+    supplier_id: optStr(z.string().uuid()),
+    supplier_role: optStr(z.enum(['commercial', 'technical', 'support', 'other'])),
+    notes: optStr(z.string().max(2000)),
+    active: z.boolean().default(true),
+  }).superRefine((values, ctx) => {
+    if (values.supplier_id && !values.supplier_role) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('master-data:formSchemas.contact.selectContactType'), path: ['supplier_role'] });
+    }
+    if (values.supplier_role && !values.supplier_id) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: t('master-data:formSchemas.contact.chooseSupplier'), path: ['supplier_id'] });
+    }
+  });
+}
+
+/** @deprecated Use createContactFormSchema(t) for i18n support */
+export const contactFormSchema = createContactFormSchema(((key: string) => key) as unknown as TFunction);
 
 export type ContactFormValues = z.infer<typeof contactFormSchema>;

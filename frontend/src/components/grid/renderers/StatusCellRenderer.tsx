@@ -1,6 +1,7 @@
 import React from 'react';
 import { Chip, ChipProps } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Status value mapping configuration
@@ -106,6 +107,8 @@ export function StatusCellRenderer<T = unknown>(
     onClick,
   } = props;
 
+  const { t } = useTranslation('common');
+
   // Get the status value (from statusField if specified, otherwise from value)
   const statusValue = statusField && data
     ? String((data as Record<string, unknown>)[statusField] ?? '')
@@ -116,7 +119,8 @@ export function StatusCellRenderer<T = unknown>(
   }
 
   const config = getStatusConfig(statusValue, statusConfigs);
-  const label = config?.label ?? formatStatusValue(statusValue);
+  const normalizedKey = statusValue.toLowerCase().trim().replace(/\s+/g, '_');
+  const label = t(`statuses.${normalizedKey}`, { defaultValue: config?.label ?? formatStatusValue(statusValue) });
   const color = config?.color ?? 'default';
 
   const handleClick = onClick && data

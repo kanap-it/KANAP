@@ -9,9 +9,11 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 interface SkillProficiency {
   skill_id: string;
@@ -36,14 +38,6 @@ interface TeamMemberConfig {
   notes?: string;
 }
 
-const PROFICIENCY_LABELS: Record<number, string> = {
-  0: 'No knowledge',
-  1: 'Basic / Theoretical',
-  2: 'Can execute with support',
-  3: 'Autonomous',
-  4: 'Expert',
-};
-
 const PROFICIENCY_MARKS = [
   { value: 0, label: '0' },
   { value: 1, label: '1' },
@@ -53,6 +47,7 @@ const PROFICIENCY_MARKS = [
 ];
 
 export default function TeamMemberWorkspacePage() {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -68,6 +63,13 @@ export default function TeamMemberWorkspacePage() {
   const [notes, setNotes] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<SkillProficiency[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const proficiencyLabels = useMemo<Record<number, string>>(() => ({
+    0: t('portfolio:workspace.teamMember.proficiency.0'),
+    1: t('portfolio:workspace.teamMember.proficiency.1'),
+    2: t('portfolio:workspace.teamMember.proficiency.2'),
+    3: t('portfolio:workspace.teamMember.proficiency.3'),
+    4: t('portfolio:workspace.teamMember.proficiency.4'),
+  }), [t]);
 
   // Fetch team member
   const { data: member, isLoading } = useQuery({
@@ -89,7 +91,6 @@ export default function TeamMemberWorkspacePage() {
   });
 
   const allSkills = skillsData?.items || [];
-  const skillsGrouped = skillsData?.grouped || {};
 
   // Initialize form from member data
   useEffect(() => {
@@ -170,25 +171,25 @@ export default function TeamMemberWorkspacePage() {
       queryClient.invalidateQueries({ queryKey: ['portfolio-team-member', id] });
       queryClient.invalidateQueries({ queryKey: ['portfolio-team-members'] });
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('portfolio:workspace.teamMember.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
-  }, [id, projectAvailability, notes, selectedSkills, queryClient]);
+  }, [id, projectAvailability, notes, selectedSkills, queryClient, t]);
 
   // Delete handler
   const handleDelete = useCallback(async () => {
     if (!id) return;
-    if (!confirm('Remove this team member configuration?')) return;
+    if (!confirm(t('portfolio:workspace.teamMember.confirmations.remove'))) return;
 
     try {
       await api.delete(`/portfolio/team-members/${id}`);
       queryClient.invalidateQueries({ queryKey: ['portfolio-team-members'] });
       navigate('/portfolio/team-members');
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete');
+      setError(getApiErrorMessage(e, t, t('portfolio:workspace.teamMember.messages.deleteFailed')));
     }
-  }, [id, navigate, queryClient]);
+  }, [id, navigate, queryClient, t]);
 
   // Group selected skills by category
   const selectedSkillsByCategory = useMemo(() => {
@@ -204,16 +205,19 @@ export default function TeamMemberWorkspacePage() {
   }, [selectedSkills, getSkillById]);
 
   if (isLoading) {
-    return <Typography>Loading...</Typography>;
+    return <Typography>{t('common:status.loading')}</Typography>;
   }
 
   if (!member) {
-    return <Typography>Team member not found</Typography>;
+    return <Typography>{t('portfolio:workspace.teamMember.states.notFound')}</Typography>;
   }
 
   const actions = (
     <Stack direction="row" spacing={1}>
-      <IconButton onClick={() => navigate('/portfolio/team-members')} title="Back to list">
+      <IconButton
+        onClick={() => navigate('/portfolio/team-members')}
+        title={t('portfolio:workspace.teamMember.actions.backToList')}
+      >
         <ArrowBackIcon />
       </IconButton>
       {canEdit && (
@@ -223,14 +227,14 @@ export default function TeamMemberWorkspacePage() {
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? t('common:status.saving') : t('common:buttons.save')}
           </Button>
           <Button
             variant="outlined"
             color="error"
             onClick={handleDelete}
           >
-            Delete
+            {t('common:buttons.delete')}
           </Button>
         </>
       )}
@@ -253,8 +257,8 @@ export default function TeamMemberWorkspacePage() {
         )}
 
         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 3 }}>
-          <Tab label="General" />
-          <Tab label="Skills" />
+          <Tab label={t('portfolio:workspace.teamMember.tabs.general')} />
+          <Tab label={t('portfolio:workspace.teamMember.tabs.skills')} />
         </Tabs>
 
         {/* General Tab */}
@@ -263,7 +267,7 @@ export default function TeamMemberWorkspacePage() {
             <Card>
               <CardContent>
                 <Typography variant="subtitle2" gutterBottom>
-                  Project Availability (days per month)
+                  {t('portfolio:workspace.teamMember.sections.projectAvailability')}
                 </Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Slider
@@ -277,7 +281,9 @@ export default function TeamMemberWorkspacePage() {
                     sx={{ flex: 1, maxWidth: 400 }}
                   />
                   <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
-                    {projectAvailability} days/month
+                    {t('portfolio:workspace.teamMember.values.daysPerMonth', {
+                      count: projectAvailability,
+                    })}
                   </Typography>
                 </Stack>
               </CardContent>
@@ -285,7 +291,9 @@ export default function TeamMemberWorkspacePage() {
 
             <Card>
               <CardContent>
-                <Typography variant="subtitle2" gutterBottom>Notes</Typography>
+                <Typography variant="subtitle2" gutterBottom>
+                  {t('portfolio:workspace.teamMember.sections.notes')}
+                </Typography>
                 <TextField
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -293,7 +301,7 @@ export default function TeamMemberWorkspacePage() {
                   rows={4}
                   fullWidth
                   disabled={!canEdit}
-                  placeholder="Additional notes about this team member..."
+                  placeholder={t('portfolio:workspace.teamMember.placeholders.notes')}
                 />
               </CardContent>
             </Card>
@@ -305,7 +313,9 @@ export default function TeamMemberWorkspacePage() {
           <Stack spacing={3}>
             <Card>
               <CardContent>
-                <Typography variant="subtitle2" gutterBottom>Add Skill</Typography>
+                <Typography variant="subtitle2" gutterBottom>
+                  {t('portfolio:workspace.teamMember.sections.addSkill')}
+                </Typography>
                 <Autocomplete
                   options={availableSkills}
                   groupBy={(option) => option.category}
@@ -315,7 +325,7 @@ export default function TeamMemberWorkspacePage() {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      placeholder="Search skills..."
+                      placeholder={t('portfolio:workspace.teamMember.placeholders.searchSkills')}
                     />
                   )}
                   disabled={!canEdit}
@@ -326,7 +336,7 @@ export default function TeamMemberWorkspacePage() {
 
             {selectedSkills.length === 0 && (
               <Alert severity="info">
-                No skills selected. Use the field above to add skills.
+                {t('portfolio:workspace.teamMember.states.noSkills')}
               </Alert>
             )}
 
@@ -351,7 +361,7 @@ export default function TeamMemberWorkspacePage() {
                     <Typography variant="subtitle1">
                       {category}
                       <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                        ({skillCount} skill{skillCount !== 1 ? 's' : ''})
+                        {t('portfolio:workspace.teamMember.values.skillCount', { count: skillCount })}
                       </Typography>
                     </Typography>
                     {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -374,7 +384,7 @@ export default function TeamMemberWorkspacePage() {
                               {skill.name}
                             </Typography>
 
-                            <Tooltip title={PROFICIENCY_LABELS[sp.proficiency]} placement="top">
+                            <Tooltip title={proficiencyLabels[sp.proficiency]} placement="top">
                               <Box sx={{ width: 300, flexShrink: 0, mx: 2 }}>
                                 <Slider
                                   value={sp.proficiency}
@@ -384,7 +394,7 @@ export default function TeamMemberWorkspacePage() {
                                   step={1}
                                   marks={PROFICIENCY_MARKS}
                                   valueLabelDisplay="auto"
-                                  valueLabelFormat={(v) => PROFICIENCY_LABELS[v]}
+                                  valueLabelFormat={(v) => proficiencyLabels[v]}
                                   disabled={!canEdit}
                                 />
                               </Box>

@@ -47,6 +47,7 @@ import { useThemeMode } from '../config/ThemeContext';
 import { getDocUrl } from '../utils/docUrls';
 import SubscriptionBanner from './SubscriptionBanner';
 import { useAiCapabilities } from '../ai/useAiCapabilities';
+import { useTranslation } from 'react-i18next';
 
 const drawerWidth = 240;
 
@@ -58,95 +59,9 @@ function isNavItem(entry: NavEntry): entry is NavItem {
   return 'to' in entry;
 }
 
-const operations: NavEntry[] = [
-  { to: '/ops', label: 'Overview', icon: <DashboardIcon /> },
-  { to: '/ops/opex', label: 'OPEX', icon: <AccountBalanceWalletIcon />, resource: 'opex' },
-  { to: '/ops/capex', label: 'CAPEX', icon: <AccountBalanceIcon />, resource: 'capex' },
-  { to: '/ops/contracts', label: 'Contracts', icon: <DescriptionIcon />, resource: 'contracts' },
-  { to: '/ops/reports', label: 'Reporting', icon: <BarChartIcon />, resource: 'reporting' },
-  { to: '/ops/operations', label: 'Administration', icon: <SettingsIcon />, resource: 'opex' },
-];
-
-const masterData: NavEntry[] = [
-  { to: '/master-data', label: 'Master Data Home', icon: <HomeIcon /> },
-  { divider: 'Organization' },
-  { to: '/master-data/companies', label: 'Companies', icon: <BusinessIcon />, resource: 'companies' },
-  { to: '/master-data/departments', label: 'Departments', icon: <AccountTreeIcon />, resource: 'departments' },
-  { divider: 'External Parties' },
-  { to: '/master-data/suppliers', label: 'Suppliers', icon: <LocalShippingIcon />, resource: 'suppliers' },
-  { to: '/master-data/contacts', label: 'Contacts', icon: <PeopleIcon />, resource: 'contacts' },
-  { divider: 'Finance' },
-  { to: '/master-data/coa', label: 'Charts of Accounts', icon: <StorageIcon />, resource: 'accounts' },
-  { to: '/master-data/currency', label: 'Currency', icon: <AttachMoneyIcon />, resource: 'settings' },
-  { divider: 'Classification' },
-  { to: '/master-data/business-processes', label: 'Business Processes', icon: <WorkOutlineIcon />, resource: 'business_processes' },
-  { to: '/master-data/analytics', label: 'Analytics Dimensions', icon: <InsightsIcon />, resource: 'analytics' },
-  { divider: '' },
-  { to: '/master-data/operations', label: 'Administration', icon: <BuildIcon />, resource: 'companies' },
-];
-
-const itOperations: NavEntry[] = [
-  { divider: 'Infrastructure' },
-  { to: '/it/locations', label: 'Locations', icon: <LocationCityIcon />, resource: 'locations' },
-  { to: '/it/assets', label: 'Assets', icon: <DnsIcon />, resource: 'infrastructure' },
-  { to: '/it/connections', label: 'Connections', icon: <LanIcon />, resource: 'infrastructure' },
-  { to: '/it/connection-map', label: 'Connection Map', icon: <LanIcon />, resource: 'infrastructure' },
-  { divider: 'Applications' },
-  { to: '/it/applications', label: 'Applications', icon: <WorkOutlineIcon />, resource: 'applications' },
-  { to: '/it/interfaces', label: 'Interfaces', icon: <HubIcon />, resource: 'applications' },
-  { to: '/it/interface-map', label: 'Interface Map', icon: <AccountTreeIcon />, resource: 'applications' },
-  { divider: '' },
-  { to: '/it/settings', label: 'Settings', icon: <SettingsIcon />, resource: 'settings' },
-];
-
-const portfolioNav: NavEntry[] = [
-  { to: '/portfolio/tasks', label: 'Tasks', icon: <AssignmentIcon />, resource: 'tasks' },
-  { to: '/portfolio/requests', label: 'Requests', icon: <InboxIcon />, resource: 'portfolio_requests' },
-  { to: '/portfolio/projects', label: 'Projects', icon: <AccountTreeIcon />, resource: 'portfolio_projects' },
-  { to: '/portfolio/planning', label: 'Planning', icon: <CalendarMonthIcon />, resource: 'portfolio_planning' },
-  { to: '/portfolio/reports', label: 'Reporting', icon: <AssessmentIcon />, resource: 'portfolio_reports' },
-  { to: '/portfolio/contributors', label: 'Contributors', icon: <PeopleIcon />, resource: 'portfolio_settings' },
-  { to: '/portfolio/settings', label: 'Settings', icon: <SettingsIcon />, resource: 'portfolio_settings' },
-];
-
-const knowledgeNav: NavEntry[] = [];
-
-const tenantAdminNav: NavEntry[] = [
-  { to: '/admin/users', label: 'Users', icon: <PeopleIcon />, resource: 'users' },
-  { to: '/admin/roles', label: 'Roles', icon: <SecurityIcon />, resource: 'users' },
-  { to: '/admin/audit-logs', label: 'Audit Log', icon: <HistoryIcon />, resource: 'users' },
-  { to: '/admin/billing', label: 'Billing', icon: <CreditCardIcon />, resource: 'billing' },
-  { to: '/admin/auth', label: 'Authentication', icon: <AdminPanelSettingsIcon />, resource: 'users' },
-  { to: '/admin/branding', label: 'Branding', icon: <BrushIcon />, resource: 'users' },
-  { to: '/admin/ai', label: 'AI', icon: <AutoAwesomeIcon />, resource: 'ai_settings' },
-];
-
-const platformAdminNav: NavEntry[] = [
-  { to: '/admin/tenants', label: 'Tenants', icon: <ApartmentIcon /> },
-  { to: '/admin/coa-templates', label: 'CoA Templates', icon: <StorageIcon /> },
-  { to: '/admin/standard-accounts', label: 'Standard Accounts', icon: <AccountBalanceIcon /> },
-  { divider: '' },
-  { to: '/admin/ops-dashboard', label: 'Ops Dashboard', icon: <MonitorHeartIcon /> },
-  { to: '/admin/scheduled-tasks', label: 'Scheduled Tasks', icon: <ScheduleIcon /> },
-];
-
 // Helper to extract resource strings from a nav array (filtering out dividers)
 const getNavResources = (entries: NavEntry[]): string[] =>
   [...new Set(entries.filter(isNavItem).map(i => i.resource).filter(Boolean) as string[])];
-
-// Helper to check if user has ANY permission for resources in a workspace
-const getWorkspaceResources = (ws: string): string[] => {
-  switch (ws) {
-    case 'ops': return getNavResources(operations);
-    case 'master-data': return getNavResources(masterData);
-    case 'it': return getNavResources(itOperations);
-    case 'portfolio': return getNavResources(portfolioNav);
-    case 'ai': return ['ai_chat'];
-    case 'knowledge': return ['knowledge'];
-    case 'admin': return getNavResources(tenantAdminNav);
-    default: return [];
-  }
-};
 
 export default function Layout() {
   const location = useLocation();
@@ -156,7 +71,94 @@ export default function Layout() {
   const { config } = useFeatures();
   const { mode, resolvedMode, setMode } = useThemeMode();
   const aiCapabilities = useAiCapabilities();
+  const { t } = useTranslation(['nav', 'settings']);
   const isSingleTenant = config.deploymentMode === 'single-tenant';
+
+  const operations: NavEntry[] = [
+    { to: '/ops', label: t('nav:sidebar.ops.overview'), icon: <DashboardIcon /> },
+    { to: '/ops/opex', label: t('nav:sidebar.ops.opex'), icon: <AccountBalanceWalletIcon />, resource: 'opex' },
+    { to: '/ops/capex', label: t('nav:sidebar.ops.capex'), icon: <AccountBalanceIcon />, resource: 'capex' },
+    { to: '/ops/contracts', label: t('nav:sidebar.ops.contracts'), icon: <DescriptionIcon />, resource: 'contracts' },
+    { to: '/ops/reports', label: t('nav:sidebar.ops.reporting'), icon: <BarChartIcon />, resource: 'reporting' },
+    { to: '/ops/operations', label: t('nav:sidebar.ops.administration'), icon: <SettingsIcon />, resource: 'opex' },
+  ];
+
+  const masterData: NavEntry[] = [
+    { to: '/master-data', label: t('nav:sidebar.masterData.home'), icon: <HomeIcon /> },
+    { divider: t('nav:sidebar.masterData.sections.organization') },
+    { to: '/master-data/companies', label: t('nav:sidebar.masterData.companies'), icon: <BusinessIcon />, resource: 'companies' },
+    { to: '/master-data/departments', label: t('nav:sidebar.masterData.departments'), icon: <AccountTreeIcon />, resource: 'departments' },
+    { divider: t('nav:sidebar.masterData.sections.externalParties') },
+    { to: '/master-data/suppliers', label: t('nav:sidebar.masterData.suppliers'), icon: <LocalShippingIcon />, resource: 'suppliers' },
+    { to: '/master-data/contacts', label: t('nav:sidebar.masterData.contacts'), icon: <PeopleIcon />, resource: 'contacts' },
+    { divider: t('nav:sidebar.masterData.sections.finance') },
+    { to: '/master-data/coa', label: t('nav:sidebar.masterData.chartsOfAccounts'), icon: <StorageIcon />, resource: 'accounts' },
+    { to: '/master-data/currency', label: t('nav:sidebar.masterData.currency'), icon: <AttachMoneyIcon />, resource: 'settings' },
+    { divider: t('nav:sidebar.masterData.sections.classification') },
+    { to: '/master-data/business-processes', label: t('nav:sidebar.masterData.businessProcesses'), icon: <WorkOutlineIcon />, resource: 'business_processes' },
+    { to: '/master-data/analytics', label: t('nav:sidebar.masterData.analyticsDimensions'), icon: <InsightsIcon />, resource: 'analytics' },
+    { divider: '' },
+    { to: '/master-data/operations', label: t('nav:sidebar.masterData.administration'), icon: <BuildIcon />, resource: 'companies' },
+  ];
+
+  const itOperations: NavEntry[] = [
+    { divider: t('nav:sidebar.it.sections.infrastructure') },
+    { to: '/it/locations', label: t('nav:sidebar.it.locations'), icon: <LocationCityIcon />, resource: 'locations' },
+    { to: '/it/assets', label: t('nav:sidebar.it.assets'), icon: <DnsIcon />, resource: 'infrastructure' },
+    { to: '/it/connections', label: t('nav:sidebar.it.connections'), icon: <LanIcon />, resource: 'infrastructure' },
+    { to: '/it/connection-map', label: t('nav:sidebar.it.connectionMap'), icon: <LanIcon />, resource: 'infrastructure' },
+    { divider: t('nav:sidebar.it.sections.applications') },
+    { to: '/it/applications', label: t('nav:sidebar.it.applications'), icon: <WorkOutlineIcon />, resource: 'applications' },
+    { to: '/it/interfaces', label: t('nav:sidebar.it.interfaces'), icon: <HubIcon />, resource: 'applications' },
+    { to: '/it/interface-map', label: t('nav:sidebar.it.interfaceMap'), icon: <AccountTreeIcon />, resource: 'applications' },
+    { divider: '' },
+    { to: '/it/settings', label: t('nav:sidebar.it.settings'), icon: <SettingsIcon />, resource: 'settings' },
+  ];
+
+  const portfolioNav: NavEntry[] = [
+    { to: '/portfolio/tasks', label: t('nav:sidebar.portfolio.tasks'), icon: <AssignmentIcon />, resource: 'tasks' },
+    { to: '/portfolio/requests', label: t('nav:sidebar.portfolio.requests'), icon: <InboxIcon />, resource: 'portfolio_requests' },
+    { to: '/portfolio/projects', label: t('nav:sidebar.portfolio.projects'), icon: <AccountTreeIcon />, resource: 'portfolio_projects' },
+    { to: '/portfolio/planning', label: t('nav:sidebar.portfolio.planning'), icon: <CalendarMonthIcon />, resource: 'portfolio_planning' },
+    { to: '/portfolio/reports', label: t('nav:sidebar.portfolio.reporting'), icon: <AssessmentIcon />, resource: 'portfolio_reports' },
+    { to: '/portfolio/contributors', label: t('nav:sidebar.portfolio.contributors'), icon: <PeopleIcon />, resource: 'portfolio_settings' },
+    { to: '/portfolio/settings', label: t('nav:sidebar.portfolio.settings'), icon: <SettingsIcon />, resource: 'portfolio_settings' },
+  ];
+
+  const knowledgeNav: NavEntry[] = [];
+
+  const tenantAdminNav: NavEntry[] = [
+    { to: '/admin/users', label: t('nav:sidebar.admin.users'), icon: <PeopleIcon />, resource: 'users' },
+    { to: '/admin/roles', label: t('nav:sidebar.admin.roles'), icon: <SecurityIcon />, resource: 'users' },
+    { to: '/admin/audit-logs', label: t('nav:sidebar.admin.auditLog'), icon: <HistoryIcon />, resource: 'users' },
+    { to: '/admin/billing', label: t('nav:sidebar.admin.billing'), icon: <CreditCardIcon />, resource: 'billing' },
+    { to: '/admin/auth', label: t('nav:sidebar.admin.authentication'), icon: <AdminPanelSettingsIcon />, resource: 'users' },
+    { to: '/admin/branding', label: t('nav:sidebar.admin.branding'), icon: <BrushIcon />, resource: 'users' },
+    { to: '/admin/ai', label: t('nav:sidebar.admin.ai'), icon: <AutoAwesomeIcon />, resource: 'ai_settings' },
+  ];
+
+  const platformAdminNav: NavEntry[] = [
+    { to: '/admin/tenants', label: t('nav:sidebar.platform.tenants'), icon: <ApartmentIcon /> },
+    { to: '/admin/coa-templates', label: t('nav:sidebar.platform.coaTemplates'), icon: <StorageIcon /> },
+    { to: '/admin/standard-accounts', label: t('nav:sidebar.platform.standardAccounts'), icon: <AccountBalanceIcon /> },
+    { divider: '' },
+    { to: '/admin/ops-dashboard', label: t('nav:sidebar.platform.opsDashboard'), icon: <MonitorHeartIcon /> },
+    { to: '/admin/scheduled-tasks', label: t('nav:sidebar.platform.scheduledTasks'), icon: <ScheduleIcon /> },
+  ];
+
+  // Helper to check if user has ANY permission for resources in a workspace
+  const getWorkspaceResources = (ws: string): string[] => {
+    switch (ws) {
+      case 'ops': return getNavResources(operations);
+      case 'master-data': return getNavResources(masterData);
+      case 'it': return getNavResources(itOperations);
+      case 'portfolio': return getNavResources(portfolioNav);
+      case 'ai': return ['ai_chat'];
+      case 'knowledge': return ['knowledge'];
+      case 'admin': return getNavResources(tenantAdminNav);
+      default: return [];
+    }
+  };
   const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
   const openMenu = (e: React.MouseEvent<HTMLElement>) => setMenuAnchor(e.currentTarget);
   const closeMenu = () => setMenuAnchor(null);
@@ -222,7 +224,7 @@ export default function Layout() {
     } catch {}
   }, [navOpen]);
 
-  const themeModeLabel = mode === 'system' ? 'System' : mode === 'dark' ? 'Dark' : 'Light';
+  const themeModeLabel = mode === 'system' ? t('settings:appearance.system') : mode === 'dark' ? t('settings:appearance.dark') : t('settings:appearance.light');
   const themeModeIcon = mode === 'dark'
     ? <DarkModeOutlinedIcon />
     : mode === 'light'
@@ -241,8 +243,8 @@ export default function Layout() {
             edge="start"
             onClick={() => setNavOpen((v) => !v)}
             sx={{ mr: 2 }}
-            title={navOpen ? 'Collapse navigation' : 'Expand navigation'}
-            aria-label={navOpen ? 'Collapse navigation' : 'Expand navigation'}
+            title={navOpen ? t('nav:topBar.collapseNav') : t('nav:topBar.expandNav')}
+            aria-label={navOpen ? t('nav:topBar.collapseNav') : t('nav:topBar.expandNav')}
           >
             <MenuIcon />
           </IconButton>
@@ -305,15 +307,15 @@ export default function Layout() {
                   backgroundColor: 'common.white',
                 },
               }}
-              aria-label="Section navigation"
+              aria-label={t('nav:topBar.sectionNav')}
             >
-              {visibleWorkspaces.includes('ai') && <Tab value="ai" label="AI" />}
-              {visibleWorkspaces.includes('portfolio') && <Tab value="portfolio" label="Portfolio" />}
-              {visibleWorkspaces.includes('it') && <Tab value="it" label="IT Operations" />}
-              {visibleWorkspaces.includes('knowledge') && <Tab value="knowledge" label="Knowledge" />}
-              {visibleWorkspaces.includes('ops') && <Tab value="ops" label="Budget Management" />}
-              {visibleWorkspaces.includes('master-data') && <Tab value="master-data" label="Master Data" />}
-              {visibleWorkspaces.includes('admin') && <Tab value="admin" label="Admin" />}
+              {visibleWorkspaces.includes('ai') && <Tab value="ai" label={t('nav:workspaces.ai')} />}
+              {visibleWorkspaces.includes('portfolio') && <Tab value="portfolio" label={t('nav:workspaces.portfolio')} />}
+              {visibleWorkspaces.includes('it') && <Tab value="it" label={t('nav:workspaces.itOperations')} />}
+              {visibleWorkspaces.includes('knowledge') && <Tab value="knowledge" label={t('nav:workspaces.knowledge')} />}
+              {visibleWorkspaces.includes('ops') && <Tab value="ops" label={t('nav:workspaces.budgetManagement')} />}
+              {visibleWorkspaces.includes('master-data') && <Tab value="master-data" label={t('nav:workspaces.masterData')} />}
+              {visibleWorkspaces.includes('admin') && <Tab value="admin" label={t('nav:workspaces.admin')} />}
             </Tabs>
           )}
           {isPlatformHost && <Box sx={{ flex: 1 }} />}
@@ -322,26 +324,26 @@ export default function Layout() {
               <IconButton
                 color="inherit"
                 size="small"
-                title="Help"
+                title={t('nav:topBar.help')}
                 component="a"
                 href={getDocUrl(location.pathname)}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Open documentation for this page"
+                aria-label={t('nav:topBar.openDocs')}
               >
                 <HelpOutlineIcon />
               </IconButton>
-              <Tooltip title={`Theme: ${themeModeLabel} (click to switch)`}>
+              <Tooltip title={t('nav:topBar.themeTooltip', { mode: themeModeLabel })}>
                 <IconButton
                   color="inherit"
                   size="small"
                   onClick={() => setMode(mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light')}
-                  aria-label={`Theme: ${themeModeLabel}`}
+                  aria-label={t('nav:topBar.themeLabel', { mode: themeModeLabel })}
                 >
                   {themeModeIcon}
                 </IconButton>
               </Tooltip>
-              <IconButton color="inherit" onClick={openMenu} size="small" title="Account">
+              <IconButton color="inherit" onClick={openMenu} size="small" title={t('nav:topBar.account')}>
                 <AccountCircleIcon />
               </IconButton>
               <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={closeMenu} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
@@ -354,8 +356,8 @@ export default function Layout() {
                   </Typography>
                 </Box>
                 <Divider sx={{ my: 0.5 }} />
-                <MenuItem onClick={() => { closeMenu(); navigate('/settings'); }}>My Profile</MenuItem>
-                <MenuItem onClick={() => { closeMenu(); logout(); }}>Logout</MenuItem>
+                <MenuItem onClick={() => { closeMenu(); navigate('/settings'); }}>{t('nav:userMenu.myProfile')}</MenuItem>
+                <MenuItem onClick={() => { closeMenu(); logout(); }}>{t('nav:userMenu.logout')}</MenuItem>
               </Menu>
             </>
           )}
@@ -395,7 +397,7 @@ export default function Layout() {
               });
               // In single-tenant mode, append Scheduled Tasks for admin users
               if (isSingleTenant && claims?.isGlobalAdmin) {
-                entries = [...entries, { to: '/admin/scheduled-tasks', label: 'Scheduled Tasks', icon: <ScheduleIcon /> }];
+                entries = [...entries, { to: '/admin/scheduled-tasks', label: t('nav:sidebar.platform.scheduledTasks'), icon: <ScheduleIcon /> }];
               }
             } else if (isPlatformHost) {
               entries = [];

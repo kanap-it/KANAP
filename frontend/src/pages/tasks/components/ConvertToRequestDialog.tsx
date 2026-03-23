@@ -13,8 +13,10 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { MarkdownContent } from '../../../components/MarkdownContent';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 interface ConvertToRequestDialogProps {
   open: boolean;
@@ -34,6 +36,7 @@ export default function ConvertToRequestDialog({
   task,
   onSuccess,
 }: ConvertToRequestDialogProps) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const [name, setName] = React.useState(task.title || '');
   const [closeTask, setCloseTask] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -59,27 +62,34 @@ export default function ConvertToRequestDialog({
       const res = await api.post(`/portfolio/requests/from-task/${task.id}`, body);
       onSuccess(res.data?.id);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to convert task to request');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:dialogs.convertToRequest.messages.convertFailed'),
+      ));
     } finally {
       setSaving(false);
     }
-  }, [name, closeTask, task.id, task.item_number, onSuccess]);
+  }, [name, closeTask, task.id, task.item_number, onSuccess, t]);
 
   const taskRef = task.item_number ? `T-${task.item_number}` : task.id;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Convert to Request</DialogTitle>
+      <DialogTitle>{t('portfolio:dialogs.convertToRequest.title')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
 
           <Typography variant="body2" color="text.secondary">
-            Converting {taskRef}: {task.title || '(untitled task)'} into a portfolio request
+            {t('portfolio:dialogs.convertToRequest.summary', {
+              taskRef,
+              taskTitle: task.title || t('portfolio:workspace.task.title.untitled'),
+            })}
           </Typography>
 
           <TextField
-            label="Request Name"
+            label={t('portfolio:dialogs.convertToRequest.fields.requestName')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
@@ -88,7 +98,7 @@ export default function ConvertToRequestDialog({
 
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Purpose Preview
+              {t('portfolio:dialogs.convertToRequest.sections.purposePreview')}
             </Typography>
             <Box
               sx={{
@@ -100,7 +110,10 @@ export default function ConvertToRequestDialog({
                 bgcolor: 'action.hover',
               }}
             >
-              <MarkdownContent content={task.description || '(No description)'} variant="compact" />
+              <MarkdownContent
+                content={task.description || t('portfolio:dialogs.convertToRequest.states.noDescription')}
+                variant="compact"
+              />
             </Box>
           </Box>
 
@@ -111,18 +124,20 @@ export default function ConvertToRequestDialog({
                 onChange={(e) => setCloseTask(e.target.checked)}
               />
             )}
-            label="Close the original task after conversion"
+            label={t('portfolio:dialogs.convertToRequest.fields.closeTask')}
           />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={saving || !name.trim()}
         >
-          {saving ? 'Converting...' : 'Convert to Request'}
+          {saving
+            ? t('portfolio:dialogs.convertToRequest.actions.converting')
+            : t('portfolio:dialogs.convertToRequest.actions.convert')}
         </Button>
       </DialogActions>
     </Dialog>

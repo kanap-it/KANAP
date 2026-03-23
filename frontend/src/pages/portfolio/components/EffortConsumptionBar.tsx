@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface EffortConsumptionBarProps {
   itConsumed: number;      // Actual IT MD consumed
@@ -12,6 +13,7 @@ export default function EffortConsumptionBar({
   bizConsumed,
   totalPlanned,
 }: EffortConsumptionBarProps) {
+  const { t } = useTranslation('portfolio');
   const totalConsumed = itConsumed + bizConsumed;
 
   // Percentage scale marks - matching MUI Slider marks
@@ -139,11 +141,11 @@ export default function EffortConsumptionBar({
       <Stack direction="row" spacing={2} sx={{ mt: '13px' }}>
         <Stack direction="row" spacing={0.5} alignItems="center">
           <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'primary.main' }} />
-          <Typography variant="caption">IT</Typography>
+          <Typography variant="caption">{t('dialogs.logTime.categories.it')}</Typography>
         </Stack>
         <Stack direction="row" spacing={0.5} alignItems="center">
           <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'secondary.main' }} />
-          <Typography variant="caption">Business</Typography>
+          <Typography variant="caption">{t('dialogs.logTime.categories.business')}</Typography>
         </Stack>
       </Stack>
     </Box>

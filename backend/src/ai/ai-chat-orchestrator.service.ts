@@ -9,6 +9,7 @@ import { prepareAiProviderMessages } from './ai-context-budget.helper';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
 import { AiProviderMessage, AiProviderToolCall, AiStreamEvent } from './providers/ai-provider.types';
+import { addUsage, cloneUsage, isAbortError } from './providers/streaming.util';
 import { AiExecutionContext, ChatStreamEvent } from './ai.types';
 
 const MAX_TOOL_ITERATIONS = 20;
@@ -17,9 +18,9 @@ const MAX_TOKENS = 4096;
 /** Strip base64 data-URI images from text to avoid blowing up the LLM context. */
 function stripBase64Images(text: string): string {
   // Markdown: ![alt](data:image/...;base64,...)
-  text = text.replace(/!\[[^\]]*\]\(data:image\/[^;]*;base64,[^)]*\)/g, '[image removed]');
+  text = text.replace(/!\[(?:\\.|[^\]\\])*\]\(data:image\/[^;]*;base64,[^)]+\)/gi, '[image removed]');
   // HTML: <img ... src="data:image/...;base64,..." ...>
-  text = text.replace(/<img\s[^>]*src="data:image\/[^;]*;base64,[^"]*"[^>]*>/gi, '[image removed]');
+  text = text.replace(/<img\b[^>]*\bsrc=(['"])data:image\/[^;]*;base64,[^'"]*\1[^>]*>/gi, '[image removed]');
   return text;
 }
 
@@ -27,6 +28,7 @@ type ChatStreamParams = {
   context: AiExecutionContext;
   conversationId?: string | null;
   userMessage: string;
+  signal?: AbortSignal | null;
 };
 
 type CurrentUserPromptContext = {
@@ -35,6 +37,17 @@ type CurrentUserPromptContext = {
   roleNames: string[];
   teamName: string | null;
 };
+
+type StreamUsage = {
+  input_tokens: number;
+  output_tokens: number;
+};
+
+function buildToolCallSignature(toolCalls: Array<{ name: string; arguments: string }>): string {
+  return toolCalls
+    .map((toolCall) => `${toolCall.name}\u0000${toolCall.arguments}`)
+    .join('\u0001');
+}
 
 @Injectable()
 export class AiChatOrchestratorService {
@@ -114,6 +127,11 @@ export class AiChatOrchestratorService {
 
   async *stream(params: ChatStreamParams): AsyncGenerator<ChatStreamEvent> {
     const { context, userMessage } = params;
+    const abortSignal = params.signal ?? null;
+
+    if (abortSignal?.aborted) {
+      return;
+    }
 
     // Step 1: Validate access, load settings, decrypt API key
     const { provider, model, apiKey, endpointUrl, tenantName } = await this.tenantExecutor.runWithContext(
@@ -241,9 +259,14 @@ export class AiChatOrchestratorService {
 
     // Step 3: Provider streaming loop (NO DB transaction open)
     let messages = [...providerMessages];
-    let totalUsage: { input_tokens: number; output_tokens: number } | undefined;
+    let totalUsage: StreamUsage | undefined;
+    let previousToolCallSignature: string | null = null;
 
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
+      if (abortSignal?.aborted) {
+        return;
+      }
+
       const budgetedMessages = prepareAiProviderMessages({
         systemPrompt: systemPromptText,
         messages,
@@ -266,7 +289,7 @@ export class AiChatOrchestratorService {
 
       let accumulatedText = '';
       const pendingToolCalls: Array<{ id: string; name: string; arguments: string }> = [];
-      let gotDone = false;
+      let iterationUsage: StreamUsage | undefined;
 
       const providerStream = provider.createStream({
         model,
@@ -276,37 +299,49 @@ export class AiChatOrchestratorService {
         messages,
         tools,
         maxTokens: MAX_TOKENS,
+        signal: abortSignal,
       });
 
-      for await (const event of providerStream) {
-        switch (event.type) {
-          case 'text_delta':
-            accumulatedText += event.text;
-            yield { type: 'text_delta', text: event.text };
-            break;
+      try {
+        for await (const event of providerStream) {
+          switch (event.type) {
+            case 'text_delta':
+              accumulatedText += event.text;
+              yield { type: 'text_delta', text: event.text };
+              break;
 
-          case 'tool_call_start':
-            pendingToolCalls.push({ id: event.id, name: event.name, arguments: '' });
-            break;
+            case 'tool_call_start':
+              pendingToolCalls.push({ id: event.id, name: event.name, arguments: '' });
+              break;
 
-          case 'tool_call_delta': {
-            const tc = pendingToolCalls.find((t) => t.id === event.id);
-            if (tc) tc.arguments += event.arguments;
-            break;
+            case 'tool_call_delta': {
+              const tc = pendingToolCalls.find((t) => t.id === event.id);
+              if (tc) tc.arguments += event.arguments;
+              break;
+            }
+
+            case 'tool_call_end':
+              break;
+
+            case 'done':
+              iterationUsage = cloneUsage(event.usage);
+              totalUsage = addUsage(totalUsage, iterationUsage);
+              break;
+
+            case 'error':
+              yield { type: 'error', message: event.message };
+              return;
           }
-
-          case 'tool_call_end':
-            break;
-
-          case 'done':
-            totalUsage = event.usage;
-            gotDone = true;
-            break;
-
-          case 'error':
-            yield { type: 'error', message: event.message };
-            return;
         }
+      } catch (error) {
+        if (abortSignal?.aborted || isAbortError(error)) {
+          return;
+        }
+        throw error;
+      }
+
+      if (abortSignal?.aborted) {
+        return;
       }
 
       this.logger.log(
@@ -315,12 +350,12 @@ export class AiChatOrchestratorService {
 
       // If there are tool calls, execute them
       if (pendingToolCalls.length > 0) {
-        // Add assistant message with tool calls to history
         const assistantToolCalls: AiProviderToolCall[] = pendingToolCalls.map((tc) => ({
           id: tc.id,
           name: tc.name,
           arguments: tc.arguments,
         }));
+        const toolCallSignature = buildToolCallSignature(assistantToolCalls);
 
         messages.push({
           role: 'assistant',
@@ -328,20 +363,33 @@ export class AiChatOrchestratorService {
           tool_calls: assistantToolCalls,
         });
 
-        // Persist assistant message with tool calls
-        const messagesToPersist: Array<{
-          role: string;
-          content: string;
-          toolCalls?: any;
-          usage?: any;
-          userId?: string | null;
-        }> = [];
-
-        messagesToPersist.push({
-          role: 'assistant',
-          content: accumulatedText,
-          toolCalls: assistantToolCalls,
+        // Persist the assistant turn before tool execution so usage survives interrupted loops.
+        await this.tenantExecutor.runWithContext(context, async (ctx) => {
+          await this.conversations.appendMessage(
+            {
+              conversationId,
+              tenantId: ctx.tenantId,
+              conversationUserId: ctx.userId,
+              userId: null,
+              role: 'assistant',
+              content: accumulatedText,
+              toolCalls: assistantToolCalls,
+              usage: iterationUsage ?? null,
+            },
+            { manager: ctx.manager },
+          );
         });
+
+        if (previousToolCallSignature === toolCallSignature) {
+          yield { type: 'error', message: 'Maximum tool call iterations reached without progress.' };
+          return;
+        }
+        previousToolCallSignature = toolCallSignature;
+
+        const messagesToPersist: Array<{
+          role: 'tool';
+          content: string;
+        }> = [];
 
         // Execute each tool call
         for (const tc of pendingToolCalls) {
@@ -393,7 +441,6 @@ export class AiChatOrchestratorService {
           });
         }
 
-        // Persist assistant + tool messages
         await this.tenantExecutor.runWithContext(context, async (ctx) => {
           for (const msg of messagesToPersist) {
             await this.conversations.appendMessage(
@@ -404,8 +451,6 @@ export class AiChatOrchestratorService {
                 userId: null,
                 role: msg.role,
                 content: msg.content,
-                toolCalls: msg.toolCalls,
-                usage: msg.usage,
               },
               { manager: ctx.manager },
             );
@@ -417,7 +462,6 @@ export class AiChatOrchestratorService {
       }
 
       // No tool calls - this is the final assistant response
-      // Persist final assistant message with usage
       await this.tenantExecutor.runWithContext(context, async (ctx) => {
         await this.conversations.appendMessage(
           {
@@ -427,7 +471,7 @@ export class AiChatOrchestratorService {
             userId: null,
             role: 'assistant',
             content: accumulatedText,
-            usage: totalUsage ?? null,
+            usage: iterationUsage ?? null,
           },
           { manager: ctx.manager },
         );

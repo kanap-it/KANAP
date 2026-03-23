@@ -14,6 +14,7 @@ import CheckboxSetFilter from '../../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
 import api from '../../api';
 import { useGridScopePreference } from '../../hooks/useGridScopePreference';
+import { useTranslation } from 'react-i18next';
 
 type ProjectRow = {
   id: string;
@@ -60,12 +61,6 @@ const STATUS_LABEL_MAP: Record<string, string> = Object.fromEntries(
 const STATUS_ORDER = Object.keys(STATUS_CONFIG);
 
 
-function StatusCellRenderer(props: any) {
-  const status = props.value as string;
-  const cfg = STATUS_CONFIG[status] || { label: status, color: 'default' as const };
-  return <Chip label={cfg.label} color={cfg.color} size="small" />;
-}
-
 function ProgressCellRenderer(props: any) {
   const value = Number(props.value) || 0;
   return (
@@ -93,6 +88,7 @@ export default function ProjectsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasLevel, profile } = useAuth();
+  const { t } = useTranslation(['portfolio', 'common']);
   const [refreshKey, setRefreshKey] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -100,6 +96,32 @@ export default function ProjectsPage() {
 
   const canCreate = hasLevel('portfolio_projects', 'manager');
   const canAdmin = hasLevel('portfolio_projects', 'admin');
+
+  const statusLabelMap = useMemo(() => Object.fromEntries(
+    Object.entries(STATUS_CONFIG).map(([status, config]) => [
+      status,
+      t(`statuses.project.${status}`, { defaultValue: config.label }),
+    ]),
+  ) as Record<string, string>, [t]);
+
+  const originLabelMap = useMemo(() => Object.fromEntries(
+    Object.entries(ORIGIN_LABELS).map(([origin, label]) => [
+      origin,
+      t(`origin.${origin}`, { defaultValue: label }),
+    ]),
+  ) as Record<string, string>, [t]);
+
+  const renderStatusCell = useCallback((props: any) => {
+    const status = props.value as string;
+    const cfg = STATUS_CONFIG[status] || { label: status, color: 'default' as const };
+    return (
+      <Chip
+        label={t(`statuses.project.${status}`, { defaultValue: cfg.label })}
+        color={cfg.color}
+        size="small"
+      />
+    );
+  }, [t]);
 
   // Read filters from URL to restore state when returning from workspace
   const urlFilters = useMemo(() => {
@@ -199,29 +221,37 @@ export default function ProjectsPage() {
       if (profileId) sp.set('involvedUserId', profileId);
     }
     return sp;
-  }, []);
+  }, [t]);
 
   const projectScopeToolbar = (
     <Stack direction="row" spacing={0.5} alignItems="center">
-      <Typography variant="body2">Show:</Typography>
+      <Typography variant="body2">{t('common:labels.show')}:</Typography>
       <RadioGroup
         row
         value={projectScope}
         onChange={(e) => setProjectScope(e.target.value as 'my' | 'team' | 'all')}
         sx={{ '& .MuiFormControlLabel-root': { mr: 1 } }}
       >
-        <FormControlLabel value="my" control={<Radio size="small" />} label="My projects" />
-        <Tooltip title={hasTeam ? '' : 'You are not assigned to a team'}>
+        <FormControlLabel
+          value="my"
+          control={<Radio size="small" />}
+          label={t('scope.my', { entity: t('projects.entityName') })}
+        />
+        <Tooltip title={hasTeam ? '' : t('scope.teamUnavailable')}>
           <span>
             <FormControlLabel
               value="team"
               control={<Radio size="small" />}
-              label="My team's projects"
+              label={t('scope.myTeam', { entity: t('projects.entityName') })}
               disabled={!hasTeam}
             />
           </span>
         </Tooltip>
-        <FormControlLabel value="all" control={<Radio size="small" />} label="All projects" />
+        <FormControlLabel
+          value="all"
+          control={<Radio size="small" />}
+          label={t('scope.all', { entity: t('projects.entityName') })}
+        />
       </RadioGroup>
     </Stack>
   );
@@ -246,7 +276,7 @@ export default function ProjectsPage() {
   ) => {
     const labelMap = opts?.labelMap;
     const order = opts?.order;
-    const emptyLabel = opts?.emptyLabel ?? '(Blank)';
+    const emptyLabel = opts?.emptyLabel ?? t('shared.blankValue');
     return async ({ context }: any) => {
       const queryState = context?.getQueryState?.() ?? {};
       const filters = { ...(queryState.filters || {}) };
@@ -294,7 +324,7 @@ export default function ProjectsPage() {
     },
     {
       field: 'name',
-      headerName: 'Project Name',
+      headerName: t('projects.columns.projectName'),
       flex: 1.5,
       minWidth: 220,
       filter: 'agTextColumnFilter',
@@ -302,7 +332,7 @@ export default function ProjectsPage() {
     },
     {
       field: 'priority_score',
-      headerName: 'Priority',
+      headerName: t('projects.columns.priority'),
       width: 100,
       filter: 'agNumberColumnFilter',
       valueFormatter: (params: any) => (params.value != null ? String(Math.round(params.value)) : ''),
@@ -310,40 +340,40 @@ export default function ProjectsPage() {
     },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('projects.columns.status'),
       width: 140,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getProjectFilterValues('status', { labelMap: STATUS_LABEL_MAP, order: STATUS_ORDER }),
+        getValues: getProjectFilterValues('status', { labelMap: statusLabelMap, order: STATUS_ORDER }),
         searchable: false,
         treatAllAsUnfiltered: false,
       },
-      cellRenderer: StatusCellRenderer,
+      cellRenderer: renderStatusCell,
     },
     {
       field: 'origin',
-      headerName: 'Origin',
+      headerName: t('projects.columns.origin'),
       width: 110,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getProjectFilterValues('origin', { labelMap: ORIGIN_LABELS, order: ['standard', 'fast_track', 'legacy'] }),
+        getValues: getProjectFilterValues('origin', { labelMap: originLabelMap, order: ['standard', 'fast_track', 'legacy'] }),
         searchable: false,
       },
-      valueFormatter: (params: any) => ORIGIN_LABELS[params.value] || params.value,
+      valueFormatter: (params: any) => originLabelMap[params.value] || params.value,
       cellRenderer: clickableCellRenderer,
     },
     {
       field: 'execution_progress',
-      headerName: 'Progress',
+      headerName: t('projects.columns.progress'),
       width: 140,
       filter: 'agNumberColumnFilter',
       cellRenderer: ProgressCellRenderer,
     },
     {
       field: 'source_name',
-      headerName: 'Source',
+      headerName: t('projects.columns.source'),
       width: 100,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -355,7 +385,7 @@ export default function ProjectsPage() {
     },
     {
       field: 'category_name',
-      headerName: 'Category',
+      headerName: t('projects.columns.category'),
       width: 200,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -367,7 +397,7 @@ export default function ProjectsPage() {
     },
     {
       field: 'stream_name',
-      headerName: 'Stream',
+      headerName: t('projects.columns.stream'),
       width: 180,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -379,7 +409,7 @@ export default function ProjectsPage() {
     },
     {
       colId: 'company_name',
-      headerName: 'Company',
+      headerName: t('projects.columns.company'),
       width: 180,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -392,7 +422,7 @@ export default function ProjectsPage() {
     },
     {
       field: 'planned_start',
-      headerName: 'Start',
+      headerName: t('projects.columns.start'),
       width: 110,
       filter: 'agDateColumnFilter',
       valueFormatter: (params: any) => formatDate(params.value),
@@ -400,7 +430,7 @@ export default function ProjectsPage() {
     },
     {
       field: 'planned_end',
-      headerName: 'End',
+      headerName: t('projects.columns.end'),
       width: 110,
       filter: 'agDateColumnFilter',
       valueFormatter: (params: any) => formatDate(params.value),
@@ -408,7 +438,7 @@ export default function ProjectsPage() {
     },
     {
       field: 'created_at',
-      headerName: 'Created',
+      headerName: t('projects.columns.created'),
       width: 110,
       filter: 'agDateColumnFilter',
       valueFormatter: (params: any) => formatDate(params.value),
@@ -416,14 +446,14 @@ export default function ProjectsPage() {
     },
     {
       field: 'updated_at',
-      headerName: 'Last changed',
+      headerName: t('projects.columns.lastChanged'),
       width: 130,
       filter: 'agDateColumnFilter',
       valueFormatter: (params: any) => formatDate(params.value),
       cellRenderer: clickableCellRenderer,
       hide: true,
     },
-  ], [clickableCellRenderer, getProjectFilterValues]);
+  ], [clickableCellRenderer, getProjectFilterValues, originLabelMap, renderStatusCell, statusLabelMap, t]);
 
   const extraParams = useMemo(() => {
     const params: Record<string, any> = {
@@ -459,17 +489,17 @@ export default function ProjectsPage() {
             navigate(`/portfolio/projects/new/summary?${sp.toString()}`);
           }}
         >
-          New Project
+          {t('projects.actions.new')}
         </Button>
       )}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canAdmin && <Button onClick={() => setImportOpen(true)}>{t('projects.actions.importCsv')}</Button>}
+      {canAdmin && <Button onClick={() => setExportOpen(true)}>{t('projects.actions.exportCsv')}</Button>}
     </Stack>
   );
 
   return (
     <>
-      <PageHeader title="Portfolio Projects" actions={actions} />
+      <PageHeader title={t('projects.title')} actions={actions} />
       <ServerDataGrid<ProjectRow>
         columns={columns}
         endpoint="/portfolio/projects"
@@ -492,14 +522,14 @@ export default function ProjectsPage() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         endpoint="/portfolio/projects"
-        title="Export Portfolio Projects"
-        presets={[{ name: 'enrichment', label: 'Data Enrichment' }]}
+        title={t('projects.csv.exportTitle')}
+        presets={[{ name: 'enrichment', label: t('projects.csv.presetEnrichment') }]}
       />
       <CsvImportDialogV2
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/portfolio/projects"
-        title="Import Portfolio Projects"
+        title={t('projects.csv.importTitle')}
         onImported={() => setRefreshKey((k) => k + 1)}
       />
     </>

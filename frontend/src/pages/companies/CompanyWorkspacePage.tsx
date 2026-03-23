@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Box, Button, Divider, IconButton, Stack, Tab, Tabs, Typography } from '@mui/material';
@@ -13,11 +14,12 @@ import CompanyDetailsEditor, { CompanyDetailsEditorHandle } from './editors/Comp
 type TabKey = 'overview' | 'details';
 
 const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'details', label: 'Details' },
+  { key: 'overview', label: 'overview' },
+  { key: 'details', label: 'details' },
 ];
 
 export default function CompanyWorkspacePage() {
+  const { t } = useTranslation(['master-data', 'common']);
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -160,17 +162,17 @@ export default function CompanyWorkspacePage() {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Stack>
           <Typography variant="h6">
-            {isCreate ? 'New Company' : (data?.name || 'Company')}
+            {isCreate ? t('companies.newCompany') : (data?.name || t('companies.companyFallback'))}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {!isCreate && total > 0 ? `Company ${index + 1} of ${total}` : ''}
+            {!isCreate && total > 0 ? t('shared.workspace.itemCountOf', { entity: t('companies.companyFallback'), current: index + 1, total }) : ''}
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Button onClick={handlePrev} disabled={!hasPrev}>Prev</Button>
-          <Button onClick={handleReset} disabled={!dirty}>Reset</Button>
-          <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>Save</Button>
-          <Button onClick={handleNext} disabled={!hasNext}>Next</Button>
+          <Button onClick={handlePrev} disabled={!hasPrev}>{t('shared.labels.prev')}</Button>
+          <Button onClick={handleReset} disabled={!dirty}>{t('common:buttons.reset')}</Button>
+          <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>{t('common:buttons.saveChanges')}</Button>
+          <Button onClick={handleNext} disabled={!hasNext}>{t('shared.labels.next')}</Button>
           <IconButton
             aria-label="Close"
             title="Close"
@@ -184,7 +186,7 @@ export default function CompanyWorkspacePage() {
         </Stack>
       </Stack>
 
-      {!!error && <Alert severity="error">Failed to load company.</Alert>}
+      {!!error && <Alert severity="error">{t('companies.loadError')}</Alert>}
 
       <Divider sx={{ mb: 2 }} />
 
@@ -208,7 +210,7 @@ export default function CompanyWorkspacePage() {
         <Box sx={{ flex: 1, pl: 3 }}>
           {isCreate && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-              The Details tab becomes available after you create the company.
+              {t('companies.detailsTabHint')}
             </Typography>
           )}
 

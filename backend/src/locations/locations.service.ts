@@ -147,7 +147,7 @@ export class LocationsService {
     return location;
   }
 
-  async list(query: any, opts?: { manager?: EntityManager }) {
+  async list(query: any, opts?: { manager?: EntityManager; tenantId?: string }) {
     const repo = this.getRepo(opts?.manager);
     const { page, limit, skip, sort, q, filters } = parsePagination(query, {
       field: 'created_at',
@@ -155,6 +155,10 @@ export class LocationsService {
     });
     const allowedFilters = ['code', 'name', 'hosting_type', 'provider', 'country_iso', 'city'];
     const where: Record<string, any> = buildWhereFromAgFilters(filters, allowedFilters);
+    // Explicit tenant_id filtering (defense-in-depth alongside RLS)
+    if (opts?.tenantId) {
+      where.tenant_id = opts.tenantId;
+    }
     let whereArr: any[] | undefined;
     if (q) {
       const like = ILike(`%${q}%`);
@@ -183,18 +187,63 @@ export class LocationsService {
     const ids = rows.map((row) => row.id);
     let assetCounts: Record<string, number> = {};
     if (ids.length) {
+      const tenantFilter = opts?.tenantId ? ` AND tenant_id = $2` : '';
+      const countParams: any[] = [ids];
+      if (opts?.tenantId) countParams.push(opts.tenantId);
       const rawCounts: Array<{ location_id: string; c: string }> = await mg.query(
-        `SELECT location_id, COUNT(*)::text as c FROM assets WHERE location_id = ANY($1) GROUP BY location_id`,
-        [ids],
+        `SELECT location_id, COUNT(*)::text as c FROM assets WHERE location_id = ANY($1)${tenantFilter} GROUP BY location_id`,
+        countParams,
       );
       assetCounts = Object.fromEntries(rawCounts.map((r) => [r.location_id, Number(r.c)]));
+    }
+    // Fetch sub-location names per location
+    let subLocationMap: Record<string, string[]> = {};
+    if (ids.length) {
+      const tenantSubFilter = opts?.tenantId ? ` AND tenant_id = $2` : '';
+      const subParams: any[] = [ids];
+      if (opts?.tenantId) subParams.push(opts.tenantId);
+      const subRows: Array<{ location_id: string; name: string }> = await mg.query(
+        `SELECT location_id, name FROM location_sub_items WHERE location_id = ANY($1)${tenantSubFilter} ORDER BY name ASC`,
+        subParams,
+      );
+      for (const r of subRows) {
+        (subLocationMap[r.location_id] ??= []).push(r.name);
+      }
     }
     const items = rows.map((row) => ({
       ...row,
       operating_company_name: row.operating_company_id ? companyMap[row.operating_company_id] ?? null : null,
       servers_count: assetCounts[row.id] ?? 0,
+      sub_locations: subLocationMap[row.id] ?? [],
     }));
     return { items, total, page, limit };
+  }
+
+  async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<Record<string, Array<string | null>>> {
+    const tenantId = this.requireTenantId(opts?.tenantId);
+    const mg = opts?.manager ?? this.repo.manager;
+    const rawFields = String(query.fields || query.field || '').split(',').map((f: string) => f.trim()).filter(Boolean);
+
+    const FILTER_VALUE_FIELDS: Record<string, string> = {
+      hosting_type: 'hosting_type',
+      provider: 'provider',
+      country_iso: 'country_iso',
+      city: 'city',
+    };
+
+    const fields = rawFields.filter((field: string) => Object.prototype.hasOwnProperty.call(FILTER_VALUE_FIELDS, field));
+    if (fields.length === 0) return {};
+
+    const results: Record<string, Array<string | null>> = {};
+    for (const field of fields) {
+      const column = FILTER_VALUE_FIELDS[field];
+      const rows: Array<{ value: string | null }> = await mg.query(
+        `SELECT DISTINCT ${column} as value FROM locations WHERE tenant_id = $1 ORDER BY value ASC NULLS LAST`,
+        [tenantId],
+      );
+      results[field] = rows.map((row) => row.value);
+    }
+    return results;
   }
 
   async get(id: string, opts?: { manager?: EntityManager; include?: string[] }) {

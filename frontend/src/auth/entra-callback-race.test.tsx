@@ -1,4 +1,3 @@
-import { act } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, beforeEach, expect, it, vi } from 'vitest';
@@ -23,27 +22,35 @@ vi.mock('../tenant/TenantContext', () => ({
 
 vi.mock('../config/FeaturesContext', () => ({
   useFeatures: () => ({
-    config: {
-      features: {
-        billing: true,
-        sso: true,
-        email: true,
+      config: {
+        features: {
+          billing: true,
+          sso: true,
+          email: true,
+          aiChat: false,
+          aiMcp: false,
+          aiSettings: false,
+          aiWebSearch: false,
+        },
+      },
+    }),
+}));
+
+vi.mock('../ai/useAiCapabilities', () => ({
+  useAiCapabilities: () => ({
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    data: {
+      surfaces: {
+        chat: { available: true },
+        settings: { available: true },
       },
     },
   }),
 }));
 
 import api from '../api';
-
-function deferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
 
 function createStorageMock(initial: Record<string, string> = {}) {
   const store = new Map(Object.entries(initial));
@@ -86,9 +93,7 @@ describe('Entra callback auth bootstrap race', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it('can wipe callback auth state when startup refresh fails after callback login', async () => {
-    const bootstrapRefresh = deferred<{ data: { access_token: string; expires_in: number; refresh_expires_in: number } }>();
-
+  it('skips bootstrap refresh on the callback route and preserves callback auth state', async () => {
     vi.mocked(api.post).mockImplementation((url: string, body?: any) => {
       if (url !== '/auth/refresh') {
         throw new Error(`Unexpected POST ${url}`);
@@ -104,7 +109,7 @@ describe('Entra callback auth bootstrap race', () => {
         });
       }
 
-      return bootstrapRefresh.promise;
+      throw new Error('Bootstrap refresh should not run on the login callback route');
     });
 
     vi.mocked(api.get).mockResolvedValue({
@@ -149,14 +154,12 @@ describe('Entra callback auth bootstrap race', () => {
 
     expect(api.get).toHaveBeenCalledWith('/auth/me');
 
-    await act(async () => {
-      bootstrapRefresh.reject(new Error('expired refresh token'));
-    });
-
     await waitFor(() => {
-      expect(screen.getByText('Login Page')).toBeInTheDocument();
+      expect(screen.getByText('Home Page')).toBeInTheDocument();
     });
 
-    expect(getAccessToken()).toBeNull();
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh', { refresh_token: 'fresh-refresh-token' });
+    expect(getAccessToken()).toBe('callback-access-token');
   });
 });

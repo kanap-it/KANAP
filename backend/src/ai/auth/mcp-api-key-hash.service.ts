@@ -28,7 +28,10 @@ export class McpApiKeyHashService {
   matches(rawKey: string, storedHash: string): boolean {
     const rawBuffer = Buffer.from(this.hash(rawKey), 'hex');
     const storedBuffer = Buffer.from(storedHash, 'hex');
-    if (rawBuffer.length !== storedBuffer.length) return false;
-    return timingSafeEqual(rawBuffer, storedBuffer);
+    const comparableBuffer = storedBuffer.length === rawBuffer.length
+      ? storedBuffer
+      : Buffer.alloc(rawBuffer.length);
+    const matches = timingSafeEqual(rawBuffer, comparableBuffer);
+    return matches && storedBuffer.length === rawBuffer.length;
   }
 }

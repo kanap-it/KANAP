@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Stack, TextField, Alert, Typography, Autocomplete } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { useQueryClient } from '@tanstack/react-query';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import CompanySelect from '../../../components/fields/CompanySelect';
@@ -44,6 +46,7 @@ const PRIORITY_OPTIONS = [
 ] as const;
 
 export default forwardRef<CapexInfoEditorHandle, Props>(function CapexInfoEditor({ id, onDirtyChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
   const queryClient = useQueryClient();
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -175,7 +178,7 @@ export default forwardRef<CapexInfoEditorHandle, Props>(function CapexInfoEditor
       setBaseline(b);
       onDirtyChange?.(false);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load item');
+      setError(getApiErrorMessage(e, t, t('capex.editor.failedToLoad')));
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
@@ -237,7 +240,7 @@ export default forwardRef<CapexInfoEditorHandle, Props>(function CapexInfoEditor
         // Refetch to update UI with saved data
         await loadData();
       } catch (e: any) {
-        setError(e?.response?.data?.message || e?.message || 'Failed to save');
+        setError(getApiErrorMessage(e, t, t('capex.editor.failedToSave')));
         throw e;
       } finally { setSaving(false); }
     },
@@ -265,10 +268,10 @@ export default forwardRef<CapexInfoEditorHandle, Props>(function CapexInfoEditor
       {!!error && <Alert severity="error">{error}</Alert>}
       {hasObsoleteAccount && (
         <Alert severity="warning">
-          Obsolete account detected. The selected account does not belong to the company's Chart of Accounts. Please update the account.
+          {t('capex.editor.obsoleteAccount')}
         </Alert>
       )}
-      <Typography variant="subtitle2">General Information</Typography>
+      <Typography variant="subtitle2">{t('capex.editor.generalInfo')}</Typography>
       <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={loading || saving} required fullWidth multiline minRows={2} InputLabelProps={{ shrink: true }} />
       <CompanySelect value={companyId} onChange={setCompanyId} />
       <AccountSelect value={accountId} onChange={(v) => setAccountId(v ?? '')} companyId={companyId || undefined} disabled={!companyId || loading || saving} />

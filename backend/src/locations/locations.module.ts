@@ -36,5 +36,6 @@ import { UsersModule } from '../users/users.module';
   ],
   providers: [LocationsService],
   controllers: [LocationsController],
+  exports: [LocationsService],
 })
 export class LocationsModule {}

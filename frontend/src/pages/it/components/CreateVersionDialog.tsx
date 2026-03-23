@@ -24,6 +24,8 @@ import {
 import DateEUField from '../../../components/fields/DateEUField';
 import api from '../../../api';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 interface InterfaceForMigration {
   id: string;
   name: string | null;
@@ -50,6 +52,7 @@ interface CreateVersionDialogProps {
 const STEPS = ['Version Details', 'Copy Options', 'Interfaces'];
 
 export default function CreateVersionDialog({ open, onClose, sourceApp, onSuccess }: CreateVersionDialogProps) {
+  const { t } = useTranslation(['it', 'common']);
   const [step, setStep] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -138,7 +141,7 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
       onSuccess(result.data);
       onClose();
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to create version');
+      setError(getApiErrorMessage(err, t, t('messages.createVersionFailed')));
     } finally {
       setLoading(false);
     }
@@ -390,7 +393,7 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={loading}>Cancel</Button>
+        <Button onClick={onClose} disabled={loading}>{t('common:buttons.cancel')}</Button>
         {step > 0 && (
           <Button onClick={() => setStep(step - 1)} disabled={loading}>
             Back

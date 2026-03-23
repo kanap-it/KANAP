@@ -82,7 +82,7 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @Throttle({ default: RATE_LIMITS.authLogin })
   async login(@Body() body: LoginDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
-    if (!body?.email || !body?.password) throw new BadRequestException('email and password are required');
+    if (!body?.email || !body?.password) throw new BadRequestException({ code: 'MISSING_CREDENTIALS', message: 'email and password are required' });
     const manager = req?.queryRunner?.manager;
     const user = await this.auth.validateUser(body.email, body.password, manager);
     void this.fxIngestion.maybeRefreshOnLogin((user as any)?.tenant_id);
@@ -98,10 +98,10 @@ export class AuthController {
   @Get('me')
   async me(@Req() req: any) {
     const sub = req?.user?.sub as string | undefined;
-    if (!sub) throw new BadRequestException('Invalid token');
+    if (!sub) throw new BadRequestException({ code: 'INVALID_TOKEN', message: 'Invalid token' });
     const manager = req?.queryRunner?.manager;
     const user = await this.users.findById(sub, { manager });
-    if (!user) throw new BadRequestException('User not found');
+    if (!user) throw new BadRequestException({ code: 'USER_NOT_FOUND', message: 'User not found' });
     const tenantId = req?.tenant?.id;
     const tenant = tenantId ? await this.tenants.findById(tenantId) : null;
     const tenantAuth = tenant
@@ -184,13 +184,13 @@ export class AuthController {
   @Post('exchange-provisioning-token')
   async exchangeProvisioningToken(@Body() body: { token?: string }) {
     const t = body?.token;
-    if (!t) throw new BadRequestException('token is required');
+    if (!t) throw new BadRequestException({ code: 'TOKEN_REQUIRED', message: 'token is required' });
     const secret = requireJwtSecret();
     let payload: any;
     try {
       payload = jwt.verify(t, secret);
     } catch {
-      throw new BadRequestException('invalid or expired token');
+      throw new BadRequestException({ code: 'TOKEN_EXPIRED', message: 'invalid or expired token' });
     }
     if (!payload || payload.purpose !== 'provision' || !payload.tenant_id || !payload.email) {
       throw new BadRequestException('invalid token payload');

@@ -177,6 +177,13 @@ export class AiEntityService {
               a.description AS summary,
               a.status,
               a.updated_at,
+              a.lifecycle,
+              a.criticality,
+              a.category,
+              a.hosting_model,
+              a.data_class,
+              a.version,
+              s.name AS supplier_name,
               ${itOwnerNamesSql} AS it_owner_names,
               CASE
                 WHEN a.name ILIKE $1 THEN 3
@@ -212,6 +219,13 @@ export class AiEntityService {
       ...toSummary('applications', {
         ...row,
         metadata: {
+          lifecycle: row.lifecycle ?? null,
+          criticality: row.criticality ?? null,
+          category: row.category ?? null,
+          hosting_model: row.hosting_model ?? null,
+          data_class: row.data_class ?? null,
+          version: row.version ?? null,
+          supplier: row.supplier_name ?? null,
           it_owner: row.it_owner_names || null,
         },
       }, row.summary),
@@ -260,6 +274,47 @@ export class AiEntityService {
     );
 
     return rows.map((row) => ({ ...toSummary('assets', row, row.summary), _score: row.score ?? 1 }));
+  }
+
+  private async searchLocations(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ) {
+    const like = `%${query}%`;
+    const rows = await context.manager.query<SearchRow[]>(
+      `SELECT DISTINCT ON (l.id) l.id,
+              l.code || ' — ' || l.name AS label,
+              COALESCE(NULLIF(l.city, ''), l.country_iso) AS summary,
+              NULL::text AS status,
+              l.updated_at,
+              CASE
+                WHEN l.name ILIKE $1 THEN 3
+                WHEN l.code ILIKE $1 THEN 3
+                WHEN COALESCE(l.city, '') ILIKE $1 THEN 2
+                WHEN sl.name IS NOT NULL THEN 2
+                ELSE 1
+              END AS score
+       FROM locations l
+       LEFT JOIN location_sub_items sl
+         ON sl.location_id = l.id AND sl.tenant_id = l.tenant_id
+         AND (sl.name ILIKE $1 OR COALESCE(sl.description, '') ILIKE $1)
+       WHERE l.tenant_id = $2
+         AND (
+           l.code ILIKE $1
+           OR l.name ILIKE $1
+           OR COALESCE(l.city, '') ILIKE $1
+           OR COALESCE(l.country_iso, '') ILIKE $1
+           OR COALESCE(l.provider, '') ILIKE $1
+           OR COALESCE(l.hosting_type, '') ILIKE $1
+           OR sl.id IS NOT NULL
+         )
+       ORDER BY l.id, score DESC
+       LIMIT $3`,
+      [like, context.tenantId, limit],
+    );
+
+    return rows.map((row) => ({ ...toSummary('locations', row, row.summary), _score: row.score ?? 1 }));
   }
 
   private async searchProjects(
@@ -487,10 +542,12 @@ export class AiEntityService {
   }
 
   private async listApplications(context: AiExecutionContextWithManager) {
+    const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
     const rows = await context.manager.query<any[]>(
       `SELECT a.id, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at,
-              a.lifecycle, a.criticality, a.category, a.hosting_model,
-              s.name AS supplier_name
+              a.lifecycle, a.criticality, a.category, a.hosting_model, a.data_class, a.version,
+              s.name AS supplier_name,
+              ${itOwnerNamesSql} AS it_owner_names
        FROM applications a
        LEFT JOIN suppliers s ON s.id = a.supplier_id AND s.tenant_id = $1
        WHERE a.tenant_id = $1
@@ -504,7 +561,10 @@ export class AiEntityService {
         criticality: row.criticality ?? null,
         category: row.category ?? null,
         hosting_model: row.hosting_model ?? null,
+        data_class: row.data_class ?? null,
+        version: row.version ?? null,
         supplier: row.supplier_name ?? null,
+        it_owner: row.it_owner_names ?? null,
       },
     }));
   }
@@ -633,7 +693,7 @@ export class AiEntityService {
   ) {
     const requested = input.entity_types && input.entity_types.length > 0
       ? input.entity_types
-      : ['applications', 'assets', 'projects', 'requests', 'tasks', 'documents'] as AiSearchEntityType[];
+      : ['applications', 'assets', 'locations', 'projects', 'requests', 'tasks', 'documents'] as AiSearchEntityType[];
     const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
     if (allowed.length === 0) {
       return { items: [], total: 0, entity_types: [] as AiSearchEntityType[] };
@@ -644,6 +704,7 @@ export class AiEntityService {
       allowed.map(async (type) => {
         if (type === 'applications') return this.searchApplications(context, input.query, limit);
         if (type === 'assets') return this.searchAssets(context, input.query, limit);
+        if (type === 'locations') return this.searchLocations(context, input.query, limit);
         if (type === 'projects') return this.searchProjects(context, input.query, limit);
         if (type === 'requests') return this.searchRequests(context, input.query, limit);
         if (type === 'tasks') return this.searchTasks(context, input.query, limit);
@@ -739,7 +800,7 @@ export class AiEntityService {
     const projectSummarySql = buildProjectSummarySql('p');
     const { tenantId } = context;
     const applications = await manager.query<any[]>(
-      `SELECT a.id, a.name, a.description, a.status, a.updated_at, a.lifecycle, a.environment, a.editor, a.criticality, a.hosting_model
+      `SELECT a.id, a.name, a.description, a.status, a.updated_at, a.lifecycle, a.environment, a.editor, a.criticality, a.hosting_model, a.data_class, a.version
        FROM applications a
        WHERE a.id = $1
          AND a.tenant_id = $2
@@ -823,6 +884,8 @@ export class AiEntityService {
           editor: application.editor,
           criticality: application.criticality,
           hosting_model: application.hosting_model,
+          data_class: application.data_class,
+          version: application.version,
           business_owners: businessOwners,
           it_owners: itOwners,
         },

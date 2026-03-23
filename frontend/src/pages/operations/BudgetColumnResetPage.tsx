@@ -18,6 +18,7 @@ import {
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
+import { useTranslation } from 'react-i18next';
 import AgGridBox from '../../components/AgGridBox';
 import { useOpexSummaryAll, SummaryRow, pickYearSlot } from '../reports/useOpexSummary';
 import { useQueryClient } from '@tanstack/react-query';
@@ -53,6 +54,7 @@ const budgetToFreezeColumn: Record<BudgetColumn, FreezeColumn> = {
 };
 
 export default function BudgetColumnResetPage() {
+  const { t } = useTranslation(['ops']);
   const theme = useTheme();
   const queryClient = useQueryClient();
   const now = new Date();
@@ -169,8 +171,8 @@ Errors: ${result.summary.errors} items`);
 
   return (
     <ReportLayout
-      title="Reset Budget Column"
-      subtitle="Clear all data from a budget column for a specific year"
+      title={t('operations.columnReset.title')}
+      subtitle={t('operations.columnReset.subtitle')}
       filters={
         <>
           <TextField
@@ -208,7 +210,7 @@ Errors: ${result.summary.errors} items`);
           disabled={isProcessing || stats.itemsWithData === 0 || freezeLoading || columnFrozen}
           color="error"
         >
-          {isProcessing ? 'Processing...' : 'Clear Column'}
+          {isProcessing ? t('operations.columnReset.processing') : t('operations.columnReset.clearColumn')}
         </Button>
       }
       onExportTableCsv={() => gridApiRef.current?.exportDataAsCsv?.()}
@@ -241,7 +243,7 @@ Errors: ${result.summary.errors} items`);
 
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
-            Data Preview
+            {t('operations.columnReset.dataPreview')}
           </Typography>
           <Box component={AgGridBox}>
             <AgGridReact
@@ -260,17 +262,17 @@ Errors: ${result.summary.errors} items`);
 
           <Box sx={{ mt: 2, display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' } }}>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="body2" color="text.secondary">Total items</Typography>
+              <Typography variant="body2" color="text.secondary">{t('operations.columnReset.totalItems')}</Typography>
               <Typography variant="subtitle2">{stats.totalItems.toLocaleString()}</Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="body2" color="text.secondary">Items with data (will be cleared)</Typography>
+              <Typography variant="body2" color="text.secondary">{t('operations.columnReset.itemsWithData')}</Typography>
               <Typography variant="subtitle2" sx={{ color: stats.itemsWithData > 0 ? 'error.main' : 'inherit' }}>
                 {stats.itemsWithData.toLocaleString()}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="body2" color="text.secondary">Current total value</Typography>
+              <Typography variant="body2" color="text.secondary">{t('operations.columnReset.currentTotalValue')}</Typography>
               <Typography variant="subtitle2" sx={{ color: stats.itemsWithData > 0 ? 'error.main' : 'inherit' }}>
                 {formatNumber(stats.totalValue)}
               </Typography>
@@ -287,7 +289,7 @@ Errors: ${result.summary.errors} items`);
         open={confirmDialogOpen}
         onClose={handleCancelClear}
       >
-        <DialogTitle>Confirm Column Reset</DialogTitle>
+        <DialogTitle>{t('operations.columnReset.confirmTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
             Are you sure you want to clear all data from the <strong>{columnLabel}</strong> column for year <strong>{year}</strong>?

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Autocomplete, TextField, CircularProgress, Chip, Box } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
 
@@ -31,6 +32,7 @@ const SpendItemSelect = React.forwardRef<HTMLInputElement, SpendItemSelectProps>
   },
   ref,
 ) {
+  const { t } = useTranslation(['ops']);
   const { data: items, isLoading } = useQuery({
     queryKey: ['spend-items', 'list'],
     queryFn: async () => {
@@ -123,7 +125,7 @@ const SpendItemSelect = React.forwardRef<HTMLInputElement, SpendItemSelectProps>
           (option.supplier_name && option.supplier_name.toLowerCase().includes(searchTerm))
         );
       }}
-      noOptionsText={isLoading ? "Loading..." : "No spend items found"}
+      noOptionsText={isLoading ? t('common:status.loading') : t('shared.noSpendItemsFound')}
       fullWidth
     />
   );

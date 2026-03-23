@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsInt, IsString, MaxLength, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsString, IsUrl, MaxLength, Min, ValidateIf } from 'class-validator';
 
 export class UpdateAiSettingsDto {
   @ValidateIf((_, value) => value !== undefined)
@@ -15,10 +15,13 @@ export class UpdateAiSettingsDto {
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsString()
+  @MaxLength(4096)
   llm_api_key?: string | null;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsString()
+  @MaxLength(2048)
+  @IsUrl({ require_protocol: true, require_tld: false })
   llm_endpoint_url?: string | null;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
@@ -35,6 +38,10 @@ export class UpdateAiSettingsDto {
   @IsInt()
   @Min(1)
   conversation_retention_days?: number | null;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsBoolean()
+  web_search_enabled?: boolean;
 
   @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()

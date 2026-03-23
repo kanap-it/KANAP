@@ -51,7 +51,15 @@ export class AiConversationService {
     }));
   }
 
-  async listForUser(tenantId: string, userId: string, opts?: { manager?: EntityManager }) {
+  async listForUser(
+    tenantId: string,
+    userId: string,
+    opts?: { manager?: EntityManager; page?: number; limit?: number },
+  ) {
+    const page = Math.max(1, Number(opts?.page) || 1);
+    const limit = Math.max(1, Math.min(100, Number(opts?.limit) || 100));
+    const skip = (page - 1) * limit;
+
     return this.getConversationRepo(opts?.manager).find({
       where: {
         tenant_id: tenantId,
@@ -59,6 +67,8 @@ export class AiConversationService {
         archived_at: IsNull(),
       },
       order: { updated_at: 'DESC' },
+      skip,
+      take: limit,
     });
   }
 

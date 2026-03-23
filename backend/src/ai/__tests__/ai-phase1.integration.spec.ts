@@ -22,7 +22,9 @@ import { AiQueryExecutor } from '../query/ai-query.executor';
 
 type SeededGraph = {
   applicationId: string;
+  applicationVersion: string;
   suiteApplicationId: string;
+  suiteApplicationVersion: string;
   assetId: string;
   relatedAssetId: string;
   appInstanceId: string;
@@ -371,7 +373,9 @@ async function seedApplicationAssetGraph(
 
   const ids: SeededGraph = {
     applicationId: randomUUID(),
+    applicationVersion: `2026.${tag}.1`,
     suiteApplicationId: randomUUID(),
+    suiteApplicationVersion: `2026.${tag}.0`,
     assetId: randomUUID(),
     relatedAssetId: randomUUID(),
     appInstanceId: randomUUID(),
@@ -383,20 +387,22 @@ async function seedApplicationAssetGraph(
   await runner.query(
     `INSERT INTO applications (
        id, tenant_id, name, category, description, criticality, data_class,
-       hosting_model, users_mode, users_year, environment, lifecycle, status,
+       hosting_model, version, users_mode, users_year, environment, lifecycle, status,
        created_at, updated_at
      )
      VALUES
-       ($1, $2, $3, 'line_of_business', $4, 'high', 'internal', 'saas', 'manual', 250, 'prod', 'active', 'enabled', now(), now()),
-       ($5, $2, $6, 'line_of_business', $7, 'medium', 'internal', 'saas', 'manual', 120, 'prod', 'active', 'enabled', now(), now())`,
+       ($1, $2, $3, 'line_of_business', $4, 'high', 'internal', 'saas', $5, 'manual', 250, 'prod', 'active', 'enabled', now(), now()),
+       ($6, $2, $7, 'line_of_business', $8, 'medium', 'internal', 'saas', $9, 'manual', 120, 'prod', 'active', 'enabled', now(), now())`,
     [
       ids.applicationId,
       tenantId,
       opts?.applicationName ?? `Shared Boundary Application ${tag}`,
       `Primary application ${tag}`,
+      ids.applicationVersion,
       ids.suiteApplicationId,
       `Suite Application ${tag}`,
       `Suite application ${tag}`,
+      ids.suiteApplicationVersion,
     ],
   );
 
@@ -906,6 +912,102 @@ function createKnowledgeToolAdapter(manager: any) {
         groups: [],
       };
     },
+
+    async list(query: any, opts?: { manager?: any; tenantId?: string }) {
+      const activeManager = opts?.manager ?? manager;
+      const tenantId = String(opts?.tenantId || '').trim() || null;
+      const term = String(query?.q || '').trim();
+      const like = term ? `%${term}%` : null;
+      const limit = Math.min(Math.max(Number(query?.limit) || 20, 1), 100);
+      const offset = Math.max(Number(query?.offset) || 0, 0);
+      const rows = await activeManager.query(
+        `SELECT d.id,
+                d.item_number,
+                d.title,
+                d.summary,
+                d.status,
+                d.updated_at,
+                dl.name AS library_name,
+                f.name AS folder_name,
+                dt.name AS document_type_name,
+                (
+                  SELECT COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, c.user_id::text)
+                  FROM document_contributors c
+                  LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = d.tenant_id
+                  WHERE c.document_id = d.id
+                    AND c.tenant_id = d.tenant_id
+                    AND c.role = 'owner'
+                    AND c.is_primary = true
+                  LIMIT 1
+                ) AS primary_owner_name
+         FROM documents d
+         LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
+         LEFT JOIN document_folders f ON f.id = d.folder_id AND f.tenant_id = d.tenant_id
+         LEFT JOIN document_types dt ON dt.id = d.document_type_id AND dt.tenant_id = d.tenant_id
+         WHERE d.tenant_id = COALESCE($1, app_current_tenant())
+           AND (
+             $2::text IS NULL
+             OR d.title ILIKE $2
+             OR COALESCE(d.summary, '') ILIKE $2
+             OR COALESCE(d.content_plain, '') ILIKE $2
+           )
+         ORDER BY d.updated_at DESC, d.title ASC
+         LIMIT $3 OFFSET $4`,
+        [tenantId, like, limit, offset],
+      );
+
+      return {
+        items: rows.map((row: any) => ({
+          ...row,
+          item_ref: `DOC-${row.item_number}`,
+        })),
+        total: rows.length,
+      };
+    },
+
+    async listIds(query: any, opts?: { manager?: any; tenantId?: string }) {
+      const result = await this.list(query, opts);
+      return {
+        ids: result.items.map((item: any) => item.id),
+        total: result.total,
+      };
+    },
+
+    async listFilterValues(query: any, opts?: { manager?: any; tenantId?: string }) {
+      const activeManager = opts?.manager ?? manager;
+      const tenantId = String(opts?.tenantId || '').trim() || null;
+      const fields = String(query?.fields || query?.field || '').split(',').map((f) => f.trim()).filter(Boolean);
+      const result: Record<string, Array<string | null>> = {};
+
+      for (const field of fields) {
+        if (field === 'status') {
+          const rows = await activeManager.query(
+            `SELECT DISTINCT d.status AS value
+             FROM documents d
+             WHERE d.tenant_id = COALESCE($1, app_current_tenant())
+             ORDER BY 1`,
+            [tenantId],
+          );
+          result[field] = rows.map((row: any) => row.value);
+          continue;
+        }
+        if (field === 'library_name') {
+          const rows = await activeManager.query(
+            `SELECT DISTINCT dl.name AS value
+             FROM documents d
+             LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
+             WHERE d.tenant_id = COALESCE($1, app_current_tenant())
+             ORDER BY 1`,
+            [tenantId],
+          );
+          result[field] = rows.map((row: any) => row.value);
+          continue;
+        }
+        result[field] = [];
+      }
+
+      return result;
+    },
   };
 }
 
@@ -926,6 +1028,7 @@ function createAiQueryHarness(manager: any) {
   );
   const applications = new ApplicationsListService(manager.getRepository(Application));
   const assets = new AssetsListService(manager.getRepository(Asset));
+  const locations = {} as any;
   const queryExecutor = new AiQueryExecutor(
     tasks as any,
     projects as any,
@@ -933,6 +1036,7 @@ function createAiQueryHarness(manager: any) {
     applications as any,
     assets as any,
     knowledge as any,
+    locations as any,
   );
   const aggregateExecutor = new AiAggregateExecutor(
     tasks as any,
@@ -1088,6 +1192,7 @@ function buildToolIsolationCases(
           assertResult: (result: any) => {
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.applicationId]);
             assert.equal(String(result.items[0].metadata.it_owner).includes(fixtures.peopleA.applicationItOwner.name), true);
+            assert.equal(result.items[0].metadata.version, fixtures.graphA.applicationVersion);
           },
         },
       ];
@@ -1102,6 +1207,7 @@ function buildToolIsolationCases(
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_requests'), [fixtures.graphA.requestId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_projects'), [fixtures.graphA.projectId]);
             assert.deepEqual(getPersonNames(result.entity.metadata.it_owners), [fixtures.peopleA.applicationItOwner.name]);
+            assert.equal(result.entity.metadata.version, fixtures.graphA.applicationVersion);
           },
         },
         {
@@ -1253,6 +1359,7 @@ function buildToolIsolationCases(
             assert.deepEqual(result.filters_applied, ['it_owner']);
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.applicationId]);
             assert.equal(String(result.items[0].metadata.it_owner).includes(fixtures.peopleA.applicationItOwner.name), true);
+            assert.equal(result.items[0].metadata.version, fixtures.graphA.applicationVersion);
           },
         },
       ];
@@ -1357,6 +1464,9 @@ function buildToolIsolationCases(
           assert.deepEqual(result.relations.tasks.map((item: any) => item.id), [fixtures.graphA.taskId]);
         },
       }];
+
+    case 'web_search':
+      return [];
 
     default: {
       const exhaustive: never = toolName;
@@ -1475,6 +1585,7 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
       limit: 10,
     });
     assert.deepEqual(applicationSearch.items.map((item: any) => item.id), [graphA.applicationId]);
+    assert.equal(applicationSearch.items[0].metadata.version, graphA.applicationVersion);
 
     const assetSearch = await entityService.searchAll(tenantAContext, {
       query: 'Shared Boundary Asset',
@@ -1492,6 +1603,7 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
     assert.deepEqual(getRelatedIdsByRelation(applicationContext, 'linked_projects'), [graphA.projectId]);
     assert.deepEqual(getRelatedIdsByRelation(applicationContext, 'related_applications'), [graphA.suiteApplicationId]);
     assert.deepEqual(getRelatedIdsByRelation(applicationContext, 'linked_assets'), [graphA.assetId]);
+    assert.equal(applicationContext.entity.metadata.version, graphA.applicationVersion);
     assert.equal(
       applicationContext.related.some((group: any) => group.items.some((item: any) =>
         [graphB.requestId, graphB.projectId, graphB.suiteApplicationId, graphB.assetId].includes(item.id))),
@@ -1565,6 +1677,12 @@ async function testAiToolRegistryIsolationCoverageTracksRegisteredTools() {
       policy,
       queryExecutor,
       aggregateExecutor,
+      {
+        find: async () => ({ web_search_enabled: false }),
+      } as any,
+      {
+        search: async () => [],
+      } as any,
     );
 
     const tenantAContext = {
@@ -1629,6 +1747,12 @@ async function testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScope
       policy,
       queryExecutor,
       aggregateExecutor,
+      {
+        find: async () => ({ web_search_enabled: false }),
+      } as any,
+      {
+        search: async () => [],
+      } as any,
     );
 
     await setCurrentTenant(runner, tenantA);
@@ -1674,6 +1798,261 @@ async function testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScope
     assert.equal(filterValuesResult.values.lifecycle.includes('active'), true);
     assert.equal(filterValuesResult.values.lifecycle.includes('retired'), true);
     assert.deepEqual(filterValuesResult.fields_ignored, []);
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
+async function testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  const tenantA = randomUUID();
+  const tenantB = randomUUID();
+
+  try {
+    await seedTenant(runner, tenantA, `ai-plumbing-a-${tenantA.slice(0, 8)}`, 'AI Plumbing Tenant A');
+    await seedTenant(runner, tenantB, `ai-plumbing-b-${tenantB.slice(0, 8)}`, 'AI Plumbing Tenant B');
+
+    const graphA = await seedApplicationAssetGraph(runner, tenantA, '8201', {
+      applicationName: 'Shared Boundary Application',
+      projectName: 'Shared Boundary Project',
+      requestName: 'Shared Boundary Request',
+      taskTitle: 'Shared Boundary Task',
+    });
+    const graphB = await seedApplicationAssetGraph(runner, tenantB, '8202', {
+      applicationName: 'Shared Boundary Application',
+      projectName: 'Shared Boundary Project',
+      requestName: 'Shared Boundary Request',
+      taskTitle: 'Shared Boundary Task',
+    });
+    const knowledgeA = await seedKnowledgeGraph(runner, tenantA, graphA, '8201', {
+      documentTitle: 'Shared Boundary Knowledge',
+      documentSummary: 'Tenant A knowledge summary',
+    });
+    await seedKnowledgeGraph(runner, tenantB, graphB, '8202', {
+      documentTitle: 'Shared Boundary Knowledge',
+      documentSummary: 'Tenant B knowledge summary',
+    });
+
+    const taskCompanyA = randomUUID();
+    const taskCompanyB = randomUUID();
+    await setCurrentTenant(runner, tenantA);
+    await runner.query(
+      `INSERT INTO companies (
+         id, tenant_id, coa_id, name, country_iso, city, address1, address2, postal_code, reg_number,
+         vat_number, state, base_currency, notes, status, disabled_at, created_at, updated_at
+       )
+       VALUES ($1, $2, null, $3, 'US', 'Tenant A City', null, null, null, null, null, null, 'USD', null, 'enabled', null, now(), now())`,
+      [taskCompanyA, tenantA, 'Tenant A Task Company'],
+    );
+    await setCurrentTenant(runner, tenantB);
+    await runner.query(
+      `INSERT INTO companies (
+         id, tenant_id, coa_id, name, country_iso, city, address1, address2, postal_code, reg_number,
+         vat_number, state, base_currency, notes, status, disabled_at, created_at, updated_at
+       )
+       VALUES ($1, $2, null, $3, 'US', 'Tenant B City', null, null, null, null, null, null, 'USD', null, 'enabled', null, now(), now())`,
+      [taskCompanyB, tenantB, 'Tenant B Task Company'],
+    );
+
+    await setCurrentTenant(runner, tenantA);
+    await runner.query(
+      `UPDATE applications
+       SET status = 'enabled'
+       WHERE tenant_id = $1`,
+      [tenantA],
+    );
+    await runner.query(
+      `UPDATE portfolio_projects
+       SET status = 'planned'
+       WHERE tenant_id = $1`,
+      [tenantA],
+    );
+    await runner.query(
+      `UPDATE portfolio_requests
+       SET status = 'pending_review'
+       WHERE tenant_id = $1`,
+      [tenantA],
+    );
+    await runner.query(
+      `UPDATE tasks
+       SET status = 'open'
+       WHERE tenant_id = $1`,
+      [tenantA],
+    );
+    await runner.query(
+      `UPDATE tasks
+       SET company_id = $2
+       WHERE tenant_id = $1`,
+      [tenantA, taskCompanyA],
+    );
+    await setCurrentTenant(runner, tenantB);
+    await runner.query(
+      `UPDATE applications
+       SET status = 'disabled'
+       WHERE tenant_id = $1`,
+      [tenantB],
+    );
+    await runner.query(
+      `UPDATE portfolio_projects
+       SET status = 'done'
+       WHERE tenant_id = $1`,
+      [tenantB],
+    );
+    await runner.query(
+      `UPDATE portfolio_requests
+       SET status = 'converted'
+       WHERE tenant_id = $1`,
+      [tenantB],
+    );
+    await runner.query(
+      `UPDATE tasks
+       SET status = 'done'
+       WHERE tenant_id = $1`,
+      [tenantB],
+    );
+    await runner.query(
+      `UPDATE tasks
+       SET company_id = $2
+       WHERE tenant_id = $1`,
+      [tenantB, taskCompanyB],
+    );
+    await setCurrentTenant(runner, tenantA);
+    await runner.query(
+      `UPDATE documents
+       SET status = 'published'
+       WHERE tenant_id = $1`,
+      [tenantA],
+    );
+    await setCurrentTenant(runner, tenantB);
+    await runner.query(
+      `UPDATE documents
+       SET status = 'archived'
+       WHERE tenant_id = $1`,
+      [tenantB],
+    );
+
+    await disableRls(runner, [
+      'applications',
+      'portfolio_projects',
+      'portfolio_requests',
+      'tasks',
+      'documents',
+    ]);
+
+    await setCurrentTenant(runner, tenantA);
+    const policy = createPermissivePolicyStub();
+    const { knowledge, queryExecutor, aggregateExecutor } = createAiQueryHarness(runner.manager);
+    const entityService = new AiEntityService(knowledge as any, policy);
+    const registry = new AiToolRegistry(
+      entityService,
+      knowledge as any,
+      policy,
+      queryExecutor,
+      aggregateExecutor,
+      {
+        find: async () => ({ web_search_enabled: false }),
+      } as any,
+      {
+        search: async () => [],
+      } as any,
+    );
+
+    const tenantAContext = {
+      tenantId: tenantA,
+      userId: randomUUID(),
+      isPlatformHost: false,
+      surface: 'chat' as const,
+      authMethod: 'jwt' as const,
+      manager: runner.manager,
+    };
+
+    const cases = [
+      {
+        entityType: 'applications' as const,
+        query: 'Shared Boundary Application',
+        expectedId: graphA.applicationId,
+        expectedStatus: 'enabled',
+        forbiddenStatus: 'disabled',
+      },
+      {
+        entityType: 'projects' as const,
+        query: 'Shared Boundary Project',
+        expectedId: graphA.projectId,
+        expectedStatus: 'planned',
+        forbiddenStatus: 'done',
+      },
+      {
+        entityType: 'requests' as const,
+        query: 'Shared Boundary Request',
+        expectedId: graphA.requestId,
+        expectedStatus: 'pending_review',
+        forbiddenStatus: 'converted',
+      },
+      {
+        entityType: 'tasks' as const,
+        query: 'Shared Boundary Task',
+        expectedId: graphA.taskId,
+        expectedStatus: 'open',
+        forbiddenStatus: 'done',
+        filterField: 'company',
+        expectedFilterValue: 'Tenant A Task Company',
+        forbiddenFilterValue: 'Tenant B Task Company',
+      },
+      {
+        entityType: 'documents' as const,
+        query: 'Shared Boundary Knowledge',
+        aggregateQuery: '',
+        expectedId: knowledgeA.documentId,
+        expectedStatus: 'published',
+        forbiddenStatus: 'archived',
+        filterField: 'library',
+        expectedFilterValue: 'Knowledge 8201',
+        forbiddenFilterValue: 'Knowledge 8202',
+      },
+    ];
+
+    for (const testCase of cases) {
+      const queryResult = await registry.execute(tenantAContext, 'query_entities', {
+        entity_type: testCase.entityType,
+        q: testCase.query,
+        limit: 20,
+      }) as any;
+      assert.equal(queryResult.total, 1, `${testCase.entityType} query should only return tenant A rows`);
+      assert.deepEqual(queryResult.items.map((item: any) => item.id), [testCase.expectedId]);
+
+      const aggregateResult = await registry.execute(tenantAContext, 'aggregate_entities', {
+        entity_type: testCase.entityType,
+        group_by: 'status',
+        q: testCase.aggregateQuery ?? testCase.query,
+      }) as any;
+      assert.equal(aggregateResult.total, 1, `${testCase.entityType} aggregate should only count tenant A rows`);
+      assert.equal(
+        aggregateResult.groups.some((group: any) => group.key === testCase.expectedStatus && group.count === 1),
+        true,
+        `${testCase.entityType} aggregate should include tenant A status only`,
+      );
+      assert.equal(
+        aggregateResult.groups.some((group: any) => group.key === testCase.forbiddenStatus),
+        false,
+        `${testCase.entityType} aggregate should not include tenant B status`,
+      );
+
+      const filterValuesResult = await registry.execute(tenantAContext, 'get_filter_values', {
+        entity_type: testCase.entityType,
+        fields: [testCase.filterField || 'status'],
+      }) as any;
+      const filterValues = Array.isArray(filterValuesResult.values?.[testCase.filterField || 'status'])
+        ? filterValuesResult.values[testCase.filterField || 'status']
+        : [];
+      const expectedFilterValue = testCase.expectedFilterValue ?? testCase.expectedStatus;
+      const forbiddenFilterValue = testCase.forbiddenFilterValue ?? testCase.forbiddenStatus;
+      assert.equal(filterValues.includes(expectedFilterValue), true, `${testCase.entityType} filter values should include tenant A value`);
+      assert.equal(filterValues.includes(forbiddenFilterValue), false, `${testCase.entityType} filter values should not include tenant B value`);
+    }
   } finally {
     await runner.rollbackTransaction();
     await runner.release();
@@ -1726,6 +2105,12 @@ async function testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting() {
       policy,
       queryExecutor,
       aggregateExecutor,
+      {
+        find: async () => ({ web_search_enabled: false }),
+      } as any,
+      {
+        search: async () => [],
+      } as any,
     );
 
     await setCurrentTenant(runner, tenantId);
@@ -2077,8 +2462,9 @@ async function run() {
   try {
     await testAiPhase1RepairMigrationReassertsCriticalRls();
     await testAiEntityServicePhase1TenantDefenseInDepth();
-    await testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScoped();
-    await testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting();
+  await testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScoped();
+  await testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies();
+  await testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting();
     await testAiAdminOverviewAggregatesUsageAndIsTenantScoped();
     await testAiConversationRetentionArchivesAndPurgesOldConversations();
     await testAiToolRegistryIsolationCoverageTracksRegisteredTools();

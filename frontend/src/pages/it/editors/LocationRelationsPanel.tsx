@@ -15,6 +15,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import api from '../../../api';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 type ServerRow = {
   id: string;
   name: string;
@@ -39,6 +41,7 @@ type Props = {
 };
 
 export default function LocationRelationsPanel({ id }: Props) {
+  const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const [servers, setServers] = React.useState<ServerRow[]>([]);
   const [applications, setApplications] = React.useState<ApplicationRow[]>([]);
@@ -65,7 +68,7 @@ export default function LocationRelationsPanel({ id }: Props) {
         })),
       );
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to load relations';
+      const msg = getApiErrorMessage(e, t, t('messages.loadRelationsFailed'));
       setError(msg);
       setServers([]);
       setApplications([]);

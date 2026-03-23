@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Stack, TextField } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -12,6 +13,7 @@ import { STATUS_VALUES } from '../constants/status';
 import ForbiddenPage from './ForbiddenPage';
 
 export default function DepartmentsPage() {
+  const { t } = useTranslation(['master-data', 'common']);
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
 
@@ -55,7 +57,7 @@ export default function DepartmentsPage() {
   const columns: EnhancedColDef<any>[] = useMemo(() => [
     {
       field: 'name',
-      headerName: 'Name',
+      headerName: t('shared.columns.name'),
       flex: 1,
       required: true,
       cellRenderer: (params: any) => (
@@ -69,7 +71,7 @@ export default function DepartmentsPage() {
     },
     {
       field: 'company_name',
-      headerName: 'Company',
+      headerName: t('departments.columns.company'),
       width: 280,
       filter: 'agTextColumnFilter',
       filterParams: { suppressAndOrCondition: true },
@@ -84,7 +86,7 @@ export default function DepartmentsPage() {
     },
     {
       field: 'headcount_year',
-      headerName: `Headcount (${year})`,
+      headerName: t('departments.columns.headcountYear', { year }),
       width: 180,
       filter: 'agNumberColumnFilter',
       filterParams: { suppressAndOrCondition: true },
@@ -105,7 +107,7 @@ export default function DepartmentsPage() {
     },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('shared.columns.status'),
       width: 140,
       filter: 'agSetColumnFilter',
       filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
@@ -121,7 +123,7 @@ export default function DepartmentsPage() {
     },
     {
       field: 'created_at',
-      headerName: 'Created',
+      headerName: t('shared.columns.created'),
       width: 200,
       valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
       defaultHidden: true,
@@ -134,13 +136,13 @@ export default function DepartmentsPage() {
         />
       ),
     },
-  ], [getWorkspaceHref, navigate, year]);
+  ], [getWorkspaceHref, navigate, year, t]);
 
   const canCreate = hasLevel('departments','manager');
   const canAdmin = hasLevel('departments','admin');
   const actions = (
     <Stack direction="row" spacing={1}>
-      <TextField size="small" label="Year" type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || currentYear)} sx={{ width: 120 }} />
+      <TextField size="small" label={t('shared.fields.year')} type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || currentYear)} sx={{ width: 120 }} />
       {canCreate && (
         <Button
           variant="contained"
@@ -152,8 +154,8 @@ export default function DepartmentsPage() {
           New
         </Button>
       )}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canAdmin && <Button onClick={() => setImportOpen(true)}>{t('shared.labels.importCsv')}</Button>}
+      {canAdmin && <Button onClick={() => setExportOpen(true)}>{t('shared.labels.exportCsv')}</Button>}
       {canAdmin && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
@@ -169,7 +171,7 @@ export default function DepartmentsPage() {
 
   return (
     <>
-      <PageHeader title="Departments" actions={actions} />
+      <PageHeader title={t("departments.title")} actions={actions} />
       <ServerDataGrid<any>
         columns={columns}
         endpoint="/departments"
@@ -192,12 +194,12 @@ export default function DepartmentsPage() {
           lastQueryRef.current = { sort: state.sort, q: state.q || '', filters: state.filterModel || {}, statusScope: scope };
         }}
       />
-      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/departments" title="Export Departments" />
+      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/departments" title={t("departments.export")} />
       <CsvImportDialog
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/departments"
-        title="Import Departments"
+        title={t("departments.import")}
         onImported={() => setRefreshKey((k) => k + 1)}
       />
     </>

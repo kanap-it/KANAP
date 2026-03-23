@@ -103,7 +103,7 @@ export const documentsRegistry: AiEntityFilterRegistry = {
         expression: `(SELECT COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, c.user_id::text)
           FROM document_contributors c
           LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = d.tenant_id
-          WHERE c.document_id = d.id AND c.role = 'owner' AND c.is_primary = true
+          WHERE c.document_id = d.id AND c.tenant_id = d.tenant_id AND c.role = 'owner' AND c.is_primary = true
           LIMIT 1)`,
       },
     },

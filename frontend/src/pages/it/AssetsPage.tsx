@@ -14,6 +14,7 @@ import CheckboxSetFilter from '../../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
 import api from '../../api';
 
+import { useTranslation } from 'react-i18next';
 type AssetRow = {
   id: string;
   name: string;
@@ -59,6 +60,7 @@ const ENV_LABEL_MAP: Record<string, string> = {
 const ENV_ORDER = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox'];
 
 export default function AssetsPage() {
+  const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const location = useLocation();
   const { hasLevel } = useAuth();
@@ -112,7 +114,7 @@ export default function AssetsPage() {
     const labelMap = opts?.labelMap;
     const labelFn = opts?.labelFn;
     const order = opts?.order;
-    const emptyLabel = opts?.emptyLabel ?? '(Blank)';
+    const emptyLabel = opts?.emptyLabel ?? t('pages.assets.filters.blank');
     return async ({ context }: any) => {
       const queryState = context?.getQueryState?.() ?? {};
       const filters = { ...(queryState.filters || {}) };
@@ -232,9 +234,9 @@ export default function AssetsPage() {
   }, [getAssetHref, handleInternalNavigate]);
 
   const columns: EnhancedColDef<AssetRow>[] = useMemo(() => [
-    { headerName: 'Name', field: 'name', minWidth: 180, cellRenderer: ClickToWorkspace },
+    { headerName: t('common.name'), field: 'name', minWidth: 180, cellRenderer: ClickToWorkspace },
     {
-      headerName: 'Asset Type',
+      headerName: t('pages.assets.columns.assetType'),
       field: 'kind',
       width: 140,
       filter: CheckboxSetFilter,
@@ -247,20 +249,20 @@ export default function AssetsPage() {
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Cluster',
+      headerName: t('pages.assets.columns.cluster'),
       field: 'cluster',
       width: 160,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getAssetFilterValues('cluster', { emptyLabel: '(No cluster)' }),
+        getValues: getAssetFilterValues('cluster', { emptyLabel: t('pages.assets.filters.noCluster') }),
         searchable: false,
       },
       valueFormatter: (p) => (p.data?.is_cluster ? 'Cluster' : p.value || '—'),
       cellRenderer: ClusterCell,
     },
     {
-      headerName: 'Environment',
+      headerName: t('pages.assets.columns.environment'),
       field: 'environment',
       width: 130,
       filter: CheckboxSetFilter,
@@ -273,32 +275,32 @@ export default function AssetsPage() {
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Location',
+      headerName: t('pages.assets.columns.location'),
       field: 'location_name',
       width: 160,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getAssetFilterValues('location_name', { emptyLabel: '(No location)' }),
+        getValues: getAssetFilterValues('location_name', { emptyLabel: t('pages.assets.filters.noLocation') }),
         searchable: false,
       },
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Sub-location',
+      headerName: t('pages.assets.columns.subLocation'),
       field: 'sub_location_name',
       width: 160,
       hide: true,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getAssetFilterValues('sub_location_name', { emptyLabel: '(No sub-location)' }),
+        getValues: getAssetFilterValues('sub_location_name', { emptyLabel: t('pages.assets.filters.noSubLocation') }),
         searchable: false,
       },
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Hosting',
+      headerName: t('pages.assets.columns.hosting'),
       field: 'hosting_type',
       width: 140,
       filter: CheckboxSetFilter,
@@ -311,7 +313,7 @@ export default function AssetsPage() {
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'OS',
+      headerName: t('pages.assets.columns.os'),
       field: 'operating_system',
       width: 140,
       filter: CheckboxSetFilter,
@@ -324,7 +326,7 @@ export default function AssetsPage() {
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Network Zone',
+      headerName: t('pages.assets.columns.networkZone'),
       field: 'network_segment',
       width: 160,
       filter: CheckboxSetFilter,
@@ -337,7 +339,7 @@ export default function AssetsPage() {
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Lifecycle',
+      headerName: t('common.lifecycle'),
       field: 'status',
       width: 140,
       filter: CheckboxSetFilter,
@@ -350,21 +352,21 @@ export default function AssetsPage() {
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Go-live',
+      headerName: t('pages.assets.columns.goLive'),
       field: 'go_live_date',
       width: 120,
       hide: true,
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'End-of-life',
+      headerName: t('pages.assets.columns.endOfLife'),
       field: 'end_of_life_date',
       width: 120,
       hide: true,
       cellRenderer: ClickToWorkspace,
     },
     {
-      headerName: 'Assignments',
+      headerName: t('pages.assets.columns.assignments'),
       field: 'assignments_count',
       width: 140,
       sortable: false,
@@ -372,7 +374,7 @@ export default function AssetsPage() {
       valueFormatter: (p) => p.value ?? 0,
       cellRenderer: ClickToWorkspace,
     },
-    { headerName: 'Created', field: 'created_at', width: 180, cellRenderer: ClickToWorkspace },
+    { headerName: t('pages.assets.columns.created'), field: 'created_at', width: 180, cellRenderer: ClickToWorkspace },
   ], [ClickToWorkspace, ClusterCell, getAssetFilterValues, labelFor, lifecycleLabel]);
 
   const actions = (
@@ -385,8 +387,8 @@ export default function AssetsPage() {
           Add asset
         </Button>
       )}
-      {hasLevel('infrastructure', 'admin') && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {hasLevel('infrastructure', 'admin') && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {hasLevel('infrastructure', 'admin') && <Button onClick={() => setImportOpen(true)}>{t('pages.assets.importCsv')}</Button>}
+      {hasLevel('infrastructure', 'admin') && <Button onClick={() => setExportOpen(true)}>{t('pages.assets.exportCsv')}</Button>}
       {hasLevel('infrastructure', 'admin') && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
@@ -395,7 +397,7 @@ export default function AssetsPage() {
           getItemName={(row) => row.name}
           gridApi={gridApiRef.current}
           onDeleteSuccess={() => { setRefreshKey((k) => k + 1); }}
-          label="Delete asset"
+          label={t('pages.assets.deleteAsset')}
         />
       )}
     </Stack>
@@ -403,7 +405,7 @@ export default function AssetsPage() {
 
   return (
     <>
-      <PageHeader title="Assets" actions={actions} />
+      <PageHeader title={t('pages.assets.title')} actions={actions} />
       <ServerDataGrid<AssetRow>
         columns={columns}
         endpoint="/assets"
@@ -426,14 +428,14 @@ export default function AssetsPage() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         endpoint="/assets"
-        title="Export Assets"
-        presets={[{ name: 'enrichment', label: 'Data Enrichment' }]}
+        title={t('pages.assets.exportTitle')}
+        presets={[{ name: 'enrichment', label: t('pages.assets.dataEnrichment') }]}
       />
       <CsvImportDialogV2
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/assets"
-        title="Import Assets"
+        title={t('pages.assets.importTitle')}
         onImported={() => setRefreshKey((k) => k + 1)}
       />
     </>

@@ -4,6 +4,8 @@ import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import DateEUField from '../../../components/fields/DateEUField';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 export type HardwareInfoPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
@@ -26,6 +28,7 @@ type Props = {
 };
 
 export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoPanel({ assetId, onDirtyChange }, ref) {
+  const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel('infrastructure', 'member');
 
@@ -87,7 +90,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
     } catch (e: any) {
       // 404 means no hardware info yet, which is OK
       if (e?.response?.status !== 404) {
-        setError(e?.response?.data?.message || e?.message || 'Failed to load hardware info');
+        setError(getApiErrorMessage(e, t, t('messages.loadHardwareInfoFailed')));
       }
     } finally {
       setLoading(false);
@@ -122,7 +125,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
         notes: notes || null,
       });
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save hardware info');
+      setError(getApiErrorMessage(e, t, t('messages.saveHardwareInfoFailed')));
       throw e;
     } finally {
       setSaving(false);

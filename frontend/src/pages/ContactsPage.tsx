@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../components/ServerDataGrid';
 import { Button, Stack } from '@mui/material';
@@ -12,6 +13,7 @@ import ForbiddenPage from './ForbiddenPage';
 
 export default function ContactsPage() {
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(['master-data', 'common']);
   const navigate = useNavigate();
 
   if (!hasLevel('contacts', 'reader')) {
@@ -42,7 +44,7 @@ export default function ContactsPage() {
   const columns: EnhancedColDef<any>[] = useMemo(() => [
     {
       field: 'last_name',
-      headerName: 'Last Name',
+      headerName: t('contacts.columns.lastName'),
       width: 160,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
@@ -50,7 +52,7 @@ export default function ContactsPage() {
     },
     {
       field: 'first_name',
-      headerName: 'First Name',
+      headerName: t('contacts.columns.firstName'),
       width: 160,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
@@ -58,7 +60,7 @@ export default function ContactsPage() {
     },
     {
       field: 'supplier_name',
-      headerName: 'Supplier',
+      headerName: t('contacts.columns.supplier'),
       width: 200,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
@@ -66,7 +68,7 @@ export default function ContactsPage() {
     },
     {
       field: 'job_title',
-      headerName: 'Job Title',
+      headerName: t('contacts.columns.jobTitle'),
       width: 200,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -75,7 +77,7 @@ export default function ContactsPage() {
     },
     {
       field: 'email',
-      headerName: 'Email',
+      headerName: t('shared.columns.email'),
       flex: 1,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
@@ -83,7 +85,7 @@ export default function ContactsPage() {
     },
     {
       field: 'phone',
-      headerName: 'Phone',
+      headerName: t('contacts.columns.phone'),
       width: 140,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -92,7 +94,7 @@ export default function ContactsPage() {
     },
     {
       field: 'mobile',
-      headerName: 'Mobile',
+      headerName: t('contacts.columns.mobile'),
       width: 140,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -101,7 +103,7 @@ export default function ContactsPage() {
     },
     {
       field: 'country',
-      headerName: 'Country',
+      headerName: t('shared.columns.country'),
       width: 120,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -110,16 +112,16 @@ export default function ContactsPage() {
     },
     {
       field: 'active',
-      headerName: 'Active',
+      headerName: t('shared.columns.active'),
       width: 120,
-      valueFormatter: (p: any) => (p.value ? 'Yes' : 'No'),
+      valueFormatter: (p: any) => (p.value ? t('shared.labels.yes') : t('shared.labels.no')),
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
       ),
     },
     {
       field: 'created_at',
-      headerName: 'Created',
+      headerName: t('shared.columns.created'),
       width: 200,
       valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
       defaultHidden: true,
@@ -127,7 +129,7 @@ export default function ContactsPage() {
         <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
       ),
     },
-  ], [navigate]);
+  ], [navigate, t]);
 
   const canCreate = hasLevel('contacts','manager');
   const canAdmin = hasLevel('contacts','admin');
@@ -137,10 +139,10 @@ export default function ContactsPage() {
         <Button variant="contained" onClick={() => {
           const sp = buildWorkspaceSearch();
           navigate(`/master-data/contacts/new/overview?${sp.toString()}`);
-        }}>New</Button>
+        }}>{t('shared.labels.new')}</Button>
       )}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canAdmin && <Button onClick={() => setImportOpen(true)}>{t('shared.labels.importCsv')}</Button>}
+      {canAdmin && <Button onClick={() => setExportOpen(true)}>{t('shared.labels.exportCsv')}</Button>}
       {canAdmin && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
@@ -156,7 +158,7 @@ export default function ContactsPage() {
 
   return (
     <>
-      <PageHeader title="Contacts" actions={actions} />
+      <PageHeader title={t("contacts.title")} actions={actions} />
       <ServerDataGrid<any>
         columns={columns}
         endpoint="/contacts"
@@ -176,12 +178,12 @@ export default function ContactsPage() {
           lastQueryRef.current = { sort: state.sort, q: state.q || '', filters: state.filterModel || {} };
         }}
       />
-      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/contacts" title="Export Contacts" />
+      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/contacts" title={t("contacts.export")} />
       <CsvImportDialog
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/contacts"
-        title="Import Contacts"
+        title={t("contacts.import")}
         onImported={() => setRefreshKey((k) => k + 1)}
       />
     </>

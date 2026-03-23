@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Box,
@@ -42,6 +43,7 @@ export default function CreateCoADialog({
   onCreated: (newId: string) => void;
 }) {
   const [code, setCode] = useState('');
+  const { t } = useTranslation(['master-data', 'common']);
   const [name, setName] = useState('');
   const [country, setCountry] = useState('');
   const [isDefault, setIsDefault] = useState(false);
@@ -109,7 +111,7 @@ export default function CreateCoADialog({
       const res = await api.post('/chart-of-accounts/import-template/preflight', { template_id: selectedTemplate });
       setPreflight(res.data);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Preflight failed');
+      setError(e?.response?.data?.message || t('coa.createDialog.preflightFailed'));
       setPreflight(null);
     } finally {
       setPreflighting(false);
@@ -120,15 +122,15 @@ export default function CreateCoADialog({
     const selected = templates.find((item) => item.id === selectedTemplate);
     const isGlobal = scope === 'GLOBAL' || !!selected?.is_global;
     if (!code || !name) {
-      setError('Code and Name are required');
+      setError(t('coa.createDialog.codeAndNameRequired'));
       return;
     }
     if (scope === 'COUNTRY' && !(mode === 'template' && isGlobal) && !country) {
-      setError('Country is required');
+      setError(t('coa.createDialog.countryRequired'));
       return;
     }
     if (mode === 'template' && !selectedTemplate) {
-      setError('Please select a template');
+      setError(t('coa.createDialog.selectTemplate'));
       return;
     }
 
@@ -153,7 +155,7 @@ export default function CreateCoADialog({
       onClose();
       resetForm();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to create');
+      setError(e?.response?.data?.message || t('coa.createDialog.failedToCreate'));
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +163,7 @@ export default function CreateCoADialog({
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>New Chart of Accounts</DialogTitle>
+      <DialogTitle>{t('coa.createDialog.title')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <FormControl>
@@ -175,8 +177,8 @@ export default function CreateCoADialog({
                 setPreflight(null);
               }}
             >
-              <FormControlLabel value="scratch" control={<Radio />} label="Create from scratch" />
-              <FormControlLabel value="template" control={<Radio />} label="Copy from template" />
+              <FormControlLabel value="scratch" control={<Radio />} label={t('coa.createDialog.scratch')} />
+              <FormControlLabel value="template" control={<Radio />} label={t('coa.createDialog.template')} />
             </RadioGroup>
           </FormControl>
 
@@ -231,8 +233,8 @@ export default function CreateCoADialog({
               value={scope}
               onChange={(e) => setScope(e.target.value as 'GLOBAL' | 'COUNTRY')}
             >
-              <FormControlLabel value="COUNTRY" control={<Radio />} label="Country" />
-              <FormControlLabel value="GLOBAL" control={<Radio />} label="Global" />
+              <FormControlLabel value="COUNTRY" control={<Radio />} label={t('coa.createDialog.scopeCountry')} />
+              <FormControlLabel value="GLOBAL" control={<Radio />} label={t('coa.createDialog.scopeGlobal')} />
             </RadioGroup>
           </FormControl>
 
@@ -256,7 +258,7 @@ export default function CreateCoADialog({
           {scope === 'COUNTRY' && (
             <FormControlLabel
               control={<Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />}
-              label="Set as default for this country"
+              label={t('coa.createDialog.setDefaultForCountry')}
             />
           )}
 
@@ -270,10 +272,10 @@ export default function CreateCoADialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={submitting || preflighting}>Cancel</Button>
+        <Button onClick={onClose} disabled={submitting || preflighting}>{t('common:buttons.cancel')}</Button>
         {mode === 'template' && (
           <Button onClick={runPreflight} disabled={!selectedTemplate || preflighting || submitting}>
-            Preflight
+            {t('coa.createDialog.preflight')}
           </Button>
         )}
         <Button
@@ -281,7 +283,7 @@ export default function CreateCoADialog({
           variant="contained"
           disabled={submitting || (mode === 'template' && !selectedTemplate)}
         >
-          Create
+          {t('common:buttons.create')}
         </Button>
       </DialogActions>
     </Dialog>

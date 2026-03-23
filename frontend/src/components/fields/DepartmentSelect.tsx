@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { TextField, CircularProgress, Autocomplete, Box } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
@@ -42,6 +43,7 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
   },
   ref,
 ) {
+  const { t } = useTranslation(['master-data']);
   const { data: departments, isLoading } = useQuery({
     queryKey: ['departments', 'active', companyId, year],
     queryFn: async () => {
@@ -96,7 +98,7 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
             helperText={companyId ? helperText : undefined}
             required={required}
             size={size}
-            placeholder={!companyId ? 'Select a company first' : undefined}
+            placeholder={!companyId ? t('departments.selectCompanyFirst') : undefined}
             InputLabelProps={{ shrink: true }}
             InputProps={{
               ...params.InputProps,

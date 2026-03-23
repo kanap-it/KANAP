@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Alert, Stack, TextField } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import SupplierSelect from '../../../components/fields/SupplierSelect';
 import CompanySelect from '../../../components/fields/CompanySelect';
 import UserSelect from '../../../components/fields/UserSelect';
@@ -19,6 +21,7 @@ type Props = {
 };
 
 export default forwardRef<ContractOverviewEditorHandle, Props>(function ContractOverviewEditor({ id, readOnly, onDirtyChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
   const isCreate = !id;
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -55,7 +58,7 @@ export default forwardRef<ContractOverviewEditorHandle, Props>(function Contract
       setNotes(d.notes || '');
       baselineRef.current = { name: d.name || '', supplierId: d.supplier_id || '', companyId: d.company_id || '', ownerUserId: d.owner_user_id || null, status: ((d.status || 'enabled').toLowerCase() === 'disabled' ? 'disabled' : 'enabled'), disabledAt: d.disabled_at ? new Date(d.disabled_at).toISOString() : null, notes: d.notes || '' };
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load contract');
+      setError(getApiErrorMessage(e, t, t('contracts.overview.failedToLoad')));
     } finally { setLoading(false); }
   }, [id]);
 
@@ -76,7 +79,7 @@ export default forwardRef<ContractOverviewEditorHandle, Props>(function Contract
       };
       if (isCreate) {
         // additional required fields will be set in Details editor later
-        if (!payload.name || !payload.supplier_id || !payload.company_id) throw new Error('Name, Supplier and Company are required');
+        if (!payload.name || !payload.supplier_id || !payload.company_id) throw new Error(t('contracts.overview.nameSupplierCompanyRequired'));
         const res = await api.post('/contracts', {
           ...payload,
           // minimal defaults to pass backend validation
@@ -96,7 +99,7 @@ export default forwardRef<ContractOverviewEditorHandle, Props>(function Contract
         await load();
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('contracts.overview.failedToSave')));
       throw e;
     } finally { setSaving(false); }
   };

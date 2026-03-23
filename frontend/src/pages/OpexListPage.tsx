@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ColDef } from 'ag-grid-community';
 import ServerDataGrid, { StatusScope } from '../components/ServerDataGrid';
 import PageHeader from '../components/PageHeader';
@@ -70,6 +71,7 @@ function formatNumber(v: any) {
 
 export default function OpexListPage() {
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(['ops', 'common']);
 
   if (!hasLevel('opex', 'reader')) {
     return <ForbiddenPage />;
@@ -98,7 +100,7 @@ export default function OpexListPage() {
   }, [usersEnabled]);
 
   const getOpexFilterValues = useCallback((field: string, opts?: { emptyLabel?: string }) => {
-    const emptyLabel = opts?.emptyLabel ?? '(Blank)';
+    const emptyLabel = opts?.emptyLabel ?? t('shared.blank');
     return async ({ context }: any) => {
       const queryState = context?.getQueryState?.() ?? {};
       const filters = { ...(queryState.filters || {}) };
@@ -179,7 +181,7 @@ export default function OpexListPage() {
       const res = await api.get('/spend-items/summary/totals', { params });
       const totals = res.data || {};
       const pinned = {
-        product_name: 'Total',
+        product_name: t('shared.total'),
         versions: {
           yMinus1: {
             totals: {
@@ -254,11 +256,11 @@ export default function OpexListPage() {
             navigate(`/ops/opex/new?${sp.toString()}`);
           }}
         >
-          New
+          {t('opex.newButton')}
         </Button>
       )}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canAdmin && <Button onClick={() => setImportOpen(true)}>{t('opex.importCsv')}</Button>}
+      {canAdmin && <Button onClick={() => setExportOpen(true)}>{t('opex.exportCsv')}</Button>}
       {canAdmin && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
@@ -332,7 +334,7 @@ export default function OpexListPage() {
   const columns: ColDef<SummaryRow>[] = useMemo(() => [
     {
       field: 'product_name',
-      headerName: 'Product Name',
+      headerName: t('opex.columns.productName'),
       flex: 1,
       minWidth: 220,
       cellRenderer: (params: any) => (
@@ -346,7 +348,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'supplier_name',
-      headerName: 'Supplier',
+      headerName: t('opex.columns.supplier'),
       valueGetter: (p) => {
         const d: any = p.data || {};
         return d?.supplier?.name ?? d?.supplier_name ?? d?.supplier ?? '';
@@ -363,7 +365,7 @@ export default function OpexListPage() {
     },
     {
       field: 'paying_company_name',
-      headerName: 'Paying Company',
+      headerName: t('opex.columns.payingCompany'),
       width: 200,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -382,7 +384,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'contract_name',
-      headerName: 'Contract',
+      headerName: t('opex.columns.contract'),
       valueGetter: (p) => p.data?.latest_contract_name || '',
       width: 200,
       cellRenderer: (params: any) => (
@@ -396,7 +398,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'account_display',
-      headerName: 'Account',
+      headerName: t('opex.columns.account'),
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
@@ -432,7 +434,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'allocation_label',
-      headerName: 'Allocation',
+      headerName: t('opex.columns.allocation'),
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
@@ -453,7 +455,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'yMinus1Budget',
-      headerName: `Y-1 Budget (${Y - 1})`,
+      headerName: t('opex.columns.yMinus1Budget', { year: Y - 1 }),
       valueGetter: (p) => p.data?.versions?.yMinus1?.reporting?.budget ?? p.data?.versions?.yMinus1?.totals?.budget ?? 0,
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
@@ -470,7 +472,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'yMinus1Landing',
-      headerName: `Y-1 Landing (${Y - 1})`,
+      headerName: t('opex.columns.yMinus1Landing', { year: Y - 1 }),
       valueGetter: (p) => p.data?.versions?.yMinus1?.reporting?.landing ?? p.data?.versions?.yMinus1?.totals?.landing ?? 0,
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
@@ -487,7 +489,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'yBudget',
-      headerName: `Y Budget (${Y})`,
+      headerName: t('opex.columns.yBudget', { year: Y }),
       valueGetter: (p) => p.data?.versions?.y?.reporting?.budget ?? p.data?.versions?.y?.totals?.budget ?? 0,
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
@@ -503,7 +505,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'yRevision',
-      headerName: `Y Revision (${Y})`,
+      headerName: t('opex.columns.yRevision', { year: Y }),
       valueGetter: (p) => p.data?.versions?.y?.reporting?.revision ?? p.data?.versions?.y?.totals?.revision ?? 0,
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
@@ -520,7 +522,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'yFollowUp',
-      headerName: `Y Follow-up (${Y})`,
+      headerName: t('opex.columns.yFollowUp', { year: Y }),
       valueGetter: (p) => p.data?.versions?.y?.reporting?.follow_up ?? p.data?.versions?.y?.totals?.follow_up ?? 0,
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
@@ -537,7 +539,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'yLanding',
-      headerName: `Y Landing (${Y})`,
+      headerName: t('opex.columns.yLanding', { year: Y }),
       valueGetter: (p) => p.data?.versions?.y?.reporting?.landing ?? p.data?.versions?.y?.totals?.landing ?? 0,
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
@@ -553,7 +555,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'yPlus1Budget',
-      headerName: `Y+1 Budget (${Y + 1})`,
+      headerName: t('opex.columns.yPlus1Budget', { year: Y + 1 }),
       valueGetter: (p) => p.data?.versions?.yPlus1?.reporting?.budget ?? p.data?.versions?.yPlus1?.totals?.budget ?? 0,
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
@@ -570,7 +572,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'yPlus1Revision',
-      headerName: `Y+1 Revision (${Y + 1})`,
+      headerName: t('opex.columns.yPlus1Revision', { year: Y + 1 }),
       valueGetter: (p) => p.data?.versions?.yPlus1?.reporting?.revision ?? p.data?.versions?.yPlus1?.totals?.revision ?? 0,
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
@@ -587,7 +589,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'yPlus2Budget',
-      headerName: `Y+2 Budget (${Y + 2})`,
+      headerName: t('opex.columns.yPlus2Budget', { year: Y + 2 }),
       valueGetter: (p) => p.data?.versions?.yPlus2?.totals?.budget ?? 0,
       valueFormatter: (p) => formatNumber(p.value),
       type: 'rightAligned',
@@ -604,7 +606,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'latest_task_text',
-      headerName: 'Task',
+      headerName: t('opex.columns.task'),
       valueGetter: (p) => p.data?.latest_task?.title ?? '',
       tooltipValueGetter: (p) => (p.value ? String(p.value) : ''),
       flex: 1,
@@ -620,7 +622,7 @@ export default function OpexListPage() {
     },
     {
       field: 'status',
-      headerName: 'Enabled',
+      headerName: t('opex.columns.enabled'),
       width: 140,
       filter: 'agSetColumnFilter',
       filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
@@ -636,7 +638,7 @@ export default function OpexListPage() {
     },
     {
       field: 'description',
-      headerName: 'Description',
+      headerName: t('opex.columns.description'),
       width: 250,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -650,7 +652,7 @@ export default function OpexListPage() {
     },
     {
       field: 'currency',
-      headerName: 'Currency',
+      headerName: t('opex.columns.currency'),
       width: 110,
       defaultHidden: true,
       filter: CheckboxSetFilter,
@@ -670,7 +672,7 @@ export default function OpexListPage() {
     },
     {
       field: 'effective_start',
-      headerName: 'Effective Start',
+      headerName: t('opex.columns.effectiveStart'),
       width: 150,
       defaultHidden: true,
       valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleDateString() : ''),
@@ -685,7 +687,7 @@ export default function OpexListPage() {
     },
     {
       field: 'effective_end',
-      headerName: 'Effective End',
+      headerName: t('opex.columns.effectiveEnd'),
       width: 150,
       defaultHidden: true,
       valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleDateString() : ''),
@@ -700,7 +702,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'owner_it_name',
-      headerName: 'IT Owner',
+      headerName: t('opex.columns.itOwner'),
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
@@ -721,7 +723,7 @@ export default function OpexListPage() {
     },
     {
       colId: 'owner_business_name',
-      headerName: 'Business Owner',
+      headerName: t('opex.columns.businessOwner'),
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
@@ -742,7 +744,7 @@ export default function OpexListPage() {
     },
     {
       field: 'analytics_category_name',
-      headerName: 'Analytics',
+      headerName: t('opex.columns.analytics'),
       width: 200,
       defaultHidden: true,
       filter: CheckboxSetFilter,
@@ -762,7 +764,7 @@ export default function OpexListPage() {
     },
     {
       field: 'project_id',
-      headerName: 'Project ID',
+      headerName: t('opex.columns.projectId'),
       width: 150,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -776,7 +778,7 @@ export default function OpexListPage() {
     },
     {
       field: 'notes',
-      headerName: 'Notes',
+      headerName: t('opex.columns.notes'),
       width: 250,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -790,7 +792,7 @@ export default function OpexListPage() {
     },
     {
       field: 'created_at',
-      headerName: 'Created',
+      headerName: t('opex.columns.created'),
       width: 200,
       valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
       defaultHidden: true,
@@ -805,7 +807,7 @@ export default function OpexListPage() {
     },
     {
       field: 'updated_at',
-      headerName: 'Updated',
+      headerName: t('opex.columns.updated'),
       width: 200,
       valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
       defaultHidden: true,
@@ -822,7 +824,7 @@ export default function OpexListPage() {
 
   return (
     <>
-      <PageHeader title="OPEX" actions={actions} />
+      <PageHeader title={t("opex.title")} actions={actions} />
       <ServerDataGrid<SummaryRow>
         columns={columns}
         endpoint="/spend-items/summary"
@@ -850,8 +852,8 @@ export default function OpexListPage() {
         enableRowSelection={canAdmin}
         onSelectionChanged={setSelectedRows}
       />
-      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/spend-items" title="Export OPEX" />
-      <CsvImportDialog open={importOpen} onClose={() => setImportOpen(false)} endpoint="/spend-items" title="Import OPEX" onImported={() => setRefreshKey((k) => k + 1)} />
+      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/spend-items" title={t("opex.exportTitle")} />
+      <CsvImportDialog open={importOpen} onClose={() => setImportOpen(false)} endpoint="/spend-items" title={t("opex.importTitle")} onImported={() => setRefreshKey((k) => k + 1)} />
     </>
   );
 }

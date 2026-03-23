@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Autocomplete, TextField, CircularProgress } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
@@ -41,6 +42,7 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
   },
   ref,
 ) {
+  const { t } = useTranslation(['master-data', 'common']);
   const { data: suppliers, isLoading } = useQuery({
     queryKey: ['suppliers', 'active'],
     queryFn: async () => {
@@ -130,7 +132,7 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
           (option.erp_supplier_id && option.erp_supplier_id.toLowerCase().includes(searchTerm))
         );
       }}
-      noOptionsText={isLoading ? "Loading..." : "No suppliers found"}
+      noOptionsText={isLoading ? t('common:status.loading') : t('master-data:suppliers.noSuppliersFound')}
       fullWidth
     />
   );

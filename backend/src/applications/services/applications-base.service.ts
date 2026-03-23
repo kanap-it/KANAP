@@ -7,6 +7,7 @@ import { Application } from '../application.entity';
  */
 export interface ServiceOpts {
   manager?: EntityManager;
+  tenantId?: string;
 }
 
 /**

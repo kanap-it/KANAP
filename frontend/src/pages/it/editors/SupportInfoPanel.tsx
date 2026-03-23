@@ -22,6 +22,8 @@ import { useAuth } from '../../../auth/AuthContext';
 import DateEUField from '../../../components/fields/DateEUField';
 import ContactSelect from '../../../components/fields/ContactSelect';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 export type SupportInfoPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
@@ -63,6 +65,7 @@ function normalizeContacts(rows: SupportContactRow[]) {
 }
 
 export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPanel({ assetId, onDirtyChange }, ref) {
+  const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel('infrastructure', 'member');
 
@@ -200,7 +203,7 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
         setContactsBaseline([]);
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load support info');
+      setError(getApiErrorMessage(e, t, t('messages.loadSupportInfoFailed')));
     } finally {
       setLoading(false);
     }
@@ -262,7 +265,7 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
       await api.post(`/assets/${assetId}/support-contacts/bulk-replace`, { contacts: payload });
       setContactsBaseline(supportContacts);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save support info');
+      setError(getApiErrorMessage(e, t, t('messages.saveSupportInfoFailed')));
       throw e;
     } finally {
       setSaving(false);
@@ -437,7 +440,7 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
                 </TableCell>
                 <TableCell width={48}>
                   {!readOnly && (
-                    <IconButton aria-label="Remove" size="small" onClick={() => removeContactRow(idx)}>
+                    <IconButton aria-label={t('common.remove')} size="small" onClick={() => removeContactRow(idx)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   )}

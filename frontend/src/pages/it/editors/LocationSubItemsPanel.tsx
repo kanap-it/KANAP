@@ -18,6 +18,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 export type LocationSubItemsPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
@@ -43,6 +45,7 @@ function normalize(list: SubItemRow[]) {
 }
 
 export default forwardRef<LocationSubItemsPanelHandle, Props>(function LocationSubItemsPanel({ id, onDirtyChange }, ref) {
+  const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel('locations', 'member');
 
@@ -74,7 +77,7 @@ export default forwardRef<LocationSubItemsPanelHandle, Props>(function LocationS
       setItems(data);
       setBaseline(data);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to load sub-locations';
+      const msg = getApiErrorMessage(e, t, t('messages.loadSubLocationsFailed'));
       setError(msg);
       setItems([]);
     } finally {
@@ -121,7 +124,7 @@ export default forwardRef<LocationSubItemsPanelHandle, Props>(function LocationS
 
         await load();
       } catch (e: any) {
-        const msg = e?.response?.data?.message || e?.message || 'Failed to save sub-locations';
+        const msg = getApiErrorMessage(e, t, t('messages.saveSubLocationsFailed'));
         setError(msg);
         throw e;
       } finally {

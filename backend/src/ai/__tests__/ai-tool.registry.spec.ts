@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { Features } from '../../config/features';
 import { AiToolRegistry } from '../ai-tool.registry';
 
 function createContext() {
@@ -18,6 +19,8 @@ function createRegistry(overrides?: {
   policy?: any;
   queryExecutor?: any;
   aggregateExecutor?: any;
+  settingsService?: any;
+  braveSearch?: any;
 }) {
   return new AiToolRegistry(
     {
@@ -47,6 +50,14 @@ function createRegistry(overrides?: {
       execute: async () => ({ group_by: 'status', groups: [], total: 0, filters_applied: [], filters_ignored: [] }),
       ...(overrides?.aggregateExecutor || {}),
     } as any,
+    {
+      find: async () => ({ web_search_enabled: true }),
+      ...(overrides?.settingsService || {}),
+    } as any,
+    {
+      search: async () => ([{ title: 'Test', url: 'https://example.com', description: 'Test result' }]),
+      ...(overrides?.braveSearch || {}),
+    } as any,
   );
 }
 
@@ -65,7 +76,7 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
 
   assert.deepEqual(
     registry.listRegisteredTools().map((tool) => tool.name),
-    ['search_all', 'query_entities', 'aggregate_entities', 'get_filter_values', 'get_entity_context', 'search_knowledge', 'get_document'],
+    ['search_all', 'query_entities', 'aggregate_entities', 'get_filter_values', 'get_entity_context', 'search_knowledge', 'get_document', 'web_search'],
   );
 }
 
@@ -270,6 +281,23 @@ async function testGetFilterValuesDelegatesToQueryExecutor() {
   }]);
 }
 
+async function testWebSearchRejectsOversizedQueries() {
+  const original = Features.AI_WEB_SEARCH_READY;
+  try {
+    (Features as any).AI_WEB_SEARCH_READY = true;
+    const registry = createRegistry();
+
+    await assert.rejects(
+      () => registry.execute(createContext(), 'web_search', {
+        query: 'x'.repeat(257),
+      }),
+      () => true,
+    );
+  } finally {
+    (Features as any).AI_WEB_SEARCH_READY = original;
+  }
+}
+
 async function run() {
   await testListAvailableTools();
   await testListRegisteredToolsExposesRuntimeRegistry();
@@ -280,6 +308,7 @@ async function run() {
   await testGetEntityContextDelegatesToEntityTools();
   await testSearchKnowledgeMapsStableDto();
   await testGetDocumentMapsStableDto();
+  await testWebSearchRejectsOversizedQueries();
 }
 
 void run();

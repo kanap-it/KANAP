@@ -77,7 +77,7 @@ export default function AiWorkspacePage() {
   if (!config.features.aiChat) {
     return (
       <>
-        <PageHeader title="AI Workspace" />
+        <PageHeader title="Plaid" />
         <Alert severity="warning" sx={{ maxWidth: 600 }}>
           Native AI chat is disabled for this instance.
         </Alert>
@@ -122,7 +122,7 @@ export default function AiWorkspacePage() {
           /* ── Welcome screen: centered title + input ── */
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pb: 12 }}>
             <Typography variant="h5" sx={{ color: 'text.primary', fontWeight: 500, mb: 0.5 }}>
-              Start a conversation with KANAP AI
+              Start a conversation with Plaid
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 4 }}>
               Ask questions about your portfolio, tasks, or documents

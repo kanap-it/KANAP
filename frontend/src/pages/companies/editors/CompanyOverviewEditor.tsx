@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Stack, TextField, Typography } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import { Controller } from 'react-hook-form';
@@ -77,6 +78,7 @@ export default forwardRef<CompanyOverviewEditorHandle, Props>(function CompanyOv
   ref,
 ) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['master-data', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
@@ -103,7 +105,7 @@ export default forwardRef<CompanyOverviewEditorHandle, Props>(function CompanyOv
         onDirtyChange?.(false);
       } catch (e: any) {
         if (!active) return;
-        const msg = e?.response?.data?.message || e?.message || 'Failed to load company';
+        const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToLoad', { entity: t('companies.entity') });
         setServerError(msg);
       } finally {
         if (active) setLoading(false);
@@ -138,13 +140,13 @@ export default forwardRef<CompanyOverviewEditorHandle, Props>(function CompanyOv
           queryClient.invalidateQueries({ queryKey: ['companies'] });
           queryClient.invalidateQueries({ queryKey: ['companies', id] });
         } catch (e: any) {
-          const msg = e?.response?.data?.message || e?.message || 'Failed to save company';
+          const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToSave', { entity: t('companies.entity') });
           setServerError(msg);
           throw e;
         }
       },
       async (errors) => {
-        setServerError('Please fix validation errors before saving.');
+        setServerError(t('shared.messages.fixValidationErrors'));
         throw errors;
       },
     );
@@ -311,7 +313,7 @@ export default forwardRef<CompanyOverviewEditorHandle, Props>(function CompanyOv
 
   return (
     <Stack spacing={2}>
-      <Typography variant="subtitle2">Company Information</Typography>
+      <Typography variant="subtitle2">{t('companies.fields.companyInformation')}</Typography>
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
       <TextField
         label="Name"

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   Box, Button, Card, CardActionArea, CardContent, Chip, Dialog, DialogActions,
   DialogContent, DialogTitle, Autocomplete, TextField, Stack, Alert, Typography,
@@ -9,6 +9,8 @@ import AddIcon from '@mui/icons-material/Add';
 import PageHeader from '../../components/PageHeader';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 interface TeamMember {
   id: string;
@@ -30,6 +32,7 @@ interface User {
 export default function TeamMembersPage() {
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const canEdit = hasLevel('portfolio_settings', 'admin');
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -75,11 +78,11 @@ export default function TeamMembersPage() {
       refetch();
       navigate(`/portfolio/team-members/${res.data.id}`);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to add team member');
+      setError(getApiErrorMessage(e, t, t('teamMembers.messages.addFailed')));
     } finally {
       setAdding(false);
     }
-  }, [selectedUser, refetch, navigate]);
+  }, [navigate, refetch, selectedUser, t]);
 
   const handleRowClick = useCallback((member: TeamMember) => {
     navigate(`/portfolio/team-members/${member.id}`);
@@ -89,20 +92,20 @@ export default function TeamMembersPage() {
 
   const actions = canEdit ? (
     <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddDialogOpen(true)}>
-      Add Team Member
+      {t('teamMembers.actions.addTeamMember')}
     </Button>
   ) : null;
 
   return (
     <>
-      <PageHeader title="Team Members" actions={actions} />
+      <PageHeader title={t('teamMembers.title')} actions={actions} />
 
       <Box sx={{ p: 2 }}>
-        {isLoading && <Typography>Loading...</Typography>}
+        {isLoading && <Typography>{t('common:status.loading')}</Typography>}
 
         {!isLoading && teamMembers.length === 0 && (
           <Alert severity="info">
-            No team members configured yet. Add team members to define their skills and availability.
+            {t('teamMembers.states.empty')}
           </Alert>
         )}
 
@@ -123,12 +126,12 @@ export default function TeamMembersPage() {
                       )}
                     </Box>
                     <Chip
-                      label={`${member.skills?.length || 0} skill(s)`}
+                      label={t('teamMembers.cards.skillCount', { count: member.skills?.length || 0 })}
                       size="small"
                       variant="outlined"
                     />
                     <Chip
-                      label={`${member.project_availability ?? 5} days/mo`}
+                      label={t('teamMembers.cards.daysPerMonth', { count: member.project_availability ?? 5 })}
                       size="small"
                       color="primary"
                     />
@@ -141,7 +144,7 @@ export default function TeamMembersPage() {
       </Box>
 
       <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Team Member</DialogTitle>
+        <DialogTitle>{t('teamMembers.dialog.title')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
@@ -166,8 +169,8 @@ export default function TeamMembersPage() {
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Select User"
-                  placeholder="Search users..."
+                  label={t('teamMembers.dialog.selectUser')}
+                  placeholder={t('teamMembers.dialog.searchUsers')}
                 />
               )}
               fullWidth
@@ -175,13 +178,13 @@ export default function TeamMembersPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setAddDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button
             variant="contained"
             onClick={handleAdd}
             disabled={adding || !selectedUser}
           >
-            {adding ? 'Adding...' : 'Add'}
+            {adding ? t('teamMembers.dialog.adding') : t('common:buttons.add')}
           </Button>
         </DialogActions>
       </Dialog>

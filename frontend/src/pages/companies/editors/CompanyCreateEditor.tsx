@@ -1,4 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Stack, TextField, Typography } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import { Controller } from 'react-hook-form';
@@ -54,6 +55,7 @@ export default forwardRef<CompanyCreateEditorHandle, Props>(function CompanyCrea
   ref,
 ) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['master-data', 'common']);
   const [saving, setSaving] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
 
@@ -86,13 +88,13 @@ export default forwardRef<CompanyCreateEditorHandle, Props>(function CompanyCrea
           onDirtyChange?.(false);
           queryClient.invalidateQueries({ queryKey: ['companies'] });
         } catch (e: any) {
-          const msg = e?.response?.data?.message || e?.message || 'Failed to create company';
+          const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToCreate', { entity: t('companies.entity') });
           setServerError(msg);
           throw e;
         }
       },
       async (errors) => {
-        setServerError('Please fix validation errors before saving.');
+        setServerError(t('shared.messages.fixValidationErrors'));
         throw errors;
       },
     );
@@ -258,7 +260,7 @@ export default forwardRef<CompanyCreateEditorHandle, Props>(function CompanyCrea
 
   return (
     <Stack spacing={2}>
-      <Typography variant="subtitle2">Company Information</Typography>
+      <Typography variant="subtitle2">{t('companies.fields.companyInformation')}</Typography>
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
       <TextField
         label="Name"

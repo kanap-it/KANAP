@@ -25,6 +25,8 @@ import LocationContactsPanel, { LocationContactsPanelHandle } from './editors/Lo
 import LocationSubItemsPanel, { LocationSubItemsPanelHandle } from './editors/LocationSubItemsPanel';
 import LocationRelationsPanel from './editors/LocationRelationsPanel';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 type TabKey = 'overview' | 'contacts' | 'relations';
 
 const tabs: { key: TabKey; label: string }[] = [
@@ -47,6 +49,7 @@ const DEFAULT_LOCATION: LocationFormState = {
 };
 
 export default function LocationWorkspacePage() {
+  const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const navigate = useNavigate();
   const params = useParams();
@@ -122,7 +125,7 @@ export default function LocationWorkspacePage() {
       setOverviewData(mapped);
       setBaselineData(mapped);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to load location';
+      const msg = getApiErrorMessage(e, t, t('messages.loadLocationFailed'));
       setLoadError(msg);
     } finally {
       setLoading(false);
@@ -206,7 +209,7 @@ export default function LocationWorkspacePage() {
         setBaselineData(mapped);
       }
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save location';
+      const msg = getApiErrorMessage(e, t, t('messages.saveLocationFailed'));
       setSaveError(msg);
       throw e;
     } finally {
@@ -263,7 +266,7 @@ export default function LocationWorkspacePage() {
   const handleTabChange = (_: React.SyntheticEvent, nextTab: TabKey) => {
     if (tab === nextTab) return;
     if (dirty) {
-      const confirmLeave = window.confirm('You have unsaved changes. Continue without saving?');
+      const confirmLeave = window.confirm(t('confirmations.unsavedContinue'));
       if (!confirmLeave) {
         return;
       }
@@ -296,7 +299,7 @@ export default function LocationWorkspacePage() {
       setDeleteDialogOpen(false);
       closeToList();
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to delete location';
+      const msg = getApiErrorMessage(e, t, t('messages.deleteLocationFailed'));
       setDeleteError(msg);
     } finally {
       setDeleting(false);
@@ -317,7 +320,7 @@ export default function LocationWorkspacePage() {
               Delete
             </Button>
           )}
-          <Button onClick={handleReset} disabled={!dirty || deleting}>Reset</Button>
+          <Button onClick={handleReset} disabled={!dirty || deleting}>{t('common:buttons.reset')}</Button>
           <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>
             Save
           </Button>
@@ -404,7 +407,7 @@ export default function LocationWorkspacePage() {
             Cancel
           </Button>
           <Button color="error" variant="contained" onClick={() => void handleDeleteLocation()} disabled={deleting}>
-            Delete
+            {t('common:buttons.delete')}
           </Button>
         </DialogActions>
       </Dialog>

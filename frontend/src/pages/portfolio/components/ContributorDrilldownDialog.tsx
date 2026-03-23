@@ -5,8 +5,10 @@ import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import AgGridBox from '../../../components/AgGridBox';
+import { getProjectStatusLabel } from '../../../utils/portfolioI18n';
 
 type ProjectBreakdownRow = {
   projectId: string;
@@ -17,16 +19,6 @@ type ProjectBreakdownRow = {
   remainingEffort: number;
   allocationPct: number;
   contributorDays: number;
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  waiting_list: 'Waiting List',
-  planned: 'Planned',
-  in_progress: 'In Progress',
-  in_testing: 'In Testing',
-  on_hold: 'On Hold',
-  done: 'Done',
-  cancelled: 'Cancelled',
 };
 
 const formatNumber = (value: number | null | undefined): string => {
@@ -54,6 +46,7 @@ export default function ContributorDrilldownDialog({
   statuses,
   onClose,
 }: ContributorDrilldownDialogProps) {
+  const { t } = useTranslation('portfolio');
   const gridApiRef = useRef<any>(null);
   const navigate = useNavigate();
   const queryKey = ['portfolio-capacity-drilldown', contributorId, statuses];
@@ -80,7 +73,7 @@ export default function ContributorDrilldownDialog({
   const columns = useMemo<ColDef[]>(() => ([
     {
       field: 'projectName',
-      headerName: 'Project',
+      headerName: t('dialogs.contributorDrilldown.columns.project'),
       flex: 1,
       minWidth: 220,
       cellRenderer: (p: any) => (
@@ -95,23 +88,55 @@ export default function ContributorDrilldownDialog({
     },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('dialogs.contributorDrilldown.columns.status'),
       width: 140,
-      valueFormatter: (p) => STATUS_LABELS[p.value] || p.value,
+      valueFormatter: (p) => getProjectStatusLabel(t, p.value),
     },
-    { field: 'estimatedEffort', headerName: 'Est. Effort', width: 130, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'executionProgress', headerName: 'Progress', width: 120, type: 'rightAligned', valueFormatter: (p) => formatPercent(p.value) },
-    { field: 'remainingEffort', headerName: 'Remaining', width: 130, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'allocationPct', headerName: 'Allocation %', width: 130, type: 'rightAligned', valueFormatter: (p) => formatPercent(p.value) },
-    { field: 'contributorDays', headerName: 'Your Days', width: 120, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-  ]), []);
+    {
+      field: 'estimatedEffort',
+      headerName: t('dialogs.contributorDrilldown.columns.estimatedEffort'),
+      width: 130,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumber(p.value),
+    },
+    {
+      field: 'executionProgress',
+      headerName: t('dialogs.contributorDrilldown.columns.progress'),
+      width: 120,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatPercent(p.value),
+    },
+    {
+      field: 'remainingEffort',
+      headerName: t('dialogs.contributorDrilldown.columns.remaining'),
+      width: 130,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumber(p.value),
+    },
+    {
+      field: 'allocationPct',
+      headerName: t('dialogs.contributorDrilldown.columns.allocationPct'),
+      width: 130,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatPercent(p.value),
+    },
+    {
+      field: 'contributorDays',
+      headerName: t('dialogs.contributorDrilldown.columns.contributorDays'),
+      width: 120,
+      type: 'rightAligned',
+      valueFormatter: (p) => formatNumber(p.value),
+    },
+  ]), [openProject, t]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle sx={{ pr: 6 }}>
-        {contributorName ? `${contributorName} - Project Breakdown` : 'Project Breakdown'}
+        {contributorName
+          ? t('dialogs.contributorDrilldown.titleWithName', { name: contributorName })
+          : t('dialogs.contributorDrilldown.title')}
         <IconButton
-          aria-label="Close"
+          aria-label={t('dialogs.contributorDrilldown.actions.close')}
           onClick={onClose}
           size="small"
           sx={{ position: 'absolute', right: 8, top: 8 }}
@@ -130,10 +155,14 @@ export default function ContributorDrilldownDialog({
           />
         </Box>
         {isLoading && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading project breakdown...</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {t('dialogs.contributorDrilldown.states.loadingProjects')}
+          </Typography>
         )}
         {!isLoading && rows.length === 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>No matching projects for this contributor.</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {t('dialogs.contributorDrilldown.states.noMatchingProjects')}
+          </Typography>
         )}
       </DialogContent>
     </Dialog>

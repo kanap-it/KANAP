@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AiAdminOverviewController } from '../ai-admin-overview.controller';
 import { AiApiKeysController } from '../ai-api-keys.controller';
@@ -45,6 +46,16 @@ function createResponseRecorder() {
   };
 }
 
+async function waitFor(predicate: () => boolean, timeoutMs = 1000) {
+  const startedAt = Date.now();
+  while (!predicate()) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error('Timed out waiting for condition.');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+}
+
 function assertBaseContext(context: any, expected: { surface: 'chat' | 'mcp'; authMethod: 'jwt' | 'api_key'; aiApiKeyId: string | null }) {
   assert.equal(context.tenantId, '11111111-1111-4111-8111-111111111111');
   assert.equal(context.userId, 'user-1');
@@ -86,7 +97,7 @@ async function testControllersBuildPlatformAwareContexts() {
     aiApiKeyId: null,
   });
 
-  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any);
+  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   assertBaseContext((settings as any).buildContext(req), {
     surface: 'chat',
     authMethod: 'jwt',
@@ -103,7 +114,7 @@ async function testControllersBuildPlatformAwareContexts() {
 
 async function testControllersRejectMissingTenantContext() {
   const req = createRequest({ tenant: undefined });
-  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any);
+  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   const mcp = new AiMcpController({} as any, {} as any);
 
   assert.throws(
@@ -118,7 +129,7 @@ async function testControllersRejectMissingTenantContext() {
 
 async function testControllersRejectInvalidTenantContext() {
   const req = createRequest({ tenant: { id: 'tenant-1' } });
-  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any);
+  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   const overview = new AiAdminOverviewController({} as any, {} as any, {} as any);
   const mcp = new AiMcpController({} as any, {} as any);
 
@@ -161,6 +172,7 @@ async function testSettingsControllerDelegatesProviderTest() {
         };
       },
     } as any,
+    {} as any,
     {} as any,
   );
 
@@ -238,13 +250,11 @@ async function testChatControllerStreamsForTenantHost() {
     } as any,
   );
   const { response, state } = createResponseRecorder();
+  const req = Object.assign(new EventEmitter(), createRequest({ isPlatformHost: false }));
 
   await controller.stream(
     { message: 'hello' },
-    createRequest({
-      isPlatformHost: false,
-      on: () => undefined,
-    }) as any,
+    req as any,
     response,
   );
 
@@ -252,6 +262,44 @@ async function testChatControllerStreamsForTenantHost() {
   assert.equal(state.flushed, true);
   assert.equal(state.ended, true);
   assert.equal(state.writes.length, 2);
+}
+
+async function testChatControllerAbortsOnDisconnect() {
+  let capturedSignal: AbortSignal | null = null;
+  const controller = new AiChatController(
+    {
+      stream: async function* (params: any) {
+        capturedSignal = params.signal ?? null;
+        yield { type: 'text_delta', text: 'chunk-1' };
+        while (!(params.signal?.aborted)) {
+          await new Promise((resolve) => setTimeout(resolve, 1));
+        }
+      },
+    } as any,
+    {
+      runWithContext: async (context: any, fn: Function) => fn({ ...context, manager: { tag: 'manager' } }),
+    } as any,
+    {
+      assertSurfaceAccess: async () => undefined,
+    } as any,
+  );
+  const { response, state } = createResponseRecorder();
+  const req = Object.assign(new EventEmitter(), createRequest({ isPlatformHost: false }));
+
+  const streamPromise = controller.stream(
+    { message: 'hello' },
+    req as any,
+    response,
+  );
+
+  await waitFor(() => state.writes.length > 0);
+  req.emit('close');
+
+  await streamPromise;
+
+  assert.equal(capturedSignal?.aborted, true);
+  assert.equal(state.writes.length, 1);
+  assert.equal(state.ended, false);
 }
 
 async function testAdminOverviewControllerBuildsContextAndCallsService() {
@@ -303,6 +351,7 @@ async function run() {
   await testSettingsControllerDelegatesProviderTest();
   await testChatControllerRejectsPlatformHostBeforeStreaming();
   await testChatControllerStreamsForTenantHost();
+  await testChatControllerAbortsOnDisconnect();
   await testAdminOverviewControllerBuildsContextAndCallsService();
   await testAdminOverviewControllerRejectsMissingTenantContext();
 }

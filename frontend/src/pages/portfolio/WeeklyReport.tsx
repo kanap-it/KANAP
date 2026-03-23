@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -19,6 +19,8 @@ import { useNavigate } from 'react-router-dom';
 import ReportLayout from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
 import api from '../../api';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 type WeeklyProjectRow = {
   projectId: string;
@@ -80,21 +82,9 @@ type FilterValuesResponse = {
   taskTypes: Array<{ id: string; name: string }>;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  done: 'Done',
-  cancelled: 'Cancelled',
-  pending_review: 'Pending Review',
-  candidate: 'Candidate',
-  approved: 'Approved',
-  on_hold: 'On Hold',
-  rejected: 'Rejected',
-  converted: 'Converted',
-  waiting_list: 'Waiting List',
-  planned: 'Planned',
-  in_testing: 'In Testing',
-};
+const TASK_STATUSES = new Set(['open', 'in_progress', 'pending', 'in_testing', 'done', 'cancelled']);
+const PROJECT_STATUSES = new Set(['waiting_list', 'planned', 'in_progress', 'in_testing', 'on_hold', 'done', 'cancelled']);
+const REQUEST_STATUSES = new Set(['pending_review', 'candidate', 'approved', 'on_hold', 'rejected', 'converted']);
 
 const toIsoDate = (date: Date): string => {
   const year = date.getFullYear();
@@ -151,6 +141,7 @@ const buildParams = (args: {
 
 export default function WeeklyReport() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['portfolio', 'errors']);
   const today = useMemo(() => toIsoDate(new Date()), []);
 
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
@@ -227,6 +218,19 @@ export default function WeeklyReport() {
   const tasks = reportData?.tasks ?? [];
   const requests = reportData?.requests ?? [];
   const totalRows = projects.length + tasks.length + requests.length;
+
+  const getStatusLabel = useCallback((status: string) => {
+    if (TASK_STATUSES.has(status)) {
+      return t(`statuses.task.${status}`, { defaultValue: humanize(status) });
+    }
+    if (PROJECT_STATUSES.has(status)) {
+      return t(`statuses.project.${status}`, { defaultValue: humanize(status) });
+    }
+    if (REQUEST_STATUSES.has(status)) {
+      return t(`statuses.request.${status}`, { defaultValue: humanize(status) });
+    }
+    return humanize(status);
+  }, [t]);
 
   const presentSourceIds = useMemo(() => {
     const ids = new Set<string>();
@@ -372,14 +376,14 @@ export default function WeeklyReport() {
     return [
       {
         field: 'name',
-        headerName: 'Project Name',
+        headerName: t('reports.weekly.columns.projectName'),
         flex: 1.4,
         minWidth: 240,
         cellRenderer: ClickableNameCell,
       },
       {
         field: 'priority',
-        headerName: 'Priority',
+        headerName: t('reports.weekly.columns.priority'),
         width: 110,
         type: 'rightAligned',
         sort: 'desc',
@@ -390,12 +394,12 @@ export default function WeeklyReport() {
         },
         valueFormatter: (params) => (params.value == null ? '' : String(Math.round(Number(params.value)))),
       },
-      { field: 'sourceName', headerName: 'Source', width: 160 },
-      { field: 'categoryName', headerName: 'Category', width: 180 },
-      { field: 'streamName', headerName: 'Stream', width: 180 },
+      { field: 'sourceName', headerName: t('reports.weekly.columns.source'), width: 160 },
+      { field: 'categoryName', headerName: t('reports.weekly.columns.category'), width: 180 },
+      { field: 'streamName', headerName: t('reports.weekly.columns.stream'), width: 180 },
       {
         field: 'progress',
-        headerName: 'Progress',
+        headerName: t('reports.weekly.columns.progress'),
         width: 120,
         type: 'rightAligned',
         valueFormatter: (params) => {
@@ -405,12 +409,12 @@ export default function WeeklyReport() {
       },
       {
         field: 'status',
-        headerName: 'Status',
+        headerName: t('reports.weekly.columns.status'),
         width: 150,
-        valueFormatter: (params) => STATUS_LABELS[String(params.value)] || humanize(String(params.value || '')),
+        valueFormatter: (params) => getStatusLabel(String(params.value || '')),
       },
     ];
-  }, [navigate]);
+  }, [getStatusLabel, navigate, t]);
 
   const taskColumns = useMemo<ColDef<WeeklyTaskRow>[]>(() => {
     const ClickableNameCell: React.FC<ICellRendererParams<WeeklyTaskRow, string>> = (params) => (
@@ -429,20 +433,20 @@ export default function WeeklyReport() {
     return [
       {
         field: 'name',
-        headerName: 'Task Name',
+        headerName: t('reports.weekly.columns.taskName'),
         flex: 1.4,
         minWidth: 240,
         cellRenderer: ClickableNameCell,
       },
       {
         field: 'taskTypeName',
-        headerName: 'Task Type',
+        headerName: t('reports.weekly.columns.taskType'),
         width: 170,
         valueFormatter: (params) => String(params.value || ''),
       },
       {
         field: 'priority',
-        headerName: 'Priority',
+        headerName: t('reports.weekly.columns.priority'),
         width: 110,
         type: 'rightAligned',
         sort: 'desc',
@@ -453,17 +457,17 @@ export default function WeeklyReport() {
         },
         valueFormatter: (params) => (params.value == null ? '' : String(Math.round(Number(params.value)))),
       },
-      { field: 'sourceName', headerName: 'Source', width: 160 },
-      { field: 'categoryName', headerName: 'Category', width: 180 },
-      { field: 'streamName', headerName: 'Stream', width: 180 },
+      { field: 'sourceName', headerName: t('reports.weekly.columns.source'), width: 160 },
+      { field: 'categoryName', headerName: t('reports.weekly.columns.category'), width: 180 },
+      { field: 'streamName', headerName: t('reports.weekly.columns.stream'), width: 180 },
       {
         field: 'status',
-        headerName: 'Status',
+        headerName: t('reports.weekly.columns.status'),
         width: 150,
-        valueFormatter: (params) => STATUS_LABELS[String(params.value)] || humanize(String(params.value || '')),
+        valueFormatter: (params) => getStatusLabel(String(params.value || '')),
       },
     ];
-  }, [navigate]);
+  }, [getStatusLabel, navigate, t]);
 
   const requestColumns = useMemo<ColDef<WeeklyRequestRow>[]>(() => {
     const ClickableNameCell: React.FC<ICellRendererParams<WeeklyRequestRow, string>> = (params) => (
@@ -482,22 +486,22 @@ export default function WeeklyReport() {
     return [
       {
         field: 'name',
-        headerName: 'Request Name',
+        headerName: t('reports.weekly.columns.requestName'),
         flex: 1.4,
         minWidth: 240,
         cellRenderer: ClickableNameCell,
       },
-      { field: 'sourceName', headerName: 'Source', width: 170 },
-      { field: 'categoryName', headerName: 'Category', width: 180 },
-      { field: 'streamName', headerName: 'Stream', width: 180 },
+      { field: 'sourceName', headerName: t('reports.weekly.columns.source'), width: 170 },
+      { field: 'categoryName', headerName: t('reports.weekly.columns.category'), width: 180 },
+      { field: 'streamName', headerName: t('reports.weekly.columns.stream'), width: 180 },
       {
         field: 'status',
-        headerName: 'Status',
+        headerName: t('reports.weekly.columns.status'),
         width: 160,
-        valueFormatter: (params) => STATUS_LABELS[String(params.value)] || humanize(String(params.value || '')),
+        valueFormatter: (params) => getStatusLabel(String(params.value || '')),
       },
     ];
-  }, [navigate]);
+  }, [getStatusLabel, navigate, t]);
 
   const handleDownload = async (format: 'csv' | 'xlsx') => {
     if (!isValidPeriod) return;
@@ -533,22 +537,26 @@ export default function WeeklyReport() {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (e: any) {
-      setExportError(e?.response?.data?.message || e?.message || 'Export failed');
+      setExportError(getApiErrorMessage(e, t, t('reports.weekly.messages.exportFailed')));
     } finally {
       setExportingFormat(null);
     }
   };
 
+  const reportErrorMessage = error
+    ? getApiErrorMessage(error, t, t('reports.weekly.messages.loadFailed'))
+    : null;
+
   return (
     <ReportLayout
-      title="Weekly Report"
-      subtitle="Weekly stakeholder summary across project updates, closed tasks, and request updates."
+      title={t('reports.weekly.title')}
+      subtitle={t('reports.weekly.subtitle')}
       rootTo="/portfolio/reports"
-      rootLabel="Portfolio Reporting"
+      rootLabel={t('reports.title')}
       filters={(
         <>
           <TextField
-            label="Start Date"
+            label={t('reports.weekly.filters.startDate')}
             type="date"
             size="small"
             value={startDate}
@@ -556,7 +564,7 @@ export default function WeeklyReport() {
             InputLabelProps={{ shrink: true }}
           />
           <TextField
-            label="End Date"
+            label={t('reports.weekly.filters.endDate')}
             type="date"
             size="small"
             value={endDate}
@@ -566,13 +574,13 @@ export default function WeeklyReport() {
           <TextField
             select
             size="small"
-            label="Source"
+            label={t('reports.weekly.filters.source')}
             value={sourceAll ? sourceOptions.map((option) => option.id) : sourceIds}
             SelectProps={{
               multiple: true,
               renderValue: () => {
-                if (sourceAll) return 'All sources';
-                return `${sourceIds.length} selected`;
+                if (sourceAll) return t('reports.weekly.filters.allSources');
+                return t('reports.weekly.filters.selectedCount', { count: sourceIds.length });
               },
             }}
             onChange={(e) => {
@@ -598,13 +606,13 @@ export default function WeeklyReport() {
           <TextField
             select
             size="small"
-            label="Category"
+            label={t('reports.weekly.filters.category')}
             value={categoryAll ? categoryOptions.map((option) => option.id) : categoryIds}
             SelectProps={{
               multiple: true,
               renderValue: () => {
-                if (categoryAll) return 'All categories';
-                return `${categoryIds.length} selected`;
+                if (categoryAll) return t('reports.weekly.filters.allCategories');
+                return t('reports.weekly.filters.selectedCount', { count: categoryIds.length });
               },
             }}
             onChange={(e) => {
@@ -630,14 +638,14 @@ export default function WeeklyReport() {
           <TextField
             select
             size="small"
-            label="Stream"
+            label={t('reports.weekly.filters.stream')}
             value={streamAll ? streamOptions.map((option) => option.id) : streamIds}
             disabled={streamOptions.length === 0}
             SelectProps={{
               multiple: true,
               renderValue: () => {
-                if (streamAll) return 'All streams';
-                return `${streamIds.length} selected`;
+                if (streamAll) return t('reports.weekly.filters.allStreams');
+                return t('reports.weekly.filters.selectedCount', { count: streamIds.length });
               },
             }}
             onChange={(e) => {
@@ -663,13 +671,13 @@ export default function WeeklyReport() {
           <TextField
             select
             size="small"
-            label="Task Types"
+            label={t('reports.weekly.filters.taskTypes')}
             value={taskTypeAll ? taskTypeOptions.map((option) => option.id) : taskTypeIds}
             SelectProps={{
               multiple: true,
               renderValue: () => {
-                if (taskTypeAll) return 'All task types';
-                return `${taskTypeIds.length} selected`;
+                if (taskTypeAll) return t('reports.weekly.filters.allTaskTypes');
+                return t('reports.weekly.filters.selectedCount', { count: taskTypeIds.length });
               },
             }}
             onChange={(e) => {
@@ -702,7 +710,7 @@ export default function WeeklyReport() {
             onClick={() => handleDownload('csv')}
             disabled={!isValidPeriod || totalRows === 0 || exportingFormat !== null}
           >
-            {exportingFormat === 'csv' ? 'Exporting…' : 'Export CSV'}
+            {exportingFormat === 'csv' ? t('reports.weekly.actions.exporting') : t('reports.weekly.actions.exportCsv')}
           </Button>
           <Button
             size="small"
@@ -710,18 +718,18 @@ export default function WeeklyReport() {
             onClick={() => handleDownload('xlsx')}
             disabled={!isValidPeriod || totalRows === 0 || exportingFormat !== null}
           >
-            {exportingFormat === 'xlsx' ? 'Exporting…' : 'Export XLSX'}
+            {exportingFormat === 'xlsx' ? t('reports.weekly.actions.exporting') : t('reports.weekly.actions.exportXlsx')}
           </Button>
         </>
       )}
     >
       <Stack spacing={1.5}>
         {!isValidPeriod && (
-          <Alert severity="warning">Start Date must be before or equal to End Date.</Alert>
+          <Alert severity="warning">{t('reports.weekly.messages.invalidPeriod')}</Alert>
         )}
-        {error && (
+        {reportErrorMessage && (
           <Alert severity="error">
-            {(error as any)?.response?.data?.message || (error as Error)?.message || 'Failed to load report data.'}
+            {reportErrorMessage}
           </Alert>
         )}
         {exportError && (
@@ -730,13 +738,13 @@ export default function WeeklyReport() {
 
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography variant="body2" color="text.secondary">
-            {projects.length} project update{projects.length === 1 ? '' : 's'} · {tasks.length} closed task{tasks.length === 1 ? '' : 's'} · {requests.length} request update{requests.length === 1 ? '' : 's'}
+            {t('reports.weekly.summary.projectUpdates', { count: projects.length })} · {t('reports.weekly.summary.closedTasks', { count: tasks.length })} · {t('reports.weekly.summary.requestUpdates', { count: requests.length })}
           </Typography>
           {(isLoading || isFetching) && <CircularProgress size={18} />}
         </Stack>
 
         <Paper variant="outlined" sx={{ p: 1.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Project Updates</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t('reports.weekly.sections.projectUpdates')}</Typography>
           <Box component={AgGridBox} sx={{ width: '100%' }}>
             <AgGridReact<WeeklyProjectRow>
               rowData={projects}
@@ -756,7 +764,7 @@ export default function WeeklyReport() {
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 1.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Closed Tasks</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t('reports.weekly.sections.closedTasks')}</Typography>
           <Box component={AgGridBox} sx={{ width: '100%' }}>
             <AgGridReact<WeeklyTaskRow>
               rowData={tasks}
@@ -776,7 +784,7 @@ export default function WeeklyReport() {
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 1.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Request Updates</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t('reports.weekly.sections.requestUpdates')}</Typography>
           <Box component={AgGridBox} sx={{ width: '100%' }}>
             <AgGridReact<WeeklyRequestRow>
               rowData={requests}

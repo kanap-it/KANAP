@@ -2,6 +2,7 @@ import { AiEntityFilterRegistry, AiQueryEntityType } from '../ai-filter.types';
 import { applicationsRegistry } from './applications.registry';
 import { assetsRegistry } from './assets.registry';
 import { documentsRegistry } from './documents.registry';
+import { locationsRegistry } from './locations.registry';
 import { projectsRegistry } from './projects.registry';
 import { requestsRegistry } from './requests.registry';
 import { tasksRegistry } from './tasks.registry';
@@ -10,6 +11,7 @@ export const aiEntityRegistries: Record<AiQueryEntityType, AiEntityFilterRegistr
   applications: applicationsRegistry,
   assets: assetsRegistry,
   documents: documentsRegistry,
+  locations: locationsRegistry,
   projects: projectsRegistry,
   requests: requestsRegistry,
   tasks: tasksRegistry,

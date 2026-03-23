@@ -30,7 +30,7 @@ export default function ChatConversationList({
 }: ChatConversationListProps) {
   const { data: conversations } = useQuery<ChatConversation[]>({
     queryKey: ['ai-conversations'],
-    queryFn: () => aiConversationsApi.list(),
+    queryFn: () => aiConversationsApi.list({ limit: 100 }),
     staleTime: 10_000,
   });
 

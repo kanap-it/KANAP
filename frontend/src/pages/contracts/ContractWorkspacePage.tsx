@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Box, Button, Divider, IconButton, Stack, Tab, Tabs, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { useContractNav } from '../../hooks/useContractNav';
@@ -14,14 +15,16 @@ import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 
 type TabKey = 'overview' | 'details' | 'relations' | 'tasks';
 
-const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'details', label: 'Details' },
-  { key: 'relations', label: 'Relations' },
-  { key: 'tasks', label: 'Tasks' },
-];
+// Tab labels resolved inside component
 
 export default function ContractWorkspacePage() {
+  const { t } = useTranslation(['ops', 'common']);
+  const tabs: Array<{ key: TabKey; label: string }> = [
+    { key: 'overview', label: t('contracts.tabs.overview') },
+    { key: 'details', label: t('contracts.tabs.details') },
+    { key: 'relations', label: t('contracts.tabs.relations') },
+    { key: 'tasks', label: t('contracts.tabs.tasks') },
+  ];
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams] = useSearchParams();
@@ -100,7 +103,7 @@ export default function ContractWorkspacePage() {
   const confirmAndNavigate = async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before navigating?');
+      const proceed = window.confirm(t('confirmations.unsavedNavigate'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -116,7 +119,7 @@ export default function ContractWorkspacePage() {
   const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before switching tabs?');
+      const proceed = window.confirm(t('confirmations.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => navigate(`/ops/contracts/${id}/${nextValue}?${searchParams.toString()}`));
         return;
@@ -140,17 +143,17 @@ export default function ContractWorkspacePage() {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Stack>
           <Typography variant="h6">
-            {isCreate ? 'New Contract' : (data?.name || 'Contract')}
+            {isCreate ? t('contracts.workspace.newContract') : (data?.name || t('contracts.workspace.contract'))}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {!isCreate && total > 0 ? `Contract ${index + 1} of ${total}` : ''}
+            {!isCreate && total > 0 ? t('contracts.workspace.contractOf', { index: index + 1, total }) : ''}
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Button onClick={handlePrev} disabled={!hasPrev}>Prev</Button>
-          <Button onClick={handleReset} disabled={!dirty}>Reset</Button>
-          <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>Save</Button>
-          <Button onClick={handleNext} disabled={!hasNext}>Next</Button>
+          <Button onClick={handlePrev} disabled={!hasPrev}>{t('contracts.workspace.prev')}</Button>
+          <Button onClick={handleReset} disabled={!dirty}>{t('common:buttons.reset')}</Button>
+          <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>{t('common:buttons.saveChanges')}</Button>
+          <Button onClick={handleNext} disabled={!hasNext}>{t('contracts.workspace.next')}</Button>
           <IconButton
             aria-label="Close"
             title="Close"
@@ -164,7 +167,7 @@ export default function ContractWorkspacePage() {
         </Stack>
       </Stack>
 
-      {!!error && <Alert severity="error">Failed to load contract.</Alert>}
+      {!!error && <Alert severity="error">{t('contracts.workspace.failedToLoad')}</Alert>}
 
       <Divider sx={{ mb: 2 }} />
 

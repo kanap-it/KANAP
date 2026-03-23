@@ -1,10 +1,13 @@
 import React from 'react';
-import { Alert, Box, Button, Slider, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Slider, Stack } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { hasRenderableContent } from '../../../utils/contentToPlainText';
-import { TASK_STATUS_LABELS, TASK_STATUS_OPTIONS } from '../task.constants';
+import { getTaskStatusLabel, getTaskStatusOptions } from '../../../utils/portfolioI18n';
+import { TASK_STATUS_OPTIONS } from '../task.constants';
 import type { TaskStatus } from '../task.constants';
 
 const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
@@ -38,6 +41,7 @@ export default function UnifiedActivityForm({
   onImageUpload,
   onImageUrlImport,
 }: UnifiedActivityFormProps) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const queryClient = useQueryClient();
   const [comment, setComment] = React.useState('');
   const [status, setStatus] = React.useState<string>('');
@@ -50,12 +54,12 @@ export default function UnifiedActivityForm({
   const isProjectTask = relatedObjectType === 'project';
   const statusOptions = React.useMemo(
     () => [
-      { label: 'No change', value: '' },
-      ...TASK_STATUS_OPTIONS
+      { label: t('portfolio:activity.form.noChange'), value: '' },
+      ...getTaskStatusOptions(t)
         .filter((option) => option.value !== currentStatus)
         .map((option) => ({ label: option.label, value: option.value })),
     ],
-    [currentStatus],
+    [currentStatus, t],
   );
 
   React.useEffect(() => {
@@ -73,27 +77,40 @@ export default function UnifiedActivityForm({
   const hasAnyAction = hasComment || hasStatusChange || hasTime;
 
   const submitLabel = React.useMemo(() => {
-    if (!hasAnyAction) return 'Submit';
+    if (!hasAnyAction) return t('portfolio:workspace.task.activity.actions.submit');
     const actions: string[] = [];
-    if (hasComment) actions.push('Comment');
-    if (hasStatusChange) actions.push(`Set ${TASK_STATUS_LABELS[status as TaskStatus] || 'Status'}`);
-    if (hasTime) actions.push(`Log ${timeHours}h`);
+    if (hasComment) actions.push(t('portfolio:workspace.task.activity.actions.comment'));
+    if (hasStatusChange) {
+      actions.push(t('portfolio:workspace.task.activity.actions.setStatus', {
+        status: getTaskStatusLabel(t, status),
+      }));
+    }
+    if (hasTime) actions.push(t('portfolio:workspace.task.activity.actions.logHours', { hours: timeHours }));
     if (actions.length === 1) return actions[0];
-    if (actions.length === 2) return `${actions[0]} & ${actions[1]}`;
-    return `${actions[0]}, ${actions[1]} & ${actions[2]}`;
-  }, [hasAnyAction, hasComment, hasStatusChange, hasTime, status, timeHours]);
+    if (actions.length === 2) {
+      return t('portfolio:workspace.task.activity.actions.combineTwo', {
+        first: actions[0],
+        second: actions[1],
+      });
+    }
+    return t('portfolio:workspace.task.activity.actions.combineThree', {
+      first: actions[0],
+      second: actions[1],
+      third: actions[2],
+    });
+  }, [hasAnyAction, hasComment, hasStatusChange, hasTime, status, t, timeHours]);
 
   const handleSubmit = async () => {
     if (readOnly || submitting) return;
     setError(null);
 
     if (!hasAnyAction) {
-      setError('Add a comment, status change, or time log before submitting.');
+      setError(t('portfolio:workspace.task.activity.messages.emptySubmission'));
       return;
     }
 
     if (isProjectTask && status === 'done' && totalTimeHours + timeHours <= 0) {
-      setError('Cannot mark task as done without logging time.');
+      setError(t('portfolio:workspace.task.activity.messages.doneRequiresTime'));
       return;
     }
 
@@ -130,8 +147,11 @@ export default function UnifiedActivityForm({
       ]);
       await onSuccess();
     } catch (e: any) {
-      const message = e?.response?.data?.message;
-      setError(Array.isArray(message) ? message.join(', ') : message || 'Failed to submit activity');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:workspace.task.activity.messages.submitFailed'),
+      ));
     } finally {
       setSubmitting(false);
     }
@@ -145,7 +165,7 @@ export default function UnifiedActivityForm({
         <MarkdownEditor
           value={comment}
           onChange={setComment}
-          placeholder="Write a comment..."
+          placeholder={t('portfolio:workspace.task.comments.placeholders.writeComment')}
           minRows={8}
           maxRows={20}
           disabled={submitting || readOnly}
@@ -165,7 +185,7 @@ export default function UnifiedActivityForm({
       >
         <Box>
           <EnumAutocomplete
-            label="Status"
+            label={t('portfolio:workspace.task.sidebar.fields.status')}
             value={status}
             onChange={setStatus}
             options={statusOptions}
@@ -195,7 +215,7 @@ export default function UnifiedActivityForm({
           disabled={submitting || readOnly || !hasAnyAction}
           sx={{ minWidth: { xs: '100%', sm: 220 }, height: 40 }}
         >
-          {submitting ? 'Submitting...' : submitLabel}
+          {submitting ? t('portfolio:workspace.task.activity.actions.submitting') : submitLabel}
         </Button>
       </Stack>
     </Stack>

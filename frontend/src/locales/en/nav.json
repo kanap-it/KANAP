@@ -1,1 +1,123 @@
-{}
+{
+  "workspaces": {
+    "ai": "Plaid",
+    "portfolio": "Portfolio",
+    "itOperations": "IT Operations",
+    "knowledge": "Knowledge",
+    "budgetManagement": "Budget Management",
+    "masterData": "Master Data",
+    "admin": "Admin"
+  },
+  "topBar": {
+    "collapseNav": "Collapse navigation",
+    "expandNav": "Expand navigation",
+    "sectionNav": "Section navigation",
+    "help": "Help",
+    "openDocs": "Open documentation for this page",
+    "themeTooltip": "Theme: {{mode}} (click to switch)",
+    "themeLabel": "Theme: {{mode}}",
+    "account": "Account"
+  },
+  "userMenu": {
+    "myProfile": "My Profile",
+    "logout": "Logout"
+  },
+  "sidebar": {
+    "ops": {
+      "overview": "Overview",
+      "opex": "OPEX",
+      "capex": "CAPEX",
+      "contracts": "Contracts",
+      "reporting": "Reporting",
+      "administration": "Administration"
+    },
+    "masterData": {
+      "home": "Master Data Home",
+      "sections": {
+        "organization": "Organization",
+        "externalParties": "External Parties",
+        "finance": "Finance",
+        "classification": "Classification"
+      },
+      "companies": "Companies",
+      "departments": "Departments",
+      "suppliers": "Suppliers",
+      "contacts": "Contacts",
+      "chartsOfAccounts": "Charts of Accounts",
+      "currency": "Currency",
+      "businessProcesses": "Business Processes",
+      "analyticsDimensions": "Analytics Dimensions",
+      "administration": "Administration"
+    },
+    "it": {
+      "sections": {
+        "infrastructure": "Infrastructure",
+        "applications": "Applications"
+      },
+      "locations": "Locations",
+      "assets": "Assets",
+      "connections": "Connections",
+      "connectionMap": "Connection Map",
+      "applications": "Applications",
+      "interfaces": "Interfaces",
+      "interfaceMap": "Interface Map",
+      "settings": "Settings"
+    },
+    "portfolio": {
+      "tasks": "Tasks",
+      "requests": "Requests",
+      "projects": "Projects",
+      "planning": "Planning",
+      "reporting": "Reporting",
+      "contributors": "Contributors",
+      "settings": "Settings"
+    },
+    "admin": {
+      "users": "Users",
+      "roles": "Roles",
+      "auditLog": "Audit Log",
+      "billing": "Billing",
+      "authentication": "Authentication",
+      "branding": "Branding",
+      "ai": "Plaid"
+    },
+    "platform": {
+      "tenants": "Tenants",
+      "coaTemplates": "CoA Templates",
+      "standardAccounts": "Standard Accounts",
+      "opsDashboard": "Ops Dashboard",
+      "scheduledTasks": "Scheduled Tasks"
+    }
+  },
+  "breadcrumbs": {
+    "dashboard": "Dashboard",
+    "ops": "Budget Management",
+    "admin": "Admin",
+    "it": "IT Operations",
+    "masterData": "Master Data",
+    "portfolio": "Portfolio",
+    "ai": "Plaid",
+    "opex": "OPEX",
+    "capex": "CAPEX",
+    "projects": "Projects",
+    "contributors": "Contributors",
+    "teamMembers": "Team Members",
+    "companies": "Companies",
+    "departments": "Departments",
+    "suppliers": "Suppliers",
+    "accounts": "Accounts",
+    "coa": "Charts of Accounts",
+    "analytics": "Analytics Dimensions",
+    "users": "Users",
+    "roles": "Roles",
+    "scheduledTasks": "Scheduled Tasks",
+    "billing": "Billing",
+    "reports": "Reporting",
+    "contracts": "Contracts",
+    "applications": "Applications",
+    "interfaceMap": "Interface Map",
+    "connectionMap": "Connection Map",
+    "tasks": "Tasks",
+    "operations": "Administration"
+  }
+}

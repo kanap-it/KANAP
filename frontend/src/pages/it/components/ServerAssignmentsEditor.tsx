@@ -27,6 +27,8 @@ import ServerSelect from '../../../components/fields/ServerSelect';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import DateEUField from '../../../components/fields/DateEUField';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 type Assignment = {
   id: string;
   app_instance_id: string;
@@ -89,6 +91,7 @@ function AssignmentDialog({
   roleOptions: { value: string; label: string }[];
   isEditing: boolean;
 }) {
+  const { t } = useTranslation(['it', 'common']);
   if (!state) return null;
   const hasRoleOptions = roleOptions.length > 0;
   return (
@@ -144,7 +147,7 @@ function AssignmentDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button variant="contained" onClick={() => void onSave()} disabled={!state.server_id || !hasRoleOptions || !state.role}>
           {isEditing ? 'Save' : 'Assign'}
         </Button>
@@ -154,6 +157,7 @@ function AssignmentDialog({
 }
 
 export default function ServerAssignmentsEditor({ applicationId, instances, onRefreshInstances, readOnly }: ServerAssignmentsEditorProps) {
+  const { t } = useTranslation(['it', 'common']);
   const [assignments, setAssignments] = React.useState<Record<string, Assignment[]>>({});
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
@@ -217,7 +221,7 @@ export default function ServerAssignmentsEditor({ applicationId, instances, onRe
       const res = await api.get<{ items: Assignment[] }>(`/app-instances/${instanceId}/servers`);
       setAssignments((prev) => ({ ...prev, [instanceId]: res.data.items || [] }));
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load assignments');
+      setError(getApiErrorMessage(e, t, t('messages.loadAssignmentsFailed')));
     }
   }, []);
 
@@ -326,12 +330,12 @@ export default function ServerAssignmentsEditor({ applicationId, instances, onRe
       await loadAssignments(dialogState.instanceId);
       await onRefreshInstances();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to assign server');
+      setError(getApiErrorMessage(e, t, t('messages.assignServerFailed')));
     }
   };
 
   const handleRemove = async (instanceId: string, assignmentId: string) => {
-    if (!window.confirm('Remove this assignment?')) return;
+    if (!window.confirm(t('confirmations.removeAssignment'))) return;
     setError(null);
     try {
       await api.delete(`/app-instances/${instanceId}/servers/${assignmentId}`);
@@ -339,7 +343,7 @@ export default function ServerAssignmentsEditor({ applicationId, instances, onRe
       await loadAssignments(instanceId);
       await onRefreshInstances();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to remove assignment');
+      setError(getApiErrorMessage(e, t, t('messages.removeServerFailed')));
     }
   };
 

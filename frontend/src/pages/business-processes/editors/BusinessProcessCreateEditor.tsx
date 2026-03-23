@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Stack, TextField, Typography } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import api from '../../../api';
@@ -34,6 +35,7 @@ export default forwardRef<BusinessProcessCreateEditorHandle, Props>(function Bus
   ref,
 ) {
   const [saving, setSaving] = React.useState(false);
+  const { t } = useTranslation(['master-data', 'common']);
   const [serverError, setServerError] = React.useState<string | null>(null);
 
   const form = useForm<FormValues>({
@@ -73,7 +75,7 @@ export default forwardRef<BusinessProcessCreateEditorHandle, Props>(function Bus
       onDirtyChange?.(false);
       return String(res.data?.id ?? res.data?.uuid ?? null);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to create business process';
+      const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToCreate', { entity: t('businessProcesses.entity') });
       setServerError(msg);
       throw e;
     } finally {

@@ -3,11 +3,16 @@ import { Alert, Stack, TextField } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import DateEUField from '../../../components/fields/DateEUField';
 import UserSelect from '../../../components/fields/UserSelect';
-import { TASK_STATUS_OPTIONS } from '../task.constants';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import {
+  getPriorityLabel,
+  getTaskStatusOptions,
+} from '../../../utils/portfolioI18n';
 import type { TaskStatus } from '../task.constants';
 
 export type TaskOverviewEditorHandle = {
@@ -47,6 +52,7 @@ type TaskData = {
 };
 
 export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverviewEditor({ id, onDirtyChange, readOnly = false }, ref) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const queryClient = useQueryClient();
   const [saving, setSaving] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
@@ -182,7 +188,7 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
       } else if (baseType === 'project') {
         endpoint = `/portfolio/projects/${baseId}/tasks/${data.id}`;
       } else {
-        throw new Error('Unknown related object type');
+        throw new Error(t('portfolio:workspace.task.messages.invalidRelationType'));
       }
       await api.patch(endpoint, payload);
       baselineRef.current = {
@@ -201,8 +207,11 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
       queryClient.invalidateQueries({ queryKey: ['tasks', id] });
       queryClient.invalidateQueries({ queryKey: ['task-activities', id] });
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save task';
-      setServerError(msg);
+      setServerError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:workspace.task.messages.saveFailed'),
+      ));
       throw e;
     } finally {
       setSaving(false);
@@ -235,11 +244,11 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
 
   return (
     <Stack spacing={2}>
-      {!!error && <Alert severity="error">Failed to load task.</Alert>}
+      {!!error && <Alert severity="error">{t('portfolio:workspace.task.messages.loadFailed')}</Alert>}
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
 
       <TextField
-        label="Task Title"
+        label={t('portfolio:workspace.task.title.label')}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
@@ -258,16 +267,16 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
         isOptionEqualToValue={(a, b) => (a as any)?.id === (b as any)?.id && (a as any)?.type === (b as any)?.type}
         groupBy={(opt) => {
           const type = (opt as any).type;
-          if (type === 'project') return 'Project';
-          if (type === 'spend_item') return 'OPEX';
-          if (type === 'contract') return 'Contract';
-          if (type === 'capex_item') return 'CAPEX';
-          return 'Other';
+          if (type === 'project') return t('portfolio:context.project');
+          if (type === 'spend_item') return t('portfolio:context.spend_item');
+          if (type === 'contract') return t('portfolio:context.contract');
+          if (type === 'capex_item') return t('portfolio:context.capex_item');
+          return t('portfolio:workspace.task.values.other');
         }}
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Related item"
+            label={t('portfolio:workspace.task.fields.relatedItem')}
             InputLabelProps={{ shrink: true }}
             InputProps={{
               ...params.InputProps,
@@ -287,7 +296,7 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
       />
 
       <TextField
-        label="Description"
+        label={t('portfolio:workspace.task.description.label')}
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         multiline
@@ -297,29 +306,41 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
       />
 
       <EnumAutocomplete
-        label="Status"
+        label={t('portfolio:workspace.task.sidebar.fields.status')}
         value={status}
         onChange={(v) => setStatus(v as any)}
-        options={TASK_STATUS_OPTIONS}
+        options={getTaskStatusOptions(t)}
       />
 
       <EnumAutocomplete
-        label="Priority"
+        label={t('portfolio:workspace.task.sidebar.fields.priority')}
         value={priorityLevel}
         onChange={(v) => setPriorityLevel(v as any)}
         options={[
-          { label: 'Blocker', value: 'blocker' },
-          { label: 'High', value: 'high' },
-          { label: 'Normal', value: 'normal' },
-          { label: 'Low', value: 'low' },
-          { label: 'Optional', value: 'optional' },
+          { label: getPriorityLabel(t, 'blocker'), value: 'blocker' },
+          { label: getPriorityLabel(t, 'high'), value: 'high' },
+          { label: getPriorityLabel(t, 'normal'), value: 'normal' },
+          { label: getPriorityLabel(t, 'low'), value: 'low' },
+          { label: getPriorityLabel(t, 'optional'), value: 'optional' },
         ]}
       />
 
-      <DateEUField label="Start Date" valueYmd={startDate} onChangeYmd={setStartDate} />
-      <DateEUField label="Due Date" valueYmd={dueDate} onChangeYmd={setDueDate} />
+      <DateEUField
+        label={t('portfolio:workspace.task.sidebar.fields.startDate')}
+        valueYmd={startDate}
+        onChangeYmd={setStartDate}
+      />
+      <DateEUField
+        label={t('portfolio:workspace.task.sidebar.fields.dueDate')}
+        valueYmd={dueDate}
+        onChangeYmd={setDueDate}
+      />
 
-      <UserSelect label="Responsible" value={assigneeId} onChange={setAssigneeId} />
+      <UserSelect
+        label={t('portfolio:workspace.task.sidebar.fields.assignee')}
+        value={assigneeId}
+        onChange={setAssigneeId}
+      />
     </Stack>
   );
 });

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert, Box, Button, Divider, IconButton, Stack, Tab, Tabs, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -12,6 +13,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [ { key: 'overview', label: 
 
 export default function ContactWorkspacePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['master-data', 'common']);
   const [searchParams] = useSearchParams();
   const params = useParams();
   const { hasLevel } = useAuth();
@@ -92,7 +94,7 @@ export default function ContactWorkspacePage() {
     <Box sx={{ p: 2 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Stack>
-          <Typography variant="h6">{isCreate ? 'New Contact' : 'Contact'}</Typography>
+          <Typography variant="h6">{isCreate ? t('contacts.newContact') : t('contacts.contactFallback')}</Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
           <Button onClick={handleReset} disabled={!dirty}>Reset</Button>

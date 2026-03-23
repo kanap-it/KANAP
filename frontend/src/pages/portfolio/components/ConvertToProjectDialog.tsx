@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import DateEUField from '../../../components/fields/DateEUField';
 import api from '../../../api';
 import { MarkdownContent } from '../../../components/MarkdownContent';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 interface ConvertToProjectDialogProps {
   open: boolean;
@@ -23,6 +25,7 @@ export default function ConvertToProjectDialog({
   request,
   onSuccess,
 }: ConvertToProjectDialogProps) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const [name, setName] = useState(request.name);
   const [plannedStart, setPlannedStart] = useState<string>('');
   const [plannedEnd, setPlannedEnd] = useState<string>('');
@@ -93,21 +96,25 @@ export default function ConvertToProjectDialog({
 
       onSuccess(res.data.id);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to convert request');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:dialogs.convertToProject.messages.convertFailed'),
+      ));
     } finally {
       setSaving(false);
     }
-  }, [request.id, name, plannedStart, plannedEnd, effortIt, effortBusiness, onSuccess]);
+  }, [request.id, name, plannedStart, plannedEnd, effortIt, effortBusiness, onSuccess, t]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Convert to Project</DialogTitle>
+      <DialogTitle>{t('portfolio:dialogs.convertToProject.title')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
 
           <TextField
-            label="Project Name"
+            label={t('portfolio:dialogs.convertToProject.fields.projectName')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
@@ -117,7 +124,7 @@ export default function ConvertToProjectDialog({
           {(loadingPurpose || purposePreview) && (
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                Purpose
+                {t('portfolio:dialogs.convertToProject.sections.purpose')}
               </Typography>
               <Box
                 sx={{
@@ -133,7 +140,7 @@ export default function ConvertToProjectDialog({
                 {loadingPurpose ? (
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <CircularProgress size={16} />
-                    <span>Loading current purpose...</span>
+                    <span>{t('portfolio:dialogs.convertToProject.states.loadingPurpose')}</span>
                   </Stack>
                 ) : (
                   <MarkdownContent content={purposePreview} variant="compact" />
@@ -145,7 +152,7 @@ export default function ConvertToProjectDialog({
           {loadingEffort ? (
             <Stack direction="row" alignItems="center" spacing={1}>
               <CircularProgress size={16} />
-              <span>Loading effort estimates...</span>
+              <span>{t('portfolio:dialogs.convertToProject.states.loadingEffort')}</span>
             </Stack>
           ) : (
             <Box
@@ -156,37 +163,39 @@ export default function ConvertToProjectDialog({
               }}
             >
               <DateEUField
-                label="Planned Start"
+                label={t('portfolio:dialogs.convertToProject.fields.plannedStart')}
                 valueYmd={plannedStart}
                 onChangeYmd={setPlannedStart}
               />
               <DateEUField
-                label="Planned End"
+                label={t('portfolio:dialogs.convertToProject.fields.plannedEnd')}
                 valueYmd={plannedEnd}
                 onChangeYmd={setPlannedEnd}
               />
               <TextField
-                label="IT Effort (MD)"
+                label={t('portfolio:dialogs.convertToProject.fields.effortIt')}
                 type="number"
                 value={effortIt ?? ''}
                 onChange={(e) => setEffortIt(e.target.value === '' ? null : Number(e.target.value))}
-                helperText="Derived from Time estimation IT criteria"
+                helperText={t('portfolio:dialogs.convertToProject.helper.effortIt')}
               />
               <TextField
-                label="Business Effort (MD)"
+                label={t('portfolio:dialogs.convertToProject.fields.effortBusiness')}
                 type="number"
                 value={effortBusiness ?? ''}
                 onChange={(e) => setEffortBusiness(e.target.value === '' ? null : Number(e.target.value))}
-                helperText="Derived from Time estimation Business criteria"
+                helperText={t('portfolio:dialogs.convertToProject.helper.effortBusiness')}
               />
             </Box>
           )}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={saving || loadingEffort || !name.trim()}>
-          {saving ? 'Converting...' : 'Create Project'}
+          {saving
+            ? t('portfolio:dialogs.convertToProject.actions.converting')
+            : t('portfolio:dialogs.convertToProject.actions.create')}
         </Button>
       </DialogActions>
     </Dialog>

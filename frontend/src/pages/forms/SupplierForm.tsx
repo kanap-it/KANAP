@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TFunction } from 'i18next';
 import { STATUS_DISABLED, STATUS_ENABLED, STATUS_VALUES, StatusValue, deriveStatusFromDisabledAt, normalizeDisabledAtInput } from '../../constants/status';
 
 const optStr = (schema = z.string()) =>
@@ -14,13 +15,18 @@ const optDateTime = () =>
     return typeof v === 'string' ? v : null;
   }, z.string().datetime().nullable());
 
-export const supplierFormSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  erp_supplier_id: optStr(),
-  notes: optStr(),
-  status: z.enum(STATUS_VALUES).default(STATUS_ENABLED),
-  disabled_at: optDateTime(),
-});
+export function createSupplierFormSchema(t: TFunction) {
+  return z.object({
+    name: z.string().min(1, t('master-data:formSchemas.supplier.nameRequired')),
+    erp_supplier_id: optStr(),
+    notes: optStr(),
+    status: z.enum(STATUS_VALUES).default(STATUS_ENABLED),
+    disabled_at: optDateTime(),
+  });
+}
+
+/** @deprecated Use createSupplierFormSchema(t) for i18n support */
+export const supplierFormSchema = createSupplierFormSchema(((key: string) => key) as unknown as TFunction);
 
 export type SupplierFormValues = z.infer<typeof supplierFormSchema>;
 export type SupplierInput = {

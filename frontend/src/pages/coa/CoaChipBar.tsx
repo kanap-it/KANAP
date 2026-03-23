@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
@@ -27,17 +28,18 @@ export default function CoaChipBar({
   onManage: () => void;
   canManage: boolean;
 }) {
+  const { t } = useTranslation(['master-data', 'common']);
   if (coas.length === 0) {
     return (
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack spacing={1} alignItems="flex-start">
-          <Typography variant="subtitle1">Create your first Chart of Accounts</Typography>
+          <Typography variant="subtitle1">{t('coa.chipBar.createFirst')}</Typography>
           <Typography variant="body2" color="text.secondary">
-            Accounts are always managed inside a chart.
+            {t('coa.chipBar.accountsInChart')}
           </Typography>
           {canManage && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={onCreate}>
-              New Chart of Accounts
+              {t('coa.chipBar.newCoA')}
             </Button>
           )}
         </Stack>
@@ -88,7 +90,7 @@ export default function CoaChipBar({
           <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
             <Chip
               icon={<AddIcon />}
-              label="New"
+              label={t('coa.chipBar.newChip')}
               clickable
               color="primary"
               variant="outlined"
@@ -100,7 +102,7 @@ export default function CoaChipBar({
               startIcon={<SettingsIcon />}
               onClick={onManage}
             >
-              Manage
+              {t('coa.chipBar.manage')}
             </Button>
           </Stack>
         )}

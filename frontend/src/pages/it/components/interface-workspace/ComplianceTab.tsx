@@ -11,7 +11,9 @@ import EnumAutocomplete from '../../../../components/fields/EnumAutocomplete';
 import useItOpsEnumOptions from '../../../../hooks/useItOpsEnumOptions';
 import type { InterfaceDetail, InterfaceDataResidency, InterfaceTabProps } from './types';
 
+import { useTranslation } from 'react-i18next';
 export default function ComplianceTab({ data, update, markDirty }: InterfaceTabProps) {
+  const { t } = useTranslation(['it', 'common']);
   const residency = (data?.data_residency || []) as InterfaceDataResidency[];
   const { byField } = useItOpsEnumOptions();
   const dataClassOptions = React.useMemo(() => {

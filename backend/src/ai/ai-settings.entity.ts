@@ -34,6 +34,9 @@ export class AiSettings {
   conversation_retention_days!: number | null;
 
   @Column('boolean', { default: false })
+  web_search_enabled!: boolean;
+
+  @Column('boolean', { default: false })
   web_enrichment_enabled!: boolean;
 
   @Column('timestamptz', { default: () => 'now()' })

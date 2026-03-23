@@ -4,6 +4,7 @@ import {
   Autocomplete, Box, Chip, IconButton, Stack, TextField, Typography, CircularProgress,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 
 interface Dependency {
@@ -49,6 +50,7 @@ export default function DependencySelector({
   onRemove,
   disabled,
 }: DependencySelectorProps) {
+  const { t } = useTranslation('portfolio');
   const [loading, setLoading] = useState(false);
 
   // Fetch available requests and projects
@@ -118,7 +120,11 @@ export default function DependencySelector({
       <Autocomplete
         options={options}
         size="small"
-        groupBy={(option) => option.type === 'request' ? 'Requests' : 'Projects'}
+        groupBy={(option) => (
+          option.type === 'request'
+            ? t('activity.dependencies.groups.requests')
+            : t('activity.dependencies.groups.projects')
+        )}
         getOptionLabel={(option) => option.name}
         isOptionEqualToValue={(option, value) => option.type === value.type && option.id === value.id}
         onChange={(_, value) => handleAdd(value)}
@@ -133,8 +139,8 @@ export default function DependencySelector({
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Add Dependency"
-            placeholder="Search requests or projects..."
+            label={t('activity.dependencies.fields.addDependency')}
+            placeholder={t('activity.dependencies.placeholders.search')}
             sx={compactFieldSx}
             InputProps={{
               ...params.InputProps,
@@ -155,7 +161,7 @@ export default function DependencySelector({
       {dependencies.length > 0 && (
         <Stack spacing={1}>
           <Typography variant="body2" color="text.secondary">
-            Current Dependencies:
+            {t('activity.dependencies.labels.current')}
           </Typography>
           {dependencies.map((dep) => (
             <Stack
@@ -166,7 +172,9 @@ export default function DependencySelector({
               sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1 }}
             >
               <Chip
-                label={dep.target_type === 'request' ? 'Request' : 'Project'}
+                label={dep.target_type === 'request'
+                  ? t('activity.dependencies.types.request')
+                  : t('activity.dependencies.types.project')}
                 size="small"
                 color={dep.target_type === 'request' ? 'info' : 'success'}
               />
@@ -189,7 +197,7 @@ export default function DependencySelector({
 
       {dependencies.length === 0 && (
         <Typography variant="body2" color="text.secondary">
-          No dependencies defined.
+          {t('activity.dependencies.states.empty')}
         </Typography>
       )}
     </Stack>

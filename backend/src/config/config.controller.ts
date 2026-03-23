@@ -18,6 +18,7 @@ export class ConfigController {
         aiChat: Features.AI_CHAT_ENABLED,
         aiMcp: Features.AI_MCP_ENABLED,
         aiSettings: Features.AI_SETTINGS_ENABLED,
+        aiWebSearch: Features.AI_WEB_SEARCH_READY,
       },
       version,
       supportedLocales: [...SUPPORTED_LOCALES],

@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Stack, TextField, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { Controller } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -88,6 +89,7 @@ export default forwardRef<AccountOverviewEditorHandle, Props>(function AccountOv
   ref,
 ) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['master-data', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
@@ -125,13 +127,13 @@ export default forwardRef<AccountOverviewEditorHandle, Props>(function AccountOv
           setCoas(items.map((c) => ({ id: c.id, label: `${c.code} — ${c.name}` })));
         } catch (e: any) {
           if (!active) return;
-          setLoadCoasError(e?.response?.data?.message || e?.message || 'Failed to load Charts of Accounts');
+          setLoadCoasError(e?.response?.data?.message || e?.message || t('accounts.fields.loadCoAsError'));
         } finally {
           if (active) setLoadingCoas(false);
         }
       } catch (e: any) {
         if (!active) return;
-        const msg = e?.response?.data?.message || e?.message || 'Failed to load account';
+        const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToLoad', { entity: t('accounts.entity') });
         setServerError(msg);
       } finally {
         if (active) setLoading(false);
@@ -161,7 +163,7 @@ export default forwardRef<AccountOverviewEditorHandle, Props>(function AccountOv
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['accounts', id] });
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save account';
+      const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToSave', { entity: t('accounts.entity') });
       setServerError(msg);
       throw e;
     } finally {
@@ -183,7 +185,7 @@ export default forwardRef<AccountOverviewEditorHandle, Props>(function AccountOv
     <Stack spacing={2}>
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
       {readOnly && (
-        <Alert severity="info">You need manager access to edit accounts.</Alert>
+        <Alert severity="info">{t('shared.messages.readOnlyAccess', { entity: t('accounts.entity') + 's' })}</Alert>
       )}
       <FormControl fullWidth>
         <InputLabel id="coa-select-label" required>Chart of Accounts</InputLabel>

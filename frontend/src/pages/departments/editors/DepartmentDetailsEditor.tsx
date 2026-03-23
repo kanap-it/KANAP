@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Box, Stack, TextField, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../../../api';
@@ -32,6 +33,7 @@ export default forwardRef<DepartmentDetailsEditorHandle, Props>(function Departm
   ref,
 ) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['master-data', 'common']);
   const [values, setValues] = React.useState<MetricsValues>({ ...DEFAULT_VALUES });
   const [baseline, setBaseline] = React.useState<MetricsValues>({ ...DEFAULT_VALUES });
   const [loading, setLoading] = React.useState(false);
@@ -65,7 +67,7 @@ export default forwardRef<DepartmentDetailsEditorHandle, Props>(function Departm
         onDirtyChange?.(false);
       } catch (e: any) {
         if (!active) return;
-        const msg = e?.response?.data?.message || e?.message || 'Failed to load metrics';
+        const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToLoadMetrics');
         setServerError(msg);
         const fallback = { headcount: 0 };
         setValues(fallback);
@@ -94,11 +96,11 @@ export default forwardRef<DepartmentDetailsEditorHandle, Props>(function Departm
   const save = React.useCallback(async () => {
     if (!dirty || readOnly) return;
     if (metricsFrozen) {
-      setServerError('Metrics are frozen for this year. Unfreeze them from Administration to edit.');
+      setServerError(t('shared.messages.metricsFrozenEdit'));
       throw new Error('Metrics frozen');
     }
     if (headcountError || values.headcount === '') {
-      setServerError('Please fix validation issues before saving.');
+      setServerError(t('shared.messages.fixValidationIssues'));
       throw new Error('Validation error');
     }
     setSaving(true);
@@ -112,7 +114,7 @@ export default forwardRef<DepartmentDetailsEditorHandle, Props>(function Departm
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       queryClient.invalidateQueries({ queryKey: ['departments', id] });
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save metrics';
+      const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToSaveMetrics');
       setServerError(msg);
       throw e;
     } finally {
@@ -151,12 +153,12 @@ export default forwardRef<DepartmentDetailsEditorHandle, Props>(function Departm
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
       {readOnly && (
         <Alert severity="info">
-          You need manager access to edit department metrics.
+          {t('shared.messages.readOnlyAccess', { entity: t('departments.entity') + ' metrics' })}
         </Alert>
       )}
       {metricsFrozen && (
         <Alert severity="info">
-          Metrics for {year} are frozen. Unfreeze them from Administration to make changes.
+          {t('shared.messages.metricsFrozen', { year })}
         </Alert>
       )}
 
@@ -168,13 +170,13 @@ export default forwardRef<DepartmentDetailsEditorHandle, Props>(function Departm
         onChange={handleHeadcountChange}
         disabled={fieldsDisabled}
         error={headcountError}
-        helperText={headcountError ? 'Enter a non-negative integer' : ''}
+        helperText={headcountError ? t('shared.validation.nonNegativeInteger') : ''}
         inputProps={{ min: 0, step: 1 }}
         InputLabelProps={{ shrink: true }}
       />
 
       <Typography variant="caption" color="text.secondary">
-        Save applies to the selected year. Switch years to review historical data.
+        {t('shared.messages.metricsYearHint')}
       </Typography>
     </Stack>
   );

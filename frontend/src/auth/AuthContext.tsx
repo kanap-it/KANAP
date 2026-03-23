@@ -108,6 +108,10 @@ function clearLegacyTokenStorage(): void {
   localStorage.removeItem('token_expires_at');
 }
 
+function isLoginCallbackPath(pathname: string): boolean {
+  return pathname === '/login/callback' || pathname.startsWith('/login/callback/');
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [tokenExpiresAt, setTokenExpiresAt] = useState<number | null>(null);
@@ -205,6 +209,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const bootstrap = async () => {
       const legacyRefreshToken = localStorage.getItem('refresh_token') || undefined;
       clearLegacyTokenStorage();
+      // The SSO callback route performs its own refresh-token exchange and login.
+      // Running the normal bootstrap refresh here can race and wipe that state.
+      if (isLoginCallbackPath(window.location.pathname)) {
+        if (!cancelled) setIsAuthenticating(false);
+        return;
+      }
       if (isIdleExpired()) {
         clearAuthState({ clearActivity: true });
         if (!cancelled) setIsAuthenticating(false);

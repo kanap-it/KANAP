@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import AuthFrame from '../components/AuthFrame';
 
 export default function AcceptInvitePage() {
+  const { t } = useTranslation(['auth', 'validation']);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export default function AcceptInvitePage() {
 
   useEffect(() => {
     if (!token || token.trim() === '') {
-      setError('This invite link is invalid or has already been used. Please request a new one.');
+      setError(t('auth:invite.invalidLink'));
     }
   }, [token]);
 
@@ -46,15 +48,15 @@ export default function AcceptInvitePage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) {
-      setError('This invite link is invalid or has already been used. Please request a new one.');
+      setError(t('auth:invite.invalidLink'));
       return;
     }
     if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+      setError(t('validation:minLengthPassword'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('validation:passwordMismatch'));
       return;
     }
 
@@ -64,7 +66,7 @@ export default function AcceptInvitePage() {
       await api.post('/auth/password-reset/complete', { token, password });
       setStatus('success');
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'We could not complete your invite. Please try again or request a new link.';
+      const message = err?.response?.data?.message || t('auth:invite.serverError');
       setError(message);
       setStatus('idle');
     }
@@ -86,16 +88,16 @@ export default function AcceptInvitePage() {
         <Stack spacing={3}>
           <Stack spacing={1}>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              Set your password
+              {t('auth:invite.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Choose a secure password to activate your access. After this step you can sign in with your email address.
+              {t('auth:invite.subtitle')}
             </Typography>
           </Stack>
 
           <Stack spacing={2}>
             <TextField
-              label="New password"
+              label={t('auth:reset.newPassword')}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -106,7 +108,7 @@ export default function AcceptInvitePage() {
               InputLabelProps={{ shrink: true }}
             />
             <TextField
-              label="Confirm password"
+              label={t('auth:reset.confirmPassword')}
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -120,7 +122,7 @@ export default function AcceptInvitePage() {
 
           {isSuccess && (
             <Alert severity="success" role="status">
-              Password saved. Redirecting you to the sign-in page…
+              {t('auth:invite.successMessage')}
             </Alert>
           )}
 
@@ -132,7 +134,7 @@ export default function AcceptInvitePage() {
 
           <Stack spacing={1.5}>
             <Button type="submit" variant="contained" fullWidth disabled={isSubmitting || isSuccess || !token}>
-              {isSubmitting ? 'Saving…' : 'Save password'}
+              {isSubmitting ? t('auth:invite.submitting') : t('auth:invite.submit')}
             </Button>
             <Button
               type="button"
@@ -141,7 +143,7 @@ export default function AcceptInvitePage() {
               fullWidth
               onClick={() => navigate('/forgot-password')}
             >
-              Request a new link
+              {t('auth:invite.requestNewLink')}
             </Button>
           </Stack>
         </Stack>

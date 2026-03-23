@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Button,
@@ -34,6 +35,7 @@ export default function ManageCoAsDialog({
   onCoaUpdated?: () => void;
 }) {
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(['master-data', 'common']);
   const canManage = hasLevel('accounts', 'manager');
   const canAdmin = hasLevel('accounts', 'admin');
   const { coas, isLoading, isError, refetch } = useCoaList();
@@ -70,7 +72,7 @@ export default function ManageCoAsDialog({
       await api.patch(`/chart-of-accounts/${selectedCoa.id}`, { is_default: true });
       await refresh();
     } catch (e: any) {
-      setActionError(e?.response?.data?.message || 'Failed to set default Chart of Accounts');
+      setActionError(e?.response?.data?.message || t('coa.manageDialog.failedSetDefault'));
     }
   }, [selectedCoa, refresh]);
 
@@ -81,14 +83,14 @@ export default function ManageCoAsDialog({
       await api.patch(`/chart-of-accounts/${selectedCoa.id}/global-default`, {});
       await refresh();
     } catch (e: any) {
-      setActionError(e?.response?.data?.message || 'Failed to set global default Chart of Accounts');
+      setActionError(e?.response?.data?.message || t('coa.manageDialog.failedSetGlobalDefault'));
     }
   }, [selectedCoa, refresh]);
 
   return (
     <>
       <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-        <DialogTitle>Manage Charts of Accounts</DialogTitle>
+        <DialogTitle>{t('coa.manageDialog.title')}</DialogTitle>
         <DialogContent>
           {actionError && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -99,7 +101,7 @@ export default function ManageCoAsDialog({
           <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
             {canManage && (
               <Button variant="contained" onClick={() => setCreateOpen(true)}>
-                New
+                {t('shared.labels.new')}
               </Button>
             )}
             {canManage && (
@@ -107,7 +109,7 @@ export default function ManageCoAsDialog({
                 disabled={!selectedCoa || selectedCoa.scope !== 'COUNTRY'}
                 onClick={handleSetDefault}
               >
-                Set Country Default
+                {t('coa.manageDialog.setCountryDefault')}
               </Button>
             )}
             {canManage && (
@@ -115,7 +117,7 @@ export default function ManageCoAsDialog({
                 disabled={!selectedCoa || selectedCoa.scope !== 'GLOBAL'}
                 onClick={handleSetGlobalDefault}
               >
-                Set Global Default
+                {t('coa.manageDialog.setGlobalDefault')}
               </Button>
             )}
             {canAdmin && (
@@ -138,17 +140,17 @@ export default function ManageCoAsDialog({
               <List dense disablePadding>
                 {isLoading && (
                   <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                    Loading charts of accounts…
+                    {t('coa.manageDialog.loadingCoAs')}
                   </Typography>
                 )}
                 {isError && (
                   <Typography variant="body2" color="error" sx={{ p: 2 }}>
-                    Failed to load charts of accounts.
+                    {t('coa.manageDialog.loadError')}
                   </Typography>
                 )}
                 {!isLoading && !isError && coas.length === 0 && (
                   <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                    No charts of accounts found.
+                    {t('coa.manageDialog.noCoAs')}
                   </Typography>
                 )}
                 {coas.map((coa) => (
@@ -169,7 +171,7 @@ export default function ManageCoAsDialog({
             <Paper variant="outlined" sx={{ flex: 1, p: 2 }}>
               {!selectedCoa ? (
                 <Typography variant="body2" color="text.secondary">
-                  Select a Chart of Accounts to view details.
+                  {t('coa.manageDialog.selectToView')}
                 </Typography>
               ) : (
                 <Stack spacing={1.5}>
@@ -177,24 +179,24 @@ export default function ManageCoAsDialog({
                   <Typography variant="body2" color="text.secondary">{selectedCoa.name}</Typography>
                   <Divider />
                   <Typography variant="body2">
-                    Scope: <strong>{selectedCoa.scope}</strong>
+                    {t('coa.manageDialog.scope')}: <strong>{selectedCoa.scope}</strong>
                   </Typography>
                   {selectedCoa.scope === 'COUNTRY' && (
                     <Typography variant="body2">
-                      Country: <strong>{selectedCoa.country_iso || '-'}</strong>
+                      {t('shared.columns.country')}: <strong>{selectedCoa.country_iso || '-'}</strong>
                     </Typography>
                   )}
                   <Typography variant="body2">
-                    Country Default: <strong>{selectedCoa.is_default ? 'Yes' : 'No'}</strong>
+                    {t('coa.manageDialog.countryDefault')}: <strong>{selectedCoa.is_default ? 'Yes' : 'No'}</strong>
                   </Typography>
                   <Typography variant="body2">
-                    Global Default: <strong>{selectedCoa.is_global_default ? 'Yes' : 'No'}</strong>
+                    {t('coa.manageDialog.globalDefault')}: <strong>{selectedCoa.is_global_default ? 'Yes' : 'No'}</strong>
                   </Typography>
                   <Typography variant="body2">
-                    Linked Companies: <strong>{selectedCoa.companies_count ?? 0}</strong>
+                    {t('coa.manageDialog.linkedCompanies')}: <strong>{selectedCoa.companies_count ?? 0}</strong>
                   </Typography>
                   <Typography variant="body2">
-                    Accounts: <strong>{selectedCoa.accounts_count ?? 0}</strong>
+                    {t('coa.manageDialog.accountsCount')}: <strong>{selectedCoa.accounts_count ?? 0}</strong>
                   </Typography>
                 </Stack>
               )}
@@ -202,7 +204,7 @@ export default function ManageCoAsDialog({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={onClose}>{t('common:buttons.close')}</Button>
         </DialogActions>
       </Dialog>
 

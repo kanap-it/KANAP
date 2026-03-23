@@ -39,6 +39,7 @@ import {
   SubnetOption,
   updateItOpsSettings,
 } from '../../services/itOpsSettings';
+import { useTranslation } from 'react-i18next';
 
 type LocationOption = { id: string; code: string; name: string };
 
@@ -817,6 +818,7 @@ function reducer(state: SettingsState, action: Action): SettingsState {
 // ============================================================================
 
 export default function ItOperationsSettingsPage() {
+  const { t } = useTranslation(['it', 'common']);
   const queryClient = useQueryClient();
   const { data, isError } = useItOpsSettings();
   const [state, dispatch] = React.useReducer(reducer, initialState);
@@ -896,7 +898,7 @@ export default function ItOperationsSettingsPage() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Box sx={{ pt: 1, pb: 1 }}>
-        <PageHeader title="IT Operations Settings" />
+        <PageHeader title={t('pages.settings.title')} />
       </Box>
       <Typography variant="body1" color="text.secondary">
         Configure reusable lists for data classification, server catalog, and interface protocols used across the IT Operations workspace.

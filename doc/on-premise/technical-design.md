@@ -210,6 +210,8 @@ Fail fast with a clear error if missing.
 | `backend/src/common/feature-gates.ts` | Gate utilities: `throwNotAvailableInMode()`, `throwFeatureDisabled()`, `FeatureDisabledError`, `MultiTenantOnlyGuard` |
 | `backend/src/config/config.controller.ts` | `GET /config/public` — exposes flags to frontend |
 | `frontend/src/config/FeaturesContext.tsx` | React context: fetches `/api/config/public`, provides `useFeatures()` hook |
+| `backend/src/ai/ai-policy.service.ts` | Central AI surface/capability gating for chat, MCP, settings, and readable AI tools |
+| `backend/src/ai/ai-tool.registry.ts` | Runtime AI tool availability checks, including web search gating |
 
 ### Backend Gates
 
@@ -253,6 +255,21 @@ Fail fast with a clear error if missing.
 | `notification-preferences.controller.ts` | 46 | `POST /users/me/notification-preferences/test-weekly-review` | 403 `FEATURE_DISABLED` |
 | `email.service.ts` | 183 | `ensureClient()` internal | Throws `FeatureDisabledError('email')` — caught by callers via `error.code` |
 | `public.controller.ts` | 221, 356, 467 | Trial/activation catch blocks | Checks `error.code === 'FEATURE_DISABLED'` — suppresses, returns graceful fallback |
+
+#### AI Chat / MCP / Settings / Web Search (`Features.AI_CHAT_ENABLED`, `Features.AI_MCP_ENABLED`, `Features.AI_SETTINGS_ENABLED`, `Features.AI_WEB_SEARCH_READY`)
+
+| File | Line | What | Behavior |
+|------|------|------|----------|
+| `backend/src/config/config.controller.ts` | 10 | `GET /config/public` feature payload | Exposes `aiChat`, `aiMcp`, `aiSettings`, and `aiWebSearch` to the frontend |
+| `backend/src/ai/ai-capabilities.controller.ts` | 1 | `GET /ai/capabilities` | Returns per-surface AI availability derived from feature flags, tenant settings, permissions, and provider readiness |
+| `backend/src/ai/ai-policy.service.ts` | 1 | Surface and permission checks | `assertSurfaceAccess()`, `assertSettingsAccess()`, `assertKeyManagementAccess()`, and readable-entity/knowledge probes enforce AI gates |
+| `backend/src/ai/ai-chat.controller.ts` | 1 | `POST /ai/chat/stream` | Chat surface is unavailable when native AI chat is disabled by feature flag or tenant settings |
+| `backend/src/ai/ai-mcp.controller.ts` | 1 | MCP endpoints | MCP surface is unavailable when MCP is disabled by feature flag or tenant settings |
+| `backend/src/ai/ai-settings.controller.ts` | 1 | AI settings endpoints | AI settings surface is unavailable when the AI settings feature is disabled |
+| `backend/src/ai/ai-tool.registry.ts` | 1 | `web_search` tool registration and execution | Web search is only listed and executable when `AI_WEB_SEARCH_READY` is true and tenant web search is enabled |
+| `frontend/src/config/FeaturesContext.tsx` | 1 | Frontend feature bootstrap | Normalizes AI feature flags from `/config/public` for route and UI gating |
+| `frontend/src/pages/ai/AiWorkspacePage.tsx` | 1 | Plaid workspace route | Hides native AI chat UI when `aiChat` is false |
+| `frontend/src/pages/admin/AdminAiPage.tsx` | 1 | Admin AI settings page | Hides AI settings and web search controls when the corresponding flags are false |
 
 #### URL resolution
 

@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Alert, Stack, TextField, FormControlLabel, Checkbox } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import DateEUField from '../../../components/fields/DateEUField';
 import api from '../../../api';
@@ -34,6 +36,7 @@ function computeCancelDeadline(endDateIso: string, noticeMonths: number): string
 }
 
 export default forwardRef<ContractDetailsEditorHandle, Props>(function ContractDetailsEditor({ id, readOnly, onDirtyChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -92,7 +95,7 @@ export default forwardRef<ContractDetailsEditorHandle, Props>(function ContractD
         autoRenewal: Boolean(d.auto_renewal ?? true),
       };
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load details');
+      setError(getApiErrorMessage(e, t, t('contracts.details.failedToLoad')));
     } finally { setLoading(false); }
   }, [id]);
 
@@ -113,7 +116,7 @@ export default forwardRef<ContractDetailsEditorHandle, Props>(function ContractD
       });
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save details');
+      setError(getApiErrorMessage(e, t, t('contracts.details.failedToSave')));
       throw e;
     } finally { setSaving(false); }
   };

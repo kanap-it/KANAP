@@ -19,8 +19,11 @@ import {
   InterfaceDataResidency,
   TabKey,
 } from './components/interface-workspace';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 export default function InterfaceWorkspacePage() {
+  const { t } = useTranslation(['it', 'common']);
   const params = useParams();
   const navigate = useNavigate();
   const idParam = String(params.id || '');
@@ -57,7 +60,7 @@ export default function InterfaceWorkspacePage() {
       dataRef.current = res.data;
       setDirty(false);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load interface');
+      setError(getApiErrorMessage(e, t, t('messages.loadInterfaceFailed')));
       setData(null);
       dataRef.current = null;
     } finally {
@@ -225,7 +228,7 @@ export default function InterfaceWorkspacePage() {
       setDirty(false);
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save interface');
+      setError(getApiErrorMessage(e, t, t('messages.saveInterfaceFailed')));
     }
   };
 
@@ -251,7 +254,7 @@ export default function InterfaceWorkspacePage() {
 
   const handleClose = async () => {
     if (dirty) {
-      const save = window.confirm('You have unsaved changes. Do you want to save them?');
+      const save = window.confirm(t('confirmations.unsavedSave'));
       if (save) {
         try {
           await handleSave();
@@ -265,7 +268,7 @@ export default function InterfaceWorkspacePage() {
 
   const handleTabChange = async (newTab: string) => {
     if (dirty) {
-      const save = window.confirm('You have unsaved changes. Do you want to save them?');
+      const save = window.confirm(t('confirmations.unsavedSave'));
       if (save) {
         try {
           await handleSave();
@@ -362,7 +365,7 @@ export default function InterfaceWorkspacePage() {
 
   return (
     <WorkspaceLayout
-      title={isCreate ? 'New Interface' : current?.name || 'Interface'}
+      title={isCreate ? t('workspace.interface.newTitle') : current?.name || t('workspace.interface.title')}
       tabs={tabs}
       currentTab={tab}
       onTabChange={handleTabChange}

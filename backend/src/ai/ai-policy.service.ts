@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { isPlatformAdmin } from '../auth/platform-admin.util';
 import { throwFeatureDisabled } from '../common/feature-gates';
@@ -37,6 +37,7 @@ const SURFACE_RESOURCE: Record<AiSurface, 'ai_chat' | 'ai_mcp'> = {
 const ENTITY_RESOURCE: Record<AiSearchEntityType | AiContextEntityType, string> = {
   applications: 'applications',
   assets: 'infrastructure',
+  locations: 'locations',
   projects: 'portfolio_projects',
   requests: 'portfolio_requests',
   tasks: 'tasks',
@@ -53,6 +54,8 @@ type AiPolicyAccessContext = Pick<AiExecutionContext, 'tenantId' | 'userId' | 'i
 
 @Injectable()
 export class AiPolicyService {
+  private readonly logger = new Logger(AiPolicyService.name);
+
   constructor(
     private readonly users: UsersService,
     private readonly permissions: PermissionsService,
@@ -175,7 +178,12 @@ export class AiPolicyService {
     try {
       await this.assertUserPermission(context.userId, 'knowledge', 'reader', manager);
       return true;
-    } catch {
+    } catch (error) {
+      if (!(error instanceof ForbiddenException)) {
+        this.logger.warn(
+          `Unexpected error while probing knowledge read access for user ${context.userId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
       return false;
     }
   }
@@ -251,6 +259,7 @@ export class AiPolicyService {
         ai_chat: Features.AI_CHAT_ENABLED,
         ai_mcp: Features.AI_MCP_ENABLED,
         ai_settings: Features.AI_SETTINGS_ENABLED,
+        ai_web_search: Features.AI_WEB_SEARCH_READY,
       },
       surfaces: {
         chat: buildSurfaceCapability('chat', {
@@ -358,8 +367,12 @@ export class AiPolicyService {
       try {
         await this.assertUserPermission(context.userId, ENTITY_RESOURCE[entityType], 'reader', manager);
         readable.push(entityType);
-      } catch {
-        // Do not leak authorization boundaries across entity families.
+      } catch (error) {
+        if (!(error instanceof ForbiddenException)) {
+          this.logger.warn(
+            `Unexpected error while probing ${entityType} read access for user ${context.userId}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
       }
     }
     return readable;

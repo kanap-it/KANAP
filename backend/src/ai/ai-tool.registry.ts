@@ -1,10 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
+import { Features } from '../config/features';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { AiEntityService } from './ai-entity.service';
 import { AiPolicyService } from './ai-policy.service';
+import { AiSettingsService } from './ai-settings.service';
 import { AiProviderToolDef } from './providers/ai-provider.types';
+import { BraveSearchService } from './web-search/brave-search.service';
 import { AiAggregateExecutor } from './query/ai-aggregate.executor';
 import { AiQueryExecutor } from './query/ai-query.executor';
 import {
@@ -81,6 +84,11 @@ const GetFilterValuesInputSchema = z.object({
   fields: z.array(z.string().trim().min(1)).min(1).max(10),
 });
 
+const WebSearchInputSchema = z.object({
+  query: z.string().trim().min(1).max(256),
+  count: z.number().int().min(1).max(10).optional(),
+});
+
 function toDocumentRelation(type: AiEntitySummaryDto['type'], row: any): AiEntitySummaryDto {
   return {
     type,
@@ -103,6 +111,8 @@ export class AiToolRegistry {
     private readonly policy: AiPolicyService,
     private readonly queryExecutor: AiQueryExecutor,
     private readonly aggregateExecutor: AiAggregateExecutor,
+    private readonly settingsService: AiSettingsService,
+    private readonly braveSearch: BraveSearchService,
   ) {
     this.definitions = new Map<AiToolName, AiToolDefinition<any, any>>([
       [
@@ -128,7 +138,7 @@ export class AiToolRegistry {
           description: 'Query one readable entity family with server-side filters, pagination, and exact totals.',
           inputSchema: QueryEntitiesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, projects, requests, tasks, or documents.',
+            entity_type: 'One of applications, assets, locations, projects, requests, tasks, or documents.',
             scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             filters: 'Optional field filters keyed by AI field name.',
             q: 'Optional quick-search text.',
@@ -150,7 +160,7 @@ export class AiToolRegistry {
           description: 'Break down one readable entity family by a supported field with exact server-side counts.',
           inputSchema: AggregateEntitiesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, projects, requests, tasks, or documents.',
+            entity_type: 'One of applications, assets, locations, projects, requests, tasks, or documents.',
             scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             group_by: 'A supported group-by field from the query layer registry.',
             filters: 'Optional field filters keyed by AI field name.',
@@ -171,7 +181,7 @@ export class AiToolRegistry {
           description: 'Discover exact filter values for supported set-like AI query fields.',
           inputSchema: GetFilterValuesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, projects, requests, tasks, or documents.',
+            entity_type: 'One of applications, assets, locations, projects, requests, tasks, or documents.',
             fields: 'AI field names to inspect.',
           },
           surfaces: ['chat', 'mcp'],
@@ -289,6 +299,24 @@ export class AiToolRegistry {
           },
         },
       ],
+      [
+        'web_search',
+        {
+          name: 'web_search',
+          description: 'Search the web for current information. Use when you need up-to-date facts, EOL dates, product details, or any information not available in the KANAP database.',
+          inputSchema: WebSearchInputSchema,
+          inputSummary: {
+            query: 'Web search query using only generic, publicly meaningful terms.',
+            count: 'Number of results to return (1–10, default 5).',
+          },
+          surfaces: ['chat', 'mcp'],
+          readOnly: true,
+          execute: async (_context, input) => {
+            const results = await this.braveSearch.search(input.query, { count: input.count });
+            return { items: results, total: results.length };
+          },
+        },
+      ],
     ]);
   }
 
@@ -320,33 +348,62 @@ export class AiToolRegistry {
     }));
   }
 
-  async listAvailableTools(context: AiExecutionContextWithManager): Promise<AiToolListItemDto[]> {
-    await this.policy.assertSurfaceAccess(context, context.manager);
+  private async isToolAvailable(
+    toolName: AiToolName,
+    context: AiExecutionContextWithManager,
+    availability?: { readableEntityTypes: string[]; canReadKnowledge: boolean; webSearchEnabled: boolean },
+  ): Promise<boolean> {
+    // Lazy-load availability context if not pre-computed
+    const avail = availability ?? await this.loadAvailabilityContext(context);
 
+    switch (toolName) {
+      case 'search_all':
+      case 'query_entities':
+      case 'aggregate_entities':
+      case 'get_filter_values':
+        return avail.readableEntityTypes.length > 0;
+      case 'get_entity_context':
+        return avail.readableEntityTypes.some((type) => type !== 'documents');
+      case 'search_knowledge':
+      case 'get_document':
+        return avail.canReadKnowledge;
+      case 'web_search':
+        return Features.AI_WEB_SEARCH_READY && avail.webSearchEnabled;
+      default:
+        return false;
+    }
+  }
+
+  private async loadAvailabilityContext(context: AiExecutionContextWithManager) {
     const readableEntityTypes = await this.policy.listReadableEntityTypes(
       context,
       ['applications', 'assets', 'projects', 'requests', 'tasks', 'documents'],
       context.manager,
     );
     const canReadKnowledge = await this.policy.canReadKnowledge(context, context.manager);
+    const settings = await this.settingsService.find(context.tenantId, { manager: context.manager });
+    const webSearchEnabled = settings?.web_search_enabled === true;
+    return { readableEntityTypes, canReadKnowledge, webSearchEnabled };
+  }
 
-    return this.getRegisteredDefinitions()
-      .filter((definition) => definition.surfaces.includes(context.surface))
-      .filter((definition) => {
-        if (definition.name === 'search_all') return readableEntityTypes.length > 0;
-        if (definition.name === 'query_entities') return readableEntityTypes.length > 0;
-        if (definition.name === 'aggregate_entities') return readableEntityTypes.length > 0;
-        if (definition.name === 'get_filter_values') return readableEntityTypes.length > 0;
-        if (definition.name === 'get_entity_context') return readableEntityTypes.some((type) => type !== 'documents');
-        return canReadKnowledge;
-      })
-      .map((definition) => ({
+  async listAvailableTools(context: AiExecutionContextWithManager): Promise<AiToolListItemDto[]> {
+    await this.policy.assertSurfaceAccess(context, context.manager);
+
+    const availability = await this.loadAvailabilityContext(context);
+
+    const results: AiToolListItemDto[] = [];
+    for (const definition of this.getRegisteredDefinitions()) {
+      if (!definition.surfaces.includes(context.surface)) continue;
+      if (!await this.isToolAvailable(definition.name, context, availability)) continue;
+      results.push({
         name: definition.name,
         description: definition.description,
         input_summary: definition.inputSummary,
         read_only: definition.readOnly,
         surfaces: definition.surfaces,
-      }));
+      });
+    }
+    return results;
   }
 
   async getToolJsonSchemas(context: AiExecutionContextWithManager): Promise<AiProviderToolDef[]> {
@@ -371,6 +428,10 @@ export class AiToolRegistry {
     const definition = this.getDefinition(toolName);
     if (!definition.surfaces.includes(context.surface)) {
       throw new BadRequestException('AI tool is not available on this surface.');
+    }
+
+    if (!await this.isToolAvailable(definition.name, context)) {
+      throw new BadRequestException('AI tool is not available.');
     }
 
     const parsed = definition.inputSchema.safeParse(rawInput);

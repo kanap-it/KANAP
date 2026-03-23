@@ -3,6 +3,7 @@ import { Box, Chip, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { useNavigate } from 'react-router-dom';
 
+import { useTranslation } from 'react-i18next';
 interface VersionApp {
   id: string;
   name: string;
@@ -17,6 +18,7 @@ interface VersionTimelineProps {
 }
 
 export default function VersionTimeline({ predecessors, current, successors }: VersionTimelineProps) {
+  const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
 
   const allVersions = [...predecessors, current, ...successors];

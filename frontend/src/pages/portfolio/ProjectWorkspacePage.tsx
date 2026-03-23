@@ -25,20 +25,16 @@ import ProjectPropertyPanel from './workspace/project/ProjectPropertyPanel';
 import ProjectSummaryTab from './workspace/project/ProjectSummaryTab';
 import WorkspaceTabLoadingFallback from './workspace/WorkspaceTabLoadingFallback';
 import { getProjectWorkspaceInclude } from './workspace/workspace-detail-includes';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import {
+  getProjectStatusLabel,
+  getProjectStatusOptions,
+} from '../../utils/portfolioI18n';
 
 type TabKey = 'summary' | 'scoring' | 'timeline' | 'effort' | 'tasks' | 'knowledge' | 'activity';
 type LegacyPanelRoute = 'overview' | 'team' | 'relations';
 type RouteTabKey = TabKey | LegacyPanelRoute;
-
-const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: 'summary', label: 'Summary' },
-  { key: 'activity', label: 'Activity' },
-  { key: 'timeline', label: 'Timeline' },
-  { key: 'effort', label: 'Progress' },
-  { key: 'tasks', label: 'Tasks' },
-  { key: 'scoring', label: 'Scoring' },
-  { key: 'knowledge', label: 'Knowledge' },
-];
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   waiting_list: ['planned', 'on_hold', 'cancelled'],
@@ -49,21 +45,6 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   done: [],
   cancelled: [],
 };
-
-const STATUS_OPTIONS = [
-  { value: 'waiting_list', label: 'Waiting List' },
-  { value: 'planned', label: 'Planned' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'in_testing', label: 'In Testing' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'done', label: 'Done' },
-  { value: 'cancelled', label: 'Cancelled' },
-];
-
-const ORIGIN_OPTIONS = [
-  { value: 'fast_track', label: 'Fast-track' },
-  { value: 'legacy', label: 'Legacy' },
-];
 
 // Classification interfaces (from API)
 interface ClassificationType {
@@ -93,12 +74,6 @@ const STATUS_COLORS: Record<string, 'default' | 'primary' | 'success' | 'error' 
   cancelled: 'error',
 };
 
-const ORIGIN_LABELS: Record<string, string> = {
-  standard: 'Origin: Request',
-  fast_track: 'Origin: Fast-track',
-  legacy: 'Origin: Legacy',
-};
-
 const ProjectTimelineTab = React.lazy(() => import('./workspace/project/ProjectTimelineTab'));
 const ProjectScoringTab = React.lazy(() => import('./workspace/project/ProjectScoringTab'));
 const ProjectEffortTab = React.lazy(() => import('./workspace/project/ProjectEffortTab'));
@@ -107,6 +82,7 @@ const ProjectActivityTab = React.lazy(() => import('./workspace/project/ProjectA
 const ProjectKnowledgeTab = React.lazy(() => import('./workspace/project/ProjectKnowledgeTab'));
 
 export default function ProjectWorkspacePage() {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -126,6 +102,25 @@ export default function ProjectWorkspacePage() {
     ? rawRouteTab
     : null;
   const projectInclude = React.useMemo(() => getProjectWorkspaceInclude(routeTab), [routeTab]);
+  const tabs = React.useMemo<Array<{ key: TabKey; label: string }>>(() => [
+    { key: 'summary', label: t('portfolio:labels.summary') },
+    { key: 'activity', label: t('portfolio:labels.activity') },
+    { key: 'timeline', label: t('portfolio:labels.timeline') },
+    { key: 'effort', label: t('portfolio:labels.progress') },
+    { key: 'tasks', label: t('portfolio:labels.tasks') },
+    { key: 'scoring', label: t('portfolio:labels.scoring') },
+    { key: 'knowledge', label: t('portfolio:labels.knowledge') },
+  ], [t]);
+  const statusOptions = React.useMemo(() => getProjectStatusOptions(t), [t]);
+  const originOptions = React.useMemo(() => [
+    { value: 'fast_track', label: t('portfolio:origin.fast_track') },
+    { value: 'legacy', label: t('portfolio:origin.legacy') },
+  ], [t]);
+  const originLabels = React.useMemo<Record<string, string>>(() => ({
+    standard: t('portfolio:workspace.project.origin.standard'),
+    fast_track: t('portfolio:workspace.project.origin.fastTrack'),
+    legacy: t('portfolio:workspace.project.origin.legacy'),
+  }), [t]);
 
   React.useEffect(() => {
     if (rawRouteTab === 'overview') {
@@ -157,10 +152,13 @@ export default function ProjectWorkspacePage() {
   // Browser tab title
   React.useEffect(() => {
     if (data?.item_number && data?.name) {
-      document.title = `PRJ-${data.item_number} — ${data.name} | KANAP`;
+      document.title = t('portfolio:workspace.project.browserTitle', {
+        ref: `PRJ-${data.item_number}`,
+        name: data.name,
+      });
     }
     return () => { document.title = 'KANAP'; };
-  }, [data?.item_number, data?.name]);
+  }, [data?.item_number, data?.name, t]);
 
   // URL replaceState: swap UUID for human-readable ref
   React.useEffect(() => {
@@ -309,7 +307,7 @@ export default function ProjectWorkspacePage() {
 
   const persistPanelPatch = React.useCallback(async (patch: Record<string, any>) => {
     if (!isCreate && !canManage) {
-      setSaveError('You do not have permission to save project details from this panel.');
+      setSaveError(t('portfolio:workspace.project.messages.permissionSavePanel'));
       await refetch();
       return;
     }
@@ -325,11 +323,11 @@ export default function ProjectWorkspacePage() {
     try {
       await api.patch(`/portfolio/projects/${id}`, patch);
       queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
-    } catch (e: any) {
-      setSaveError(e?.response?.data?.message || e?.message || 'Failed to save project details');
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.project.messages.savePanelFailed')));
       await refetch();
     }
-  }, [canManage, id, isCreate, queryClient, refetch]);
+  }, [canManage, id, isCreate, queryClient, refetch, t]);
 
   React.useEffect(() => {
     if (!isCreate || defaultsAppliedRef.current || classificationDefaultsLoading) return;
@@ -396,7 +394,7 @@ export default function ProjectWorkspacePage() {
         return false;
       } else {
         if (!canManage && (dirty || scoringDirty)) {
-          setSaveError('You do not have permission to save project form changes from this workspace.');
+          setSaveError(t('portfolio:workspace.project.messages.permissionSaveWorkspace'));
           return false;
         }
 
@@ -423,8 +421,8 @@ export default function ProjectWorkspacePage() {
         queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
         return true;
       }
-    } catch (e: any) {
-      setSaveError(e?.response?.data?.message || e?.message || 'Failed to save');
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.project.messages.saveFailed')));
       return false;
     }
   };
@@ -478,12 +476,12 @@ export default function ProjectWorkspacePage() {
       });
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
-    } catch (e: any) {
-      setSaveError(e?.response?.data?.message || e?.message || 'Failed to update status');
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.project.messages.updateStatusFailed')));
     } finally {
       setPendingStatus(null);
     }
-  }, [id, pendingStatus, refetch, queryClient]);
+  }, [id, pendingStatus, refetch, queryClient, t]);
 
   const handleStatusDialogCancel = React.useCallback(() => {
     setStatusDialogOpen(false);
@@ -530,7 +528,7 @@ export default function ProjectWorkspacePage() {
   const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'summary') return;
     if (hasUnsavedChanges) {
-      const proceed = window.confirm('You have unsaved changes. Save before switching tabs?');
+      const proceed = window.confirm(t('portfolio:workspace.project.confirmations.unsavedSwitchTabs'));
       if (proceed) {
         void handleSave().then((ok) => {
           if (ok) navigate(`/portfolio/projects/${id}/${nextValue}?${searchParams.toString()}`);
@@ -618,7 +616,7 @@ export default function ProjectWorkspacePage() {
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
     if (hasUnsavedChanges) {
-      const proceed = window.confirm('You have unsaved changes. Save before navigating?');
+      const proceed = window.confirm(t('portfolio:workspace.project.confirmations.unsavedNavigate'));
       if (proceed) {
         const ok = await handleSave();
         if (!ok) return;
@@ -628,11 +626,11 @@ export default function ProjectWorkspacePage() {
     }
     const qs = listContextParams.toString();
     navigate(`/portfolio/projects/${targetId}/${routeTab}${qs ? `?${qs}` : ''}`);
-  }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab]);
+  }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab, t]);
 
-  const statusLabel = STATUS_OPTIONS.find((s) => s.value === form?.status)?.label || form?.status || '';
+  const statusLabel = form?.status ? getProjectStatusLabel(t, form.status) : '';
   const statusColor = STATUS_COLORS[form?.status] || 'default';
-  const originLabel = ORIGIN_LABELS[form?.origin] || form?.origin || '';
+  const originLabel = originLabels[form?.origin] || form?.origin || '';
   const showRefreshState = !isCreate && !!data && isFetching;
 
   if (!isCreate && isLoading && !data) {
@@ -640,7 +638,7 @@ export default function ProjectWorkspacePage() {
       <Box sx={{ p: 2 }}>
         <LinearProgress sx={{ mb: 2 }} />
         <Typography variant="body2" color="text.secondary">
-          Loading project workspace...
+          {t('portfolio:workspace.project.messages.loading')}
         </Typography>
       </Box>
     );
@@ -648,7 +646,7 @@ export default function ProjectWorkspacePage() {
 
   return (
     <Box sx={{ p: 2 }}>
-      {!!error && <Alert severity="error" sx={{ mb: 1 }}>Failed to load project.</Alert>}
+      {!!error && <Alert severity="error" sx={{ mb: 1 }}>{t('portfolio:workspace.project.messages.loadFailed')}</Alert>}
       {!!saveError && <Alert severity="error" sx={{ mb: 1 }}>{saveError}</Alert>}
 
       <PortfolioWorkspaceShell
@@ -659,7 +657,7 @@ export default function ProjectWorkspacePage() {
         }))}
         onTabChange={(nextTab) => onTabChange(null as any, nextTab as TabKey)}
         sidebarStorageKey="portfolioProjectWorkspaceSidebarWidth"
-        sidebarTitle={isCreate ? 'Project Setup' : 'Project Properties'}
+        sidebarTitle={isCreate ? t('portfolio:workspace.project.sidebar.createTitle') : t('portfolio:workspace.project.sidebar.editTitle')}
         headerContent={(
           <Stack direction="row" alignItems="center" spacing={2}>
             {!isCreate && form?.priority_score != null && (
@@ -677,7 +675,7 @@ export default function ProjectWorkspacePage() {
                   fontSize: '1.25rem',
                   boxShadow: 2,
                 }}
-                title={form.priority_override ? 'Overridden priority score' : 'Priority score'}
+                title={form.priority_override ? t('portfolio:workspace.project.priority.overriddenTitle') : t('portfolio:workspace.project.priority.title')}
               >
                 {Math.round(form.priority_score)}
               </Box>
@@ -691,11 +689,11 @@ export default function ProjectWorkspacePage() {
                     variant="outlined"
                     sx={{ fontFamily: 'monospace' }}
                     onClick={() => navigator.clipboard.writeText(`PRJ-${data.item_number}`)}
-                    title="Click to copy reference"
+                    title={t('portfolio:workspace.project.actions.copyReference')}
                   />
                 )}
                 <Typography variant="h6" sx={{ minWidth: 0 }}>
-                  {isCreate ? 'New Project' : (form?.name || 'Project')}
+                  {isCreate ? t('portfolio:workspace.project.title.new') : (form?.name || t('portfolio:workspace.project.title.fallback'))}
                 </Typography>
               </Stack>
               {!isCreate && (
@@ -720,7 +718,7 @@ export default function ProjectWorkspacePage() {
                       }
                       title={
                         form.origin === 'standard' && form.source_requests?.[0]
-                          ? `View source request: ${form.source_requests[0].name}`
+                          ? t('portfolio:workspace.project.origin.viewSourceRequest', { name: form.source_requests[0].name })
                           : undefined
                       }
                     />
@@ -737,7 +735,7 @@ export default function ProjectWorkspacePage() {
                   )}
                   {total > 0 && (
                     <Typography variant="body2" color="text.secondary">
-                      {index + 1} of {total}
+                      {t('portfolio:workspace.project.navigation.position', { index: index + 1, total })}
                     </Typography>
                   )}
                 </Stack>
@@ -749,7 +747,7 @@ export default function ProjectWorkspacePage() {
           <>
             {!isCreate && showRefreshState && (
               <Chip
-                label={isPlaceholderData ? 'Loading tab data' : 'Refreshing'}
+                label={isPlaceholderData ? t('portfolio:workspace.project.messages.loadingTabData') : t('portfolio:workspace.project.messages.refreshing')}
                 size="small"
                 variant="outlined"
               />
@@ -760,12 +758,12 @@ export default function ProjectWorkspacePage() {
                 onClick={() => setShareDialogOpen(true)}
                 size="small"
               >
-                Send link
+                {t('portfolio:actions.sendLink')}
               </Button>
             )}
             <IconButton
-              aria-label="Previous"
-              title="Previous"
+              aria-label={t('portfolio:actions.previous')}
+              title={t('portfolio:actions.previous')}
               onClick={() => confirmAndNavigate(prevId)}
               disabled={!hasPrev}
               size="small"
@@ -773,8 +771,8 @@ export default function ProjectWorkspacePage() {
               <ArrowBackIcon />
             </IconButton>
             <IconButton
-              aria-label="Next"
-              title="Next"
+              aria-label={t('portfolio:actions.next')}
+              title={t('portfolio:actions.next')}
               onClick={() => confirmAndNavigate(nextId)}
               disabled={!hasNext}
               size="small"
@@ -782,14 +780,14 @@ export default function ProjectWorkspacePage() {
               <ArrowForwardIcon />
             </IconButton>
             <Button onClick={() => { void handleReset(); }} disabled={!hasUnsavedChanges} size="small">
-              Reset
+              {t('common:buttons.reset')}
             </Button>
             <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled} size="small">
-              Save
+              {t('common:buttons.save')}
             </Button>
             <IconButton
-              aria-label="Close"
-              title="Close"
+              aria-label={t('common:buttons.close')}
+              title={t('common:buttons.close')}
               onClick={() => {
                 const qs = listContextParams.toString();
                 navigate(`/portfolio/projects${qs ? `?${qs}` : ''}`);
@@ -832,10 +830,10 @@ export default function ProjectWorkspacePage() {
               void persistPanelPatch({ stream_id: value });
             }}
             onUpdate={(patch) => { void persistPanelPatch(patch); }}
-            originOptions={ORIGIN_OPTIONS}
-            originLabels={ORIGIN_LABELS}
+            originOptions={originOptions}
+            originLabels={originLabels}
             sources={sources}
-            statusOptions={STATUS_OPTIONS}
+            statusOptions={statusOptions}
             streams={streams}
           />
         )}
@@ -859,7 +857,7 @@ export default function ProjectWorkspacePage() {
         )}
 
         {routeTab === 'scoring' && !isCreate && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading scoring tab..." />}>
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.project.loadingTabs.scoring')} />}>
             <ProjectScoringTab
               form={form}
               mandatoryBypassEnabled={portfolioSettings?.mandatory_bypass_enabled ?? false}
@@ -872,7 +870,7 @@ export default function ProjectWorkspacePage() {
         )}
 
         {routeTab === 'timeline' && !isCreate && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading timeline tab..." />}>
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.project.loadingTabs.timeline')} />}>
             <ProjectTimelineTab
               canManage={canManage}
               form={form}
@@ -887,7 +885,7 @@ export default function ProjectWorkspacePage() {
         )}
 
         {routeTab === 'effort' && !isCreate && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading progress tab..." />}>
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.project.loadingTabs.progress')} />}>
             <ProjectEffortTab
               businessAllocationData={businessAllocationData}
               canContributeToProject={canContributeToProject}
@@ -909,7 +907,7 @@ export default function ProjectWorkspacePage() {
         )}
 
         {routeTab === 'tasks' && !isCreate && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading tasks tab..." />}>
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.project.loadingTabs.tasks')} />}>
             <ProjectTasksPanel
               projectId={id}
               phases={form?.phases || []}
@@ -919,7 +917,7 @@ export default function ProjectWorkspacePage() {
         )}
 
         {routeTab === 'knowledge' && !isCreate && form?.id && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading knowledge tab..." />}>
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.project.loadingTabs.knowledge')} />}>
             <ProjectKnowledgeTab
               entityId={form.id}
               canCreate={hasLevel('knowledge', 'member')}
@@ -928,13 +926,13 @@ export default function ProjectWorkspacePage() {
         )}
 
         {routeTab === 'activity' && !isCreate && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading activity tab..." />}>
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.project.loadingTabs.activity')} />}>
             <ProjectActivityTab
               entityId={form?.id || ''}
               activities={form?.activities || []}
               currentStatus={form?.status || ''}
               allowedTransitions={ALLOWED_TRANSITIONS[form?.status] || []}
-              statusOptions={STATUS_OPTIONS}
+              statusOptions={statusOptions}
               onAddComment={handleAddComment}
               onUpdateComment={handleUpdateComment}
               currentUserId={profile?.id}
@@ -959,7 +957,7 @@ export default function ProjectWorkspacePage() {
         onClose={() => setShareDialogOpen(false)}
         itemType="project"
         itemId={form?.id || id}
-        itemName={form?.name || 'Project'}
+        itemName={form?.name || t('portfolio:workspace.project.title.fallback')}
         itemNumber={data?.item_number}
       />
     </Box>

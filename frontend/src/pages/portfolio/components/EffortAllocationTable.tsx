@@ -14,6 +14,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import WarningIcon from '@mui/icons-material/Warning';
+import { useTranslation } from 'react-i18next';
 
 export interface AllocationUser {
   user_id: string;
@@ -49,11 +50,12 @@ export default function EffortAllocationTable({
   onEdit,
   onReset,
 }: EffortAllocationTableProps) {
+  const { t } = useTranslation(['portfolio', 'common']);
   if (!data) {
     return (
       <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
         <Typography variant="body2" color="text.secondary">
-          Loading allocations...
+          {t('portfolio:dialogs.effortAllocation.states.loading')}
         </Typography>
       </Box>
     );
@@ -61,14 +63,15 @@ export default function EffortAllocationTable({
 
   const { mode, allocations } = data;
   const hasOrphans = allocations.some(a => a.is_orphaned);
-  const title = effortType === 'it' ? 'IT Effort Allocation' : 'Business Effort Allocation';
+  const title = t(`portfolio:dialogs.effortAllocation.title.${effortType}`);
+  const effortTypeLabel = t(`portfolio:dialogs.effortAllocation.effortTypes.${effortType}`);
 
   if (allocations.length === 0) {
     return (
       <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>{title}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-          No allocations - assign a {effortType === 'it' ? 'IT' : 'Business'} lead or team members
+          {t('portfolio:dialogs.effortAllocation.states.empty', { effortType: effortTypeLabel })}
         </Typography>
       </Box>
     );
@@ -80,7 +83,9 @@ export default function EffortAllocationTable({
         <Stack direction="row" spacing={1} alignItems="center">
           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{title}</Typography>
           <Chip
-            label={mode === 'auto' ? 'Auto-calculated' : 'Manual'}
+            label={mode === 'auto'
+              ? t('portfolio:dialogs.effortAllocation.chips.autoCalculated')
+              : t('portfolio:dialogs.effortAllocation.chips.manual')}
             size="small"
             color={mode === 'auto' ? 'default' : 'primary'}
             variant="outlined"
@@ -94,7 +99,7 @@ export default function EffortAllocationTable({
                 startIcon={<RefreshIcon />}
                 onClick={onReset}
               >
-                Reset
+                {t('common:buttons.reset')}
               </Button>
             )}
             <Button
@@ -103,7 +108,9 @@ export default function EffortAllocationTable({
               startIcon={<EditIcon />}
               onClick={onEdit}
             >
-              {mode === 'auto' ? 'Manual' : 'Edit'}
+              {mode === 'auto'
+                ? t('portfolio:dialogs.effortAllocation.actions.manual')
+                : t('portfolio:dialogs.effortAllocation.actions.edit')}
             </Button>
           </Stack>
         )}
@@ -113,7 +120,7 @@ export default function EffortAllocationTable({
         <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <WarningIcon fontSize="small" color="warning" />
           <Typography variant="caption" color="warning.main">
-            Some users are no longer team members
+            {t('portfolio:dialogs.effortAllocation.messages.orphanedUsers')}
           </Typography>
         </Box>
       )}
@@ -121,7 +128,9 @@ export default function EffortAllocationTable({
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 600, width: '60%' }}>Contributor</TableCell>
+            <TableCell sx={{ fontWeight: 600, width: '60%' }}>
+              {t('portfolio:dialogs.effortAllocation.table.contributor')}
+            </TableCell>
             <TableCell align="right" sx={{ fontWeight: 600 }}>%</TableCell>
             <TableCell align="right" sx={{ fontWeight: 600 }}>MD</TableCell>
           </TableRow>
@@ -142,10 +151,19 @@ export default function EffortAllocationTable({
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="body2">{displayName}</Typography>
                     {alloc.is_lead && (
-                      <Chip label="Lead" size="small" color="primary" variant="outlined" />
+                      <Chip
+                        label={t('portfolio:dialogs.effortAllocation.chips.lead')}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
                     )}
                     {alloc.is_orphaned && (
-                      <Chip label="Orphaned" size="small" color="warning" />
+                      <Chip
+                        label={t('portfolio:dialogs.effortAllocation.chips.orphaned')}
+                        size="small"
+                        color="warning"
+                      />
                     )}
                   </Stack>
                 </TableCell>

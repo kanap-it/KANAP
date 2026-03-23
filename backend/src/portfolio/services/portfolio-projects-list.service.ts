@@ -157,6 +157,14 @@ const buildProjectContributorNamesSql = (alias: string): string => `COALESCE((
   ) contributor
 ), '')`;
 
+const applyExplicitTenantConstraint = (
+  qb: SelectQueryBuilder<PortfolioProject>,
+  tenantId?: string,
+) => {
+  if (!tenantId) return;
+  qb.andWhere('p.tenant_id = :tenantId', { tenantId });
+};
+
 /**
  * Service for listing and filtering portfolio projects.
  */
@@ -174,6 +182,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
   async list(query: any, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(PortfolioProject);
+    const tenantId = String(opts?.tenantId || '').trim();
     const involvementScope = parseInvolvementScope(query);
 
     const { page, limit, skip, sort, q, filters } = parsePagination(query, {
@@ -288,6 +297,9 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
 
     // Build query
     const qb = repo.createQueryBuilder('p');
+    if (tenantId) {
+      qb.andWhere('p.tenant_id = :tenantId', { tenantId });
+    }
     applyProjectInvolvementScope(qb, involvementScope, 'p');
 
     // Apply compiled filter conditions
@@ -478,6 +490,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
   async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[] }> {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(PortfolioProject);
+    const tenantId = String(opts?.tenantId || '').trim();
     const involvementScope = parseInvolvementScope(query);
 
     const { sort, q, filters } = parsePagination(query, {
@@ -575,6 +588,9 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
 
     // Build query
     const qb = repo.createQueryBuilder('p').select('p.id');
+    if (tenantId) {
+      qb.andWhere('p.tenant_id = :tenantId', { tenantId });
+    }
     applyProjectInvolvementScope(qb, involvementScope, 'p');
 
     // Apply compiled filter conditions
@@ -618,6 +634,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
   async listFilterValues(query: any, opts?: ServiceOpts): Promise<Record<string, Array<string | null>>> {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(PortfolioProject);
+    const tenantId = String(opts?.tenantId || '').trim();
     const involvementScope = parseInvolvementScope(query);
     const { q, filters } = parsePagination(query, {
       field: 'created_at',
@@ -729,6 +746,9 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
 
       const qb = repo.createQueryBuilder('p');
+      if (tenantId) {
+        qb.andWhere('p.tenant_id = :tenantId', { tenantId });
+      }
       applyProjectInvolvementScope(qb, involvementScope, 'p');
       compiledFilters.forEach((c) => {
         qb.andWhere(new Brackets((sub) => sub.where(c.sql, c.params)));

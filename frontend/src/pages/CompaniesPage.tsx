@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button, Stack, TextField } from '@mui/material';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef, StatusScope } from '../components/ServerDataGrid';
@@ -31,6 +32,7 @@ type CompanyRow = {
 };
 
 export default function CompaniesPage() {
+  const { t } = useTranslation(['master-data', 'common']);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { hasLevel } = useAuth();
@@ -104,7 +106,7 @@ export default function CompaniesPage() {
   const columns: EnhancedColDef<CompanyRow>[] = useMemo(() => [
     {
       field: 'name',
-      headerName: 'Name',
+      headerName: t('shared.columns.name'),
       flex: 1,
       required: true,
       cellRenderer: (params: any) => (
@@ -118,7 +120,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'country_iso',
-      headerName: 'Country',
+      headerName: t('shared.columns.country'),
       width: 120,
       cellRenderer: (params: any) => (
         <LinkCellRenderer
@@ -131,7 +133,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'city',
-      headerName: 'City',
+      headerName: t('companies.columns.city'),
       width: 140,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -145,7 +147,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'postal_code',
-      headerName: 'Postal Code',
+      headerName: t('companies.columns.postalCode'),
       width: 150,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -159,7 +161,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'address1',
-      headerName: 'Address 1',
+      headerName: t('companies.columns.address1'),
       width: 220,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -173,7 +175,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'address2',
-      headerName: 'Address 2',
+      headerName: t('companies.columns.address2'),
       width: 220,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -187,7 +189,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'state',
-      headerName: 'State',
+      headerName: t('companies.columns.state'),
       width: 140,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -201,7 +203,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'notes',
-      headerName: 'Notes',
+      headerName: t('shared.columns.notes'),
       width: 260,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -215,7 +217,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'base_currency',
-      headerName: 'Currency',
+      headerName: t('companies.columns.currency'),
       width: 110,
       cellRenderer: (params: any) => (
         <LinkCellRenderer
@@ -228,7 +230,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'headcount_year',
-      headerName: `Headcount (${year})`,
+      headerName: t('companies.columns.headcountYear', { year }),
       width: 150,
       filter: 'agNumberColumnFilter',
       filterParams: { suppressAndOrCondition: true },
@@ -249,7 +251,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'it_users_year',
-      headerName: `IT Users (${year})`,
+      headerName: t('companies.columns.itUsersYear', { year }),
       width: 150,
       filter: 'agNumberColumnFilter',
       filterParams: { suppressAndOrCondition: true },
@@ -270,7 +272,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'turnover_year',
-      headerName: `Turnover (${year})`,
+      headerName: t('companies.columns.turnoverYear', { year }),
       width: 170,
       filter: 'agNumberColumnFilter',
       filterParams: { suppressAndOrCondition: true },
@@ -291,7 +293,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('shared.columns.status'),
       width: 140,
       filter: 'agSetColumnFilter',
       filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
@@ -306,7 +308,7 @@ export default function CompaniesPage() {
     },
     {
       field: 'created_at',
-      headerName: 'Created',
+      headerName: t('shared.columns.created'),
       width: 200,
       defaultHidden: true,
       valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
@@ -319,7 +321,7 @@ export default function CompaniesPage() {
         />
       ),
     },
-  ], [getWorkspaceHref, navigate, year]);
+  ], [getWorkspaceHref, navigate, year, t]);
 
   const updateTotals = useCallback(async ({ q, filterModel, statusScope }: { q: string; filterModel: any; statusScope?: StatusScope }) => {
     try {
@@ -334,7 +336,7 @@ export default function CompaniesPage() {
       const res = await api.get('/companies/totals', { params });
       const totals = res.data || {};
       const pinned = {
-        name: 'Total',
+        name: t('companies.pinnedTotal'),
         headcount_year: Number(totals.headcount || 0),
         it_users_year: Number(totals.it_users || 0),
         turnover_year: Number(totals.turnover || 0),
@@ -352,7 +354,7 @@ export default function CompaniesPage() {
     <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
       <TextField
         size="small"
-        label="Year"
+        label={t('shared.fields.year')}
         type="number"
         value={year}
         onChange={(e) => {
@@ -369,11 +371,11 @@ export default function CompaniesPage() {
             navigate(`/master-data/companies/new/overview?${sp.toString()}`);
           }}
         >
-          New
+          {t('shared.labels.new')}
         </Button>
       )}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canAdmin && <Button onClick={() => setImportOpen(true)}>{t('shared.labels.importCsv')}</Button>}
+      {canAdmin && <Button onClick={() => setExportOpen(true)}>{t('shared.labels.exportCsv')}</Button>}
       {canAdmin && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
@@ -400,7 +402,7 @@ export default function CompaniesPage() {
 
   return (
     <>
-      <PageHeader title="Companies" actions={actions} />
+      <PageHeader title={t('companies.title')} actions={actions} />
       <ServerDataGrid<CompanyRow>
         columns={columns}
         endpoint="/companies"
@@ -430,14 +432,14 @@ export default function CompaniesPage() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         endpoint="/companies"
-        title="Export Companies"
+        title={t('companies.export')}
         params={{ year }}
       />
       <CsvImportDialog
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/companies"
-        title="Import Companies"
+        title={t('companies.import')}
         onImported={() => setRefreshKey((k) => k + 1)}
         params={{ year }}
       />

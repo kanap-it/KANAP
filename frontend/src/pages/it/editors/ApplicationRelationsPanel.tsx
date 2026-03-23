@@ -5,6 +5,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 export type ApplicationRelationsPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
@@ -13,6 +15,7 @@ export type ApplicationRelationsPanelHandle = {
 type Props = { id: string; isSuite?: boolean; onDirtyChange?: (dirty: boolean) => void };
 
 export default forwardRef<ApplicationRelationsPanelHandle, Props>(function ApplicationRelationsPanel({ id, isSuite = false, onDirtyChange }, ref) {
+  const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel('applications', 'manager');
 
@@ -109,7 +112,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
         setComponents([]);
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load relations');
+      setError(getApiErrorMessage(e, t, t('messages.loadRelationsFailed')));
     } finally { setLoading(false); }
   }, [id, isSuite]);
   React.useEffect(() => { void load(); }, [load]);
@@ -177,7 +180,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
       for (const u of urls) { if (!u.url) continue; if (u.id && existingIds.has(u.id)) await api.patch(`/applications/${id}/links/${u.id}`, { description: u.description ?? null, url: u.url }); else await api.post(`/applications/${id}/links`, { description: u.description ?? null, url: u.url }); }
       setBaselineUrls(urls);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save relations');
+      setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
       throw e;
     } finally { setSaving(false); }
   };
@@ -208,7 +211,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
                     <TableRow key={c.id} hover sx={{ cursor: 'pointer' }} onClick={() => window.open(`/it/applications/${c.id}/overview`, '_self')}>
                       <TableCell>{c.name}</TableCell>
                       <TableCell>{(() => { switch (String(c.lifecycle || '')) { case 'proposed': return 'Proposed'; case 'active': return 'Active'; case 'deprecated': return 'Deprecated'; case 'retired': return 'Retired'; default: return String(c.lifecycle || ''); } })()}</TableCell>
-                      <TableCell>{(() => { switch (String(c.criticality || '')) { case 'business_critical': return 'Business critical'; case 'high': return 'High'; case 'medium': return 'Medium'; case 'low': return 'Low'; default: return String(c.criticality || ''); } })()}</TableCell>
+                      <TableCell>{(() => { switch (String(c.criticality || '')) { case 'business_critical': return t('enums.criticality.businessCritical'); case 'high': return t('enums.criticality.high'); case 'medium': return t('enums.criticality.medium'); case 'low': return t('enums.criticality.low'); default: return String(c.criticality || ''); } })()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

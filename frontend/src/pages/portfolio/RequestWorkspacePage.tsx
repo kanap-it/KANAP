@@ -29,18 +29,17 @@ import RequestPropertyPanel from './workspace/request/RequestPropertyPanel';
 import RequestSummaryTab from './workspace/request/RequestSummaryTab';
 import WorkspaceTabLoadingFallback from './workspace/WorkspaceTabLoadingFallback';
 import { getRequestWorkspaceInclude } from './workspace/workspace-detail-includes';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import {
+  getDecisionOutcomeLabel,
+  getRequestStatusLabel,
+  getRequestStatusOptions,
+} from '../../utils/portfolioI18n';
 
 type TabKey = 'summary' | 'analysis' | 'scoring' | 'knowledge' | 'activity';
 type LegacyPanelRoute = 'overview' | 'team' | 'relations';
 type RouteTabKey = TabKey | LegacyPanelRoute;
-
-const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: 'summary', label: 'Summary' },
-  { key: 'activity', label: 'Activity' },
-  { key: 'analysis', label: 'Analysis' },
-  { key: 'scoring', label: 'Scoring' },
-  { key: 'knowledge', label: 'Knowledge' },
-];
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   pending_review: ['candidate', 'approved', 'rejected', 'on_hold'],
@@ -50,14 +49,6 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   rejected: ['pending_review'],
   converted: [],
 };
-
-const STATUS_OPTIONS = [
-  { value: 'pending_review', label: 'Pending Review' },
-  { value: 'candidate', label: 'Candidate' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'rejected', label: 'Rejected' },
-];
 
 // Classification interfaces (from API)
 interface ClassificationType {
@@ -88,14 +79,6 @@ const STATUS_COLORS: Record<string, 'default' | 'primary' | 'success' | 'error' 
 
 const ANALYSIS_RECOMMENDATION_CONTEXT = 'analysis recommendation';
 
-const DECISION_OUTCOME_LABELS: Record<string, string> = {
-  go: 'Go',
-  no_go: 'No-Go',
-  defer: 'Defer',
-  need_info: 'Need Info',
-  analysis_complete: 'Analysis Complete',
-};
-
 const DECISION_OUTCOME_COLORS: Record<string, 'default' | 'success' | 'error' | 'warning' | 'info'> = {
   go: 'success',
   no_go: 'error',
@@ -110,6 +93,7 @@ const RequestScoringTab = React.lazy(() => import('./workspace/request/RequestSc
 const RequestKnowledgeTab = React.lazy(() => import('./workspace/request/RequestKnowledgeTab'));
 
 export default function RequestWorkspacePage() {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -129,6 +113,14 @@ export default function RequestWorkspacePage() {
     ? rawRouteTab
     : null;
   const requestInclude = React.useMemo(() => getRequestWorkspaceInclude(routeTab), [routeTab]);
+  const tabs = React.useMemo<Array<{ key: TabKey; label: string }>>(() => [
+    { key: 'summary', label: t('portfolio:labels.summary') },
+    { key: 'activity', label: t('portfolio:labels.activity') },
+    { key: 'analysis', label: t('portfolio:labels.analysis') },
+    { key: 'scoring', label: t('portfolio:labels.scoring') },
+    { key: 'knowledge', label: t('portfolio:labels.knowledge') },
+  ], [t]);
+  const statusOptions = React.useMemo(() => getRequestStatusOptions(t), [t]);
 
   React.useEffect(() => {
     if (rawRouteTab === 'overview') {
@@ -160,10 +152,13 @@ export default function RequestWorkspacePage() {
   // Browser tab title
   React.useEffect(() => {
     if (data?.item_number && data?.name) {
-      document.title = `REQ-${data.item_number} — ${data.name} | KANAP`;
+      document.title = t('portfolio:workspace.request.browserTitle', {
+        ref: `REQ-${data.item_number}`,
+        name: data.name,
+      });
     }
     return () => { document.title = 'KANAP'; };
-  }, [data?.item_number, data?.name]);
+  }, [data?.item_number, data?.name, t]);
 
   // Replace UUID in URL with human-readable ref
   React.useEffect(() => {
@@ -304,7 +299,7 @@ export default function RequestWorkspacePage() {
 
   const persistPanelPatch = React.useCallback(async (patch: Record<string, any>) => {
     if (!isCreate && !canManage) {
-      setSaveError('You do not have permission to save request details from this panel.');
+      setSaveError(t('portfolio:workspace.request.messages.permissionSavePanel'));
       await refetch();
       return;
     }
@@ -320,11 +315,11 @@ export default function RequestWorkspacePage() {
     try {
       await api.patch(`/portfolio/requests/${id}`, patch);
       queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
-    } catch (e: any) {
-      setSaveError(e?.response?.data?.message || e?.message || 'Failed to save request details');
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.savePanelFailed')));
       await refetch();
     }
-  }, [canManage, id, isCreate, queryClient, refetch]);
+  }, [canManage, id, isCreate, queryClient, refetch, t]);
 
   React.useEffect(() => {
     if (!isCreate || defaultsAppliedRef.current || classificationDefaultsLoading) return;
@@ -391,7 +386,7 @@ export default function RequestWorkspacePage() {
         return false;
       } else {
         if (!canManage && hasTabDirtyChanges) {
-          setSaveError('You do not have permission to save request form changes from this workspace.');
+          setSaveError(t('portfolio:workspace.request.messages.permissionSaveWorkspace'));
           return false;
         }
 
@@ -431,8 +426,8 @@ export default function RequestWorkspacePage() {
         queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
         return true;
       }
-    } catch (e: any) {
-      setSaveError(e?.response?.data?.message || e?.message || 'Failed to save');
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.saveFailed')));
       return false;
     }
   };
@@ -490,12 +485,12 @@ export default function RequestWorkspacePage() {
       });
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
-    } catch (e: any) {
-      setSaveError(e?.response?.data?.message || e?.message || 'Failed to update status');
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.updateStatusFailed')));
     } finally {
       setPendingStatus(null);
     }
-  }, [id, pendingStatus, refetch, queryClient]);
+  }, [id, pendingStatus, refetch, queryClient, t]);
 
   const handleStatusDialogCancel = React.useCallback(() => {
     setStatusDialogOpen(false);
@@ -508,10 +503,10 @@ export default function RequestWorkspacePage() {
       await api.delete(`/portfolio/requests/${id}`);
       queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
       navigate('/portfolio/requests');
-    } catch (e: any) {
-      setSaveError(e?.response?.data?.message || e?.message || 'Failed to delete');
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.deleteFailed')));
     }
-  }, [id, queryClient, navigate]);
+  }, [id, queryClient, navigate, t]);
 
   const handleAddComment = React.useCallback(async (data: {
     content: string;
@@ -533,13 +528,13 @@ export default function RequestWorkspacePage() {
 
   const handleOpenRecommendationDialog = React.useCallback(async () => {
     if (hasUnsavedChanges) {
-      const proceed = window.confirm('You have unsaved changes. Save before submitting an analysis recommendation?');
+      const proceed = window.confirm(t('portfolio:workspace.request.confirmations.unsavedRecommendation'));
       if (!proceed) return;
       const ok = await handleSave();
       if (!ok) return;
     }
     setRecommendationDialogOpen(true);
-  }, [handleSave, hasUnsavedChanges]);
+  }, [handleSave, hasUnsavedChanges, t]);
 
   const handleSubmitRecommendation = React.useCallback(async (payload: {
     content: string;
@@ -551,11 +546,11 @@ export default function RequestWorkspacePage() {
     await handleAddComment(payload);
     setRecommendationDialogOpen(false);
     const outcomeLabel = payload.decision_outcome
-      ? (DECISION_OUTCOME_LABELS[payload.decision_outcome] || payload.decision_outcome)
-      : 'Submitted';
-    setRecommendationToast(`Recommendation submitted: ${outcomeLabel}`);
+      ? getDecisionOutcomeLabel(t, payload.decision_outcome)
+      : t('portfolio:workspace.request.messages.recommendationSubmittedFallback');
+    setRecommendationToast(t('portfolio:workspace.request.messages.recommendationSubmitted', { outcome: outcomeLabel }));
     setHighlightLatestRecommendation(true);
-  }, [handleAddComment]);
+  }, [handleAddComment, t]);
 
   // Handle inline image upload for rich text fields
   const handleImageUpload = React.useCallback(async (file: File, sourceField: string): Promise<string> => {
@@ -579,7 +574,7 @@ export default function RequestWorkspacePage() {
   const onTabChange = (_: React.SyntheticEvent | null, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'summary') return;
     if (hasUnsavedChanges) {
-      const proceed = window.confirm('You have unsaved changes. Save before switching tabs?');
+      const proceed = window.confirm(t('portfolio:workspace.request.confirmations.unsavedSwitchTabs'));
       if (proceed) {
         void handleSave().then((ok) => {
           if (ok) navigate(`/portfolio/requests/${id}/${nextValue}?${searchParams.toString()}`);
@@ -629,7 +624,7 @@ export default function RequestWorkspacePage() {
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
     if (hasUnsavedChanges) {
-      const proceed = window.confirm('You have unsaved changes. Save before navigating?');
+      const proceed = window.confirm(t('portfolio:workspace.request.confirmations.unsavedNavigate'));
       if (proceed) {
         const ok = await handleSave();
         if (!ok) return;
@@ -639,9 +634,9 @@ export default function RequestWorkspacePage() {
     }
     const qs = listContextParams.toString();
     navigate(`/portfolio/requests/${targetId}/${routeTab}${qs ? `?${qs}` : ''}`);
-  }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab]);
+  }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab, t]);
 
-  const statusLabel = STATUS_OPTIONS.find((s) => s.value === form?.status)?.label || form?.status || '';
+  const statusLabel = form?.status ? getRequestStatusLabel(t, form.status) : '';
   const statusColor = STATUS_COLORS[form?.status] || 'default';
   const categoryName = classificationData?.categories?.find((c) => c.id === form?.category_id)?.name;
   const streamName = classificationData?.streams?.find((s) => s.id === form?.stream_id)?.name;
@@ -660,10 +655,10 @@ export default function RequestWorkspacePage() {
   }, [form?.activities]);
   const latestAnalysisRecommendation = analysisRecommendations[0] || null;
   const recommendationButtonLabel = latestAnalysisRecommendation
-    ? 'Submit New Recommendation'
-    : 'Submit Recommendation';
+    ? t('portfolio:workspace.request.actions.submitNewRecommendation')
+    : t('portfolio:workspace.request.actions.submitRecommendation');
   const latestRecommendationOutcome = latestAnalysisRecommendation?.decision_outcome
-    ? (DECISION_OUTCOME_LABELS[latestAnalysisRecommendation.decision_outcome] || latestAnalysisRecommendation.decision_outcome)
+    ? getDecisionOutcomeLabel(t, latestAnalysisRecommendation.decision_outcome)
     : null;
   const latestRecommendationOutcomeColor = latestAnalysisRecommendation?.decision_outcome
     ? (DECISION_OUTCOME_COLORS[latestAnalysisRecommendation.decision_outcome] || 'default')
@@ -671,7 +666,7 @@ export default function RequestWorkspacePage() {
   const latestRecommendationAuthor = [latestAnalysisRecommendation?.first_name, latestAnalysisRecommendation?.last_name]
     .filter(Boolean)
     .join(' ')
-    || 'Unknown';
+    || t('portfolio:activity.authorUnknown');
   const latestRecommendationCreatedAt = latestAnalysisRecommendation?.created_at
     ? new Date(latestAnalysisRecommendation.created_at).toLocaleString('en-GB', {
       day: '2-digit',
@@ -689,7 +684,7 @@ export default function RequestWorkspacePage() {
       <Box sx={{ p: 2 }}>
         <LinearProgress sx={{ mb: 2 }} />
         <Typography variant="body2" color="text.secondary">
-          Loading request workspace...
+          {t('portfolio:workspace.request.messages.loading')}
         </Typography>
       </Box>
     );
@@ -697,7 +692,7 @@ export default function RequestWorkspacePage() {
 
   return (
     <Box sx={{ p: 2 }}>
-      {!!error && <Alert severity="error" sx={{ mb: 1 }}>Failed to load request.</Alert>}
+      {!!error && <Alert severity="error" sx={{ mb: 1 }}>{t('portfolio:workspace.request.messages.loadFailed')}</Alert>}
       {!!saveError && <Alert severity="error" sx={{ mb: 1 }}>{saveError}</Alert>}
 
       <PortfolioWorkspaceShell
@@ -708,7 +703,7 @@ export default function RequestWorkspacePage() {
         }))}
         onTabChange={(nextTab) => onTabChange(null, nextTab as TabKey)}
         sidebarStorageKey="portfolioRequestWorkspaceSidebarWidth"
-        sidebarTitle={isCreate ? 'Request Setup' : 'Request Properties'}
+        sidebarTitle={isCreate ? t('portfolio:workspace.request.sidebar.createTitle') : t('portfolio:workspace.request.sidebar.editTitle')}
         headerContent={(
           <Stack direction="row" alignItems="center" spacing={2}>
             {!isCreate && form?.priority_score != null && (
@@ -726,7 +721,7 @@ export default function RequestWorkspacePage() {
                   fontSize: '1.25rem',
                   boxShadow: 2,
                 }}
-                title={form.priority_override ? 'Overridden priority score' : 'Priority score'}
+                title={form.priority_override ? t('portfolio:workspace.request.priority.overriddenTitle') : t('portfolio:workspace.request.priority.title')}
               >
                 {Math.round(form.priority_score)}
               </Box>
@@ -740,11 +735,11 @@ export default function RequestWorkspacePage() {
                     variant="outlined"
                     sx={{ fontFamily: 'monospace' }}
                     onClick={() => navigator.clipboard.writeText(`REQ-${data.item_number}`)}
-                    title="Click to copy reference"
+                    title={t('portfolio:workspace.request.actions.copyReference')}
                   />
                 )}
                 <Typography variant="h6" sx={{ minWidth: 0 }}>
-                  {isCreate ? 'New Request' : (form?.name || 'Request')}
+                  {isCreate ? t('portfolio:workspace.request.title.new') : (form?.name || t('portfolio:workspace.request.title.fallback'))}
                 </Typography>
               </Stack>
               {!isCreate && (
@@ -756,19 +751,19 @@ export default function RequestWorkspacePage() {
                     <Chip
                       label={
                         form.origin_task.item_number
-                          ? `Origin: T-${form.origin_task.item_number}`
-                          : 'Origin: Task'
+                          ? t('portfolio:workspace.request.originTask.withReference', { ref: `T-${form.origin_task.item_number}` })
+                          : t('portfolio:workspace.request.originTask.fallback')
                       }
                       size="small"
                       variant="outlined"
                       onClick={() => navigate(`/portfolio/tasks/${form.origin_task.id}/overview`)}
                       sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                      title={`Created from task: ${form.origin_task.title || form.origin_task.id}`}
+                      title={t('portfolio:workspace.request.originTask.title', { name: form.origin_task.title || form.origin_task.id })}
                     />
                   )}
                   {total > 0 && (
                     <Typography variant="body2" color="text.secondary">
-                      {index + 1} of {total}
+                      {t('portfolio:workspace.request.navigation.position', { index: index + 1, total })}
                     </Typography>
                   )}
                 </Stack>
@@ -780,7 +775,7 @@ export default function RequestWorkspacePage() {
           <>
             {!isCreate && showRefreshState && (
               <Chip
-                label={isPlaceholderData ? 'Loading tab data' : 'Refreshing'}
+                label={isPlaceholderData ? t('portfolio:workspace.request.messages.loadingTabData') : t('portfolio:workspace.request.messages.refreshing')}
                 size="small"
                 variant="outlined"
               />
@@ -791,12 +786,12 @@ export default function RequestWorkspacePage() {
                 onClick={() => setShareDialogOpen(true)}
                 size="small"
               >
-                Send link
+                {t('portfolio:actions.sendLink')}
               </Button>
             )}
             <IconButton
-              aria-label="Previous"
-              title="Previous"
+              aria-label={t('portfolio:actions.previous')}
+              title={t('portfolio:actions.previous')}
               onClick={() => confirmAndNavigate(prevId)}
               disabled={!hasPrev}
               size="small"
@@ -804,8 +799,8 @@ export default function RequestWorkspacePage() {
               <ArrowBackIcon />
             </IconButton>
             <IconButton
-              aria-label="Next"
-              title="Next"
+              aria-label={t('portfolio:actions.next')}
+              title={t('portfolio:actions.next')}
               onClick={() => confirmAndNavigate(nextId)}
               disabled={!hasNext}
               size="small"
@@ -819,11 +814,11 @@ export default function RequestWorkspacePage() {
                 onClick={() => setConvertDialogOpen(true)}
                 size="small"
               >
-                Convert to Project
+                {t('portfolio:actions.convertToProject')}
               </Button>
             )}
             <Button onClick={() => { void handleReset(); }} disabled={!hasUnsavedChanges} size="small">
-              Reset
+              {t('common:buttons.reset')}
             </Button>
             {!isCreate && canAdmin && form?.status !== 'converted' && (
               <Button
@@ -832,15 +827,15 @@ export default function RequestWorkspacePage() {
                 onClick={() => setDeleteConfirmOpen(true)}
                 size="small"
               >
-                Delete
+                {t('common:buttons.delete')}
               </Button>
             )}
             <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled} size="small">
-              Save
+              {t('common:buttons.save')}
             </Button>
             <IconButton
-              aria-label="Close"
-              title="Close"
+              aria-label={t('common:buttons.close')}
+              title={t('common:buttons.close')}
               onClick={() => {
                 const qs = listContextParams.toString();
                 navigate(`/portfolio/requests${qs ? `?${qs}` : ''}`);
@@ -882,7 +877,7 @@ export default function RequestWorkspacePage() {
             }}
             onUpdate={(patch) => { void persistPanelPatch(patch); }}
             sources={sources}
-            statusOptions={STATUS_OPTIONS}
+            statusOptions={statusOptions}
             streams={streams}
           />
         )}
@@ -912,7 +907,7 @@ export default function RequestWorkspacePage() {
         )}
 
         {routeTab === 'analysis' && !isCreate && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading analysis tab..." />}>
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.request.loadingTabs.analysis')} />}>
             <RequestAnalysisTab
               canEditManagedDocs={canEditManagedDocs}
               canManage={canManage}
@@ -945,7 +940,7 @@ export default function RequestWorkspacePage() {
         )}
 
         {routeTab === 'scoring' && !isCreate && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading scoring tab..." />}>
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.request.loadingTabs.scoring')} />}>
             <RequestScoringTab
               form={form}
               mandatoryBypassEnabled={portfolioSettings?.mandatory_bypass_enabled ?? false}
@@ -960,7 +955,7 @@ export default function RequestWorkspacePage() {
         )}
 
         {routeTab === 'knowledge' && !isCreate && form?.id && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading knowledge tab..." />}>
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.request.loadingTabs.knowledge')} />}>
             <RequestKnowledgeTab
               entityId={form.id}
               canCreate={hasLevel('knowledge', 'member')}
@@ -969,13 +964,13 @@ export default function RequestWorkspacePage() {
         )}
 
         {routeTab === 'activity' && !isCreate && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label="Loading activity tab..." />}>
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.request.loadingTabs.activity')} />}>
             <RequestActivityTab
               entityId={form?.id || ''}
               activities={form?.activities || []}
               currentStatus={form?.status || ''}
               allowedTransitions={ALLOWED_TRANSITIONS[form?.status] || []}
-              statusOptions={STATUS_OPTIONS}
+              statusOptions={statusOptions}
               onAddComment={handleAddComment}
               onUpdateComment={handleUpdateComment}
               currentUserId={profile?.id}
@@ -1007,7 +1002,7 @@ export default function RequestWorkspacePage() {
         open={recommendationDialogOpen}
         currentStatus={form?.status || ''}
         allowedTransitions={ALLOWED_TRANSITIONS[form?.status] || []}
-        statusOptions={STATUS_OPTIONS}
+        statusOptions={statusOptions}
         priorityScore={form?.priority_score}
         onClose={() => setRecommendationDialogOpen(false)}
         onSubmit={handleSubmitRecommendation}
@@ -1028,7 +1023,7 @@ export default function RequestWorkspacePage() {
         onClose={() => setShareDialogOpen(false)}
         itemType="request"
         itemId={form?.id || id}
-        itemName={form?.name || 'Request'}
+        itemName={form?.name || t('portfolio:workspace.request.title.fallback')}
         itemNumber={data?.item_number}
       />
 
@@ -1052,17 +1047,16 @@ export default function RequestWorkspacePage() {
       </Snackbar>
 
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
-        <DialogTitle>Delete Request</DialogTitle>
+        <DialogTitle>{t('portfolio:workspace.request.deleteDialog.title')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to permanently delete "{form?.name}"? This will remove all
-            attachments, comments, and activity history. This action cannot be undone.
+            {t('portfolio:workspace.request.deleteDialog.message', { name: form?.name || t('portfolio:workspace.request.title.fallback') })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button color="error" variant="contained" onClick={() => void handleDelete()}>
-            Delete
+            {t('common:buttons.delete')}
           </Button>
         </DialogActions>
       </Dialog>

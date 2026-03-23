@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Stack, TextField } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -30,6 +31,7 @@ export default forwardRef<AnalyticsOverviewEditorHandle, Props>(function Analyti
   ref,
 ) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['master-data', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
@@ -66,7 +68,7 @@ export default forwardRef<AnalyticsOverviewEditorHandle, Props>(function Analyti
         onDirtyChange?.(false);
       } catch (e: any) {
         if (!active) return;
-        const msg = e?.response?.data?.message || e?.message || 'Failed to load analytics category';
+        const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToLoad', { entity: t('analytics.entity') });
         setServerError(msg);
       } finally {
         if (active) setLoading(false);
@@ -95,7 +97,7 @@ export default forwardRef<AnalyticsOverviewEditorHandle, Props>(function Analyti
       queryClient.invalidateQueries({ queryKey: ['analytics-categories'] });
       queryClient.invalidateQueries({ queryKey: ['analytics-categories', id] });
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save analytics category';
+      const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToSave', { entity: t('analytics.entity') });
       setServerError(msg);
       throw e;
     } finally {
@@ -117,7 +119,7 @@ export default forwardRef<AnalyticsOverviewEditorHandle, Props>(function Analyti
     <Stack spacing={2}>
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
       {readOnly && (
-        <Alert severity="info">You need manager access to edit analytics categories.</Alert>
+        <Alert severity="info">{t('shared.messages.readOnlyAccess', { entity: t('analytics.title').toLowerCase() })}</Alert>
       )}
       <Controller
         name="name"

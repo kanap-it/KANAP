@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Stack, TextField, Alert, Typography, Autocomplete } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import CompanySelect from '../../../components/fields/CompanySelect';
 import AccountSelect from '../../../components/fields/AccountSelect';
@@ -42,6 +44,7 @@ const PRIORITY_OPTIONS = [
 ] as const;
 
 export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfoCreateEditor({ onDirtyChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
   const [description, setDescription] = React.useState('');
   const [ppeType, setPpeType] = React.useState<'hardware' | 'software'>('hardware');
   const [investmentType, setInvestmentType] = React.useState<(typeof INVESTMENT_OPTIONS)[number]['value']>('replacement');
@@ -155,9 +158,9 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
       try {
         // allow any pending field selection to flush into state
         await new Promise((r) => setTimeout(r, 0));
-        if (!description.trim()) throw new Error('Description is required');
-        if ((currency || '').trim().length !== 3) throw new Error('Currency must be 3 letters');
-        if (!effectiveStart) throw new Error('Effective start is required');
+        if (!description.trim()) throw new Error(t('capex.editor.descriptionRequired'));
+        if ((currency || '').trim().length !== 3) throw new Error(t('capex.editor.currencyMust3'));
+        if (!effectiveStart) throw new Error(t('capex.editor.effectiveStartRequired'));
 
         const toNull = (v: any) => (v === '' || v === undefined ? null : v);
         const disabled_at = disabledAt ?? null;
@@ -179,10 +182,10 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
         console.log('[CAPEX][create] payload', payload);
         const res = await api.post('/capex-items', payload);
         const id = res.data?.id as string;
-        if (!id) throw new Error('Failed to create item');
+        if (!id) throw new Error(t('capex.editor.failedToCreate'));
         return id;
       } catch (e: any) {
-        setError(e?.response?.data?.message || e?.message || 'Failed to create item');
+        setError(getApiErrorMessage(e, t, t('capex.editor.failedToCreate')));
         throw e;
       } finally {
         setSaving(false);
@@ -211,10 +214,10 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
       {!!error && <Alert severity="error">{error}</Alert>}
       {hasObsoleteAccount && (
         <Alert severity="warning">
-          Obsolete account detected. The selected account does not belong to the company's Chart of Accounts. Please update the account.
+          {t('capex.editor.obsoleteAccount')}
         </Alert>
       )}
-      <Typography variant="subtitle2">General Information</Typography>
+      <Typography variant="subtitle2">{t('capex.editor.generalInfo')}</Typography>
       <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={saving} required fullWidth multiline minRows={2} InputLabelProps={{ shrink: true }} />
       <CompanySelect value={companyId} onChange={setCompanyId} />
       <AccountSelect value={accountId} onChange={(v) => setAccountId(v ?? '')} companyId={companyId || undefined} disabled={!companyId || saving} />
@@ -243,7 +246,7 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
             {...params}
             label="Currency"
             required
-            helperText={`Default ${defaultCurrency}`}
+            helperText={t('capex.editor.defaultCurrency', { currency: defaultCurrency })}
             InputLabelProps={{ shrink: true }}
           />
         )}

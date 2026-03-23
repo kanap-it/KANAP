@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { Box, useTheme } from '@mui/material';
 
+import { useTranslation } from 'react-i18next';
 export type ConnectionMapNode = {
   id: string;
   name: string;
@@ -180,6 +181,7 @@ export default function ConnectionMapGraph({
   onRegisterZoomControls,
   onRegisterGraphControls,
 }: Props) {
+  const { t } = useTranslation(['it', 'common']);
   const svgRef = useRef<SVGSVGElement>(null);
   const theme = useTheme();
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });

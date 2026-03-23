@@ -16,7 +16,9 @@ import {
   Typography,
   Chip,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 export interface EligibleUser {
   user_id: string;
@@ -46,9 +48,11 @@ export default function EffortAllocationDialog({
   estimatedEffort,
   onSuccess,
 }: EffortAllocationDialogProps) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const [allocations, setAllocations] = React.useState<Record<string, number>>({});
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const effortTypeLabel = t(`portfolio:dialogs.effortAllocation.effortTypes.${effortType}`);
 
   // Sort users: lead first, then alphabetically
   const sortedUsers = React.useMemo(() => {
@@ -84,7 +88,7 @@ export default function EffortAllocationDialog({
 
   const handleSubmit = async () => {
     if (!isValid) {
-      setError('Allocations must sum to exactly 100%');
+      setError(t('portfolio:dialogs.effortAllocation.validation.totalMustEqual100'));
       return;
     }
 
@@ -103,7 +107,11 @@ export default function EffortAllocationDialog({
       onSuccess();
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save allocations');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:dialogs.effortAllocation.messages.saveFailed'),
+      ));
     } finally {
       setSaving(false);
     }
@@ -115,28 +123,32 @@ export default function EffortAllocationDialog({
     }
   };
 
-  const title = effortType === 'it' ? 'IT Effort Allocation' : 'Business Effort Allocation';
-
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
+      <DialogTitle>
+        {t(`portfolio:dialogs.effortAllocation.title.${effortType}`)}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
 
           <Typography variant="body2" color="text.secondary">
-            Set the percentage allocation for each contributor. Must sum to exactly 100%.
+            {t('portfolio:dialogs.effortAllocation.description')}
           </Typography>
 
           {sortedUsers.length === 0 ? (
             <Alert severity="info">
-              No eligible users. Assign a {effortType === 'it' ? 'IT' : 'Business'} lead or team members first.
+              {t('portfolio:dialogs.effortAllocation.messages.noEligibleUsers', {
+                effortType: effortTypeLabel,
+              })}
             </Alert>
           ) : (
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Contributor</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>
+                    {t('portfolio:dialogs.effortAllocation.table.contributor')}
+                  </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600, width: 100 }}>%</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600, width: 80 }}>MD</TableCell>
                 </TableRow>
@@ -155,7 +167,12 @@ export default function EffortAllocationDialog({
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Typography variant="body2">{displayName}</Typography>
                           {user.is_lead && (
-                            <Chip label="Lead" size="small" color="primary" variant="outlined" />
+                            <Chip
+                              label={t('portfolio:dialogs.effortAllocation.chips.lead')}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
                           )}
                         </Stack>
                       </TableCell>
@@ -187,11 +204,11 @@ export default function EffortAllocationDialog({
                 color: isValid ? 'success.main' : 'error.main',
               }}
             >
-              Total: {total}%
+              {t('portfolio:dialogs.effortAllocation.total', { total })}
             </Typography>
             {!isValid && (
               <Typography variant="caption" color="error.main">
-                Must equal 100%
+                {t('portfolio:dialogs.effortAllocation.validation.totalDisplay')}
               </Typography>
             )}
           </Stack>
@@ -199,14 +216,14 @@ export default function EffortAllocationDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={saving}>
-          Cancel
+          {t('common:buttons.cancel')}
         </Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={saving || !isValid || sortedUsers.length === 0}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
         </Button>
       </DialogActions>
     </Dialog>

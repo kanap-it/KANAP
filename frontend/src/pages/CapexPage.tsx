@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { StatusScope } from '../components/ServerDataGrid';
 import { Button, Stack } from '@mui/material';
@@ -66,6 +67,7 @@ function formatNumber(v: any) {
 
 export default function CapexPage() {
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(["ops", "common"]);
 
   if (!hasLevel('capex', 'reader')) {
     return <ForbiddenPage />;
@@ -85,7 +87,7 @@ export default function CapexPage() {
   const storedContextRef = useRef(readStoredCapexListContext());
 
   const getCapexFilterValues = useCallback((field: string, opts?: { emptyLabel?: string; labelMap?: Record<string, string> }) => {
-    const emptyLabel = opts?.emptyLabel ?? '(Blank)';
+    const emptyLabel = opts?.emptyLabel ?? t('shared.blank');
     const labelMap = opts?.labelMap;
     return async ({ context }: any) => {
       const queryState = context?.getQueryState?.() ?? {};
@@ -121,25 +123,25 @@ export default function CapexPage() {
   }, []);
 
   const PPE_LABELS: Record<string, string> = useMemo(() => ({
-    hardware: 'Hardware',
-    software: 'Software',
+    hardware: t('capex.ppeTypes.hardware'),
+    software: t('capex.ppeTypes.software'),
   }), []);
 
   const INVESTMENT_LABELS: Record<string, string> = useMemo(() => ({
-    replacement: 'Replacement',
-    capacity: 'Capacity',
-    productivity: 'Productivity',
-    security: 'Security',
-    conformity: 'Conformity',
-    business_growth: 'Business Growth',
-    other: 'Other',
+    replacement: t('capex.investmentTypes.replacement'),
+    capacity: t('capex.investmentTypes.capacity'),
+    productivity: t('capex.investmentTypes.productivity'),
+    security: t('capex.investmentTypes.security'),
+    conformity: t('capex.investmentTypes.conformity'),
+    business_growth: t('capex.investmentTypes.business_growth'),
+    other: t('capex.investmentTypes.other'),
   }), []);
 
   const PRIORITY_LABELS: Record<string, string> = useMemo(() => ({
-    mandatory: 'Mandatory',
-    high: 'High',
-    medium: 'Medium',
-    low: 'Low',
+    mandatory: t('capex.priorityTypes.mandatory'),
+    high: t('capex.priorityTypes.high'),
+    medium: t('capex.priorityTypes.medium'),
+    low: t('capex.priorityTypes.low'),
   }), []);
 
   useEffect(() => {
@@ -186,7 +188,7 @@ export default function CapexPage() {
       const rc = typeof totals.reportingCurrency === 'string' ? totals.reportingCurrency : 'EUR';
       setReportingCurrency(rc);
       const pinned = {
-        description: `Total`,
+        description: t('shared.total'),
         versions: {
           yMinus1: {
             reporting: {
@@ -312,7 +314,7 @@ export default function CapexPage() {
     return [
       {
         field: 'description',
-        headerName: 'Description',
+        headerName: t('capex.columns.description'),
         flex: 1,
         minWidth: 220,
         required: true,
@@ -327,7 +329,7 @@ export default function CapexPage() {
       },
       {
         field: 'company_name',
-        headerName: 'Company',
+        headerName: t('capex.columns.company'),
         width: 160,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -346,7 +348,7 @@ export default function CapexPage() {
       },
       {
         field: 'ppe_type',
-        headerName: 'PP&E Type',
+        headerName: t('capex.columns.ppeType'),
         width: 140,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -369,7 +371,7 @@ export default function CapexPage() {
       },
       {
         field: 'investment_type',
-        headerName: 'Investment Type',
+        headerName: t('capex.columns.investmentType'),
         width: 170,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -392,7 +394,7 @@ export default function CapexPage() {
       },
       {
         field: 'priority',
-        headerName: 'Priority',
+        headerName: t('capex.columns.priority'),
         width: 120,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -415,7 +417,7 @@ export default function CapexPage() {
       },
       {
         colId: 'yAllocation',
-        headerName: 'Y Allocation',
+        headerName: t('capex.columns.yAllocation'),
         valueGetter: (p: any) => p.data?.allocation_method_label ?? '',
         tooltipValueGetter: (p: any) => p.data?.allocation_method_label ?? '',
         width: 180,
@@ -430,7 +432,7 @@ export default function CapexPage() {
       },
       {
         colId: 'yPlus1Allocation',
-        headerName: 'Y+1 Allocation',
+        headerName: t('capex.columns.yPlus1Allocation'),
         valueGetter: (p: any) => p.data?.next_year_allocation_method_label ?? '',
         tooltipValueGetter: (p: any) => p.data?.next_year_allocation_method_label ?? '',
         width: 200,
@@ -446,7 +448,7 @@ export default function CapexPage() {
       },
       {
         colId: 'yMinus1Landing',
-        headerName: `Y-1 Landing (${Y - 1})`,
+        headerName: t('capex.columns.yMinus1Landing', { year: Y - 1 }),
         valueGetter: (p: any) => p.data?.versions?.yMinus1?.reporting?.landing ?? p.data?.versions?.yMinus1?.totals?.landing ?? 0,
         valueFormatter: (p: any) => formatNumber(p.value),
         type: 'rightAligned',
@@ -463,7 +465,7 @@ export default function CapexPage() {
       },
       {
         colId: 'yBudget',
-        headerName: `Y Budget (${Y})`,
+        headerName: t('capex.columns.yBudget', { year: Y }),
         valueGetter: (p: any) => p.data?.versions?.y?.reporting?.budget ?? p.data?.versions?.y?.totals?.budget ?? 0,
         valueFormatter: (p: any) => formatNumber(p.value),
         type: 'rightAligned',
@@ -479,7 +481,7 @@ export default function CapexPage() {
       },
       {
         colId: 'yLanding',
-        headerName: `Y Landing (${Y})`,
+        headerName: t('capex.columns.yLanding', { year: Y }),
         valueGetter: (p: any) => p.data?.versions?.y?.reporting?.landing ?? p.data?.versions?.y?.totals?.landing ?? 0,
         valueFormatter: (p: any) => formatNumber(p.value),
         type: 'rightAligned',
@@ -495,7 +497,7 @@ export default function CapexPage() {
       },
       {
         colId: 'yPlus1Budget',
-        headerName: `Y+1 Budget (${Y + 1})`,
+        headerName: t('capex.columns.yPlus1Budget', { year: Y + 1 }),
         valueGetter: (p: any) => p.data?.versions?.yPlus1?.reporting?.budget ?? p.data?.versions?.yPlus1?.totals?.budget ?? 0,
         valueFormatter: (p: any) => formatNumber(p.value),
         type: 'rightAligned',
@@ -511,7 +513,7 @@ export default function CapexPage() {
       },
       {
         field: 'currency',
-        headerName: 'Currency',
+        headerName: t('capex.columns.currency'),
         width: 110,
         defaultHidden: true,
         filter: CheckboxSetFilter,
@@ -531,7 +533,7 @@ export default function CapexPage() {
       },
       {
         field: 'effective_start',
-        headerName: 'Start',
+        headerName: t('capex.columns.start'),
         width: 120,
         defaultHidden: true,
         cellRenderer: (params: any) => (
@@ -545,7 +547,7 @@ export default function CapexPage() {
       },
       {
         field: 'effective_end',
-        headerName: 'End',
+        headerName: t('capex.columns.end'),
         width: 120,
         defaultHidden: true,
         cellRenderer: (params: any) => (
@@ -559,7 +561,7 @@ export default function CapexPage() {
       },
       {
         field: 'notes',
-        headerName: 'Notes',
+        headerName: t('capex.columns.notes'),
         flex: 1,
         minWidth: 200,
         defaultHidden: true,
@@ -574,7 +576,7 @@ export default function CapexPage() {
       },
       {
         colId: 'latest_task_text',
-        headerName: 'Task',
+        headerName: t('capex.columns.task'),
         valueGetter: (p: any) => p.data?.latest_task?.title ?? '',
         tooltipValueGetter: (p: any) => (p.value ? String(p.value) : ''),
         flex: 1,
@@ -591,7 +593,7 @@ export default function CapexPage() {
       },
       {
         field: 'status',
-        headerName: 'Enabled',
+        headerName: t('capex.columns.enabled'),
         width: 140,
         filter: 'agSetColumnFilter',
         filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
@@ -629,10 +631,10 @@ export default function CapexPage() {
             if (filters) sp.set('filters', filters);
             navigate(`/ops/capex/new?${sp.toString()}`);
           }}
-        >New</Button>
+        >{t('capex.newButton')}</Button>
       )}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canAdmin && <Button onClick={() => setImportOpen(true)}>{t('capex.importCsv')}</Button>}
+      {canAdmin && <Button onClick={() => setExportOpen(true)}>{t('capex.exportCsv')}</Button>}
       {canAdmin && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
@@ -680,8 +682,8 @@ export default function CapexPage() {
 
       {/* Workspace replaces modal-based edit/budget flows */}
 
-      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/capex-items" title="Export CAPEX" />
-      <CsvImportDialog open={importOpen} onClose={() => setImportOpen(false)} endpoint="/capex-items" title="Import CAPEX" onImported={() => setRefreshKey((k) => k + 1)} />
+      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/capex-items" title={t("capex.exportTitle")} />
+      <CsvImportDialog open={importOpen} onClose={() => setImportOpen(false)} endpoint="/capex-items" title={t("capex.importTitle")} onImported={() => setRefreshKey((k) => k + 1)} />
     </>
   );
 }

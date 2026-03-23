@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef, StatusScope } from '../components/ServerDataGrid';
 import { Button, Stack } from '@mui/material';
@@ -12,6 +13,7 @@ import { LinkCellRenderer } from '../components/grid/renderers';
 import ForbiddenPage from './ForbiddenPage';
 
 export default function SuppliersPage() {
+  const { t } = useTranslation(['master-data', 'common']);
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
 
@@ -45,7 +47,7 @@ export default function SuppliersPage() {
   const columns: EnhancedColDef<any>[] = useMemo(() => [
     {
       field: 'name',
-      headerName: 'Name',
+      headerName: t('shared.columns.name'),
       flex: 1,
       required: true,
       cellRenderer: (params: any) => (
@@ -54,7 +56,7 @@ export default function SuppliersPage() {
     },
     {
       field: 'erp_supplier_id',
-      headerName: 'ERP Supplier ID',
+      headerName: t('suppliers.columns.erpSupplierId'),
       width: 200,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getSupplierHref} onNavigate={(href) => navigate(href)} />
@@ -62,7 +64,7 @@ export default function SuppliersPage() {
     },
     {
       field: 'notes',
-      headerName: 'Notes',
+      headerName: t('shared.columns.notes'),
       width: 250,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -71,7 +73,7 @@ export default function SuppliersPage() {
     },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('shared.columns.status'),
       width: 140,
       filter: 'agSetColumnFilter',
       filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
@@ -82,7 +84,7 @@ export default function SuppliersPage() {
     },
     {
       field: 'created_at',
-      headerName: 'Created',
+      headerName: t('shared.columns.created'),
       width: 200,
       valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
       defaultHidden: true,
@@ -90,7 +92,7 @@ export default function SuppliersPage() {
         <LinkCellRenderer {...params} linkType="internal" getHref={getSupplierHref} onNavigate={(href) => navigate(href)} />
       ),
     },
-  ], [getSupplierHref, navigate]);
+  ], [getSupplierHref, navigate, t]);
 
   const canCreate = hasLevel('suppliers','manager');
   const canAdmin = hasLevel('suppliers','admin');
@@ -104,11 +106,11 @@ export default function SuppliersPage() {
             navigate(`/master-data/suppliers/new/overview?${sp.toString()}`);
           }}
         >
-          New
+          {t('shared.labels.new')}
         </Button>
       )}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canAdmin && <Button onClick={() => setImportOpen(true)}>{t('shared.labels.importCsv')}</Button>}
+      {canAdmin && <Button onClick={() => setExportOpen(true)}>{t('shared.labels.exportCsv')}</Button>}
       {canAdmin && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
@@ -124,7 +126,7 @@ export default function SuppliersPage() {
 
   return (
     <>
-      <PageHeader title="Suppliers" actions={actions} />
+      <PageHeader title={t("suppliers.title")} actions={actions} />
       <ServerDataGrid<any>
         columns={columns}
         endpoint="/suppliers"
@@ -146,12 +148,12 @@ export default function SuppliersPage() {
           lastQueryRef.current = { sort: state.sort, q: state.q || '', filters: state.filterModel || {}, statusScope: scope };
         }}
       />
-      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/suppliers" title="Export Suppliers" />
+      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/suppliers" title={t("suppliers.export")} />
       <CsvImportDialog
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/suppliers"
-        title="Import Suppliers"
+        title={t("suppliers.import")}
         onImported={() => setRefreshKey((k) => k + 1)}
       />
     </>

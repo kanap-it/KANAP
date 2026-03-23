@@ -10,6 +10,7 @@ import { normalizeMarkdownRichText } from '../../common/markdown-rich-text';
 export interface ServiceOpts {
   manager?: EntityManager;
   userId?: string | null;
+  tenantId?: string;
 }
 
 /**

@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TFunction } from 'i18next';
 import {
   Box,
   Button,
@@ -20,7 +21,9 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
+import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
 import EffortAllocationDialog, { type EligibleUser } from '../../components/EffortAllocationDialog';
 import EffortAllocationTable, { type EffortAllocationData } from '../../components/EffortAllocationTable';
 import EffortConsumptionBar from '../../components/EffortConsumptionBar';
@@ -44,12 +47,16 @@ type ProjectEffortTabProps = {
   taskTimeSummary?: { it_hours: number; business_hours: number; total_hours: number };
 };
 
-function getEffortVariance(estimated: number | null, baseline: number | null): string | null {
+function getEffortVariance(estimated: number | null, baseline: number | null): number | null {
   if (estimated == null || baseline == null) return null;
-  const diff = estimated - baseline;
-  if (diff === 0) return 'On Track';
-  if (diff > 0) return `+${diff} MD`;
-  return `${diff} MD`;
+  return estimated - baseline;
+}
+
+function formatEffortVariance(t: TFunction, diff: number | null) {
+  if (diff == null) return null;
+  if (diff === 0) return t('workspace.project.effort.values.onTrack');
+  if (diff > 0) return t('workspace.project.effort.values.mdHigher', { count: diff });
+  return t('workspace.project.effort.values.mdLower', { count: Math.abs(diff) });
 }
 
 export default function ProjectEffortTab({
@@ -69,6 +76,7 @@ export default function ProjectEffortTab({
   taskTimeEntries,
   taskTimeSummary,
 }: ProjectEffortTabProps) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const [logTimeDialogOpen, setLogTimeDialogOpen] = React.useState(false);
   const [editingTimeEntry, setEditingTimeEntry] = React.useState<TimeEntryData | undefined>(undefined);
   const [itAllocationDialogOpen, setItAllocationDialogOpen] = React.useState(false);
@@ -152,12 +160,12 @@ export default function ProjectEffortTab({
   const projectEntries = (form?.time_entries || []).map((entry: any) => ({
     ...entry,
     source: 'project' as const,
-    source_label: 'Project Overhead',
+    source_label: t('workspace.project.effort.values.projectOverhead'),
   }));
   const taskEntries = (taskTimeEntries || []).map((entry: any) => ({
     ...entry,
     source: 'task' as const,
-    source_label: entry.task_title || 'Task',
+    source_label: entry.task_title || t('workspace.project.effort.values.taskSourceFallback'),
   }));
   const allEntries = [...projectEntries, ...taskEntries].sort((a, b) => {
     const dateA = a.logged_at ? new Date(a.logged_at).getTime() : 0;
@@ -165,16 +173,21 @@ export default function ProjectEffortTab({
     return dateB - dateA;
   });
 
+  const baselineItVariance = getEffortVariance(form?.estimated_effort_it, form?.baseline_effort_it);
+  const baselineBusinessVariance = getEffortVariance(form?.estimated_effort_business, form?.baseline_effort_business);
+
   return (
     <>
       <Stack spacing={3}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Progress & Effort Consumption</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          {t('workspace.project.effort.sections.progressAndConsumption')}
+        </Typography>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <Box sx={{ width: '80%' }}>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  Execution Progress: {progress}%
+                  {t('workspace.project.effort.values.executionProgress', { progress })}
                 </Typography>
                 <Slider
                   value={progress}
@@ -197,7 +210,10 @@ export default function ProjectEffortTab({
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <Box sx={{ width: '80%' }}>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  Workload consumption: {Math.round(totalActual)} / {Math.round(totalEstimated)} MD
+                  {t('workspace.project.effort.values.workloadConsumption', {
+                    actual: Math.round(totalActual),
+                    planned: Math.round(totalEstimated),
+                  })}
                 </Typography>
                 <EffortConsumptionBar
                   itConsumed={actIt}
@@ -210,11 +226,13 @@ export default function ProjectEffortTab({
         </Grid>
 
         <Divider />
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Estimated Effort</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          {t('workspace.project.effort.sections.estimatedEffort')}
+        </Typography>
         <Stack direction="row" spacing={2}>
           <Box sx={{ flex: 1 }}>
             <TextField
-              label="IT Effort (MD)"
+              label={t('workspace.project.effort.fields.itEffort')}
               type="number"
               value={form?.estimated_effort_it != null ? Math.round(Number(form.estimated_effort_it)) : ''}
               onChange={(event) => onUpdate({ estimated_effort_it: event.target.value === '' ? null : Number(event.target.value) })}
@@ -233,14 +251,16 @@ export default function ProjectEffortTab({
                   await api.delete(`/portfolio/projects/${projectId}/effort-allocations/it`);
                   await onRefetchItAlloc();
                 } catch (error: any) {
-                  onError(error?.response?.data?.message || 'Failed to reset allocations');
+                  onError(
+                    getApiErrorMessage(error, t, t('workspace.project.effort.messages.resetAllocationsFailed')),
+                  );
                 }
               }}
             />
           </Box>
           <Box sx={{ flex: 1 }}>
             <TextField
-              label="Business Effort (MD)"
+              label={t('workspace.project.effort.fields.businessEffort')}
               type="number"
               value={form?.estimated_effort_business != null ? Math.round(Number(form.estimated_effort_business)) : ''}
               onChange={(event) => onUpdate({ estimated_effort_business: event.target.value === '' ? null : Number(event.target.value) })}
@@ -259,7 +279,9 @@ export default function ProjectEffortTab({
                   await api.delete(`/portfolio/projects/${projectId}/effort-allocations/business`);
                   await onRefetchBusinessAlloc();
                 } catch (error: any) {
-                  onError(error?.response?.data?.message || 'Failed to reset allocations');
+                  onError(
+                    getApiErrorMessage(error, t, t('workspace.project.effort.messages.resetAllocationsFailed')),
+                  );
                 }
               }}
             />
@@ -268,7 +290,9 @@ export default function ProjectEffortTab({
 
         <Divider />
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Actual Effort</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            {t('workspace.project.effort.sections.actualEffort')}
+          </Typography>
           <Button
             variant="contained"
             size="small"
@@ -279,19 +303,19 @@ export default function ProjectEffortTab({
             }}
             disabled={!canContributeToProject}
           >
-            Log Time
+            {t('dialogs.logTime.title.create')}
           </Button>
         </Stack>
         <Stack direction="row" spacing={2}>
           <TextField
-            label="IT Effort (MD)"
+            label={t('workspace.project.effort.fields.itEffort')}
             value={form?.actual_effort_it != null ? Math.round(Number(form.actual_effort_it)) : '-'}
             disabled
             sx={{ flex: 1 }}
             InputProps={{ readOnly: true }}
           />
           <TextField
-            label="Business Effort (MD)"
+            label={t('workspace.project.effort.fields.businessEffort')}
             value={form?.actual_effort_business != null ? Math.round(Number(form.actual_effort_business)) : '-'}
             disabled
             sx={{ flex: 1 }}
@@ -309,27 +333,47 @@ export default function ProjectEffortTab({
 
             return (
               <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Time Breakdown</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  {t('workspace.project.effort.sections.timeBreakdown')}
+                </Typography>
                 <Stack direction="row" spacing={4}>
                   <Box>
-                    <Typography variant="body2" color="text.secondary">Project Overhead</Typography>
-                    <Typography variant="h6">{Math.round(projectTimeMd * 10) / 10} MD</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('workspace.project.effort.values.projectOverhead')}
+                    </Typography>
+                    <Typography variant="h6">
+                      {t('workspace.project.effort.values.mdValue', { value: Math.round(projectTimeMd * 10) / 10 })}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {projectPercent}% of total ({Math.round(projectTimeHours)}h)
+                      {t('workspace.project.effort.values.shareOfTotal', {
+                        percent: projectPercent,
+                        hours: Math.round(projectTimeHours),
+                      })}
                     </Typography>
                   </Box>
                   <Box>
-                    <Typography variant="body2" color="text.secondary">Task Time</Typography>
-                    <Typography variant="h6">{Math.round(taskTimeMd * 10) / 10} MD</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('workspace.project.effort.values.taskTime')}
+                    </Typography>
+                    <Typography variant="h6">
+                      {t('workspace.project.effort.values.mdValue', { value: Math.round(taskTimeMd * 10) / 10 })}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {taskPercent}% of total ({Math.round(taskTimeHours)}h)
+                      {t('workspace.project.effort.values.shareOfTotal', {
+                        percent: taskPercent,
+                        hours: Math.round(taskTimeHours),
+                      })}
                     </Typography>
                   </Box>
                   <Box>
-                    <Typography variant="body2" color="text.secondary">Total Logged</Typography>
-                    <Typography variant="h6">{Math.round(totalTimeMd * 10) / 10} MD</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('workspace.project.effort.values.totalLogged')}
+                    </Typography>
+                    <Typography variant="h6">
+                      {t('workspace.project.effort.values.mdValue', { value: Math.round(totalTimeMd * 10) / 10 })}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      ({Math.round(totalTimeHours)}h)
+                      {t('workspace.project.effort.values.hoursValue', { hours: Math.round(totalTimeHours) })}
                     </Typography>
                   </Box>
                 </Stack>
@@ -345,8 +389,12 @@ export default function ProjectEffortTab({
                     }}
                   />
                   <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
-                    <Typography variant="caption" color="primary.main">Project Overhead</Typography>
-                    <Typography variant="caption" color="secondary.main">Task Time</Typography>
+                    <Typography variant="caption" color="primary.main">
+                      {t('workspace.project.effort.values.projectOverhead')}
+                    </Typography>
+                    <Typography variant="caption" color="secondary.main">
+                      {t('workspace.project.effort.values.taskTime')}
+                    </Typography>
                   </Stack>
                 </Box>
               </Box>
@@ -355,21 +403,23 @@ export default function ProjectEffortTab({
         )}
 
         <Divider />
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Time Log</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          {t('workspace.project.effort.sections.timeLog')}
+        </Typography>
         {allEntries.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-            No time logged yet. Click "Log Time" to add entries.
+            {t('workspace.project.effort.states.noTimeLogged')}
           </Typography>
         ) : (
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Source</TableCell>
-                <TableCell>Person</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell align="right">Hours</TableCell>
-                <TableCell>Notes</TableCell>
+                <TableCell>{t('workspace.project.effort.fields.date')}</TableCell>
+                <TableCell>{t('workspace.project.effort.fields.source')}</TableCell>
+                <TableCell>{t('workspace.project.effort.fields.person')}</TableCell>
+                <TableCell>{t('workspace.project.effort.fields.type')}</TableCell>
+                <TableCell align="right">{t('workspace.project.effort.fields.hours')}</TableCell>
+                <TableCell>{t('workspace.project.effort.fields.notes')}</TableCell>
                 <TableCell sx={{ width: 80 }} />
               </TableRow>
             </TableHead>
@@ -406,13 +456,17 @@ export default function ProjectEffortTab({
                     <TableCell>{personName}</TableCell>
                     <TableCell>
                       <Chip
-                        label={entry.category === 'it' ? 'IT' : 'Business'}
+                        label={entry.category === 'it'
+                          ? t('dialogs.logTime.categories.it')
+                          : t('dialogs.logTime.categories.business')}
                         size="small"
                         color={entry.category === 'it' ? 'primary' : 'secondary'}
                         variant="outlined"
                       />
                     </TableCell>
-                    <TableCell align="right">{entry.hours}h</TableCell>
+                    <TableCell align="right">
+                      {t('workspace.project.effort.values.hoursValue', { hours: entry.hours })}
+                    </TableCell>
                     <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {entry.notes || '-'}
                     </TableCell>
@@ -431,22 +485,24 @@ export default function ProjectEffortTab({
                               });
                               setLogTimeDialogOpen(true);
                             }}
-                            title="Edit"
+                            title={t('actions.edit')}
                           >
                             <EditIcon fontSize="small" />
                           </IconButton>
                           <IconButton
                             size="small"
                             onClick={async () => {
-                              if (!window.confirm('Delete this time entry?')) return;
+                              if (!window.confirm(t('dialogs.logTime.confirmDelete'))) return;
                               try {
                                 await api.delete(`/portfolio/projects/${projectId}/time-entries/${entry.id}`);
                                 await onRefetch();
                               } catch (error: any) {
-                                onError(error?.response?.data?.message || 'Failed to delete time entry');
+                                onError(
+                                  getApiErrorMessage(error, t, t('workspace.project.effort.messages.deleteTimeEntryFailed')),
+                                );
                               }
                             }}
-                            title="Delete"
+                            title={t('common:buttons.delete')}
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
@@ -463,23 +519,37 @@ export default function ProjectEffortTab({
         {(form?.baseline_effort_it != null || form?.baseline_effort_business != null) && (
           <>
             <Divider />
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Baseline (captured at In Progress)</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              {t('workspace.project.effort.sections.baseline')}
+            </Typography>
             <Stack direction="row" spacing={2}>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="body2" color="text.secondary">Baseline IT Effort</Typography>
-                <Typography>{form?.baseline_effort_it != null ? Math.round(Number(form.baseline_effort_it)) : '-'} MD</Typography>
-                {getEffortVariance(form?.estimated_effort_it, form?.baseline_effort_it) && (
-                  <Typography variant="caption" color={getEffortVariance(form?.estimated_effort_it, form?.baseline_effort_it)?.startsWith('+') ? 'error.main' : 'success.main'}>
-                    {getEffortVariance(form?.estimated_effort_it, form?.baseline_effort_it)}
+                <Typography variant="body2" color="text.secondary">
+                  {t('workspace.project.effort.fields.baselineItEffort')}
+                </Typography>
+                <Typography>
+                  {form?.baseline_effort_it != null
+                    ? t('workspace.project.effort.values.mdValue', { value: Math.round(Number(form.baseline_effort_it)) })
+                    : '-'}
+                </Typography>
+                {baselineItVariance != null && (
+                  <Typography variant="caption" color={baselineItVariance > 0 ? 'error.main' : 'success.main'}>
+                    {formatEffortVariance(t, baselineItVariance)}
                   </Typography>
                 )}
               </Box>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="body2" color="text.secondary">Baseline Business Effort</Typography>
-                <Typography>{form?.baseline_effort_business != null ? Math.round(Number(form.baseline_effort_business)) : '-'} MD</Typography>
-                {getEffortVariance(form?.estimated_effort_business, form?.baseline_effort_business) && (
-                  <Typography variant="caption" color={getEffortVariance(form?.estimated_effort_business, form?.baseline_effort_business)?.startsWith('+') ? 'error.main' : 'success.main'}>
-                    {getEffortVariance(form?.estimated_effort_business, form?.baseline_effort_business)}
+                <Typography variant="body2" color="text.secondary">
+                  {t('workspace.project.effort.fields.baselineBusinessEffort')}
+                </Typography>
+                <Typography>
+                  {form?.baseline_effort_business != null
+                    ? t('workspace.project.effort.values.mdValue', { value: Math.round(Number(form.baseline_effort_business)) })
+                    : '-'}
+                </Typography>
+                {baselineBusinessVariance != null && (
+                  <Typography variant="caption" color={baselineBusinessVariance > 0 ? 'error.main' : 'success.main'}>
+                    {formatEffortVariance(t, baselineBusinessVariance)}
                   </Typography>
                 )}
               </Box>

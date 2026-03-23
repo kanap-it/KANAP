@@ -10,11 +10,13 @@ export type AiToolName =
   | 'get_filter_values'
   | 'get_entity_context'
   | 'search_knowledge'
-  | 'get_document';
+  | 'get_document'
+  | 'web_search';
 
 export const AiSearchEntityTypeSchema = z.enum([
   'applications',
   'assets',
+  'locations',
   'projects',
   'requests',
   'tasks',
@@ -51,6 +53,14 @@ export type AiExecutionContextWithManager = AiExecutionContext & {
   manager: EntityManager;
 };
 
+export type AiEntityMetadataScalar = string | number | boolean | null;
+export type AiEntityMetadataObject = Record<string, AiEntityMetadataScalar>;
+export type AiEntityMetadataValue =
+  | AiEntityMetadataScalar
+  | AiEntityMetadataObject
+  | AiEntityMetadataObject[];
+export type AiEntityMetadata = Record<string, AiEntityMetadataValue>;
+
 export type AiEntitySummaryDto = {
   type: AiSearchEntityType | AiContextEntityType;
   id: string;
@@ -60,7 +70,7 @@ export type AiEntitySummaryDto = {
   summary: string | null;
   updated_at: string | null;
   match_context?: string | null;
-  metadata?: Record<string, string | number | null> | null;
+  metadata?: AiEntityMetadata | null;
 };
 
 export type AiEntityRelationshipGroupDto = {
@@ -104,7 +114,7 @@ export type AiKnowledgeContextDto = {
 
 export type AiEntityContextDto = {
   entity: Omit<AiEntitySummaryDto, 'metadata'> & {
-    metadata: Record<string, unknown>;
+    metadata: AiEntityMetadata;
   };
   related: AiEntityRelationshipGroupDto[];
   knowledge: AiKnowledgeContextDto | null;
@@ -203,6 +213,7 @@ export type AiCapabilitiesDto = {
     ai_chat: boolean;
     ai_mcp: boolean;
     ai_settings: boolean;
+    ai_web_search: boolean;
   };
   surfaces: {
     chat: AiSurfaceCapabilityDto;

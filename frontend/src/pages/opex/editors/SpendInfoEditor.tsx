@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Stack, TextField, Alert, Typography, Autocomplete } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../../api';
 import SupplierSelect from '../../../components/fields/SupplierSelect';
@@ -26,6 +28,7 @@ type Props = {
 };
 
 export default forwardRef<SpendInfoEditorHandle, Props>(function SpendInfoEditor({ id, onDirtyChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: ['spend', id],
@@ -217,7 +220,7 @@ export default forwardRef<SpendInfoEditorHandle, Props>(function SpendInfoEditor
         setBaseline(newBaseline);
         onDirtyChange?.(false);
       } catch (e: any) {
-        setSaveError(e?.response?.data?.message || e?.message || 'Failed to save');
+        setSaveError(getApiErrorMessage(e, t, t('opex.editor.failedToSave')));
         throw e;
       } finally {
         setSaving(false);
@@ -242,17 +245,17 @@ export default forwardRef<SpendInfoEditorHandle, Props>(function SpendInfoEditor
     },
   }), [dirty, id, productName, description, supplierId, currency, accountId, effectiveStart, effectiveEnd, status, disabledAt, ownerItId, ownerBizId, analyticsCategoryId, notes, onDirtyChange, queryClient]);
 
-  if (error) return <Alert severity="error">Failed to load item</Alert>;
+  if (error) return <Alert severity="error">{t('opex.editor.failedToLoad')}</Alert>;
 
   return (
     <Stack spacing={2}>
       {saveError && <Alert severity="error">{saveError}</Alert>}
       {hasObsoleteAccount && (
         <Alert severity="warning">
-          Obsolete account detected. The selected account does not belong to the company's Chart of Accounts. Please update the account.
+          {t('opex.editor.obsoleteAccount')}
         </Alert>
       )}
-      <Typography variant="subtitle2">General Information</Typography>
+      <Typography variant="subtitle2">{t('opex.editor.generalInfo')}</Typography>
       <TextField label="Product Name" value={productName} onChange={(e) => setProductName(e.target.value)} disabled={isLoading || saving} required fullWidth InputLabelProps={{ shrink: true }} />
       <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={2} disabled={isLoading || saving} fullWidth InputLabelProps={{ shrink: true }} />
       <SupplierSelect value={supplierId} onChange={(v) => setSupplierId(v ?? '')} disabled={isLoading || saving} required />

@@ -23,8 +23,10 @@ import type {
   InterfaceOption,
   InterfaceTabProps,
 } from './types';
+import { useTranslation } from 'react-i18next';
 
 export default function FunctionalTab({ data, update, markDirty }: InterfaceTabProps) {
+  const { t } = useTranslation(['it', 'common']);
   const keyIdentifiers = (data?.key_identifiers || []) as InterfaceKeyIdentifier[];
   const dependencies = (data?.dependencies || []) as InterfaceDependency[];
   const links = (data?.links || []) as InterfaceLink[];
@@ -140,7 +142,7 @@ export default function FunctionalTab({ data, update, markDirty }: InterfaceTabP
   };
 
   const handleDeleteAttachment = async (attachmentId: string) => {
-    if (!window.confirm('Delete this attachment?')) return;
+    if (!window.confirm(t('confirmations.deleteAttachment'))) return;
     try {
       await api.patch(`/interfaces/attachments/${attachmentId}/delete`);
       const next = attachments.filter((a) => a.id !== attachmentId);
@@ -153,7 +155,7 @@ export default function FunctionalTab({ data, update, markDirty }: InterfaceTabP
   };
 
   const handleDeleteFunctionalLink = async (interfaceId: string, linkId: string) => {
-    if (!window.confirm('Remove this functional documentation link?')) return;
+    if (!window.confirm(t('confirmations.removeFunctionalDocLink'))) return;
     try {
       await api.delete(`/interfaces/${interfaceId}/links/${linkId}`);
       const next = links.filter((l) => l.id !== linkId);
@@ -235,7 +237,7 @@ export default function FunctionalTab({ data, update, markDirty }: InterfaceTabP
                 value={row.identifier_notes || ''}
                 onChange={(e) => handleUpdateKeyId(idx, { identifier_notes: e.target.value })}
               />
-              <IconButton aria-label="Remove" onClick={() => handleRemoveKeyId(idx)} size="small">
+              <IconButton aria-label={t('common.remove')} onClick={() => handleRemoveKeyId(idx)} size="small">
                 <DeleteIcon fontSize="small" />
               </IconButton>
             </Box>

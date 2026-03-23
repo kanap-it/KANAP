@@ -73,12 +73,20 @@ function isSetFilter(model: any): model is { filterType: 'set'; values: any[] } 
   return !!model && model.filterType === 'set' && Array.isArray(model.values);
 }
 
-function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?: string) {
+function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?: string, tenantId?: string) {
   let whereConditions = '1=1';
   const params: any[] = [];
   const filters: AgFilterModel = rawFilters && typeof rawFilters === 'object' ? rawFilters : {};
 
   const shouldSkip = (field: string) => field === skipField;
+  const normalizedTenantId = String(tenantId || '').trim();
+  let tenantParamRef: string | null = null;
+
+  if (normalizedTenantId) {
+    params.push(normalizedTenantId);
+    tenantParamRef = `$${params.length}`;
+    whereConditions += ` AND t.tenant_id = ${tenantParamRef}`;
+  }
 
   const applySetFilter = (model: any, expression: string) => {
     if (!isSetFilter(model)) return false;
@@ -112,7 +120,9 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
   if (query.teamId) {
     params.push(query.teamId);
     whereConditions += ` AND t.assignee_user_id IN (
-      SELECT user_id FROM portfolio_team_member_configs WHERE team_id = $${params.length}
+      SELECT user_id FROM portfolio_team_member_configs WHERE team_id = $${params.length}${
+        tenantParamRef ? ` AND tenant_id = ${tenantParamRef}` : ''
+      }
     )`;
   }
 
@@ -313,10 +323,15 @@ const TASK_FILTER_VALUE_FIELDS: Record<string, string> = {
 export class TasksService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
-  async listAllTasks(query: any, opts?: { manager?: EntityManager }): Promise<{ items: TaskListItem[]; total: number; page: number; limit: number }> {
+  async list(query: any, opts?: { manager?: EntityManager; tenantId?: string }) {
+    return this.listAllTasks(query, opts);
+  }
+
+  async listAllTasks(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ items: TaskListItem[]; total: number; page: number; limit: number }> {
     const manager = opts?.manager ?? this.dataSource.manager;
+    const tenantId = String(opts?.tenantId || '').trim();
     const { page, limit, skip, sort, q, filters } = parsePagination(query);
-    const { whereConditions, params } = buildWhereConditions(query, filters, q);
+    const { whereConditions, params } = buildWhereConditions(query, filters, q, undefined, tenantId);
 
     // Count total
     const countQuery = `
@@ -459,10 +474,11 @@ export class TasksService {
     return { items, total, page, limit };
   }
 
-  async listIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ ids: string[]; total: number }> {
     const manager = opts?.manager ?? this.dataSource.manager;
+    const tenantId = String(opts?.tenantId || '').trim();
     const { sort, q, filters } = parsePagination({ ...query, page: 1, limit: query?.limit ?? 10000 });
-    const { whereConditions, params } = buildWhereConditions(query, filters, q);
+    const { whereConditions, params } = buildWhereConditions(query, filters, q, undefined, tenantId);
 
     const sortFieldMap: Record<string, string> = {
       title: 't.title',
@@ -534,8 +550,9 @@ export class TasksService {
     return { ids, total: ids.length };
   }
 
-  async listFilterValues(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {
+  async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<Record<string, Array<string | null>>> {
     const manager = opts?.manager ?? this.dataSource.manager;
+    const tenantId = String(opts?.tenantId || '').trim();
     const q = (query.q as string) || '';
     let filters: AgFilterModel = {};
     if (query.filters) {
@@ -558,7 +575,7 @@ export class TasksService {
 
     for (const field of fields) {
       const expression = TASK_FILTER_VALUE_FIELDS[field];
-      const { whereConditions, params } = buildWhereConditions(query, filters, q, field);
+      const { whereConditions, params } = buildWhereConditions(query, filters, q, field, tenantId);
       const distinctQuery = `
         SELECT DISTINCT ${expression} as value
         FROM tasks t

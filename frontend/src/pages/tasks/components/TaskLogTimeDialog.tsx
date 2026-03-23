@@ -15,10 +15,12 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import UserSelect from '../../../components/fields/UserSelect';
 import DateEUField from '../../../components/fields/DateEUField';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 type TimeEntryCategory = 'it' | 'business';
 
@@ -49,6 +51,7 @@ export default function TaskLogTimeDialog({
   editEntry,
 }: TaskLogTimeDialogProps) {
   const { profile, hasLevel } = useAuth();
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const isEdit = !!editEntry;
   const canAssignUser = projectId
     ? hasLevel('portfolio_projects', 'admin')
@@ -96,17 +99,17 @@ export default function TaskLogTimeDialog({
 
   const handleSubmit = async () => {
     if (totalHours < 1) {
-      setError('Minimum loggable time is 1 hour');
+      setError(t('portfolio:dialogs.logTime.validation.minimumOneHour'));
       return;
     }
     const effectiveUserId = canAssignUser ? userId : (profile?.id || null);
 
     if (!effectiveUserId) {
-      setError('Please select a person');
+      setError(t('portfolio:dialogs.logTime.validation.personRequired'));
       return;
     }
     if (!loggedAt) {
-      setError('Please select a date');
+      setError(t('portfolio:dialogs.logTime.validation.dateRequired'));
       return;
     }
 
@@ -138,7 +141,11 @@ export default function TaskLogTimeDialog({
       onSuccess();
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save time entry');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:dialogs.logTime.messages.saveFailed'),
+      ));
     } finally {
       setSaving(false);
     }
@@ -152,34 +159,46 @@ export default function TaskLogTimeDialog({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{isEdit ? 'Edit Time Entry' : 'Log Time'}</DialogTitle>
+      <DialogTitle>
+        {isEdit
+          ? t('portfolio:dialogs.logTime.title.edit')
+          : t('portfolio:dialogs.logTime.title.create')}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
 
           <FormControl component="fieldset">
-            <FormLabel component="legend">Category *</FormLabel>
+            <FormLabel component="legend">{t('portfolio:dialogs.logTime.fields.category')}</FormLabel>
             <RadioGroup
               row
               value={category}
               onChange={(e) => setCategory(e.target.value as TimeEntryCategory)}
             >
-              <FormControlLabel value="it" control={<Radio />} label="IT" />
-              <FormControlLabel value="business" control={<Radio />} label="Business" />
+              <FormControlLabel
+                value="it"
+                control={<Radio />}
+                label={t('portfolio:dialogs.logTime.categories.it')}
+              />
+              <FormControlLabel
+                value="business"
+                control={<Radio />}
+                label={t('portfolio:dialogs.logTime.categories.business')}
+              />
             </RadioGroup>
           </FormControl>
 
           <UserSelect
-            label="Person"
+            label={t('portfolio:dialogs.logTime.fields.person')}
             value={userId}
             onChange={setUserId}
-            placeholder="Search users..."
+            placeholder={t('portfolio:dialogs.logTime.placeholders.searchUsers')}
             required
             disabled={!canAssignUser}
           />
 
           <DateEUField
-            label="Date"
+            label={t('portfolio:dialogs.logTime.fields.date')}
             valueYmd={loggedAt}
             onChangeYmd={setLoggedAt}
             required
@@ -187,7 +206,7 @@ export default function TaskLogTimeDialog({
 
           <Stack direction="row" spacing={2} alignItems="flex-start">
             <TextField
-              label="Hours"
+              label={t('portfolio:dialogs.logTime.fields.hours')}
               type="text"
               inputMode="numeric"
               value={hours}
@@ -204,10 +223,10 @@ export default function TaskLogTimeDialog({
               sx={{
                 flex: 1,
               }}
-              helperText="0-7 hours"
+              helperText={t('portfolio:dialogs.logTime.helper.hoursRange')}
             />
             <TextField
-              label="Days"
+              label={t('portfolio:dialogs.logTime.fields.days')}
               type="text"
               inputMode="numeric"
               value={days}
@@ -221,36 +240,42 @@ export default function TaskLogTimeDialog({
               sx={{
                 flex: 1,
               }}
-              helperText="8 hours/day"
+              helperText={t('portfolio:dialogs.logTime.helper.dayLength')}
             />
           </Stack>
 
           <Typography variant="body2" color="text.secondary">
-            Total: <strong>{totalHours} hour{totalHours !== 1 ? 's' : ''}</strong>
-            {totalHours > 0 && ` (${(totalHours / 8).toFixed(2)} MD)`}
+            {t('portfolio:dialogs.logTime.helper.total', {
+              hours: totalHours,
+              md: (totalHours / 8).toFixed(2),
+            })}
           </Typography>
 
           <TextField
-            label="Notes"
+            label={t('portfolio:dialogs.logTime.fields.notes')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             multiline
             rows={2}
-            placeholder="Optional description of work done..."
+            placeholder={t('portfolio:dialogs.logTime.placeholders.notes')}
             fullWidth
           />
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={saving}>
-          Cancel
+          {t('common:buttons.cancel')}
         </Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={saving || totalHours < 1 || !(canAssignUser ? userId : profile?.id) || !loggedAt}
         >
-          {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Log Time'}
+          {saving
+            ? t('common:status.saving')
+            : isEdit
+            ? t('common:buttons.saveChanges')
+            : t('portfolio:dialogs.logTime.actions.logTime')}
         </Button>
       </DialogActions>
     </Dialog>

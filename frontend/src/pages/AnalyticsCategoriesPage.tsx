@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../components/ServerDataGrid';
 import { Button } from '@mui/material';
@@ -18,6 +19,7 @@ interface AnalyticsCategoryRow {
 }
 
 export default function AnalyticsCategoriesPage() {
+  const { t } = useTranslation(['master-data', 'common']);
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
   const lastQueryRef = useRef<{ sort: string; q: string; filters: any } | null>(null);
@@ -46,7 +48,7 @@ export default function AnalyticsCategoriesPage() {
     return [
       {
         field: 'name',
-        headerName: 'Name',
+        headerName: t('shared.columns.name'),
         flex: 1,
         cellRenderer: (params: any) => (
           <LinkCellRenderer
@@ -59,7 +61,7 @@ export default function AnalyticsCategoriesPage() {
       },
       {
         field: 'description',
-        headerName: 'Description',
+        headerName: t('shared.columns.description'),
         flex: 1,
         cellRenderer: (params: any) => (
           <LinkCellRenderer
@@ -72,7 +74,7 @@ export default function AnalyticsCategoriesPage() {
       },
       {
         field: 'status',
-        headerName: 'Status',
+        headerName: t('shared.columns.status'),
         width: 140,
         cellRenderer: (params: any) => (
           <LinkCellRenderer
@@ -87,7 +89,7 @@ export default function AnalyticsCategoriesPage() {
       },
       {
         field: 'updated_at',
-        headerName: 'Updated',
+        headerName: t('shared.columns.updated'),
         width: 200,
         valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
         cellRenderer: (params: any) => (
@@ -105,13 +107,13 @@ export default function AnalyticsCategoriesPage() {
   return (
     <>
       <PageHeader
-        title="Analytics Dimensions"
+        title={t("analytics.title")}
         actions={hasLevel('analytics', 'member') ? [
           <Button key="new" variant="contained" onClick={() => {
             const sp = buildWorkspaceSearch();
             navigate(`/master-data/analytics/new/overview?${sp.toString()}`);
           }}>
-            New Category
+            {t('analytics.newCategory')}
           </Button>,
         ] : []}
       />

@@ -37,6 +37,8 @@ import api from '../../api';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import ConnectionMapGraph, { ClusterMembership, ConnectionMapLink, ConnectionMapNode, GraphControlsApi } from './components/ConnectionMapGraph';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 type ApiConnectionMapNode = {
   id: string;
   name: string;
@@ -275,6 +277,7 @@ function buildLinks(
 }
 
 export default function ConnectionMapPage() {
+  const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const { byField, labelFor, settings } = useItOpsEnumOptions();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -633,7 +636,7 @@ export default function ConnectionMapPage() {
         if (!cancelled) {
           setServerSummaries((prev) => ({
             ...prev,
-            [nodeId]: { data: prev[nodeId]?.data, loading: false, error: e?.response?.data?.message || e?.message || 'Failed to load server' },
+            [nodeId]: { data: prev[nodeId]?.data, loading: false, error: getApiErrorMessage(e, t, t('messages.loadAssetFailed')) },
           }));
         }
       }
@@ -677,7 +680,7 @@ export default function ConnectionMapPage() {
         if (!cancelled) {
           setLinkedInterfaces([]);
           setLinkedInterfacesError(
-            e?.response?.data?.message || e?.message || 'Failed to load linked interfaces',
+            getApiErrorMessage(e, t, t('messages.loadLinkedInterfacesFailed')),
           );
         }
       } finally {
@@ -979,7 +982,7 @@ export default function ConnectionMapPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      <PageHeader title="Connection Map" actions={headerActions} />
+      <PageHeader title={t('pages.connectionMap.title')} actions={headerActions} />
       {isLoading && (
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Stack spacing={2} alignItems="center">

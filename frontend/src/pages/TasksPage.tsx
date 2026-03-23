@@ -16,6 +16,7 @@ import CheckboxSetFilter from '../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../components/CheckboxSetFloatingFilter';
 import { useGridScopePreference } from '../hooks/useGridScopePreference';
 import { ACTIVE_TASK_STATUSES, TASK_STATUS_COLORS, TASK_STATUS_LABELS } from './tasks/task.constants';
+import { useTranslation } from 'react-i18next';
 
 type TaskRow = {
   id: string;
@@ -61,45 +62,21 @@ const CONTEXT_LABEL_MAP: Record<string, string> = {
   capex_item: 'CAPEX',
 };
 
-function StatusCellRenderer(props: any) {
-  const status = props.value;
+const PRIORITY_COLOR_MAP: Record<string, 'error' | 'warning' | 'default' | 'info' | 'success'> = {
+  blocker: 'error',
+  high: 'warning',
+  normal: 'default',
+  low: 'info',
+  optional: 'success',
+};
 
-  return (
-    <Chip
-      label={STATUS_LABEL_MAP[status] || status}
-      color={STATUS_COLOR_MAP[status] || 'default'}
-      size="small"
-    />
-  );
-}
-
-function PriorityCellRenderer(props: any) {
-  const priority = props.value;
-  const colorMap: Record<string, 'error' | 'warning' | 'default' | 'info' | 'success'> = {
-    blocker: 'error',
-    high: 'warning',
-    normal: 'default',
-    low: 'info',
-    optional: 'success',
-  };
-
-  const labelMap: Record<string, string> = {
-    blocker: 'Blocker',
-    high: 'High',
-    normal: 'Normal',
-    low: 'Low',
-    optional: 'Optional',
-  };
-
-  return (
-    <Chip
-      label={labelMap[priority] || priority || 'Normal'}
-      color={colorMap[priority] || 'default'}
-      size="small"
-      variant="outlined"
-    />
-  );
-}
+const PRIORITY_LABEL_MAP: Record<string, string> = {
+  blocker: 'Blocker',
+  high: 'High',
+  normal: 'Normal',
+  low: 'Low',
+  optional: 'Optional',
+};
 
 function TaskTypeCellRenderer(props: any) {
   const typeName = props.value;
@@ -143,31 +120,6 @@ function ScoreCellRenderer(props: any) {
   );
 }
 
-function TypeCellRenderer(props: any) {
-  const type = props.value;
-
-  if (!type) {
-    return (
-      <Chip
-        label="Standalone"
-        size="small"
-        variant="outlined"
-        color="info"
-        sx={{ fontSize: '0.7rem' }}
-      />
-    );
-  }
-
-  return (
-    <Chip
-      label={CONTEXT_LABEL_MAP[type] || type}
-      size="small"
-      variant="outlined"
-      sx={{ fontSize: '0.7rem' }}
-    />
-  );
-}
-
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -181,6 +133,7 @@ export default function TasksPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasLevel, profile } = useAuth();
+  const { t } = useTranslation(['portfolio', 'common']);
 
   if (!hasLevel('tasks', 'reader')) {
     return <ForbiddenPage />;
@@ -220,6 +173,60 @@ export default function TasksPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const gridApiRef = useRef<any>(null);
+
+  const statusLabelMap = useMemo(() => Object.fromEntries(
+    Object.entries(STATUS_LABEL_MAP).map(([status, label]) => [
+      status,
+      t(`statuses.task.${status}`, { defaultValue: label }),
+    ]),
+  ) as Record<string, string>, [t]);
+
+  const contextLabelMap = useMemo(() => Object.fromEntries(
+    Object.entries(CONTEXT_LABEL_MAP).map(([context, label]) => [
+      context,
+      t(`context.${context}`, { defaultValue: label }),
+    ]),
+  ) as Record<string, string>, [t]);
+
+  const renderStatusCell = useCallback((props: any) => {
+    const status = String(props.value || '');
+    return (
+      <Chip
+        label={t(`statuses.task.${status}`, { defaultValue: STATUS_LABEL_MAP[status] || status })}
+        color={STATUS_COLOR_MAP[status] || 'default'}
+        size="small"
+      />
+    );
+  }, [t]);
+
+  const renderPriorityCell = useCallback((props: any) => {
+    const priority = String(props.value || 'normal');
+    return (
+      <Chip
+        label={t(`priority.${priority}`, { defaultValue: PRIORITY_LABEL_MAP[priority] || PRIORITY_LABEL_MAP.normal })}
+        color={PRIORITY_COLOR_MAP[priority] || 'default'}
+        size="small"
+        variant="outlined"
+      />
+    );
+  }, [t]);
+
+  const renderTypeCell = useCallback((props: any) => {
+    const type = props.value as string | null | undefined;
+    const label = type
+      ? t(`context.${type}`, { defaultValue: CONTEXT_LABEL_MAP[type] || type })
+      : t('tasks.values.standalone');
+
+    return (
+      <Chip
+        label={label}
+        size="small"
+        variant="outlined"
+        color={type ? 'default' : 'info'}
+        sx={{ fontSize: '0.7rem' }}
+      />
+    );
+  }, [t]);
 
   // Read taskScope from URL to restore state when returning from workspace
   const urlTaskScope = useMemo(() => {
@@ -285,25 +292,33 @@ export default function TasksPage() {
   // Task scope filter toolbar
   const taskScopeToolbar = (
     <Stack direction="row" spacing={0.5} alignItems="center">
-      <Typography variant="body2">Show:</Typography>
+      <Typography variant="body2">{t('common:labels.show')}:</Typography>
       <RadioGroup
         row
         value={taskScope}
         onChange={(e) => setTaskScope(e.target.value as 'my' | 'team' | 'all')}
         sx={{ '& .MuiFormControlLabel-root': { mr: 1 } }}
       >
-        <FormControlLabel value="my" control={<Radio size="small" />} label="My tasks" />
-        <Tooltip title={hasTeam ? '' : 'You are not assigned to a team'}>
+        <FormControlLabel
+          value="my"
+          control={<Radio size="small" />}
+          label={t('scope.my', { entity: t('tasks.entityName') })}
+        />
+        <Tooltip title={hasTeam ? '' : t('scope.teamUnavailable')}>
           <span>
             <FormControlLabel
               value="team"
               control={<Radio size="small" />}
-              label="My team's tasks"
+              label={t('scope.myTeam', { entity: t('tasks.entityName') })}
               disabled={!hasTeam}
             />
           </span>
         </Tooltip>
-        <FormControlLabel value="all" control={<Radio size="small" />} label="All tasks" />
+        <FormControlLabel
+          value="all"
+          control={<Radio size="small" />}
+          label={t('scope.all', { entity: t('tasks.entityName') })}
+        />
       </RadioGroup>
     </Stack>
   );
@@ -330,12 +345,12 @@ export default function TasksPage() {
       sp.set('teamId', teamId);
     }
     return sp;
-  }, []);
+  }, [t]);
 
   const getTaskFilterValues = useCallback((field: string, opts?: { labelMap?: Record<string, string>; order?: Array<string | null>; emptyLabel?: string; searchable?: boolean }) => {
     const labelMap = opts?.labelMap;
     const order = opts?.order;
-    const emptyLabel = opts?.emptyLabel ?? '(Blank)';
+    const emptyLabel = opts?.emptyLabel ?? t('shared.blankValue');
     return async ({ context }: any) => {
       const queryState = context?.getQueryState?.() ?? {};
       const filters = { ...(queryState.filters || {}) };
@@ -398,7 +413,7 @@ export default function TasksPage() {
     },
     {
       field: 'title',
-      headerName: 'Task Title',
+      headerName: t('tasks.columns.taskTitle'),
       flex: 1.5,
       minWidth: 200,
       filter: 'agTextColumnFilter',
@@ -406,7 +421,7 @@ export default function TasksPage() {
     },
     {
       field: 'task_type_name',
-      headerName: 'Task Type',
+      headerName: t('tasks.columns.taskType'),
       width: 110,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -418,24 +433,24 @@ export default function TasksPage() {
     },
     {
       field: 'related_object_type',
-      headerName: 'Context',
+      headerName: t('tasks.columns.context'),
       width: 110,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
         getValues: getTaskFilterValues('related_object_type', {
-          labelMap: CONTEXT_LABEL_MAP,
+          labelMap: contextLabelMap,
           order: [null, 'project', 'spend_item', 'capex_item', 'contract'],
-          emptyLabel: 'Standalone',
+          emptyLabel: t('tasks.values.standalone'),
         }),
         searchable: false,
-        emptyLabel: 'Standalone',
+        emptyLabel: t('tasks.values.standalone'),
       },
-      cellRenderer: TypeCellRenderer,
+      cellRenderer: renderTypeCell,
     },
     {
       field: 'related_object_name',
-      headerName: 'Related Entry',
+      headerName: t('tasks.columns.relatedEntry'),
       flex: 1.5,
       minWidth: 180,
       filter: 'agTextColumnFilter',
@@ -444,46 +459,46 @@ export default function TasksPage() {
     },
     {
       field: 'phase_name',
-      headerName: 'Phase',
+      headerName: t('tasks.columns.phase'),
       width: 140,
       filter: 'agTextColumnFilter',
-      valueFormatter: (params) => params.value || 'Project-level',
+      valueFormatter: (params) => params.value || t('tasks.values.projectLevel'),
       cellRenderer: clickableCellRenderer,
       hide: true,
     },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('tasks.columns.status'),
       width: 130,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
         getValues: getTaskFilterValues('status', {
-          labelMap: STATUS_LABEL_MAP,
+          labelMap: statusLabelMap,
           order: ['open', 'in_progress', 'pending', 'in_testing', 'done', 'cancelled'],
         }),
         searchable: false,
       },
-      cellRenderer: StatusCellRenderer,
+      cellRenderer: renderStatusCell,
     },
     {
       field: 'priority_level',
-      headerName: 'Priority',
+      headerName: t('tasks.columns.priority'),
       width: 110,
       filter: 'agTextColumnFilter',
-      cellRenderer: PriorityCellRenderer,
+      cellRenderer: renderPriorityCell,
       hide: true,
     },
     {
       field: 'priority_score',
-      headerName: 'Score',
+      headerName: t('tasks.columns.score'),
       width: 90,
       sort: 'desc',
       cellRenderer: ScoreCellRenderer,
     },
     {
       field: 'assignee_name',
-      headerName: 'Assignee',
+      headerName: t('tasks.columns.assignee'),
       flex: 1,
       minWidth: 140,
       filter: 'agTextColumnFilter',
@@ -491,7 +506,7 @@ export default function TasksPage() {
     },
     {
       field: 'due_date',
-      headerName: 'Due Date',
+      headerName: t('tasks.columns.dueDate'),
       width: 120,
       filter: 'agDateColumnFilter',
       valueFormatter: (params) => formatDate(params.value),
@@ -500,7 +515,7 @@ export default function TasksPage() {
     },
     {
       field: 'created_at',
-      headerName: 'Created',
+      headerName: t('tasks.columns.created'),
       width: 120,
       filter: 'agDateColumnFilter',
       valueFormatter: (params) => formatDate(params.value),
@@ -509,7 +524,7 @@ export default function TasksPage() {
     },
     {
       field: 'updated_at',
-      headerName: 'Last changed',
+      headerName: t('tasks.columns.lastChanged'),
       width: 130,
       filter: 'agDateColumnFilter',
       valueFormatter: (params) => formatDate(params.value),
@@ -518,7 +533,7 @@ export default function TasksPage() {
     },
     {
       field: 'description',
-      headerName: 'Description',
+      headerName: t('tasks.columns.description'),
       flex: 1.5,
       minWidth: 200,
       filter: 'agTextColumnFilter',
@@ -528,7 +543,7 @@ export default function TasksPage() {
     // Classification columns (hidden by default)
     {
       field: 'source_name',
-      headerName: 'Source',
+      headerName: t('tasks.columns.source'),
       width: 140,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -540,7 +555,7 @@ export default function TasksPage() {
     },
     {
       field: 'category_name',
-      headerName: 'Classification',
+      headerName: t('tasks.columns.classification'),
       width: 140,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -551,7 +566,7 @@ export default function TasksPage() {
     },
     {
       field: 'stream_name',
-      headerName: 'Stream',
+      headerName: t('tasks.columns.stream'),
       width: 140,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -562,7 +577,7 @@ export default function TasksPage() {
     },
     {
       field: 'company_name',
-      headerName: 'Company',
+      headerName: t('tasks.columns.company'),
       width: 140,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -572,7 +587,7 @@ export default function TasksPage() {
       cellRenderer: clickableCellRenderer,
       hide: true,
     },
-  ], [clickableCellRenderer, getTaskFilterValues]);
+  ], [clickableCellRenderer, contextLabelMap, getTaskFilterValues, renderPriorityCell, renderStatusCell, renderTypeCell, statusLabelMap, t]);
 
   const actions = (
     <Stack direction="row" spacing={1}>
@@ -584,11 +599,11 @@ export default function TasksPage() {
             navigate(`/portfolio/tasks/new/overview?${sp.toString()}`);
           }}
         >
-          New
+          {t('tasks.actions.new')}
         </Button>
       )}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canAdmin && <Button onClick={() => setImportOpen(true)}>{t('tasks.actions.importCsv')}</Button>}
+      {canAdmin && <Button onClick={() => setExportOpen(true)}>{t('tasks.actions.exportCsv')}</Button>}
       {canAdmin && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
@@ -604,7 +619,7 @@ export default function TasksPage() {
 
   return (
     <>
-      <PageHeader title="Tasks" actions={actions} />
+      <PageHeader title={t('tasks.title')} actions={actions} />
       <ServerDataGrid<TaskRow>
         columns={columns}
         endpoint="/tasks"
@@ -633,14 +648,14 @@ export default function TasksPage() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         endpoint="/tasks"
-        title="Export Tasks"
-        presets={[{ name: 'enrichment', label: 'Data Enrichment' }]}
+        title={t('tasks.csv.exportTitle')}
+        presets={[{ name: 'enrichment', label: t('tasks.csv.presetEnrichment') }]}
       />
       <CsvImportDialogV2
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/tasks"
-        title="Import Tasks"
+        title={t('tasks.csv.importTitle')}
         onImported={() => setRefreshKey((k) => k + 1)}
       />
     </>

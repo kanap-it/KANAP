@@ -17,8 +17,10 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import TaskLogTimeDialog, { TaskTimeEntryData } from './TaskLogTimeDialog';
 
 type TimeEntryCategory = 'it' | 'business';
@@ -47,6 +49,7 @@ interface TaskWorkLogProps {
 const TIME_LOGGING_EXCLUDED_TYPES = ['contract', 'spend_item', 'capex_item'];
 
 export default function TaskWorkLog({ taskId, projectId, readOnly = false, relatedObjectType }: TaskWorkLogProps) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
   const canManageStandaloneEntries = hasLevel('tasks', 'member');
@@ -84,7 +87,7 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
   });
 
   const handleDelete = async (entryId: string) => {
-    if (!window.confirm('Delete this time entry?')) return;
+    if (!window.confirm(t('portfolio:dialogs.logTime.confirmDelete'))) return;
     setError(null);
     try {
       const endpoint = projectId
@@ -100,7 +103,11 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
         queryClient.invalidateQueries({ queryKey: ['project-tasks-time-summary', projectId] });
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete time entry');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:workspace.task.workLog.messages.deleteFailed'),
+      ));
     }
   };
 
@@ -149,33 +156,36 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
     const days = Math.floor(h / 8);
     const remaining = h % 8;
     if (days > 0 && remaining > 0) {
-      return `${days}d ${remaining.toFixed(1)}h`;
+      return t('portfolio:workspace.task.workLog.duration.daysHours', { days, hours: remaining.toFixed(1) });
     } else if (days > 0) {
-      return `${days}d`;
+      return t('portfolio:workspace.task.workLog.duration.daysOnly', { days });
     }
-    return `${h.toFixed(1)}h`;
+    return t('portfolio:workspace.task.workLog.duration.hoursOnly', { hours: h.toFixed(1) });
   };
 
   return (
     <Stack spacing={2}>
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Typography variant="subtitle2" color="text.secondary">
-          Total: {formatHours(totalHours)} ({(Number(totalHours) / 8).toFixed(1)} MD)
+          {t('portfolio:workspace.task.workLog.total', {
+            time: formatHours(totalHours),
+            md: (Number(totalHours) / 8).toFixed(1),
+          })}
         </Typography>
         {canManageForContext && !readOnly && !TIME_LOGGING_EXCLUDED_TYPES.includes(relatedObjectType || '') && (
           <Button startIcon={<AddIcon />} size="small" onClick={handleAdd}>
-            Log Time
+            {t('portfolio:dialogs.logTime.actions.logTime')}
           </Button>
         )}
       </Stack>
 
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
 
-      {isLoading && <Typography color="text.secondary">Loading...</Typography>}
+      {isLoading && <Typography color="text.secondary">{t('common:status.loading')}</Typography>}
 
       {!isLoading && entries.length === 0 && (
         <Typography color="text.secondary" variant="body2">
-          No time logged yet.
+          {t('portfolio:workspace.task.workLog.messages.empty')}
         </Typography>
       )}
 
@@ -184,12 +194,14 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Person</TableCell>
-                <TableCell align="right">Time</TableCell>
-                <TableCell>Notes</TableCell>
-                {canManageForContext && !readOnly && <TableCell align="right">Actions</TableCell>}
+                <TableCell>{t('portfolio:workspace.task.workLog.columns.date')}</TableCell>
+                <TableCell>{t('portfolio:workspace.task.workLog.columns.category')}</TableCell>
+                <TableCell>{t('portfolio:workspace.task.workLog.columns.person')}</TableCell>
+                <TableCell align="right">{t('portfolio:workspace.task.workLog.columns.time')}</TableCell>
+                <TableCell>{t('portfolio:workspace.task.workLog.columns.notes')}</TableCell>
+                {canManageForContext && !readOnly && (
+                  <TableCell align="right">{t('portfolio:workspace.task.workLog.columns.actions')}</TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -198,13 +210,13 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
                   <TableCell>{formatDate(entry.logged_at)}</TableCell>
                   <TableCell>
                     <Chip
-                      label={entry.category === 'business' ? 'Business' : 'IT'}
+                      label={t(`portfolio:dialogs.logTime.categories.${entry.category}`)}
                       size="small"
                       color={entry.category === 'business' ? 'secondary' : 'primary'}
                       variant="outlined"
                     />
                   </TableCell>
-                  <TableCell>{entry.user_name || 'Unknown'}</TableCell>
+                  <TableCell>{entry.user_name || t('portfolio:workspace.task.workLog.values.unknownPerson')}</TableCell>
                   <TableCell align="right">{formatHours(entry.hours)}</TableCell>
                   <TableCell>
                     <Typography
@@ -218,17 +230,25 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
                       }}
                       title={entry.notes || ''}
                     >
-                      {entry.notes || '-'}
+                      {entry.notes || t('portfolio:workspace.task.workLog.values.emptyNotes')}
                     </Typography>
                   </TableCell>
                   {canManageForContext && !readOnly && (
                     <TableCell align="right">
                       {canEditEntry(entry) && (
                         <>
-                          <IconButton size="small" onClick={() => handleEdit(entry)} title="Edit">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEdit(entry)}
+                            title={t('portfolio:workspace.task.workLog.actions.edit')}
+                          >
                             <EditIcon fontSize="small" />
                           </IconButton>
-                          <IconButton size="small" onClick={() => handleDelete(entry.id)} title="Delete">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(entry.id)}
+                            title={t('portfolio:workspace.task.workLog.actions.delete')}
+                          >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </>

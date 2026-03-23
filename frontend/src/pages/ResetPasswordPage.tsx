@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import AuthFrame from '../components/AuthFrame';
 
 export default function ResetPasswordPage() {
+  const { t } = useTranslation(['auth', 'validation']);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     if (!token || token.trim() === '') {
-      setError('This reset link is invalid or has already been used. Please request a new one.');
+      setError(t('auth:reset.invalidLink'));
     }
   }, [token]);
 
@@ -46,15 +48,15 @@ export default function ResetPasswordPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) {
-      setError('This reset link is invalid or has already been used. Please request a new one.');
+      setError(t('auth:reset.invalidLink'));
       return;
     }
     if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+      setError(t('validation:minLengthPassword'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('validation:passwordMismatch'));
       return;
     }
 
@@ -64,7 +66,7 @@ export default function ResetPasswordPage() {
       await api.post('/auth/password-reset/complete', { token, password });
       setStatus('success');
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'We could not reset your password. Please try again.';
+      const message = err?.response?.data?.message || t('auth:reset.serverError');
       setError(message);
       setStatus('idle');
     }
@@ -86,16 +88,16 @@ export default function ResetPasswordPage() {
         <Stack spacing={3}>
           <Stack spacing={1}>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              Reset your password
+              {t('auth:reset.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Enter a strong password that you have not used elsewhere. Make sure you will remember it.
+              {t('auth:reset.subtitle')}
             </Typography>
           </Stack>
 
           <Stack spacing={2}>
             <TextField
-              label="New password"
+              label={t('auth:reset.newPassword')}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -106,7 +108,7 @@ export default function ResetPasswordPage() {
               InputLabelProps={{ shrink: true }}
             />
             <TextField
-              label="Confirm password"
+              label={t('auth:reset.confirmPassword')}
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -120,7 +122,7 @@ export default function ResetPasswordPage() {
 
           {isSuccess && (
             <Alert severity="success" role="status">
-              Your password has been updated. Redirecting you to login…
+              {t('auth:reset.successMessage')}
             </Alert>
           )}
 
@@ -132,7 +134,7 @@ export default function ResetPasswordPage() {
 
           <Stack spacing={1.5}>
             <Button type="submit" variant="contained" fullWidth disabled={isSubmitting || isSuccess || !token}>
-              {isSubmitting ? 'Saving…' : 'Update password'}
+              {isSubmitting ? t('auth:reset.submitting') : t('auth:reset.submit')}
             </Button>
             <Button
               type="button"
@@ -141,7 +143,7 @@ export default function ResetPasswordPage() {
               fullWidth
               onClick={() => navigate('/forgot-password')}
             >
-              Request a new link
+              {t('auth:reset.requestNewLink')}
             </Button>
           </Stack>
         </Stack>

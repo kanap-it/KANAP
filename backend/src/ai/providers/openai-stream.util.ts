@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { AiStreamEvent, AiStreamParams } from './ai-provider.types';
+import { isAbortError } from './streaming.util';
 
 export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGenerator<AiStreamEvent> {
   const client = new OpenAI({
@@ -53,53 +54,60 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
     ...(tools.length > 0 ? { tools } : {}),
     max_completion_tokens: params.maxTokens,
     stream: true,
-  });
+  }, params.signal ? { signal: params.signal } : undefined);
 
   const pendingToolCalls = new Map<number, { id: string; name: string; args: string }>();
   let emittedDone = false;
 
-  for await (const chunk of stream) {
-    const choice = chunk.choices?.[0];
-    if (!choice) continue;
+  try {
+    for await (const chunk of stream) {
+      const choice = chunk.choices?.[0];
+      if (!choice) continue;
 
-    const delta = choice.delta;
+      const delta = choice.delta;
 
-    if (delta?.content) {
-      yield { type: 'text_delta', text: delta.content };
-    }
+      if (delta?.content) {
+        yield { type: 'text_delta', text: delta.content };
+      }
 
-    if (delta?.tool_calls) {
-      for (const tc of delta.tool_calls) {
-        const idx = tc.index;
-        if (tc.id) {
-          pendingToolCalls.set(idx, { id: tc.id, name: tc.function?.name || '', args: '' });
-          yield { type: 'tool_call_start', id: tc.id, name: tc.function?.name || '' };
-        }
-        if (tc.function?.arguments) {
-          const pending = pendingToolCalls.get(idx);
-          if (pending) {
-            pending.args += tc.function.arguments;
-            yield { type: 'tool_call_delta', id: pending.id, arguments: tc.function.arguments };
+      if (delta?.tool_calls) {
+        for (const tc of delta.tool_calls) {
+          const idx = tc.index;
+          if (tc.id) {
+            pendingToolCalls.set(idx, { id: tc.id, name: tc.function?.name || '', args: '' });
+            yield { type: 'tool_call_start', id: tc.id, name: tc.function?.name || '' };
+          }
+          if (tc.function?.arguments) {
+            const pending = pendingToolCalls.get(idx);
+            if (pending) {
+              pending.args += tc.function.arguments;
+              yield { type: 'tool_call_delta', id: pending.id, arguments: tc.function.arguments };
+            }
           }
         }
       }
-    }
 
-    if (choice.finish_reason === 'tool_calls' || choice.finish_reason === 'stop') {
-      for (const [, pending] of pendingToolCalls) {
-        yield { type: 'tool_call_end', id: pending.id };
+      if (choice.finish_reason === 'tool_calls' || choice.finish_reason === 'stop') {
+        for (const [, pending] of pendingToolCalls) {
+          yield { type: 'tool_call_end', id: pending.id };
+        }
+        pendingToolCalls.clear();
+
+        const usage = chunk.usage;
+        yield {
+          type: 'done',
+          usage: usage
+            ? { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0 }
+            : undefined,
+        };
+        emittedDone = true;
       }
-      pendingToolCalls.clear();
-
-      const usage = chunk.usage;
-      yield {
-        type: 'done',
-        usage: usage
-          ? { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0 }
-          : undefined,
-      };
-      emittedDone = true;
     }
+  } catch (error) {
+    if (params.signal?.aborted || isAbortError(error)) {
+      return;
+    }
+    throw error;
   }
 
   // Ensure done is always emitted even if no finish_reason was seen

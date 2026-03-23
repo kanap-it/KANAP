@@ -11,9 +11,11 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 interface CriterionValue {
   id?: string;
@@ -108,6 +110,7 @@ interface PortfolioCategory {
 
 export default function SettingsPage() {
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(['portfolio', 'common']);
   const canEdit = hasLevel('portfolio_settings', 'admin');
 
   const [activeTab, setActiveTab] = useState(0);
@@ -165,11 +168,11 @@ export default function SettingsPage() {
       setTaskTypes(classificationRes.data?.taskTypes || []);
       setTeams(teamsRes.data || []);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to load settings');
+      setError(getApiErrorMessage(e, t, t('settings.messages.loadFailed')));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -183,9 +186,9 @@ export default function SettingsPage() {
       });
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to update criterion');
+      setError(getApiErrorMessage(e, t, t('settings.scoring.messages.updateFailed')));
     }
-  }, [loadData, canEdit]);
+  }, [loadData, canEdit, t]);
 
   const handleToggleBypassSetting = useCallback(async () => {
     if (!canEdit) return;
@@ -195,9 +198,9 @@ export default function SettingsPage() {
       });
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to update settings');
+      setError(getApiErrorMessage(e, t, t('settings.scoring.messages.updateSettingsFailed')));
     }
-  }, [settings.mandatory_bypass_enabled, loadData, canEdit]);
+  }, [settings.mandatory_bypass_enabled, loadData, canEdit, t]);
 
   const handleEditClick = useCallback((criterion: Criterion) => {
     setEditingCriterion(criterion);
@@ -211,15 +214,15 @@ export default function SettingsPage() {
 
   const handleDeleteCriterion = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!confirm('Delete this criterion? Existing evaluations will be removed.')) return;
+    if (!window.confirm(t('settings.scoring.confirmDelete'))) return;
 
     try {
       await api.delete(`/portfolio/criteria/${id}`);
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete criterion');
+      setError(getApiErrorMessage(e, t, t('settings.scoring.messages.deleteFailed')));
     }
-  }, [loadData, canEdit]);
+  }, [loadData, canEdit, t]);
 
   // Skills handlers
   const handleSeedDefaults = useCallback(async () => {
@@ -230,9 +233,9 @@ export default function SettingsPage() {
         loadData();
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to seed defaults');
+      setError(getApiErrorMessage(e, t, t('settings.skills.messages.seedDefaultsFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleSkillToggle = useCallback(async (skill: Skill) => {
     if (!canEdit) return;
@@ -240,20 +243,20 @@ export default function SettingsPage() {
       await api.patch(`/portfolio/skills/${skill.id}`, { enabled: !skill.enabled });
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to update skill');
+      setError(getApiErrorMessage(e, t, t('settings.skills.messages.updateFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleDeleteSkill = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!confirm('Delete this skill?')) return;
+    if (!window.confirm(t('settings.skills.confirmDelete'))) return;
     try {
       await api.delete(`/portfolio/skills/${id}`);
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete skill');
+      setError(getApiErrorMessage(e, t, t('settings.skills.messages.deleteFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleEditSkill = useCallback((skill: Skill) => {
     setEditingSkill(skill);
@@ -278,14 +281,14 @@ export default function SettingsPage() {
 
   const handleDeleteTemplate = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!confirm('Delete this phase template?')) return;
+    if (!window.confirm(t('settings.phaseTemplates.confirmDelete'))) return;
     try {
       await api.delete(`/portfolio/phase-templates/${id}`);
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete template');
+      setError(getApiErrorMessage(e, t, t('settings.phaseTemplates.messages.deleteFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   // Classification handlers
   const handleEditSource = useCallback((source: PortfolioSource) => {
@@ -300,14 +303,14 @@ export default function SettingsPage() {
 
   const handleDeleteSource = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!confirm('Delete this source?')) return;
+    if (!window.confirm(t('settings.classification.confirmations.deleteSource'))) return;
     try {
       await api.delete(`/portfolio/classification/sources/${id}`);
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete source');
+      setError(getApiErrorMessage(e, t, t('settings.classification.messages.deleteSourceFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleToggleSource = useCallback(async (source: PortfolioSource) => {
     if (!canEdit) return;
@@ -315,9 +318,9 @@ export default function SettingsPage() {
       await api.patch(`/portfolio/classification/sources/${source.id}`, { is_active: !source.is_active });
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to update source');
+      setError(getApiErrorMessage(e, t, t('settings.classification.messages.updateSourceFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleEditCategory = useCallback((category: PortfolioCategory) => {
     setEditingCategory(category);
@@ -331,14 +334,14 @@ export default function SettingsPage() {
 
   const handleDeleteCategory = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!confirm('Delete this category and all its streams?')) return;
+    if (!window.confirm(t('settings.classification.confirmations.deleteCategory'))) return;
     try {
       await api.delete(`/portfolio/classification/categories/${id}`);
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete category');
+      setError(getApiErrorMessage(e, t, t('settings.classification.messages.deleteCategoryFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleToggleCategory = useCallback(async (category: PortfolioCategory) => {
     if (!canEdit) return;
@@ -346,9 +349,9 @@ export default function SettingsPage() {
       await api.patch(`/portfolio/classification/categories/${category.id}`, { is_active: !category.is_active });
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to update category');
+      setError(getApiErrorMessage(e, t, t('settings.classification.messages.updateCategoryFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleEditStream = useCallback((stream: PortfolioStream) => {
     setEditingStream(stream);
@@ -364,14 +367,14 @@ export default function SettingsPage() {
 
   const handleDeleteStream = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!confirm('Delete this stream?')) return;
+    if (!window.confirm(t('settings.classification.confirmations.deleteStream'))) return;
     try {
       await api.delete(`/portfolio/classification/streams/${id}`);
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete stream');
+      setError(getApiErrorMessage(e, t, t('settings.classification.messages.deleteStreamFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleToggleStream = useCallback(async (stream: PortfolioStream) => {
     if (!canEdit) return;
@@ -379,9 +382,9 @@ export default function SettingsPage() {
       await api.patch(`/portfolio/classification/streams/${stream.id}`, { is_active: !stream.is_active });
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to update stream');
+      setError(getApiErrorMessage(e, t, t('settings.classification.messages.updateStreamFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   // Task Type handlers
   const handleEditTaskType = useCallback((taskType: PortfolioTaskType) => {
@@ -396,14 +399,14 @@ export default function SettingsPage() {
 
   const handleDeleteTaskType = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!confirm('Delete this task type?')) return;
+    if (!window.confirm(t('settings.classification.confirmations.deleteTaskType'))) return;
     try {
       await api.delete(`/portfolio/classification/task-types/${id}`);
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete task type');
+      setError(getApiErrorMessage(e, t, t('settings.classification.messages.deleteTaskTypeFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleToggleTaskType = useCallback(async (taskType: PortfolioTaskType) => {
     if (!canEdit) return;
@@ -411,9 +414,9 @@ export default function SettingsPage() {
       await api.patch(`/portfolio/classification/task-types/${taskType.id}`, { is_active: !taskType.is_active });
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to update task type');
+      setError(getApiErrorMessage(e, t, t('settings.classification.messages.updateTaskTypeFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   // Teams handlers
   const handleEditTeam = useCallback((team: PortfolioTeam) => {
@@ -428,14 +431,14 @@ export default function SettingsPage() {
 
   const handleDeleteTeam = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!confirm('Delete this team?')) return;
+    if (!window.confirm(t('settings.teams.confirmDelete'))) return;
     try {
       await api.delete(`/portfolio/teams/${id}`);
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete team');
+      setError(getApiErrorMessage(e, t, t('settings.teams.messages.deleteFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleToggleTeam = useCallback(async (team: PortfolioTeam) => {
     if (!canEdit) return;
@@ -443,9 +446,9 @@ export default function SettingsPage() {
       await api.patch(`/portfolio/teams/${team.id}`, { is_active: !team.is_active });
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to update team');
+      setError(getApiErrorMessage(e, t, t('settings.teams.messages.updateFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const handleSeedTeams = useCallback(async () => {
     if (!canEdit) return;
@@ -455,39 +458,39 @@ export default function SettingsPage() {
         loadData();
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to seed defaults');
+      setError(getApiErrorMessage(e, t, t('settings.teams.messages.seedDefaultsFailed')));
     }
-  }, [canEdit, loadData]);
+  }, [canEdit, loadData, t]);
 
   const actions = canEdit ? (
     activeTab === 0 ? (
       <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateClick}>
-        Add Criterion
+        {t('settings.actions.addCriterion')}
       </Button>
     ) : activeTab === 1 ? (
       <Stack direction="row" spacing={1}>
         {skills.length === 0 && (
           <Button variant="outlined" startIcon={<PlaylistAddIcon />} onClick={handleSeedDefaults}>
-            Seed Defaults
+            {t('settings.actions.seedDefaults')}
           </Button>
         )}
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateSkill}>
-          Add Skill
+          {t('settings.actions.addSkill')}
         </Button>
       </Stack>
     ) : activeTab === 2 ? (
       <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateTemplate}>
-        Add Template
+        {t('settings.actions.addTemplate')}
       </Button>
     ) : activeTab === 4 ? (
       <Stack direction="row" spacing={1}>
         {teams.length === 0 && (
           <Button variant="outlined" startIcon={<PlaylistAddIcon />} onClick={handleSeedTeams}>
-            Seed Defaults
+            {t('settings.actions.seedDefaults')}
           </Button>
         )}
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateTeam}>
-          Add Team
+          {t('settings.actions.addTeam')}
         </Button>
       </Stack>
     ) : null
@@ -495,7 +498,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Portfolio Settings" actions={actions} />
+      <PageHeader title={t('settings.title')} actions={actions} />
 
       <Box sx={{ p: 3, maxWidth: 1200 }}>
         {error && (
@@ -505,11 +508,11 @@ export default function SettingsPage() {
         )}
 
         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 3 }}>
-          <Tab label="Scoring Criteria" />
-          <Tab label="Skills" />
-          <Tab label="Phase Templates" />
-          <Tab label="Classification" />
-          <Tab label="Teams" />
+          <Tab label={t('settings.tabs.scoringCriteria')} />
+          <Tab label={t('settings.tabs.skills')} />
+          <Tab label={t('settings.tabs.phaseTemplates')} />
+          <Tab label={t('settings.tabs.classification')} />
+          <Tab label={t('settings.tabs.teams')} />
         </Tabs>
 
         {/* Tab 0: Scoring Criteria */}
@@ -529,11 +532,10 @@ export default function SettingsPage() {
                   label={
                     <Box>
                       <Typography variant="subtitle1">
-                        Mandatory requests automatically score 100 points
+                        {t('settings.scoring.mandatoryBypassTitle')}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        When enabled, requests with the flagged "mandatory" item receive priority
-                        score of 100, regardless of other criteria. Manual override is blocked.
+                        {t('settings.scoring.mandatoryBypassDescription')}
                       </Typography>
                     </Box>
                   }
@@ -542,11 +544,13 @@ export default function SettingsPage() {
             </Card>
 
             {/* Evaluation Criteria */}
-            <Typography variant="h6" sx={{ mb: 2 }}>Evaluation Criteria</Typography>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              {t('settings.scoring.title')}
+            </Typography>
 
             {criteria.length === 0 && !loading && (
               <Alert severity="info" sx={{ mb: 2 }}>
-                No evaluation criteria configured yet. Add criteria to enable request scoring.
+                {t('settings.scoring.empty')}
               </Alert>
             )}
 
@@ -568,11 +572,14 @@ export default function SettingsPage() {
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <Typography variant="subtitle1">{criterion.name}</Typography>
                           {criterion.inverted && (
-                            <Chip label="Inverted" size="small" variant="outlined" />
+                            <Chip label={t('settings.scoring.chips.inverted')} size="small" variant="outlined" />
                           )}
-                          <Chip label={`Weight: ${criterion.weight}`} size="small" />
+                          <Chip
+                            label={t('settings.scoring.chips.weight', { value: criterion.weight })}
+                            size="small"
+                          />
                           {!criterion.enabled && (
-                            <Chip label="Disabled" size="small" color="warning" />
+                            <Chip label={t('common:statuses.disabled')} size="small" color="warning" />
                           )}
                         </Stack>
 
@@ -772,6 +779,7 @@ function CriterionEditDialog({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [name, setName] = useState('');
   const [inverted, setInverted] = useState(false);
   const [weight, setWeight] = useState(1);
@@ -790,12 +798,12 @@ function CriterionEditDialog({
       setInverted(false);
       setWeight(1);
       setValues([
-        { label: 'Low', triggers_mandatory_bypass: false },
-        { label: 'High', triggers_mandatory_bypass: false },
+        { label: t('settings.scoring.dialog.defaults.low'), triggers_mandatory_bypass: false },
+        { label: t('settings.scoring.dialog.defaults.high'), triggers_mandatory_bypass: false },
       ]);
     }
     setError(null);
-  }, [criterion, open]);
+  }, [criterion, open, t]);
 
   const handleAddValue = () => {
     setValues([...values, { label: '', triggers_mandatory_bypass: false }]);
@@ -838,7 +846,7 @@ function CriterionEditDialog({
 
       onSave();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('settings.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -846,13 +854,15 @@ function CriterionEditDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{criterion ? 'Edit Criterion' : 'New Criterion'}</DialogTitle>
+      <DialogTitle>
+        {criterion ? t('settings.scoring.dialog.editTitle') : t('settings.scoring.dialog.createTitle')}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
 
           <TextField
-            label="Name"
+            label={t('settings.fields.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
@@ -861,7 +871,7 @@ function CriterionEditDialog({
 
           <Stack direction="row" spacing={2}>
             <TextField
-              label="Weight"
+              label={t('settings.scoring.dialog.weight')}
               type="number"
               value={weight}
               onChange={(e) => setWeight(Number(e.target.value))}
@@ -875,16 +885,15 @@ function CriterionEditDialog({
                   onChange={(e) => setInverted(e.target.checked)}
                 />
               }
-              label="Inverted (higher position = lower score)"
+              label={t('settings.scoring.dialog.inverted')}
             />
           </Stack>
 
           <Divider />
 
-          <Typography variant="subtitle2">Scale Values (in order)</Typography>
+          <Typography variant="subtitle2">{t('settings.scoring.dialog.scaleValues')}</Typography>
           <Typography variant="caption" color="text.secondary">
-            For non-inverted criteria: first value = lowest score, last value = highest score.
-            For inverted criteria: first value = highest score, last value = lowest score.
+            {t('settings.scoring.dialog.scaleValuesDescription')}
           </Typography>
 
           {values.map((v, idx) => (
@@ -897,7 +906,7 @@ function CriterionEditDialog({
                 onChange={(e) => handleValueChange(idx, 'label', e.target.value)}
                 size="small"
                 fullWidth
-                placeholder="Value label"
+                placeholder={t('settings.scoring.dialog.valueLabelPlaceholder')}
               />
               <FormControlLabel
                 control={
@@ -909,7 +918,7 @@ function CriterionEditDialog({
                     size="small"
                   />
                 }
-                label="Mandatory"
+                label={t('settings.scoring.dialog.mandatory')}
                 sx={{ minWidth: 110 }}
               />
               <IconButton
@@ -923,18 +932,18 @@ function CriterionEditDialog({
           ))}
 
           <Button startIcon={<AddIcon />} onClick={handleAddValue} size="small">
-            Add Value
+            {t('settings.actions.addValue')}
           </Button>
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button
           variant="contained"
           onClick={handleSave}
           disabled={saving || !name.trim() || values.some((v) => !v.label.trim())}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -957,6 +966,7 @@ function SkillsSection({
   onEdit: (skill: Skill) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
   const toggleCategory = (category: string) => {
@@ -969,8 +979,7 @@ function SkillsSection({
   if (skills.length === 0) {
     return (
       <Alert severity="info">
-        No skills configured yet. Use "Seed Defaults" to populate with standard skills,
-        or add skills manually.
+        {t('settings.skills.empty')}
       </Alert>
     );
   }
@@ -980,8 +989,7 @@ function SkillsSection({
   return (
     <Stack spacing={2}>
       <Typography variant="body2" color="text.secondary">
-        Skills are used to define team member expertise areas. Configure the skills that
-        are relevant to your organization.
+        {t('settings.skills.description')}
       </Typography>
 
       {categories.map((category) => {
@@ -1076,6 +1084,7 @@ function SkillEditDialog({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [category, setCategory] = useState('');
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1104,7 +1113,7 @@ function SkillEditDialog({
       }
       onSave();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('settings.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -1112,7 +1121,9 @@ function SkillEditDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{skill ? 'Edit Skill' : 'New Skill'}</DialogTitle>
+      <DialogTitle>
+        {skill ? t('settings.skills.dialog.editTitle') : t('settings.skills.dialog.createTitle')}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
@@ -1126,15 +1137,15 @@ function SkillEditDialog({
             renderInput={(params) => (
               <TextField
                 {...params}
-                label="Category"
+                label={t('settings.skills.dialog.category')}
                 required
-                placeholder="Select or type a new category"
+                placeholder={t('settings.skills.dialog.categoryPlaceholder')}
               />
             )}
           />
 
           <TextField
-            label="Skill Name"
+            label={t('settings.skills.dialog.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
@@ -1143,13 +1154,13 @@ function SkillEditDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button
           variant="contained"
           onClick={handleSave}
           disabled={saving || !category.trim() || !name.trim()}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -1168,10 +1179,11 @@ function PhaseTemplatesSection({
   onEdit: (template: PhaseTemplate) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   if (templates.length === 0) {
     return (
       <Alert severity="info">
-        No phase templates configured yet. Templates will be automatically seeded when first accessed.
+        {t('settings.phaseTemplates.empty')}
       </Alert>
     );
   }
@@ -1179,8 +1191,7 @@ function PhaseTemplatesSection({
   return (
     <Stack spacing={2}>
       <Typography variant="body2" color="text.secondary">
-        Phase templates define the standard phases and milestones for projects.
-        Apply a template when setting up a new project's timeline.
+        {t('settings.phaseTemplates.description')}
       </Typography>
 
       {templates.map((template) => (
@@ -1191,9 +1202,12 @@ function PhaseTemplatesSection({
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <Typography variant="subtitle1">{template.name}</Typography>
                   {template.is_system && (
-                    <Chip label="System" size="small" variant="outlined" color="info" />
+                    <Chip label={t('settings.labels.system')} size="small" variant="outlined" color="info" />
                   )}
-                  <Chip label={`${template.items.length} phases`} size="small" />
+                  <Chip
+                    label={t('settings.phaseTemplates.chips.phaseCount', { count: template.items.length })}
+                    size="small"
+                  />
                 </Stack>
 
                 <Stack direction="row" spacing={0.5} mt={1} flexWrap="wrap" useFlexGap>
@@ -1239,6 +1253,7 @@ function PhaseTemplateEditDialog({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [name, setName] = useState('');
   const [items, setItems] = useState<PhaseTemplateItem[]>([]);
   const [saving, setSaving] = useState(false);
@@ -1251,11 +1266,15 @@ function PhaseTemplateEditDialog({
     } else {
       setName('');
       setItems([
-        { name: 'Phase 1', has_milestone: true, milestone_name: 'Phase 1 Complete' },
+        {
+          name: t('settings.phaseTemplates.dialog.defaults.phaseName', { number: 1 }),
+          has_milestone: true,
+          milestone_name: t('settings.phaseTemplates.dialog.defaults.milestoneName', { number: 1 }),
+        },
       ]);
     }
     setError(null);
-  }, [template, open]);
+  }, [template, open, t]);
 
   const handleAddItem = () => {
     setItems([...items, { name: '', has_milestone: true, milestone_name: '' }]);
@@ -1299,7 +1318,7 @@ function PhaseTemplateEditDialog({
 
       onSave();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('settings.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -1313,14 +1332,14 @@ function PhaseTemplateEditDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        {template ? 'Edit Phase Template' : 'New Phase Template'}
+        {template ? t('settings.phaseTemplates.dialog.editTitle') : t('settings.phaseTemplates.dialog.createTitle')}
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
 
           <TextField
-            label="Template Name"
+            label={t('settings.phaseTemplates.dialog.templateName')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
@@ -1329,10 +1348,9 @@ function PhaseTemplateEditDialog({
 
           <Divider />
 
-          <Typography variant="subtitle2">Phases</Typography>
+          <Typography variant="subtitle2">{t('settings.phaseTemplates.dialog.phases')}</Typography>
           <Typography variant="caption" color="text.secondary">
-            Define the phases for this template. Each phase can optionally have
-            a milestone that gets created when the template is applied.
+            {t('settings.phaseTemplates.dialog.phasesDescription')}
           </Typography>
 
           {items.map((item, idx) => (
@@ -1350,7 +1368,7 @@ function PhaseTemplateEditDialog({
                 value={item.name}
                 onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
                 size="small"
-                placeholder="Phase name"
+                placeholder={t('settings.phaseTemplates.dialog.phaseNamePlaceholder')}
                 sx={{ flex: 1 }}
               />
               <FormControlLabel
@@ -1363,7 +1381,7 @@ function PhaseTemplateEditDialog({
                     size="small"
                   />
                 }
-                label="Milestone"
+                label={t('settings.phaseTemplates.dialog.milestone')}
                 sx={{ minWidth: 100 }}
               />
               {item.has_milestone && (
@@ -1373,7 +1391,7 @@ function PhaseTemplateEditDialog({
                     handleItemChange(idx, 'milestone_name', e.target.value)
                   }
                   size="small"
-                  placeholder="Milestone name"
+                  placeholder={t('settings.phaseTemplates.dialog.milestoneNamePlaceholder')}
                   sx={{ width: 200 }}
                 />
               )}
@@ -1388,18 +1406,18 @@ function PhaseTemplateEditDialog({
           ))}
 
           <Button startIcon={<AddIcon />} onClick={handleAddItem} size="small">
-            Add Phase
+            {t('settings.actions.addPhase')}
           </Button>
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button
           variant="contained"
           onClick={handleSave}
           disabled={saving || !isValid}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -1450,6 +1468,7 @@ function ClassificationSection({
   onDeleteTaskType: (id: string) => void;
   onToggleTaskType: (taskType: PortfolioTaskType) => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
   const toggleCategory = (id: string) => {
@@ -1459,16 +1478,16 @@ function ClassificationSection({
   return (
     <Stack spacing={3}>
       <Typography variant="body2" color="text.secondary">
-        Configure sources, categories, and streams for classifying requests and projects.
+        {t('settings.classification.description')}
       </Typography>
 
       {/* Sources Section */}
       <Box>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-          <Typography variant="h6">Sources</Typography>
+          <Typography variant="h6">{t('settings.classification.sections.sources')}</Typography>
           {canEdit && (
             <Button size="small" startIcon={<AddIcon />} onClick={onCreateSource}>
-              Add Source
+              {t('settings.actions.addSource')}
             </Button>
           )}
         </Stack>
@@ -1501,7 +1520,7 @@ function ClassificationSection({
                     </Typography>
                   )}
                   {source.is_system && (
-                    <Chip label="System" size="small" variant="outlined" color="info" />
+                    <Chip label={t('settings.labels.system')} size="small" variant="outlined" color="info" />
                   )}
                   {canEdit && (
                     <>
@@ -1521,7 +1540,7 @@ function ClassificationSection({
                 </Stack>
               ))}
               {sources.length === 0 && (
-                <Typography color="text.secondary">No sources configured.</Typography>
+                <Typography color="text.secondary">{t('settings.classification.empty.sources')}</Typography>
               )}
             </Stack>
           </CardContent>
@@ -1531,10 +1550,10 @@ function ClassificationSection({
       {/* Categories & Streams Section */}
       <Box>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-          <Typography variant="h6">Categories & Streams</Typography>
+          <Typography variant="h6">{t('settings.classification.sections.categoriesAndStreams')}</Typography>
           {canEdit && (
             <Button size="small" startIcon={<AddIcon />} onClick={onCreateCategory}>
-              Add Category
+              {t('settings.actions.addCategory')}
             </Button>
           )}
         </Stack>
@@ -1570,12 +1589,15 @@ function ClassificationSection({
                       {category.name}
                     </Typography>
                     <Chip
-                      label={`${activeStreams}/${category.streams.length} streams`}
+                      label={t('settings.classification.chips.streamsCount', {
+                        active: activeStreams,
+                        total: category.streams.length,
+                      })}
                       size="small"
                       color={activeStreams === category.streams.length ? 'success' : 'default'}
                     />
                     {category.is_system && (
-                      <Chip label="System" size="small" variant="outlined" color="info" />
+                      <Chip label={t('settings.labels.system')} size="small" variant="outlined" color="info" />
                     )}
                     {canEdit && (
                       <>
@@ -1646,7 +1668,7 @@ function ClassificationSection({
                         ))}
                         {category.streams.length === 0 && (
                           <Typography variant="body2" color="text.secondary">
-                            No streams in this category.
+                            {t('settings.classification.empty.streams')}
                           </Typography>
                         )}
                         {canEdit && (
@@ -1656,7 +1678,7 @@ function ClassificationSection({
                             onClick={() => onCreateStream(category.id)}
                             sx={{ alignSelf: 'flex-start' }}
                           >
-                            Add Stream
+                            {t('settings.actions.addStream')}
                           </Button>
                         )}
                       </Stack>
@@ -1667,7 +1689,7 @@ function ClassificationSection({
             );
           })}
           {categories.length === 0 && (
-            <Alert severity="info">No categories configured.</Alert>
+            <Alert severity="info">{t('settings.classification.empty.categories')}</Alert>
           )}
         </Stack>
       </Box>
@@ -1675,10 +1697,10 @@ function ClassificationSection({
       {/* Task Types Section */}
       <Box>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-          <Typography variant="h6">Task Types</Typography>
+          <Typography variant="h6">{t('settings.classification.sections.taskTypes')}</Typography>
           {canEdit && (
             <Button size="small" startIcon={<AddIcon />} onClick={onCreateTaskType}>
-              Add Task Type
+              {t('settings.actions.addTaskType')}
             </Button>
           )}
         </Stack>
@@ -1711,7 +1733,7 @@ function ClassificationSection({
                     </Typography>
                   )}
                   {taskType.is_system && (
-                    <Chip label="System" size="small" variant="outlined" color="info" />
+                    <Chip label={t('settings.labels.system')} size="small" variant="outlined" color="info" />
                   )}
                   {canEdit && (
                     <>
@@ -1731,7 +1753,7 @@ function ClassificationSection({
                 </Stack>
               ))}
               {taskTypes.length === 0 && (
-                <Typography color="text.secondary">No task types configured.</Typography>
+                <Typography color="text.secondary">{t('settings.classification.empty.taskTypes')}</Typography>
               )}
             </Stack>
           </CardContent>
@@ -1753,6 +1775,7 @@ function SourceEditDialog({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1780,7 +1803,7 @@ function SourceEditDialog({
       }
       onSave();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('settings.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -1788,19 +1811,21 @@ function SourceEditDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{source ? 'Edit Source' : 'New Source'}</DialogTitle>
+      <DialogTitle>
+        {source ? t('settings.classification.sourceDialog.editTitle') : t('settings.classification.sourceDialog.createTitle')}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
           <TextField
-            label="Name"
+            label={t('settings.fields.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
           />
           <TextField
-            label="Description"
+            label={t('settings.fields.description')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             fullWidth
@@ -1810,9 +1835,9 @@ function SourceEditDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving || !name.trim()}>
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -1831,6 +1856,7 @@ function CategoryEditDialog({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1858,7 +1884,7 @@ function CategoryEditDialog({
       }
       onSave();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('settings.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -1866,19 +1892,21 @@ function CategoryEditDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{category ? 'Edit Category' : 'New Category'}</DialogTitle>
+      <DialogTitle>
+        {category ? t('settings.classification.categoryDialog.editTitle') : t('settings.classification.categoryDialog.createTitle')}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
           <TextField
-            label="Name"
+            label={t('settings.fields.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
           />
           <TextField
-            label="Description"
+            label={t('settings.fields.description')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             fullWidth
@@ -1888,9 +1916,9 @@ function CategoryEditDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving || !name.trim()}>
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -1911,6 +1939,7 @@ function StreamEditDialog({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1938,7 +1967,7 @@ function StreamEditDialog({
       }
       onSave();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('settings.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -1946,19 +1975,21 @@ function StreamEditDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{stream ? 'Edit Stream' : 'New Stream'}</DialogTitle>
+      <DialogTitle>
+        {stream ? t('settings.classification.streamDialog.editTitle') : t('settings.classification.streamDialog.createTitle')}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
           <TextField
-            label="Name"
+            label={t('settings.fields.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
           />
           <TextField
-            label="Description"
+            label={t('settings.fields.description')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             fullWidth
@@ -1968,9 +1999,9 @@ function StreamEditDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving || !name.trim()}>
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -1989,6 +2020,7 @@ function TaskTypeEditDialog({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
@@ -2016,7 +2048,7 @@ function TaskTypeEditDialog({
       }
       onSave();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('settings.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -2024,19 +2056,21 @@ function TaskTypeEditDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{taskType ? 'Edit Task Type' : 'New Task Type'}</DialogTitle>
+      <DialogTitle>
+        {taskType ? t('settings.classification.taskTypeDialog.editTitle') : t('settings.classification.taskTypeDialog.createTitle')}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
           <TextField
-            label="Name"
+            label={t('settings.fields.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
           />
           <TextField
-            label="Description"
+            label={t('settings.fields.description')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             fullWidth
@@ -2046,9 +2080,9 @@ function TaskTypeEditDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving || !name.trim()}>
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -2069,11 +2103,11 @@ function TeamsSection({
   onDelete: (id: string) => void;
   onToggle: (team: PortfolioTeam) => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   if (teams.length === 0) {
     return (
       <Alert severity="info">
-        No teams configured yet. Use "Seed Defaults" to populate with standard teams,
-        or add teams manually.
+        {t('settings.teams.empty')}
       </Alert>
     );
   }
@@ -2081,8 +2115,7 @@ function TeamsSection({
   return (
     <Stack spacing={2}>
       <Typography variant="body2" color="text.secondary">
-        Teams are organizational groups that contributors belong to. Assign contributors to teams
-        to organize them by department or function.
+        {t('settings.teams.description')}
       </Typography>
 
       <Card>
@@ -2116,12 +2149,12 @@ function TeamsSection({
                   )}
                 </Box>
                 <Chip
-                  label={`${team.member_count} member${team.member_count !== 1 ? 's' : ''}`}
+                  label={t('settings.teams.memberCount', { count: team.member_count })}
                   size="small"
                   variant="outlined"
                 />
                 {team.is_system && (
-                  <Chip label="System" size="small" variant="outlined" color="info" />
+                  <Chip label={t('settings.labels.system')} size="small" variant="outlined" color="info" />
                 )}
                 {canEdit && (
                   <>
@@ -2159,6 +2192,7 @@ function TeamEditDialog({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation(['portfolio', 'common']);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
@@ -2186,7 +2220,7 @@ function TeamEditDialog({
       }
       onSave();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('settings.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -2194,19 +2228,21 @@ function TeamEditDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{team ? 'Edit Team' : 'New Team'}</DialogTitle>
+      <DialogTitle>
+        {team ? t('settings.teams.dialog.editTitle') : t('settings.teams.dialog.createTitle')}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
           <TextField
-            label="Name"
+            label={t('settings.fields.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
           />
           <TextField
-            label="Description"
+            label={t('settings.fields.description')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             fullWidth
@@ -2216,9 +2252,9 @@ function TeamEditDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving || !name.trim()}>
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
         </Button>
       </DialogActions>
     </Dialog>

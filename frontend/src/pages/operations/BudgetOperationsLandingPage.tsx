@@ -1,6 +1,7 @@
 import React from 'react';
 import { Grid, Card, CardContent, CardActionArea, Typography, Box } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 
 type OperationCard = {
@@ -9,37 +10,23 @@ type OperationCard = {
   to: string;
 };
 
-const cards: OperationCard[] = [
-  {
-    title: 'Freeze / Unfreeze Data',
-    description: 'Lock budget columns or headcount metrics for a specific year',
-    to: '/ops/operations/freeze'
-  },
-  {
-    title: 'Copy Budget Columns',
-    description: 'Copy budget data between years and columns with optional percentage adjustments',
-    to: '/ops/operations/copy-budget-columns'
-  },
-  {
-    title: 'Copy Allocations',
-    description: 'Copy allocation methods and percentages from one year to another',
-    to: '/ops/operations/copy-allocations'
-  },
-  {
-    title: 'Reset Budget Column',
-    description: 'Clear all data from a budget column for a specific year',
-    to: '/ops/operations/column-reset'
-  },
-];
+// cards defined inside component for i18n
 
 export default function BudgetOperationsLandingPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['ops']);
+  const cards: OperationCard[] = [
+    { title: t('operations.cards.freezeTitle'), description: t('operations.cards.freezeDesc'), to: '/ops/operations/freeze' },
+    { title: t('operations.cards.copyBudgetTitle'), description: t('operations.cards.copyBudgetDesc'), to: '/ops/operations/copy-budget-columns' },
+    { title: t('operations.cards.copyAllocTitle'), description: t('operations.cards.copyAllocDesc'), to: '/ops/operations/copy-allocations' },
+    { title: t('operations.cards.resetColumnTitle'), description: t('operations.cards.resetColumnDesc'), to: '/ops/operations/column-reset' },
+  ];
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <PageHeader title="Administration" />
+      <PageHeader title={t("operations.title")} />
       <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-        Powerful tools to manage and transform your budget data across different years and columns.
+        {t('operations.subtitle')}
       </Typography>
       <Grid container spacing={2}>
         {cards.map((c) => (

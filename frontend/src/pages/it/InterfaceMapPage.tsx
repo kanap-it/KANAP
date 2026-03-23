@@ -34,6 +34,8 @@ import api from '../../api';
 import InterfaceMapGraph, { GraphControlsApi, MapGraphLink, MapGraphNode } from './components/InterfaceMapGraph';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 const ENVIRONMENT_OPTIONS = [
   { label: 'Production', value: 'prod' },
   { label: 'Pre-Prod', value: 'pre_prod' },
@@ -228,6 +230,7 @@ function buildTechnicalGraph(data: InterfaceMapResponse): GraphData {
 }
 
 export default function InterfaceMapPage() {
+  const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [environment, setEnvironment] = React.useState<string>(() => searchParams.get('environment') || 'prod');
@@ -448,7 +451,7 @@ export default function InterfaceMapPage() {
         if (!cancelled) {
           setAppSummaries((prev) => ({
             ...prev,
-            [nodeId]: { data: prev[nodeId]?.data, loading: false, error: e?.response?.data?.message || e?.message || 'Failed to load application' },
+            [nodeId]: { data: prev[nodeId]?.data, loading: false, error: getApiErrorMessage(e, t, t('messages.loadApplicationFailed')) },
           }));
         }
       }
@@ -504,7 +507,7 @@ export default function InterfaceMapPage() {
         if (!cancelled) {
           setLinkedConnections([]);
           setLinkedConnectionsError(
-            e?.response?.data?.message || e?.message || 'Failed to load infra connections',
+            getApiErrorMessage(e, t, t('messages.loadConnectionsFailed')),
           );
         }
       } finally {
@@ -646,7 +649,7 @@ export default function InterfaceMapPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      <PageHeader title="Interface Map" actions={headerActions} />
+      <PageHeader title={t('pages.interfaceMap.title')} actions={headerActions} />
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         {viewDescription}
       </Typography>
@@ -818,10 +821,10 @@ export default function InterfaceMapPage() {
                     const summary = appSummaries[selectedNode.id];
                     const criticalityLabel = (() => {
                       switch (String(summary?.data?.criticality || selectedNode.criticality || '')) {
-                        case 'business_critical': return 'Business critical';
-                        case 'high': return 'High';
-                        case 'medium': return 'Medium';
-                        case 'low': return 'Low';
+                        case 'business_critical': return t('enums.criticality.businessCritical');
+                        case 'high': return t('enums.criticality.high');
+                        case 'medium': return t('enums.criticality.medium');
+                        case 'low': return t('enums.criticality.low');
                         default: return summary?.data?.criticality || selectedNode.criticality || '—';
                       }
                     })();
@@ -962,7 +965,7 @@ export default function InterfaceMapPage() {
                     <Typography variant="body2">{`Criticality: ${selectedLink.criticality || '-'}`}</Typography>
                     <Typography variant="body2">{`Route: ${selectedLink.integrationRouteType || '-'}`}</Typography>
                     <Typography variant="body2">{`Bindings: ${selectedLink.bindingsCount}`}</Typography>
-                    <Typography variant="body2">{`Via middleware: ${selectedLink.hasMiddleware ? 'Yes' : 'No'}`}</Typography>
+                    <Typography variant="body2">{`Via middleware: ${selectedLink.hasMiddleware ? t('enums.yesNo.yes') : t('enums.yesNo.no')}`}</Typography>
                   </Stack>
                   {selectedLinkBindings.length > 0 && (
                     <Stack spacing={0.5} sx={{ mt: 1 }}>

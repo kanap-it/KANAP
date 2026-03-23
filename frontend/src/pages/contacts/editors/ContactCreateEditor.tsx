@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Autocomplete, FormControlLabel, MenuItem, Stack, Switch, TextField } from '@mui/material';
 import { Controller } from 'react-hook-form';
 import { useSearchParams } from 'react-router-dom';
@@ -35,6 +36,7 @@ export default forwardRef<ContactCreateEditorHandle, { onDirtyChange?: (dirty: b
   ref,
 ) {
   const [searchParams] = useSearchParams();
+  const { t } = useTranslation(['master-data', 'common']);
   const prefillSupplierId = searchParams.get('supplier_id') || null;
   const rawRole = searchParams.get('supplier_role') || null;
   const validRoles = ['commercial', 'technical', 'support', 'other'] as const;
@@ -96,7 +98,7 @@ export default forwardRef<ContactCreateEditorHandle, { onDirtyChange?: (dirty: b
       const res = await api.post('/contacts', values);
       return res.data?.id as string;
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to create contact';
+      const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToCreate', { entity: t('contacts.entity') });
       setServerError(msg);
       throw e;
     } finally {

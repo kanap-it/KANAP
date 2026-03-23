@@ -57,10 +57,10 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string, manager?: import('typeorm').EntityManager) {
-    if (!password || typeof password !== 'string') throw new UnauthorizedException('Invalid credentials');
+    if (!password || typeof password !== 'string') throw new UnauthorizedException({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' });
     const user = await this.users.findByEmail(email, { manager });
     if (!user || !user.password_hash || typeof user.password_hash !== 'string') {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' });
     }
     if (process.env.APP_ENV === 'development') {
       // eslint-disable-next-line no-console
@@ -77,13 +77,13 @@ export class AuthService {
     } catch {
       ok = false;
     }
-    if (!ok) throw new UnauthorizedException('Invalid credentials');
-    if (user.status !== 'enabled') throw new UnauthorizedException('User disabled');
-    if (!user.role) throw new UnauthorizedException('User disabled');
+    if (!ok) throw new UnauthorizedException({ code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' });
+    if (user.status !== 'enabled') throw new UnauthorizedException({ code: 'USER_DISABLED', message: 'User disabled' });
+    if (!user.role) throw new UnauthorizedException({ code: 'USER_DISABLED', message: 'User disabled' });
     const roleName = (user.role.role_name ?? '').toLowerCase();
     const isSystemRole = !!user.role.is_system;
     const canLogin = roleName === 'administrator' || !isSystemRole;
-    if (!canLogin) throw new UnauthorizedException('User disabled');
+    if (!canLogin) throw new UnauthorizedException({ code: 'USER_DISABLED', message: 'User disabled' });
     return user;
   }
 

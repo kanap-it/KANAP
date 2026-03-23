@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef, StatusScope } from '../components/ServerDataGrid';
 import { Button, Stack } from '@mui/material';
@@ -28,6 +29,7 @@ type BusinessProcessRow = {
 };
 
 export default function BusinessProcessesPage() {
+  const { t } = useTranslation(['master-data', 'common']);
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
 
@@ -62,7 +64,7 @@ export default function BusinessProcessesPage() {
     () => [
       {
         field: 'name',
-        headerName: 'Name',
+        headerName: t('shared.columns.name'),
         flex: 1,
         required: true,
         cellRenderer: (params: any) => (
@@ -71,7 +73,7 @@ export default function BusinessProcessesPage() {
       },
       {
         field: 'primary_category_name',
-        headerName: 'Categories',
+        headerName: t('businessProcesses.columns.categories'),
         flex: 1,
         valueFormatter: (p: any) => {
           const cats: Array<{ name: string }> = Array.isArray(p.data?.categories) ? p.data.categories : [];
@@ -85,7 +87,7 @@ export default function BusinessProcessesPage() {
       },
       {
         field: 'owner_name',
-        headerName: 'Process Owner',
+        headerName: t('businessProcesses.columns.processOwner'),
         width: 220,
         valueGetter: (p: any) => p.data?.owner_name || '',
         cellRenderer: (params: any) => (
@@ -94,7 +96,7 @@ export default function BusinessProcessesPage() {
       },
       {
         field: 'status',
-        headerName: 'Status',
+        headerName: t('shared.columns.status'),
         width: 140,
         filter: 'agSetColumnFilter',
         filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
@@ -105,7 +107,7 @@ export default function BusinessProcessesPage() {
       },
       {
         field: 'updated_at',
-        headerName: 'Updated',
+        headerName: t('shared.columns.updated'),
         width: 200,
         valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
         cellRenderer: (params: any) => (
@@ -131,16 +133,16 @@ export default function BusinessProcessesPage() {
             navigate(`/master-data/business-processes/new/overview?${sp.toString()}`);
           }}
         >
-          New
+          {t('shared.labels.new')}
         </Button>
       )}
       {canManageCategories && (
         <Button onClick={() => setCategoryManagerOpen(true)}>
-          Manage Categories
+          {t('businessProcesses.manageCategories')}
         </Button>
       )}
-      {canAdmin && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canAdmin && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canAdmin && <Button onClick={() => setImportOpen(true)}>{t('shared.labels.importCsv')}</Button>}
+      {canAdmin && <Button onClick={() => setExportOpen(true)}>{t('shared.labels.exportCsv')}</Button>}
       {canAdmin && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
@@ -158,7 +160,7 @@ export default function BusinessProcessesPage() {
 
   return (
     <>
-      <PageHeader title="Business Processes" actions={actions} />
+      <PageHeader title={t("businessProcesses.title")} actions={actions} />
       <ServerDataGrid<BusinessProcessRow>
         columns={columns}
         endpoint="/business-processes"
@@ -186,13 +188,13 @@ export default function BusinessProcessesPage() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         endpoint="/business-processes"
-        title="Export Business Processes"
+        title={t("businessProcesses.export")}
       />
       <CsvImportDialog
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/business-processes"
-        title="Import Business Processes"
+        title={t("businessProcesses.import")}
         onImported={() => setRefreshKey((k) => k + 1)}
       />
       <BusinessProcessCategoryManagerDialog

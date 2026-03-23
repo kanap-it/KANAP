@@ -1,5 +1,6 @@
 import React from 'react';
 import { Autocomplete, TextField, CircularProgress, Chip, Box } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
 
@@ -34,6 +35,7 @@ const CapexSelect = React.forwardRef<HTMLInputElement, CapexSelectProps>(functio
   },
   ref,
 ) {
+  const { t } = useTranslation(['ops']);
   const { data: items, isLoading } = useQuery({
     queryKey: ['capex-items', 'list'],
     queryFn: async () => {
@@ -116,7 +118,7 @@ const CapexSelect = React.forwardRef<HTMLInputElement, CapexSelectProps>(functio
           (option.supplier_name && option.supplier_name.toLowerCase().includes(searchTerm))
         );
       }}
-      noOptionsText={isLoading ? "Loading..." : "No CAPEX items found"}
+      noOptionsText={isLoading ? t('common:status.loading') : t('shared.noCapexItemsFound')}
       fullWidth
     />
   );

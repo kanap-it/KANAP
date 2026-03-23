@@ -14,8 +14,11 @@ import {
   LinkedInterfaceBinding,
   TabKey,
 } from './components/connection-workspace';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 export default function ConnectionWorkspacePage() {
+  const { t } = useTranslation(['it', 'common']);
   const { id: idParam, tab: tabParam } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -314,10 +317,10 @@ export default function ConnectionWorkspacePage() {
         const linksRes = await api.get<{ items: LinkedInterfaceBinding[] }>(`/connections/${id}/interface-links`);
         setLinkedBindings(linksRes.data.items || []);
       } catch (e: any) {
-        setLinkedBindingsError(e?.response?.data?.message || e?.message || 'Failed to load linked interfaces');
+        setLinkedBindingsError(getApiErrorMessage(e, t, t('messages.loadLinkedInterfacesFailed')));
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load connection');
+      setError(getApiErrorMessage(e, t, t('messages.loadConnectionFailed')));
       setData(null);
       setLegsDraft([]);
       setLegsDirty(false);
@@ -467,7 +470,7 @@ export default function ConnectionWorkspacePage() {
         await load();
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save connection');
+      setError(getApiErrorMessage(e, t, t('messages.saveConnectionFailed')));
     } finally {
       setSaving(false);
     }
@@ -540,7 +543,7 @@ export default function ConnectionWorkspacePage() {
       setLegsDirty(false);
       setData((prev) => (prev ? { ...prev, legs: nextLegs } as ConnectionDetail : prev));
     } catch (e: any) {
-      setLegsError(e?.response?.data?.message || e?.message || 'Failed to save layers');
+      setLegsError(getApiErrorMessage(e, t, t('messages.saveLayersFailed')));
     } finally {
       setLegsSaving(false);
     }
@@ -565,7 +568,7 @@ export default function ConnectionWorkspacePage() {
 
   const handleClose = async () => {
     if (dirty || legsDirty) {
-      const confirm = window.confirm('You have unsaved changes. Do you want to leave without saving?');
+      const confirm = window.confirm(t('confirmations.unsavedLeave'));
       if (!confirm) return;
     }
     navigate('/it/connections');
@@ -573,7 +576,7 @@ export default function ConnectionWorkspacePage() {
 
   const handleTabChange = (newTab: string) => {
     if (dirty || legsDirty) {
-      const confirmLeave = window.confirm('You have unsaved changes. Leave this tab?');
+      const confirmLeave = window.confirm(t('confirmations.unsavedLeaveTab'));
       if (!confirmLeave) return;
     }
     navigate(`/it/connections/${id}/${newTab}`);
@@ -673,7 +676,7 @@ export default function ConnectionWorkspacePage() {
 
   return (
     <WorkspaceLayout
-      title={isCreate ? 'New Connection' : current?.name || 'Connection'}
+      title={isCreate ? t('workspace.connection.newTitle') : current?.name || t('workspace.connection.title')}
       tabs={tabs}
       currentTab={tab}
       onTabChange={handleTabChange}

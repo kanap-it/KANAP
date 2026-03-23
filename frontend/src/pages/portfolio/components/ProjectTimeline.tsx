@@ -7,10 +7,12 @@ import {
 } from '@mui/material';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import { useTranslation } from 'react-i18next';
 import { Gantt } from '@svar-ui/react-gantt';
 import '@svar-ui/react-gantt/style.css';
 import api from '../../../api';
 import LightModeIsland from '../../../components/LightModeIsland';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 interface ProjectPhase {
   id: string;
@@ -36,6 +38,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableView }: Props) {
+  const { t } = useTranslation(['portfolio', 'errors']);
   const [viewMode, setViewMode] = useState<'table' | 'gantt'>('table');
 
   // Transform phases to Gantt format (only phases with dates)
@@ -74,7 +77,7 @@ export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableV
 
     // Validate end >= start
     if (task.end < task.start) {
-      alert('End date cannot be before start date');
+      alert(t('workspace.project.timeline.messages.invalidDateRange'));
       onUpdate();
       return;
     }
@@ -85,10 +88,10 @@ export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableV
       });
       onUpdate();
     } catch (e: any) {
-      alert(e?.response?.data?.message || 'Failed to update phase dates');
+      alert(getApiErrorMessage(e, t, t('workspace.project.timeline.messages.updatePhaseFailed')));
       onUpdate();
     }
-  }, [projectId, onUpdate, canManage]);
+  }, [projectId, onUpdate, canManage, t]);
 
   // Custom task template for status colors
   const taskTemplate = useCallback(({ data }: { data: any }) => {
@@ -128,11 +131,11 @@ export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableV
           >
             <ToggleButton value="table">
               <ViewListIcon sx={{ mr: 0.5 }} fontSize="small" />
-              Table
+              {t('workspace.project.timeline.views.table')}
             </ToggleButton>
             <ToggleButton value="gantt">
               <BarChartIcon sx={{ mr: 0.5 }} fontSize="small" />
-              Gantt
+              {t('workspace.project.timeline.views.gantt')}
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
@@ -147,9 +150,9 @@ export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableV
           <Box sx={{ height: 400 }}>
             {ganttTasks.length === 0 ? (
               <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-                <Typography variant="body1">No phases with planned dates</Typography>
+                <Typography variant="body1">{t('workspace.project.timeline.states.noPlannedPhases')}</Typography>
                 <Typography variant="body2">
-                  Set planned start and end dates on phases to see them on the Gantt chart.
+                  {t('workspace.project.timeline.states.noPlannedPhasesHelp')}
                 </Typography>
               </Box>
             ) : (
@@ -163,7 +166,7 @@ export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableV
                   cellWidth={40}
                   cellHeight={38}
                   columns={[
-                    { id: 'text', header: 'Phase', width: 180, flexgrow: 1 },
+                    { id: 'text', header: t('workspace.project.fields.phase'), width: 180, flexgrow: 1 },
                   ]}
                   taskTemplate={taskTemplate}
                   readonly={!canManage}

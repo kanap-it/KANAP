@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Box, Button, Divider, IconButton, Stack, Tab, Tabs, Typography } from '@mui/material';
@@ -18,6 +19,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
 
 export default function BusinessProcessWorkspacePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['master-data', 'common']);
   const params = useParams();
   const [searchParams] = useSearchParams();
   const { hasLevel } = useAuth();
@@ -135,10 +137,10 @@ export default function BusinessProcessWorkspacePage() {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Stack>
           <Typography variant="h6">
-            {isCreate ? 'New Business Process' : data?.name || 'Business Process'}
+            {isCreate ? t('businessProcesses.newBusinessProcess') : data?.name || t('businessProcesses.businessProcessFallback')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {!isCreate && total > 0 ? `Process ${index + 1} of ${total}` : ''}
+            {!isCreate && total > 0 ? t('shared.workspace.itemCountOf', { entity: t('businessProcesses.businessProcessFallback'), current: index + 1, total }) : ''}
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
@@ -167,7 +169,7 @@ export default function BusinessProcessWorkspacePage() {
         </Stack>
       </Stack>
 
-      {!!error && <Alert severity="error">Failed to load business process.</Alert>}
+      {!!error && <Alert severity="error">{t('businessProcesses.loadError')}</Alert>}
 
       <Divider sx={{ mb: 2 }} />
 

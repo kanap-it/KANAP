@@ -20,13 +20,13 @@ export class JwtAuthGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest();
     const header = req.headers['authorization'] as string | undefined;
-    if (!header || !header.startsWith('Bearer ')) throw new UnauthorizedException('Missing token');
+    if (!header || !header.startsWith('Bearer ')) throw new UnauthorizedException({ code: 'MISSING_TOKEN', message: 'Missing token' });
     const token = header.slice('Bearer '.length);
     try {
       const secret = requireJwtSecret();
       const verified = jwt.verify(token, secret);
       if (!verified || typeof verified === 'string') {
-        throw new UnauthorizedException('Invalid token');
+        throw new UnauthorizedException({ code: 'INVALID_TOKEN', message: 'Invalid token' });
       }
 
       const payload = verified as Record<string, unknown>;
@@ -34,7 +34,7 @@ export class JwtAuthGuard implements CanActivate {
       const payloadTenantId = typeof payload.tenant_id === 'string' ? payload.tenant_id : undefined;
 
       if (!req?.isPlatformHost && requestTenantId && payloadTenantId !== requestTenantId) {
-        throw new UnauthorizedException('Invalid token');
+        throw new UnauthorizedException({ code: 'INVALID_TOKEN', message: 'Invalid token' });
       }
 
       req.user = payload;

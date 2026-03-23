@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApplicationsModule } from '../applications/applications.module';
+import { AuditModule } from '../audit/audit.module';
 import { AssetsModule } from '../assets/assets.module';
 import { Subscription } from '../billing/subscription.entity';
 import { BillingModule } from '../billing/billing.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
+import { LocationsModule } from '../locations/locations.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { PortfolioModule } from '../portfolio/portfolio.module';
 import { SpendModule } from '../spend/spend.module';
@@ -44,6 +46,7 @@ import { OllamaAiProviderAdapter } from './providers/ollama-ai-provider.adapter'
 import { OpenAiProviderAdapter } from './providers/openai-ai-provider.adapter';
 import { AiAggregateExecutor } from './query/ai-aggregate.executor';
 import { AiQueryExecutor } from './query/ai-query.executor';
+import { BraveSearchService } from './web-search/brave-search.service';
 
 @Module({
   imports: [
@@ -57,9 +60,11 @@ import { AiQueryExecutor } from './query/ai-query.executor';
       Tenant,
     ]),
     ApplicationsModule,
+    AuditModule,
     AssetsModule,
     BillingModule,
     KnowledgeModule,
+    LocationsModule,
     PermissionsModule,
     PortfolioModule,
     SpendModule,
@@ -94,6 +99,7 @@ import { AiQueryExecutor } from './query/ai-query.executor';
     AiQueryExecutor,
     AiAggregateExecutor,
     AiToolRegistry,
+    BraveSearchService,
     McpApiKeyAuthGuard,
     AiChatOrchestratorService,
     AiSystemPromptService,

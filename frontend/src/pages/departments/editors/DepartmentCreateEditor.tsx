@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Stack, TextField } from '@mui/material';
 import { Controller } from 'react-hook-form';
 import api from '../../../api';
@@ -54,6 +55,7 @@ export default forwardRef<DepartmentCreateEditorHandle, Props>(function Departme
   ref,
 ) {
   const [saving, setSaving] = React.useState(false);
+  const { t } = useTranslation(['master-data', 'common']);
   const [serverError, setServerError] = React.useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -110,13 +112,13 @@ export default forwardRef<DepartmentCreateEditorHandle, Props>(function Departme
           onDirtyChange?.(false);
           queryClient.invalidateQueries({ queryKey: ['departments'] });
         } catch (e: any) {
-          const msg = e?.response?.data?.message || e?.message || 'Failed to create department';
+          const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToCreate', { entity: t('departments.entity') });
           setServerError(msg);
           throw e;
         }
       },
       async (errors) => {
-        setServerError('Please fix validation errors before saving.');
+        setServerError(t('shared.messages.fixValidationErrors'));
         throw errors;
       },
     );

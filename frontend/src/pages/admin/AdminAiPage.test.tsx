@@ -19,6 +19,7 @@ vi.mock('../../config/FeaturesContext', () => ({
     config: {
       features: {
         aiSettings: true,
+        aiWebSearch: false,
       },
     },
   }),
@@ -52,7 +53,7 @@ describe('AdminAiPage', () => {
         case '/ai/settings':
           return Promise.resolve({
             data: {
-              instance_features: { ai_chat: true, ai_mcp: true, ai_settings: true },
+              instance_features: { ai_chat: true, ai_mcp: true, ai_settings: true, ai_web_search: true },
               settings: {
                 chat_enabled: true,
                 mcp_enabled: true,
@@ -61,6 +62,7 @@ describe('AdminAiPage', () => {
                 llm_model: 'gpt-4o',
                 mcp_key_max_lifetime_days: 30,
                 conversation_retention_days: 14,
+                web_search_enabled: true,
                 web_enrichment_enabled: true,
                 has_llm_api_key: true,
                 provider_secret_writable: true,
@@ -130,7 +132,7 @@ describe('AdminAiPage', () => {
   it('renders settings and keys before the overview and hides recent activity', async () => {
     renderPage();
 
-    const providerSettings = await screen.findByText('Provider settings');
+    const providerSettings = await screen.findByRole('heading', { name: 'Provider' });
     const mcpKeys = await screen.findByText('MCP API Keys');
     const usageOverview = await screen.findByText('Usage Overview');
 

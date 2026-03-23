@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, Box, Button, Stack, TextField, Typography, Paper, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '../../components/PageHeader';
+import { useTranslation } from 'react-i18next';
 import useCurrencySettings from '../../hooks/useCurrencySettings';
 import { updateCurrencySettings, CurrencySettings, refreshCurrencyRates } from '../../services/currency';
 import useCurrencyRates, { CurrencyRateRow } from '../../hooks/useCurrencyRates';
@@ -16,6 +17,7 @@ function normalizeList(value: string): string[] | null {
 }
 
 export default function CurrencySettingsPage() {
+  const { t } = useTranslation(['ops']);
   const queryClient = useQueryClient();
   const { data, isLoading, isError } = useCurrencySettings();
   const { data: rateRows, isLoading: ratesLoading, isError: ratesError } = useCurrencyRates();
@@ -39,7 +41,7 @@ export default function CurrencySettingsPage() {
     onSuccess: (next: CurrencySettings) => {
       queryClient.invalidateQueries({ queryKey: ['currency-settings'] });
       queryClient.invalidateQueries({ queryKey: ['currency-rates'] });
-      setSuccessMessage('Currency settings updated successfully');
+      setSuccessMessage(t('operations.currency.saveSuccess'));
       setReportingCurrency(next.reportingCurrency);
       setDefaultSpendCurrency(next.defaultSpendCurrency);
       setDefaultCapexCurrency(next.defaultCapexCurrency);
@@ -81,11 +83,11 @@ export default function CurrencySettingsPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <PageHeader title="Currency Settings" />
+      <PageHeader title={t("operations.currency.title")} />
       <Typography variant="body1" color="text.secondary">
-        Configure reporting and default currencies used across OPEX and CAPEX workflows. All values are saved as three-letter ISO codes.
+        {t('operations.currency.subtitle')}
       </Typography>
-      {isError && <Alert severity="error">Failed to load current currency settings.</Alert>}
+      {isError && <Alert severity="error">{t('operations.currency.loadError')}</Alert>}
       {successMessage && <Alert severity="success">{successMessage}</Alert>}
       {syncMutation.isPending && <Alert severity="info">Refreshing FX rates…</Alert>}
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
@@ -99,7 +101,7 @@ export default function CurrencySettingsPage() {
             inputProps={{ maxLength: 3 }}
             required
             disabled={isLoading || submitting}
-            helperText="Primary currency used for reports and totals"
+            helperText={t('operations.currency.reportingCurrencyHelp')}
           />
           <TextField
             label="Default OPEX Currency"
@@ -108,7 +110,7 @@ export default function CurrencySettingsPage() {
             inputProps={{ maxLength: 3 }}
             required
             disabled={isLoading || submitting}
-            helperText="Prefills currency when creating new spend items"
+            helperText={t('operations.currency.defaultOpexCurrencyHelp')}
           />
           <TextField
             label="Default CAPEX Currency"
@@ -117,14 +119,14 @@ export default function CurrencySettingsPage() {
             inputProps={{ maxLength: 3 }}
             required
             disabled={isLoading || submitting}
-            helperText="Prefills currency when creating new CAPEX items"
+            helperText={t('operations.currency.defaultCapexCurrencyHelp')}
           />
           <TextField
             label="Allowed Currencies"
             value={allowedCurrencies}
             onChange={(e) => setAllowedCurrencies(e.target.value)}
             disabled={isLoading || submitting}
-            helperText="Optional comma-separated list (e.g. EUR, USD, GBP)"
+            helperText={t('operations.currency.allowedCurrenciesHelp')}
           />
           <Stack direction="row" spacing={1}>
             <Button type="submit" variant="contained" disabled={isLoading || submitting || syncMutation.isPending}>

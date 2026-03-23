@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Stack, TextField, Typography } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -42,6 +43,7 @@ export default forwardRef<BusinessProcessOverviewEditorHandle, Props>(function B
   ref,
 ) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['master-data', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
@@ -87,7 +89,7 @@ export default forwardRef<BusinessProcessOverviewEditorHandle, Props>(function B
         onDirtyChange?.(false);
       } catch (e: any) {
         if (!active) return;
-        const msg = e?.response?.data?.message || e?.message || 'Failed to load business process';
+        const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToLoad', { entity: t('businessProcesses.entity') });
         setServerError(msg);
       } finally {
         if (active) setLoading(false);
@@ -122,7 +124,7 @@ export default forwardRef<BusinessProcessOverviewEditorHandle, Props>(function B
       queryClient.invalidateQueries({ queryKey: ['business-processes'] });
       queryClient.invalidateQueries({ queryKey: ['business-processes', id] });
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save business process';
+      const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToSave', { entity: t('businessProcesses.entity') });
       setServerError(msg);
       throw e;
     } finally {
@@ -150,7 +152,7 @@ export default forwardRef<BusinessProcessOverviewEditorHandle, Props>(function B
     <Stack spacing={2}>
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
       {readOnly && (
-        <Alert severity="info">You need manager access to edit business processes.</Alert>
+        <Alert severity="info">{t('shared.messages.readOnlyAccess', { entity: t('businessProcesses.title').toLowerCase() })}</Alert>
       )}
 
       <Typography variant="subtitle2">Basic info</Typography>

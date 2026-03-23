@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Box,
@@ -32,10 +33,10 @@ import { useFreezeState } from '../../../hooks/useFreezeState';
 import { useAuth } from '../../../auth/AuthContext';
 
 const YEARS_SPAN = 7;
-const COMPANY_METRIC_OPTIONS: { value: MasterDataMetric; label: string }[] = [
-  { value: 'headcount', label: 'Headcount' },
-  { value: 'it_users', label: 'IT Users' },
-  { value: 'turnover', label: 'Turnover' },
+const COMPANY_METRIC_KEYS: { value: MasterDataMetric; labelKey: string }[] = [
+  { value: 'headcount', labelKey: 'admin.copy.metrics.headcount' },
+  { value: 'it_users', labelKey: 'admin.copy.metrics.itUsers' },
+  { value: 'turnover', labelKey: 'admin.copy.metrics.turnover' },
 ];
 
 type ScopeOption = 'companies' | 'departments';
@@ -47,9 +48,9 @@ function useYearOptions() {
   return React.useMemo(() => Array.from({ length: YEARS_SPAN }, (_, idx) => currentYear - 1 + idx), [currentYear]);
 }
 
-function metricLabel(metric: MasterDataMetric) {
-  const entry = COMPANY_METRIC_OPTIONS.find((m) => m.value === metric);
-  return entry ? entry.label : metric;
+function metricLabel(metric: MasterDataMetric, t: any) {
+  const entry = COMPANY_METRIC_KEYS.find((m) => m.value === metric);
+  return entry ? t(entry.labelKey) : metric;
 }
 
 function formatValue(value: number | null, metric: MasterDataMetric) {
@@ -62,6 +63,7 @@ function formatValue(value: number | null, metric: MasterDataMetric) {
 
 export default function MasterDataCopyPage() {
   const theme = useTheme();
+  const { t } = useTranslation(['master-data', 'common']);
   const years = useYearOptions();
   const { hasLevel } = useAuth();
   const canManageCompanies = hasLevel('companies', 'admin') || hasLevel('budget_ops', 'admin');
@@ -112,28 +114,28 @@ export default function MasterDataCopyPage() {
   const columns = React.useMemo<ColDef[]>(() => [
     {
       field: 'entityType',
-      headerName: 'Type',
+      headerName: t('admin.copy.columns.type'),
       width: 120,
-      valueFormatter: (params) => (params.value === 'company' ? 'Company' : 'Department'),
+      valueFormatter: (params) => (params.value === 'company' ? t('admin.copy.entityTypes.company') : t('admin.copy.entityTypes.department')),
       cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : undefined,
     },
     {
       field: 'entityName',
-      headerName: 'Name',
+      headerName: t('admin.copy.columns.name'),
       flex: 1,
       minWidth: 220,
       cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : undefined,
     },
     {
       field: 'metric',
-      headerName: 'Metric',
+      headerName: t('admin.copy.columns.metric'),
       width: 160,
-      valueFormatter: (params) => metricLabel(params.value as MasterDataMetric),
+      valueFormatter: (params) => metricLabel(params.value as MasterDataMetric, t),
       cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : undefined,
     },
     {
       field: 'sourceValue',
-      headerName: 'Source Value',
+      headerName: t('admin.copy.columns.sourceValue'),
       width: 160,
       type: 'rightAligned',
       valueFormatter: (params) => formatValue(params.value ?? null, params.data.metric),
@@ -141,7 +143,7 @@ export default function MasterDataCopyPage() {
     },
     {
       field: 'destinationValue',
-      headerName: 'Current Destination',
+      headerName: t('admin.copy.columns.currentDestination'),
       width: 180,
       type: 'rightAligned',
       valueFormatter: (params) => formatValue(params.value ?? null, params.data.metric),
@@ -149,7 +151,7 @@ export default function MasterDataCopyPage() {
     },
     {
       field: 'newValue',
-      headerName: 'New Value',
+      headerName: t('admin.copy.columns.newValue'),
       width: 160,
       type: 'rightAligned',
       valueFormatter: (params) => formatValue(params.value ?? null, params.data.metric),
@@ -166,14 +168,14 @@ export default function MasterDataCopyPage() {
     },
     {
       field: 'reason',
-      headerName: 'Status',
+      headerName: t('admin.copy.columns.status'),
       flex: 1,
       minWidth: 200,
       valueGetter: (params) => {
         if (params.data?.skipped) {
-          return params.data.reason ?? 'Skipped';
+          return params.data.reason ?? t('admin.copy.status.skipped');
         }
-        return 'Ready to copy';
+        return t('admin.copy.status.readyToCopy');
       },
       cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : { color: theme.palette.success.dark },
     },
@@ -213,12 +215,12 @@ export default function MasterDataCopyPage() {
       setErrors(response.errors ?? []);
       setHasPreview(true);
       if (!response.success && response.errors.length > 0) {
-        setFeedback({ type: 'error', message: 'Copy operation encountered errors. Review the details below.' });
+        setFeedback({ type: 'error', message: t('admin.copy.copyErrors') });
       } else {
-        setFeedback({ type: dryRun ? 'success' : 'success', message: dryRun ? 'Dry run completed.' : 'Copy completed successfully.' });
+        setFeedback({ type: dryRun ? 'success' : 'success', message: dryRun ? t('admin.copy.dryRunCompleted') : t('admin.copy.copyCompleted') });
       }
     } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Operation failed.';
+      const message = err?.response?.data?.message || err?.message || t('admin.copy.operationFailed');
       setFeedback({ type: 'error', message });
     } finally {
       setIsProcessing(false);
@@ -241,19 +243,19 @@ export default function MasterDataCopyPage() {
   const summaryCards = (
     <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' } }}>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <Typography variant="body2" color="text.secondary">Total rows</Typography>
+        <Typography variant="body2" color="text.secondary">{t('admin.copy.summary.totalRows')}</Typography>
         <Typography variant="subtitle2">{summary?.totalItems.toLocaleString() ?? '0'}</Typography>
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <Typography variant="body2" color="text.secondary">Ready to copy</Typography>
+        <Typography variant="body2" color="text.secondary">{t('admin.copy.summary.readyToCopy')}</Typography>
         <Typography variant="subtitle2" sx={{ color: 'success.main' }}>{summary?.processed.toLocaleString() ?? '0'}</Typography>
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <Typography variant="body2" color="text.secondary">Skipped</Typography>
+        <Typography variant="body2" color="text.secondary">{t('admin.copy.summary.skipped')}</Typography>
         <Typography variant="subtitle2" sx={{ color: 'warning.main' }}>{summary?.skipped.toLocaleString() ?? '0'}</Typography>
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <Typography variant="body2" color="text.secondary">Errors</Typography>
+        <Typography variant="body2" color="text.secondary">{t('admin.copy.summary.errors')}</Typography>
         <Typography variant="subtitle2" sx={{ color: 'error.main' }}>{summary?.errors.toLocaleString() ?? '0'}</Typography>
       </Box>
     </Box>
@@ -261,14 +263,14 @@ export default function MasterDataCopyPage() {
 
   return (
     <ReportLayout
-      title="Master Data Copy"
-      subtitle="Copy company and department metrics between years with a dry run preview"
+      title={t('admin.copy.title')}
+      subtitle={t('admin.copy.subtitle')}
       filters={
         <>
           <TextField
             select
             size="small"
-            label="Source Year"
+            label={t('admin.copy.sourceYear')}
             value={sourceYear}
             onChange={(e) => setSourceYear(Number(e.target.value))}
             sx={{ width: 150 }}
@@ -278,30 +280,30 @@ export default function MasterDataCopyPage() {
             ))}
           </TextField>
           <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel id="master-data-scope-label">Data Sources</InputLabel>
+            <InputLabel id="master-data-scope-label">{t('admin.copy.dataSources')}</InputLabel>
             <Select
               labelId="master-data-scope-label"
               multiple
               value={selectedScopes}
               onChange={handleScopeChange}
-              label="Data Sources"
+              label={t('admin.copy.dataSources')}
               renderValue={(selected) => (
                 <Stack direction="row" spacing={0.5} flexWrap="wrap">
                   {selected.map((value) => (
-                    <Chip key={value} size="small" label={value === 'companies' ? 'Companies' : 'Departments'} sx={{ mr: 0.5, mb: 0.5 }} />
+                    <Chip key={value} size="small" label={value === 'companies' ? t('admin.freeze.scopeCompanies') : t('admin.freeze.scopeDepartments')} sx={{ mr: 0.5, mb: 0.5 }} />
                   ))}
                 </Stack>
               )}
             >
               <MenuItem value="companies" disabled={disabledScopes.companies}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip size="small" label="Companies" />
-                  {disabledScopes.companies && <Typography variant="caption" color="text.secondary">No admin access</Typography>}
+                  <Chip size="small" label={t('admin.freeze.scopeCompanies')} />
+                  {disabledScopes.companies && <Typography variant="caption" color="text.secondary">{t('admin.copy.noAdminAccess')}</Typography>}
                 </Stack>
               </MenuItem>
               <MenuItem value="departments" disabled={disabledScopes.departments}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip size="small" label="Departments" />
+                  <Chip size="small" label={t('admin.freeze.scopeDepartments')} />
                   {disabledScopes.departments && <Typography variant="caption" color="text.secondary">No admin access</Typography>}
                 </Stack>
               </MenuItem>
@@ -310,7 +312,7 @@ export default function MasterDataCopyPage() {
           <TextField
             select
             size="small"
-            label="Destination Year"
+            label={t('admin.copy.destinationYear')}
             value={destinationYear}
             onChange={(e) => setDestinationYear(Number(e.target.value))}
             sx={{ width: 170 }}
@@ -321,18 +323,18 @@ export default function MasterDataCopyPage() {
           </TextField>
           {includeCompanies && (
             <FormControl size="small" sx={{ minWidth: 220 }}>
-              <InputLabel id="company-metrics-label">Company Metrics</InputLabel>
+              <InputLabel id="company-metrics-label">{t('admin.copy.companyMetrics')}</InputLabel>
               <Select
                 labelId="company-metrics-label"
                 multiple
                 value={companyMetrics}
                 onChange={handleMetricChange}
-                label="Company Metrics"
-                renderValue={(selected) => selected.map(metricLabel).join(', ')}
+                label={t('admin.copy.companyMetrics')}
+                renderValue={(selected) => selected.map((m) => metricLabel(m, t)).join(', ')}
               >
-                {COMPANY_METRIC_OPTIONS.map((option) => (
+                {COMPANY_METRIC_KEYS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
-                    <Chip size="small" label={option.label} />
+                    <Chip size="small" label={t(option.labelKey)} />
                   </MenuItem>
                 ))}
               </Select>
@@ -348,7 +350,7 @@ export default function MasterDataCopyPage() {
             disabled={disableActions}
             startIcon={isProcessing ? <CircularProgress size={16} /> : undefined}
           >
-            {isProcessing && !hasPreview ? 'Processing…' : 'Dry Run'}
+            {isProcessing && !hasPreview ? t('admin.copy.processing') : t('admin.copy.dryRunBtn')}
           </Button>
           <Button
             variant="contained"
@@ -357,7 +359,7 @@ export default function MasterDataCopyPage() {
             disabled={disableCopy}
             startIcon={isProcessing && hasPreview ? <CircularProgress size={16} /> : undefined}
           >
-            {isProcessing && hasPreview ? 'Copying…' : 'Copy Data'}
+            {isProcessing && hasPreview ? t('admin.copy.copyingBtn') : t('admin.copy.copyDataBtn')}
           </Button>
         </Stack>
       }
@@ -367,25 +369,25 @@ export default function MasterDataCopyPage() {
         {hasFrozenBlocking && (
           <Alert severity="error">
             {blockedScopes.map((scope) => scope === 'companies'
-              ? `Company metrics for ${destinationYear} are frozen. Unfreeze them before copying.`
-              : `Department metrics for ${destinationYear} are frozen. Unfreeze them before copying.`
+              ? t('admin.copy.frozenCompanies', { year: destinationYear })
+              : t('admin.copy.frozenDepartments', { year: destinationYear })
             ).join(' ')}
           </Alert>
         )}
         {includeCompanies && companyMetrics.length === 0 && (
-          <Alert severity="warning">Select at least one company metric to copy.</Alert>
+          <Alert severity="warning">{t('admin.copy.selectMetricWarning')}</Alert>
         )}
         {feedback && (
           <Alert severity={feedback.type} onClose={() => setFeedback(null)}>{feedback.message}</Alert>
         )}
         {errors.length > 0 && (
           <Alert severity="error">
-            {errors.length === 1 ? 'One item failed to copy.' : `${errors.length} items failed to copy.`}
-            Review the table for details.
+            {errors.length === 1 ? t('admin.copy.oneItemFailed') : t('admin.copy.multipleItemsFailed', { count: errors.length })}
+            {' '}{t('admin.copy.reviewTable')}
           </Alert>
         )}
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Data Preview</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t('admin.copy.dataPreview')}</Typography>
           <Box component={AgGridBox}>
             <AgGridReact
               rowData={previewData}
@@ -400,11 +402,11 @@ export default function MasterDataCopyPage() {
         </Paper>
         {previewData.length === 0 && (
           <Typography variant="body2" color="text.secondary">
-            Run a dry run to preview the data that will be copied.
+            {t('admin.copy.dryRunHint')}
           </Typography>
         )}
         {isProcessing && (
-          <Typography variant="body2" color="text.secondary">Processing…</Typography>
+          <Typography variant="body2" color="text.secondary">{t('admin.copy.processing')}</Typography>
         )}
       </Stack>
     </ReportLayout>

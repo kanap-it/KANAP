@@ -19,6 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import PageHeader from '../../components/PageHeader';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import { FreezeColumn, FreezeScope, freezeTargets, FreezeTarget, unfreezeTargets, FreezeStateResponse } from '../../services/freeze';
 import { useFreezeState } from '../../hooks/useFreezeState';
@@ -44,6 +45,7 @@ const defaultColumns: ScopedColumns = {
 };
 
 export default function BudgetFreezePage() {
+  const { t } = useTranslation(['ops']);
   const years = useYearOptions();
   const { hasLevel } = useAuth();
   const canModify = hasLevel('budget_ops', 'admin');
@@ -58,10 +60,10 @@ export default function BudgetFreezePage() {
     mutationFn: async (targets: FreezeTarget[]) => freezeTargets(year, targets),
     onSuccess: (res: FreezeStateResponse) => {
       queryClient.setQueryData(['freeze-state', year], res);
-      setFeedback({ type: 'success', message: 'Columns frozen successfully.' });
+      setFeedback({ type: 'success', message: t('operations.freeze.frozenSuccess') });
     },
     onError: (err: any) => {
-      setFeedback({ type: 'error', message: err?.response?.data?.message || err?.message || 'Unable to freeze columns.' });
+      setFeedback({ type: 'error', message: err?.response?.data?.message || err?.message || t('operations.freeze.freezeError') });
     }
   });
 
@@ -69,10 +71,10 @@ export default function BudgetFreezePage() {
     mutationFn: async (targets: FreezeTarget[]) => unfreezeTargets(year, targets),
     onSuccess: (res: FreezeStateResponse) => {
       queryClient.setQueryData(['freeze-state', year], res);
-      setFeedback({ type: 'success', message: 'Columns unfrozen successfully.' });
+      setFeedback({ type: 'success', message: t('operations.freeze.unfrozenSuccess') });
     },
     onError: (err: any) => {
-      setFeedback({ type: 'error', message: err?.response?.data?.message || err?.message || 'Unable to unfreeze columns.' });
+      setFeedback({ type: 'error', message: err?.response?.data?.message || err?.message || t('operations.freeze.unfreezeError') });
     }
   });
 
@@ -126,7 +128,7 @@ export default function BudgetFreezePage() {
       <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
         <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{label}</Typography>
         <Typography variant="body2" color={info?.frozen ? 'error.main' : 'text.secondary'}>
-          {info?.frozen ? 'Frozen' : 'Editable'}
+          {info?.frozen ? t('operations.freeze.frozen') : t('operations.freeze.editable')}
         </Typography>
       </Box>
     );
@@ -135,13 +137,13 @@ export default function BudgetFreezePage() {
       <Stack spacing={2}>
         <Card variant="outlined">
           <CardContent>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>OPEX Columns</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('operations.freeze.opexColumns')}</Typography>
             {OPEX_COLUMNS.map((col) => columnStatus(col, scopeSummary.opex[col]))}
           </CardContent>
         </Card>
         <Card variant="outlined">
           <CardContent>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>CAPEX Columns</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('operations.freeze.capexColumns')}</Typography>
             {CAPEX_COLUMNS.map((col) => columnStatus(col, scopeSummary.capex[col]))}
           </CardContent>
         </Card>
@@ -151,17 +153,17 @@ export default function BudgetFreezePage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <PageHeader title="Freeze / Unfreeze Data" />
+      <PageHeader title={t("operations.freeze.title")} />
       {!canModify && (
         <Alert severity="info" sx={{ maxWidth: 600 }}>
-          You need Budget Admin permissions to freeze or unfreeze data. You can still review the current freeze status below.
+          {t('operations.freeze.noPermission')}
         </Alert>
       )}
       {feedback && (
         <Alert severity={feedback.type} onClose={() => setFeedback(null)}>{feedback.message}</Alert>
       )}
       {error && (
-        <Alert severity="error">Failed to load freeze status. Try selecting a different year.</Alert>
+        <Alert severity="error">{t('operations.freeze.loadError')}</Alert>
       )}
       <Card variant="outlined">
         <CardContent>

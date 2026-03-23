@@ -78,7 +78,12 @@ export class AiApiKeysController {
       if (!key || key.tenant_id !== context.tenantId || key.user_id !== context.userId) {
         throw new ForbiddenException('Key not found or access denied.');
       }
-      return this.apiKeys.revokeKey(id, { manager });
+      return this.apiKeys.revokeKey(id, {
+        manager,
+        userId: context.userId,
+        tenantId: context.tenantId,
+        revocationReason: 'user_self_service',
+      });
     });
   }
 
@@ -101,7 +106,12 @@ export class AiApiKeysController {
       if (!key || key.tenant_id !== context.tenantId) {
         throw new ForbiddenException('Key not found.');
       }
-      return this.apiKeys.revokeKey(id, { manager });
+      return this.apiKeys.revokeKey(id, {
+        manager,
+        userId: context.userId,
+        tenantId: context.tenantId,
+        revocationReason: 'admin_revocation',
+      });
     });
   }
 }

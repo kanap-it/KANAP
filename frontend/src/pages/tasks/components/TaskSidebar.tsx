@@ -13,6 +13,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import DateEUField from '../../../components/fields/DateEUField';
@@ -22,7 +23,7 @@ import RelatedObjectSelect, { RelatedObjectType } from '../../../components/fiel
 import CompanySelect from '../../../components/fields/CompanySelect';
 import TaskLogTimeDialog from './TaskLogTimeDialog';
 import { useAuth } from '../../../auth/AuthContext';
-import { TASK_STATUS_OPTIONS } from '../task.constants';
+import { getPriorityLabel, getTaskStatusOptions } from '../../../utils/portfolioI18n';
 import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
 
 const compactFieldSx = {
@@ -93,14 +94,6 @@ function withCurrentOption(
   return [...options, { value: currentId, label: currentLabel || currentId }];
 }
 
-const PRIORITY_OPTIONS = [
-  { label: 'Blocker (+10)', value: 'blocker' },
-  { label: 'High (+5)', value: 'high' },
-  { label: 'Normal (0)', value: 'normal' },
-  { label: 'Low (-5)', value: 'low' },
-  { label: 'Optional (-10)', value: 'optional' },
-];
-
 interface TaskData {
   id: string;
   status: string;
@@ -165,6 +158,7 @@ export default function TaskSidebar({
   onRelationChange,
   projectWorkspaceLink = null,
 }: TaskSidebarProps) {
+  const { t } = useTranslation('portfolio');
   const { hasLevel } = useAuth();
   const queryClient = useQueryClient();
   const [logTimeOpen, setLogTimeOpen] = React.useState(false);
@@ -182,6 +176,21 @@ export default function TaskSidebar({
   const canLogTime = isProjectTask ? canManageProjectEntries : canManageStandaloneEntries;
   const canCreateKnowledge = hasLevel('knowledge', 'member');
   const showKnowledge = !isCreate && !!task.id;
+  const relatedTypeLabels = React.useMemo(() => ({
+    project: t('workspace.task.sidebar.values.relatedTypes.project'),
+    spend_item: t('workspace.task.sidebar.values.relatedTypes.budget'),
+    contract: t('workspace.task.sidebar.values.relatedTypes.contract'),
+    capex_item: t('workspace.task.sidebar.values.relatedTypes.capex'),
+    unknown: t('workspace.task.sidebar.values.relatedTypes.related'),
+  }), [t]);
+  const priorityOptions = React.useMemo(() => ([
+    { label: t('workspace.task.sidebar.priorityOptions.blocker'), value: 'blocker' },
+    { label: t('workspace.task.sidebar.priorityOptions.high'), value: 'high' },
+    { label: t('workspace.task.sidebar.priorityOptions.normal'), value: 'normal' },
+    { label: t('workspace.task.sidebar.priorityOptions.low'), value: 'low' },
+    { label: t('workspace.task.sidebar.priorityOptions.optional'), value: 'optional' },
+  ]), [t]);
+  const statusOptions = React.useMemo(() => getTaskStatusOptions(t), [t]);
 
   // Fetch task types from classification API
   const { data: taskTypesData } = useQuery({
@@ -258,11 +267,11 @@ export default function TaskSidebar({
     const days = Math.floor(hours / 8);
     const remaining = Math.round(hours % 8);
     if (days > 0 && remaining > 0) {
-      return `${days} Day${days !== 1 ? 's' : ''} ${remaining} Hour${remaining !== 1 ? 's' : ''}`;
+      return t('workspace.task.workLog.duration.daysHours', { days, hours: remaining });
     } else if (days > 0) {
-      return `${days} Day${days !== 1 ? 's' : ''}`;
+      return t('workspace.task.workLog.duration.daysOnly', { days });
     }
-    return `${hours} Hour${hours !== 1 ? 's' : ''}`;
+    return t('workspace.task.workLog.duration.hoursOnly', { hours });
   };
 
   // Task types that don't support time logging
@@ -282,7 +291,9 @@ export default function TaskSidebar({
         sx={accordionSx}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Context</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            {t('workspace.task.sidebar.sections.context')}
+          </Typography>
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
           <Stack spacing={1.25} sx={compactFieldSx}>
@@ -300,20 +311,28 @@ export default function TaskSidebar({
             ) : isStandalone ? (
               <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.25 }}>
                 <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                  Related To
+                  {t('workspace.task.sidebar.fields.relatedTo')}
                 </Typography>
-                <Typography sx={{ ...readOnlyValueSx, fontWeight: 600 }}>Standalone task</Typography>
+                <Typography sx={{ ...readOnlyValueSx, fontWeight: 600 }}>
+                  {t('workspace.task.sidebar.values.standaloneTask')}
+                </Typography>
               </Box>
             ) : (
               <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.25 }}>
                 <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                  Related To
+                  {t('workspace.task.sidebar.fields.relatedTo')}
                 </Typography>
                 <Box sx={{ mt: 0.25 }}>
                   <Typography component="span" fontWeight="bold">
-                    {isProjectTask ? 'Project' : task.related_object_type === 'spend_item' ? 'Budget' :
-                     task.related_object_type === 'contract' ? 'Contract' :
-                     task.related_object_type === 'capex_item' ? 'CAPEX' : 'Related'}
+                    {isProjectTask
+                      ? relatedTypeLabels.project
+                      : task.related_object_type === 'spend_item'
+                      ? relatedTypeLabels.spend_item
+                      : task.related_object_type === 'contract'
+                      ? relatedTypeLabels.contract
+                      : task.related_object_type === 'capex_item'
+                      ? relatedTypeLabels.capex_item
+                      : relatedTypeLabels.unknown}
                   </Typography>
                   <Typography component="span"> : </Typography>
                   <Typography
@@ -325,7 +344,7 @@ export default function TaskSidebar({
                         '#'}
                     sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
                   >
-                    {task.related_object_name || 'Unknown'}
+                    {task.related_object_name || t('workspace.task.sidebar.values.unknown')}
                   </Typography>
                 </Box>
               </Box>
@@ -334,16 +353,20 @@ export default function TaskSidebar({
             {isProjectTask && (
               readOnly ? (
                 <Box>
-                  <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Phase</Typography>
-                  <Typography sx={readOnlyValueSx}>{task.phase_name || 'Project-level'}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
+                    {t('workspace.task.sidebar.fields.phase')}
+                  </Typography>
+                  <Typography sx={readOnlyValueSx}>
+                    {task.phase_name || t('workspace.task.sidebar.values.projectLevel')}
+                  </Typography>
                 </Box>
               ) : (
                 <EnumAutocomplete
-                  label="Phase"
+                  label={t('workspace.task.sidebar.fields.phase')}
                   value={task.phase_id || ''}
                   onChange={(v) => onChange('phase_id', v || null)}
                   options={[
-                    { label: 'Project-level', value: '' },
+                    { label: t('workspace.task.sidebar.values.projectLevel'), value: '' },
                     ...phases.map((p) => ({ label: p.name, value: p.id })),
                   ]}
                   size="small"
@@ -365,20 +388,24 @@ export default function TaskSidebar({
         sx={accordionSx}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Task Details</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            {t('workspace.task.sidebar.sections.details')}
+          </Typography>
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
           <Stack spacing={1.25} sx={compactFieldSx}>
             {readOnly ? (
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Task Type</Typography>
+                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
+                  {t('workspace.task.sidebar.fields.taskType')}
+                </Typography>
                 <Typography sx={readOnlyValueSx}>
                   {task.task_type_name || taskTypeOptions.find((o) => o.value === task.task_type_id)?.label || '-'}
                 </Typography>
               </Box>
             ) : (
               <EnumAutocomplete
-                label="Task Type"
+                label={t('workspace.task.sidebar.fields.taskType')}
                 value={task.task_type_id || ''}
                 onChange={(v) => onChange('task_type_id', v || null)}
                 options={taskTypeOptions}
@@ -388,43 +415,47 @@ export default function TaskSidebar({
 
             {readOnly ? (
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Priority</Typography>
+                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
+                  {t('workspace.task.sidebar.fields.priority')}
+                </Typography>
                 <Typography sx={readOnlyValueSx}>
-                  {PRIORITY_OPTIONS.find((o) => o.value === task.priority_level)?.label || task.priority_level}
+                  {getPriorityLabel(t, task.priority_level)}
                 </Typography>
               </Box>
             ) : (
               <EnumAutocomplete
-                label="Priority"
+                label={t('workspace.task.sidebar.fields.priority')}
                 value={task.priority_level}
                 onChange={(v) => onChange('priority_level', v)}
-                options={PRIORITY_OPTIONS}
+                options={priorityOptions}
                 size="small"
               />
             )}
 
             {readOnly ? (
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Status</Typography>
+                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
+                  {t('workspace.task.sidebar.fields.status')}
+                </Typography>
                 <Typography sx={readOnlyValueSx}>
-                  {TASK_STATUS_OPTIONS.find((o) => o.value === task.status)?.label || task.status}
+                  {statusOptions.find((o) => o.value === task.status)?.label || task.status}
                 </Typography>
               </Box>
             ) : (
               <EnumAutocomplete
-                label="Status"
+                label={t('workspace.task.sidebar.fields.status')}
                 value={task.status}
                 onChange={(v) => {
                   if (v === 'done' && isProjectTask && totalTimeHours === 0) {
-                    alert('Cannot mark task as done without logging time. Please log time first.');
+                    alert(t('workspace.task.sidebar.messages.doneRequiresTimeAlert'));
                     return;
                   }
                   onChange('status', v);
                 }}
-                options={TASK_STATUS_OPTIONS.map((opt) => ({
+                options={statusOptions.map((opt) => ({
                   ...opt,
                   label: opt.value === 'done' && isProjectTask && totalTimeHours === 0
-                    ? `${opt.label} (requires time)`
+                    ? t('workspace.task.sidebar.values.doneRequiresTime', { status: opt.label })
                     : opt.label,
                 }))}
                 size="small"
@@ -447,21 +478,23 @@ export default function TaskSidebar({
             sx={accordionSx}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Classification</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {t('workspace.task.sidebar.sections.classification')}
+              </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0 }}>
               <Stack spacing={1.25} sx={compactFieldSx}>
                 {canEditClassification && !readOnly ? (
                   <>
                     <EnumAutocomplete
-                      label="Source"
+                      label={t('workspace.task.sidebar.fields.source')}
                       value={task.source_id || ''}
                       onChange={(v) => onChange('source_id', v || null)}
                       options={sourceOptions}
                       size="small"
                     />
                     <EnumAutocomplete
-                      label="Category"
+                      label={t('workspace.task.sidebar.fields.category')}
                       value={task.category_id || ''}
                       onChange={(v) => {
                         onChange('category_id', v || null);
@@ -479,7 +512,7 @@ export default function TaskSidebar({
                       size="small"
                     />
                     <EnumAutocomplete
-                      label="Stream"
+                      label={t('workspace.task.sidebar.fields.stream')}
                       value={task.stream_id || ''}
                       onChange={(v) => onChange('stream_id', v || null)}
                       options={streamOptions}
@@ -487,7 +520,7 @@ export default function TaskSidebar({
                       disabled={!task.category_id}
                     />
                     <CompanySelect
-                      label="Company"
+                      label={t('workspace.task.sidebar.fields.company')}
                       value={task.company_id || null}
                       onChange={(v) => onChange('company_id', v)}
                       size="small"
@@ -497,31 +530,39 @@ export default function TaskSidebar({
                   <>
                     {task.source_name && (
                       <Box>
-                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Source</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
+                          {t('workspace.task.sidebar.fields.source')}
+                        </Typography>
                         <Typography variant="body2" sx={readOnlyValueSx}>{task.source_name}</Typography>
                       </Box>
                     )}
                     {task.category_name && (
                       <Box>
-                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Category</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
+                          {t('workspace.task.sidebar.fields.category')}
+                        </Typography>
                         <Typography variant="body2" sx={readOnlyValueSx}>{task.category_name}</Typography>
                       </Box>
                     )}
                     {task.stream_name && (
                       <Box>
-                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Stream</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
+                          {t('workspace.task.sidebar.fields.stream')}
+                        </Typography>
                         <Typography variant="body2" sx={readOnlyValueSx}>{task.stream_name}</Typography>
                       </Box>
                     )}
                     {task.company_name && (
                       <Box>
-                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Company</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
+                          {t('workspace.task.sidebar.fields.company')}
+                        </Typography>
                         <Typography variant="body2" sx={readOnlyValueSx}>{task.company_name}</Typography>
                       </Box>
                     )}
                     {!hasClassificationValues && (
                       <Typography variant="body2" color="text.secondary">
-                        No classification set.
+                        {t('workspace.task.sidebar.values.noClassification')}
                       </Typography>
                     )}
                   </>
@@ -545,7 +586,9 @@ export default function TaskSidebar({
             sx={accordionSx}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Time</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {t('workspace.task.sidebar.sections.time')}
+              </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0 }}>
               <Stack spacing={1.25} sx={compactFieldSx}>
@@ -555,11 +598,13 @@ export default function TaskSidebar({
                     size="small"
                     onClick={() => setLogTimeOpen(true)}
                   >
-                    Log Time
+                    {t('dialogs.logTime.actions.logTime')}
                   </Button>
                 )}
                 <Box>
-                  <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>Time Spent</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
+                    {t('workspace.task.sidebar.fields.timeSpent')}
+                  </Typography>
                   <Typography sx={{ mt: 0.25, fontSize: '1rem', fontWeight: 600 }}>
                     {formatHours(totalTimeHours)}
                   </Typography>
@@ -598,26 +643,28 @@ export default function TaskSidebar({
         sx={accordionSx}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>People</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            {t('workspace.task.sidebar.sections.people')}
+          </Typography>
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
           <Stack spacing={1.25} sx={compactFieldSx}>
             <UserSelect
-              label="Requestor"
+              label={t('workspace.task.sidebar.fields.requestor')}
               value={task.creator_id}
               onChange={(v) => onChange('creator_id', v)}
               disabled={readOnly}
               size="small"
             />
             <UserSelect
-              label="Assignee"
+              label={t('workspace.task.sidebar.fields.assignee')}
               value={task.assignee_user_id}
               onChange={(v) => onChange('assignee_user_id', v)}
               disabled={readOnly}
               size="small"
             />
             <UserMultiSelect
-              label="Viewers"
+              label={t('workspace.task.sidebar.fields.viewers')}
               value={task.viewer_ids || []}
               onChange={(v) => onChange('viewer_ids', v)}
               disabled={readOnly}
@@ -638,19 +685,21 @@ export default function TaskSidebar({
         sx={accordionSx}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Dates</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            {t('workspace.task.sidebar.sections.dates')}
+          </Typography>
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
           <Stack spacing={1.25} sx={compactFieldSx}>
             <DateEUField
-              label="Start Date"
+              label={t('workspace.task.sidebar.fields.startDate')}
               valueYmd={task.start_date || ''}
               onChangeYmd={(v) => onChange('start_date', v || null)}
               disabled={readOnly}
               size="small"
             />
             <DateEUField
-              label="Due Date"
+              label={t('workspace.task.sidebar.fields.dueDate')}
               valueYmd={task.due_date || ''}
               onChangeYmd={(v) => onChange('due_date', v || null)}
               disabled={readOnly}
@@ -671,7 +720,9 @@ export default function TaskSidebar({
             sx={accordionSx}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Knowledge</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {t('workspace.task.sidebar.sections.knowledge')}
+              </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0 }}>
               <EntityKnowledgePanel

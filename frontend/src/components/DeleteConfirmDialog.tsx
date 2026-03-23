@@ -16,6 +16,7 @@ import {
   Checkbox,
 } from '@mui/material';
 import WarningIcon from '@mui/icons-material/Warning';
+import { useTranslation } from 'react-i18next';
 
 export interface DeleteConfirmDialogProps {
   open: boolean;
@@ -38,7 +39,7 @@ export default function DeleteConfirmDialog({
   open,
   onClose,
   onConfirm,
-  title = 'Confirm Deletion',
+  title,
   message,
   itemCount,
   items = [],
@@ -46,6 +47,7 @@ export default function DeleteConfirmDialog({
   maxDisplayItems = 10,
   cascadeOption,
 }: DeleteConfirmDialogProps) {
+  const { t } = useTranslation('common');
   const [deleteRelated, setDeleteRelated] = React.useState(false);
   const displayItems = items.slice(0, maxDisplayItems);
   const hasMore = items.length > maxDisplayItems;
@@ -69,12 +71,12 @@ export default function DeleteConfirmDialog({
       <DialogTitle>
         <Box display="flex" alignItems="center" gap={1}>
           <WarningIcon color="warning" />
-          {title}
+          {title || t('delete.confirmTitle')}
         </Box>
       </DialogTitle>
       <DialogContent>
         <Alert severity="warning" sx={{ mb: 2 }}>
-          This action cannot be undone. If the item is referenced elsewhere, deletion will be blocked; otherwise it will be permanently removed.
+          {t('delete.warningMessage')}
         </Alert>
 
         {message && (
@@ -85,8 +87,8 @@ export default function DeleteConfirmDialog({
 
         <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
           {itemCount === 1
-            ? 'The following item will be deleted:'
-            : `${itemCount} items will be deleted:`}
+            ? t('delete.singleItem')
+            : t('delete.multipleItems', { count: itemCount })}
         </Typography>
 
         {displayItems.length > 0 && (
@@ -115,7 +117,7 @@ export default function DeleteConfirmDialog({
 
         {hasMore && (
           <Typography variant="caption" color="text.secondary">
-            ... and {items.length - maxDisplayItems} more item(s)
+            {t('delete.andMore', { count: items.length - maxDisplayItems })}
           </Typography>
         )}
 
@@ -140,12 +142,12 @@ export default function DeleteConfirmDialog({
         )}
 
         <Typography variant="body2" sx={{ mt: 2, fontWeight: 600 }}>
-          Are you sure you want to proceed?
+          {t('delete.confirmPrompt')}
         </Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={loading}>
-          Cancel
+          {t('buttons.cancel')}
         </Button>
         <Button
           onClick={handleConfirm}
@@ -154,7 +156,7 @@ export default function DeleteConfirmDialog({
           disabled={loading}
           startIcon={loading ? <CircularProgress size={16} /> : undefined}
         >
-          {loading ? 'Deleting...' : 'Delete'}
+          {loading ? t('status.deleting') : t('buttons.delete')}
         </Button>
       </DialogActions>
     </Dialog>

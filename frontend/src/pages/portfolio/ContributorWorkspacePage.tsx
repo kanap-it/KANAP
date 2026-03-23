@@ -9,6 +9,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import ChartCard from '../../components/reports/ChartCard';
 import EnumAutocomplete from '../../components/fields/EnumAutocomplete';
@@ -16,6 +17,7 @@ import CompanySelect from '../../components/fields/CompanySelect';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import ContributorTimeLog from './components/ContributorTimeLog';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 interface SkillProficiency {
   skill_id: string;
@@ -82,14 +84,6 @@ interface TimeStats {
   }>;
 }
 
-const PROFICIENCY_LABELS: Record<number, string> = {
-  0: 'No knowledge',
-  1: 'Basic / Theoretical',
-  2: 'Can execute with support',
-  3: 'Autonomous',
-  4: 'Expert',
-};
-
 const PROFICIENCY_MARKS = [
   { value: 0, label: '0' },
   { value: 1, label: '1' },
@@ -100,22 +94,16 @@ const PROFICIENCY_MARKS = [
 
 const formatMonth = (yearMonth: string) => {
   const date = new Date(`${yearMonth}T00:00:00Z`);
-  return date.toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return date.toLocaleString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' });
 };
 
 type ContributorTabKey = 'general' | 'skills' | 'time-logged' | 'defaults';
-
-const CONTRIBUTOR_TABS: Array<{ key: ContributorTabKey; label: string }> = [
-  { key: 'general', label: 'General' },
-  { key: 'skills', label: 'Skills' },
-  { key: 'time-logged', label: 'Time Logged' },
-  { key: 'defaults', label: 'Defaults' },
-];
 
 const isContributorTab = (value: string | undefined): value is ContributorTabKey =>
   value === 'general' || value === 'skills' || value === 'time-logged' || value === 'defaults';
 
 export default function ContributorWorkspacePage() {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const location = useLocation();
   const { id: idParam, tab } = useParams<{ id?: string; tab?: string }>();
   const navigate = useNavigate();
@@ -154,9 +142,22 @@ export default function ContributorWorkspacePage() {
   const [defaultStreamId, setDefaultStreamId] = useState('');
   const [defaultCompanyId, setDefaultCompanyId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const proficiencyLabels = useMemo<Record<number, string>>(() => ({
+    0: t('portfolio:workspace.contributor.proficiency.0'),
+    1: t('portfolio:workspace.contributor.proficiency.1'),
+    2: t('portfolio:workspace.contributor.proficiency.2'),
+    3: t('portfolio:workspace.contributor.proficiency.3'),
+    4: t('portfolio:workspace.contributor.proficiency.4'),
+  }), [t]);
+  const contributorTabs = useMemo<Array<{ key: ContributorTabKey; label: string }>>(() => ([
+    { key: 'general', label: t('portfolio:workspace.contributor.tabs.general') },
+    { key: 'skills', label: t('portfolio:workspace.contributor.tabs.skills') },
+    { key: 'time-logged', label: t('portfolio:workspace.contributor.tabs.timeLogged') },
+    { key: 'defaults', label: t('portfolio:workspace.contributor.tabs.defaults') },
+  ]), [t]);
   const availableTabs = useMemo(
-    () => CONTRIBUTOR_TABS.filter((tabDef) => (tabDef.key === 'time-logged' ? canViewTime : true)),
-    [canViewTime],
+    () => contributorTabs.filter((tabDef) => (tabDef.key === 'time-logged' ? canViewTime : true)),
+    [canViewTime, contributorTabs],
   );
   const activeTab: ContributorTabKey = (
     isContributorTab(tab) && availableTabs.some((tabDef) => tabDef.key === tab)
@@ -360,7 +361,7 @@ export default function ContributorWorkspacePage() {
         queryClient.invalidateQueries({ queryKey: ['classification-defaults', profile.id] });
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to save');
+      setError(getApiErrorMessage(e, t, t('portfolio:workspace.contributor.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -378,21 +379,22 @@ export default function ContributorWorkspacePage() {
     defaultCompanyId,
     profile?.id,
     queryClient,
+    t,
   ]);
 
   // Delete handler
   const handleDelete = useCallback(async () => {
     if (!contributorId || isSelfRoute) return;
-    if (!confirm('Remove this contributor configuration?')) return;
+    if (!confirm(t('portfolio:workspace.contributor.confirmations.remove'))) return;
 
     try {
       await api.delete(`/portfolio/team-members/${contributorId}`);
       queryClient.invalidateQueries({ queryKey: ['portfolio-contributors'] });
       navigate('/portfolio/contributors');
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete');
+      setError(getApiErrorMessage(e, t, t('portfolio:workspace.contributor.messages.deleteFailed')));
     }
-  }, [contributorId, isSelfRoute, navigate, queryClient]);
+  }, [contributorId, isSelfRoute, navigate, queryClient, t]);
 
   // Group selected skills by category
   const selectedSkillsByCategory = useMemo(() => {
@@ -408,11 +410,11 @@ export default function ContributorWorkspacePage() {
   }, [selectedSkills, getSkillById]);
 
   if (isLoading) {
-    return <Typography>Loading...</Typography>;
+    return <Typography>{t('common:status.loading')}</Typography>;
   }
 
   if (!member && !isSelfRoute) {
-    return <Typography>Contributor not found</Typography>;
+    return <Typography>{t('portfolio:workspace.contributor.states.notFound')}</Typography>;
   }
 
   const contributorTitle = (
@@ -420,13 +422,18 @@ export default function ContributorWorkspacePage() {
     [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim() ||
     member?.user_email ||
     profile?.email ||
-    'Contributor'
+    t('portfolio:workspace.contributor.titleFallback')
   );
   const backPath = isSelfRoute ? '/settings/profile' : '/portfolio/contributors';
 
   const actions = (
     <Stack direction="row" spacing={1}>
-      <IconButton onClick={() => navigate(backPath)} title={isSelfRoute ? 'Back to Settings' : 'Back to list'}>
+      <IconButton
+        onClick={() => navigate(backPath)}
+        title={isSelfRoute
+          ? t('portfolio:workspace.contributor.actions.backToSettings')
+          : t('portfolio:workspace.contributor.actions.backToList')}
+      >
         <ArrowBackIcon />
       </IconButton>
       {canEdit && (
@@ -435,7 +442,7 @@ export default function ContributorWorkspacePage() {
           onClick={handleSave}
           disabled={saving}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
         </Button>
       )}
       {canDelete && (
@@ -444,7 +451,7 @@ export default function ContributorWorkspacePage() {
           color="error"
           onClick={handleDelete}
         >
-          Delete
+          {t('common:buttons.delete')}
         </Button>
       )}
     </Stack>
@@ -477,17 +484,19 @@ export default function ContributorWorkspacePage() {
             {!isSelfRoute && (
               <Card>
                 <CardContent>
-                  <Typography variant="subtitle2" gutterBottom>Team</Typography>
+                  <Typography variant="subtitle2" gutterBottom>
+                    {t('portfolio:workspace.contributor.sections.team')}
+                  </Typography>
                   <FormControl fullWidth size="small" sx={{ maxWidth: 400 }}>
-                    <InputLabel>Assign to Team</InputLabel>
+                    <InputLabel>{t('portfolio:workspace.contributor.fields.assignTeam')}</InputLabel>
                     <Select
                       value={teamId}
-                      label="Assign to Team"
+                      label={t('portfolio:workspace.contributor.fields.assignTeam')}
                       onChange={(e) => setTeamId(e.target.value)}
                       disabled={!canManageTeams}
                     >
                       <MenuItem value="">
-                        <em>Unassigned</em>
+                        <em>{t('portfolio:workspace.contributor.values.unassigned')}</em>
                       </MenuItem>
                       {teams
                         .filter((t) => t.is_active)
@@ -506,7 +515,7 @@ export default function ContributorWorkspacePage() {
             <Card>
               <CardContent>
                 <Typography variant="subtitle2" gutterBottom>
-                  Project Availability (days per month)
+                  {t('portfolio:workspace.contributor.sections.projectAvailability')}
                 </Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Slider
@@ -520,7 +529,9 @@ export default function ContributorWorkspacePage() {
                     sx={{ flex: 1, maxWidth: 400 }}
                   />
                   <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
-                    {projectAvailability} days/month
+                    {t('portfolio:workspace.contributor.values.daysPerMonth', {
+                      count: projectAvailability,
+                    })}
                   </Typography>
                 </Stack>
               </CardContent>
@@ -530,16 +541,17 @@ export default function ContributorWorkspacePage() {
               <Card>
                 <CardContent>
                   <Typography variant="subtitle2" gutterBottom>
-                    Time Statistics
+                    {t('portfolio:workspace.contributor.sections.timeStatistics')}
                   </Typography>
                   <Typography variant="body1" sx={{ mb: 2 }}>
-                    Average monthly project effort (last 6 months):{' '}
-                    <strong>{timeStats?.averageProjectDays ?? 0} d/mo</strong>
+                    {t('portfolio:workspace.contributor.values.averageMonthlyProjectEffort', {
+                      value: timeStats?.averageProjectDays ?? 0,
+                    })}
                   </Typography>
                   {timeStats ? (
                     timeStats.monthly.length ? (
                       <ChartCard
-                        title="Monthly Effort (12 months)"
+                        title={t('portfolio:workspace.contributor.sections.monthlyEffort')}
                         height={280}
                         options={{
                           data: timeStats.monthly.map((m) => ({
@@ -549,20 +561,20 @@ export default function ContributorWorkspacePage() {
                             total: m.totalDays,
                           })),
                           series: [
-                            { type: 'line', xKey: 'month', yKey: 'total', yName: 'Total' },
-                            { type: 'line', xKey: 'month', yKey: 'project', yName: 'Project' },
-                            { type: 'line', xKey: 'month', yKey: 'other', yName: 'Other' },
+                            { type: 'line', xKey: 'month', yKey: 'total', yName: t('portfolio:workspace.contributor.chart.total') },
+                            { type: 'line', xKey: 'month', yKey: 'project', yName: t('portfolio:workspace.contributor.chart.project') },
+                            { type: 'line', xKey: 'month', yKey: 'other', yName: t('portfolio:workspace.contributor.chart.other') },
                           ],
                           axes: [
                             { type: 'category', position: 'bottom' },
-                            { type: 'number', position: 'left', title: { text: 'Man-days' } },
+                            { type: 'number', position: 'left', title: { text: t('portfolio:workspace.contributor.chart.manDays') } },
                           ],
                           legend: { enabled: true, position: 'bottom' },
                         }}
                       />
                     ) : (
                       <Typography variant="body2" color="text.secondary">
-                        No time data available yet.
+                        {t('portfolio:workspace.contributor.states.noTimeData')}
                       </Typography>
                     )
                   ) : null}
@@ -572,7 +584,9 @@ export default function ContributorWorkspacePage() {
 
             <Card>
               <CardContent>
-                <Typography variant="subtitle2" gutterBottom>Notes</Typography>
+                <Typography variant="subtitle2" gutterBottom>
+                  {t('portfolio:workspace.contributor.sections.notes')}
+                </Typography>
                 <TextField
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -580,7 +594,7 @@ export default function ContributorWorkspacePage() {
                   rows={4}
                   fullWidth
                   disabled={!canEdit}
-                  placeholder="Additional notes about this contributor..."
+                  placeholder={t('portfolio:workspace.contributor.placeholders.notes')}
                 />
               </CardContent>
             </Card>
@@ -592,7 +606,9 @@ export default function ContributorWorkspacePage() {
           <Stack spacing={3}>
             <Card>
               <CardContent>
-                <Typography variant="subtitle2" gutterBottom>Add Skill</Typography>
+                <Typography variant="subtitle2" gutterBottom>
+                  {t('portfolio:workspace.contributor.sections.addSkill')}
+                </Typography>
                 <Autocomplete
                   options={availableSkills}
                   groupBy={(option) => option.category}
@@ -602,7 +618,7 @@ export default function ContributorWorkspacePage() {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      placeholder="Search skills..."
+                      placeholder={t('portfolio:workspace.contributor.placeholders.searchSkills')}
                     />
                   )}
                   disabled={!canEdit}
@@ -613,7 +629,7 @@ export default function ContributorWorkspacePage() {
 
             {selectedSkills.length === 0 && (
               <Alert severity="info">
-                No skills selected. Use the field above to add skills.
+                {t('portfolio:workspace.contributor.states.noSkills')}
               </Alert>
             )}
 
@@ -638,7 +654,7 @@ export default function ContributorWorkspacePage() {
                     <Typography variant="subtitle1">
                       {category}
                       <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                        ({skillCount} skill{skillCount !== 1 ? 's' : ''})
+                        {t('portfolio:workspace.contributor.values.skillCount', { count: skillCount })}
                       </Typography>
                     </Typography>
                     {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -661,7 +677,7 @@ export default function ContributorWorkspacePage() {
                               {skill.name}
                             </Typography>
 
-                            <Tooltip title={PROFICIENCY_LABELS[sp.proficiency]} placement="top">
+                            <Tooltip title={proficiencyLabels[sp.proficiency]} placement="top">
                               <Box sx={{ width: 300, flexShrink: 0, mx: 2 }}>
                                 <Slider
                                   value={sp.proficiency}
@@ -671,7 +687,7 @@ export default function ContributorWorkspacePage() {
                                   step={1}
                                   marks={PROFICIENCY_MARKS}
                                   valueLabelDisplay="auto"
-                                  valueLabelFormat={(v) => PROFICIENCY_LABELS[v]}
+                                  valueLabelFormat={(v) => proficiencyLabels[v]}
                                   disabled={!canEdit}
                                 />
                               </Box>
@@ -703,35 +719,35 @@ export default function ContributorWorkspacePage() {
             <Card>
               <CardContent>
                 <Typography variant="subtitle2" gutterBottom>
-                  Classification Defaults
+                  {t('portfolio:workspace.contributor.sections.classificationDefaults')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  These defaults are used to pre-fill new tasks, requests, and projects when classification fields are still empty.
+                  {t('portfolio:workspace.contributor.sections.classificationDefaultsHelp')}
                 </Typography>
                 <Stack spacing={2} sx={{ maxWidth: 480 }}>
                   <EnumAutocomplete
-                    label="Source"
+                    label={t('portfolio:workspace.contributor.fields.source')}
                     value={defaultSourceId}
                     onChange={(value) => setDefaultSourceId(value)}
                     options={sources.map((source) => ({ value: source.id, label: source.name }))}
                     disabled={!canEdit}
                   />
                   <EnumAutocomplete
-                    label="Category"
+                    label={t('portfolio:workspace.contributor.fields.category')}
                     value={defaultCategoryId}
                     onChange={handleDefaultCategoryChange}
                     options={categories.map((category) => ({ value: category.id, label: category.name }))}
                     disabled={!canEdit}
                   />
                   <EnumAutocomplete
-                    label="Stream"
+                    label={t('portfolio:workspace.contributor.fields.stream')}
                     value={defaultStreamId}
                     onChange={(value) => setDefaultStreamId(value)}
                     options={filteredDefaultStreams.map((stream) => ({ value: stream.id, label: stream.name }))}
                     disabled={!canEdit || !defaultCategoryId}
                   />
                   <CompanySelect
-                    label="Company"
+                    label={t('portfolio:workspace.contributor.fields.company')}
                     value={defaultCompanyId}
                     onChange={(value) => setDefaultCompanyId(value)}
                     disabled={!canEdit}

@@ -1,69 +1,41 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Grid, Card, CardContent, CardActionArea, Typography, Box } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 
-const cards = [
-  {
-    title: 'Companies',
-    description: 'Manage company entities and their metrics',
-    to: '/master-data/companies',
-  },
-  {
-    title: 'Departments',
-    description: 'Manage departments across companies',
-    to: '/master-data/departments',
-  },
-  {
-    title: 'Suppliers',
-    description: 'Manage supplier information',
-    to: '/master-data/suppliers',
-  },
-  {
-    title: 'Charts of Accounts',
-    description: 'Manage charts of accounts and accounts',
-    to: '/master-data/coa',
-  },
-  {
-    title: 'Currency',
-    description: 'Configure reporting and default currencies',
-    to: '/master-data/currency',
-  },
-  {
-    title: 'Business Processes',
-    description: 'Manage core ISO 9001-style business processes',
-    to: '/master-data/business-processes',
-  },
-  {
-    title: 'Analytics Dimensions',
-    description: 'Configure analytics dimensions',
-    to: '/master-data/analytics',
-  },
-  {
-    title: 'Administration',
-    description: 'Freeze, copy, and manage master data across years',
-    to: '/master-data/operations',
-  },
-];
+const CARD_ROUTES = [
+  { key: 'companies', to: '/master-data/companies' },
+  { key: 'departments', to: '/master-data/departments' },
+  { key: 'suppliers', to: '/master-data/suppliers' },
+  { key: 'coa', to: '/master-data/coa' },
+  { key: 'currency', to: '/master-data/currency' },
+  { key: 'businessProcesses', to: '/master-data/business-processes' },
+  { key: 'analyticsDimensions', to: '/master-data/analytics' },
+  { key: 'administration', to: '/master-data/operations' },
+] as const;
 
 export default function MasterDataHomePage() {
+  const { t } = useTranslation(['master-data']);
   const navigate = useNavigate();
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <PageHeader title="Master Data" />
+      <PageHeader title={t('home.title')} />
       <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-        Manage organizational structure, suppliers, accounts, and analytics categories.
+        {t('home.subtitle')}
       </Typography>
       <Grid container spacing={2}>
-        {cards.map((card) => (
+        {CARD_ROUTES.map((card) => (
           <Grid key={card.to} item xs={12} sm={6} md={4} lg={3}>
             <Card variant="outlined">
               <CardActionArea onClick={() => navigate(card.to)}>
                 <CardContent>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{card.title}</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {t(`home.cards.${card.key}Title`)}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    {card.description}
+                    {t(`home.cards.${card.key}Description`)}
                   </Typography>
                 </CardContent>
               </CardActionArea>

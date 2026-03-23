@@ -30,6 +30,8 @@ import { COUNTRY_OPTIONS, CountryOption } from '../../constants/isoOptions';
 import ApplicationRelationsPanel, { ApplicationRelationsPanelHandle } from './editors/ApplicationRelationsPanel';
 import ApplicationCreateEditor, { ApplicationCreateEditorHandle } from './editors/ApplicationCreateEditor';
 
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 type SupportContactRow = {
   id?: string;
   contact_id: string | null;
@@ -75,6 +77,7 @@ function useAppData(id: string, enabled: boolean) {
 }
 
 function OwnersAudienceEditor({ data, update, markDirty }: { data: any; update: (patch: any) => void; markDirty: () => void }) {
+  const { t } = useTranslation(['it', 'common']);
   const [rows, setRows] = React.useState<Array<{ __id: string; company_id: string | null; department_id: string | null }>>([{ __id: uid(), company_id: null, department_id: null }]);
   const rowsEditedRef = React.useRef(false);
 
@@ -181,7 +184,7 @@ function OwnersAudienceEditor({ data, update, markDirty }: { data: any; update: 
                 <TextField label="Last Name" value={u?.last_name || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
                 <TextField label="First Name" value={u?.first_name || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
                 <TextField label="Job Title" value={u?.job_title || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
-                {(o.__idx ?? -1) >= 0 ? (<IconButton aria-label="Remove" onClick={() => update({ owners: owners.filter((_, i) => i !== o.__idx) })} size="small"><DeleteIcon fontSize="small" /></IconButton>) : <span />}
+                {(o.__idx ?? -1) >= 0 ? (<IconButton aria-label={t('common.remove')} onClick={() => update({ owners: owners.filter((_, i) => i !== o.__idx) })} size="small"><DeleteIcon fontSize="small" /></IconButton>) : <span />}
               </Box>
             );
           })}
@@ -208,7 +211,7 @@ function OwnersAudienceEditor({ data, update, markDirty }: { data: any; update: 
                 <TextField label="Last Name" value={u?.last_name || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
                 <TextField label="First Name" value={u?.first_name || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
                 <TextField label="Job Title" value={u?.job_title || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
-                {(o.__idx ?? -1) >= 0 ? (<IconButton aria-label="Remove" onClick={() => update({ owners: owners.filter((_, i) => i !== o.__idx) })} size="small"><DeleteIcon fontSize="small" /></IconButton>) : <span />}
+                {(o.__idx ?? -1) >= 0 ? (<IconButton aria-label={t('common.remove')} onClick={() => update({ owners: owners.filter((_, i) => i !== o.__idx) })} size="small"><DeleteIcon fontSize="small" /></IconButton>) : <span />}
               </Box>
             );
           })}
@@ -233,7 +236,7 @@ function OwnersAudienceEditor({ data, update, markDirty }: { data: any; update: 
                 <CompanySelect value={r.company_id} onChange={(v) => setRowCompany(idx, v)} size="small" />
                 <DepartmentSelect companyId={deptCompanyId || undefined} value={r.department_id} onChange={(v) => setRowDepartment(idx, v)} size="small" />
                 <TextField label="Users" value={usersText ? `${usersText} ${warn ? '(headcount)' : '(IT users)'}` : ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
-                <IconButton aria-label="Remove" onClick={() => removeRow(idx)} size="small"><DeleteIcon fontSize="small" /></IconButton>
+                <IconButton aria-label={t('common.remove')} onClick={() => removeRow(idx)} size="small"><DeleteIcon fontSize="small" /></IconButton>
               </Box>
             );
           })}
@@ -260,6 +263,7 @@ function OwnersAudienceEditor({ data, update, markDirty }: { data: any; update: 
 }
 
 export default function ApplicationWorkspacePage() {
+  const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const params = useParams();
   const navigate = useNavigate();
@@ -417,7 +421,7 @@ export default function ApplicationWorkspacePage() {
         setInterfacesByEnv(sortedGrouped);
       } catch (e: any) {
         if (cancelled) return;
-        setInterfacesError(e?.response?.data?.message || e?.message || 'Failed to load interfaces');
+        setInterfacesError(getApiErrorMessage(e, t, t('messages.loadInterfacesFailed')));
         setInterfacesByEnv({});
       } finally {
         if (!cancelled) setInterfacesLoading(false);
@@ -542,7 +546,7 @@ export default function ApplicationWorkspacePage() {
       setBaselineSuites(suites);
       setHasParentSuite((suites?.length || 0) > 0);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save suites';
+      const msg = getApiErrorMessage(e, t, t('messages.saveSuitesFailed'));
       setSaveError(msg);
       throw e;
     }
@@ -552,7 +556,7 @@ export default function ApplicationWorkspacePage() {
       await api.post(`/applications/${id}/support-contacts/bulk-replace`, { contacts: payload });
       setSupportBaseline(supportContacts);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save support contacts';
+      const msg = getApiErrorMessage(e, t, t('messages.saveSupportContactsFailed'));
       setSaveError(msg);
       throw e;
     }
@@ -598,7 +602,7 @@ export default function ApplicationWorkspacePage() {
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before navigating?');
+      const proceed = window.confirm(t('confirmations.unsavedSaveBeforeNav'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -700,8 +704,8 @@ export default function ApplicationWorkspacePage() {
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
           <IconButton
-            aria-label="Previous"
-            title="Previous"
+            aria-label={t('common.previous')}
+            title={t('common.previous')}
             onClick={() => confirmAndNavigate(prevId)}
             disabled={!hasPrev}
             size="small"
@@ -709,16 +713,16 @@ export default function ApplicationWorkspacePage() {
             <ArrowBackIcon />
           </IconButton>
           <IconButton
-            aria-label="Next"
-            title="Next"
+            aria-label={t('common.next')}
+            title={t('common.next')}
             onClick={() => confirmAndNavigate(nextId)}
             disabled={!hasNext}
             size="small"
           >
             <ArrowForwardIcon />
           </IconButton>
-          <Button onClick={handleReset} disabled={!dirty}>Reset</Button>
-          <Button variant="contained" onClick={() => void handleSave()} disabled={!dirty}>Save</Button>
+          <Button onClick={handleReset} disabled={!dirty}>{t('common:buttons.reset')}</Button>
+          <Button variant="contained" onClick={() => void handleSave()} disabled={!dirty}>{t('common:buttons.save')}</Button>
           {!isCreate && (
             <Button
               variant="outlined"
@@ -731,12 +735,12 @@ export default function ApplicationWorkspacePage() {
           )}
           <IconButton onClick={async () => {
             if (dirty) {
-              const save = window.confirm('You have unsaved changes. Do you want to save them?');
+              const save = window.confirm(t('confirmations.unsavedSave'));
               if (save) { try { await handleSave(); } catch {} }
             }
             const qs = searchParams.toString();
             navigate(`/it/applications${qs ? `?${qs}` : ''}`);
-          }} title="Close">
+          }} title={t('common.close')}>
             <CloseIcon />
           </IconButton>
         </Stack>
@@ -749,7 +753,7 @@ export default function ApplicationWorkspacePage() {
       <Box sx={{ display: 'flex', minHeight: 420 }}>
         <Tabs orientation="vertical" value={tab} onChange={async (_, v) => {
           if (dirty) {
-            const save = window.confirm('You have unsaved changes. Do you want to save them?');
+            const save = window.confirm(t('confirmations.unsavedSave'));
             if (save) { try { await handleSave(); } catch {} }
           }
           const qs = searchParams.toString();
@@ -948,7 +952,7 @@ export default function ApplicationWorkspacePage() {
                         </TableCell>
                         <TableCell width={48}>
                           {supportContacts.length > 0 && (
-                            <IconButton aria-label="Remove" size="small" onClick={() => removeSupportRow(idx)}>
+                            <IconButton aria-label={t('common.remove')} size="small" onClick={() => removeSupportRow(idx)}>
                               <DeleteIcon fontSize="small" />
                             </IconButton>
                           )}
@@ -1055,7 +1059,7 @@ export default function ApplicationWorkspacePage() {
                                 )}
                               </TableCell>
                               <TableCell align="left">
-                                <Typography variant="body2">{row.via_middleware ? 'Yes' : 'No'}</Typography>
+                                <Typography variant="body2">{row.via_middleware ? t('enums.yesNo.yes') : t('enums.yesNo.no')}</Typography>
                               </TableCell>
                             </TableRow>
                           ))}

@@ -10,6 +10,7 @@ import { PortfolioProjectsService } from '../../portfolio/services';
 import { TasksService } from '../../spend/tasks.service';
 import { AiExecutionContextWithManager, AiQueryScope } from '../ai.types';
 import { adaptFilters } from './ai-filter.adapter';
+import { applyScopeToAiQuery, ResolvedAiScope } from './ai-query-scope.util';
 import {
   AiAggregateResult,
   AiDateFilterValue,
@@ -104,12 +105,6 @@ function compileDateFilterCondition(
   }
 }
 
-type ResolvedAiScope = {
-  requested: AiQueryScope;
-  resolved: boolean;
-  team_name?: string | null;
-};
-
 @Injectable()
 export class AiAggregateExecutor {
   constructor(
@@ -121,92 +116,19 @@ export class AiAggregateExecutor {
     private readonly knowledge: KnowledgeService,
   ) {}
 
-  private async resolveCurrentUserTeam(
-    context: AiExecutionContextWithManager,
-  ): Promise<{ teamId: string | null; teamName: string | null }> {
-    const rows = await context.manager.query(
-      `SELECT tmc.team_id,
-              pt.name AS team_name
-       FROM portfolio_team_member_configs tmc
-       LEFT JOIN portfolio_teams pt
-         ON pt.id = tmc.team_id
-        AND pt.tenant_id = tmc.tenant_id
-       WHERE tmc.tenant_id = $1
-         AND tmc.user_id = $2
-       LIMIT 1`,
-      [context.tenantId, context.userId],
-    );
-    return {
-      teamId: rows[0]?.team_id ?? null,
-      teamName: rows[0]?.team_name ?? null,
-    };
-  }
-
-  private async applyScopeToListQuery(
-    context: AiExecutionContextWithManager,
-    entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
-    query: Record<string, any>,
-    scope?: AiQueryScope,
-  ): Promise<{ query: Record<string, any>; scope: ResolvedAiScope | null }> {
-    if (!scope) {
-      return { query, scope: null };
-    }
-
-    if (scope === 'me') {
-      if (entityType === 'tasks') {
-        return {
-          query: { ...query, assigneeUserId: context.userId },
-          scope: { requested: scope, resolved: true },
-        };
-      }
-      if (entityType === 'projects' || entityType === 'requests') {
-        return {
-          query: { ...query, involvedUserId: context.userId },
-          scope: { requested: scope, resolved: true },
-        };
-      }
-      throw new BadRequestException(`scope "${scope}" is not supported for ${entityType}.`);
-    }
-
-    if (scope === 'my_team') {
-      const { teamId, teamName } = await this.resolveCurrentUserTeam(context);
-      if (!teamId) {
-        return {
-          query,
-          scope: { requested: scope, resolved: false, team_name: teamName },
-        };
-      }
-      if (entityType === 'tasks') {
-        return {
-          query: { ...query, teamId },
-          scope: { requested: scope, resolved: true, team_name: teamName },
-        };
-      }
-      if (entityType === 'projects' || entityType === 'requests') {
-        return {
-          query: { ...query, involvedTeamId: teamId },
-          scope: { requested: scope, resolved: true, team_name: teamName },
-        };
-      }
-      throw new BadRequestException(`scope "${scope}" is not supported for ${entityType}.`);
-    }
-
-    return { query, scope: null };
-  }
-
   private serializeFiltersForTasks(filters: Record<string, any>): string | undefined {
     return Object.keys(filters).length > 0 ? JSON.stringify(filters) : undefined;
   }
 
   private async listIdsForEntity(
     context: AiExecutionContextWithManager,
-    entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
+    entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
     q: string | undefined,
     adaptedFilters: Record<string, any>,
     scope?: AiQueryScope,
   ): Promise<{ ids: string[]; scope: ResolvedAiScope | null }> {
     if (entityType === 'tasks') {
-      const scoped = await this.applyScopeToListQuery(
+      const scoped = await applyScopeToAiQuery(
         context,
         entityType,
         {
@@ -219,12 +141,15 @@ export class AiAggregateExecutor {
       if (scoped.scope && scoped.scope.resolved === false) {
         return { ids: [], scope: scoped.scope };
       }
-      const result = await this.tasks.listIds(scoped.query, { manager: context.manager });
+      const result = await this.tasks.listIds(scoped.query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      });
       return { ids: result.ids || [], scope: scoped.scope };
     }
 
     if (entityType === 'projects') {
-      const scoped = await this.applyScopeToListQuery(
+      const scoped = await applyScopeToAiQuery(
         context,
         entityType,
         {
@@ -237,12 +162,15 @@ export class AiAggregateExecutor {
       if (scoped.scope && scoped.scope.resolved === false) {
         return { ids: [], scope: scoped.scope };
       }
-      const result = await this.projects.listIds(scoped.query, { manager: context.manager });
+      const result = await this.projects.listIds(scoped.query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      });
       return { ids: result.ids || [], scope: scoped.scope };
     }
 
     if (entityType === 'requests') {
-      const scoped = await this.applyScopeToListQuery(
+      const scoped = await applyScopeToAiQuery(
         context,
         entityType,
         {
@@ -255,12 +183,15 @@ export class AiAggregateExecutor {
       if (scoped.scope && scoped.scope.resolved === false) {
         return { ids: [], scope: scoped.scope };
       }
-      const result = await this.requests.listIds(scoped.query, { manager: context.manager });
+      const result = await this.requests.listIds(scoped.query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      });
       return { ids: result.ids || [], scope: scoped.scope };
     }
 
     if (entityType === 'applications') {
-      const scoped = await this.applyScopeToListQuery(
+      const scoped = await applyScopeToAiQuery(
         context,
         entityType,
         {
@@ -273,12 +204,15 @@ export class AiAggregateExecutor {
       if (scoped.scope && scoped.scope.resolved === false) {
         return { ids: [], scope: scoped.scope };
       }
-      const result = await this.applications.listIds(scoped.query, { manager: context.manager });
+      const result = await this.applications.listIds(scoped.query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      });
       return { ids: result.ids || [], scope: scoped.scope };
     }
 
     if (entityType === 'assets') {
-      const scoped = await this.applyScopeToListQuery(
+      const scoped = await applyScopeToAiQuery(
         context,
         entityType,
         {
@@ -294,34 +228,34 @@ export class AiAggregateExecutor {
       return { ids: result.ids || [], scope: scoped.scope };
     }
 
-    if (entityType === 'documents') {
-      const scoped = await this.applyScopeToListQuery(
-        context,
-        entityType,
-        { q, filters: adaptedFilters },
-        scope,
+    if (entityType === 'locations') {
+      // Locations don't support scope — just list IDs with tenant filter
+      const rows: Array<{ id: string }> = await context.manager.query(
+        `SELECT id FROM locations WHERE tenant_id = $1`,
+        [context.tenantId],
       );
-      if (scoped.scope && scoped.scope.resolved === false) {
-        return { ids: [], scope: scoped.scope };
-      }
-      return {
-        ids: await this.listDocumentIds(context, q, adaptedFilters),
-        scope: scoped.scope,
-      };
+      return { ids: rows.map((r) => r.id), scope: null };
     }
 
     throw new BadRequestException('Unsupported entity type.');
   }
 
-  private async listDocumentIds(
+  private buildDocumentAggregateQuery(
     context: AiExecutionContextWithManager,
+    groupBy: string,
     q: string | undefined,
     filters: Record<string, any>,
-  ): Promise<string[]> {
+  ) {
+    const registry = getAiEntityRegistry('documents');
+    const groupField = registry.aggregate.groupFields[groupBy];
+    if (!groupField) {
+      throw new BadRequestException('Unsupported group_by field.');
+    }
+
     const qb = context.manager
       .getRepository(Document)
       .createQueryBuilder('d')
-      .select('d.id', 'id')
+      .where('d.tenant_id = :tenantId', { tenantId: context.tenantId })
       .leftJoin('document_folders', 'f', 'f.id = d.folder_id AND f.tenant_id = d.tenant_id')
       .leftJoin('document_libraries', 'dl', 'dl.id = d.library_id AND dl.tenant_id = d.tenant_id')
       .leftJoin('document_types', 'dtype', 'dtype.id = d.document_type_id AND dtype.tenant_id = d.tenant_id');
@@ -362,7 +296,7 @@ export class AiAggregateExecutor {
     const ownerSubquery = `(SELECT COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, c.user_id::text)
       FROM document_contributors c
       LEFT JOIN users u ON u.id = c.user_id AND u.tenant_id = d.tenant_id
-      WHERE c.document_id = d.id AND c.role = 'owner' AND c.is_primary = true
+      WHERE c.document_id = d.id AND c.tenant_id = d.tenant_id AND c.role = 'owner' AND c.is_primary = true
       LIMIT 1)`;
     applyNamedSetFilter(filters.primary_owner_name, ownerSubquery, 'ownerNames');
 
@@ -378,17 +312,15 @@ export class AiAggregateExecutor {
       }
     }
 
-    const rows = await qb
-      .orderBy('d.updated_at', 'DESC')
-      .addOrderBy('d.item_number', 'DESC')
-      .getRawMany();
-
-    return rows.map((row: any) => String(row.id)).filter(Boolean);
+    return {
+      qb,
+      groupExpression: groupField.expression,
+    };
   }
 
   private async aggregateByIds(
     context: AiExecutionContextWithManager,
-    entityType: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents',
+    entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
     groupBy: string,
     ids: string[],
   ): Promise<Array<{ key: string | null; count: number }>> {
@@ -421,7 +353,7 @@ export class AiAggregateExecutor {
   async execute(
     context: AiExecutionContextWithManager,
     input: {
-      entity_type: 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'documents';
+      entity_type: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents';
       group_by: string;
       filters?: Record<string, AiFilterValue>;
       q?: string;
@@ -435,6 +367,64 @@ export class AiAggregateExecutor {
     }
 
     const adapted = adaptFilters(registry, input.filters);
+    if (input.entity_type === 'documents') {
+      const scoped = await applyScopeToAiQuery(
+        context,
+        input.entity_type,
+        { q: input.q?.trim(), filters: adapted.filters },
+        input.scope,
+      );
+      if (scoped.scope && scoped.scope.resolved === false) {
+        return {
+          group_by: input.group_by,
+          groups: [],
+          total: 0,
+          filters_applied: adapted.applied,
+          filters_ignored: adapted.ignored,
+          scope: scoped.scope,
+        };
+      }
+
+      const { qb, groupExpression } = this.buildDocumentAggregateQuery(
+        context,
+        input.group_by,
+        input.q?.trim(),
+        adapted.filters,
+      );
+      const total = await qb.clone().getCount();
+      if (total === 0) {
+        return {
+          group_by: input.group_by,
+          groups: [],
+          total: 0,
+          filters_applied: adapted.applied,
+          filters_ignored: adapted.ignored,
+          scope: scoped.scope,
+        };
+      }
+
+      const rows = await qb
+        .clone()
+        .select(groupExpression, 'key')
+        .addSelect('COUNT(*)::int', 'count')
+        .groupBy(groupExpression)
+        .orderBy('count', 'DESC')
+        .addOrderBy('key', 'ASC', 'NULLS LAST')
+        .getRawMany();
+
+      return {
+        group_by: input.group_by,
+        groups: (rows || []).map((row: any) => ({
+          key: row.key == null ? null : String(row.key),
+          count: Number(row.count) || 0,
+        })),
+        total,
+        filters_applied: adapted.applied,
+        filters_ignored: adapted.ignored,
+        scope: scoped.scope,
+      };
+    }
+
     const scoped = await this.listIdsForEntity(
       context,
       input.entity_type,

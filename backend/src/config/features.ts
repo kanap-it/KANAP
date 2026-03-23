@@ -12,4 +12,5 @@ export const Features = {
   AI_CHAT_ENABLED: parseBoolean(process.env.AI_CHAT_ENABLED),
   AI_MCP_ENABLED: parseBoolean(process.env.AI_MCP_ENABLED),
   AI_SETTINGS_ENABLED: parseBoolean(process.env.AI_SETTINGS_ENABLED),
+  AI_WEB_SEARCH_READY: !!process.env.BRAVE_SEARCH_API_KEY,
 };

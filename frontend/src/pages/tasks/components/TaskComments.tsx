@@ -11,10 +11,13 @@ import {
   Typography,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { MarkdownContent } from '../../../components/MarkdownContent';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../../utils/inlineImageUrls';
+import { formatRelativeTime } from '../../../utils/portfolioI18n';
 import UnifiedActivityForm from './UnifiedActivityForm';
 import type { TaskStatus } from '../task.constants';
 
@@ -54,6 +57,7 @@ export default function TaskComments({
   initialStatus = null,
   commentFocusNonce = 0,
 }: TaskCommentsProps) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
   const canComment = hasLevel('tasks', 'member');
@@ -126,7 +130,11 @@ export default function TaskComments({
       setEditContent('');
       await refetch();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to update comment');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:activity.messages.updateCommentFailed'),
+      ));
     } finally {
       setEditSubmitting(false);
     }
@@ -140,21 +148,6 @@ export default function TaskComments({
       canComment &&
       !readOnly
     );
-  };
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
   };
 
   const getInitials = (firstName: string | null, lastName: string | null) => {
@@ -187,11 +180,15 @@ export default function TaskComments({
 
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
 
-      {isLoading && <Typography color="text.secondary">Loading comments...</Typography>}
+      {isLoading && (
+        <Typography color="text.secondary">
+          {t('portfolio:activity.messages.loadingComments')}
+        </Typography>
+      )}
 
       {!isLoading && comments.length === 0 && (
         <Typography color="text.secondary" variant="body2">
-          No comments yet.
+          {t('portfolio:activity.messages.noComments')}
         </Typography>
       )}
 
@@ -215,19 +212,19 @@ export default function TaskComments({
               <Box sx={{ flex: 1 }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {comment.first_name || ''} {comment.last_name || ''}
+                    {`${comment.first_name || ''} ${comment.last_name || ''}`.trim() || t('portfolio:activity.authorUnknown')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {formatTime(comment.created_at)}
+                    {formatRelativeTime(t, comment.created_at)}
                   </Typography>
                   {comment.updated_at && (
                     <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                      (edited)
+                      {t('portfolio:activity.labels.edited')}
                     </Typography>
                   )}
                   <Box sx={{ flex: 1 }} />
                   {canEditComment(comment) && editingId !== comment.id && (
-                    <Tooltip title="Edit comment">
+                    <Tooltip title={t('portfolio:activity.actions.editComment')}>
                       <IconButton
                         size="small"
                         onClick={() => handleStartEdit(comment)}
@@ -243,7 +240,7 @@ export default function TaskComments({
                       <MarkdownEditor
                         value={editContent}
                         onChange={setEditContent}
-                        placeholder="Edit your comment..."
+                        placeholder={t('portfolio:activity.placeholders.editComment')}
                         minRows={6}
                         maxRows={12}
                         disabled={editSubmitting}
@@ -257,7 +254,7 @@ export default function TaskComments({
                         onClick={handleCancelEdit}
                         disabled={editSubmitting}
                       >
-                        Cancel
+                        {t('common:buttons.cancel')}
                       </Button>
                       <Button
                         size="small"
@@ -265,7 +262,7 @@ export default function TaskComments({
                         onClick={handleSaveEdit}
                         disabled={editSubmitting || !editContent.trim()}
                       >
-                        {editSubmitting ? 'Saving...' : 'Save'}
+                        {editSubmitting ? t('common:status.saving') : t('common:buttons.save')}
                       </Button>
                     </Stack>
                   </Box>

@@ -15,18 +15,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { getDecisionOutcomeOptions } from '../../../utils/portfolioI18n';
 
 const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
-
-const ANALYSIS_RECOMMENDATION_CONTEXT = 'Analysis Recommendation';
-
-const DECISION_OUTCOMES = [
-  { value: 'go', label: 'Go' },
-  { value: 'no_go', label: 'No-Go' },
-  { value: 'defer', label: 'Defer' },
-  { value: 'need_info', label: 'Need Info' },
-  { value: 'analysis_complete', label: 'Analysis Complete' },
-];
 
 interface RecommendationDialogProps {
   open: boolean;
@@ -57,12 +50,15 @@ export default function RecommendationDialog({
   onImageUpload,
   onImageUrlImport,
 }: RecommendationDialogProps) {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const [decisionOutcome, setDecisionOutcome] = React.useState('');
   const [newStatus, setNewStatus] = React.useState('');
   const [rationale, setRationale] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [editorKey, setEditorKey] = React.useState(0);
+  const analysisRecommendationContext = t('portfolio:dialogs.recommendation.contextValue');
+  const decisionOutcomes = React.useMemo(() => getDecisionOutcomeOptions(t), [t]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -75,21 +71,21 @@ export default function RecommendationDialog({
 
   const handleImageUpload = async (file: File): Promise<string> => {
     if (!onImageUpload) {
-      throw new Error('Image upload not configured');
+      throw new Error(t('portfolio:activity.messages.imageUploadNotConfigured'));
     }
     return onImageUpload(file, 'content');
   };
 
   const handleImageUrlImport = async (sourceUrl: string): Promise<string> => {
     if (!onImageUrlImport) {
-      throw new Error('Image URL import not configured');
+      throw new Error(t('portfolio:activity.messages.imageImportNotConfigured'));
     }
     return onImageUrlImport(sourceUrl, 'content');
   };
 
   const handleSubmit = async () => {
     if (!decisionOutcome) {
-      setError('Decision outcome is required');
+      setError(t('portfolio:dialogs.recommendation.validation.outcomeRequired'));
       return;
     }
 
@@ -98,14 +94,18 @@ export default function RecommendationDialog({
     try {
       await onSubmit({
         content: rationale.trim(),
-        context: ANALYSIS_RECOMMENDATION_CONTEXT,
+        context: analysisRecommendationContext,
         is_decision: true,
         decision_outcome: decisionOutcome,
         new_status: newStatus || undefined,
       });
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to submit recommendation');
+      setError(getApiErrorMessage(
+        e,
+        t,
+        t('portfolio:dialogs.recommendation.messages.submitFailed'),
+      ));
     } finally {
       setSubmitting(false);
     }
@@ -113,20 +113,22 @@ export default function RecommendationDialog({
 
   return (
     <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Submit Analysis Recommendation</DialogTitle>
+      <DialogTitle>{t('portfolio:dialogs.recommendation.title')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {priorityScore != null && (
             <Alert severity="info">
-              Current priority score snapshot: <strong>{Math.round(priorityScore)}</strong>
+              {t('portfolio:dialogs.recommendation.prioritySnapshot', {
+                score: Math.round(priorityScore),
+              })}
             </Alert>
           )}
 
           {!!error && <Alert severity="error">{error}</Alert>}
 
           <TextField
-            label="Context"
-            value={ANALYSIS_RECOMMENDATION_CONTEXT}
+            label={t('portfolio:dialogs.recommendation.fields.context')}
+            value={analysisRecommendationContext}
             fullWidth
             size="small"
             disabled
@@ -134,14 +136,14 @@ export default function RecommendationDialog({
 
           <Stack direction="row" spacing={2}>
             <FormControl size="small" fullWidth required>
-              <InputLabel>Decision Outcome</InputLabel>
+              <InputLabel>{t('portfolio:dialogs.recommendation.fields.decisionOutcome')}</InputLabel>
               <Select
                 value={decisionOutcome}
-                label="Decision Outcome"
+                label={t('portfolio:dialogs.recommendation.fields.decisionOutcome')}
                 onChange={(e) => setDecisionOutcome(e.target.value)}
                 disabled={submitting}
               >
-                {DECISION_OUTCOMES.map((option) => (
+                {decisionOutcomes.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
                   </MenuItem>
@@ -149,14 +151,16 @@ export default function RecommendationDialog({
               </Select>
             </FormControl>
             <FormControl size="small" fullWidth>
-              <InputLabel>Change Status to...</InputLabel>
+              <InputLabel>{t('portfolio:dialogs.recommendation.fields.changeStatus')}</InputLabel>
               <Select
                 value={newStatus}
-                label="Change Status to..."
+                label={t('portfolio:dialogs.recommendation.fields.changeStatus')}
                 onChange={(e) => setNewStatus(e.target.value)}
                 disabled={submitting}
               >
-                <MenuItem value="">(No change)</MenuItem>
+                <MenuItem value="">
+                  {t('portfolio:activity.form.noChange')}
+                </MenuItem>
                 {allowedTransitions.map((status) => (
                   <MenuItem key={status} value={status}>
                     {statusOptions.find((s) => s.value === status)?.label || status}
@@ -168,14 +172,14 @@ export default function RecommendationDialog({
 
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Rationale
+              {t('portfolio:dialogs.recommendation.fields.rationale')}
             </Typography>
             <React.Suspense fallback={<Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
               <MarkdownEditor
                 key={editorKey}
                 value={rationale}
                 onChange={setRationale}
-                placeholder="Summarize the recommendation, conditions, and key constraints..."
+                placeholder={t('portfolio:dialogs.recommendation.placeholders.rationale')}
                 minRows={10}
                 maxRows={18}
                 disabled={submitting}
@@ -186,14 +190,16 @@ export default function RecommendationDialog({
           </Box>
 
           <Typography variant="caption" color="text.secondary">
-            Current request status: {statusOptions.find((s) => s.value === currentStatus)?.label || currentStatus}
+            {t('portfolio:dialogs.recommendation.currentStatus', {
+              status: statusOptions.find((s) => s.value === currentStatus)?.label || currentStatus,
+            })}
           </Typography>
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={submitting}>Cancel</Button>
+        <Button onClick={onClose} disabled={submitting}>{t('common:buttons.cancel')}</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={submitting || !decisionOutcome}>
-          Submit Recommendation
+          {t('portfolio:dialogs.recommendation.actions.submit')}
         </Button>
       </DialogActions>
     </Dialog>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -19,6 +19,8 @@ import { useNavigate } from 'react-router-dom';
 import ReportLayout from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
 import api from '../../api';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 type StatusChangeItemType = 'task' | 'request' | 'project';
 
@@ -49,33 +51,9 @@ type ItemTypeOption = {
   label: string;
 };
 
-const ITEM_TYPE_OPTIONS: ItemTypeOption[] = [
-  { value: 'task', label: 'Tasks' },
-  { value: 'request', label: 'Requests' },
-  { value: 'project', label: 'Projects' },
-];
-
-const STATUS_LABELS: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  done: 'Done',
-  cancelled: 'Cancelled',
-  pending_review: 'Pending Review',
-  candidate: 'Candidate',
-  approved: 'Approved',
-  on_hold: 'On Hold',
-  rejected: 'Rejected',
-  converted: 'Converted',
-  waiting_list: 'Waiting List',
-  planned: 'Planned',
-  in_testing: 'In Testing',
-};
-
-const ITEM_TYPE_LABELS: Record<StatusChangeItemType, string> = {
-  task: 'Task',
-  request: 'Request',
-  project: 'Project',
-};
+const TASK_STATUSES = new Set(['open', 'in_progress', 'pending', 'in_testing', 'done', 'cancelled']);
+const PROJECT_STATUSES = new Set(['waiting_list', 'planned', 'in_progress', 'in_testing', 'on_hold', 'done', 'cancelled']);
+const REQUEST_STATUSES = new Set(['pending_review', 'candidate', 'approved', 'on_hold', 'rejected', 'converted']);
 
 const toIsoDate = (date: Date): string => {
   const year = date.getFullYear();
@@ -140,6 +118,7 @@ const buildParams = (args: {
 
 export default function StatusChangeReport() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['portfolio', 'errors']);
   const today = useMemo(() => toIsoDate(new Date()), []);
 
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
@@ -204,6 +183,31 @@ export default function StatusChangeReport() {
   const categoryOptions = filterValuesData?.categories ?? [];
   const streamOptions = filterValuesData?.streams ?? [];
 
+  const itemTypeOptions = useMemo<ItemTypeOption[]>(() => [
+    { value: 'task', label: t('reports.itemTypes.tasks') },
+    { value: 'request', label: t('reports.itemTypes.requests') },
+    { value: 'project', label: t('reports.itemTypes.projects') },
+  ], [t]);
+
+  const itemTypeLabelMap = useMemo<Record<StatusChangeItemType, string>>(() => ({
+    task: t('reports.itemTypes.task'),
+    request: t('reports.itemTypes.request'),
+    project: t('reports.itemTypes.project'),
+  }), [t]);
+
+  const getStatusLabel = useCallback((status: string) => {
+    if (TASK_STATUSES.has(status)) {
+      return t(`statuses.task.${status}`, { defaultValue: humanize(status) });
+    }
+    if (PROJECT_STATUSES.has(status)) {
+      return t(`statuses.project.${status}`, { defaultValue: humanize(status) });
+    }
+    if (REQUEST_STATUSES.has(status)) {
+      return t(`statuses.request.${status}`, { defaultValue: humanize(status) });
+    }
+    return humanize(status);
+  }, [t]);
+
   const scopedStreamOptions = useMemo(() => {
     if (categoryIds.length === 0) return [];
     const allowedCategories = new Set(categoryIds);
@@ -230,8 +234,8 @@ export default function StatusChangeReport() {
   const streamOptionById = useMemo(() => new Map(scopedStreamOptions.map((option) => [option.id, option])), [scopedStreamOptions]);
 
   const itemTypeOptionByValue = useMemo(
-    () => new Map(ITEM_TYPE_OPTIONS.map((option) => [option.value, option])),
-    [],
+    () => new Map(itemTypeOptions.map((option) => [option.value, option])),
+    [itemTypeOptions],
   );
 
   const columns = useMemo<ColDef<StatusChangeRow>[]>(() => {
@@ -251,23 +255,23 @@ export default function StatusChangeReport() {
     return [
       {
         field: 'name',
-        headerName: 'Name',
+        headerName: t('reports.statusChange.columns.name'),
         flex: 1.4,
         minWidth: 220,
         cellRenderer: ClickableNameCell,
       },
       {
         field: 'itemType',
-        headerName: 'Item Type',
+        headerName: t('reports.statusChange.columns.itemType'),
         width: 130,
         valueFormatter: (params) => {
           const value = params.value as StatusChangeItemType;
-          return ITEM_TYPE_LABELS[value] || String(value || '');
+          return itemTypeLabelMap[value] || String(value || '');
         },
       },
       {
         field: 'priority',
-        headerName: 'Priority',
+        headerName: t('reports.statusChange.columns.priority'),
         width: 110,
         type: 'rightAligned',
         sort: 'desc',
@@ -280,22 +284,22 @@ export default function StatusChangeReport() {
       },
       {
         field: 'status',
-        headerName: 'Status',
+        headerName: t('reports.statusChange.columns.status'),
         width: 150,
-        valueFormatter: (params) => STATUS_LABELS[String(params.value)] || humanize(String(params.value || '')),
+        valueFormatter: (params) => getStatusLabel(String(params.value || '')),
       },
-      { field: 'sourceName', headerName: 'Source', width: 150 },
-      { field: 'categoryName', headerName: 'Category', width: 170 },
-      { field: 'streamName', headerName: 'Stream', width: 170 },
-      { field: 'companyName', headerName: 'Company', width: 170 },
+      { field: 'sourceName', headerName: t('reports.statusChange.columns.source'), width: 150 },
+      { field: 'categoryName', headerName: t('reports.statusChange.columns.category'), width: 170 },
+      { field: 'streamName', headerName: t('reports.statusChange.columns.stream'), width: 170 },
+      { field: 'companyName', headerName: t('reports.statusChange.columns.company'), width: 170 },
       {
         field: 'lastChangedAt',
-        headerName: 'Last Changed',
+        headerName: t('reports.statusChange.columns.lastChanged'),
         width: 130,
         valueFormatter: (params) => formatDate(params.value || null),
       },
     ];
-  }, [navigate]);
+  }, [getStatusLabel, itemTypeLabelMap, navigate, t]);
 
   const handleDownload = async (format: 'csv' | 'xlsx') => {
     if (!isValidPeriod) return;
@@ -331,22 +335,26 @@ export default function StatusChangeReport() {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (e: any) {
-      setExportError(e?.response?.data?.message || e?.message || 'Export failed');
+      setExportError(getApiErrorMessage(e, t, t('reports.statusChange.messages.exportFailed')));
     } finally {
       setExportingFormat(null);
     }
   };
 
+  const reportErrorMessage = error
+    ? getApiErrorMessage(error, t, t('reports.statusChange.messages.loadFailed'))
+    : null;
+
   return (
     <ReportLayout
-      title="Status Change Report"
-      subtitle="Items whose status changed during a selected period (latest status change per item in period)."
+      title={t('reports.statusChange.title')}
+      subtitle={t('reports.statusChange.subtitle')}
       rootTo="/portfolio/reports"
-      rootLabel="Portfolio Reporting"
+      rootLabel={t('reports.title')}
       filters={(
         <>
           <TextField
-            label="Start Date"
+            label={t('reports.statusChange.filters.startDate')}
             type="date"
             size="small"
             value={startDate}
@@ -354,7 +362,7 @@ export default function StatusChangeReport() {
             InputLabelProps={{ shrink: true }}
           />
           <TextField
-            label="End Date"
+            label={t('reports.statusChange.filters.endDate')}
             type="date"
             size="small"
             value={endDate}
@@ -364,14 +372,14 @@ export default function StatusChangeReport() {
           <TextField
             select
             size="small"
-            label="Status"
+            label={t('reports.statusChange.filters.status')}
             value={statuses}
             SelectProps={{
               multiple: true,
               renderValue: (selected) => {
                 const values = selected as string[];
-                if (values.length === 0) return 'All statuses';
-                return values.map((status) => STATUS_LABELS[status] || humanize(status)).join(', ');
+                if (values.length === 0) return t('reports.statusChange.filters.allStatuses');
+                return values.map((status) => getStatusLabel(status)).join(', ');
               },
             }}
             onChange={(e) => {
@@ -383,20 +391,20 @@ export default function StatusChangeReport() {
             {statusOptions.map((status) => (
               <MenuItem key={status} value={status}>
                 <Checkbox checked={statuses.includes(status)} />
-                <ListItemText primary={STATUS_LABELS[status] || humanize(status)} />
+                <ListItemText primary={getStatusLabel(status)} />
               </MenuItem>
             ))}
           </TextField>
           <TextField
             select
             size="small"
-            label="Item Type"
+            label={t('reports.statusChange.filters.itemType')}
             value={itemTypes}
             SelectProps={{
               multiple: true,
               renderValue: (selected) => {
                 const values = selected as StatusChangeItemType[];
-                if (values.length === 0) return 'All item types';
+                if (values.length === 0) return t('reports.statusChange.filters.allItemTypes');
                 return values
                   .map((value) => itemTypeOptionByValue.get(value)?.label || value)
                   .join(', ');
@@ -408,7 +416,7 @@ export default function StatusChangeReport() {
             }}
             sx={{ minWidth: 220 }}
           >
-            {ITEM_TYPE_OPTIONS.map((option) => (
+            {itemTypeOptions.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 <Checkbox checked={itemTypes.includes(option.value)} />
                 <ListItemText primary={option.label} />
@@ -418,13 +426,13 @@ export default function StatusChangeReport() {
           <TextField
             select
             size="small"
-            label="Source"
+            label={t('reports.statusChange.filters.source')}
             value={sourceIds}
             SelectProps={{
               multiple: true,
               renderValue: (selected) => {
                 const values = selected as string[];
-                if (values.length === 0) return 'All sources';
+                if (values.length === 0) return t('reports.statusChange.filters.allSources');
                 return values
                   .map((id) => sourceOptionById.get(id)?.name || id)
                   .join(', ');
@@ -446,13 +454,13 @@ export default function StatusChangeReport() {
           <TextField
             select
             size="small"
-            label="Category"
+            label={t('reports.statusChange.filters.category')}
             value={categoryIds}
             SelectProps={{
               multiple: true,
               renderValue: (selected) => {
                 const values = selected as string[];
-                if (values.length === 0) return 'All categories';
+                if (values.length === 0) return t('reports.statusChange.filters.allCategories');
                 return values
                   .map((id) => categoryOptionById.get(id)?.name || id)
                   .join(', ');
@@ -474,14 +482,14 @@ export default function StatusChangeReport() {
           <TextField
             select
             size="small"
-            label="Stream"
+            label={t('reports.statusChange.filters.stream')}
             value={streamIds}
             disabled={categoryIds.length === 0}
             SelectProps={{
               multiple: true,
               renderValue: (selected) => {
                 const values = selected as string[];
-                if (values.length === 0) return 'All streams';
+                if (values.length === 0) return t('reports.statusChange.filters.allStreams');
                 return values
                   .map((id) => streamOptionById.get(id)?.name || id)
                   .join(', ');
@@ -510,7 +518,7 @@ export default function StatusChangeReport() {
             onClick={() => handleDownload('csv')}
             disabled={!isValidPeriod || rows.length === 0 || exportingFormat !== null}
           >
-            {exportingFormat === 'csv' ? 'Exporting…' : 'Export CSV'}
+            {exportingFormat === 'csv' ? t('reports.statusChange.actions.exporting') : t('reports.statusChange.actions.exportCsv')}
           </Button>
           <Button
             size="small"
@@ -518,18 +526,18 @@ export default function StatusChangeReport() {
             onClick={() => handleDownload('xlsx')}
             disabled={!isValidPeriod || rows.length === 0 || exportingFormat !== null}
           >
-            {exportingFormat === 'xlsx' ? 'Exporting…' : 'Export XLSX'}
+            {exportingFormat === 'xlsx' ? t('reports.statusChange.actions.exporting') : t('reports.statusChange.actions.exportXlsx')}
           </Button>
         </>
       )}
     >
       <Stack spacing={1.5}>
         {!isValidPeriod && (
-          <Alert severity="warning">Start Date must be before or equal to End Date.</Alert>
+          <Alert severity="warning">{t('reports.statusChange.messages.invalidPeriod')}</Alert>
         )}
-        {error && (
+        {reportErrorMessage && (
           <Alert severity="error">
-            {(error as any)?.response?.data?.message || (error as Error)?.message || 'Failed to load report data.'}
+            {reportErrorMessage}
           </Alert>
         )}
         {exportError && (
@@ -539,7 +547,7 @@ export default function StatusChangeReport() {
         <Paper variant="outlined" sx={{ p: 1.5 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              {rows.length} item{rows.length === 1 ? '' : 's'}
+              {t('reports.statusChange.itemCount', { count: rows.length })}
             </Typography>
             {(isLoading || isFetching) && <CircularProgress size={18} />}
           </Stack>

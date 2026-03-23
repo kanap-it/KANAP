@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Box, Stack, TextField, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../../../api';
@@ -34,6 +35,7 @@ export default forwardRef<CompanyDetailsEditorHandle, Props>(function CompanyDet
   ref,
 ) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['master-data', 'common']);
   const [values, setValues] = React.useState<MetricsValues>({ ...DEFAULT_VALUES });
   const [baseline, setBaseline] = React.useState<MetricsValues>({ ...DEFAULT_VALUES });
   const [loading, setLoading] = React.useState(false);
@@ -69,7 +71,7 @@ export default forwardRef<CompanyDetailsEditorHandle, Props>(function CompanyDet
         onDirtyChange?.(false);
       } catch (e: any) {
         if (!active) return;
-        const msg = e?.response?.data?.message || e?.message || 'Failed to load metrics';
+        const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToLoadMetrics');
         setServerError(msg);
         const fallback = { headcount: 0, it_users: 0, turnover: 0 };
         setValues(fallback);
@@ -129,11 +131,11 @@ export default forwardRef<CompanyDetailsEditorHandle, Props>(function CompanyDet
   const save = React.useCallback(async () => {
     if (!dirty || readOnly) return;
     if (metricsFrozen) {
-      setServerError('Metrics are frozen for this year. Unfreeze them from Administration to edit.');
+      setServerError(t('shared.messages.metricsFrozenEdit'));
       throw new Error('Metrics frozen');
     }
     if (headcountError || itUsersError || turnoverError || values.headcount === '') {
-      setServerError('Please fix validation issues before saving.');
+      setServerError(t('shared.messages.fixValidationIssues'));
       throw new Error('Validation error');
     }
     setSaving(true);
@@ -149,7 +151,7 @@ export default forwardRef<CompanyDetailsEditorHandle, Props>(function CompanyDet
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['companies', id] });
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Failed to save metrics';
+      const msg = e?.response?.data?.message || e?.message || t('shared.messages.failedToSaveMetrics');
       setServerError(msg);
       throw e;
     } finally {
@@ -188,12 +190,12 @@ export default forwardRef<CompanyDetailsEditorHandle, Props>(function CompanyDet
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
       {readOnly && (
         <Alert severity="info">
-          You need manager access to edit company metrics.
+          {t('shared.messages.readOnlyAccess', { entity: t('companies.entity') + ' metrics' })}
         </Alert>
       )}
       {metricsFrozen && (
         <Alert severity="info">
-          Metrics for {year} are frozen. Unfreeze them from Administration to make changes.
+          {t('shared.messages.metricsFrozen', { year })}
         </Alert>
       )}
 
@@ -205,7 +207,7 @@ export default forwardRef<CompanyDetailsEditorHandle, Props>(function CompanyDet
         onChange={handleHeadcountChange}
         disabled={fieldsDisabled}
         error={headcountError}
-        helperText={headcountError ? 'Enter a non-negative integer' : ''}
+        helperText={headcountError ? t('shared.validation.nonNegativeInteger') : ''}
         inputProps={{ min: 0, step: 1 }}
         InputLabelProps={{ shrink: true }}
       />
@@ -217,7 +219,7 @@ export default forwardRef<CompanyDetailsEditorHandle, Props>(function CompanyDet
         onChange={handleItUsersChange}
         disabled={fieldsDisabled}
         error={itUsersError}
-        helperText={itUsersError ? 'Enter a non-negative integer' : ''}
+        helperText={itUsersError ? t('shared.validation.nonNegativeInteger') : ''}
         inputProps={{ min: 0, step: 1 }}
         InputLabelProps={{ shrink: true }}
       />
@@ -229,13 +231,13 @@ export default forwardRef<CompanyDetailsEditorHandle, Props>(function CompanyDet
         onChange={handleTurnoverChange}
         disabled={fieldsDisabled}
         error={turnoverError}
-        helperText={turnoverError ? 'Max 3 decimals, non-negative' : ''}
+        helperText={turnoverError ? t('shared.validation.max3Decimals') : ''}
         inputProps={{ min: 0, step: 0.001 }}
         InputLabelProps={{ shrink: true }}
       />
 
       <Typography variant="caption" color="text.secondary">
-        Save applies to the selected year. Switch years to review historical data.
+        {t('shared.messages.metricsYearHint')}
       </Typography>
     </Stack>
   );

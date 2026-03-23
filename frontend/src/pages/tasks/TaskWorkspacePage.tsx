@@ -39,18 +39,15 @@ import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inli
 import ConvertToRequestDialog from './components/ConvertToRequestDialog';
 import {
   TASK_STATUS_COLORS,
-  TASK_STATUS_LABELS,
   TASK_STATUS_OPTIONS,
 } from './task.constants';
 import type { TaskStatus } from './task.constants';
-
-const PRIORITY_LABELS: Record<string, string> = {
-  blocker: 'Blocker',
-  high: 'High',
-  normal: 'Normal',
-  low: 'Low',
-  optional: 'Optional',
-};
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import {
+  getPriorityLabel,
+  getTaskStatusLabel,
+} from '../../utils/portfolioI18n';
 
 const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' | 'success'> = {
   blocker: 'error',
@@ -115,6 +112,7 @@ interface TaskData {
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
 export default function TaskWorkspacePage() {
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -212,6 +210,13 @@ export default function TaskWorkspacePage() {
   const pendingDescriptionFocusRef = React.useRef(false);
   const autoCommentFocusTaskRef = React.useRef<string | null>(null);
   const [isContentScrolled, setIsContentScrolled] = React.useState(false);
+  const priorityLabels = React.useMemo<Record<string, string>>(() => ({
+    blocker: getPriorityLabel(t, 'blocker'),
+    high: getPriorityLabel(t, 'high'),
+    normal: getPriorityLabel(t, 'normal'),
+    low: getPriorityLabel(t, 'low'),
+    optional: getPriorityLabel(t, 'optional'),
+  }), [t]);
 
   // Sidebar width state with localStorage persistence
   const SIDEBAR_STORAGE_KEY = 'taskSidebarWidth';
@@ -270,10 +275,13 @@ export default function TaskWorkspacePage() {
   // Browser tab title
   React.useEffect(() => {
     if (task?.item_number && task?.title) {
-      document.title = `T-${task.item_number} — ${task.title} | KANAP`;
+      document.title = t('portfolio:workspace.task.browserTitle', {
+        ref: `T-${task.item_number}`,
+        name: task.title,
+      });
     }
     return () => { document.title = 'KANAP'; };
-  }, [task?.item_number, task?.title]);
+  }, [task?.item_number, task?.title, t]);
 
   // Swap UUID with item ref in URL bar
   React.useEffect(() => {
@@ -365,10 +373,10 @@ export default function TaskWorkspacePage() {
 
   const handleDescriptionImport = React.useCallback(async (selectedFile: File): Promise<ImportDocumentResult> => {
     if (isCreate || !task?.id) {
-      throw new Error('Document import is available after the task is created');
+      throw new Error(t('portfolio:workspace.task.messages.documentImportAfterCreate'));
     }
     return importMarkdownDocument(`/tasks/${task.id}/import`, selectedFile);
-  }, [isCreate, task?.id]);
+  }, [isCreate, task?.id, t]);
 
   const handleDescriptionImported = React.useCallback((result: ImportDocumentResult) => {
     setError(null);
@@ -381,8 +389,8 @@ export default function TaskWorkspacePage() {
   }, []);
 
   const handleDescriptionImportError = React.useCallback((error: unknown) => {
-    setError((error as any)?.response?.data?.message || (error as any)?.message || 'Document import failed');
-  }, []);
+    setError(getApiErrorMessage(error, t, t('portfolio:workspace.task.messages.documentImportFailed')));
+  }, [t]);
 
   const handleDeleteAttachment = async (attachmentId: string) => {
     await api.patch(`/tasks/attachments/${attachmentId}/delete`);
@@ -521,7 +529,7 @@ export default function TaskWorkspacePage() {
             setCreateRelation({
               type: 'project',
               id: res.data.id || projectId,
-              name: res.data.name || 'Project',
+              name: res.data.name || t('portfolio:context.project'),
             });
             setInitialized(true);
           })
@@ -534,7 +542,7 @@ export default function TaskWorkspacePage() {
             setCreateRelation({
               type: 'spend_item',
               id: res.data.id || spendItemId,
-              name: res.data.product_name || 'Spend Item',
+              name: res.data.product_name || t('portfolio:context.spend_item'),
             });
             setInitialized(true);
           })
@@ -547,7 +555,7 @@ export default function TaskWorkspacePage() {
             setCreateRelation({
               type: 'capex_item',
               id: res.data.id || capexItemId,
-              name: res.data.description || 'CAPEX Item',
+              name: res.data.description || t('portfolio:context.capex_item'),
             });
             setInitialized(true);
           })
@@ -560,7 +568,7 @@ export default function TaskWorkspacePage() {
             setCreateRelation({
               type: 'contract',
               id: res.data.id || contractId,
-              name: res.data.name || 'Contract',
+              name: res.data.name || t('portfolio:context.contract'),
             });
             setInitialized(true);
           })
@@ -571,7 +579,7 @@ export default function TaskWorkspacePage() {
         setInitialized(true);
       }
     }
-  }, [isCreate, profile?.id, cleanedSearchParams]);
+  }, [isCreate, profile?.id, cleanedSearchParams, t]);
 
   React.useEffect(() => {
     if (!isCreate || !initialized || !pendingDescriptionFocusRef.current) return;
@@ -707,10 +715,10 @@ export default function TaskWorkspacePage() {
       const relationChanged = nextType !== currentType || nextId !== currentId;
 
       if (nextType === null && nextId !== null) {
-        throw new Error('Standalone tasks must not have a related item');
+        throw new Error(t('portfolio:workspace.task.messages.invalidStandaloneRelation'));
       }
       if (nextType !== null && !nextId) {
-        throw new Error('Please select a related item');
+        throw new Error(t('portfolio:workspace.task.messages.relatedItemRequired'));
       }
 
       const endpoint = nextType === 'project'
@@ -766,21 +774,21 @@ export default function TaskWorkspacePage() {
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['task-activities', task.id] });
-    } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save task');
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('portfolio:workspace.task.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!task || !window.confirm('Are you sure you want to delete this task? This cannot be undone.')) return;
+    if (!task || !window.confirm(t('portfolio:workspace.task.confirmations.deleteTask'))) return;
     try {
       await api.delete('/tasks/bulk', { data: { ids: [task.id] } });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       navigate('/portfolio/tasks');
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to delete task');
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('portfolio:workspace.task.messages.deleteFailed')));
     }
   };
 
@@ -814,7 +822,7 @@ export default function TaskWorkspacePage() {
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before navigating?');
+      const proceed = window.confirm(t('portfolio:workspace.task.confirmations.unsavedNavigate'));
       if (proceed) {
         setSaving(true);
         try { await handleSave(); } catch { setSaving(false); return; }
@@ -837,7 +845,7 @@ export default function TaskWorkspacePage() {
     }
     const qs = cleanedSearchParams.toString();
     navigate(`/portfolio/tasks/${targetId}${qs ? `?${qs}` : ''}`);
-  }, [dirty, task, cleanedSearchParams, navigate, handleSave]);
+  }, [dirty, task, cleanedSearchParams, navigate, handleSave, t]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('en-GB', {
@@ -854,7 +862,7 @@ export default function TaskWorkspacePage() {
 
     // Validation
     if (!title.trim()) {
-      setError('Title is required');
+      setError(t('portfolio:workspace.task.messages.titleRequired'));
       return;
     }
     // Related item is optional - standalone tasks are allowed
@@ -903,10 +911,10 @@ export default function TaskWorkspacePage() {
             endpoint = `/capex-items/${createRelation.id}/tasks`;
             break;
           default:
-            throw new Error('Invalid relation type');
+            throw new Error(t('portfolio:workspace.task.messages.invalidRelationType'));
         }
       } else {
-        throw new Error('Invalid relation configuration');
+        throw new Error(t('portfolio:workspace.task.messages.invalidRelationConfiguration'));
       }
 
       const res = await api.post<{ id: string }>(endpoint, payload);
@@ -943,8 +951,8 @@ export default function TaskWorkspacePage() {
         const qs = cleanedSearchParams.toString();
         navigate(`/portfolio/tasks/${newId}/overview${qs ? `?${qs}` : ''}`, { replace: true });
       }
-    } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to create task');
+    } catch (error) {
+      setError(getApiErrorMessage(error, t, t('portfolio:workspace.task.messages.createFailed')));
     } finally {
       setCreateSaving(false);
     }
@@ -955,8 +963,8 @@ export default function TaskWorkspacePage() {
   const isCreateValid = Boolean(title.trim());
   const taskImportDisabled = isCreate || !canManage;
   const taskImportDisabledTitle = isCreate
-    ? 'Save the task first to import a document.'
-    : (!canManage ? 'You need edit permission to import a document.' : undefined);
+    ? t('portfolio:workspace.task.messages.importSaveFirst')
+    : (!canManage ? t('portfolio:workspace.task.messages.importPermissionRequired') : undefined);
   const contentSpacing = {
     section: 3,
     sectionLarge: 4,
@@ -1026,12 +1034,12 @@ export default function TaskWorkspacePage() {
                 <ArrowBackIcon />
               </IconButton>
               <Typography variant="body2" color="text.secondary">
-                Back to Tasks
+                {t('portfolio:actions.backToTasks')}
               </Typography>
             </Stack>
             <Stack direction="row" spacing={1}>
               <Button onClick={handleBack} size="small">
-                Cancel
+                {t('common:buttons.cancel')}
               </Button>
               <Button
                 variant="contained"
@@ -1039,7 +1047,7 @@ export default function TaskWorkspacePage() {
                 disabled={!isCreateValid || createSaving || !canManage}
                 size="small"
               >
-                {createSaving ? 'Creating...' : 'Create'}
+                {createSaving ? t('portfolio:workspace.task.messages.creating') : t('common:buttons.create')}
               </Button>
             </Stack>
           </Stack>
@@ -1055,7 +1063,7 @@ export default function TaskWorkspacePage() {
                 color: 'text.primary',
               }}
             >
-              Task title
+              {t('portfolio:workspace.task.title.label')}
             </Typography>
             <Box sx={titleBarSx}>
               <TextField
@@ -1074,7 +1082,7 @@ export default function TaskWorkspacePage() {
                 variant="standard"
                 fullWidth
                 autoFocus
-                placeholder="Task title"
+                placeholder={t('portfolio:workspace.task.title.placeholder')}
                 InputProps={{
                   disableUnderline: true,
                   sx: { fontSize: '1.5rem', fontWeight: 600 },
@@ -1083,12 +1091,12 @@ export default function TaskWorkspacePage() {
             </Box>
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
-                label={TASK_STATUS_LABELS[(form.status as TaskStatus) || 'open'] || 'Open'}
+                label={getTaskStatusLabel(t, (form.status as TaskStatus) || 'open')}
                 color={TASK_STATUS_COLORS[(form.status as TaskStatus) || 'open'] || 'default'}
                 size="small"
               />
               <Chip
-                label={PRIORITY_LABELS[form.priority_level as string] || 'Normal'}
+                label={priorityLabels[form.priority_level as string] || getPriorityLabel(t, 'normal')}
                 color={PRIORITY_COLORS[form.priority_level as string] || 'default'}
                 size="small"
                 variant="outlined"
@@ -1186,7 +1194,7 @@ export default function TaskWorkspacePage() {
             <Box sx={{ mb: contentSpacing.sectionLarge }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
                 <Typography variant="subtitle2" fontWeight="bold">
-                  Description
+                  {t('portfolio:labels.description')}
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <ImportButton
@@ -1211,7 +1219,7 @@ export default function TaskWorkspacePage() {
                     key={`task-description:${id || 'create'}:${descriptionResetNonce}`}
                     value={description}
                     onChange={(val) => setDescription(val)}
-                    placeholder="Add a description..."
+                    placeholder={t('portfolio:workspace.task.description.placeholder')}
                     minRows={10}
                     maxRows={26}
                     focusNonce={descriptionFocusNonce}
@@ -1220,7 +1228,7 @@ export default function TaskWorkspacePage() {
                 </React.Suspense>
               ) : (
                 <Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
-                  <Typography color="text.secondary">Loading...</Typography>
+                  <Typography color="text.secondary">{t('common:status.loading')}</Typography>
                 </Box>
               )}
             </Box>
@@ -1233,7 +1241,7 @@ export default function TaskWorkspacePage() {
   if (isLoading) {
     return (
       <Box sx={{ p: 3 }}>
-        <Typography color="text.secondary">Loading task...</Typography>
+        <Typography color="text.secondary">{t('portfolio:workspace.task.messages.loading')}</Typography>
       </Box>
     );
   }
@@ -1241,8 +1249,8 @@ export default function TaskWorkspacePage() {
   if (!task) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error">Task not found</Alert>
-        <Button onClick={handleBack} sx={{ mt: 2 }}>Back to Tasks</Button>
+        <Alert severity="error">{t('portfolio:workspace.task.messages.notFound')}</Alert>
+        <Button onClick={handleBack} sx={{ mt: 2 }}>{t('portfolio:actions.backToTasks')}</Button>
       </Box>
     );
   }
@@ -1283,11 +1291,11 @@ export default function TaskWorkspacePage() {
               <ArrowBackIcon />
             </IconButton>
             <Typography variant="body2" color="text.secondary">
-              Back to Tasks
+              {t('portfolio:actions.backToTasks')}
             </Typography>
             {total > 0 && (
               <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-                ({index + 1} of {total})
+                ({t('portfolio:workspace.task.navigation.position', { index: index + 1, total })})
               </Typography>
             )}
           </Stack>
@@ -1297,7 +1305,7 @@ export default function TaskWorkspacePage() {
               onClick={() => setShareDialogOpen(true)}
               size="small"
             >
-              Send link
+              {t('portfolio:actions.sendLink')}
             </Button>
             <Button
               onClick={() => setConvertToRequestOpen(true)}
@@ -1306,16 +1314,16 @@ export default function TaskWorkspacePage() {
               title={
                 hasConvertedRequest
                   ? (task.converted_request_item_number
-                    ? `Already converted to REQ-${task.converted_request_item_number}`
-                    : 'Already converted to a request')
-                  : (!canCreateRequest ? 'Requires portfolio_requests:member permission' : undefined)
+                    ? t('portfolio:workspace.task.actions.alreadyConvertedWithReference', { ref: `REQ-${task.converted_request_item_number}` })
+                    : t('portfolio:workspace.task.actions.alreadyConverted'))
+                  : (!canCreateRequest ? t('portfolio:workspace.task.actions.convertRequiresPermission') : undefined)
               }
             >
-              Convert to Request
+              {t('portfolio:actions.convertToRequest')}
             </Button>
             <IconButton
-              aria-label="Previous"
-              title="Previous"
+              aria-label={t('portfolio:actions.previous')}
+              title={t('portfolio:actions.previous')}
               onClick={() => confirmAndNavigate(prevId)}
               disabled={!hasPrev}
               size="small"
@@ -1323,8 +1331,8 @@ export default function TaskWorkspacePage() {
               <ArrowBackIcon fontSize="small" />
             </IconButton>
             <IconButton
-              aria-label="Next"
-              title="Next"
+              aria-label={t('portfolio:actions.next')}
+              title={t('portfolio:actions.next')}
               onClick={() => confirmAndNavigate(nextId)}
               disabled={!hasNext}
               size="small"
@@ -1338,7 +1346,7 @@ export default function TaskWorkspacePage() {
                 onClick={handleDelete}
                 size="small"
               >
-                Delete
+                {t('common:buttons.delete')}
               </Button>
             )}
             <Button
@@ -1347,9 +1355,9 @@ export default function TaskWorkspacePage() {
               disabled={!dirty || saving || !canManage}
               size="small"
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? t('common:status.saving') : t('common:buttons.save')}
             </Button>
-            <IconButton onClick={handleBack} size="small" title="Close">
+            <IconButton onClick={handleBack} size="small" title={t('common:buttons.close')}>
               <CloseIcon />
             </IconButton>
           </Stack>
@@ -1373,7 +1381,7 @@ export default function TaskWorkspacePage() {
                 boxShadow: 2,
                 flexShrink: 0,
               }}
-              title="Priority score"
+              title={t('portfolio:workspace.task.priority.title')}
             >
               {Math.round(task.priority_score)}
             </Box>
@@ -1387,7 +1395,7 @@ export default function TaskWorkspacePage() {
                   variant="outlined"
                   sx={{ fontFamily: 'monospace' }}
                   onClick={() => navigator.clipboard.writeText(`T-${task.item_number}`)}
-                  title="Click to copy reference"
+                  title={t('portfolio:workspace.task.actions.copyReference')}
                 />
               )}
               <Box sx={{ ...titleBarSx, flex: 1 }}>
@@ -1403,7 +1411,7 @@ export default function TaskWorkspacePage() {
                     }}
                     variant="standard"
                     fullWidth
-                    placeholder="Task title"
+                    placeholder={t('portfolio:workspace.task.title.placeholder')}
                     InputProps={{
                       disableUnderline: true,
                       sx: { fontSize: '1.5rem', fontWeight: 600 },
@@ -1411,14 +1419,14 @@ export default function TaskWorkspacePage() {
                   />
                 ) : (
                   <Typography variant="h5" sx={{ fontWeight: 600, py: 0.4 }}>
-                    {title || 'Untitled Task'}
+                    {title || t('portfolio:workspace.task.title.untitled')}
                   </Typography>
                 )}
               </Box>
             </Stack>
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
-                label={TASK_STATUS_LABELS[(form.status || task.status) as TaskStatus] || (form.status || task.status)}
+                label={getTaskStatusLabel(t, (form.status || task.status) as TaskStatus)}
                 color={TASK_STATUS_COLORS[(form.status || task.status) as TaskStatus] || 'default'}
                 size="small"
               />
@@ -1429,11 +1437,11 @@ export default function TaskWorkspacePage() {
                   variant="outlined"
                   onClick={() => navigate(buildProjectWorkspacePath(projectHeaderChip.id, 'activity'))}
                   sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                  title={`Open project activity: ${projectHeaderChip.name}`}
+                  title={t('portfolio:workspace.task.actions.openProjectActivity', { name: projectHeaderChip.name })}
                 />
               )}
               <Chip
-                label={PRIORITY_LABELS[form.priority_level || task.priority_level] || task.priority_level}
+                label={priorityLabels[form.priority_level || task.priority_level] || getPriorityLabel(t, form.priority_level || task.priority_level)}
                 color={PRIORITY_COLORS[form.priority_level || task.priority_level] || 'default'}
                 size="small"
                 variant="outlined"
@@ -1445,7 +1453,7 @@ export default function TaskWorkspacePage() {
                 disabled={!canManage}
                 variant={showUploadArea ? 'contained' : 'text'}
               >
-                Attach files
+                {t('portfolio:workspace.task.actions.attachFiles')}
               </Button>
             </Stack>
           </Stack>
@@ -1541,7 +1549,7 @@ export default function TaskWorkspacePage() {
           <Box sx={{ mb: contentSpacing.sectionLarge }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
               <Typography variant="subtitle2" fontWeight="bold">
-                Description
+                {t('portfolio:labels.description')}
               </Typography>
               <Stack direction="row" spacing={1} alignItems="center">
                 <ImportButton
@@ -1562,14 +1570,14 @@ export default function TaskWorkspacePage() {
             </Stack>
             {initialized ? (
               <React.Suspense fallback={<Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
-                <MarkdownEditor
-                  key={`task-description:${id || 'create'}:${descriptionResetNonce}`}
-                  value={description}
-                  onChange={(val) => { setDescription(val); setDirty(true); }}
-                  placeholder="Add a description..."
-                  minRows={10}
-                  maxRows={26}
-                  disabled={!canManage}
+                  <MarkdownEditor
+                    key={`task-description:${id || 'create'}:${descriptionResetNonce}`}
+                    value={description}
+                    onChange={(val) => { setDescription(val); setDirty(true); }}
+                    placeholder={t('portfolio:workspace.task.description.placeholder')}
+                    minRows={10}
+                    maxRows={26}
+                    disabled={!canManage}
                   onImageUpload={handleUploadImage}
                   onImageUrlImport={handleImportImageUrl}
                   focusNonce={descriptionFocusNonce}
@@ -1578,7 +1586,7 @@ export default function TaskWorkspacePage() {
               </React.Suspense>
             ) : (
               <Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
-                <Typography color="text.secondary">Loading...</Typography>
+                <Typography color="text.secondary">{t('common:status.loading')}</Typography>
               </Box>
             )}
           </Box>
@@ -1614,8 +1622,8 @@ export default function TaskWorkspacePage() {
       {/* Footer */}
       <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
         <Typography variant="caption" color="text.secondary">
-          Created {formatDate(task.created_at)}
-          {task.updated_at && ` • Last updated ${formatDate(task.updated_at)}`}
+          {t('portfolio:workspace.task.footer.created', { date: formatDate(task.created_at) })}
+          {task.updated_at && ` • ${t('portfolio:workspace.task.footer.updated', { date: formatDate(task.updated_at) })}`}
         </Typography>
       </Box>
 
@@ -1624,7 +1632,7 @@ export default function TaskWorkspacePage() {
         onClose={() => setShareDialogOpen(false)}
         itemType="task"
         itemId={id}
-        itemName={title || 'Untitled Task'}
+        itemName={title || t('portfolio:workspace.task.title.untitled')}
         itemNumber={task?.item_number}
       />
       <ConvertToRequestDialog

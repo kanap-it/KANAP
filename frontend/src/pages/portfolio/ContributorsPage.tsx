@@ -12,6 +12,8 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import PageHeader from '../../components/PageHeader';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 interface Contributor {
   id: string;
@@ -48,6 +50,7 @@ interface ContributorTimeStats {
 export default function ContributorsPage() {
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const canEdit = hasLevel('portfolio_settings', 'member');
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -152,11 +155,11 @@ export default function ContributorsPage() {
       refetch();
       navigate(`/portfolio/contributors/${res.data.id}`);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to add contributor');
+      setError(getApiErrorMessage(e, t, t('contributors.messages.addFailed')));
     } finally {
       setAdding(false);
     }
-  }, [selectedUser, refetch, navigate]);
+  }, [navigate, refetch, selectedUser, t]);
 
   const handleRowClick = useCallback((contributor: Contributor) => {
     navigate(`/portfolio/contributors/${contributor.id}`);
@@ -164,30 +167,30 @@ export default function ContributorsPage() {
 
   const actions = canEdit ? (
     <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddDialogOpen(true)}>
-      Add Contributor
+      {t('contributors.actions.addContributor')}
     </Button>
   ) : null;
 
   const getTeamName = (teamId: string) => {
-    if (teamId === 'unassigned') return 'Unassigned';
-    return teams.find((t) => t.id === teamId)?.name || 'Unknown Team';
+    if (teamId === 'unassigned') return t('contributors.filters.unassigned');
+    return teams.find((team) => team.id === teamId)?.name || t('contributors.teams.unknown');
   };
 
   return (
     <>
-      <PageHeader title="Contributors" actions={actions} />
+      <PageHeader title={t('contributors.title')} actions={actions} />
 
       <Box sx={{ p: 2 }}>
         {/* Filter */}
         <Box sx={{ mb: 3, maxWidth: 300 }}>
           <FormControl fullWidth size="small">
-            <InputLabel>Filter by Team</InputLabel>
+            <InputLabel>{t('contributors.filters.team')}</InputLabel>
             <Select
               value={filterTeamId}
-              label="Filter by Team"
+              label={t('contributors.filters.team')}
               onChange={(e) => setFilterTeamId(e.target.value)}
             >
-              <MenuItem value="all">All Teams</MenuItem>
+              <MenuItem value="all">{t('contributors.filters.allTeams')}</MenuItem>
               {teams
                 .filter((t) => t.is_active)
                 .sort((a, b) => a.name.localeCompare(b.name))
@@ -196,16 +199,16 @@ export default function ContributorsPage() {
                     {team.name}
                   </MenuItem>
                 ))}
-              <MenuItem value="unassigned">Unassigned</MenuItem>
+              <MenuItem value="unassigned">{t('contributors.filters.unassigned')}</MenuItem>
             </Select>
           </FormControl>
         </Box>
 
-        {isLoading && <Typography>Loading...</Typography>}
+        {isLoading && <Typography>{t('common:status.loading')}</Typography>}
 
         {!isLoading && contributors.length === 0 && (
           <Alert severity="info">
-            No contributors configured yet. Add contributors to define their skills and availability.
+            {t('contributors.states.empty')}
           </Alert>
         )}
 
@@ -263,18 +266,18 @@ export default function ContributorsPage() {
                                   {contributor.user_display_name || contributor.user_email}
                                 </Typography>
                                 <Chip
-                                  label={`${contributor.skills?.length || 0} skill${(contributor.skills?.length || 0) !== 1 ? 's' : ''}`}
+                                  label={t('contributors.cards.skillCount', { count: contributor.skills?.length || 0 })}
                                   size="small"
                                   variant="outlined"
                                 />
                                 <Chip
-                                  label={`${contributor.project_availability ?? 5}d/mo`}
+                                  label={t('contributors.cards.daysPerMonth', { count: contributor.project_availability ?? 5 })}
                                   size="small"
                                   color="primary"
                                 />
                                 {timeStatsData?.[contributor.id] && (
                                   <Chip
-                                    label={`Avg: ${timeStatsData[contributor.id].avgProjectDays}d/mo`}
+                                    label={t('contributors.cards.avgDaysPerMonth', { count: timeStatsData[contributor.id].avgProjectDays })}
                                     size="small"
                                     color="secondary"
                                     variant="outlined"
@@ -295,7 +298,7 @@ export default function ContributorsPage() {
       </Box>
 
       <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Contributor</DialogTitle>
+        <DialogTitle>{t('contributors.dialog.title')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
@@ -320,8 +323,8 @@ export default function ContributorsPage() {
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Select User"
-                  placeholder="Search users..."
+                  label={t('contributors.dialog.selectUser')}
+                  placeholder={t('contributors.dialog.searchUsers')}
                 />
               )}
               fullWidth
@@ -329,13 +332,13 @@ export default function ContributorsPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setAddDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button
             variant="contained"
             onClick={handleAdd}
             disabled={adding || !selectedUser}
           >
-            {adding ? 'Adding...' : 'Add'}
+            {adding ? t('contributors.dialog.adding') : t('common:buttons.add')}
           </Button>
         </DialogActions>
       </Dialog>

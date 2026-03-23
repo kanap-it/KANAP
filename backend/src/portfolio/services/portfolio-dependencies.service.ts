@@ -249,7 +249,7 @@ export class PortfolioDependenciesService extends PortfolioProjectsBaseService {
     const mg = this.getManager(opts);
     const project = await this.ensureProject(projectId, mg);
     const rows = await mg.query(
-      `SELECT ap.application_id as id, a.name, a.lifecycle, a.criticality
+      `SELECT ap.application_id as id, a.name, a.description, a.lifecycle, a.criticality
        FROM application_projects ap
        JOIN applications a ON a.id = ap.application_id
        WHERE ap.project_id = $1

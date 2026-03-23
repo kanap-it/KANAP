@@ -10,6 +10,7 @@ import ForbiddenPage from '../ForbiddenPage';
 import { COUNTRY_OPTIONS } from '../../constants/isoOptions';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 
+import { useTranslation } from 'react-i18next';
 type LocationRow = {
   id: string;
   code: string;
@@ -24,6 +25,7 @@ type LocationRow = {
 };
 
 export default function LocationsPage() {
+  const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
   const { labelFor, settings } = useItOpsEnumOptions();
@@ -75,10 +77,10 @@ export default function LocationsPage() {
   }, [getLocationHref, navigate]);
 
   const columns: EnhancedColDef<LocationRow>[] = [
-    { headerName: 'Code', field: 'code', minWidth: 140, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
-    { headerName: 'Name', field: 'name', minWidth: 200, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
+    { headerName: t('pages.locations.columns.code'), field: 'code', minWidth: 140, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
+    { headerName: t('common.name'), field: 'name', minWidth: 200, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
     {
-      headerName: 'Hosting type',
+      headerName: t('pages.locations.columns.hostingType'),
       field: 'hosting_type',
       width: 160,
       filter: 'agSetColumnFilter',
@@ -86,7 +88,7 @@ export default function LocationsPage() {
       cellRenderer: ClickableCell,
     },
     {
-      headerName: 'Provider / Company',
+      headerName: t('pages.locations.columns.providerCompany'),
       field: 'provider',
       minWidth: 200,
       valueGetter: (params) => {
@@ -104,7 +106,7 @@ export default function LocationsPage() {
       cellRenderer: ClickableCell,
     },
     {
-      headerName: 'Country',
+      headerName: t('pages.locations.columns.country'),
       field: 'country_iso',
       width: 180,
       valueFormatter: (p) => {
@@ -115,16 +117,16 @@ export default function LocationsPage() {
       },
       cellRenderer: ClickableCell,
     },
-    { headerName: 'City', field: 'city', width: 160, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
+    { headerName: t('pages.locations.columns.city'), field: 'city', width: 160, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
     {
-      headerName: 'Assets',
+      headerName: t('pages.locations.columns.assets'),
       field: 'servers_count',
       width: 120,
       filter: false,
       valueFormatter: (p) => (p.value == null ? '0' : String(p.value)),
       cellRenderer: ClickableCell,
     },
-    { headerName: 'Created', field: 'created_at', width: 180, cellRenderer: ClickableCell },
+    { headerName: t('pages.assets.columns.created'), field: 'created_at', width: 180, cellRenderer: ClickableCell },
   ];
 
   const actions = (
@@ -139,7 +141,7 @@ export default function LocationsPage() {
 
   return (
     <>
-      <PageHeader title="Locations" actions={actions} />
+      <PageHeader title={t('pages.locations.title')} actions={actions} />
       <ServerDataGrid<LocationRow>
         columns={columns}
         endpoint="/locations"

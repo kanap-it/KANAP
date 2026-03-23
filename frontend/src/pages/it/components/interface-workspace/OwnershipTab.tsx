@@ -16,7 +16,9 @@ import UserSelect from '../../../../components/fields/UserSelect';
 import CompanySelect from '../../../../components/fields/CompanySelect';
 import type { InterfaceDetail, InterfaceOwner, InterfaceCompany, InterfaceTabProps } from './types';
 
+import { useTranslation } from 'react-i18next';
 export default function OwnershipTab({ data, update, markDirty }: InterfaceTabProps) {
+  const { t } = useTranslation(['it', 'common']);
   const owners = (data?.owners || []) as InterfaceOwner[];
   const companies = (data?.companies || []) as InterfaceCompany[];
 
@@ -140,7 +142,7 @@ export default function OwnershipTab({ data, update, markDirty }: InterfaceTabPr
                 <TextField label="First Name" value={u?.first_name || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
                 <TextField label="Job Title" value={u?.job_title || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
                 {(o.__idx ?? -1) >= 0 ? (
-                  <IconButton aria-label="Remove" onClick={() => removeOwnerAtIndex(o.__idx)} size="small">
+                  <IconButton aria-label={t('common.remove')} onClick={() => removeOwnerAtIndex(o.__idx)} size="small">
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 ) : (
@@ -190,7 +192,7 @@ export default function OwnershipTab({ data, update, markDirty }: InterfaceTabPr
                 <TextField label="First Name" value={u?.first_name || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
                 <TextField label="Job Title" value={u?.job_title || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
                 {(o.__idx ?? -1) >= 0 ? (
-                  <IconButton aria-label="Remove" onClick={() => removeOwnerAtIndex(o.__idx)} size="small">
+                  <IconButton aria-label={t('common.remove')} onClick={() => removeOwnerAtIndex(o.__idx)} size="small">
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 ) : (
@@ -253,7 +255,7 @@ export default function OwnershipTab({ data, update, markDirty }: InterfaceTabPr
               sx={{ display: 'grid', gridTemplateColumns: '3fr auto', gap: 1, alignItems: 'center' }}
             >
               <CompanySelect value={row.company_id} onChange={(v) => setRowCompany(idx, v)} size="small" />
-              <IconButton aria-label="Remove" onClick={() => removeCompanyRow(idx)} size="small">
+              <IconButton aria-label={t('common.remove')} onClick={() => removeCompanyRow(idx)} size="small">
                 <DeleteIcon fontSize="small" />
               </IconButton>
             </Box>

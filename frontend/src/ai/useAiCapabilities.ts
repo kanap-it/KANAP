@@ -23,6 +23,7 @@ export type AiCapabilities = {
     ai_chat: boolean;
     ai_mcp: boolean;
     ai_settings: boolean;
+    ai_web_search: boolean;
   };
   surfaces: {
     chat: AiSurfaceCapability;

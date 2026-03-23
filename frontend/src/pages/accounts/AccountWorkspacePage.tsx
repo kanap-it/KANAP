@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Box, Button, Divider, IconButton, Stack, Tab, Tabs, Typography } from '@mui/material';
@@ -17,6 +18,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
 
 export default function AccountWorkspacePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['master-data', 'common']);
   const params = useParams();
   const [searchParams] = useSearchParams();
   const { hasLevel } = useAuth();
@@ -128,17 +130,17 @@ export default function AccountWorkspacePage() {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Stack>
           <Typography variant="h6">
-            {isCreate ? 'New Account' : (data?.account_name || 'Account')}
+            {isCreate ? t('accounts.newAccount') : (data?.account_name || t('accounts.accountFallback'))}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {!isCreate && total > 0 ? `Account ${index + 1} of ${total}` : ''}
+            {!isCreate && total > 0 ? t('shared.workspace.itemCountOf', { entity: t('accounts.accountFallback'), current: index + 1, total }) : ''}
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Button onClick={handlePrev} disabled={!hasPrev}>Prev</Button>
-          <Button onClick={handleReset} disabled={!dirty}>Reset</Button>
-          <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>Save</Button>
-          <Button onClick={handleNext} disabled={!hasNext}>Next</Button>
+          <Button onClick={handlePrev} disabled={!hasPrev}>{t('shared.labels.prev')}</Button>
+          <Button onClick={handleReset} disabled={!dirty}>{t('common:buttons.reset')}</Button>
+          <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>{t('common:buttons.saveChanges')}</Button>
+          <Button onClick={handleNext} disabled={!hasNext}>{t('shared.labels.next')}</Button>
           <IconButton
             aria-label="Close"
             title="Close"
@@ -152,7 +154,7 @@ export default function AccountWorkspacePage() {
         </Stack>
       </Stack>
 
-      {!!error && <Alert severity="error">Failed to load account.</Alert>}
+      {!!error && <Alert severity="error">{t('accounts.loadError')}</Alert>}
 
       <Divider sx={{ mb: 2 }} />
 

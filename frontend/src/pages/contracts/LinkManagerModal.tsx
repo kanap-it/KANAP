@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
 type SpendItem = { id: string; product_name: string };
 
 export default function LinkManagerModal({ open, contractId, contractName, onClose, onSaved }: Props) {
+  const { t } = useTranslation(['ops', 'common']);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [query, setQuery] = React.useState('');
@@ -63,9 +65,9 @@ export default function LinkManagerModal({ open, contractId, contractName, onClo
       <DialogTitle>Linked OPEX — {contractName}</DialogTitle>
       <DialogContent>
         <Stack spacing={2}>
-          <TextField placeholder="Search OPEX by product name" value={query} onChange={(e) => setQuery(e.target.value)} fullWidth />
+          <TextField placeholder={t('contracts.linkManager.searchPlaceholder')} value={query} onChange={(e) => setQuery(e.target.value)} fullWidth />
           <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Results</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('contracts.linkManager.results')}</Typography>
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               {options.map((o) => (
                 <Chip key={o.id} label={o.product_name} onClick={() => addItem(o)} />
@@ -73,7 +75,7 @@ export default function LinkManagerModal({ open, contractId, contractName, onClo
             </Stack>
           </Box>
           <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Selected</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('contracts.linkManager.selected')}</Typography>
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               {selected.map((s) => (
                 <Chip key={s.id} label={s.product_name} onDelete={() => removeItem(s.id)} />
