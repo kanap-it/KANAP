@@ -16,6 +16,7 @@ import {
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api';
+import { useTranslation } from 'react-i18next';
 import { formatItemRef } from '../utils/item-ref';
 
 type ItemType = 'task' | 'project' | 'request';
@@ -79,6 +80,7 @@ export default function ShareDialog({
   itemName,
   itemNumber,
 }: ShareDialogProps) {
+  const { t } = useTranslation('common');
   const [recipients, setRecipients] = React.useState<RecipientValue[]>([]);
   const [inputValue, setInputValue] = React.useState('');
   const [message, setMessage] = React.useState('');
@@ -135,7 +137,7 @@ export default function ShareDialog({
       });
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to send');
+      setError(e?.response?.data?.message || e?.message || t('messages.failedToSend'));
     } finally {
       setSending(false);
     }
@@ -153,7 +155,7 @@ export default function ShareDialog({
 
   return (
     <Dialog open={open} onClose={sending ? undefined : onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Send Link</DialogTitle>
+      <DialogTitle>{t('share.sendLink')}</DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
@@ -214,9 +216,9 @@ export default function ShareDialog({
             renderInput={(params) => (
               <TextField
                 {...params}
-                label="Recipients"
+                label={t('labels.recipients')}
                 required
-                placeholder="Search users or type an email..."
+                placeholder={t('share.searchUsersOrEmail')}
                 InputLabelProps={{ shrink: true }}
                 InputProps={{
                   ...params.InputProps,
@@ -231,7 +233,7 @@ export default function ShareDialog({
             )}
             disabled={isLoading}
             loading={isLoading}
-            noOptionsText={isLoading ? 'Loading...' : 'Type an email address'}
+            noOptionsText={isLoading ? t('selects.loading') : t('share.typeEmailAddress')}
             autoHighlight
             handleHomeEndKeys
             // Only accept free-text entries that look like valid emails
@@ -254,24 +256,24 @@ export default function ShareDialog({
           />
 
           <TextField
-            label="Message (optional)"
+            label={t('share.messageOptional')}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             multiline
             rows={3}
-            placeholder="Add a personal message..."
+            placeholder={t('share.addPersonalMessage')}
             fullWidth
           />
 
           <Stack direction="row" spacing={1} alignItems="center">
             <TextField
-              label="Link"
+              label={t('labels.link')}
               value={itemUrl}
               fullWidth
               size="small"
               InputProps={{ readOnly: true }}
             />
-            <IconButton onClick={handleCopy} title={copied ? 'Copied!' : 'Copy link'}>
+            <IconButton onClick={handleCopy} title={copied ? t('share.copied') : t('share.copyLink')}>
               <ContentCopyIcon color={copied ? 'success' : 'action'} />
             </IconButton>
           </Stack>
@@ -279,14 +281,14 @@ export default function ShareDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={sending}>
-          Cancel
+          {t('buttons.cancel')}
         </Button>
         <Button
           variant="contained"
           onClick={handleSend}
           disabled={sending || recipients.length === 0}
         >
-          {sending ? 'Sending...' : 'Send'}
+          {sending ? t('status.sending') : t('buttons.send')}
         </Button>
       </DialogActions>
     </Dialog>

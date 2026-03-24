@@ -97,7 +97,7 @@ export default function BusinessProcessCategoryManagerDialog({ open, onClose, on
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this category? This cannot be undone.')) return;
+    if (!window.confirm(t('businessProcesses.categoryManager.deleteConfirm'))) return;
     setError(null);
     try {
       // Mark as deleted locally; deletion will be applied on Save

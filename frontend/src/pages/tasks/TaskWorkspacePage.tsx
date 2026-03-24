@@ -48,6 +48,7 @@ import {
   getPriorityLabel,
   getTaskStatusLabel,
 } from '../../utils/portfolioI18n';
+import { useLocale } from '../../i18n/useLocale';
 
 const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' | 'success'> = {
   blocker: 'error',
@@ -113,6 +114,7 @@ const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'
 
 export default function TaskWorkspacePage() {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const locale = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -848,7 +850,7 @@ export default function TaskWorkspacePage() {
   }, [dirty, task, cleanedSearchParams, navigate, handleSave, t]);
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('en-GB', {
+    return new Date(dateStr).toLocaleString(locale, {
       day: '2-digit',
       month: 'short',
       year: 'numeric',

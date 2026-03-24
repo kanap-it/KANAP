@@ -1,4 +1,6 @@
 export type AiProviderId = 'anthropic' | 'openai' | 'ollama' | 'custom';
+export type AiSystemPromptRole = 'system' | 'developer';
+export type AiMaxTokensParam = 'max_completion_tokens' | 'max_tokens';
 
 export interface AiProviderCapabilities {
   supportsStreaming: boolean;
@@ -51,13 +53,16 @@ export type AiProviderToolDef = {
 };
 
 export type AiStreamParams = {
+  providerId?: AiProviderId;
   model: string;
   apiKey: string | null;
   endpointUrl: string | null;
   systemPrompt: string;
+  systemPromptRole?: AiSystemPromptRole;
   messages: AiProviderMessage[];
   tools: AiProviderToolDef[];
   maxTokens: number;
+  maxTokensParam?: AiMaxTokensParam;
   signal?: AbortSignal | null;
   timeoutMs?: number;
   maxRetries?: number;

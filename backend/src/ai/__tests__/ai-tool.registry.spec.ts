@@ -108,6 +108,27 @@ async function testSearchAllDelegatesToEntityTools() {
   }]);
 }
 
+async function testSearchAllAppliesGenerousDefaultLimit() {
+  const calls: unknown[] = [];
+  const registry = createRegistry({
+    entityTools: {
+      searchAll: async (_context: unknown, input: unknown) => {
+        calls.push(input);
+        return { items: [], total: 0, entity_types: ['applications'] };
+      },
+    },
+  });
+
+  await registry.execute(createContext(), 'search_all', {
+    query: 'billing',
+  });
+
+  assert.deepEqual(calls, [{
+    query: 'billing',
+    limit: 100,
+  }]);
+}
+
 async function testGetEntityContextDelegatesToEntityTools() {
   const calls: unknown[] = [];
   const registry = createRegistry({
@@ -165,6 +186,28 @@ async function testSearchKnowledgeMapsStableDto() {
   assert.equal(result.total, 1);
   assert.equal(result.items[0].ref, 'DOC-14');
   assert.equal(result.items[0].library.name, 'Operations');
+}
+
+async function testSearchKnowledgeAppliesDefaultLimit() {
+  const calls: unknown[] = [];
+  const registry = createRegistry({
+    knowledge: {
+      search: async (query: unknown) => {
+        calls.push(query);
+        return { total: 0, items: [] };
+      },
+    },
+  });
+
+  await registry.execute(createContext(), 'search_knowledge', {
+    query: 'runbook',
+  });
+
+  assert.deepEqual(calls, [{
+    q: 'runbook',
+    offset: 0,
+    limit: 100,
+  }]);
 }
 
 async function testGetDocumentMapsStableDto() {
@@ -231,8 +274,46 @@ async function testQueryEntitiesDelegatesToQueryExecutor() {
   assert.deepEqual(calls, [{
     entity_type: 'tasks',
     filters: { status: ['open'] },
+    page: 1,
     limit: 10,
   }]);
+}
+
+async function testQueryEntitiesAppliesGenerousDefaultLimit() {
+  const calls: unknown[] = [];
+  const registry = createRegistry({
+    queryExecutor: {
+      execute: async (_context: unknown, input: unknown) => {
+        calls.push(input);
+        return { items: [], total: 0, filters_applied: [], filters_ignored: [] };
+      },
+    },
+  });
+
+  await registry.execute(createContext(), 'query_entities', {
+    entity_type: 'tasks',
+  });
+
+  assert.deepEqual(calls, [{
+    entity_type: 'tasks',
+    page: 1,
+    limit: 200,
+  }]);
+}
+
+async function testSchemasExposeDefaultLimits() {
+  const registry = createRegistry();
+  const schemas = await registry.getToolJsonSchemas(createContext()) as any[];
+
+  const searchAll = schemas.find((schema) => schema.name === 'search_all');
+  const queryEntities = schemas.find((schema) => schema.name === 'query_entities');
+  const searchKnowledge = schemas.find((schema) => schema.name === 'search_knowledge');
+
+  assert.equal(searchAll.parameters.properties.limit.default, 100);
+  assert.equal(queryEntities.parameters.properties.page.default, 1);
+  assert.equal(queryEntities.parameters.properties.limit.default, 200);
+  assert.equal(searchKnowledge.parameters.properties.offset.default, 0);
+  assert.equal(searchKnowledge.parameters.properties.limit.default, 100);
 }
 
 async function testAggregateEntitiesDelegatesToAggregateExecutor() {
@@ -302,11 +383,15 @@ async function run() {
   await testListAvailableTools();
   await testListRegisteredToolsExposesRuntimeRegistry();
   await testSearchAllDelegatesToEntityTools();
+  await testSearchAllAppliesGenerousDefaultLimit();
   await testQueryEntitiesDelegatesToQueryExecutor();
+  await testQueryEntitiesAppliesGenerousDefaultLimit();
   await testAggregateEntitiesDelegatesToAggregateExecutor();
   await testGetFilterValuesDelegatesToQueryExecutor();
   await testGetEntityContextDelegatesToEntityTools();
   await testSearchKnowledgeMapsStableDto();
+  await testSearchKnowledgeAppliesDefaultLimit();
+  await testSchemasExposeDefaultLimits();
   await testGetDocumentMapsStableDto();
   await testWebSearchRejectsOversizedQueries();
 }

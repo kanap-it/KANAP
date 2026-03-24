@@ -81,7 +81,7 @@ export default function SupplierWorkspacePage() {
   const confirmAndNavigate = async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before navigating?');
+      const proceed = window.confirm(t('shared.workspace.unsavedNavigate'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -97,7 +97,7 @@ export default function SupplierWorkspacePage() {
   const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before switching tabs?');
+      const proceed = window.confirm(t('shared.workspace.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => navigate(`/master-data/suppliers/${id}/${nextValue}?${searchParams.toString()}`));
         return;

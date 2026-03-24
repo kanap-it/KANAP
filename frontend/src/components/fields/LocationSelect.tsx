@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type LocationOption = { id: string; code: string; name: string };
@@ -17,7 +18,7 @@ type Props = {
 };
 
 export default function LocationSelect({
-  label = 'Location',
+  label: labelProp,
   value,
   onChange,
   disabled,
@@ -26,6 +27,8 @@ export default function LocationSelect({
   required,
   size = 'medium',
 }: Props) {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.location');
   const { data: locations, isLoading } = useQuery({
     queryKey: ['locations', 'options'],
     queryFn: async () => {

@@ -31,6 +31,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import LinkIcon from '@mui/icons-material/Link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 
 export type EntityKnowledgeType = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
@@ -205,6 +206,7 @@ function KnowledgeGroupTable({
   onUnlink: (documentId: string) => void;
   unlinkPending: boolean;
 }) {
+  const { t } = useTranslation('common');
   const showUnlink = canCreate && group.key === 'direct';
 
   return (
@@ -224,13 +226,13 @@ function KnowledgeGroupTable({
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Ref</TableCell>
-              <TableCell>Title</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Linked Via</TableCell>
-              <TableCell>Source Object</TableCell>
-              <TableCell>Updated</TableCell>
-              <TableCell align="right">Open</TableCell>
+              <TableCell>{t('knowledgePanel.ref')}</TableCell>
+              <TableCell>{t('knowledgePanel.titleColumn')}</TableCell>
+              <TableCell>{t('knowledgePanel.statusColumn')}</TableCell>
+              <TableCell>{t('knowledgePanel.linkedVia')}</TableCell>
+              <TableCell>{t('knowledgePanel.sourceObject')}</TableCell>
+              <TableCell>{t('knowledgePanel.updatedColumn')}</TableCell>
+              <TableCell align="right">{t('knowledgePanel.openColumn')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -266,13 +268,13 @@ function KnowledgeGroupTable({
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Open
+                      {t('buttons.open')}
                     </Button>
                     {showUnlink && (
                       <IconButton
                         size="small"
                         color="error"
-                        aria-label="Unlink knowledge document"
+                        aria-label={t('knowledgePanel.unlinkDocument')}
                         onClick={() => onUnlink(item.id)}
                         disabled={unlinkPending}
                       >
@@ -308,6 +310,7 @@ function SidebarKnowledgeGroupList({
   onUnlink: (documentId: string) => void;
   unlinkPending: boolean;
 }) {
+  const { t } = useTranslation('common');
   const showUnlink = canCreate && group.key === 'direct';
 
   return (
@@ -338,7 +341,7 @@ function SidebarKnowledgeGroupList({
                   href={`/knowledge/DOC-${item.item_number}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="Open knowledge document"
+                  title={t('knowledgePanel.openKnowledge')}
                 >
                   <OpenInNewIcon fontSize="small" />
                 </IconButton>
@@ -347,7 +350,7 @@ function SidebarKnowledgeGroupList({
                     size="small"
                     color="error"
                     aria-label="Unlink knowledge document"
-                    title="Unlink knowledge document"
+                    title={t('knowledgePanel.unlinkDocument')}
                     onClick={() => onUnlink(item.id)}
                     disabled={unlinkPending}
                   >
@@ -390,6 +393,7 @@ export default function EntityKnowledgePanel({
   variant = 'default',
 }: EntityKnowledgePanelProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   const qc = useQueryClient();
   const [search, setSearch] = React.useState('');
   const [selectedDoc, setSelectedDoc] = React.useState<DocumentListItem | null>(null);
@@ -642,7 +646,7 @@ export default function EntityKnowledgePanel({
             onClick={handleCreateBlank}
             disabled={createLinkedMutation.isPending}
           >
-            New document
+            {t('knowledgePanel.newDocumentLower')}
           </Button>
           <Button
             onClick={(event) => setNewDocAnchorEl(event.currentTarget)}
@@ -665,7 +669,7 @@ export default function EntityKnowledgePanel({
           loading={canCreate && !!entityId && isSearchingDocs}
           getOptionLabel={formatDocumentOptionLabel}
           isOptionEqualToValue={(option, value) => option.id === value.id}
-          noOptionsText={deferredSearch ? 'No matching knowledge' : 'No available knowledge'}
+          noOptionsText={deferredSearch ? t('knowledgePanel.noMatchingKnowledge') : t('knowledgePanel.noAvailableKnowledge')}
           renderOption={(props, option) => (
             <Box component="li" {...props} sx={{ minHeight: 36, py: 0.5 }}>
               <Typography variant="body2" noWrap title={formatDocumentOptionLabel(option)}>
@@ -676,8 +680,8 @@ export default function EntityKnowledgePanel({
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Link existing"
-              placeholder="Search by name or ref"
+              label={t('knowledgePanel.linkExisting')}
+              placeholder={t('knowledgePanel.searchByNameOrRef')}
               InputLabelProps={{ shrink: true }}
             />
           )}
@@ -706,7 +710,7 @@ export default function EntityKnowledgePanel({
           disabled={!selectedDoc || linkExistingMutation.isPending}
           fullWidth
         >
-          Link selected
+          {t('knowledgePanel.linkSelected')}
         </Button>
       </Stack>
     ) : (
@@ -719,7 +723,7 @@ export default function EntityKnowledgePanel({
         >
           <Stack spacing={0.75}>
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Knowledge
+              {t('knowledgePanel.title')}
             </Typography>
           </Stack>
 
@@ -729,7 +733,7 @@ export default function EntityKnowledgePanel({
               onClick={handleCreateBlank}
               disabled={createLinkedMutation.isPending}
             >
-              New Document
+              {t('knowledgePanel.newDocument')}
             </Button>
             <Button
               onClick={(event) => setNewDocAnchorEl(event.currentTarget)}
@@ -757,7 +761,7 @@ export default function EntityKnowledgePanel({
             isOptionEqualToValue={(option, value) => option.id === value.id}
             noOptionsText={deferredSearch ? 'No matching knowledge' : 'No available knowledge'}
             renderInput={(params) => (
-              <TextField {...params} label="Link existing knowledge" placeholder="Search by name or ref" />
+              <TextField {...params} label={t('knowledgePanel.linkExistingKnowledge')} placeholder="Search by name or ref" />
             )}
             sx={{ minWidth: 320, flex: 1 }}
           />
@@ -770,7 +774,7 @@ export default function EntityKnowledgePanel({
             }}
             disabled={!selectedDoc || linkExistingMutation.isPending}
           >
-            Link
+            {t('buttons.link')}
           </Button>
         </Stack>
       </Stack>
@@ -791,7 +795,7 @@ export default function EntityKnowledgePanel({
             {headerActions}
             {(linkExistingMutation.isError || unlinkMutation.isError || createLinkedMutation.isError) && (
               <Alert severity="error">
-                Failed to update knowledge links.
+                {t('knowledgePanel.failedToUpdateLinks')}
               </Alert>
             )}
           </Stack>
@@ -815,7 +819,7 @@ export default function EntityKnowledgePanel({
         onClose={() => setNewDocAnchorEl(null)}
       >
         <MenuItem onClick={handleCreateBlank}>
-          Blank document
+          {t('knowledgePanel.blankDocument')}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -824,18 +828,18 @@ export default function EntityKnowledgePanel({
           }}
           disabled={!templatesLibrary}
         >
-          From template...
+          {t('knowledgePanel.fromTemplate')}
         </MenuItem>
       </Menu>
 
       <Dialog open={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Select Template</DialogTitle>
+        <DialogTitle>{t('knowledgePanel.selectTemplate')}</DialogTitle>
         <DialogContent>
           <TextField
             select
             fullWidth
             margin="dense"
-            label="Template"
+            label={t('labels.template')}
             value={selectedTemplateId}
             onChange={(e) => setSelectedTemplateId(e.target.value)}
           >
@@ -852,18 +856,18 @@ export default function EntityKnowledgePanel({
           </TextField>
           {!templatesData?.items?.length && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              No published templates are available.
+              {t('knowledgePanel.noTemplatesAvailable')}
             </Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setTemplatePickerOpen(false)}>Cancel</Button>
+          <Button onClick={() => setTemplatePickerOpen(false)}>{t('buttons.cancel')}</Button>
           <Button
             variant="contained"
             onClick={handleCreateFromTemplate}
             disabled={!selectedTemplateId || createLinkedMutation.isPending}
           >
-            Use Template
+            {t('knowledgePanel.useTemplate')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -875,7 +879,7 @@ export default function EntityKnowledgePanel({
       )}
 
       {!!error && !isLoading && (
-        <Alert severity="error">Failed to load knowledge context.</Alert>
+        <Alert severity="error">{t('knowledgePanel.failedToLoadContext')}</Alert>
       )}
 
       {!isLoading && !error && isRestricted && restrictedCount > 0 && (
@@ -887,7 +891,7 @@ export default function EntityKnowledgePanel({
 
       {!isLoading && !error && isRestricted && restrictedCount === 0 && (
         <Typography variant="body2" color="text.secondary">
-          No standalone knowledge documents.
+          {t('knowledgePanel.noStandaloneDocuments')}
         </Typography>
       )}
 

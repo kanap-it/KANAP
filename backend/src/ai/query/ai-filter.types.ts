@@ -72,6 +72,10 @@ export type AiAdaptedFilters = {
 export type AiQueryResult = {
   items: AiEntitySummaryDto[];
   total: number;
+  page: number;
+  limit: number;
+  returned: number;
+  truncated: boolean;
   filters_applied: string[];
   filters_ignored: string[];
   scope: {

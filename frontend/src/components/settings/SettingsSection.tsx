@@ -8,6 +8,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 export interface SettingsSectionProps {
@@ -100,16 +101,18 @@ export function SettingsControls({
   onReset,
   saving,
   dirty,
-  addLabel = 'Add item',
+  addLabel: addLabelProp,
 }: SettingsControlsProps) {
+  const { t } = useTranslation('common');
+  const addLabel = addLabelProp ?? t('settingsSection.addItem');
   return (
     <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mb: 1 }}>
       <Button size="small" variant="outlined" onClick={onAdd}>{addLabel}</Button>
       <Button size="small" variant="contained" disabled={!dirty || !!saving} onClick={onSave}>
-        {saving ? 'Saving...' : 'Save changes'}
+        {saving ? t('status.saving') : t('settingsSection.saveChanges')}
       </Button>
       <Button size="small" variant="text" disabled={!dirty || !!saving} onClick={onReset}>
-        Reset
+        {t('buttons.reset')}
       </Button>
     </Stack>
   );

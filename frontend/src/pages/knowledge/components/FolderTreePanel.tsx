@@ -26,9 +26,11 @@ import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { useTenant } from '../../../tenant/TenantContext';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 type FolderNode = {
   id: string;
@@ -178,6 +180,7 @@ function FolderTreeNode({
   const [editName, setEditName] = React.useState(node.name);
   const [menuAnchorEl, setMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const menuOpen = !!menuAnchorEl;
+  const { t } = useTranslation(['knowledge', 'common']);
 
   return (
     <>
@@ -228,7 +231,7 @@ function FolderTreeNode({
           <Box sx={{ width: 24 }} />
         )}
         {canManage && !editing && folderDragAndDrop ? (
-          <Tooltip title={folderDragAndDrop.movePending ? 'Folder move in progress' : 'Drag folder'}>
+          <Tooltip title={folderDragAndDrop.movePending ? t('folderTree.messages.moveInProgress') : t('folderTree.actions.dragFolder')}>
             <Box
               component="span"
               sx={{
@@ -300,7 +303,7 @@ function FolderTreeNode({
           <>
             <IconButton
               size="small"
-              aria-label={`Folder actions for ${node.name}`}
+              aria-label={t('folderTree.aria.folderActions', { name: node.name })}
               onClick={(e) => {
                 e.stopPropagation();
                 setMenuAnchorEl(e.currentTarget);
@@ -315,16 +318,16 @@ function FolderTreeNode({
               onClick={(e) => e.stopPropagation()}
             >
               <MenuItem onClick={() => { setMenuAnchorEl(null); onCreateChild(node.id); }}>
-                New subfolder
+                {t('folderTree.actions.newSubfolder')}
               </MenuItem>
               <MenuItem onClick={() => { setMenuAnchorEl(null); setEditName(node.name); setEditing(true); }}>
-                Rename
+                {t('folderTree.actions.rename')}
               </MenuItem>
               <MenuItem
                 sx={{ color: 'error.main' }}
                 onClick={() => { setMenuAnchorEl(null); onDelete(node.id); }}
               >
-                Delete
+                {t('common:buttons.delete')}
               </MenuItem>
             </Menu>
           </>
@@ -359,6 +362,7 @@ export default function FolderTreePanel({
   folderExternalDragAndDrop,
   documentDragAndDrop,
 }: FolderTreePanelProps) {
+  const { t } = useTranslation(['knowledge', 'common']);
   const { profile } = useAuth();
   const { tenantSlug } = useTenant();
   const qc = useQueryClient();
@@ -482,10 +486,10 @@ export default function FolderTreePanel({
   }, [renameFolderMutation]);
 
   const handleDelete = React.useCallback((id: string) => {
-    if (window.confirm('Delete this folder? Documents will be moved to Unfiled. Folders with subfolders cannot be deleted.')) {
+    if (confirm(t('folderTree.confirmations.deleteFolder'))) {
       deleteFolderMutation.mutate(id);
     }
-  }, [deleteFolderMutation]);
+  }, [deleteFolderMutation, t]);
 
   const moveFolderMutation = useMutation({
     mutationFn: async ({ id, parentId }: { id: string; parentId: string | null }) => {
@@ -504,7 +508,7 @@ export default function FolderTreePanel({
       await qc.invalidateQueries({ queryKey: ['knowledge-folders-tree', libraryId] });
       setFolderMoveSnackbar({
         open: true,
-        message: 'Folder moved.',
+        message: t('folderTree.messages.folderMoved'),
         severity: 'success',
       });
     },
@@ -514,7 +518,7 @@ export default function FolderTreePanel({
       folderExternalDragAndDrop?.onDragEnd();
       setFolderMoveSnackbar({
         open: true,
-        message: error?.response?.data?.message || 'Unable to move folder.',
+        message: getApiErrorMessage(error, t, t('folderTree.messages.moveFailed')),
         severity: 'error',
       });
     },
@@ -587,7 +591,7 @@ export default function FolderTreePanel({
       }}
     >
       <Box sx={{ p: 1.5 }}>
-        <Typography variant="subtitle2" sx={{ mb: 1 }}>Folders</Typography>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('folderTree.title')}</Typography>
 
         <Box
           sx={{
@@ -610,13 +614,13 @@ export default function FolderTreePanel({
           <Box sx={{ width: 16, mr: 0.25 }} />
           <FolderOpenIcon sx={{ fontSize: 18, mr: 0.75, color: 'text.secondary' }} />
           <Typography variant="body2" sx={{ flex: 1, fontWeight: selectedFolderId === null ? 600 : 400 }}>
-            All Docs
+            {t('folderTree.allDocs')}
           </Typography>
           {canManage && (
             <>
               <IconButton
                 size="small"
-                aria-label="Folder actions"
+                aria-label={t('folderTree.aria.rootActions')}
                 onClick={(e) => {
                   e.stopPropagation();
                   setRootMenuAnchorEl(e.currentTarget);
@@ -631,7 +635,7 @@ export default function FolderTreePanel({
                 onClick={(e) => e.stopPropagation()}
               >
                 <MenuItem onClick={() => { setRootMenuAnchorEl(null); openCreateDialog(null); }}>
-                  New top-level folder
+                  {t('folderTree.actions.newTopLevelFolder')}
                 </MenuItem>
               </Menu>
             </>
@@ -667,23 +671,23 @@ export default function FolderTreePanel({
       </Box>
 
       <Dialog open={folderDialogOpen} onClose={() => setFolderDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{newFolderParentId ? 'Create Subfolder' : 'Create Folder'}</DialogTitle>
+        <DialogTitle>{newFolderParentId ? t('folderTree.dialogs.createSubfolderTitle') : t('folderTree.dialogs.createFolderTitle')}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               size="small"
-              label="Folder name"
+              label={t('folderTree.fields.folderName')}
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
             />
             <TextField
               select
               size="small"
-              label="Parent folder"
+              label={t('folderTree.fields.parentFolder')}
               value={newFolderParentId}
               onChange={(e) => setNewFolderParentId(e.target.value)}
             >
-              <MenuItem value="">Root</MenuItem>
+              <MenuItem value="">{t('folderTree.values.root')}</MenuItem>
               {flatFolders.map((folder) => (
                 <MenuItem key={folder.id} value={folder.id}>
                   {`${'  '.repeat(folder.depth)}${folder.name}`}
@@ -693,7 +697,7 @@ export default function FolderTreePanel({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFolderDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setFolderDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button
             variant="contained"
             onClick={() => createFolderMutation.mutate({
@@ -702,7 +706,7 @@ export default function FolderTreePanel({
             })}
             disabled={!newFolderName.trim() || createFolderMutation.isPending}
           >
-            Create
+            {t('common:buttons.create')}
           </Button>
         </DialogActions>
       </Dialog>

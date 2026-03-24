@@ -16,6 +16,7 @@ import EnumAutocomplete from '../../components/fields/EnumAutocomplete';
 import CompanySelect from '../../components/fields/CompanySelect';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
+import { useLocale } from '../../i18n/useLocale';
 import ContributorTimeLog from './components/ContributorTimeLog';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
@@ -92,9 +93,9 @@ const PROFICIENCY_MARKS = [
   { value: 4, label: '4' },
 ];
 
-const formatMonth = (yearMonth: string) => {
+const formatMonth = (yearMonth: string, locale: string) => {
   const date = new Date(`${yearMonth}T00:00:00Z`);
-  return date.toLocaleString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return date.toLocaleString(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' });
 };
 
 type ContributorTabKey = 'general' | 'skills' | 'time-logged' | 'defaults';
@@ -104,6 +105,7 @@ const isContributorTab = (value: string | undefined): value is ContributorTabKey
 
 export default function ContributorWorkspacePage() {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const locale = useLocale();
   const location = useLocation();
   const { id: idParam, tab } = useParams<{ id?: string; tab?: string }>();
   const navigate = useNavigate();
@@ -555,7 +557,7 @@ export default function ContributorWorkspacePage() {
                         height={280}
                         options={{
                           data: timeStats.monthly.map((m) => ({
-                            month: formatMonth(m.yearMonth),
+                            month: formatMonth(m.yearMonth, locale),
                             project: m.projectDays,
                             other: m.otherDays,
                             total: m.totalDays,

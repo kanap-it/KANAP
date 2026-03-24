@@ -33,6 +33,7 @@ export class OllamaAiProviderAdapter implements AiProviderAdapter {
   async *createStream(params: AiStreamParams): AsyncGenerator<AiStreamEvent> {
     yield* openaiCompatibleStream({
       ...params,
+      providerId: this.descriptor.id,
       endpointUrl: params.endpointUrl,
       apiKey: params.apiKey || 'ollama',
     });

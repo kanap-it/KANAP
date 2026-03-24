@@ -8,6 +8,7 @@ import {
   Box,
   Chip,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { WORKFLOW_PRESETS } from './csv.types';
 
 interface CsvImportWorkflowPresetsProps {
@@ -19,10 +20,11 @@ export function CsvImportWorkflowPresets({
   selectedId,
   onSelect,
 }: CsvImportWorkflowPresetsProps) {
+  const { t } = useTranslation('common');
   return (
     <FormControl component="fieldset" fullWidth>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
-        Import workflow
+        {t('csv.importWorkflow')}
       </Typography>
       <RadioGroup
         value={selectedId}
@@ -54,7 +56,7 @@ export function CsvImportWorkflowPresets({
                     {preset.label}
                   </Typography>
                   {preset.recommended && (
-                    <Chip label="Recommended" size="small" color="primary" variant="outlined" />
+                    <Chip label={t('labels.recommended')} size="small" color="primary" variant="outlined" />
                   )}
                 </Box>
               }

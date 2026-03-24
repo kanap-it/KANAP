@@ -13,6 +13,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 
 type DocumentLibrary = {
@@ -94,13 +95,14 @@ export default function KnowledgeMoveDialog({
   initialTargetLibraryId = null,
   templateLibraryId = null,
 }: KnowledgeMoveDialogProps) {
+  const { t } = useTranslation(['knowledge', 'common']);
   const selectedLibraryIds = React.useMemo(
     () => Array.from(new Set(selectedRows.map((row) => row.library_id).filter(Boolean))),
     [selectedRows],
   );
   const selectedLibraryNames = React.useMemo(
-    () => Array.from(new Set(selectedRows.map((row) => row.library_name || 'Unknown'))),
-    [selectedRows],
+    () => Array.from(new Set(selectedRows.map((row) => row.library_name || t('shared.unknown')))),
+    [selectedRows, t],
   );
   const selectionIsMixedLibraries = selectedLibraryIds.length > 1;
   const selectionIncludesTemplateLibrary = !!templateLibraryId && selectedLibraryIds.includes(templateLibraryId);
@@ -154,12 +156,12 @@ export default function KnowledgeMoveDialog({
     || (selectionIncludesTemplateLibrary && selectionIsMixedLibraries);
   const disableSubmit = pending || !selectedRows.length || !targetLibraryId || libraryChangeBlocked;
   const selectionSummary = selectedRows.length === 1
-    ? `${selectedRows[0].item_ref} - ${selectedRows[0].title}`
-    : `${selectedRows.length} documents selected`;
+    ? t('moveDialog.selection.single', { ref: selectedRows[0].item_ref, title: selectedRows[0].title })
+    : t('moveDialog.selection.multiple', { count: selectedRows.length });
 
   return (
     <Dialog open={open} onClose={pending ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Move Documents</DialogTitle>
+      <DialogTitle>{t('moveDialog.title')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 0.5 }}>
           <Typography variant="body2" color="text.secondary">
@@ -167,34 +169,36 @@ export default function KnowledgeMoveDialog({
           </Typography>
 
           <Typography variant="body2" color="text.secondary">
-            {selectedLibraryNames.length === 1 ? 'Current library' : 'Current libraries'}: {selectedLibraryNames.join(', ')}
+            {selectedLibraryNames.length === 1
+              ? t('moveDialog.currentLibrary.single', { names: selectedLibraryNames.join(', ') })
+              : t('moveDialog.currentLibrary.multiple', { names: selectedLibraryNames.join(', ') })}
           </Typography>
 
           {!canChangeLibrary && !selectionIncludesTemplateLibrary && (
             <Alert severity="info">
-              Cross-library moves are admin-only. You can move the selected documents within their current library.
+              {t('moveDialog.messages.crossLibraryAdminOnly')}
             </Alert>
           )}
 
           {selectionIncludesTemplateLibrary && (
             <Alert severity={selectionIsMixedLibraries ? 'error' : 'info'}>
               {selectionIsMixedLibraries
-                ? 'Template documents must be moved separately from documents in other libraries.'
-                : 'Documents in the Templates library can only be reorganized within Templates.'}
+                ? t('moveDialog.messages.templatesMixed')
+                : t('moveDialog.messages.templatesOnly')}
             </Alert>
           )}
 
           {libraryChangeBlocked && (
             <Alert severity="error">
               {selectionIncludesTemplateLibrary && selectionIsMixedLibraries
-                ? 'Template documents cannot be moved together with documents from other libraries.'
-                : 'Select documents from a single library to move them, or use an admin account for a cross-library move.'}
+                ? t('moveDialog.messages.templatesBlocked')
+                : t('moveDialog.messages.selectSingleLibrary')}
             </Alert>
           )}
 
           <TextField
             select
-            label="Target library"
+            label={t('moveDialog.fields.targetLibrary')}
             fullWidth
             value={targetLibraryId}
             onChange={(e) => {
@@ -213,13 +217,13 @@ export default function KnowledgeMoveDialog({
 
           <TextField
             select
-            label="Target folder"
+            label={t('moveDialog.fields.targetFolder')}
             fullWidth
             value={targetFolderId ?? UNFILED_OPTION_VALUE}
             onChange={(e) => setTargetFolderId(e.target.value === UNFILED_OPTION_VALUE ? null : e.target.value)}
             disabled={!targetLibraryId || libraryChangeBlocked}
           >
-            <MenuItem value={UNFILED_OPTION_VALUE}>Unfiled</MenuItem>
+            <MenuItem value={UNFILED_OPTION_VALUE}>{t('shared.unfiled')}</MenuItem>
             {flatFolders.map((folder) => (
               <MenuItem key={folder.id} value={folder.id}>
                 <Box component="span" sx={{ pl: folder.depth * 2 }}>
@@ -231,13 +235,13 @@ export default function KnowledgeMoveDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={pending}>Cancel</Button>
+        <Button onClick={onClose} disabled={pending}>{t('common:buttons.cancel')}</Button>
         <Button
           variant="contained"
           onClick={() => onConfirm({ target_library_id: targetLibraryId, target_folder_id: targetFolderId })}
           disabled={disableSubmit}
         >
-          Move
+          {t('moveDialog.actions.move')}
         </Button>
       </DialogActions>
     </Dialog>

@@ -1,6 +1,7 @@
 import React, { useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import { IconButton, Stack, TextField } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import { useTranslation } from 'react-i18next';
 
 type ChatInputProps = {
   onSend: (text: string) => void;
@@ -14,6 +15,7 @@ export type ChatInputHandle = {
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
   function ChatInput({ onSend, disabled, autoFocus }, ref) {
+    const { t } = useTranslation(['ai']);
     const [value, setValue] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -41,7 +43,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
           fullWidth
           multiline
           maxRows={6}
-          placeholder="Ask Plaid..."
+          placeholder={t('input.placeholder')}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -55,6 +57,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
           color="primary"
           onClick={handleSend}
           disabled={disabled || !value.trim()}
+          aria-label={t('input.send')}
+          title={t('input.send')}
           sx={{ mb: 0.5 }}
         >
           <SendIcon />

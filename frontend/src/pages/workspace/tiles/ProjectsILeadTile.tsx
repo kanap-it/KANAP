@@ -10,6 +10,8 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../../i18n/useLocale';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
 
 interface MyLeadershipProject {
@@ -29,12 +31,7 @@ interface ProjectsILeadTileProps {
   config: Record<string, unknown>;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  it_lead: 'IT Lead',
-  business_lead: 'Business Lead',
-  it_sponsor: 'IT Sponsor',
-  business_sponsor: 'Business Sponsor',
-};
+
 
 const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
   waiting_list: 'default',
@@ -48,6 +45,8 @@ const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error
 
 export default function ProjectsILeadTile({ config }: ProjectsILeadTileProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
+  const locale = useLocale();
   const limit = Math.min((config.limit as number) || 5, 5);
 
   const { data, isLoading } = useQuery({
@@ -65,26 +64,26 @@ export default function ProjectsILeadTile({ config }: ProjectsILeadTileProps) {
 
   const formatDate = (date: string | null) => {
     if (!date) return null;
-    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return new Date(date).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
   };
 
   return (
     <DashboardTile
-      title="Projects I Lead"
+      title={t('dashboard.tiles.projectsILead')}
       icon="Leaderboard"
       isLoading={isLoading}
       action={
         <Button size="small" onClick={() => navigate('/portfolio/projects')}>
-          View All
+          {t('buttons.viewAll')}
         </Button>
       }
     >
       {projects.length === 0 ? (
         <TileEmptyState
-          message="You're not leading any projects"
+          message={t('dashboard.tiles.notLeading')}
           action={
             <Button size="small" onClick={() => navigate('/portfolio/projects')}>
-              Browse Projects
+              {t('dashboard.tiles.browseProjects')}
             </Button>
           }
         />
@@ -102,7 +101,7 @@ export default function ProjectsILeadTile({ config }: ProjectsILeadTileProps) {
                   <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                       <Chip
-                        label={ROLE_LABELS[project.role] || project.role}
+                        label={({'it_lead': t('dashboard.tiles.itLead'), 'business_lead': t('dashboard.tiles.businessLead'), 'it_sponsor': t('dashboard.tiles.itSponsor'), 'business_sponsor': t('dashboard.tiles.businessSponsor')} as Record<string, string>)[project.role] || project.role}
                         size="small"
                         variant="outlined"
                         sx={{ height: 20, fontSize: '0.7rem' }}
@@ -116,9 +115,11 @@ export default function ProjectsILeadTile({ config }: ProjectsILeadTileProps) {
                     </Box>
                     {project.next_milestone && (
                       <Typography variant="caption" color="text.secondary">
-                        Next: {project.next_milestone.name}
-                        {project.next_milestone.target_date && (
-                          <> ({formatDate(project.next_milestone.target_date)})</>
+                        {project.next_milestone.target_date
+                          ? t('dashboard.tiles.nextMilestoneWithDate', { name: project.next_milestone.name, date: formatDate(project.next_milestone.target_date) })
+                          : t('dashboard.tiles.nextMilestone', { name: project.next_milestone.name })
+                        }{project.next_milestone.target_date && false && (
+                          <></>
                         )}
                       </Typography>
                     )}

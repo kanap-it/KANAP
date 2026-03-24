@@ -10,6 +10,8 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../../i18n/useLocale';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
 
 interface StaleTaskItem {
@@ -38,12 +40,14 @@ const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error
   cancelled: 'error',
 };
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function formatDate(dateStr: string, loc?: string): string {
+  return new Date(dateStr).toLocaleDateString(loc || 'en-US', { month: 'short', day: 'numeric' });
 }
 
 export default function StaleTasksTile({ config }: StaleTasksTileProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
+  const locale = useLocale();
   const scope = config.scope === 'team' || config.scope === 'all' ? config.scope : 'my';
   const thresholdDays = Math.max(30, Math.min((config.thresholdDays as number) || 90, 365));
 
@@ -66,17 +70,17 @@ export default function StaleTasksTile({ config }: StaleTasksTileProps) {
 
   return (
     <DashboardTile
-      title="Stale Tasks"
+      title={t('dashboard.tiles.staleTasks')}
       icon="Warning"
       isLoading={isLoading}
       action={(
         <Button size="small" onClick={() => navigate('/portfolio/tasks')}>
-          View All
+          {t('buttons.viewAll')}
         </Button>
       )}
     >
       {items.length === 0 ? (
-        <TileEmptyState message={`No stale tasks in ${scope} scope`} />
+        <TileEmptyState message={t('dashboard.tiles.noStaleTasks', { scope })} />
       ) : (
         <List dense disablePadding>
           {items.map((item) => (
@@ -91,7 +95,7 @@ export default function StaleTasksTile({ config }: StaleTasksTileProps) {
                   <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
                       <Chip
-                        label={`${item.staleDays}d stale`}
+                        label={t('dashboard.tiles.daysStale', { count: item.staleDays })}
                         size="small"
                         color={item.staleDays >= thresholdDays * 2 ? 'error' : 'warning'}
                         sx={{ height: 20, fontSize: '0.7rem' }}
@@ -105,11 +109,11 @@ export default function StaleTasksTile({ config }: StaleTasksTileProps) {
                       />
                     </Box>
                     <Typography variant="caption" color="text.secondary">
-                      {item.relatedObjectName || 'Standalone task'} • Updated {formatDate(item.updatedAt)}
+                      {item.relatedObjectName || t('dashboard.tiles.standaloneTask')} {String.fromCharCode(8226)} {t('dashboard.tiles.updated', { date: formatDate(item.updatedAt, locale) })}
                     </Typography>
                     {scope !== 'my' && item.assigneeName && (
                       <Typography variant="caption" color="text.secondary">
-                        Assignee: {item.assigneeName}
+                        {t('dashboard.tiles.assignee', { name: item.assigneeName })}
                       </Typography>
                     )}
                   </Box>

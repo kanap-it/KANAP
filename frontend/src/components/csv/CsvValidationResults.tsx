@@ -13,6 +13,7 @@ import {
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import WarningIcon from '@mui/icons-material/Warning';
+import { useTranslation } from 'react-i18next';
 import { CsvImportResult } from './csv.types';
 
 interface CsvValidationResultsProps {
@@ -26,6 +27,7 @@ export function CsvValidationResults({
   maxErrors = 10,
   maxWarnings = 5,
 }: CsvValidationResultsProps) {
+  const { t } = useTranslation('common');
   const isValidation = result.dryRun;
   const hasErrors = result.errors.length > 0;
   const hasWarnings = result.warnings.length > 0;
@@ -40,25 +42,25 @@ export function CsvValidationResults({
       >
         {result.ok ? (
           isValidation ? (
-            <>Validation passed. Ready to import {result.total} rows.</>
+            <>{t('csv.validationPassed', { total: result.total })}</>
           ) : (
-            <>Import completed successfully.</>
+            <>{t('csv.importCompleted')}</>
           )
         ) : (
-          <>Validation failed. Please fix the errors and try again.</>
+          <>{t('csv.validationFailed')}</>
         )}
       </Alert>
 
       {/* Counts */}
       <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
         <Chip
-          label={`${result.total} rows`}
+          label={t('csv.totalRows', { count: result.total })}
           size="small"
           variant="outlined"
         />
         {result.inserted > 0 && (
           <Chip
-            label={`${result.inserted} to insert`}
+            label={t('csv.toInsert', { count: result.inserted })}
             size="small"
             color="success"
             variant="outlined"
@@ -66,7 +68,7 @@ export function CsvValidationResults({
         )}
         {result.updated > 0 && (
           <Chip
-            label={`${result.updated} to update`}
+            label={t('csv.toUpdate', { count: result.updated })}
             size="small"
             color="info"
             variant="outlined"
@@ -74,7 +76,7 @@ export function CsvValidationResults({
         )}
         {result.skipped > 0 && (
           <Chip
-            label={`${result.skipped} skipped`}
+            label={t('csv.skipped', { count: result.skipped })}
             size="small"
             color="warning"
             variant="outlined"
@@ -87,7 +89,7 @@ export function CsvValidationResults({
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle2" color="error" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
             <ErrorIcon fontSize="small" />
-            Errors ({result.errors.length})
+            {t('csv.errors', { count: result.errors.length })}
           </Typography>
           <List dense disablePadding sx={{ bgcolor: 'error.50', borderRadius: 1 }}>
             {result.errors.slice(0, maxErrors).map((err, i) => (
@@ -107,7 +109,7 @@ export function CsvValidationResults({
                 <ListItemText
                   primary={
                     <Typography variant="caption" color="text.secondary">
-                      ...and {result.errors.length - maxErrors} more errors
+                      {t('csv.andMoreErrors2', { count: result.errors.length - maxErrors })}
                     </Typography>
                   }
                 />
@@ -122,7 +124,7 @@ export function CsvValidationResults({
         <Box>
           <Typography variant="subtitle2" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
             <WarningIcon fontSize="small" />
-            Warnings ({result.warnings.length})
+            {t('csv.warnings', { count: result.warnings.length })}
           </Typography>
           <List dense disablePadding sx={{ bgcolor: 'warning.50', borderRadius: 1 }}>
             {result.warnings.slice(0, maxWarnings).map((warn, i) => (
@@ -142,7 +144,7 @@ export function CsvValidationResults({
                 <ListItemText
                   primary={
                     <Typography variant="caption" color="text.secondary">
-                      ...and {result.warnings.length - maxWarnings} more warnings
+                      {t('csv.andMoreWarnings', { count: result.warnings.length - maxWarnings })}
                     </Typography>
                   }
                 />

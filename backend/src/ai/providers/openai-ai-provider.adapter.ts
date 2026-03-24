@@ -6,7 +6,7 @@ import {
   AiStreamEvent,
   AiStreamParams,
 } from './ai-provider.types';
-import { openaiCompatibleStream } from './openai-stream.util';
+import { getOpenAiSystemPromptRole, openaiCompatibleStream } from './openai-stream.util';
 
 @Injectable()
 export class OpenAiProviderAdapter implements AiProviderAdapter {
@@ -31,6 +31,11 @@ export class OpenAiProviderAdapter implements AiProviderAdapter {
   }
 
   async *createStream(params: AiStreamParams): AsyncGenerator<AiStreamEvent> {
-    yield* openaiCompatibleStream(params);
+    yield* openaiCompatibleStream({
+      ...params,
+      providerId: this.descriptor.id,
+      systemPromptRole: getOpenAiSystemPromptRole(params.model),
+      maxTokensParam: 'max_completion_tokens',
+    });
   }
 }

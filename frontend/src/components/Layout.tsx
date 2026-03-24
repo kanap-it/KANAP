@@ -54,6 +54,17 @@ const drawerWidth = 240;
 type NavItem = { to: string; label: string; icon: React.ReactNode; resource?: string };
 type NavDivider = { divider: string };
 type NavEntry = NavItem | NavDivider;
+type WorkspaceKey = 'ops' | 'it' | 'master-data' | 'portfolio' | 'ai' | 'knowledge' | 'admin';
+
+const workspaceRoutes: Record<WorkspaceKey, string> = {
+  ai: '/ai',
+  portfolio: '/portfolio',
+  knowledge: '/knowledge',
+  it: '/it',
+  ops: '/ops',
+  'master-data': '/master-data',
+  admin: '/admin',
+};
 
 function isNavItem(entry: NavEntry): entry is NavItem {
   return 'to' in entry;
@@ -196,7 +207,7 @@ export default function Layout() {
   }, [isPlatformHost, hasWorkspaceAccess]);
 
   // Derive active workspace from the current route to keep the top bar highlight in sync
-  const workspace: 'ops' | 'it' | 'master-data' | 'portfolio' | 'ai' | 'knowledge' | 'admin' | 'home' = React.useMemo(() => {
+  const workspace: WorkspaceKey | 'home' = React.useMemo(() => {
     if (isPlatformHost) return 'admin';
     const p = location.pathname;
     if (p === '/') return 'home';
@@ -275,21 +286,7 @@ export default function Layout() {
             <Tabs
               value={workspace === 'home' ? false : (visibleWorkspaces.includes(workspace) ? workspace : visibleWorkspaces[0])}
               onChange={(_, val) => {
-                navigate(
-                  val === 'ops'
-                    ? '/ops'
-                    : val === 'ai'
-                      ? '/ai'
-                    : val === 'it'
-                      ? '/it'
-                      : val === 'master-data'
-                        ? '/master-data'
-                        : val === 'portfolio'
-                          ? '/portfolio'
-                          : val === 'knowledge'
-                            ? '/knowledge'
-                            : '/admin'
-                );
+                navigate(workspaceRoutes[val as WorkspaceKey] ?? workspaceRoutes.admin);
               }}
               sx={{
                 flex: 1,
@@ -309,13 +306,13 @@ export default function Layout() {
               }}
               aria-label={t('nav:topBar.sectionNav')}
             >
-              {visibleWorkspaces.includes('ai') && <Tab value="ai" label={t('nav:workspaces.ai')} />}
-              {visibleWorkspaces.includes('portfolio') && <Tab value="portfolio" label={t('nav:workspaces.portfolio')} />}
-              {visibleWorkspaces.includes('it') && <Tab value="it" label={t('nav:workspaces.itOperations')} />}
-              {visibleWorkspaces.includes('knowledge') && <Tab value="knowledge" label={t('nav:workspaces.knowledge')} />}
-              {visibleWorkspaces.includes('ops') && <Tab value="ops" label={t('nav:workspaces.budgetManagement')} />}
-              {visibleWorkspaces.includes('master-data') && <Tab value="master-data" label={t('nav:workspaces.masterData')} />}
-              {visibleWorkspaces.includes('admin') && <Tab value="admin" label={t('nav:workspaces.admin')} />}
+              {visibleWorkspaces.includes('ai') && <Tab component={Link} to={workspaceRoutes.ai} value="ai" label={t('nav:workspaces.ai')} />}
+              {visibleWorkspaces.includes('portfolio') && <Tab component={Link} to={workspaceRoutes.portfolio} value="portfolio" label={t('nav:workspaces.portfolio')} />}
+              {visibleWorkspaces.includes('it') && <Tab component={Link} to={workspaceRoutes.it} value="it" label={t('nav:workspaces.itOperations')} />}
+              {visibleWorkspaces.includes('knowledge') && <Tab component={Link} to={workspaceRoutes.knowledge} value="knowledge" label={t('nav:workspaces.knowledge')} />}
+              {visibleWorkspaces.includes('ops') && <Tab component={Link} to={workspaceRoutes.ops} value="ops" label={t('nav:workspaces.budgetManagement')} />}
+              {visibleWorkspaces.includes('master-data') && <Tab component={Link} to={workspaceRoutes['master-data']} value="master-data" label={t('nav:workspaces.masterData')} />}
+              {visibleWorkspaces.includes('admin') && <Tab component={Link} to={workspaceRoutes.admin} value="admin" label={t('nav:workspaces.admin')} />}
             </Tabs>
           )}
           {isPlatformHost && <Box sx={{ flex: 1 }} />}

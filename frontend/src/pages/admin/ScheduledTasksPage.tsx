@@ -26,9 +26,11 @@ import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import { useAuth } from '../../auth/AuthContext';
 import { useFeatures } from '../../config/FeaturesContext';
+import { useLocale } from '../../i18n/useLocale';
 import ForbiddenPage from '../ForbiddenPage';
 import {
   fetchScheduledTasks,
@@ -38,34 +40,36 @@ import {
   type ScheduledTask,
   type ScheduledTaskRun,
 } from '../../services/adminScheduledTasks';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 // Human-readable cron descriptions for common patterns
 const CRON_LABELS: Record<string, string> = {
-  '0 * * * *': 'Every hour',
-  '*/5 * * * *': 'Every 5 minutes',
-  '*/15 * * * *': 'Every 15 minutes',
-  '*/30 * * * *': 'Every 30 minutes',
-  '0 0 * * *': 'Daily at midnight',
-  '0 3 * * *': 'Daily at 3 AM',
-  '0 8 * * *': 'Daily at 8 AM',
-  '0 4 * * 0': 'Sundays at 4 AM',
-  '0 0 * * 0': 'Sundays at midnight',
-  '0 0 1 * *': '1st of month at midnight',
+  '0 * * * *': 'scheduledTasks.cronLabels.everyHour',
+  '*/5 * * * *': 'scheduledTasks.cronLabels.everyFiveMinutes',
+  '*/15 * * * *': 'scheduledTasks.cronLabels.everyFifteenMinutes',
+  '*/30 * * * *': 'scheduledTasks.cronLabels.everyThirtyMinutes',
+  '0 0 * * *': 'scheduledTasks.cronLabels.dailyMidnight',
+  '0 3 * * *': 'scheduledTasks.cronLabels.daily3am',
+  '0 8 * * *': 'scheduledTasks.cronLabels.daily8am',
+  '0 4 * * 0': 'scheduledTasks.cronLabels.sundays4am',
+  '0 0 * * 0': 'scheduledTasks.cronLabels.sundaysMidnight',
+  '0 0 1 * *': 'scheduledTasks.cronLabels.firstOfMonthMidnight',
 };
 
-function humanCron(expr: string): string {
-  return CRON_LABELS[expr] || expr;
+function humanCron(expr: string, t: (key: string) => string): string {
+  const labelKey = CRON_LABELS[expr];
+  return labelKey ? t(labelKey) : expr;
 }
 
-function statusChip(status: string | null) {
-  if (!status) return <Chip label="Never run" size="small" variant="outlined" />;
+function statusChip(status: string | null, t: (key: string, options?: Record<string, unknown>) => string) {
+  if (!status) return <Chip label={t('scheduledTasks.statuses.neverRun')} size="small" variant="outlined" />;
   switch (status) {
     case 'success':
-      return <Chip label="Success" size="small" color="success" />;
+      return <Chip label={t('scheduledTasks.statuses.success')} size="small" color="success" />;
     case 'failure':
-      return <Chip label="Failed" size="small" color="error" />;
+      return <Chip label={t('scheduledTasks.statuses.failure')} size="small" color="error" />;
     case 'running':
-      return <Chip label="Running" size="small" color="info" />;
+      return <Chip label={t('scheduledTasks.statuses.running')} size="small" color="info" />;
     default:
       return <Chip label={status} size="small" />;
   }
@@ -78,16 +82,15 @@ function formatDuration(ms: number | null): string {
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
-function formatDate(iso: string | null): string {
+function formatDate(locale: string, iso: string | null): string {
   if (!iso) return '-';
-  return new Date(iso).toLocaleString();
+  return new Date(iso).toLocaleString(locale);
 }
 
 export default function ScheduledTasksPage() {
   const { claims } = useAuth();
   const { config } = useFeatures();
   const isSingleTenant = config.deploymentMode === 'single-tenant';
-  const queryClient = useQueryClient();
 
   const canAccess = claims?.isPlatformAdmin || (isSingleTenant && claims?.isGlobalAdmin);
   if (!canAccess) return <ForbiddenPage />;
@@ -96,6 +99,8 @@ export default function ScheduledTasksPage() {
 }
 
 function ScheduledTasksContent() {
+  const { t } = useTranslation(['admin', 'common']);
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const [snack, setSnack] = useState<string | null>(null);
   const [editingCron, setEditingCron] = useState<string | null>(null);
@@ -122,15 +127,15 @@ function ScheduledTasksContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scheduled-tasks'] });
       setEditingCron(null);
-      setSnack('Schedule updated');
+      setSnack(t('scheduledTasks.messages.scheduleUpdated'));
     },
-    onError: (err: any) => setSnack(err?.response?.data?.message || 'Invalid cron expression'),
+    onError: (err: any) => setSnack(getApiErrorMessage(err, t, t('scheduledTasks.messages.invalidCronExpression'))),
   });
 
   const triggerMutation = useMutation({
     mutationFn: (name: string) => triggerTask(name),
     onSuccess: (_, name) => {
-      setSnack(`Task '${name}' triggered`);
+      setSnack(t('scheduledTasks.messages.taskTriggered', { name }));
       queryClient.invalidateQueries({ queryKey: ['scheduled-tasks'] });
     },
   });
@@ -138,7 +143,7 @@ function ScheduledTasksContent() {
   if (tasksQuery.isLoading) {
     return (
       <Box>
-        <PageHeader title="Scheduled Tasks" />
+        <PageHeader title={t('scheduledTasks.title')} />
         <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>
       </Box>
     );
@@ -147,8 +152,8 @@ function ScheduledTasksContent() {
   if (tasksQuery.isError) {
     return (
       <Box>
-        <PageHeader title="Scheduled Tasks" />
-        <Alert severity="error" sx={{ m: 2 }}>Failed to load scheduled tasks</Alert>
+        <PageHeader title={t('scheduledTasks.title')} />
+        <Alert severity="error" sx={{ m: 2 }}>{t('scheduledTasks.messages.loadFailed')}</Alert>
       </Box>
     );
   }
@@ -157,19 +162,19 @@ function ScheduledTasksContent() {
 
   return (
     <Box>
-      <PageHeader title="Scheduled Tasks" />
+      <PageHeader title={t('scheduledTasks.title')} />
       <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell>Schedule</TableCell>
-              <TableCell align="center">Enabled</TableCell>
-              <TableCell>Last Run</TableCell>
-              <TableCell>Duration</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>{t('scheduledTasks.columns.name')}</TableCell>
+              <TableCell>{t('scheduledTasks.columns.description')}</TableCell>
+              <TableCell>{t('scheduledTasks.columns.schedule')}</TableCell>
+              <TableCell align="center">{t('scheduledTasks.columns.enabled')}</TableCell>
+              <TableCell>{t('scheduledTasks.columns.lastRun')}</TableCell>
+              <TableCell>{t('scheduledTasks.columns.duration')}</TableCell>
+              <TableCell>{t('scheduledTasks.columns.status')}</TableCell>
+              <TableCell align="right">{t('scheduledTasks.columns.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -180,7 +185,7 @@ function ScheduledTasksContent() {
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 300 }}>
-                    {task.description || '-'}
+                    {task.description || t('scheduledTasks.shared.empty')}
                   </Typography>
                 </TableCell>
                 <TableCell>
@@ -211,7 +216,7 @@ function ScheduledTasksContent() {
                   ) : (
                     <Stack direction="row" spacing={0.5} alignItems="center">
                       <Tooltip title={task.cron_expression}>
-                        <Typography variant="body2">{humanCron(task.cron_expression)}</Typography>
+                        <Typography variant="body2">{humanCron(task.cron_expression, t)}</Typography>
                       </Tooltip>
                       <IconButton
                         size="small"
@@ -230,15 +235,15 @@ function ScheduledTasksContent() {
                   />
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2">{formatDate(task.last_run_at)}</Typography>
+                  <Typography variant="body2">{formatDate(locale, task.last_run_at)}</Typography>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2">{formatDuration(task.last_duration_ms)}</Typography>
                 </TableCell>
-                <TableCell>{statusChip(task.last_status)}</TableCell>
+                <TableCell>{statusChip(task.last_status, t)}</TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                    <Tooltip title="Run now">
+                    <Tooltip title={t('scheduledTasks.actions.runNow')}>
                       <IconButton
                         size="small"
                         onClick={() => triggerMutation.mutate(task.name)}
@@ -247,7 +252,7 @@ function ScheduledTasksContent() {
                         <PlayArrowIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="View history">
+                    <Tooltip title={t('scheduledTasks.actions.viewHistory')}>
                       <IconButton
                         size="small"
                         onClick={() => { setDrawerTask(task.name); setRunsPage(1); }}
@@ -262,7 +267,7 @@ function ScheduledTasksContent() {
             {tasks.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} align="center">
-                  <Typography color="text.secondary" py={4}>No scheduled tasks registered</Typography>
+                  <Typography color="text.secondary" py={4}>{t('scheduledTasks.empty')}</Typography>
                 </TableCell>
               </TableRow>
             )}
@@ -274,30 +279,30 @@ function ScheduledTasksContent() {
       <Drawer anchor="right" open={!!drawerTask} onClose={() => setDrawerTask(null)} PaperProps={{ sx: { width: 600, maxWidth: '90vw' } }}>
         <Box p={2}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Run History: {drawerTask}</Typography>
+            <Typography variant="h6">{t('scheduledTasks.runHistory.title', { name: drawerTask })}</Typography>
             <IconButton onClick={() => setDrawerTask(null)}><CloseIcon /></IconButton>
           </Stack>
 
           {runsQuery.isLoading ? (
             <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
           ) : runsQuery.isError ? (
-            <Alert severity="error">Failed to load runs</Alert>
+            <Alert severity="error">{t('scheduledTasks.messages.loadRunsFailed')}</Alert>
           ) : (
             <>
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Started</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Duration</TableCell>
-                    <TableCell>Details</TableCell>
+                    <TableCell>{t('scheduledTasks.runHistory.columns.started')}</TableCell>
+                    <TableCell>{t('scheduledTasks.runHistory.columns.status')}</TableCell>
+                    <TableCell>{t('scheduledTasks.runHistory.columns.duration')}</TableCell>
+                    <TableCell>{t('scheduledTasks.runHistory.columns.details')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {(runsQuery.data?.runs ?? []).map((run: ScheduledTaskRun) => (
                     <TableRow key={run.id}>
-                      <TableCell><Typography variant="body2">{formatDate(run.started_at)}</Typography></TableCell>
-                      <TableCell>{statusChip(run.status)}</TableCell>
+                      <TableCell><Typography variant="body2">{formatDate(locale, run.started_at)}</Typography></TableCell>
+                      <TableCell>{statusChip(run.status, t)}</TableCell>
                       <TableCell><Typography variant="body2">{formatDuration(run.duration_ms)}</Typography></TableCell>
                       <TableCell>
                         {run.error ? (
@@ -313,7 +318,7 @@ function ScheduledTasksContent() {
                             ))}
                           </Stack>
                         ) : (
-                          <Typography variant="body2" color="text.secondary">-</Typography>
+                          <Typography variant="body2" color="text.secondary">{t('scheduledTasks.shared.empty')}</Typography>
                         )}
                       </TableCell>
                     </TableRow>
@@ -321,7 +326,7 @@ function ScheduledTasksContent() {
                   {(runsQuery.data?.runs ?? []).length === 0 && (
                     <TableRow>
                       <TableCell colSpan={4} align="center">
-                        <Typography color="text.secondary" py={2}>No runs yet</Typography>
+                        <Typography color="text.secondary" py={2}>{t('scheduledTasks.runHistory.empty')}</Typography>
                       </TableCell>
                     </TableRow>
                   )}

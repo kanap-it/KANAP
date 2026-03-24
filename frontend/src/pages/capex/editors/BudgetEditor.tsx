@@ -7,6 +7,7 @@ import YearTabs from '../../../components/navigation/YearTabs';
 import FormattedNumberField from '../../../components/inputs/FormattedNumberField';
 import api from '../../../api';
 import { useFreezeState } from '../../../hooks/useFreezeState';
+import { useLocale } from '../../../i18n/useLocale';
 
 export type BudgetEditorHandle = {
   isDirty: () => boolean;
@@ -54,12 +55,13 @@ function monthPeriod(year: number, m: number) {
   return `${year}-${mm}-01`;
 }
 
-function monthLabel(m: number) {
-  return new Date(2000, m - 1, 1).toLocaleString(undefined, { month: 'short' });
+function monthLabel(m: number, locale: string) {
+  return new Date(2000, m - 1, 1).toLocaleString(locale, { month: 'short' });
 }
 
 export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id, year, availableYears, onYearChange, onDirtyChange }, ref) {
   const { t } = useTranslation(['ops', 'common']);
+  const locale = useLocale();
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -283,7 +285,7 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
           <Stack spacing={1}>
             {months.map((m, i) => (
               <Stack key={m.period} direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center">
-                <Box sx={{ width: 72 }}>{monthLabel(i + 1)}</Box>
+                <Box sx={{ width: 72 }}>{monthLabel(i + 1, locale)}</Box>
                 <FormattedNumberField label={`Budget${budgetFrozen ? ' – frozen' : ''}`} value={m.planned} onChange={handleMonthChange(i, 'planned')} disabled={budgetFrozen} InputProps={budgetFrozen ? { readOnly: true } : undefined} />
                 <FormattedNumberField label={`Revision${revisionFrozen ? ' – frozen' : ''}`} value={m.committed} onChange={handleMonthChange(i, 'committed')} disabled={revisionFrozen} InputProps={revisionFrozen ? { readOnly: true } : undefined} />
                 <FormattedNumberField label={`Follow-up${actualFrozen ? ' – frozen' : ''}`} value={m.actual} onChange={handleMonthChange(i, 'actual')} disabled={actualFrozen} InputProps={actualFrozen ? { readOnly: true } : undefined} />

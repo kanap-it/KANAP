@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
+import { useTranslation } from 'react-i18next';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
 
 interface TeamActivityItem {
@@ -51,6 +52,7 @@ function buildSummary(item: TeamActivityItem): string {
 
 export default function TeamActivityTile({ config }: TeamActivityTileProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   const limit = Math.min((config.limit as number) || 5, 5);
 
   const { data, isLoading } = useQuery({
@@ -68,17 +70,17 @@ export default function TeamActivityTile({ config }: TeamActivityTileProps) {
 
   return (
     <DashboardTile
-      title="Team Activity"
+      title={t('dashboard.tiles.teamActivity')}
       icon="Update"
       isLoading={isLoading}
       action={(
         <Button size="small" onClick={() => navigate('/portfolio/projects')}>
-          View All
+          {t('buttons.viewAll')}
         </Button>
       )}
     >
       {items.length === 0 ? (
-        <TileEmptyState message="No recent team activity" />
+        <TileEmptyState message={t('dashboard.tiles.noRecentTeamActivity')} />
       ) : (
         <List dense disablePadding>
           {items.map((item) => (
@@ -93,7 +95,7 @@ export default function TeamActivityTile({ config }: TeamActivityTileProps) {
                   <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                       <Chip
-                        label={item.type === 'comment' ? 'Comment' : item.type === 'decision' ? 'Decision' : 'Change'}
+                        label={item.type === 'comment' ? t('dashboard.tiles.comment') : item.type === 'decision' ? t('dashboard.tiles.decision') : t('dashboard.tiles.change')}
                         size="small"
                         variant="outlined"
                         sx={{ height: 20, fontSize: '0.7rem' }}

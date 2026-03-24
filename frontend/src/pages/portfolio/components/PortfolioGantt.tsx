@@ -9,6 +9,7 @@ import api from '../../../api';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { computeInactiveSegments, formatInactiveTooltip } from './roadmap-inactive-segments';
 import type { InactiveSegment } from './roadmap-inactive-segments';
+import { useLocale } from '../../../i18n/useLocale';
 
 interface GanttProject {
   id: string;
@@ -79,12 +80,12 @@ const DEPENDENCY_TYPE_MAP: Record<string, 'e2s' | 's2s' | 'e2e' | 's2e'> = {
 };
 
 // Date formatting helpers — locale-aware via Intl
-const formatMonthYear = (date: Date): string => {
-  return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+const formatMonthYear = (date: Date, locale: string): string => {
+  return date.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
 };
 
-const formatMonthShort = (date: Date): string => {
-  return date.toLocaleDateString(undefined, { month: 'short' });
+const formatMonthShort = (date: Date, locale: string): string => {
+  return date.toLocaleDateString(locale, { month: 'short' });
 };
 
 const formatQuarterYear = (date: Date): string => {
@@ -158,6 +159,7 @@ export function PortfolioGantt({
   readOnly = false,
 }: Props) {
   const { t } = useTranslation(['portfolio', 'errors']);
+  const locale = useLocale();
   const navigate = useNavigate();
   const apiRef = useRef<IApi | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -298,7 +300,7 @@ export function PortfolioGantt({
 
     if (months <= 3) {
       return [
-        { unit: 'month', step: 1, format: formatMonthYear },
+        { unit: 'month', step: 1, format: (date: Date) => formatMonthYear(date, locale) },
         { unit: 'week', step: 1, format: formatWeekNumber },
       ];
     }
@@ -306,15 +308,15 @@ export function PortfolioGantt({
     if (months <= 6) {
       return [
         { unit: 'quarter', step: 1, format: formatQuarterYear },
-        { unit: 'month', step: 1, format: formatMonthShort },
+        { unit: 'month', step: 1, format: (date: Date) => formatMonthShort(date, locale) },
       ];
     }
 
     return [
       { unit: 'year', step: 1, format: formatYearOnly },
-      { unit: 'month', step: 1, format: formatMonthShort },
+      { unit: 'month', step: 1, format: (date: Date) => formatMonthShort(date, locale) },
     ];
-  }, [months]);
+  }, [locale, months]);
 
   // Use wider month cells at 6 months and denser month cells at 12 months.
   const cellWidth = useMemo(() => {

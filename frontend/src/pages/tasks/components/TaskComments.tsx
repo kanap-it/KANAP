@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { MarkdownContent } from '../../../components/MarkdownContent';
+import { useLocale } from '../../../i18n/useLocale';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../../utils/inlineImageUrls';
 import { formatRelativeTime } from '../../../utils/portfolioI18n';
@@ -58,6 +59,7 @@ export default function TaskComments({
   commentFocusNonce = 0,
 }: TaskCommentsProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
   const canComment = hasLevel('tasks', 'member');
@@ -215,7 +217,7 @@ export default function TaskComments({
                     {`${comment.first_name || ''} ${comment.last_name || ''}`.trim() || t('portfolio:activity.authorUnknown')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {formatRelativeTime(t, comment.created_at)}
+                    {formatRelativeTime(t, comment.created_at, locale)}
                   </Typography>
                   {comment.updated_at && (
                     <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>

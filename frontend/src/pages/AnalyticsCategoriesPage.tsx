@@ -7,6 +7,7 @@ import { STATUS_VALUES } from '../constants/status';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { LinkCellRenderer } from '../components/grid/renderers';
+import { useLocale } from '../i18n/useLocale';
 import ForbiddenPage from './ForbiddenPage';
 
 interface AnalyticsCategoryRow {
@@ -20,6 +21,7 @@ interface AnalyticsCategoryRow {
 
 export default function AnalyticsCategoriesPage() {
   const { t } = useTranslation(['master-data', 'common']);
+  const locale = useLocale();
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
   const lastQueryRef = useRef<{ sort: string; q: string; filters: any } | null>(null);
@@ -91,7 +93,7 @@ export default function AnalyticsCategoriesPage() {
         field: 'updated_at',
         headerName: t('shared.columns.updated'),
         width: 200,
-        valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+        valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
         cellRenderer: (params: any) => (
           <LinkCellRenderer
             {...params}
@@ -102,7 +104,7 @@ export default function AnalyticsCategoriesPage() {
         ),
       },
     ];
-  }, [buildWorkspaceSearch, navigate]);
+  }, [buildWorkspaceSearch, locale, navigate, t]);
 
   return (
     <>

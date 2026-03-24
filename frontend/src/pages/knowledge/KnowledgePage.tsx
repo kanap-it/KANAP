@@ -32,6 +32,7 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import EditIcon from '@mui/icons-material/Edit';
 import type { ICellRendererParams } from 'ag-grid-community';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import DeleteSelectedButton from '../../components/DeleteSelectedButton';
 import ServerDataGrid from '../../components/ServerDataGrid';
@@ -46,6 +47,7 @@ import KnowledgeFolderMoveDialog from './components/KnowledgeFolderMoveDialog';
 import KnowledgeMoveDialog from './components/KnowledgeMoveDialog';
 import ValidatedBadge from './components/ValidatedBadge';
 import KnowledgeTypesManager from './components/KnowledgeTypesManager';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
@@ -122,10 +124,11 @@ type DraggedFolderState = FolderTreeDraggedFolderState & {
 
 function StatusCellRenderer(props: any) {
   const status = props.value;
+  const { t } = useTranslation(['knowledge']);
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
       <Chip
-        label={STATUS_LABELS[status] || status}
+        label={t(`knowledge:statuses.${status}`, { defaultValue: STATUS_LABELS[status] || status })}
         color={STATUS_COLORS[status] || 'default'}
         size="small"
       />
@@ -147,6 +150,7 @@ function formatDate(dateStr: string | null): string {
 
 export default function KnowledgePage() {
   const { hasLevel, profile } = useAuth();
+  const { t } = useTranslation(['knowledge', 'common']);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -320,7 +324,7 @@ export default function KnowledgePage() {
   const getDocFilterValues = useCallback((field: string, opts?: { labelMap?: Record<string, string>; order?: Array<string | null>; emptyLabel?: string }) => {
     const labelMap = opts?.labelMap;
     const order = opts?.order;
-    const emptyLabel = opts?.emptyLabel ?? '(Blank)';
+    const emptyLabel = opts?.emptyLabel ?? t('shared.blank');
     return async ({ context }: any) => {
       const queryState = context?.getQueryState?.() ?? {};
       const filters = { ...(queryState.filters || {}) };
@@ -354,7 +358,7 @@ export default function KnowledgePage() {
       }
       return options;
     };
-  }, []);
+  }, [t]);
 
   const ClickableCell: React.FC<ICellRendererParams<DocumentRow, any>> = (params) => (
     <LinkCellRenderer
@@ -377,10 +381,10 @@ export default function KnowledgePage() {
       || !!row?.is_managed_integrated_document
       || moveDocumentsMutation.isPending;
     const disabledReason = row?.is_managed_integrated_document
-      ? 'Managed docs cannot be moved from Knowledge'
-      : 'Drag is available only in a single-library view';
+      ? t('messages.managedDocsCannotMove')
+      : t('messages.dragSingleLibraryOnly');
     return (
-      <Tooltip title={disabled ? disabledReason : 'Drag to a folder or another library'}>
+      <Tooltip title={disabled ? disabledReason : t('messages.dragToFolderOrLibrary')}>
         <Box
           component="span"
           sx={{
@@ -427,13 +431,13 @@ export default function KnowledgePage() {
 
     nextColumns.push({
       field: 'item_ref',
-      headerName: 'Ref',
+      headerName: t('columns.ref'),
       width: 100,
       cellRenderer: ClickableCell,
     });
     nextColumns.push({
       field: 'title',
-      headerName: 'Title',
+      headerName: t('columns.title'),
       flex: 1.5,
       minWidth: 200,
       filter: 'agTextColumnFilter',
@@ -441,7 +445,7 @@ export default function KnowledgePage() {
     });
     nextColumns.push({
       field: 'status',
-      headerName: 'Status',
+      headerName: t('columns.status'),
       width: 190,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -456,26 +460,26 @@ export default function KnowledgePage() {
     });
     nextColumns.push({
       field: 'document_type_name',
-      headerName: 'Type',
+      headerName: t('columns.type'),
       width: 160,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
-      filterParams: {
-        getValues: getDocFilterValues('document_type_name', { emptyLabel: 'None' }),
+        filterParams: {
+        getValues: getDocFilterValues('document_type_name', { emptyLabel: t('shared.none') }),
       },
       cellRenderer: ClickableCell,
-      valueFormatter: (p: any) => p.value || 'Document',
+      valueFormatter: (p: any) => p.value || t('shared.document'),
     });
     nextColumns.push({
       field: 'current_version_number',
-      headerName: 'Version',
+      headerName: t('columns.version'),
       width: 90,
       cellRenderer: ClickableCell,
       valueFormatter: (p: any) => p.value != null ? `v${p.value}` : '',
     });
     nextColumns.push({
       field: 'primary_owner_name',
-      headerName: 'Owner',
+      headerName: t('columns.owner'),
       flex: 1,
       minWidth: 140,
       filter: CheckboxSetFilter,
@@ -487,50 +491,50 @@ export default function KnowledgePage() {
     });
     nextColumns.push({
       field: 'folder_name',
-      headerName: 'Folder',
+      headerName: t('columns.folder'),
       width: 150,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getDocFilterValues('folder_name', { emptyLabel: 'Unfiled' }),
+        getValues: getDocFilterValues('folder_name', { emptyLabel: t('shared.unfiled') }),
       },
       cellRenderer: ClickableCell,
-      valueFormatter: (p: any) => p.value || 'Unfiled',
+      valueFormatter: (p: any) => p.value || t('shared.unfiled'),
     });
     nextColumns.push({
       field: 'template_name',
-      headerName: 'Template',
+      headerName: t('columns.template'),
       width: 180,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getDocFilterValues('template_name', { emptyLabel: 'None' }),
+        getValues: getDocFilterValues('template_name', { emptyLabel: t('shared.none') }),
       },
       cellRenderer: ClickableCell,
       hide: true,
     });
     nextColumns.push({
       field: 'library_name',
-      headerName: 'Library',
+      headerName: t('columns.library'),
       width: 160,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
-        getValues: getDocFilterValues('library_name', { emptyLabel: 'Unknown' }),
+        getValues: getDocFilterValues('library_name', { emptyLabel: t('shared.unknown') }),
       },
       cellRenderer: ClickableCell,
       hide: !searchAllLibraries,
     });
     nextColumns.push({
       field: 'updated_at',
-      headerName: 'Updated',
+      headerName: t('columns.updated'),
       width: 120,
       cellRenderer: ClickableCell,
       valueFormatter: (params) => formatDate(params.value),
     });
 
     return nextColumns;
-  }, [ClickableCell, DragHandleCell, dragToFolderEnabled, getDocFilterValues, searchAllLibraries]);
+  }, [ClickableCell, DragHandleCell, dragToFolderEnabled, getDocFilterValues, searchAllLibraries, t]);
 
   const [createLibraryOpen, setCreateLibraryOpen] = useState(false);
   const [newLibraryName, setNewLibraryName] = useState('');
@@ -679,14 +683,14 @@ export default function KnowledgePage() {
   );
 
   const moveDisabledReason = useMemo(() => {
-    if (selectedRows.length === 0) return 'Select at least one document';
-    if (!canManageDocuments) return 'You do not have permission to move documents';
-    if (selectionIncludesManagedIntegratedDocs) return 'Managed docs cannot be moved from Knowledge';
+    if (selectedRows.length === 0) return t('messages.selectAtLeastOneDocument');
+    if (!canManageDocuments) return t('messages.noPermissionMoveDocuments');
+    if (selectionIncludesManagedIntegratedDocs) return t('messages.managedDocsCannotMove');
     if (selectionIncludesTemplateLibrary && selectionLibraryIds.length > 1) {
-      return 'Move template documents separately from other libraries';
+      return t('messages.moveTemplatesSeparately');
     }
     if (!canMoveAcrossLibraries && selectionLibraryIds.length > 1) {
-      return 'Select documents from a single library to move them';
+      return t('messages.selectSingleLibraryToMove');
     }
     return '';
   }, [
@@ -696,12 +700,13 @@ export default function KnowledgePage() {
     selectionIncludesManagedIntegratedDocs,
     selectionIncludesTemplateLibrary,
     selectionLibraryIds.length,
+    t,
   ]);
   const deleteDisabledReason = useMemo(() => {
-    if (selectedRows.length === 0) return 'Select at least one document';
-    if (selectionIncludesManagedIntegratedDocs) return 'Managed docs cannot be deleted from Knowledge';
+    if (selectedRows.length === 0) return t('messages.selectAtLeastOneDocument');
+    if (selectionIncludesManagedIntegratedDocs) return t('messages.managedDocsCannotDelete');
     return '';
-  }, [selectedRows.length, selectionIncludesManagedIntegratedDocs]);
+  }, [selectedRows.length, selectionIncludesManagedIntegratedDocs, t]);
 
   const moveDocumentsMutation = useMutation({
     mutationFn: async ({
@@ -728,14 +733,14 @@ export default function KnowledgePage() {
       setRefreshKey((prev) => prev + 1);
       setMoveSnackbar({
         open: true,
-        message: movedCount === 1 ? 'Document moved.' : `Moved ${movedCount} documents.`,
+        message: movedCount === 1 ? t('messages.documentMoved') : t('messages.documentsMoved', { count: movedCount }),
         severity: 'success',
       });
     },
     onError: (error: any) => {
       setMoveSnackbar({
         open: true,
-        message: error?.response?.data?.message || 'Unable to move documents.',
+        message: getApiErrorMessage(error, t, t('messages.moveDocumentsFailed')),
         severity: 'error',
       });
       clearDocumentDragState();
@@ -777,14 +782,14 @@ export default function KnowledgePage() {
       }
       setMoveSnackbar({
         open: true,
-        message: 'Folder moved.',
+        message: t('messages.folderMoved'),
         severity: 'success',
       });
     },
     onError: (error: any) => {
       setMoveSnackbar({
         open: true,
-        message: error?.response?.data?.message || 'Unable to move folder.',
+        message: getApiErrorMessage(error, t, t('messages.moveFolderFailed')),
         severity: 'error',
       });
       clearFolderDragState();
@@ -949,28 +954,28 @@ export default function KnowledgePage() {
               }}
             />
           )}
-          label={<Typography variant="body2">All libraries</Typography>}
+          label={<Typography variant="body2">{t('scope.allLibraries')}</Typography>}
         />
         <Stack direction="row" spacing={0.5} alignItems="center">
-          <Typography variant="body2">Show:</Typography>
+          <Typography variant="body2">{t('scope.show')}</Typography>
           <RadioGroup
             row
             value={docScope}
             onChange={(e) => setDocScope(e.target.value as 'my' | 'team' | 'all')}
             sx={{ '& .MuiFormControlLabel-root': { mr: 1 } }}
           >
-            <FormControlLabel value="my" control={<Radio size="small" />} label="My docs" />
-            <Tooltip title={hasTeam ? '' : 'You are not assigned to a team'}>
+            <FormControlLabel value="my" control={<Radio size="small" />} label={t('scope.myDocs')} />
+            <Tooltip title={hasTeam ? '' : t('scope.noTeamAssigned')}>
               <span>
                 <FormControlLabel
                   value="team"
                   control={<Radio size="small" />}
-                  label="My teams's Docs"
+                  label={t('scope.myTeamsDocs')}
                   disabled={!hasTeam}
                 />
               </span>
             </Tooltip>
-            <FormControlLabel value="all" control={<Radio size="small" />} label="All Docs" />
+            <FormControlLabel value="all" control={<Radio size="small" />} label={t('scope.allDocs')} />
           </RadioGroup>
         </Stack>
       </Stack>
@@ -982,12 +987,12 @@ export default function KnowledgePage() {
             size="small"
             onClick={() => setTypesManagerOpen(true)}
           >
-            Manage Types
+            {t('actions.manageTypes')}
           </Button>
         )}
         <ButtonGroup variant="contained" size="small">
           <Button startIcon={<AddIcon />} onClick={goToBlankDocument} disabled={!canManageDocuments || !activeLibrary}>
-            New
+            {t('actions.new')}
           </Button>
           <Button
             onClick={(e) => setNewDocAnchorEl(e.currentTarget)}
@@ -1008,7 +1013,7 @@ export default function KnowledgePage() {
               }}
               disabled={!!moveDisabledReason || moveDocumentsMutation.isPending}
             >
-              Move ({selectedRows.length})
+              {t('actions.moveCount', { count: selectedRows.length })}
             </Button>
           </span>
         </Tooltip>
@@ -1026,7 +1031,7 @@ export default function KnowledgePage() {
                   setRefreshKey((prev) => prev + 1);
                 }}
                 disabled={!!deleteDisabledReason}
-                label="Delete"
+                label={t('common:buttons.delete')}
               />
             </span>
           </Tooltip>
@@ -1147,100 +1152,100 @@ export default function KnowledgePage() {
         onClose={() => setNewDocAnchorEl(null)}
       >
         <MenuItem onClick={() => { setNewDocAnchorEl(null); goToBlankDocument(); }}>
-          Blank Document
+          {t('menus.blankDocument')}
         </MenuItem>
         <MenuItem onClick={() => { setNewDocAnchorEl(null); openTemplatePicker(); }} disabled={!templatesLibrary}>
-          From template...
+          {t('menus.fromTemplate')}
         </MenuItem>
       </Menu>
 
       <Dialog open={createLibraryOpen} onClose={() => setCreateLibraryOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Create Library</DialogTitle>
+        <DialogTitle>{t('dialogs.createLibrary.title')}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Library name"
+            label={t('dialogs.createLibrary.fields.libraryName')}
             fullWidth
             value={newLibraryName}
             onChange={(e) => setNewLibraryName(e.target.value)}
           />
           {createLibraryMutation.isError && (
-            <Alert severity="error" sx={{ mt: 2 }}>Unable to create library.</Alert>
+            <Alert severity="error" sx={{ mt: 2 }}>{t('dialogs.createLibrary.messages.failed')}</Alert>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateLibraryOpen(false)}>Cancel</Button>
+          <Button onClick={() => setCreateLibraryOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button
             variant="contained"
             onClick={() => createLibraryMutation.mutate()}
             disabled={!newLibraryName.trim() || createLibraryMutation.isPending}
           >
-            Create
+            {t('common:buttons.create')}
           </Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={!!editingLibrary} onClose={() => setEditingLibrary(null)} fullWidth maxWidth="xs">
-        <DialogTitle>Edit Library</DialogTitle>
+        <DialogTitle>{t('dialogs.editLibrary.title')}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Library name"
+            label={t('dialogs.editLibrary.fields.libraryName')}
             fullWidth
             value={renamedLibrary}
             onChange={(e) => setRenamedLibrary(e.target.value)}
           />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Renaming this library also changes its URL slug.
+            {t('dialogs.editLibrary.slugWarning')}
           </Typography>
           {(renameLibraryMutation.isError || deleteLibraryMutation.isError) && (
-            <Alert severity="error" sx={{ mt: 2 }}>Unable to update library.</Alert>
+            <Alert severity="error" sx={{ mt: 2 }}>{t('dialogs.editLibrary.messages.failed')}</Alert>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditingLibrary(null)}>Cancel</Button>
+          <Button onClick={() => setEditingLibrary(null)}>{t('common:buttons.cancel')}</Button>
           <Button
             color="error"
             onClick={() => {
               if (!editingLibrary) return;
-              const confirmed = window.confirm('Delete this library? Knowledge items and folders will be moved to the fallback library.');
+              const confirmed = confirm(t('confirmations.deleteLibrary'));
               if (!confirmed) return;
               deleteLibraryMutation.mutate();
             }}
             disabled={!editingLibrary || deleteLibraryMutation.isPending}
           >
-            Delete
+            {t('common:buttons.delete')}
           </Button>
           <Button
             variant="contained"
             onClick={() => renameLibraryMutation.mutate()}
             disabled={!renamedLibrary.trim() || renameLibraryMutation.isPending}
           >
-            Save
+            {t('common:buttons.save')}
           </Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={typesManagerOpen} onClose={() => setTypesManagerOpen(false)} fullWidth maxWidth="lg">
-        <DialogTitle>Manage Document Types</DialogTitle>
+        <DialogTitle>{t('dialogs.manageTypes.title')}</DialogTitle>
         <DialogContent>
           <KnowledgeTypesManager />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setTypesManagerOpen(false)}>Close</Button>
+          <Button onClick={() => setTypesManagerOpen(false)}>{t('common:buttons.close')}</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Select Template</DialogTitle>
+        <DialogTitle>{t('dialogs.selectTemplate.title')}</DialogTitle>
         <DialogContent>
           <TextField
             select
             fullWidth
             margin="dense"
-            label="Template"
+            label={t('dialogs.selectTemplate.fields.template')}
             value={selectedTemplateId}
             onChange={(e) => setSelectedTemplateId(e.target.value)}
           >
@@ -1257,14 +1262,14 @@ export default function KnowledgePage() {
           </TextField>
           {!templatesData?.items?.length && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              No published templates are available.
+              {t('dialogs.selectTemplate.empty')}
             </Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setTemplatePickerOpen(false)}>Cancel</Button>
+          <Button onClick={() => setTemplatePickerOpen(false)}>{t('common:buttons.cancel')}</Button>
           <Button variant="contained" onClick={createFromTemplate} disabled={!selectedTemplateId || !activeLibrary}>
-            Use Template
+            {t('dialogs.selectTemplate.actions.useTemplate')}
           </Button>
         </DialogActions>
       </Dialog>

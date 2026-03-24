@@ -11,6 +11,7 @@ import ForbiddenPage from '../ForbiddenPage';
 import { STATUS_VALUES } from '../../constants/status';
 import { useAuth } from '../../auth/AuthContext';
 import { LinkCellRenderer } from '../../components/grid/renderers';
+import { useLocale } from '../../i18n/useLocale';
 import CoaChipBar from './CoaChipBar';
 import CreateCoADialog from './CreateCoADialog';
 import ManageCoAsDialog from './ManageCoAsDialog';
@@ -40,6 +41,7 @@ function pickFallbackCoaId(coas: CoaListItem[]): string | undefined {
 export default function CoaPage() {
   const navigate = useNavigate();
   const { t } = useTranslation(['master-data', 'common']);
+  const locale = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
   const { hasLevel } = useAuth();
   const { coas, isLoading, refetch, isError } = useCoaList();
@@ -201,13 +203,13 @@ export default function CoaPage() {
       field: 'created_at',
       headerName: t('shared.columns.created'),
       width: 200,
-      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
       defaultHidden: true,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
       ),
     },
-  ], [getAccountHref, navigate, t]);
+  ], [getAccountHref, locale, navigate, t]);
 
   const updateSelectedCoa = useCallback((coaId: string) => {
     const next = new URLSearchParams(searchParams);

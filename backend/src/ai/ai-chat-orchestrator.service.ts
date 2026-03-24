@@ -9,11 +9,13 @@ import { prepareAiProviderMessages } from './ai-context-budget.helper';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
 import { AiProviderMessage, AiProviderToolCall, AiStreamEvent } from './providers/ai-provider.types';
-import { addUsage, cloneUsage, isAbortError } from './providers/streaming.util';
+import { addUsage, cloneUsage, isAbortError, tryParseToolCallArguments } from './providers/streaming.util';
+import { isOpenAiReasoningModel } from './providers/openai-stream.util';
 import { AiExecutionContext, ChatStreamEvent } from './ai.types';
 
 const MAX_TOOL_ITERATIONS = 20;
-const MAX_TOKENS = 4096;
+const DEFAULT_MAX_TOKENS = 4096;
+const OPENAI_REASONING_MAX_TOKENS = 8192;
 
 /** Strip base64 data-URI images from text to avoid blowing up the LLM context. */
 function stripBase64Images(text: string): string {
@@ -47,6 +49,13 @@ function buildToolCallSignature(toolCalls: Array<{ name: string; arguments: stri
   return toolCalls
     .map((toolCall) => `${toolCall.name}\u0000${toolCall.arguments}`)
     .join('\u0001');
+}
+
+export function resolveProviderMaxTokens(providerId: string, model: string): number {
+  if (providerId === 'openai' && isOpenAiReasoningModel(model)) {
+    return OPENAI_REASONING_MAX_TOKENS;
+  }
+  return DEFAULT_MAX_TOKENS;
 }
 
 @Injectable()
@@ -267,6 +276,8 @@ export class AiChatOrchestratorService {
         return;
       }
 
+      const requestMaxTokens = resolveProviderMaxTokens(provider.descriptor.id, model);
+
       const budgetedMessages = prepareAiProviderMessages({
         systemPrompt: systemPromptText,
         messages,
@@ -279,6 +290,7 @@ export class AiChatOrchestratorService {
           `provider=${provider.descriptor.id}`,
           `model=${model}`,
           `estimated_request_size=${budgetedMessages.estimatedRequestSize}`,
+          `max_tokens=${requestMaxTokens}`,
           `budget=${budgetedMessages.budget ?? 'none'}`,
           `compacted=${budgetedMessages.compacted}`,
           `tool_results_compacted=${budgetedMessages.compactedToolResults}`,
@@ -298,7 +310,7 @@ export class AiChatOrchestratorService {
         systemPrompt: systemPromptText,
         messages,
         tools,
-        maxTokens: MAX_TOKENS,
+        maxTokens: requestMaxTokens,
         signal: abortSignal,
       });
 
@@ -393,12 +405,9 @@ export class AiChatOrchestratorService {
 
         // Execute each tool call
         for (const tc of pendingToolCalls) {
-          let parsedArgs: Record<string, unknown>;
-          try {
-            parsedArgs = JSON.parse(tc.arguments || '{}');
-          } catch {
-            parsedArgs = {};
-          }
+          const parsedArgsResult = tryParseToolCallArguments(tc.arguments || '{}');
+          const parseErrorMessage = 'message' in parsedArgsResult ? parsedArgsResult.message : null;
+          const parsedArgs = 'value' in parsedArgsResult ? parsedArgsResult.value : {};
 
           yield {
             type: 'tool_call',
@@ -408,12 +417,22 @@ export class AiChatOrchestratorService {
           };
 
           let result: unknown;
-          try {
-            result = await this.tenantExecutor.runWithContext(context, async (ctx) => {
-              return this.toolRegistry.execute(ctx, tc.name, parsedArgs);
-            });
-          } catch (err: any) {
-            result = { error: err.message || 'Tool execution failed.' };
+          if (!tc.name?.trim()) {
+            this.logger.warn(`Skipping tool execution for tool_call_id=${tc.id} because the tool name was empty.`);
+            result = { error: 'Tool call was missing a tool name. Ask the model to retry.' };
+          } else if (parseErrorMessage) {
+            this.logger.warn(
+              `Skipping tool execution for tool_call_id=${tc.id} tool=${tc.name} because arguments were invalid JSON.`,
+            );
+            result = { error: `${parseErrorMessage} Ask the model to retry with valid JSON arguments.` };
+          } else {
+            try {
+              result = await this.tenantExecutor.runWithContext(context, async (ctx) => {
+                return this.toolRegistry.execute(ctx, tc.name, parsedArgs);
+              });
+            } catch (err: any) {
+              result = { error: err.message || 'Tool execution failed.' };
+            }
           }
 
           yield {

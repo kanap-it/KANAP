@@ -9,11 +9,13 @@ import { useAuth } from '../auth/AuthContext';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { useNavigate } from 'react-router-dom';
 import { LinkCellRenderer } from '../components/grid/renderers';
+import { useLocale } from '../i18n/useLocale';
 import ForbiddenPage from './ForbiddenPage';
 
 export default function ContactsPage() {
   const { hasLevel } = useAuth();
   const { t } = useTranslation(['master-data', 'common']);
+  const locale = useLocale();
   const navigate = useNavigate();
 
   if (!hasLevel('contacts', 'reader')) {
@@ -123,13 +125,13 @@ export default function ContactsPage() {
       field: 'created_at',
       headerName: t('shared.columns.created'),
       width: 200,
-      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
       defaultHidden: true,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />
       ),
     },
-  ], [navigate, t]);
+  ], [locale, navigate, t]);
 
   const canCreate = hasLevel('contacts','manager');
   const canAdmin = hasLevel('contacts','admin');

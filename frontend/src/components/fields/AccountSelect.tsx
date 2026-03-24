@@ -1,6 +1,7 @@
 import React from 'react';
 import { Autocomplete, TextField, CircularProgress } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type Account = {
@@ -32,7 +33,7 @@ function assignRef<T>(target: React.Ref<T | null> | undefined, value: T | null) 
 
 const AccountSelect = React.forwardRef<HTMLInputElement, AccountSelectProps>(function AccountSelect(
   {
-    label = 'Account',
+    label: labelProp,
     value,
     onChange,
     disabled,
@@ -43,6 +44,8 @@ const AccountSelect = React.forwardRef<HTMLInputElement, AccountSelectProps>(fun
   },
   ref,
 ) {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.account');
   const { data: accounts, isLoading } = useQuery({
     queryKey: ['accounts', 'active', companyId || 'all'],
     queryFn: async () => {
@@ -162,7 +165,7 @@ const AccountSelect = React.forwardRef<HTMLInputElement, AccountSelectProps>(fun
           (option.description && option.description.toLowerCase().includes(searchTerm))
         );
       }}
-      noOptionsText={isLoading ? "Loading..." : "No accounts found"}
+      noOptionsText={isLoading ? t('selects.loading') : t('selects.noAccountsFound')}
       fullWidth
     />
   );

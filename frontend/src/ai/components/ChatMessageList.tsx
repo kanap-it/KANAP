@@ -11,6 +11,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import BuildIcon from '@mui/icons-material/Build';
+import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../components/MarkdownContent';
 import { ChatMessage } from '../aiTypes';
 import ToolResultRenderer from './ToolResultRenderer';
@@ -42,6 +43,7 @@ function UserBubble({ message }: { message: ChatMessage }) {
 }
 
 function ToolCallsPanel({ message }: { message: ChatMessage }) {
+  const { t } = useTranslation(['ai']);
   const [expanded, setExpanded] = useState(false);
   const toolCalls = message.toolCalls || [];
   const toolResults = message.toolResults || [];
@@ -51,8 +53,8 @@ function ToolCallsPanel({ message }: { message: ChatMessage }) {
 
   const isStreaming = message.isStreaming && toolResults.length < toolCalls.length;
   const label = isStreaming
-    ? `${toolResults.length} / ${count} tool use${count !== 1 ? 's' : ''}...`
-    : `${count} tool use${count !== 1 ? 's' : ''}`;
+    ? t('messageList.toolUseProgress', { completed: toolResults.length, count })
+    : t('messageList.toolUseCount', { count });
 
   return (
     <Box

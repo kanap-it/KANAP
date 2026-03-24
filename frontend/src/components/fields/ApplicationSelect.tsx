@@ -1,6 +1,7 @@
 import React from 'react';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type ApplicationOption = {
@@ -33,7 +34,7 @@ function assignRef<T>(target: React.Ref<T | null> | undefined, value: T | null) 
 
 const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectProps>(function ApplicationSelect(
   {
-    label = 'Application',
+    label: labelProp,
     value,
     onChange,
     disabled,
@@ -44,6 +45,8 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
   },
   ref,
 ) {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.application');
   const { data: applications, isLoading } = useQuery({
     queryKey: ['applications', 'select', onlyEtl ? 'etl' : 'all'],
     queryFn: async () => {
@@ -120,7 +123,7 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
         />
       )}
       loading={isLoading || loadingSelected}
-      noOptionsText={isLoading ? 'Loading…' : 'No applications found'}
+      noOptionsText={isLoading ? t('selects.loadingEllipsis') : t('selects.noApplicationsFound')}
       fullWidth
     />
   );

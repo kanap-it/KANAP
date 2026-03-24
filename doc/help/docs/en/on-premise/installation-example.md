@@ -205,14 +205,24 @@ AWS_ACCESS_KEY_ID=your-s3-access-key
 AWS_SECRET_ACCESS_KEY=your-s3-secret-key
 S3_FORCE_PATH_STYLE=true
 
-# EMAIL (optional — uncomment and configure to enable invitations, password reset)
+# EMAIL (optional — choose one transport to enable invitations, password reset, notifications)
 # RESEND_API_KEY=re_xxxxx
 # RESEND_FROM_EMAIL=KANAP <noreply@yourdomain.com>
+
+# SMTP (single-tenant / on-prem only)
+# SMTP_HOST=smtp.company.com
+# SMTP_PORT=587
+# SMTP_SECURE=false
+# SMTP_USER=noreply@company.com
+# SMTP_PASSWORD=your-smtp-password
+# SMTP_FROM=KANAP <noreply@company.com>
 ```
 
 **Important:** Generate a real JWT secret (`openssl rand -hex 32`) — do not reuse example values.
 
 If you access KANAP by IP address instead of a domain, set `APP_BASE_URL` and `CORS_ORIGINS` to `https://YOUR_IP`.
+
+If you use SMTP instead of Resend, make sure the SMTP server accepts mail from the `SMTP_FROM` address and that your domain's SPF, DKIM, and DMARC settings are already in place if messages leave your internal network.
 
 ---
 

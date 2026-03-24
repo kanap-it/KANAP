@@ -10,10 +10,12 @@ import { useAuth } from '../auth/AuthContext';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { LinkCellRenderer } from '../components/grid/renderers';
 import { STATUS_VALUES } from '../constants/status';
+import { useLocale } from '../i18n/useLocale';
 import ForbiddenPage from './ForbiddenPage';
 
 export default function DepartmentsPage() {
   const { t } = useTranslation(['master-data', 'common']);
+  const locale = useLocale();
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
 
@@ -125,7 +127,7 @@ export default function DepartmentsPage() {
       field: 'created_at',
       headerName: t('shared.columns.created'),
       width: 200,
-      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
       defaultHidden: true,
       cellRenderer: (params: any) => (
         <LinkCellRenderer
@@ -136,7 +138,7 @@ export default function DepartmentsPage() {
         />
       ),
     },
-  ], [getWorkspaceHref, navigate, year, t]);
+  ], [getWorkspaceHref, locale, navigate, year, t]);
 
   const canCreate = hasLevel('departments','manager');
   const canAdmin = hasLevel('departments','admin');

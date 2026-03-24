@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Box, Divider, IconButton, Stack, Typography } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import { useFeatures } from '../../config/FeaturesContext';
 import { useChat } from '../../ai/useChat';
@@ -16,6 +17,7 @@ const SIDEBAR_WIDTH = 260;
 export default function AiWorkspacePage() {
   const { config } = useFeatures();
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['ai']);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const chat = useChat();
   const inputRef = useRef<ChatInputHandle>(null);
@@ -77,9 +79,9 @@ export default function AiWorkspacePage() {
   if (!config.features.aiChat) {
     return (
       <>
-        <PageHeader title="Plaid" />
+        <PageHeader title={t('workspace.title')} />
         <Alert severity="warning" sx={{ maxWidth: 600 }}>
-          Native AI chat is disabled for this instance.
+          {t('workspace.messages.disabled')}
         </Alert>
       </>
     );
@@ -122,10 +124,10 @@ export default function AiWorkspacePage() {
           /* ── Welcome screen: centered title + input ── */
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pb: 12 }}>
             <Typography variant="h5" sx={{ color: 'text.primary', fontWeight: 500, mb: 0.5 }}>
-              Start a conversation with Plaid
+              {t('workspace.empty.title')}
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 4 }}>
-              Ask questions about your portfolio, tasks, or documents
+              {t('workspace.empty.subtitle')}
             </Typography>
             <Box sx={{ width: '100%', maxWidth: 640 }}>
               <ChatInput ref={inputRef} onSend={handleSend} disabled={chat.isStreaming} autoFocus />

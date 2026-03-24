@@ -19,7 +19,9 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 type DocumentTypeItem = {
   id: string;
@@ -32,6 +34,7 @@ type DocumentTypeItem = {
 };
 
 export default function KnowledgeTypesManager() {
+  const { t } = useTranslation(['knowledge', 'common']);
   const qc = useQueryClient();
   const [newName, setNewName] = React.useState('');
   const [newDescription, setNewDescription] = React.useState('');
@@ -120,23 +123,23 @@ export default function KnowledgeTypesManager() {
   return (
     <Stack spacing={2}>
       <Alert severity="info">
-        Types classify documents. Templates define structure and content. The built-in <strong>Document</strong> type is the fallback for blank documents.
+        {t('typesManager.messages.introPrefix')} <strong>{t('typesManager.messages.documentType')}</strong> {t('typesManager.messages.introSuffix')}
       </Alert>
 
       <Box sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, borderRadius: 1.5, p: 2 }}>
         <Stack spacing={2}>
-          <Typography variant="subtitle2">Create type</Typography>
+          <Typography variant="subtitle2">{t('typesManager.create.title')}</Typography>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
             <TextField
               size="small"
-              label="Name"
+              label={t('typesManager.fields.name')}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               sx={{ minWidth: 220 }}
             />
             <TextField
               size="small"
-              label="Description"
+              label={t('typesManager.fields.description')}
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
               sx={{ flex: 1 }}
@@ -147,12 +150,12 @@ export default function KnowledgeTypesManager() {
               onClick={() => createMutation.mutate()}
               disabled={!newName.trim() || createMutation.isPending}
             >
-              Create
+              {t('common:buttons.create')}
             </Button>
           </Stack>
           {createMutation.isError && (
             <Alert severity="error">
-              {(createMutation.error as any)?.response?.data?.message || 'Failed to create document type.'}
+              {getApiErrorMessage(createMutation.error, t, t('typesManager.messages.createFailed'))}
             </Alert>
           )}
         </Stack>
@@ -165,18 +168,18 @@ export default function KnowledgeTypesManager() {
           </Box>
         )}
 
-        {!!error && !isLoading && <Alert severity="error" sx={{ m: 2 }}>Failed to load document types.</Alert>}
+        {!!error && !isLoading && <Alert severity="error" sx={{ m: 2 }}>{getApiErrorMessage(error, t, t('typesManager.messages.loadFailed'))}</Alert>}
 
         {!isLoading && !error && (
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell width={110}>Order</TableCell>
-                <TableCell width={90}>Active</TableCell>
-                <TableCell width={180}>Flags</TableCell>
-                <TableCell align="right" width={180}>Actions</TableCell>
+                <TableCell>{t('typesManager.columns.name')}</TableCell>
+                <TableCell>{t('typesManager.columns.description')}</TableCell>
+                <TableCell width={110}>{t('typesManager.columns.order')}</TableCell>
+                <TableCell width={90}>{t('typesManager.columns.active')}</TableCell>
+                <TableCell width={180}>{t('typesManager.columns.flags')}</TableCell>
+                <TableCell align="right" width={180}>{t('typesManager.columns.actions')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -221,8 +224,8 @@ export default function KnowledgeTypesManager() {
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                        {item.is_default && <Chip size="small" color="success" variant="outlined" label="Default" />}
-                        {item.is_system && <Chip size="small" variant="outlined" label="Built-in" />}
+                        {item.is_default && <Chip size="small" color="success" variant="outlined" label={t('typesManager.flags.default')} />}
+                        {item.is_system && <Chip size="small" variant="outlined" label={t('typesManager.flags.builtIn')} />}
                       </Stack>
                     </TableCell>
                     <TableCell align="right">
@@ -234,7 +237,7 @@ export default function KnowledgeTypesManager() {
                           onClick={() => updateMutation.mutate(item.id)}
                           disabled={!changed || updateMutation.isPending}
                         >
-                          Save
+                          {t('common:buttons.save')}
                         </Button>
                         {!item.is_system && (
                           <Button
@@ -242,12 +245,12 @@ export default function KnowledgeTypesManager() {
                             color="error"
                             startIcon={<DeleteIcon />}
                             onClick={() => {
-                              if (!window.confirm(`Delete document type "${item.name}"?`)) return;
+                              if (!confirm(t('typesManager.confirmations.delete', { name: item.name }))) return;
                               deleteMutation.mutate(item.id);
                             }}
                             disabled={deleteMutation.isPending}
                           >
-                            Delete
+                            {t('common:buttons.delete')}
                           </Button>
                         )}
                       </Stack>
@@ -259,7 +262,7 @@ export default function KnowledgeTypesManager() {
                 <TableRow>
                   <TableCell colSpan={6}>
                     <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                      No document types yet.
+                      {t('typesManager.empty')}
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -271,9 +274,11 @@ export default function KnowledgeTypesManager() {
 
       {(updateMutation.isError || deleteMutation.isError) && (
         <Alert severity="error">
-          {(updateMutation.error as any)?.response?.data?.message
-            || (deleteMutation.error as any)?.response?.data?.message
-            || 'Failed to update document types.'}
+          {getApiErrorMessage(
+            updateMutation.error || deleteMutation.error,
+            t,
+            t('typesManager.messages.updateFailed'),
+          )}
         </Alert>
       )}
     </Stack>

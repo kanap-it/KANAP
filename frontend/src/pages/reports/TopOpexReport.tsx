@@ -7,6 +7,7 @@ import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, SummaryRow, pickYearSlot } from './useOpexSummary';
 import { metricLabels, MetricKey } from './reportMetrics';
+import { useTranslation } from 'react-i18next';
 
 const METRIC_SELECTION_ORDER: MetricKey[] = ['budget', 'revision', 'follow_up', 'landing'];
 
@@ -18,6 +19,7 @@ function formatNumber(v: any) {
 }
 
 export default function TopOpexReport() {
+  const { t } = useTranslation(["ops"]);
   const now = new Date();
   const Y = now.getFullYear();
   const [year, setYear] = useState<number>(Y);
@@ -107,9 +109,9 @@ export default function TopOpexReport() {
   }, [excludedAccounts, accountOptions]);
 
   const columns = useMemo<ColDef[]>(() => [
-    { field: 'product_name', headerName: 'Product', flex: 1, minWidth: 220 },
+    { field: 'product_name', headerName: t('reports.columns.product'), flex: 1, minWidth: 220 },
     { field: 'value', headerName: `${metricLabel} (${year})`, width: 160, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'pct_of_total', headerName: 'Share of total', width: 160, type: 'rightAligned', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
+    { field: 'pct_of_total', headerName: t('reports.columns.shareOfTotal'), width: 160, type: 'rightAligned', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
   ], [year, metricLabel]);
 
   const gridApiRef = useRef<any>(null);
@@ -211,7 +213,7 @@ export default function TopOpexReport() {
 
   return (
     <ReportLayout
-      title="Top OPEX"
+      title={t("reports.topOpex.title")}
       subtitle={`Largest OPEX items by selected year (${metricLabel})`}
       filters={(
         <Box sx={{
@@ -222,7 +224,7 @@ export default function TopOpexReport() {
           alignItems: 'flex-start',
         }}
         >
-          <TextField select size="small" label="Year" value={year} onChange={(e) => setYear(parseInt(e.target.value, 10))} sx={{ minWidth: 140 }}>
+          <TextField select size="small" label={t("reports.filters.year")} value={year} onChange={(e) => setYear(parseInt(e.target.value, 10))} sx={{ minWidth: 140 }}>
             <MenuItem value={Y - 1}>{Y - 1}</MenuItem>
             <MenuItem value={Y}>{Y}</MenuItem>
             <MenuItem value={Y + 1}>{Y + 1}</MenuItem>
@@ -230,7 +232,7 @@ export default function TopOpexReport() {
           <TextField
             select
             size="small"
-            label="Metric"
+            label={t("reports.filters.metric")}
             value={metric}
             onChange={(e) => setMetric(e.target.value as MetricKey)}
             sx={{ minWidth: 180 }}
@@ -242,7 +244,7 @@ export default function TopOpexReport() {
           <TextField
             size="small"
             type="number"
-            label="Top count"
+            label={t("reports.filters.topCount")}
             value={topCount}
             onChange={(e) => {
               const next = parseInt(e.target.value, 10);
@@ -254,13 +256,13 @@ export default function TopOpexReport() {
           <TextField
             select
             size="small"
-            label="Chart type"
+            label={t("reports.filters.chartType")}
             value={chartType}
             onChange={(e) => setChartType(e.target.value as 'pie' | 'bar')}
             sx={{ minWidth: 200 }}
           >
-            <MenuItem value="pie">Pie chart</MenuItem>
-            <MenuItem value="bar">Horizontal bar chart</MenuItem>
+            <MenuItem value="pie">{t("reports.filters.pieChart")}</MenuItem>
+            <MenuItem value="bar">{t("reports.filters.horizontalBarChart")}</MenuItem>
           </TextField>
           <Autocomplete
             multiple
@@ -285,8 +287,8 @@ export default function TopOpexReport() {
               return (
                 <TextField
                   {...params}
-                  label="Exclude items"
-                  placeholder={count === 0 ? 'Select items to exclude' : ''}
+                  label={t("reports.filters.excludeItems")}
+                  placeholder={count === 0 ? t('reports.filters.excludeItemsPlaceholder') : ''}
                   InputLabelProps={{ shrink: true }}
                   InputProps={{
                     ...params.InputProps,
@@ -297,7 +299,7 @@ export default function TopOpexReport() {
                           color="text.secondary"
                           sx={{ ml: 0.5, mr: 1, whiteSpace: 'nowrap' }}
                         >
-                          {count === 1 ? '1 item selected' : `${count} items selected`}
+                          {t('reports.filters.itemSelected', { count })}
                         </Typography>
                         {params.InputProps.startAdornment}
                       </>
@@ -307,7 +309,7 @@ export default function TopOpexReport() {
               );
             }}
             sx={{ minWidth: 260 }}
-            noOptionsText="No matching items"
+            noOptionsText={t("reports.filters.noMatchingItems")}
           />
           <Autocomplete
             multiple
@@ -332,8 +334,8 @@ export default function TopOpexReport() {
               return (
                 <TextField
                   {...params}
-                  label="Exclude accounts"
-                  placeholder={count === 0 ? 'Select accounts to exclude' : ''}
+                  label={t("reports.filters.excludeAccounts")}
+                  placeholder={count === 0 ? t('reports.filters.excludeAccountsPlaceholder') : ''}
                   InputLabelProps={{ shrink: true }}
                   InputProps={{
                     ...params.InputProps,
@@ -344,7 +346,7 @@ export default function TopOpexReport() {
                           color="text.secondary"
                           sx={{ ml: 0.5, mr: 1, whiteSpace: 'nowrap' }}
                         >
-                          {count === 1 ? '1 account selected' : `${count} accounts selected`}
+                          {t('reports.filters.accountSelected', { count })}
                         </Typography>
                         {params.InputProps.startAdornment}
                       </>
@@ -354,7 +356,7 @@ export default function TopOpexReport() {
               );
             }}
             sx={{ minWidth: 260 }}
-            noOptionsText="No matching accounts"
+            noOptionsText={t("reports.filters.noMatchingAccounts")}
           />
         </Box>
       )}
@@ -366,7 +368,7 @@ export default function TopOpexReport() {
           <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>Key Table</Typography>
+          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>
           <Box component={AgGridBox}>
             <AgGridReact
               rowData={processed}
@@ -392,7 +394,7 @@ export default function TopOpexReport() {
         </Paper>
       </Stack>
       {isLoading && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading data…</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{t("reports.shared.loadingData")}</Typography>
       )}
     </ReportLayout>
   );

@@ -22,6 +22,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { copyBudgetColumn, BudgetColumn, BudgetOperationResult } from '../../services/budgetOperations';
 import { useFreezeState } from '../../hooks/useFreezeState';
 import { FreezeColumn } from '../../services/freeze';
+import { useLocale } from '../../i18n/useLocale';
 
 type ProcessedRow = {
   id: string;
@@ -32,19 +33,13 @@ type ProcessedRow = {
   willBeSkipped?: boolean;
 };
 
-function formatNumber(v: any) {
+function formatNumber(v: any, locale: string) {
   const n = Number(v ?? 0);
   if (!isFinite(n)) return '';
-  const i = Math.round(n);
-  return i.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return Math.round(n).toLocaleString(locale);
 }
 
-const BUDGET_COLUMNS: { value: BudgetColumn; label: string }[] = [
-  { value: 'budget', label: 'Budget' },
-  { value: 'revision', label: 'Revision' },
-  { value: 'follow_up', label: 'Follow-up' },
-  { value: 'landing', label: 'Landing' },
-];
+
 
 const budgetToFreezeColumn: Record<BudgetColumn, FreezeColumn> = {
   budget: 'budget',
@@ -55,6 +50,14 @@ const budgetToFreezeColumn: Record<BudgetColumn, FreezeColumn> = {
 
 export default function CopyBudgetColumnsPage() {
   const { t } = useTranslation(['ops']);
+
+  const BUDGET_COLUMNS: { value: BudgetColumn; label: string }[] = [
+    { value: 'budget', label: t('operations.budgetColumns.budget') },
+    { value: 'revision', label: t('operations.budgetColumns.revision') },
+    { value: 'follow_up', label: t('operations.budgetColumns.followUp') },
+    { value: 'landing', label: t('operations.budgetColumns.landing') },
+  ];
+  const locale = useLocale();
   const theme = useTheme();
   const queryClient = useQueryClient();
   const now = new Date();
@@ -202,7 +205,7 @@ Errors: ${result.summary.errors} items`);
     const baseColumns: ColDef[] = [
       {
         field: 'product_name',
-        headerName: 'Product',
+        headerName: t('operations.copyBudgetColumns.product'),
         flex: 1,
         minWidth: 220,
         cellRenderer: (params: any) => {
@@ -211,7 +214,7 @@ Errors: ${result.summary.errors} items`);
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {showPreview && willBeSkipped && (
                 <span style={{ fontSize: '12px', color: theme.palette.warning.dark, fontWeight: 'bold' }}>
-                  [SKIP]
+                  {t('operations.copyBudgetColumns.skip')}
                 </span>
               )}
               <span>{params.value}</span>
@@ -224,14 +227,14 @@ Errors: ${result.summary.errors} items`);
         headerName: `${sourceColumn} (${sourceYear})`,
         width: 160,
         type: 'rightAligned',
-        valueFormatter: (p) => formatNumber(p.value),
+        valueFormatter: (p) => formatNumber(p.value, locale),
       },
       {
         field: 'destinationValue',
         headerName: `${destinationColumn} (${destinationYear}) - Current`,
         width: 180,
         type: 'rightAligned',
-        valueFormatter: (p) => formatNumber(p.value),
+        valueFormatter: (p) => formatNumber(p.value, locale),
       },
     ];
 
@@ -241,7 +244,7 @@ Errors: ${result.summary.errors} items`);
         headerName: `${destinationColumn} (${destinationYear}) - Preview`,
         width: 180,
         type: 'rightAligned',
-        valueFormatter: (p) => formatNumber(p.value),
+        valueFormatter: (p) => formatNumber(p.value, locale),
         cellStyle: (params) => {
           const willBeSkipped = params.data?.willBeSkipped;
           return {
@@ -258,7 +261,7 @@ Errors: ${result.summary.errors} items`);
     }
 
     return baseColumns;
-  }, [sourceYear, sourceColumn, destinationYear, destinationColumn, showPreview, theme]);
+  }, [destinationColumn, destinationYear, locale, showPreview, sourceColumn, sourceYear, theme]);
 
   const gridApiRef = useRef<any>(null);
 
@@ -312,7 +315,7 @@ Errors: ${result.summary.errors} items`);
           <TextField
             select
             size="small"
-            label="Source Year"
+            label={t("operations.copyBudgetColumns.sourceYear")}
             value={sourceYear}
             onChange={(e) => setSourceYear(parseInt(e.target.value, 10))}
           >
@@ -325,7 +328,7 @@ Errors: ${result.summary.errors} items`);
           <TextField
             select
             size="small"
-            label="Source Column"
+            label={t("operations.copyBudgetColumns.sourceColumn")}
             value={sourceColumn}
             onChange={(e) => setSourceColumn(e.target.value as BudgetColumn)}
           >
@@ -338,7 +341,7 @@ Errors: ${result.summary.errors} items`);
           <TextField
             select
             size="small"
-            label="Destination Year"
+            label={t("operations.copyBudgetColumns.destinationYear")}
             value={destinationYear}
             onChange={(e) => setDestinationYear(parseInt(e.target.value, 10))}
           >
@@ -351,7 +354,7 @@ Errors: ${result.summary.errors} items`);
           <TextField
             select
             size="small"
-            label="Destination Column"
+            label={t("operations.copyBudgetColumns.destinationColumn")}
             value={destinationColumn}
             onChange={(e) => setDestinationColumn(e.target.value as BudgetColumn)}
           >
@@ -364,7 +367,7 @@ Errors: ${result.summary.errors} items`);
           <TextField
             size="small"
             type="number"
-            label="Percentage Increase"
+            label={t("operations.copyBudgetColumns.percentageIncrease")}
             value={percentageIncrease}
             onChange={(e) => setPercentageIncrease(parseFloat(e.target.value) || 0)}
             inputProps={{ step: 0.1 }}
@@ -407,21 +410,19 @@ Errors: ${result.summary.errors} items`);
       <Stack direction="column" spacing={2} alignItems="stretch">
         {destinationFrozen && (
           <Alert severity="error">
-            The {destinationYear} {BUDGET_COLUMNS.find((c) => c.value === destinationColumn)?.label ?? destinationColumn} column is frozen. Unfreeze it before copying data.
+            {t('operations.copyBudgetColumns.frozenError', { year: destinationYear, column: BUDGET_COLUMNS.find((c) => c.value === destinationColumn)?.label ?? destinationColumn })}
           </Alert>
         )}
 
         {stats.itemsWithExistingData > 0 && !overwrite && (
           <Alert severity="warning">
-            {stats.itemsWithExistingData} items already have data in the destination column and will be skipped.
-            Enable "Overwrite existing data" to replace them.
+            {t('operations.copyBudgetColumns.existingDataWarning', { count: stats.itemsWithExistingData })}
           </Alert>
         )}
 
         {showPreview && (
           <Alert severity="info">
-            Preview shows all {stats.totalItems} items. {stats.itemsToBeProcessed} items will be processed, {stats.totalItems - stats.itemsToBeProcessed} will be skipped.
-            Items marked with [SKIP] will not be modified during copy operation.
+            {t('operations.copyBudgetColumns.previewInfo', { total: stats.totalItems, toProcess: stats.itemsToBeProcessed, skipped: stats.totalItems - stats.itemsToBeProcessed })}
           </Alert>
         )}
 
@@ -447,25 +448,25 @@ Errors: ${result.summary.errors} items`);
           <Box sx={{ mt: 2, display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))' } }}>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.totalItems')}</Typography>
-              <Typography variant="subtitle2">{stats.totalItems.toLocaleString()}</Typography>
+              <Typography variant="subtitle2">{stats.totalItems.toLocaleString(locale)}</Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.itemsToProcess')}</Typography>
-              <Typography variant="subtitle2" sx={{ color: 'success.main' }}>{stats.itemsToBeProcessed.toLocaleString()}</Typography>
+              <Typography variant="subtitle2" sx={{ color: 'success.main' }}>{stats.itemsToBeProcessed.toLocaleString(locale)}</Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.sourceTotal')}</Typography>
-              <Typography variant="subtitle2">{formatNumber(stats.totalSource)}</Typography>
+              <Typography variant="subtitle2">{formatNumber(stats.totalSource, locale)}</Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.currentDestTotal')}</Typography>
-              <Typography variant="subtitle2">{formatNumber(stats.totalDestinationCurrent)}</Typography>
+              <Typography variant="subtitle2">{formatNumber(stats.totalDestinationCurrent, locale)}</Typography>
             </Box>
             {showPreview && (
               <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                 <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.previewTotal')}</Typography>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                  {formatNumber(stats.totalPreview)}
+                  {formatNumber(stats.totalPreview, locale)}
                 </Typography>
               </Box>
             )}
@@ -473,7 +474,7 @@ Errors: ${result.summary.errors} items`);
         </Paper>
       </Stack>
       {isLoading && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading data…</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{t('operations.copyBudgetColumns.loadingData')}</Typography>
       )}
     </ReportLayout>
   );

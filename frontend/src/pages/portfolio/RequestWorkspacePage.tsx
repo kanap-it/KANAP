@@ -36,6 +36,7 @@ import {
   getRequestStatusLabel,
   getRequestStatusOptions,
 } from '../../utils/portfolioI18n';
+import { useLocale } from '../../i18n/useLocale';
 
 type TabKey = 'summary' | 'analysis' | 'scoring' | 'knowledge' | 'activity';
 type LegacyPanelRoute = 'overview' | 'team' | 'relations';
@@ -94,6 +95,7 @@ const RequestKnowledgeTab = React.lazy(() => import('./workspace/request/Request
 
 export default function RequestWorkspacePage() {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const locale = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -668,7 +670,7 @@ export default function RequestWorkspacePage() {
     .join(' ')
     || t('portfolio:activity.authorUnknown');
   const latestRecommendationCreatedAt = latestAnalysisRecommendation?.created_at
-    ? new Date(latestAnalysisRecommendation.created_at).toLocaleString('en-GB', {
+    ? new Date(latestAnalysisRecommendation.created_at).toLocaleString(locale, {
       day: '2-digit',
       month: 'short',
       year: 'numeric',

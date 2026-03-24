@@ -70,7 +70,7 @@ docker compose -f infra/compose.onprem.yml logs -f api
 
 ## Password Reset
 
-**Recommended:** Configure email (Resend API) and use the "Forgot Password" flow. SMTP support is planned for a future release.
+**Recommended:** Configure email (Resend API or single-tenant SMTP) and use the "Forgot Password" flow.
 
 **Fallback (SQL):** If email is not configured, reset passwords directly in the database.
 

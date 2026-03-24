@@ -12,6 +12,7 @@ import {
 import TaskIcon from '@mui/icons-material/Task';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
+import { useTranslation } from 'react-i18next';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
 
 interface MyContributionProject {
@@ -26,10 +27,7 @@ interface ProjectsIContributeTileProps {
   config: Record<string, unknown>;
 }
 
-const TEAM_LABELS: Record<string, string> = {
-  it_team: 'IT Team',
-  business_team: 'Business Team',
-};
+
 
 const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
   waiting_list: 'default',
@@ -43,6 +41,7 @@ const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error
 
 export default function ProjectsIContributeTile({ config }: ProjectsIContributeTileProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   const limit = Math.min((config.limit as number) || 5, 5);
 
   const { data, isLoading } = useQuery({
@@ -60,21 +59,21 @@ export default function ProjectsIContributeTile({ config }: ProjectsIContributeT
 
   return (
     <DashboardTile
-      title="Projects I Contribute To"
+      title={t('dashboard.tiles.projectsIContribute')}
       icon="Groups"
       isLoading={isLoading}
       action={
         <Button size="small" onClick={() => navigate('/portfolio/projects')}>
-          View All
+          {t('buttons.viewAll')}
         </Button>
       }
     >
       {projects.length === 0 ? (
         <TileEmptyState
-          message="You're not a team member on any projects"
+          message={t('dashboard.tiles.notTeamMember')}
           action={
             <Button size="small" onClick={() => navigate('/portfolio/projects')}>
-              Browse Projects
+              {t('dashboard.tiles.browseProjects')}
             </Button>
           }
         />
@@ -91,7 +90,7 @@ export default function ProjectsIContributeTile({ config }: ProjectsIContributeT
                 secondary={
                   <Box component="span" sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <Chip
-                      label={TEAM_LABELS[project.team] || project.team}
+                      label={project.team === 'it_team' ? t('dashboard.tiles.itTeam') : project.team === 'business_team' ? t('dashboard.tiles.businessTeam') : project.team}
                       size="small"
                       variant="outlined"
                       sx={{ height: 20, fontSize: '0.7rem' }}

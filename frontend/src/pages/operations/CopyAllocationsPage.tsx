@@ -18,6 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import ReportLayout from '../../components/reports/ReportLayout';
 import { useTranslation } from 'react-i18next';
 import AgGridBox from '../../components/AgGridBox';
+import { useLocale } from '../../i18n/useLocale';
 import {
   AllocationCopyOperation,
   AllocationCopyResult,
@@ -25,25 +26,17 @@ import {
   copyAllocations,
 } from '../../services/budgetOperations';
 
-function formatActionLabel(action: AllocationCopyResult['action']) {
-  switch (action) {
-    case 'copy':
-      return 'Will copy';
-    case 'skip_missing_source_version':
-      return 'Skip – no source year';
-    case 'skip_no_source_allocations':
-      return 'Skip – no allocations in source';
-    case 'skip_destination_has_data':
-      return 'Skip – destination has data';
-    case 'error':
-      return 'Error';
-    default:
-      return action;
-  }
-}
+
 
 export default function CopyAllocationsPage() {
   const { t } = useTranslation(['ops']);
+
+  const formatActionLabel = (action: AllocationCopyResult['action']) => {
+    const key = `operations.copyAllocations.actionLabels.${action}`;
+    const label = t(key);
+    return label !== key ? label : action;
+  };
+  const locale = useLocale();
   const theme = useTheme();
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -95,13 +88,13 @@ export default function CopyAllocationsPage() {
   const columns = useMemo<ColDef[]>(() => [
     {
       field: 'itemName',
-      headerName: 'Product',
+      headerName: t('operations.copyAllocations.product'),
       flex: 1.2,
       minWidth: 220,
     },
     {
       field: 'action',
-      headerName: 'Action',
+      headerName: t('operations.copyAllocations.action'),
       width: 180,
       valueFormatter: (params) => formatActionLabel(params.value),
       cellStyle: (params) => {
@@ -129,7 +122,7 @@ export default function CopyAllocationsPage() {
     },
     {
       field: 'resultMethodLabel',
-      headerName: 'Result after copy',
+      headerName: t('operations.copyAllocations.resultAfterCopy'),
       width: 200,
       valueGetter: (params) => params.data?.resultMethodLabel || '—',
     },
@@ -186,7 +179,7 @@ export default function CopyAllocationsPage() {
           <TextField
             select
             size="small"
-            label="Source Year"
+            label={t("operations.copyAllocations.sourceYear")}
             value={sourceYear}
             onChange={(e) => {
               setSourceYear(parseInt(e.target.value, 10));
@@ -203,7 +196,7 @@ export default function CopyAllocationsPage() {
           <TextField
             select
             size="small"
-            label="Destination Year"
+            label={t("operations.copyAllocations.destinationYear")}
             value={destinationYear}
             onChange={(e) => {
               setDestinationYear(parseInt(e.target.value, 10));
@@ -260,13 +253,13 @@ export default function CopyAllocationsPage() {
 
         {summary && (
           <Alert severity={summary.errors > 0 ? 'error' : summary.skipped > 0 ? 'info' : 'success'}>
-            {summary.processed} items ready to copy, {summary.skipped} skipped, {summary.errors} errors.
+            {t("operations.copyAllocations.summaryReady", { processed: summary.processed, skipped: summary.skipped, errors: summary.errors })}
           </Alert>
         )}
 
         {stats.skippedDueToDestination > 0 && !overwrite && (
           <Alert severity="warning">
-            {stats.skippedDueToDestination} items already have allocations in {destinationYear}. Enable overwrite to replace them.
+            {t("operations.copyAllocations.skippedDueToDestination", { count: stats.skippedDueToDestination, year: destinationYear })}
           </Alert>
         )}
 
@@ -276,7 +269,7 @@ export default function CopyAllocationsPage() {
               Preview
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Showing {stats.total.toLocaleString()} items. {stats.toCopy.toLocaleString()} will be copied, {stats.skipped.toLocaleString()} skipped, {stats.errors.toLocaleString()} errors.
+              {t("operations.copyAllocations.showingItems", { total: stats.total.toLocaleString(locale), toCopy: stats.toCopy.toLocaleString(locale), skipped: stats.skipped.toLocaleString(locale), errors: stats.errors.toLocaleString(locale) })}
             </Typography>
             <Box component={AgGridBox}>
               <AgGridReact
@@ -291,7 +284,7 @@ export default function CopyAllocationsPage() {
         ) : (
           <Paper variant="outlined" sx={{ p: 3, textAlign: 'center' }}>
             <Typography variant="body2" color="text.secondary">
-              Run a dry run to preview how allocation methods will be copied.
+              {t("operations.copyAllocations.dryRunPrompt")}
             </Typography>
           </Paper>
         )}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Autocomplete, Chip, CircularProgress, Stack, TextField, Button } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type BusinessProcessCategory = {
@@ -23,12 +24,14 @@ type Props = {
 export default function BusinessProcessCategoryMultiSelect({
   value,
   onChange,
-  label = 'Categories',
+  label: labelProp,
   helperText,
   error,
   disabled,
   onManageCategoriesClick,
 }: Props) {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.categories');
   const queryClient = useQueryClient();
 
   const { data, isLoading, isFetching } = useQuery({
@@ -99,7 +102,7 @@ export default function BusinessProcessCategoryMultiSelect({
             <Chip
               {...getTagProps({ index })}
               key={option.id}
-              label={option.is_active ? option.name : `${option.name} (inactive)`}
+              label={option.is_active ? option.name : `${option.name} ${t('selects.inactiveSuffix')}`}
               size="small"
             />
           ))
@@ -108,7 +111,7 @@ export default function BusinessProcessCategoryMultiSelect({
           <TextField
             {...params}
             label={label}
-            placeholder="Select categories"
+            placeholder={t('selects.selectCategories')}
             helperText={helperText}
             error={error}
             InputProps={{
@@ -123,7 +126,7 @@ export default function BusinessProcessCategoryMultiSelect({
           />
         )}
         loading={isLoading || isFetching}
-        noOptionsText={isLoading ? 'Loading…' : 'No categories found'}
+        noOptionsText={isLoading ? t('selects.loadingEllipsis') : t('selects.noCategoriesFound')}
         fullWidth
       />
       <Stack direction="row" spacing={1}>
@@ -132,7 +135,7 @@ export default function BusinessProcessCategoryMultiSelect({
           onClick={handleCreateCategory}
           disabled={disabled}
         >
-          New category
+          {t('selects.newCategory')}
         </Button>
         {onManageCategoriesClick && (
           <Button
@@ -140,7 +143,7 @@ export default function BusinessProcessCategoryMultiSelect({
             onClick={onManageCategoriesClick}
             disabled={disabled}
           >
-            Edit categories
+            {t('selects.editCategories')}
           </Button>
         )}
       </Stack>

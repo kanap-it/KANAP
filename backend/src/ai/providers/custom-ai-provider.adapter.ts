@@ -32,6 +32,9 @@ export class CustomAiProviderAdapter implements AiProviderAdapter {
   }
 
   async *createStream(params: AiStreamParams): AsyncGenerator<AiStreamEvent> {
-    yield* openaiCompatibleStream(params);
+    yield* openaiCompatibleStream({
+      ...params,
+      providerId: this.descriptor.id,
+    });
   }
 }

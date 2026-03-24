@@ -22,6 +22,7 @@ import AgGridBox from '../../components/AgGridBox';
 import api from '../../api';
 import ContributorDrilldownDialog from './components/ContributorDrilldownDialog';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../i18n/useLocale';
 
 type CapacityColorBand = 'green' | 'yellow' | 'orange' | 'red' | 'violet' | 'na';
 
@@ -149,7 +150,8 @@ const exportElementAsPng = async (node: HTMLElement, fileName: string) => {
 };
 
 export default function CapacityHeatmapReport() {
-  const { t, i18n } = useTranslation('portfolio');
+  const { t } = useTranslation('portfolio');
+  const locale = useLocale();
   const [capacityMode, setCapacityMode] = useState<'historical' | 'theoretical'>('historical');
   const [groupBy, setGroupBy] = useState<'contributor' | 'team'>('contributor');
   const [statuses, setStatuses] = useState<string[]>(DEFAULT_STATUSES);
@@ -233,8 +235,8 @@ export default function CapacityHeatmapReport() {
 
   const formatNumberLabel = useCallback((value: number | null | undefined): string => {
     if (value == null || !Number.isFinite(value)) return t('reports.capacityHeatmap.values.notAvailable');
-    return new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(value);
-  }, [i18n.language, t]);
+    return new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
+  }, [locale, t]);
 
   const formatPercentLabel = useCallback((value: number | null | undefined): string => {
     if (value == null || !Number.isFinite(value)) return t('reports.capacityHeatmap.values.notAvailable');

@@ -20,6 +20,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../../components/MarkdownContent';
+import { useLocale } from '../../../i18n/useLocale';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import {
   formatRelativeTime,
@@ -87,6 +88,7 @@ export default function PortfolioComments({
   onImageUrlImport,
 }: PortfolioCommentsProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const locale = useLocale();
   const [commentContent, setCommentContent] = React.useState('');
   const [commentContext, setCommentContext] = React.useState('');
   const [isDecision, setIsDecision] = React.useState(false);
@@ -407,7 +409,7 @@ export default function PortfolioComments({
                       {`${a.first_name || ''} ${a.last_name || ''}`.trim() || t('portfolio:activity.authorUnknown')}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {formatRelativeTime(t, a.created_at)}
+                      {formatRelativeTime(t, a.created_at, locale)}
                     </Typography>
                     {a.updated_at && (
                       <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>

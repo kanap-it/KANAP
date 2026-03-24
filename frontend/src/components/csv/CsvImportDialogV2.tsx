@@ -16,6 +16,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import DownloadIcon from '@mui/icons-material/Download';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useCsvImport } from './useCsvImport';
 import { CsvImportWorkflowPresets } from './CsvImportWorkflowPresets';
@@ -36,10 +37,11 @@ export default function CsvImportDialogV2({
   open,
   onClose,
   endpoint,
-  title = 'Import CSV',
+  title: titleProp,
   onImported,
   params,
 }: CsvImportDialogV2Props) {
+  const { t } = useTranslation('common');
   const {
     file,
     phase,
@@ -150,12 +152,12 @@ export default function CsvImportDialogV2({
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-      <DialogTitle>{title}</DialogTitle>
+      <DialogTitle>{titleProp || t('csv.importTitle')}</DialogTitle>
       <DialogContent>
         {phase === 'upload' && (
           <>
             <Typography variant="body2" sx={{ mb: 2 }}>
-              Upload a CSV with semicolon separators.
+              {t('csv.uploadDescriptionShort')}
             </Typography>
 
             <Button
@@ -165,7 +167,7 @@ export default function CsvImportDialogV2({
               onClick={downloadTemplate}
               sx={{ mb: 2 }}
             >
-              Download template
+              {t('csv.downloadTemplate')}
             </Button>
             <Divider sx={{ mb: 2 }} />
 
@@ -186,7 +188,7 @@ export default function CsvImportDialogV2({
               }}
               onClick={onPick}
             >
-              <Typography>{file ? file.name : 'Drag & drop CSV here, or click to select'}</Typography>
+              <Typography>{file ? file.name : t('csv.dragDropOrClick')}</Typography>
               <input type="file" ref={inputRef} onChange={onFileChange} hidden accept=".csv,text/csv" />
             </Box>
 
@@ -203,7 +205,7 @@ export default function CsvImportDialogV2({
               endIcon={showAdvanced ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               sx={{ mt: 2, mb: 1 }}
             >
-              Advanced options
+              {t('csv.advancedOptions')}
             </Button>
 
             <Collapse in={showAdvanced}>
@@ -233,33 +235,33 @@ export default function CsvImportDialogV2({
       <DialogActions>
         {phase === 'upload' && (
           <>
-            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={handleClose}>{t('buttons.cancel')}</Button>
             <Button
               variant="contained"
               onClick={() => upload(true)}
               disabled={!canValidate}
             >
-              Validate
+              {t('buttons.validate')}
             </Button>
           </>
         )}
 
         {phase === 'validate' && (
           <>
-            <Button onClick={goBack}>Back</Button>
+            <Button onClick={goBack}>{t('buttons.back')}</Button>
             <Button onClick={handleClose}>Cancel</Button>
             <Button
               variant="contained"
               onClick={() => upload(false)}
               disabled={!canImport}
             >
-              Import
+              {t('buttons.import')}
             </Button>
           </>
         )}
 
         {phase === 'result' && (
-          <Button onClick={handleClose}>Close</Button>
+          <Button onClick={handleClose}>{t('buttons.close')}</Button>
         )}
       </DialogActions>
     </Dialog>

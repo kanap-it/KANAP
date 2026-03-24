@@ -7,6 +7,7 @@ import YearTabs from '../../../components/navigation/YearTabs';
 import FormattedNumberField from '../../../components/inputs/FormattedNumberField';
 import api from '../../../api';
 import { useFreezeState } from '../../../hooks/useFreezeState';
+import { useLocale } from '../../../i18n/useLocale';
 
 export type BudgetEditorHandle = {
   isDirty: () => boolean;
@@ -54,12 +55,13 @@ function monthPeriod(year: number, m: number) {
   return `${year}-${mm}-01`;
 }
 
-function monthLabel(m: number) {
-  return new Date(2000, m - 1, 1).toLocaleString(undefined, { month: 'short' });
+function monthLabel(m: number, locale: string) {
+  return new Date(2000, m - 1, 1).toLocaleString(locale, { month: 'short' });
 }
 
 export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id, year, availableYears, onYearChange, onDirtyChange }, ref) {
   const { t } = useTranslation(['ops', 'common']);
+  const locale = useLocale();
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -353,7 +355,7 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
             <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.8 }}>{t('opex.budget.forecast')}</Typography>
             {months.map((row, idx) => (
               <React.Fragment key={row.period}>
-                <Typography variant="body2">{monthLabel(idx + 1)}</Typography>
+                <Typography variant="body2">{monthLabel(idx + 1, locale)}</Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <FormattedNumberField value={row.planned ?? 0} onChange={handleMonthChange(idx, 'planned')} size="small" disabled={budgetFrozen || loading || saving} InputProps={budgetFrozen ? { readOnly: true } : undefined} />
                   <IconButton aria-label="Clear" size="small" onClick={() => clearMonthCell(idx, 'planned')} disabled={budgetFrozen || loading || saving}><DeleteIcon fontSize="small" /></IconButton>

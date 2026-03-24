@@ -51,6 +51,7 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
   assert.match(prompt, /Alex Operator/);
   assert.match(prompt, /scope: "me"/);
   assert.match(prompt, /scope: "my_team"/);
+  assert.match(prompt, /Prefer completeness over speed/i);
   assert.doesNotMatch(prompt, /\blist_entities\b/);
   assert.doesNotMatch(prompt, /always search first/i);
 }

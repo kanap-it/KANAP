@@ -3,6 +3,7 @@ import { Autocomplete, TextField, CircularProgress, Chip, Box } from '@mui/mater
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
+import { useLocale } from '../../i18n/useLocale';
 
 type CapexItem = {
   id: string;
@@ -36,6 +37,7 @@ const CapexSelect = React.forwardRef<HTMLInputElement, CapexSelectProps>(functio
   ref,
 ) {
   const { t } = useTranslation(['ops']);
+  const locale = useLocale();
   const { data: items, isLoading } = useQuery({
     queryKey: ['capex-items', 'list'],
     queryFn: async () => {
@@ -75,7 +77,7 @@ const CapexSelect = React.forwardRef<HTMLInputElement, CapexSelectProps>(functio
             )}
             {option.total_amount != null && (
               <Box sx={{ fontSize: '0.875rem', opacity: 0.7 }}>
-                Amount: {option.total_amount.toLocaleString()}
+                Amount: {option.total_amount.toLocaleString(locale)}
               </Box>
             )}
           </Box>

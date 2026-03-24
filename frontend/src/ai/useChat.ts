@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { streamChat, aiConversationsApi } from './aiApi';
 import { ChatMessage, ChatStreamEvent } from './aiTypes';
+import i18n from '../i18n';
 
 let msgCounter = 0;
 function nextId() {
@@ -129,7 +130,7 @@ export function useChat() {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
-                  ? { ...m, isStreaming: false, content: m.content || 'An error occurred.' }
+                  ? { ...m, isStreaming: false, content: m.content || i18n.t('ai:errors.generic') }
                   : m,
               ),
             );
@@ -152,7 +153,7 @@ export function useChat() {
           ),
         );
       } else {
-        setError(err.message || 'Failed to send message.');
+        setError(err.message || i18n.t('ai:errors.sendFailed'));
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId ? { ...m, isStreaming: false } : m,

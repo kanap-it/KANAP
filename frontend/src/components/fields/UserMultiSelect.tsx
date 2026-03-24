@@ -1,6 +1,7 @@
 import React from 'react';
 import { Autocomplete, Divider, TextField, CircularProgress, Chip } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 
@@ -25,7 +26,7 @@ type UserMultiSelectProps = {
 };
 
 export default function UserMultiSelect({
-  label = 'Users',
+  label: labelProp,
   value,
   onChange,
   disabled,
@@ -35,6 +36,8 @@ export default function UserMultiSelect({
   required,
   size,
 }: UserMultiSelectProps) {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.users');
   const { data: users, isLoading } = useQuery({
     queryKey: ['users', 'enabled', 'select'],
     queryFn: async () => {
@@ -106,7 +109,7 @@ export default function UserMultiSelect({
         <React.Fragment key={option.id}>
           <li {...props}>
             <div style={{ fontWeight: 500 }}>
-              {formatName(option)}{option.id === myId ? ' (me)' : ''}
+              {formatName(option)}{option.id === myId ? ` ${t('selects.meSuffix')}` : ''}
             </div>
           </li>
           {option.id === myId && <Divider />}
@@ -153,7 +156,7 @@ export default function UserMultiSelect({
           o.email.toLowerCase().includes(s)
         );
       }}
-      noOptionsText={isLoading ? 'Loading...' : 'No users found'}
+      noOptionsText={isLoading ? t('selects.loading') : t('selects.noUsersFound')}
       fullWidth
     />
   );

@@ -18,6 +18,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { useVirtualRows } from '../../hooks/useVirtualRows';
 
 // Base type for all enum items
@@ -67,7 +68,7 @@ const withLocalIds = <T extends EnumItem>(items: T[], prefix = 'enum'): (T & { l
 const defaultColumns: EnumEditorColumn<EnumItem>[] = [
   {
     key: 'label',
-    header: 'Label',
+    header: 'Label', // Column headers come from props
     width: '30%',
     render: (item, onChange, isLocked, isFocused, focusRef) => (
       <TextField
@@ -128,12 +129,15 @@ export function EnumEditor<T extends EnumItem>({
   columns,
   lockedCodes,
   hideAddButton,
-  addButtonLabel = 'Add value',
+  addButtonLabel: addButtonLabelProp,
   onAddRequest,
   addRequestToken,
   rowHeight = 52,
-  emptyMessage = 'No values configured yet.',
+  emptyMessage: emptyMessageProp,
 }: EnumEditorProps<T>) {
+  const { t } = useTranslation('common');
+  const addButtonLabel = addButtonLabelProp ?? t('enumEditor.addValue');
+  const emptyMessage = emptyMessageProp ?? t('enumEditor.noValues');
   const lockedSet = React.useMemo(
     () => new Set((lockedCodes || []).map((code) => code.toLowerCase())),
     [lockedCodes]
@@ -249,7 +253,7 @@ export function EnumEditor<T extends EnumItem>({
                 </TableCell>
               ))}
               <TableCell align="right" sx={{ width: '20%' }}>
-                Actions
+                {t('labels.actions')}
               </TableCell>
             </TableRow>
           </TableHead>

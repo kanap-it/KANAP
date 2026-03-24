@@ -10,6 +10,7 @@ import {
   Snackbar,
 } from '@mui/material';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
+import { useTranslation } from 'react-i18next';
 import type { ImportDocumentResult } from '../api/endpoints/import';
 
 interface ImportButtonProps {
@@ -37,7 +38,7 @@ function getErrorMessage(error: unknown): string {
   if (typeof message === 'string' && message.trim()) {
     return message;
   }
-  return 'Import failed. Please try again.';
+  return 'Import failed. Please try again.'; // fallback - not translated as this is a module-level function
 }
 
 export default function ImportButton({
@@ -50,6 +51,7 @@ export default function ImportButton({
   disabledTitle,
   size = 'small',
 }: ImportButtonProps) {
+  const { t } = useTranslation('common');
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const focusCleanupRef = React.useRef<(() => void) | null>(null);
   const selectionHandledRef = React.useRef(false);
@@ -153,7 +155,7 @@ export default function ImportButton({
           onClick={openPicker}
           startIcon={importing ? <CircularProgress size={14} /> : <UploadFileOutlinedIcon fontSize="small" />}
         >
-          {importing ? 'Importing...' : 'Import'}
+          {importing ? t('status.importing') : t('import.button')}
         </Button>
       </span>
       <input
@@ -166,14 +168,14 @@ export default function ImportButton({
         }}
       />
       <Dialog open={!!pendingFile} onClose={handleCancelConfirm}>
-        <DialogTitle>Replace current content?</DialogTitle>
+        <DialogTitle>{t('import.replaceTitle')}</DialogTitle>
         <DialogContent>
-          Importing a document will replace the current markdown in this editor.
+          {t('import.replaceDescription')}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCancelConfirm}>Cancel</Button>
+          <Button onClick={handleCancelConfirm}>{t('buttons.cancel')}</Button>
           <Button variant="contained" onClick={() => { void handleConfirmImport(); }}>
-            Continue
+            {t('buttons.continue')}
           </Button>
         </DialogActions>
       </Dialog>

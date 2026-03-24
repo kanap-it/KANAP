@@ -1,1 +1,911 @@
-{}
+{
+  "aiAdmin": {
+    "actions": {
+      "createKey": "Create key",
+      "creating": "Creating...",
+      "done": "Done",
+      "saveSettings": "Save settings",
+      "testConnection": "Test connection",
+      "testing": "Testing..."
+    },
+    "dialogs": {
+      "copyKeyWarning": "Copy this key now. It will not be shown again.",
+      "createKeyTitle": "Create MCP API key",
+      "keyCreatedTitle": "Key created"
+    },
+    "features": {
+      "braveSearchNotConfigured": "BRAVE_SEARCH_API_KEY not configured",
+      "enableChat": "Enable chat",
+      "enableMcp": "Enable MCP",
+      "webEnrichment": "Web enrichment",
+      "webSearch": "Web search"
+    },
+    "fields": {
+      "conversationRetentionDays": "Conversation retention (days)",
+      "keyMaxLifetimeDays": "Key max lifetime (days)",
+      "keyMaxLifetimeHelper": "Leave empty for no expiration limit",
+      "label": "Label",
+      "labelPlaceholder": "e.g., Desktop MCP client"
+    },
+    "keys": {
+      "columns": {
+        "created": "Created",
+        "expires": "Expires",
+        "label": "Label",
+        "lastUsed": "Last used",
+        "prefix": "Prefix",
+        "status": "Status"
+      },
+      "empty": "No MCP API keys configured.",
+      "statuses": {
+        "active": "Active",
+        "revoked": "Revoked"
+      },
+      "title": "MCP API Keys"
+    },
+    "messages": {
+      "connectionTestFailed": "Connection test failed.",
+      "createMcpKeyFailed": "Failed to create MCP key.",
+      "disabled": "AI settings are disabled for this instance.",
+      "loadKeysFailed": "Failed to load MCP API keys.",
+      "loadOverviewFailed": "Failed to load AI overview.",
+      "loadSettingsFailed": "Failed to load AI settings.",
+      "revokeMcpKeyFailed": "Failed to revoke MCP key.",
+      "saveFailed": "Failed to save.",
+      "settingsSaved": "Settings saved.",
+      "testingWebSearch": "Testing web search connectivity...",
+      "webSearchTestFailed": "Web search test failed."
+    },
+    "overview": {
+      "columns": {
+        "inputTokens": "Input tokens",
+        "messages": "Messages",
+        "outputTokens": "Output tokens",
+        "totalTokens": "Total tokens",
+        "window": "Window"
+      },
+      "description": "Chat usage only. Token totals are aggregated from persisted `ai_messages.usage_json`.",
+      "metrics": {
+        "activeConversations30d": "Active conversations (30d)",
+        "activeConversations7d": "Active conversations (7d)",
+        "activeUsers30d": "Active users (30d)",
+        "allConversations": "All conversations"
+      },
+      "title": "Usage Overview",
+      "tokenUsage": "Token usage",
+      "windows": {
+        "currentMonth": "Current month",
+        "last30Days": "Last 30 days"
+      }
+    },
+    "provider": {
+      "apiKey": {
+        "keepExisting": "Leave blank to keep the stored key for save and test actions.",
+        "storageUnavailable": "Secret storage is not configured on this instance."
+      },
+      "chips": {
+        "chatDisabled": "Chat disabled",
+        "chatEnabled": "Chat enabled",
+        "mcpDisabled": "MCP disabled",
+        "mcpEnabled": "MCP enabled",
+        "providerIncomplete": "Provider incomplete",
+        "providerReady": "Provider ready"
+      },
+      "connectionFailed": "Connection failed",
+      "connectionSucceeded": "Connection succeeded",
+      "fields": {
+        "apiKey": "API Key",
+        "endpointUrl": "Endpoint URL",
+        "model": "Model",
+        "provider": "Provider"
+      },
+      "info": {
+        "ollama": "In Docker, use http://host.docker.internal:<port>/v1 instead of localhost."
+      },
+      "placeholders": {
+        "anthropicModel": "e.g., claude-sonnet-4-20250514",
+        "apiKeyConfigured": "Key configured (leave blank to keep)",
+        "customEndpoint": "e.g., https://my-provider.example.com/v1",
+        "enterApiKey": "Enter API key",
+        "modelIdentifier": "Model identifier",
+        "ollamaEndpoint": "e.g., http://host.docker.internal:1234/v1",
+        "ollamaModel": "e.g., llama3, mistral",
+        "openaiModel": "e.g., gpt-4o"
+      },
+      "testLabel": "Provider test",
+      "title": "Provider",
+      "validationErrorsTitle": "Current provider validation errors"
+    },
+    "sections": {
+      "features": "Features",
+      "retention": "Retention"
+    },
+    "shared": {
+      "never": "Never",
+      "none": "None"
+    },
+    "title": "AI"
+  },
+  "auditLogs": {
+    "actions": {
+      "create": "Create",
+      "delete": "Delete",
+      "disable": "Disable",
+      "update": "Update"
+    },
+    "columns": {
+      "action": "Action",
+      "date": "Date",
+      "recordId": "Record ID",
+      "source": "Source",
+      "sourceRef": "Source Ref",
+      "table": "Table",
+      "tenantId": "Tenant ID",
+      "user": "User",
+      "userId": "User ID",
+      "userName": "User Name"
+    },
+    "details": {
+      "action": "Action: {{value}}",
+      "after": "After",
+      "before": "Before",
+      "changedFields": "Changed Fields",
+      "date": "Date: {{value}}",
+      "noFieldChanges": "No key-level changes",
+      "recordId": "Record ID: {{value}}",
+      "source": "Source: {{value}}",
+      "sourceRef": "Source Ref: {{value}}",
+      "table": "Table: {{value}}",
+      "tenant": "Tenant: {{value}}",
+      "title": "Audit Entry Details",
+      "user": "User: {{value}}"
+    },
+    "messages": {
+      "loadDetailsFailed": "Failed to load audit entry details."
+    },
+    "shared": {
+      "empty": "-"
+    },
+    "sources": {
+      "system": "System",
+      "user": "User",
+      "webhook": "Webhook"
+    },
+    "title": "Audit Log",
+    "values": {
+      "unknownUser": "Unknown ({{id}}...)"
+    }
+  },
+  "auth": {
+    "actions": {
+      "connect": "Connect",
+      "connecting": "Connecting...",
+      "disconnect": "Disconnect",
+      "disconnecting": "Disconnecting...",
+      "reconnect": "Reconnect",
+      "testSignIn": "Test sign-in"
+    },
+    "entra": {
+      "connected": "Connected",
+      "disconnectedDescription": "Single sign-on is not connected for this workspace.",
+      "tenantId": "Tenant ID",
+      "title": "Microsoft Entra ID"
+    },
+    "messages": {
+      "connectStartFailed": "Failed to start the connection flow.",
+      "disconnectFailed": "Failed to disconnect single sign-on.",
+      "loadFailed": "Failed to load authentication settings."
+    },
+    "title": "Authentication"
+  },
+  "billing": {
+    "actions": {
+      "changePlan": "Change plan",
+      "choosePlan": "Choose plan",
+      "manageSubscription": "Manage subscription"
+    },
+    "customer": {
+      "title": "Customer Information"
+    },
+    "fields": {
+      "addressLine1": "Address line 1",
+      "addressLine2": "Address line 2",
+      "city": "City",
+      "company": "Company",
+      "country": "Country",
+      "customerName": "Customer name",
+      "email": "Email",
+      "phone": "Phone",
+      "postalCode": "Postal code",
+      "recipientName": "Recipient name",
+      "stateProvince": "State / Province",
+      "vatNumber": "VAT number"
+    },
+    "invoiceDetails": {
+      "copyFromCustomer": "Copy from customer",
+      "title": "Invoicing Information"
+    },
+    "invoiceStatuses": {
+      "draft": "Draft",
+      "open": "Open",
+      "paid": "Paid",
+      "uncollectible": "Uncollectible",
+      "void": "Void"
+    },
+    "invoices": {
+      "actions": {
+        "download": "Download",
+        "showFewer": "Show fewer invoices",
+        "showMore": "Show more invoices",
+        "view": "View"
+      },
+      "title": "Invoice history"
+    },
+    "messages": {
+      "loadFailed": "Failed to load billing details.",
+      "portalFailed": "Failed to open the billing portal.",
+      "portalUnavailable": "Billing portal is unavailable.",
+      "saveFailed": "Failed to save billing details.",
+      "updateSuccess": "Billing details updated."
+    },
+    "statuses": {
+      "active": "Active",
+      "canceled": "Canceled",
+      "incomplete": "Incomplete",
+      "incomplete_expired": "Incomplete expired",
+      "notSubscribed": "Not subscribed",
+      "past_due": "Past due",
+      "paused": "Paused",
+      "pending": "Pending",
+      "trialing": "Trialing",
+      "unpaid": "Unpaid"
+    },
+    "subscription": {
+      "labels": {
+        "actions": "Actions",
+        "amountPerPeriod": "Amount per period",
+        "billingFrequency": "Billing frequency",
+        "collectionMethod": "Collection method",
+        "lastStripeSync": "Last Stripe sync",
+        "paymentMethod": "Payment method",
+        "plan": "Plan",
+        "renewalDate": "Renewal date",
+        "seats": "Seats",
+        "status": "Status",
+        "trial": "Trial",
+        "trialEnds": "Trial ends"
+      },
+      "planLabels": {
+        "freeTrial": "Free trial",
+        "pro": "Pro",
+        "solo": "Solo",
+        "team": "Team"
+      },
+      "title": "Subscription",
+      "values": {
+        "annual": "Annual",
+        "automaticCharge": "Automatic charge",
+        "bankTransfer": "Bank transfer",
+        "card": "Card",
+        "daysRemaining_one": "{{count}} day remaining",
+        "daysRemaining_other": "{{count}} days remaining",
+        "invoiceManualPayment": "Invoice (manual payment)",
+        "monthly": "Monthly",
+        "unlimitedSeatsUsed": "{{count}} used"
+      }
+    },
+    "title": "Billing"
+  },
+  "branding": {
+    "actions": {
+      "clear": "Clear",
+      "discard": "Discard",
+      "removeLogo": "Remove Logo",
+      "removingLogo": "Removing...",
+      "replaceSelectedFile": "Replace Selected File",
+      "resetToDefault": "Reset to Default",
+      "resetting": "Resetting...",
+      "uploadLogo": "Upload Logo"
+    },
+    "colors": {
+      "darkHelper": "Used in dark mode. If empty, light mode color is reused.",
+      "darkModePrimary": "Dark mode primary",
+      "description": "Set one color for light mode and one for dark mode. Leave blank to keep Kanap defaults.",
+      "lightHelper": "Used for app bar, primary buttons, and links in light mode.",
+      "lightModePrimary": "Light mode primary",
+      "lowDarkContrast": "Dark mode contrast is low ({{ratio}}:1 vs {{tone}} text{{fallback}}). ",
+      "lowLightContrast": "Light mode contrast is low ({{ratio}}:1 vs {{tone}} text{{fallback}}). ",
+      "openColorPicker": "Open color picker",
+      "readabilityWarning": "You can still save, but readability may suffer.",
+      "selectedText": "selected",
+      "swatch": "Swatch",
+      "title": "Primary Colors",
+      "usingDarkFallback": ", using dark-mode fallback color",
+      "usingLightFallback": ", using light-mode fallback color"
+    },
+    "confirmations": {
+      "reset": "Reset branding to default Kanap settings? This removes logo and custom colors."
+    },
+    "fields": {
+      "showLogoInDark": "Show logo in dark mode"
+    },
+    "logo": {
+      "alt": "Logo preview",
+      "description": "Upload one logo for the app header and login page. Best results: transparent PNG, JPG, GIF, or WEBP with a wide ratio.",
+      "previews": {
+        "dark": "Dark header preview",
+        "darkHidden": "Dark header preview (logo hidden)",
+        "light": "Light header preview"
+      },
+      "title": "Logo",
+      "version": "Logo version: {{count}}"
+    },
+    "messages": {
+      "loadFailed": "Failed to load branding settings.",
+      "logoRemoved": "Logo removed.",
+      "noChanges": "No changes to save.",
+      "removeLogoFailed": "Failed to remove logo.",
+      "resetDone": "Branding reset to defaults.",
+      "resetFailed": "Failed to reset branding.",
+      "saveFailed": "Failed to save branding settings.",
+      "selectedFile": "Selected file: {{name}}. Save changes to publish it.",
+      "updated": "Branding updated."
+    },
+    "title": "Branding",
+    "validation": {
+      "hexColorFormat": "Use format #RRGGBB (example: #1F3A5F)"
+    }
+  },
+  "coaTemplates": {
+    "actions": {
+      "edit": "Edit",
+      "exportCsv": "Export CSV",
+      "importCsv": "Import CSV",
+      "new": "New"
+    },
+    "columns": {
+      "code": "Code",
+      "loadedByDefault": "Loaded by default",
+      "name": "Name",
+      "scope": "Scope",
+      "updated": "Updated",
+      "version": "Version"
+    },
+    "dialog": {
+      "createTitle": "New CoA Template",
+      "editTitle": "Edit CoA Template",
+      "fields": {
+        "allCountries": "All countries (global template)",
+        "code": "Code",
+        "country": "Country",
+        "loadedByDefault": "Loaded by default for all new tenants",
+        "name": "Name",
+        "version": "Version"
+      },
+      "messages": {
+        "saveFailed": "Failed to save."
+      }
+    },
+    "exportTitle": "Export Template {{code}} {{version}}",
+    "importTitle": "Import Template CSV — {{code}} {{version}}",
+    "shared": {
+      "allCountries": "All countries",
+      "no": "No",
+      "yes": "Yes"
+    },
+    "title": "CoA Templates (Platform Admin)"
+  },
+  "confirmations": {
+    "unsavedNavigate": "You have unsaved changes. Save before navigating?",
+    "unsavedSwitchTab": "You have unsaved changes. Save before switching tabs?"
+  },
+  "landing": {
+    "cards": {
+      "accounts": {
+        "description": "Manage accounts.",
+        "title": "Accounts"
+      },
+      "auditLogs": {
+        "description": "Review audit log activity.",
+        "title": "Audit Logs"
+      },
+      "billing": {
+        "description": "Manage billing and subscriptions.",
+        "title": "Billing"
+      },
+      "companies": {
+        "description": "Manage companies.",
+        "title": "Companies"
+      },
+      "departments": {
+        "description": "Manage departments.",
+        "title": "Departments"
+      },
+      "opsDashboard": {
+        "description": "View platform operations metrics.",
+        "title": "Ops Dashboard"
+      },
+      "roles": {
+        "description": "Manage roles and permissions.",
+        "title": "Roles"
+      },
+      "suppliers": {
+        "description": "Manage suppliers.",
+        "title": "Suppliers"
+      },
+      "tenants": {
+        "description": "Manage tenants.",
+        "title": "Tenants"
+      },
+      "users": {
+        "description": "Manage users.",
+        "title": "Users"
+      }
+    },
+    "title": "Administration"
+  },
+  "masterDataOperations": {
+    "cards": {
+      "copy": {
+        "description": "Copy master data between workspaces.",
+        "title": "Copy"
+      },
+      "freeze": {
+        "description": "Freeze master data to prevent changes.",
+        "title": "Freeze"
+      }
+    },
+    "subtitle": "Run platform-wide master data operations.",
+    "title": "Master Data Operations"
+  },
+  "opsDashboard": {
+    "cards": {
+      "activeQueries": "Active Queries",
+      "cpuSystem": "system {{count}}s",
+      "cpuUser": "CPU (user)",
+      "deadlocks": "Deadlocks (cumul.)",
+      "eventLoopP99": "Event Loop P99",
+      "failRate": "{{count}}% fail rate",
+      "heapTotal": "/ {{total}} MB total",
+      "heapUsed": "Heap used",
+      "idleInTransaction": "Idle in txn",
+      "loginAttempts": "Login attempts",
+      "loginFailures": "Login failures",
+      "meanMs": "mean {{count}} ms",
+      "poolActive": "{{active}} / {{max}} active",
+      "poolUtilization": "Pool utilization",
+      "poolWaiting": "Pool waiting",
+      "rateLimited": "429 (rate limited)",
+      "refreshFailures": "Refresh failures",
+      "requestsPerMinute": "Requests / min",
+      "requestsQueued": "Requests queued for a connection",
+      "status2xx": "2xx",
+      "status4xx": "4xx",
+      "status5xx": "5xx",
+      "tokenRefreshes": "Token refreshes",
+      "totalRequests": "{{count}} total",
+      "uptime": "Uptime"
+    },
+    "columns": {
+      "avg": "Avg",
+      "count": "Count",
+      "error": "Error",
+      "lastSeen": "Last Seen",
+      "p50": "P50",
+      "p95": "P95",
+      "p99": "P99",
+      "requestsPerMinute": "Req/min",
+      "route": "Route",
+      "status2xx": "2xx",
+      "status429": "429",
+      "status4xx": "4xx",
+      "status5xx": "5xx",
+      "total": "Total",
+      "window": "Window"
+    },
+    "messages": {
+      "loadFailed": "Failed to load ops snapshot.",
+      "noErrors": "No errors recorded.",
+      "noTraffic": "No traffic recorded yet."
+    },
+    "sections": {
+      "auth": "Auth (5-minute window)",
+      "database": "Database",
+      "process": "Node.js Process",
+      "recentErrors": "Recent Errors (15-minute window)",
+      "topRoutes": "Top Routes by Volume (5-minute window)",
+      "traffic": "Traffic (1-minute window)",
+      "windowComparison": "Window Comparison"
+    },
+    "title": "Ops Dashboard",
+    "updated": "Updated {{value}}",
+    "values": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "secondsAgo": "{{count}}s ago",
+      "uptimeDaysHoursMinutes": "{{days}}d {{hours}}h {{minutes}}m",
+      "uptimeHoursMinutes": "{{hours}}h {{minutes}}m",
+      "uptimeMinutes": "{{minutes}}m"
+    }
+  },
+  "planSelection": {
+    "actions": {
+      "changePlanBankTransfer": "Change Plan (Bank Transfer)",
+      "changePlanCard": "Change Plan (Card)",
+      "payByBankTransfer": "Pay by Bank Transfer",
+      "payByCard": "Pay by Card"
+    },
+    "billingCycle": {
+      "annual": "Annual",
+      "monthly": "Monthly"
+    },
+    "errors": {
+      "noActiveSubscription": "No active subscription was found.",
+      "planNotBankTransferEligible": "This plan is not eligible for bank transfer."
+    },
+    "messages": {
+      "checkoutUrlUnavailable": "Checkout URL is unavailable.",
+      "invoiceCreated": "Invoice created.",
+      "loadFailed": "Failed to load plans.",
+      "requestFailed": "Request failed.",
+      "trialExpired": "Trial expired.",
+      "trialExpires_one": "Trial expires in {{count}} day.",
+      "trialExpires_other": "Trial expires in {{count}} days."
+    },
+    "pricePer": "per {{period}}",
+    "seatLimitContributors_one": "{{count}} contributor included",
+    "seatLimitContributors_other": "{{count}} contributors included",
+    "shared": {
+      "month": "month",
+      "unlimited": "Unlimited",
+      "upToSeats_one": "Up to {{count}} seat",
+      "upToSeats_other": "Up to {{count}} seats",
+      "year": "year"
+    },
+    "title": "Choose a Plan"
+  },
+  "roles": {
+    "actions": {
+      "duplicate": "Duplicate",
+      "duplicating": "Duplicating...",
+      "newRole": "New Role",
+      "saveDetails": "Save Details",
+      "savePermissions": "Save Permissions"
+    },
+    "badges": {
+      "builtIn": "Built-in",
+      "system": "System"
+    },
+    "dialogs": {
+      "createTitle": "New Role",
+      "deleteMessage": "This action is permanent. You can only delete roles with no users assigned.",
+      "deleteTitle": "Delete Role"
+    },
+    "empty": "No roles found.",
+    "fields": {
+      "description": "Description",
+      "roleName": "Role name"
+    },
+    "groups": {
+      "AI": "AI",
+      "Administration": "Administration",
+      "Budget & Finance": "Budget & Finance",
+      "IT Operations": "IT Operations",
+      "Knowledge": "Knowledge",
+      "Master Data": "Master Data",
+      "Portfolio Management": "Portfolio Management",
+      "Tasks": "Tasks"
+    },
+    "levels": {
+      "admin": "Admin",
+      "contributor": "Contributor",
+      "member": "Member",
+      "none": "None",
+      "reader": "Reader"
+    },
+    "messages": {
+      "administratorLocked": "Administrator has full access and cannot be modified.",
+      "builtInLocked": "Built-in roles provide standard access patterns and cannot be modified. Use Duplicate to create a customizable copy.",
+      "contactLocked": "Contact roles are system-managed for directory visibility and cannot be modified.",
+      "duplicated": "Role duplicated.",
+      "permissionsSaved": "Role permissions saved.",
+      "setAccessLevels": "Set per-resource access levels for this role."
+    },
+    "resources": {
+      "accounts": "Accounts",
+      "ai_chat": "AI Chat",
+      "ai_mcp": "AI MCP",
+      "ai_settings": "AI Settings",
+      "analytics": "Analytics",
+      "applications": "Applications",
+      "billing": "Billing",
+      "budget_ops": "Budget Ops",
+      "business_processes": "Business Processes",
+      "capex": "Capex",
+      "companies": "Companies",
+      "contacts": "Contacts",
+      "contracts": "Contracts",
+      "departments": "Departments",
+      "infrastructure": "Infrastructure",
+      "knowledge": "Knowledge",
+      "locations": "Locations",
+      "opex": "Opex",
+      "portfolio_planning": "Portfolio Planning",
+      "portfolio_projects": "Portfolio Projects",
+      "portfolio_reports": "Portfolio Reports",
+      "portfolio_requests": "Portfolio Requests",
+      "portfolio_settings": "Portfolio Settings",
+      "reporting": "Reporting",
+      "settings": "Settings",
+      "suppliers": "Suppliers",
+      "tasks": "Tasks",
+      "users": "Users"
+    },
+    "sections": {
+      "roles": "Roles"
+    },
+    "title": "Roles",
+    "userCount_one": "{{count}} user",
+    "userCount_other": "{{count}} users"
+  },
+  "scheduledTasks": {
+    "actions": {
+      "runNow": "Run now",
+      "viewHistory": "View history"
+    },
+    "columns": {
+      "actions": "Actions",
+      "description": "Description",
+      "duration": "Duration",
+      "enabled": "Enabled",
+      "lastRun": "Last run",
+      "name": "Name",
+      "schedule": "Schedule",
+      "status": "Status"
+    },
+    "cronLabels": {
+      "daily3am": "Daily at 3 AM",
+      "daily8am": "Daily at 8 AM",
+      "dailyMidnight": "Daily at midnight",
+      "everyFifteenMinutes": "Every 15 minutes",
+      "everyFiveMinutes": "Every 5 minutes",
+      "everyHour": "Every hour",
+      "everyThirtyMinutes": "Every 30 minutes",
+      "firstOfMonthMidnight": "1st of month at midnight",
+      "sundays4am": "Sundays at 4 AM",
+      "sundaysMidnight": "Sundays at midnight"
+    },
+    "empty": "No scheduled tasks registered.",
+    "messages": {
+      "invalidCronExpression": "Invalid cron expression.",
+      "loadFailed": "Failed to load scheduled tasks.",
+      "loadRunsFailed": "Failed to load runs.",
+      "scheduleUpdated": "Schedule updated.",
+      "taskTriggered": "Task '{{name}}' triggered"
+    },
+    "runHistory": {
+      "columns": {
+        "details": "Details",
+        "duration": "Duration",
+        "started": "Started",
+        "status": "Status"
+      },
+      "empty": "No runs yet.",
+      "title": "Run History: {{name}}"
+    },
+    "shared": {
+      "empty": "-"
+    },
+    "statuses": {
+      "failure": "Failed",
+      "neverRun": "Never run",
+      "running": "Running",
+      "success": "Success"
+    },
+    "title": "Scheduled Tasks"
+  },
+  "shared": {
+    "billingAdminRequired": "Billing admin access required.",
+    "labels": {
+      "next": "Next",
+      "prev": "Previous"
+    }
+  },
+  "standardAccountWorkspace": {
+    "newTitle": "New Standard Account",
+    "position": "Position {{current}} of {{total}}",
+    "tabs": {
+      "overview": "Overview"
+    },
+    "title": "Standard Account {{accountNumber}}"
+  },
+  "standardAccounts": {
+    "actions": {
+      "exportCsv": "Export CSV",
+      "importCsv": "Import CSV",
+      "new": "New"
+    },
+    "columns": {
+      "accountNumber": "Account Number",
+      "consolidationAccountNumber": "Consolidation Account Number",
+      "consolidationDescription": "Consolidation Description",
+      "consolidationName": "Consolidation Name",
+      "description": "Description",
+      "name": "Name",
+      "nativeName": "Native Name",
+      "status": "Status"
+    },
+    "exportTitle": "Export Template Accounts",
+    "importTitle": "Import Template Accounts",
+    "templateLabel": "Template",
+    "title": "Standard Accounts (Platform Admin)"
+  },
+  "tenants": {
+    "actions": {
+      "clear": "Clear",
+      "deleteTenant": "Delete tenant",
+      "freeze": "Freeze",
+      "refresh": "Refresh",
+      "savePlan": "Save plan",
+      "unfreeze": "Unfreeze",
+      "view": "View"
+    },
+    "columns": {
+      "actions": "Actions",
+      "capex": "Capex",
+      "companies": "Companies",
+      "departments": "Departments",
+      "headcount": "Headcount",
+      "opex": "Opex",
+      "seats": "Seats",
+      "status": "Status",
+      "suppliers": "Suppliers",
+      "tenant": "Tenant",
+      "users": "Users"
+    },
+    "delete": {
+      "columns": {
+        "rowsDeleted": "Rows Deleted",
+        "table": "Table"
+      },
+      "confirmSlug": "Type the tenant slug to confirm",
+      "reasonOptional": "Reason (optional)",
+      "slugHelper": "Slug: {{slug}}",
+      "summaryTitle": "Deletion Summary",
+      "warning": "Deleting a tenant removes all associated data immediately. This action cannot be undone. Freeze the tenant instead if you want to retain data."
+    },
+    "detail": {
+      "deletedAt": "Tenant deleted at {{value}}",
+      "deletionInProgress": "Deletion is in progress.",
+      "deletionReason": "Deletion reason: {{reason}}",
+      "slug": "Slug: {{slug}}",
+      "timestamps": "Created {{createdAt}} • Updated {{updatedAt}}",
+      "title": "Tenant detail"
+    },
+    "empty": "No tenants found.",
+    "filters": {
+      "searchLabel": "Search tenants",
+      "searchPlaceholder": "Filter by slug or name",
+      "status": "Status"
+    },
+    "lifecycle": {
+      "deletionConfirmed": "Deletion confirmed: {{value}}",
+      "deletionRequested": "Deletion requested: {{value}}",
+      "frozenAt": "Frozen at: {{value}}"
+    },
+    "messages": {
+      "deleteFailed": "Failed to delete tenant.",
+      "deleted": "Tenant deleted successfully.",
+      "freezeFailed": "Failed to freeze tenant.",
+      "frozen": "Tenant frozen.",
+      "planUpdated": "Plan updated.",
+      "unfreezeFailed": "Failed to unfreeze tenant.",
+      "unfrozen": "Tenant unfrozen.",
+      "updatePlanFailed": "Failed to update plan."
+    },
+    "plan": {
+      "empty": "No subscription information available.",
+      "fields": {
+        "activeSeats": "Active seats",
+        "nextPaymentDate": "Next payment date",
+        "paymentMode": "Payment mode",
+        "planName": "Plan name",
+        "seatLimit": "Seat limit",
+        "subscription": "Subscription"
+      },
+      "seatsUsed": "Seats used: {{count}}",
+      "values": {
+        "annual": "Annual",
+        "bankTransfer": "Bank transfer",
+        "card": "Card",
+        "monthly": "Monthly"
+      }
+    },
+    "sections": {
+      "deleteTenant": "Delete tenant",
+      "lifecycle": "Lifecycle",
+      "plan": "Plan",
+      "statistics": "Statistics"
+    },
+    "shared": {
+      "none": "—"
+    },
+    "stats": {
+      "capexEntries": "CAPEX Entries",
+      "companies": "Companies",
+      "departments": "Departments",
+      "headcount": "Headcount",
+      "opexEntries": "OPEX Entries",
+      "suppliers": "Suppliers",
+      "usersEnabledTotal": "Users (enabled/total)"
+    },
+    "statuses": {
+      "active": "Active",
+      "all": "All",
+      "deleted": "Deleted",
+      "deleting": "Deleting",
+      "frozen": "Frozen"
+    },
+    "title": "Tenants"
+  },
+  "userForm": {
+    "entraManagedHint": "This user is managed by Microsoft Entra ID and cannot be edited here.",
+    "fields": {
+      "businessPhone": "Business Phone",
+      "companyOptional": "Company (optional)",
+      "departmentOptional": "Department (optional)",
+      "email": "Email",
+      "enabled": "Enabled",
+      "firstName": "First Name",
+      "jobTitle": "Job Title",
+      "lastName": "Last Name",
+      "mobilePhone": "Mobile Phone",
+      "roles": "Roles"
+    }
+  },
+  "users": {
+    "title": "Users",
+    "actions": {
+      "new": "New",
+      "importCsv": "Import CSV",
+      "exportCsv": "Export CSV",
+      "invite": "Invite ({{count}})",
+      "inviting": "Inviting…"
+    },
+    "columns": {
+      "lastName": "Last Name",
+      "firstName": "First Name",
+      "email": "Email Address",
+      "jobTitle": "Job Title",
+      "role": "Role",
+      "company": "Company",
+      "department": "Department",
+      "businessPhone": "Business Phone",
+      "mobilePhone": "Mobile Phone",
+      "mfaEnabled": "MFA Enabled",
+      "created": "Created"
+    },
+    "mfaValues": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "dialogs": {
+      "newUser": "New User",
+      "editUser": "Edit User",
+      "saveAndInvite": "Save and Invite",
+      "saving": "Saving…"
+    },
+    "messages": {
+      "emailUnique": "Email must be unique.",
+      "inviteSuccess": "Invited {{success}} user(s)",
+      "invitePartialFail": "Invited {{success}} user(s); {{failed}} failed",
+      "inviteFailed": "Failed to invite selected users"
+    },
+    "exportTitle": "Export Users",
+    "importTitle": "Import Users",
+    "seats": {
+      "limited": "Seats {{used}}/{{limit}}",
+      "unlimited": "Seats {{used}} (unlimited)"
+    }
+  }
+}

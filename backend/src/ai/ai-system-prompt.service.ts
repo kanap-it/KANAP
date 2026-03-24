@@ -114,6 +114,10 @@ export class AiSystemPromptService {
       '- For projects and requests, "top priority" usually means sorting by `priority_score` descending.\n' +
       '- For "current projects", use get_filter_values on project status and exclude terminal statuses such as `done` and `cancelled`.\n' +
       '- get_filter_values is for exact set-like values. Do not use it for date ranges or free-form text questions.\n' +
+      '- Prefer completeness over speed. When querying data to answer the user, use generous limits so you see the full picture before summarizing.\n' +
+      '- query_entities returns a `total` alongside the current page. If `total` is greater than the number of returned items, you are missing data and should broaden the fetch before concluding.\n' +
+      '- When a search or query result includes `truncated: true`, do not assume you have the full answer yet. Fetch the next page or next offset when needed.\n' +
+      '- search_knowledge uses `offset` for pagination. query_entities uses `page` for pagination.\n' +
       '- Do NOT use search_all as a fallback for structured count/filter/list/breakdown questions. If the query-layer tools do not confirm a value, explain that uncertainty instead of switching to fuzzy search.\n' +
       '- search_all is a fuzzy text search tool with result limits and may be incomplete for counting, filtering, or breakdown questions.',
     );

@@ -11,9 +11,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api';
 import { useAuth } from '../auth/AuthContext';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
+import { useLocale } from '../i18n/useLocale';
+import { useTranslation } from 'react-i18next';
 import ForbiddenPage from './ForbiddenPage';
 
 export default function UsersPage() {
+  const { t } = useTranslation(['admin', 'common']);
+  const locale = useLocale();
   const { hasLevel, subscription, tenantAuth } = useAuth();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'create'|'edit'>('create');
@@ -131,7 +135,7 @@ export default function UsersPage() {
       setOpen(false);
       setSubmitIntent('save');
     } catch (e: any) {
-      if (e?.response?.status === 409) setServerError(new Error('Email must be unique.'));
+      if (e?.response?.status === 409) setServerError(new Error(t('users.messages.emailUnique')));
       else setServerError(e);
     }
   };
@@ -160,18 +164,18 @@ export default function UsersPage() {
   );
 
   const columns: EnhancedColDef<any>[] = useMemo(() => [
-    { field: 'last_name', headerName: 'Last Name', width: 150, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'first_name', headerName: 'First Name', width: 150, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'email', headerName: 'Email Address', flex: 1, minWidth: 220, required: true, cellRenderer: canManageUsers ? ClickableCell : undefined },
-    { field: 'job_title', headerName: 'Job Title', width: 200, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'role', headerName: 'Role', width: 140, valueGetter: (params) => params.data?.role?.role_name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'company', headerName: 'Company', width: 200, valueGetter: (params) => params.data?.company?.name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'department', headerName: 'Department', width: 200, valueGetter: (params) => params.data?.department?.name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'business_phone', headerName: 'Business Phone', width: 180, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'mobile_phone', headerName: 'Mobile Phone', width: 160, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'mfa_enabled', headerName: 'MFA Enabled', width: 120, defaultHidden: true, valueGetter: (params) => params.data?.mfa_enabled ? 'Yes' : 'No', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'created_at', headerName: 'Created', width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''), defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-  ], [ClickableCell, ClickableCellGeneric, canManageUsers]);
+    { field: 'last_name', headerName: t('users.columns.lastName'), width: 150, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'first_name', headerName: t('users.columns.firstName'), width: 150, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'email', headerName: t('users.columns.email'), flex: 1, minWidth: 220, required: true, cellRenderer: canManageUsers ? ClickableCell : undefined },
+    { field: 'job_title', headerName: t('users.columns.jobTitle'), width: 200, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'role', headerName: t('users.columns.role'), width: 140, valueGetter: (params) => params.data?.role?.role_name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'company', headerName: t('users.columns.company'), width: 200, valueGetter: (params) => params.data?.company?.name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'department', headerName: t('users.columns.department'), width: 200, valueGetter: (params) => params.data?.department?.name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'business_phone', headerName: t('users.columns.businessPhone'), width: 180, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'mobile_phone', headerName: t('users.columns.mobilePhone'), width: 160, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'mfa_enabled', headerName: t('users.columns.mfaEnabled'), width: 120, defaultHidden: true, valueGetter: (params) => params.data?.mfa_enabled ? t('users.mfaValues.yes') : t('users.mfaValues.no'), cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'created_at', headerName: t('users.columns.created'), width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''), defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+  ], [ClickableCell, ClickableCellGeneric, canManageUsers, locale, t]);
 
   if (!hasLevel('users', 'reader')) {
     return <ForbiddenPage />;
@@ -187,14 +191,14 @@ export default function UsersPage() {
       const success = results.filter((r) => r.status === 'fulfilled').length;
       const failed = results.length - success;
       if (failed === 0) {
-        window.alert(`Invited ${success} user(s)`);
+        window.alert(t('users.messages.inviteSuccess', { success }));
       } else {
-        window.alert(`Invited ${success} user(s); ${failed} failed`);
+        window.alert(t('users.messages.invitePartialFail', { success, failed }));
       }
       setRefreshKey((k) => k + 1);
     } catch (err) {
       console.error(err);
-      window.alert('Failed to invite selected users');
+      window.alert(t('users.messages.inviteFailed'));
     } finally {
       setInviting(false);
     }
@@ -202,16 +206,16 @@ export default function UsersPage() {
 
   const actions = (
     <Stack direction="row" spacing={1} alignItems="center">
-      {canManageUsers && <Button variant="contained" onClick={handleNew}>New</Button>}
-      {canManageUsers && <Button onClick={() => setImportOpen(true)}>Import CSV</Button>}
-      {canManageUsers && <Button onClick={() => setExportOpen(true)}>Export CSV</Button>}
+      {canManageUsers && <Button variant="contained" onClick={handleNew}>{t('users.actions.new')}</Button>}
+      {canManageUsers && <Button onClick={() => setImportOpen(true)}>{t('users.actions.importCsv')}</Button>}
+      {canManageUsers && <Button onClick={() => setExportOpen(true)}>{t('users.actions.exportCsv')}</Button>}
       {canManageUsers && (
         <Button
           variant="outlined"
           onClick={handleInviteSelected}
           disabled={inviting || selectedRows.length === 0}
         >
-          {inviting ? 'Inviting…' : `Invite (${selectedRows.length})`}
+          {inviting ? t('users.actions.inviting') : t('users.actions.invite', { count: selectedRows.length })}
         </Button>
       )}
       {canManageUsers && (
@@ -226,14 +230,14 @@ export default function UsersPage() {
         />
       )}
       {subscription && (
-        <Chip label={subscription.seat_limit != null ? `Seats ${subscription.seats_used}/${subscription.seat_limit}` : `Seats ${subscription.seats_used} (unlimited)`} size="small" color={subscription.seat_limit != null && subscription.seats_used >= subscription.seat_limit ? 'warning' : 'default'} />
+        <Chip label={subscription.seat_limit != null ? t('users.seats.limited', { used: subscription.seats_used, limit: subscription.seat_limit }) : t('users.seats.unlimited', { used: subscription.seats_used })} size="small" color={subscription.seat_limit != null && subscription.seats_used >= subscription.seat_limit ? 'warning' : 'default'} />
       )}
     </Stack>
   );
 
   return (
     <>
-      <PageHeader title="Users" actions={actions} />
+      <PageHeader title={t('users.title')} actions={actions} />
       <ServerDataGrid<any>
         columns={columns}
         endpoint="/users"
@@ -257,13 +261,13 @@ export default function UsersPage() {
         statusScopeConfig={{ defaultScope: 'enabled' }}
       />
       <FormModal
-        title={mode === 'create' ? 'New User' : 'Edit User'}
+        title={mode === 'create' ? t('users.dialogs.newUser') : t('users.dialogs.editUser')}
         open={open}
         onClose={onClose}
         formId="user-form"
         actions={(
           <Stack direction="row" spacing={1.5}>
-            <Button onClick={onClose} color="inherit">Cancel</Button>
+            <Button onClick={onClose} color="inherit">{t('common:buttons.cancel')}</Button>
             {mode === 'create' && (
             <Button
               variant="contained"
@@ -277,7 +281,7 @@ export default function UsersPage() {
                   }, 0);
                 }}
               >
-                {creating && submitIntent === 'save-invite' ? 'Saving…' : 'Save and Invite'}
+                {creating && submitIntent === 'save-invite' ? t('users.dialogs.saving') : t('users.dialogs.saveAndInvite')}
               </Button>
             )}
             <Button
@@ -292,7 +296,7 @@ export default function UsersPage() {
                 }, 0);
               }}
             >
-              {(mode === 'create' ? creating : updating) && submitIntent === 'save' ? 'Saving…' : 'Save'}
+              {(mode === 'create' ? creating : updating) && submitIntent === 'save' ? t('users.dialogs.saving') : t('common:buttons.save')}
             </Button>
           </Stack>
         )}
@@ -306,12 +310,12 @@ export default function UsersPage() {
           managedByEntra={tenantAuth?.sso_provider === 'entra' && tenantAuth?.sso_enabled && (defaultValues as any)?.external_auth_provider === 'entra'}
         />
       </FormModal>
-      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/users" title="Export Users" />
+      <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/users" title={t('users.exportTitle')} />
       <CsvImportDialog
         open={importOpen}
         onClose={() => setImportOpen(false)}
         endpoint="/users"
-        title="Import Users"
+        title={t('users.importTitle')}
         onImported={() => setRefreshKey((k) => k + 1)}
       />
 

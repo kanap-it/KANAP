@@ -10,7 +10,7 @@ This document describes the technical design for on-premise deployments. User-fa
 - **Single-tenant mode only** for on-prem v1
 - **Customer-provided infrastructure** (PostgreSQL, S3-compatible storage, TLS/reverse proxy)
 - **Build from source** (no registry management)
-- **Email:** Resend API or disabled in Phase 1; SMTP support in Phase 2
+- **Email:** Resend API by default; single-tenant SMTP support available for on-prem
 
 ## Works Out of the Box
 
@@ -52,7 +52,9 @@ export const Features = {
   SINGLE_TENANT: isSingleTenant,
   STRIPE_BILLING: !isSingleTenant && !!process.env.STRIPE_SECRET_KEY,
   ENTRA_SSO: !!process.env.ENTRA_CLIENT_ID,
-  EMAIL_ENABLED: !!process.env.RESEND_API_KEY,
+  EMAIL_ENABLED: isSingleTenant
+    ? !!(process.env.SMTP_HOST && process.env.SMTP_FROM) || !!process.env.RESEND_API_KEY
+    : !!process.env.RESEND_API_KEY,
 };
 ```
 
@@ -131,7 +133,7 @@ These return `403 FEATURE_DISABLED` when the relevant feature is off:
 | Feature | Endpoints |
 |---------|-----------|
 | `billing` (Stripe off) | All `/billing/*` endpoints |
-| `email` (Resend off) | `POST /auth/password-reset/request`, `POST /users/:id/invite`, `POST /users/me/notification-preferences/test-weekly-review` |
+| `email` (no valid transport configured) | `POST /auth/password-reset/request`, `POST /users/:id/invite`, `POST /users/me/notification-preferences/test-weekly-review` |
 
 ## URL Resolution (Notifications & Exports)
 

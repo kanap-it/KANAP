@@ -9,6 +9,8 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../../i18n/useLocale';
 import api from '../../../api';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
 
@@ -41,12 +43,16 @@ function formatStatus(status: string | null): string {
   return status.replace(/_/g, ' ');
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+// Note: formatDate uses locale from component scope
+
+function formatDate(dateStr: string, loc?: string): string {
+  return new Date(dateStr).toLocaleDateString(loc || 'en-US', { month: 'short', day: 'numeric' });
 }
 
 export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesTileProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
+  const locale = useLocale();
   const days = Math.max(1, Math.min((config.days as number) || 5, 14));
 
   const { data, isLoading } = useQuery({
@@ -64,17 +70,17 @@ export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesT
 
   return (
     <DashboardTile
-      title={`Project Status Changes (${days}d)`}
+      title={t('dashboard.tiles.statusChanges', { days })}
       icon="SwapHoriz"
       isLoading={isLoading}
       action={(
         <Button size="small" onClick={() => navigate('/portfolio/projects')}>
-          View All
+          {t('buttons.viewAll')}
         </Button>
       )}
     >
       {items.length === 0 ? (
-        <TileEmptyState message="No recent project status changes" />
+        <TileEmptyState message={t('dashboard.tiles.noRecentStatusChanges')} />
       ) : (
         <List dense disablePadding>
           {items.map((item) => (
@@ -96,7 +102,7 @@ export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesT
                         sx={{ height: 20, fontSize: '0.7rem' }}
                       />
                       <Typography variant="caption" color="text.secondary">
-                        to
+                        {t('dashboard.tiles.to')}
                       </Typography>
                       <Chip
                         label={formatStatus(item.nextStatus)}
@@ -106,7 +112,7 @@ export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesT
                       />
                     </Box>
                     <Typography variant="caption" color="text.secondary">
-                      {item.authorName} on {formatDate(item.createdAt)}
+                      {t('dashboard.tiles.authorOnDate', { author: item.authorName, date: formatDate(item.createdAt, locale) })}
                     </Typography>
                   </Box>
                 )}

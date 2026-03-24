@@ -25,6 +25,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { clearBudgetColumn, BudgetColumn } from '../../services/budgetOperations';
 import { useFreezeState } from '../../hooks/useFreezeState';
 import { FreezeColumn } from '../../services/freeze';
+import { useLocale } from '../../i18n/useLocale';
 
 type ProcessedRow = {
   id: string;
@@ -32,19 +33,13 @@ type ProcessedRow = {
   currentValue: number;
 };
 
-function formatNumber(v: any) {
+function formatNumber(v: any, locale: string) {
   const n = Number(v ?? 0);
   if (!isFinite(n)) return '';
-  const i = Math.round(n);
-  return i.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return Math.round(n).toLocaleString(locale);
 }
 
-const BUDGET_COLUMNS: { value: BudgetColumn; label: string }[] = [
-  { value: 'budget', label: 'Budget' },
-  { value: 'revision', label: 'Revision' },
-  { value: 'follow_up', label: 'Follow-up' },
-  { value: 'landing', label: 'Landing' },
-];
+
 
 const budgetToFreezeColumn: Record<BudgetColumn, FreezeColumn> = {
   budget: 'budget',
@@ -54,7 +49,15 @@ const budgetToFreezeColumn: Record<BudgetColumn, FreezeColumn> = {
 };
 
 export default function BudgetColumnResetPage() {
-  const { t } = useTranslation(['ops']);
+  const { t } = useTranslation(['ops', 'common']);
+
+  const BUDGET_COLUMNS: { value: BudgetColumn; label: string }[] = [
+    { value: 'budget', label: t('operations.budgetColumns.budget') },
+    { value: 'revision', label: t('operations.budgetColumns.revision') },
+    { value: 'follow_up', label: t('operations.budgetColumns.followUp') },
+    { value: 'landing', label: t('operations.budgetColumns.landing') },
+  ];
+  const locale = useLocale();
   const theme = useTheme();
   const queryClient = useQueryClient();
   const now = new Date();
@@ -109,7 +112,7 @@ export default function BudgetColumnResetPage() {
     return [
       {
         field: 'product_name',
-        headerName: 'Product',
+        headerName: t('operations.columnReset.product'),
         flex: 1,
         minWidth: 220,
       },
@@ -118,7 +121,7 @@ export default function BudgetColumnResetPage() {
         headerName: `${columnLabel} (${year}) - Current`,
         width: 180,
         type: 'rightAligned',
-        valueFormatter: (p) => formatNumber(p.value),
+        valueFormatter: (p) => formatNumber(p.value, locale),
         cellStyle: (params) => {
           const hasData = params.value !== 0;
           return {
@@ -129,7 +132,7 @@ export default function BudgetColumnResetPage() {
         },
       },
     ];
-  }, [year, column, theme]);
+  }, [year, column, locale, theme]);
 
   const gridApiRef = useRef<any>(null);
 
@@ -157,7 +160,7 @@ Errors: ${result.summary.errors} items`);
       await queryClient.invalidateQueries({ queryKey: ['spend-items-summary'] });
     } catch (error) {
       console.error('Clear operation failed:', error);
-      setClearResult('Clear operation failed. Please check the console for details.');
+      setClearResult(t('operations.columnReset.clearFailed'));
     } finally {
       setIsProcessing(false);
     }
@@ -178,7 +181,7 @@ Errors: ${result.summary.errors} items`);
           <TextField
             select
             size="small"
-            label="Year"
+            label={t("operations.columnReset.year")}
             value={year}
             onChange={(e) => setYear(parseInt(e.target.value, 10))}
           >
@@ -191,7 +194,7 @@ Errors: ${result.summary.errors} items`);
           <TextField
             select
             size="small"
-            label="Budget Column"
+            label={t("operations.columnReset.budgetColumn")}
             value={column}
             onChange={(e) => setColumn(e.target.value as BudgetColumn)}
           >
@@ -218,20 +221,19 @@ Errors: ${result.summary.errors} items`);
       <Stack direction="column" spacing={2} alignItems="stretch">
         {columnFrozen && (
           <Alert severity="error">
-            The {year} {columnLabel} column is frozen. Unfreeze it before clearing data.
+            {t("operations.columnReset.columnFrozenError", { year, column: columnLabel })}
           </Alert>
         )}
 
         {stats.itemsWithData === 0 && !isLoading && (
           <Alert severity="info">
-            No data found in the {columnLabel} column for {year}. Nothing to clear.
+            {t("operations.columnReset.noDataInfo", { column: columnLabel, year })}
           </Alert>
         )}
 
         {stats.itemsWithData > 0 && (
           <Alert severity="warning">
-            Warning: This operation will permanently remove all data from the {columnLabel} column for year {year}.
-            This action cannot be undone. {stats.itemsWithData} items will be affected.
+            {t("operations.columnReset.clearWarning", { column: columnLabel, year, count: stats.itemsWithData })}
           </Alert>
         )}
 
@@ -263,18 +265,18 @@ Errors: ${result.summary.errors} items`);
           <Box sx={{ mt: 2, display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' } }}>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Typography variant="body2" color="text.secondary">{t('operations.columnReset.totalItems')}</Typography>
-              <Typography variant="subtitle2">{stats.totalItems.toLocaleString()}</Typography>
+              <Typography variant="subtitle2">{stats.totalItems.toLocaleString(locale)}</Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Typography variant="body2" color="text.secondary">{t('operations.columnReset.itemsWithData')}</Typography>
               <Typography variant="subtitle2" sx={{ color: stats.itemsWithData > 0 ? 'error.main' : 'inherit' }}>
-                {stats.itemsWithData.toLocaleString()}
+                {stats.itemsWithData.toLocaleString(locale)}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Typography variant="body2" color="text.secondary">{t('operations.columnReset.currentTotalValue')}</Typography>
               <Typography variant="subtitle2" sx={{ color: stats.itemsWithData > 0 ? 'error.main' : 'inherit' }}>
-                {formatNumber(stats.totalValue)}
+                {formatNumber(stats.totalValue, locale)}
               </Typography>
             </Box>
           </Box>
@@ -282,7 +284,7 @@ Errors: ${result.summary.errors} items`);
       </Stack>
 
       {isLoading && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading data…</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{t("operations.columnReset.loadingData")}</Typography>
       )}
 
       <Dialog
@@ -292,19 +294,19 @@ Errors: ${result.summary.errors} items`);
         <DialogTitle>{t('operations.columnReset.confirmTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to clear all data from the <strong>{columnLabel}</strong> column for year <strong>{year}</strong>?
+            {t("operations.columnReset.confirmMessage", { column: columnLabel, year })}
             <br /><br />
-            This will affect <strong>{stats.itemsWithData} items</strong> with a total value of <strong>{formatNumber(stats.totalValue)}</strong>.
+            {t("operations.columnReset.confirmAffected", { count: stats.itemsWithData, value: formatNumber(stats.totalValue, locale) })}
             <br /><br />
-            This action cannot be undone.
+            {t("operations.columnReset.confirmUndoWarning")}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCancelClear} color="primary">
-            Cancel
+            {t('common:buttons.cancel')}
           </Button>
           <Button onClick={handleConfirmClear} color="error" variant="contained" autoFocus>
-            Clear Column
+            {t('operations.columnReset.clearColumn')}
           </Button>
         </DialogActions>
       </Dialog>

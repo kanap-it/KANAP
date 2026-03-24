@@ -30,6 +30,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { useDashboardConfig } from './hooks/useDashboardConfig';
@@ -75,6 +76,7 @@ type TemplateListItem = {
 export default function WorkspaceDashboardPage() {
   const navigate = useNavigate();
   const { hasLevel, profile } = useAuth();
+  const { t } = useTranslation('common');
   const { config, isLoading: configLoading } = useDashboardConfig();
   const { filterVisibleTiles, canViewTile } = useTilePermissions();
 
@@ -184,10 +186,10 @@ export default function WorkspaceDashboardPage() {
         {/* Header */}
         <Box sx={{ mb: 2 }}>
           <Typography variant="h5" fontWeight={600} sx={{ mb: 1 }}>
-            Welcome back, {userName}
+            {t('dashboard.welcomeBack', { name: userName })}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Here's an overview of your work
+            {t('dashboard.workOverview')}
           </Typography>
         </Box>
 
@@ -200,7 +202,7 @@ export default function WorkspaceDashboardPage() {
               onClick={() => navigate('/portfolio/tasks/new/overview')}
               size="small"
             >
-              Create Task
+              {t('dashboard.createTask')}
             </Button>
           )}
           {canLogTime && (
@@ -210,7 +212,7 @@ export default function WorkspaceDashboardPage() {
               onClick={() => setLogTimeOpen(true)}
               size="small"
             >
-              Log Time
+              {t('dashboard.logTime')}
             </Button>
           )}
           {canCreateRequest && (
@@ -220,7 +222,7 @@ export default function WorkspaceDashboardPage() {
               onClick={() => navigate('/portfolio/requests/new/summary')}
               size="small"
             >
-              New Request
+              {t('dashboard.newRequest')}
             </Button>
           )}
           {canCreateApp && (
@@ -230,7 +232,7 @@ export default function WorkspaceDashboardPage() {
               onClick={() => navigate('/it/applications/new/overview')}
               size="small"
             >
-              New Application
+              {t('dashboard.newApplication')}
             </Button>
           )}
           {canCreateAsset && (
@@ -240,7 +242,7 @@ export default function WorkspaceDashboardPage() {
               onClick={() => navigate('/it/assets/new/overview')}
               size="small"
             >
-              New Asset
+              {t('dashboard.newAsset')}
             </Button>
           )}
           {canCreateDocument && (
@@ -249,7 +251,7 @@ export default function WorkspaceDashboardPage() {
                 startIcon={<DescriptionIcon />}
                 onClick={goToBlankDocument}
               >
-                New Document
+                {t('dashboard.newDocument')}
               </Button>
               <Button
                 onClick={(event) => setNewDocAnchorEl(event.currentTarget)}
@@ -260,7 +262,7 @@ export default function WorkspaceDashboardPage() {
             </ButtonGroup>
           )}
           <Box flex={1} />
-          <Tooltip title="Dashboard Settings">
+          <Tooltip title={t('dashboard.dashboardSettings')}>
             <IconButton onClick={() => setSettingsOpen(true)} size="small">
               <SettingsIcon />
             </IconButton>
@@ -280,7 +282,7 @@ export default function WorkspaceDashboardPage() {
       ) : visibleTiles.length === 0 ? (
         <Card sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="body1" color="text.secondary">
-            No tiles enabled. Click the settings icon to configure your dashboard.
+            {t('dashboard.noTilesEnabled')}
           </Typography>
         </Card>
       ) : (
@@ -326,7 +328,7 @@ export default function WorkspaceDashboardPage() {
         onClose={() => setNewDocAnchorEl(null)}
       >
         <MenuItem onClick={() => { setNewDocAnchorEl(null); goToBlankDocument(); }}>
-          Blank Document
+          {t('dashboard.blankDocument')}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -335,18 +337,18 @@ export default function WorkspaceDashboardPage() {
           }}
           disabled={!templatesLibrary}
         >
-          From template...
+          {t('dashboard.fromTemplate')}
         </MenuItem>
       </Menu>
 
       <Dialog open={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Select Template</DialogTitle>
+        <DialogTitle>{t('dashboard.selectTemplate')}</DialogTitle>
         <DialogContent>
           <TextField
             select
             fullWidth
             margin="dense"
-            label="Template"
+            label={t('labels.template')}
             value={selectedTemplateId}
             onChange={(event) => setSelectedTemplateId(event.target.value)}
           >
@@ -363,14 +365,14 @@ export default function WorkspaceDashboardPage() {
           </TextField>
           {!templatesData?.items?.length && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              No published templates are available.
+              {t('dashboard.noTemplatesAvailable')}
             </Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setTemplatePickerOpen(false)}>Cancel</Button>
+          <Button onClick={() => setTemplatePickerOpen(false)}>{t('buttons.cancel')}</Button>
           <Button variant="contained" onClick={createFromTemplate} disabled={!selectedTemplateId}>
-            Use Template
+            {t('dashboard.useTemplate')}
           </Button>
         </DialogActions>
       </Dialog>

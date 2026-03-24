@@ -12,6 +12,7 @@ import {
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
+import { useLocale } from '../../../../i18n/useLocale';
 import IntegratedDocumentEditor, { IntegratedDocumentEditorHandle } from '../../../../components/IntegratedDocumentEditor';
 import { normalizeFeasibilityReviewValue } from '../../editors/FeasibilityReview';
 import { getFeasibilityStatusLabel } from '../../../../utils/portfolioI18n';
@@ -96,11 +97,11 @@ function SummaryCard({
   );
 }
 
-function formatDateTime(value?: string | null) {
+function formatDateTime(locale: string, value?: string | null) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString('en-GB', {
+  return date.toLocaleString(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -128,6 +129,7 @@ export default function RequestSummaryTab({
   statusLabel,
 }: RequestSummaryTabProps) {
   const { t } = useTranslation('portfolio');
+  const locale = useLocale();
   const [purposeExpanded, setPurposeExpanded] = React.useState(true);
   const { data: knowledgeContext } = useQuery({
     queryKey: ['request-summary-knowledge-context', id],
@@ -186,7 +188,7 @@ export default function RequestSummaryTab({
   const latestActivityActor = latestActivity
     ? [latestActivity?.first_name, latestActivity?.last_name].filter(Boolean).join(' ') || t('activity.authorUnknown')
     : null;
-  const latestActivityAt = formatDateTime(latestActivity?.created_at);
+  const latestActivityAt = formatDateTime(locale, latestActivity?.created_at);
 
   return (
     <Stack spacing={2.5}>

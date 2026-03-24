@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
 import { Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, TextField, Alert } from '@mui/material';
@@ -8,6 +9,8 @@ import DeleteSelectedButton from '../../components/DeleteSelectedButton';
 import api from '../../api';
 import CsvExportDialog from '../../components/csv/CsvExportDialog';
 import CsvImportDialog from '../../components/csv/CsvImportDialog';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useLocale } from '../../i18n/useLocale';
 
 type Template = {
   id: string;
@@ -22,6 +25,7 @@ type Template = {
 };
 
 function TemplateDialog({ open, onClose, onSaved, initial }: { open: boolean; onClose: () => void; onSaved: () => void; initial?: Partial<Template> }) {
+  const { t } = useTranslation(['admin', 'common']);
   const [country, setCountry] = useState(initial?.country_iso ?? '');
   const [code, setCode] = useState(initial?.template_code ?? '');
   const [name, setName] = useState(initial?.template_name ?? '');
@@ -52,41 +56,43 @@ function TemplateDialog({ open, onClose, onSaved, initial }: { open: boolean; on
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Save failed');
+      setError(getApiErrorMessage(e, t, t('coaTemplates.dialog.messages.saveFailed')));
     } finally { setSaving(false); }
   };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{initial?.id ? 'Edit CoA Template' : 'New CoA Template'}</DialogTitle>
+      <DialogTitle>{initial?.id ? t('coaTemplates.dialog.editTitle') : t('coaTemplates.dialog.createTitle')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <FormControlLabel control={<Checkbox checked={isGlobal} onChange={(e) => setIsGlobal(e.target.checked)} />} label="All countries (global template)" />
+          <FormControlLabel control={<Checkbox checked={isGlobal} onChange={(e) => setIsGlobal(e.target.checked)} />} label={t('coaTemplates.dialog.fields.allCountries')} />
           {!isGlobal && (
-            <TextField select label="Country" value={country} onChange={(e) => setCountry(e.target.value)} required size="small">
+            <TextField select label={t('coaTemplates.dialog.fields.country')} value={country} onChange={(e) => setCountry(e.target.value)} required size="small">
               {COUNTRY_OPTIONS.map((c) => (
                 <MenuItem key={c.code} value={c.code}>{c.code} — {c.name}</MenuItem>
               ))}
             </TextField>
           )}
-          <TextField label="Template Code" value={code} onChange={(e) => setCode(e.target.value)} required size="small" />
-          <TextField label="Template Name" value={name} onChange={(e) => setName(e.target.value)} required size="small" />
-          <TextField label="Version" value={version} onChange={(e) => setVersion(e.target.value)} required size="small" />
+          <TextField label={t('coaTemplates.dialog.fields.code')} value={code} onChange={(e) => setCode(e.target.value)} required size="small" />
+          <TextField label={t('coaTemplates.dialog.fields.name')} value={name} onChange={(e) => setName(e.target.value)} required size="small" />
+          <TextField label={t('coaTemplates.dialog.fields.version')} value={version} onChange={(e) => setVersion(e.target.value)} required size="small" />
           {isGlobal && (
-            <FormControlLabel control={<Checkbox checked={loadedByDefault} onChange={(e) => setLoadedByDefault(e.target.checked)} />} label="Loaded by default for all new tenants" />
+            <FormControlLabel control={<Checkbox checked={loadedByDefault} onChange={(e) => setLoadedByDefault(e.target.checked)} />} label={t('coaTemplates.dialog.fields.loadedByDefault')} />
           )}
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={saving}>Cancel</Button>
-        <Button onClick={save} variant="contained" disabled={saving}>Save</Button>
+        <Button onClick={onClose} disabled={saving}>{t('common:buttons.cancel')}</Button>
+        <Button onClick={save} variant="contained" disabled={saving}>{t('common:buttons.save')}</Button>
       </DialogActions>
     </Dialog>
   );
 }
 
 export default function AdminCoaTemplatesPage() {
+  const { t } = useTranslation(['admin', 'common']);
+  const locale = useLocale();
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedRows, setSelectedRows] = useState<Template[]>([]);
   const [editOpen, setEditOpen] = useState(false);
@@ -96,20 +102,20 @@ export default function AdminCoaTemplatesPage() {
   const gridApiRef = useRef<any>(null);
 
   const columns: EnhancedColDef<Template>[] = useMemo(() => [
-    { field: 'template_code', headerName: 'Code', width: 160, required: true },
-    { field: 'template_name', headerName: 'Name', flex: 1, required: true },
-    { field: 'version', headerName: 'Version', width: 120 },
-    { field: 'country_iso', headerName: 'Scope', width: 150, valueFormatter: (p: any) => (!p.value ? 'All countries' : p.value) },
-    { field: 'loaded_by_default', headerName: 'Loaded by default', width: 170, valueFormatter: (p: any) => (p.value ? 'Yes' : 'No') },
-    { field: 'updated_at', headerName: 'Updated', width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : '') },
-  ], []);
+    { field: 'template_code', headerName: t('coaTemplates.columns.code'), width: 160, required: true },
+    { field: 'template_name', headerName: t('coaTemplates.columns.name'), flex: 1, required: true },
+    { field: 'version', headerName: t('coaTemplates.columns.version'), width: 120 },
+    { field: 'country_iso', headerName: t('coaTemplates.columns.scope'), width: 150, valueFormatter: (p: any) => (!p.value ? t('coaTemplates.shared.allCountries') : p.value) },
+    { field: 'loaded_by_default', headerName: t('coaTemplates.columns.loadedByDefault'), width: 170, valueFormatter: (p: any) => (p.value ? t('coaTemplates.shared.yes') : t('coaTemplates.shared.no')) },
+    { field: 'updated_at', headerName: t('coaTemplates.columns.updated'), width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : '') },
+  ], [locale, t]);
 
   const actions = (
     <Stack direction="row" spacing={1}>
-      <Button variant="contained" onClick={() => { setEditInitial(undefined); setEditOpen(true); }}>New</Button>
-      <Button disabled={selectedRows.length !== 1} onClick={() => { setEditInitial(selectedRows[0]); setEditOpen(true); }}>Edit</Button>
-      <Button disabled={selectedRows.length !== 1} onClick={() => setImportOpen(true)}>Import CSV</Button>
-      <Button disabled={selectedRows.length !== 1} onClick={() => setExportOpen(true)}>Export CSV</Button>
+      <Button variant="contained" onClick={() => { setEditInitial(undefined); setEditOpen(true); }}>{t('coaTemplates.actions.new')}</Button>
+      <Button disabled={selectedRows.length !== 1} onClick={() => { setEditInitial(selectedRows[0]); setEditOpen(true); }}>{t('coaTemplates.actions.edit')}</Button>
+      <Button disabled={selectedRows.length !== 1} onClick={() => setImportOpen(true)}>{t('coaTemplates.actions.importCsv')}</Button>
+      <Button disabled={selectedRows.length !== 1} onClick={() => setExportOpen(true)}>{t('coaTemplates.actions.exportCsv')}</Button>
       <DeleteSelectedButton
         selectedRows={selectedRows}
         endpoint="/admin/coa-templates/bulk" // not implemented; fall back to single delete below
@@ -123,13 +129,13 @@ export default function AdminCoaTemplatesPage() {
         color="error"
         disabled={selectedRows.length !== 1}
         onClick={async () => { await api.delete(`/admin/coa-templates/${selectedRows[0].id}`); setRefreshKey((k) => k + 1); }}
-      >Delete</Button>
+      >{t('common:buttons.delete')}</Button>
     </Stack>
   );
 
   return (
     <>
-      <PageHeader title="CoA Templates (Platform Admin)" actions={actions} />
+      <PageHeader title={t('coaTemplates.title')} actions={actions} />
       <ServerDataGrid<Template>
         columns={columns}
         endpoint="/admin/coa-templates"
@@ -154,7 +160,7 @@ export default function AdminCoaTemplatesPage() {
           open={exportOpen}
           onClose={() => setExportOpen(false)}
           endpoint={`/admin/coa-templates/${selectedRows[0].id}`}
-          title={`Export Template ${selectedRows[0].template_code} ${selectedRows[0].version}`}
+          title={t('coaTemplates.exportTitle', { code: selectedRows[0].template_code, version: selectedRows[0].version })}
         />
       )}
       {selectedRows.length === 1 && (
@@ -162,7 +168,7 @@ export default function AdminCoaTemplatesPage() {
           open={importOpen}
           onClose={() => setImportOpen(false)}
           endpoint={`/admin/coa-templates/${selectedRows[0].id}`}
-          title={`Import Template CSV — ${selectedRows[0].template_code} ${selectedRows[0].version}`}
+          title={t('coaTemplates.importTitle', { code: selectedRows[0].template_code, version: selectedRows[0].version })}
           onImported={() => setRefreshKey((k) => k + 1)}
         />
       )}

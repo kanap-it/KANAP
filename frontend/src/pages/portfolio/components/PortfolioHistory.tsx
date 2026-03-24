@@ -11,6 +11,7 @@ import {
   getDecisionOutcomeLabel,
   getFeasibilityStatusLabel,
 } from '../../../utils/portfolioI18n';
+import { useLocale } from '../../../i18n/useLocale';
 
 interface Activity {
   id: string;
@@ -95,6 +96,7 @@ export default function PortfolioHistory({
   activities,
 }: PortfolioHistoryProps) {
   const { t } = useTranslation('portfolio');
+  const locale = useLocale();
   const formatFeasibilitySummary = (value: unknown): string => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       return t('activity.history.values.notSet');
@@ -124,7 +126,7 @@ export default function PortfolioHistory({
   };
 
   const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('en-GB', {
+    return new Date(dateStr).toLocaleString(locale, {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -144,7 +146,7 @@ export default function PortfolioHistory({
       return formatFeasibilitySummary(value);
     }
     if (field.endsWith('_date') || field === 'planned_start' || field === 'planned_end') {
-      return value ? new Date(String(value)).toLocaleDateString('en-GB') : t('activity.history.values.none');
+      return value ? new Date(String(value)).toLocaleDateString(locale) : t('activity.history.values.none');
     }
     // For rich text content, show truncated plain-text preview
     if (typeof value === 'string') {

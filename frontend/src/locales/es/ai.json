@@ -1,1 +1,43 @@
-{}
+{
+  "conversationList": {
+    "archive": "Archive",
+    "newChat": "New Chat",
+    "untitled": "Untitled"
+  },
+  "errors": {
+    "generic": "An error occurred.",
+    "noResponseBody": "No response body.",
+    "sendFailed": "Failed to send message.",
+    "streamBufferExceeded": "Stream buffer exceeded the maximum allowed size.",
+    "streamRequestFailed": "Stream request failed."
+  },
+  "input": {
+    "placeholder": "Send a message...",
+    "send": "Send"
+  },
+  "messageList": {
+    "toolUseCount_one": "{{count}} tool used",
+    "toolUseCount_other": "{{count}} tools used",
+    "toolUseProgress": "Using tools..."
+  },
+  "toolResults": {
+    "noDocuments": "No documents found.",
+    "noResults": "No results.",
+    "toolNames": {
+      "get_document": "Get document",
+      "get_entity_context": "Get entity context",
+      "search_all": "Search all",
+      "search_knowledge": "Search knowledge"
+    }
+  },
+  "workspace": {
+    "empty": {
+      "subtitle": "Ask a question to begin.",
+      "title": "Start a new conversation"
+    },
+    "messages": {
+      "disabled": "AI chat is disabled for this workspace."
+    },
+    "title": "AI"
+  }
+}

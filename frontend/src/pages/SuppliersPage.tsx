@@ -10,10 +10,12 @@ import { useAuth } from '../auth/AuthContext';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { STATUS_VALUES } from '../constants/status';
 import { LinkCellRenderer } from '../components/grid/renderers';
+import { useLocale } from '../i18n/useLocale';
 import ForbiddenPage from './ForbiddenPage';
 
 export default function SuppliersPage() {
   const { t } = useTranslation(['master-data', 'common']);
+  const locale = useLocale();
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
 
@@ -86,13 +88,13 @@ export default function SuppliersPage() {
       field: 'created_at',
       headerName: t('shared.columns.created'),
       width: 200,
-      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
       defaultHidden: true,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getSupplierHref} onNavigate={(href) => navigate(href)} />
       ),
     },
-  ], [getSupplierHref, navigate, t]);
+  ], [getSupplierHref, locale, navigate, t]);
 
   const canCreate = hasLevel('suppliers','manager');
   const canAdmin = hasLevel('suppliers','admin');

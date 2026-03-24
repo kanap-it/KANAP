@@ -17,9 +17,13 @@ import {
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import api from '../../api';
 import { useQuery } from '@tanstack/react-query';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useLocale } from '../../i18n/useLocale';
 
 type PlanPrice = {
   monthly: number;
@@ -44,9 +48,9 @@ type Plan = {
   prices: PlanPrice;
 };
 
-function formatPrice(cents: number): string {
+function formatPrice(cents: number, locale: string): string {
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: 'EUR',
     }).format(cents / 100);
@@ -55,22 +59,23 @@ function formatPrice(cents: number): string {
   }
 }
 
-function formatSeatLimit(limit: number | null): string {
-  if (limit == null) return 'Unlimited';
-  return `Up to ${limit}`;
+function formatSeatLimit(limit: number | null, t: TFunction): string {
+  if (limit == null) return t('planSelection.shared.unlimited');
+  return t('planSelection.shared.upToSeats', { count: limit });
 }
 
-function parseApiError(error: any): string {
+function parseApiError(error: any, t: TFunction): string {
   const message = error?.response?.data?.message;
-  if (Array.isArray(message)) return message[0] || 'Failed to process request';
+  if (Array.isArray(message)) {
+    return getApiErrorMessage(error, t, t('planSelection.messages.requestFailed'));
+  }
   if (message === 'PLAN_NOT_BANK_TRANSFER_ELIGIBLE') {
-    return 'Bank transfer is only available for plans above 1,000 EUR.';
+    return t('planSelection.errors.planNotBankTransferEligible');
   }
   if (message === 'NO_ACTIVE_SUBSCRIPTION') {
-    return 'No active subscription found for this plan change.';
+    return t('planSelection.errors.noActiveSubscription');
   }
-  if (typeof message === 'string' && message.trim()) return message;
-  return error?.message || 'Failed to process request';
+  return getApiErrorMessage(error, t, t('planSelection.messages.requestFailed'));
 }
 
 type PlanSelectionDialogProps = {
@@ -81,6 +86,8 @@ type PlanSelectionDialogProps = {
 
 export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSelectionDialogProps) {
   const { subscription, claims } = useAuth();
+  const { t } = useTranslation(['admin', 'common']);
+  const locale = useLocale();
   const [billingCycle, setBillingCycle] = React.useState<'monthly' | 'annual'>('monthly');
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [actionInfo, setActionInfo] = React.useState<string | null>(null);
@@ -127,10 +134,10 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
       if (url) {
         window.location.href = url;
       } else {
-        setActionError('Checkout URL not available.');
+        setActionError(t('planSelection.messages.checkoutUrlUnavailable'));
       }
     } catch (e: any) {
-      setActionError(parseApiError(e));
+      setActionError(parseApiError(e, t));
     } finally {
       setActionLoading(null);
     }
@@ -156,10 +163,10 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
       if (hostedInvoiceUrl) {
         window.location.href = hostedInvoiceUrl;
       } else {
-        setActionInfo('Invoice created. You can complete payment from invoice history in Billing.');
+        setActionInfo(t('planSelection.messages.invoiceCreated'));
       }
     } catch (e: any) {
-      setActionError(parseApiError(e));
+      setActionError(parseApiError(e, t));
     } finally {
       setActionLoading(null);
     }
@@ -170,8 +177,8 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        Choose a plan
-        <IconButton onClick={onClose} size="small" aria-label="Close">
+        {t('planSelection.title')}
+        <IconButton onClick={onClose} size="small" aria-label={t('common:buttons.close')}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -179,12 +186,12 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
         <Stack spacing={3} sx={{ py: 1 }}>
           {isTrialing && trialDaysRemaining != null && trialDaysRemaining > 0 && (
             <Alert severity="info">
-              Your trial expires in {trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''}. Choose a plan to continue.
+              {t('planSelection.messages.trialExpires', { count: trialDaysRemaining })}
             </Alert>
           )}
           {isTrialing && (trialDaysRemaining == null || trialDaysRemaining <= 0) && (
             <Alert severity="warning">
-              Your trial has expired. Choose a plan to continue using the platform.
+              {t('planSelection.messages.trialExpired')}
             </Alert>
           )}
 
@@ -198,7 +205,7 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
           )}
           {plansQuery.isError && (
             <Alert severity="error">
-              {(plansQuery.error as Error)?.message || 'Failed to load plans'}
+              {getApiErrorMessage(plansQuery.error, t, t('planSelection.messages.loadFailed'))}
             </Alert>
           )}
 
@@ -211,8 +218,8 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
                   onChange={(_, val) => { if (val) setBillingCycle(val); }}
                   size="small"
                 >
-                  <ToggleButton value="monthly">Monthly</ToggleButton>
-                  <ToggleButton value="annual">Annual (2 months free)</ToggleButton>
+                  <ToggleButton value="monthly">{t('planSelection.billingCycle.monthly')}</ToggleButton>
+                  <ToggleButton value="annual">{t('planSelection.billingCycle.annual')}</ToggleButton>
                 </ToggleButtonGroup>
               </Box>
 
@@ -232,8 +239,8 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
                   const cardLoading = actionLoading === `${plan.plan_key}:card`;
                   const bankTransferLoading = actionLoading === `${plan.plan_key}:bank_transfer`;
                   const isAnyLoading = !!actionLoading;
-                  const cardLabel = hasHealthyStripeSubscription ? 'Change plan (card)' : 'Pay by card';
-                  const bankTransferLabel = hasHealthyStripeSubscription ? 'Change plan (bank transfer)' : 'Pay by bank transfer';
+                  const cardLabel = hasHealthyStripeSubscription ? t('planSelection.actions.changePlanCard') : t('planSelection.actions.payByCard');
+                  const bankTransferLabel = hasHealthyStripeSubscription ? t('planSelection.actions.changePlanBankTransfer') : t('planSelection.actions.payByBankTransfer');
 
                   return (
                     <Card key={plan.plan_key} variant="outlined">
@@ -243,17 +250,21 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
                             {plan.display_name}
                           </Typography>
                           <Chip
-                            label={`${formatSeatLimit(plan.seat_limit)} contributors`}
+                            label={t('planSelection.seatLimitContributors', { limit: formatSeatLimit(plan.seat_limit, t) })}
                             size="small"
                             color="primary"
                             variant="outlined"
                           />
                           <Box>
                             <Typography variant="h4" fontWeight={700}>
-                              {formatPrice(price)}
+                              {formatPrice(price, locale)}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              per {billingCycle === 'annual' ? 'year' : 'month'}
+                              {t('planSelection.pricePer', {
+                                period: billingCycle === 'annual'
+                                  ? t('planSelection.shared.year')
+                                  : t('planSelection.shared.month'),
+                              })}
                             </Typography>
                           </Box>
 
@@ -303,7 +314,7 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
 
                           {!isBillingAdmin && (
                             <Typography variant="caption" color="text.secondary">
-                              Billing Admin required
+                              {t('shared.billingAdminRequired')}
                             </Typography>
                           )}
                         </Stack>

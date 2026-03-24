@@ -48,18 +48,24 @@ export function addUsage(
 }
 
 export function parseToolCallArguments(rawArguments: string): Record<string, unknown> {
+  const parsed = tryParseToolCallArguments(rawArguments);
+  return parsed.ok ? parsed.value : {};
+}
+
+export function tryParseToolCallArguments(rawArguments: string):
+  | { ok: true; value: Record<string, unknown> }
+  | { ok: false; message: string } {
   if (!rawArguments || !rawArguments.trim()) {
-    return {};
+    return { ok: true, value: {} };
   }
 
   try {
     const parsed = JSON.parse(rawArguments);
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
+      return { ok: true, value: parsed as Record<string, unknown> };
     }
+    return { ok: false, message: 'Tool arguments must be a JSON object.' };
   } catch {
-    // fall through to safe default
+    return { ok: false, message: 'Tool arguments were not valid JSON.' };
   }
-
-  return {};
 }

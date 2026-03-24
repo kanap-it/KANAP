@@ -1,22 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Resend, type Attachment as ResendAttachment } from 'resend';
 import { emailWrapper } from '../notifications/notification-templates';
 import type { EmailBranding } from './email-branding';
-import { FeatureDisabledError } from '../common/feature-gates';
+import { createEmailTransport } from './transports/email-transport.factory';
+import type {
+  DeliveryError,
+  EmailRetryConfig,
+  EmailTransport,
+} from './transports/email-transport.interface';
+import type { SendEmailOptions } from './email.types';
 
-type Recipient = string | string[];
-export type EmailAttachment = ResendAttachment;
-
-export interface SendEmailOptions {
-  to: Recipient;
-  subject: string;
-  html: string;
-  text?: string;
-  from?: string;
-  replyTo?: Recipient;
-  headers?: Record<string, string>;
-  attachments?: EmailAttachment[];
-}
+export type { EmailAttachment, Recipient, SendEmailOptions } from './email.types';
 
 interface QueuedEmail {
   options: SendEmailOptions;
@@ -24,43 +17,37 @@ interface QueuedEmail {
   reject: (err: Error) => void;
 }
 
-type DeliveryError = Error & { code?: string };
-
-const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private readonly client: Resend | null;
-  private readonly defaultFrom: string;
+  private readonly transport: EmailTransport;
   private readonly emailOverride: string | null;
 
-  // Queue + rate limiting (single-process). Defaults target <= ~1.4 req/sec.
+  // Queue + rate limiting (single-process).
   private emailQueue: QueuedEmail[] = [];
   private isProcessingQueue = false;
   private nextSendAtMs = 0;
 
   private readonly RATE_LIMIT_DELAY_MS: number;
   private readonly RATE_LIMIT_MAX_RETRIES: number;
-  private readonly RATE_LIMIT_RETRY_BASE_MS: number;
-  private readonly RATE_LIMIT_RETRY_MAX_MS: number;
-  private readonly RATE_LIMIT_RETRY_JITTER_MS: number;
+  private readonly RETRY_CONFIG: EmailRetryConfig;
 
   constructor() {
-    const apiKey = process.env.RESEND_API_KEY;
-    this.defaultFrom = process.env.RESEND_FROM_EMAIL ?? 'KANAP <no-reply@kanap.net>';
+    this.transport = createEmailTransport(this.logger);
     this.emailOverride = process.env.EMAIL_OVERRIDE?.trim() || null;
-    this.RATE_LIMIT_DELAY_MS = this.readPositiveIntEnv('EMAIL_QUEUE_MIN_INTERVAL_MS', 700);
+    this.RATE_LIMIT_DELAY_MS = this.readPositiveIntEnv(
+      'EMAIL_QUEUE_MIN_INTERVAL_MS',
+      this.transport.defaultMinIntervalMs,
+    );
     this.RATE_LIMIT_MAX_RETRIES = this.readPositiveIntEnv('EMAIL_RATE_LIMIT_MAX_RETRIES', 5);
-    this.RATE_LIMIT_RETRY_BASE_MS = this.readPositiveIntEnv('EMAIL_RATE_LIMIT_RETRY_BASE_MS', 1_500);
-    this.RATE_LIMIT_RETRY_MAX_MS = this.readPositiveIntEnv('EMAIL_RATE_LIMIT_RETRY_MAX_MS', 30_000);
-    this.RATE_LIMIT_RETRY_JITTER_MS = this.readPositiveIntEnv('EMAIL_RATE_LIMIT_RETRY_JITTER_MS', 250);
-    if (apiKey && apiKey.trim().length > 0) {
-      this.client = new Resend(apiKey.trim());
-    } else {
-      this.client = null;
-      this.logger.warn('Resend API key not configured; email sending is disabled.');
-    }
+    this.RETRY_CONFIG = {
+      baseMs: this.readPositiveIntEnv('EMAIL_RATE_LIMIT_RETRY_BASE_MS', 1_500),
+      maxMs: this.readPositiveIntEnv('EMAIL_RATE_LIMIT_RETRY_MAX_MS', 30_000),
+      jitterMs: this.readPositiveIntEnv('EMAIL_RATE_LIMIT_RETRY_JITTER_MS', 250),
+    };
+
     if (this.emailOverride) {
       this.logger.warn(`Email override active: all emails will be sent to ${this.emailOverride}`);
     }
@@ -69,7 +56,7 @@ export class EmailService {
   async send(options: SendEmailOptions): Promise<void> {
     return new Promise((resolve, reject) => {
       this.emailQueue.push({ options, resolve, reject });
-      this.processQueue();
+      void this.processQueue();
     });
   }
 
@@ -89,7 +76,6 @@ export class EmailService {
       }
     } finally {
       this.isProcessingQueue = false;
-      // Queue can grow while we are draining; restart safely if needed.
       if (this.emailQueue.length > 0) {
         void this.processQueue();
       }
@@ -105,7 +91,7 @@ export class EmailService {
         return;
       } catch (err) {
         const normalized = this.normalizeError(err);
-        const retryDelayMs = this.getRateLimitRetryDelayMs(normalized, attempt);
+        const retryDelayMs = this.transport.getRetryDelayMs(normalized, attempt, this.RETRY_CONFIG);
         if (retryDelayMs === null || attempt >= this.RATE_LIMIT_MAX_RETRIES) {
           throw normalized;
         }
@@ -113,7 +99,7 @@ export class EmailService {
         attempt += 1;
         const to = Array.isArray(options.to) ? options.to.join(', ') : options.to;
         this.logger.warn(
-          `Resend rate limit hit for ${to}; retry ${attempt}/${this.RATE_LIMIT_MAX_RETRIES} in ${retryDelayMs}ms`,
+          `${this.transport.name} delivery throttled for ${to}; retry ${attempt}/${this.RATE_LIMIT_MAX_RETRIES} in ${retryDelayMs}ms`,
         );
 
         this.deferNextSendUntil(Date.now() + retryDelayMs);
@@ -135,49 +121,22 @@ export class EmailService {
     this.nextSendAtMs = Math.max(this.nextSendAtMs, timestampMs);
   }
 
-  private async sendImmediate(options: SendEmailOptions) {
-    const client = this.ensureClient();
+  private async sendImmediate(options: SendEmailOptions): Promise<void> {
     const originalTo = Array.isArray(options.to) ? options.to : [options.to];
-    const replyTo = options.replyTo
-      ? (Array.isArray(options.replyTo) ? options.replyTo : [options.replyTo])
-      : undefined;
 
-    // In non-production, redirect all emails to override address
-    let to = originalTo;
-    let subject = options.subject;
+    let resolved = options;
     if (this.emailOverride) {
-      to = [this.emailOverride];
-      subject = `[To: ${originalTo.join(', ')}] ${options.subject}`;
+      resolved = {
+        ...options,
+        to: [this.emailOverride],
+        subject: `[To: ${originalTo.join(', ')}] ${options.subject}`,
+      };
       this.logger.debug(`Email redirected from ${originalTo.join(', ')} to ${this.emailOverride}`);
     }
 
-    this.logger.debug(`Sending email to ${to.join(', ')}: ${subject}`);
-
-    let data: unknown;
-    let error: { name?: string; message?: string } | null = null;
-    try {
-      const result = await client.emails.send({
-        from: options.from ?? this.defaultFrom,
-        to,
-        subject,
-        html: options.html,
-        text: options.text,
-        replyTo,
-        headers: options.headers,
-        attachments: options.attachments,
-      });
-      data = result.data;
-      error = result.error;
-    } catch (err) {
-      const normalized = this.normalizeError(err);
-      this.logger.error(`Failed to send email via Resend: ${normalized.name} - ${normalized.message}`);
-      throw normalized;
-    }
-    if (error) {
-      this.logger.error(`Failed to send email via Resend: ${error.name} - ${error.message}`);
-      throw this.createDeliveryError(error.message ?? 'Failed to send email', error.name);
-    }
-    return data;
+    const finalTo = Array.isArray(resolved.to) ? resolved.to.join(', ') : resolved.to;
+    this.logger.debug(`Sending email via ${this.transport.name} to ${finalTo}: ${resolved.subject}`);
+    await this.transport.send(resolved);
   }
 
   async sendPasswordResetEmail(params: { to: string; resetUrl: string; expiresInMinutes?: number; branding?: EmailBranding }) {
@@ -202,11 +161,11 @@ export class EmailService {
       <p>This link will expire in approximately ${expires} minutes. If you did not request a password reset, you can safely ignore this email.</p>
     `;
     const wrapper = emailWrapper(body, { preferencesUrl, branding });
-    const text = `Hello,\n\n` +
-      `We received a request to reset the password associated with this email address.\n\n` +
-      `Reset your password: ${params.resetUrl}\n\n` +
-      `This link will expire in approximately ${expires} minutes. If you did not request a password reset, you can safely ignore this email.` +
-      (preferencesUrl ? `\n\nManage notification preferences: ${preferencesUrl}` : '');
+    const text = `Hello,\n\n`
+      + `We received a request to reset the password associated with this email address.\n\n`
+      + `Reset your password: ${params.resetUrl}\n\n`
+      + `This link will expire in approximately ${expires} minutes. If you did not request a password reset, you can safely ignore this email.`
+      + (preferencesUrl ? `\n\nManage notification preferences: ${preferencesUrl}` : '');
     await this.send({ to: params.to, subject, html: wrapper.html, text, attachments: wrapper.attachments });
   }
 
@@ -241,68 +200,35 @@ export class EmailService {
       <p>This link will expire in approximately ${expires} minutes. Once complete, you can sign in using your email and new password.</p>
     `;
     const wrapper = emailWrapper(body, { preferencesUrl, branding });
-    const text = `Hello,\n\n` +
-      `You have been invited${inviterLine} to join KANAP${roleLine}.\n\n` +
-      `Set your password: ${params.inviteUrl}\n\n` +
-      `This link will expire in approximately ${expires} minutes. Once complete, you can sign in using your email and new password.` +
-      (preferencesUrl ? `\n\nManage notification preferences: ${preferencesUrl}` : '');
+    const text = `Hello,\n\n`
+      + `You have been invited${inviterLine} to join KANAP${roleLine}.\n\n`
+      + `Set your password: ${params.inviteUrl}\n\n`
+      + `This link will expire in approximately ${expires} minutes. Once complete, you can sign in using your email and new password.`
+      + (preferencesUrl ? `\n\nManage notification preferences: ${preferencesUrl}` : '');
     await this.send({ to: params.to, subject, html: wrapper.html, text, attachments: wrapper.attachments });
-  }
-
-  private ensureClient() {
-    if (!this.client) {
-      throw new FeatureDisabledError('email', 'Email service is not configured. Set RESEND_API_KEY.');
-    }
-    return this.client;
-  }
-
-  private createDeliveryError(message: string, code?: string): DeliveryError {
-    const error = new Error(message) as DeliveryError;
-    if (code) error.code = code;
-    return error;
   }
 
   private normalizeError(err: unknown): DeliveryError {
     if (err instanceof Error) return err as DeliveryError;
     if (typeof err === 'string') return new Error(err) as DeliveryError;
+
+    if (err && typeof err === 'object') {
+      const source = err as {
+        name?: unknown;
+        message?: unknown;
+        code?: unknown;
+        responseCode?: unknown;
+      };
+      const error = new Error(
+        typeof source.message === 'string' ? source.message : 'Unknown email send error',
+      ) as DeliveryError;
+      if (typeof source.name === 'string') error.name = source.name;
+      if (typeof source.code === 'string') error.code = source.code;
+      if (typeof source.responseCode === 'number') error.responseCode = source.responseCode;
+      return error;
+    }
+
     return new Error('Unknown email send error') as DeliveryError;
-  }
-
-  private getRateLimitRetryDelayMs(err: DeliveryError, attempt: number): number | null {
-    if (!this.isRateLimitError(err)) return null;
-
-    const explicitRetryAfterMs = this.extractRetryAfterMs(err.message);
-    if (explicitRetryAfterMs !== null) return explicitRetryAfterMs;
-
-    const exponentialDelay = this.RATE_LIMIT_RETRY_BASE_MS * Math.pow(2, attempt);
-    const cappedDelay = Math.min(exponentialDelay, this.RATE_LIMIT_RETRY_MAX_MS);
-    const jitter = this.RATE_LIMIT_RETRY_JITTER_MS > 0
-      ? Math.floor(Math.random() * (this.RATE_LIMIT_RETRY_JITTER_MS + 1))
-      : 0;
-    return cappedDelay + jitter;
-  }
-
-  private isRateLimitError(err: DeliveryError): boolean {
-    if ((err.code || '').toLowerCase() === 'rate_limit_exceeded') return true;
-
-    const details = `${err.name || ''} ${err.message || ''}`.toLowerCase();
-    return details.includes('rate limit') || details.includes('429');
-  }
-
-  private extractRetryAfterMs(message: string): number | null {
-    const text = String(message || '').toLowerCase();
-    if (!text) return null;
-
-    const msMatch = text.match(/(?:retry[- ]?after|try again in)\s*:?\s*([0-9]+)\s*(?:ms|msec|millisecond|milliseconds)\b/);
-    if (msMatch) return Math.max(0, parseInt(msMatch[1], 10));
-
-    const secMatch = text.match(/(?:retry[- ]?after|try again in)\s*:?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:s|sec|secs|second|seconds)\b/);
-    if (secMatch) return Math.max(0, Math.ceil(parseFloat(secMatch[1]) * 1000));
-
-    const headerMatch = text.match(/retry[- ]?after\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)/);
-    if (headerMatch) return Math.max(0, Math.ceil(parseFloat(headerMatch[1]) * 1000));
-
-    return null;
   }
 
   private readPositiveIntEnv(name: string, fallback: number): number {

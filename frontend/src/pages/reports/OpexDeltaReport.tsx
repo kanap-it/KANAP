@@ -6,6 +6,7 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, SummaryRow, pickYearSlot } from './useOpexSummary';
+import { useTranslation } from 'react-i18next';
 
 function formatNumber(v: any) {
   const n = Number(v ?? 0);
@@ -40,6 +41,7 @@ function inferYearFromVersionKey(key: string, currentYear: number): number | und
 }
 
 export default function OpexDeltaReport() {
+  const { t } = useTranslation(["ops"]);
   const now = new Date();
   const currentYear = now.getFullYear();
   const previousYear = currentYear - 1;
@@ -321,11 +323,11 @@ export default function OpexDeltaReport() {
     : 'Destination column';
 
   const columns = useMemo<ColDef[]>(() => [
-    { field: 'product_name', headerName: 'Product', flex: 1, minWidth: 240 },
+    { field: 'product_name', headerName: t('reports.columns.product'), flex: 1, minWidth: 240 },
     { field: 'previous', headerName: sourceLabel, width: 200, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
     { field: 'current', headerName: destinationLabel, width: 200, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'delta', headerName: 'Δ', width: 140, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
-    { field: 'pct_increase', headerName: '% increase', width: 140, type: 'rightAligned', valueFormatter: (p) => (p.value == null ? '' : `${Number(p.value).toFixed(1)}%`) },
+    { field: 'delta', headerName: t('reports.columns.delta'), width: 140, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
+    { field: 'pct_increase', headerName: t('reports.columns.pctIncrease'), width: 140, type: 'rightAligned', valueFormatter: (p) => (p.value == null ? '' : `${Number(p.value).toFixed(1)}%`) },
   ], [sourceLabel, destinationLabel]);
 
   const gridApiRef = useRef<any>(null);
@@ -557,8 +559,8 @@ export default function OpexDeltaReport() {
 
   return (
     <ReportLayout
-      title="Top OPEX Increase / Decrease"
-      subtitle="Largest variations vs previous year"
+      title={t("reports.opexDelta.title")}
+      subtitle={t("reports.opexDelta.subtitle")}
       filters={(
         <Box sx={{
           display: 'flex',
@@ -571,7 +573,7 @@ export default function OpexDeltaReport() {
           <TextField
             select
             size="small"
-            label="Source year"
+            label={t("reports.filters.sourceYear")}
             value={sourceYear ?? ''}
             onChange={(e) => {
               const value = e.target.value;
@@ -581,7 +583,7 @@ export default function OpexDeltaReport() {
             sx={{ minWidth: 160 }}
           >
             {columnSelectDisabled ? (
-              <MenuItem value="" disabled>No years available</MenuItem>
+              <MenuItem value="" disabled>{t("reports.filters.noYearsAvailable")}</MenuItem>
             ) : (
               yearOptions.map((year) => (
                 <MenuItem key={`source-year-${year}`} value={year}>{year}</MenuItem>
@@ -591,14 +593,14 @@ export default function OpexDeltaReport() {
           <TextField
             select
             size="small"
-            label="Source metric"
+            label={t("reports.filters.sourceMetric")}
             value={sourceMetric}
             onChange={(e) => setSourceMetric(e.target.value)}
             disabled={columnSelectDisabled || sourceMetrics.length === 0}
             sx={{ minWidth: 200 }}
           >
             {sourceMetrics.length === 0 ? (
-              <MenuItem value="" disabled>No metrics available</MenuItem>
+              <MenuItem value="" disabled>{t("reports.filters.noMetricsAvailable")}</MenuItem>
             ) : (
               sourceMetrics.map((metric) => (
                 <MenuItem key={`source-metric-${metric}`} value={metric}>{labelForMetric(metric)}</MenuItem>
@@ -608,7 +610,7 @@ export default function OpexDeltaReport() {
           <TextField
             select
             size="small"
-            label="Destination year"
+            label={t("reports.filters.destinationYear")}
             value={destinationYear ?? ''}
             onChange={(e) => {
               const value = e.target.value;
@@ -618,7 +620,7 @@ export default function OpexDeltaReport() {
             sx={{ minWidth: 160 }}
           >
             {columnSelectDisabled ? (
-              <MenuItem value="" disabled>No years available</MenuItem>
+              <MenuItem value="" disabled>{t("reports.filters.noYearsAvailable")}</MenuItem>
             ) : (
               yearOptions.map((year) => (
                 <MenuItem key={`dest-year-${year}`} value={year}>{year}</MenuItem>
@@ -628,14 +630,14 @@ export default function OpexDeltaReport() {
           <TextField
             select
             size="small"
-            label="Destination metric"
+            label={t("reports.filters.destinationMetric")}
             value={destinationMetric}
             onChange={(e) => setDestinationMetric(e.target.value)}
             disabled={columnSelectDisabled || destinationMetrics.length === 0}
             sx={{ minWidth: 200 }}
           >
             {destinationMetrics.length === 0 ? (
-              <MenuItem value="" disabled>No metrics available</MenuItem>
+              <MenuItem value="" disabled>{t("reports.filters.noMetricsAvailable")}</MenuItem>
             ) : (
               destinationMetrics.map((metric) => (
                 <MenuItem key={`dest-metric-${metric}`} value={metric}>{labelForMetric(metric)}</MenuItem>
@@ -645,7 +647,7 @@ export default function OpexDeltaReport() {
           <TextField
             size="small"
             type="number"
-            label="Top count"
+            label={t("reports.filters.topCount")}
             value={topCount}
             onChange={(e) => {
               const next = parseInt(e.target.value, 10);
@@ -656,13 +658,13 @@ export default function OpexDeltaReport() {
           <TextField
             select
             size="small"
-            label="Chart type"
+            label={t("reports.filters.chartType")}
             value={chartType}
             onChange={(e) => setChartType(e.target.value as 'pie' | 'bar')}
-            helperText={modes.length === 2 ? 'Pie chart available when a single direction is selected' : undefined}
+            helperText={modes.length === 2 ? t('reports.opexDelta.pieAvailableHint') : undefined}
           >
-            <MenuItem value="pie" disabled={modes.length === 2}>Pie chart</MenuItem>
-            <MenuItem value="bar">Horizontal bar chart</MenuItem>
+            <MenuItem value="pie" disabled={modes.length === 2}>{t("reports.filters.pieChart")}</MenuItem>
+            <MenuItem value="bar">{t("reports.filters.horizontalBarChart")}</MenuItem>
           </TextField>
           <Autocomplete
             multiple
@@ -687,8 +689,8 @@ export default function OpexDeltaReport() {
               return (
                 <TextField
                   {...params}
-                  label="Exclude items"
-                  placeholder={count === 0 ? 'Select items to exclude' : ''}
+                  label={t("reports.filters.excludeItems")}
+                  placeholder={count === 0 ? t('reports.filters.excludeItemsPlaceholder') : ''}
                   InputLabelProps={{ shrink: true }}
                   InputProps={{
                     ...params.InputProps,
@@ -699,7 +701,7 @@ export default function OpexDeltaReport() {
                           color="text.secondary"
                           sx={{ ml: 0.5, mr: 1, whiteSpace: 'nowrap' }}
                         >
-                          {count === 1 ? '1 item selected' : `${count} items selected`}
+                          {t('reports.filters.itemSelected', { count })}
                         </Typography>
                         {params.InputProps.startAdornment}
                       </>
@@ -709,7 +711,7 @@ export default function OpexDeltaReport() {
               );
             }}
             sx={{ minWidth: 260 }}
-            noOptionsText="No matching items"
+            noOptionsText={t("reports.filters.noMatchingItems")}
           />
           <Autocomplete
             multiple
@@ -734,8 +736,8 @@ export default function OpexDeltaReport() {
               return (
                 <TextField
                   {...params}
-                  label="Exclude accounts"
-                  placeholder={count === 0 ? 'Select accounts to exclude' : ''}
+                  label={t("reports.filters.excludeAccounts")}
+                  placeholder={count === 0 ? t('reports.filters.excludeAccountsPlaceholder') : ''}
                   InputLabelProps={{ shrink: true }}
                   InputProps={{
                     ...params.InputProps,
@@ -746,7 +748,7 @@ export default function OpexDeltaReport() {
                           color="text.secondary"
                           sx={{ ml: 0.5, mr: 1, whiteSpace: 'nowrap' }}
                         >
-                          {count === 1 ? '1 account selected' : `${count} accounts selected`}
+                          {t('reports.filters.accountSelected', { count })}
                         </Typography>
                         {params.InputProps.startAdornment}
                       </>
@@ -756,7 +758,7 @@ export default function OpexDeltaReport() {
               );
             }}
             sx={{ minWidth: 260 }}
-            noOptionsText="No matching accounts"
+            noOptionsText={t("reports.filters.noMatchingAccounts")}
           />
           <ToggleButtonGroup
             size="small"
@@ -771,8 +773,8 @@ export default function OpexDeltaReport() {
             }}
             aria-label="Increase or decrease"
           >
-            <ToggleButton value="increase">Increase</ToggleButton>
-            <ToggleButton value="decrease">Decrease</ToggleButton>
+            <ToggleButton value="increase">{t("reports.opexDelta.increase")}</ToggleButton>
+            <ToggleButton value="decrease">{t("reports.opexDelta.decrease")}</ToggleButton>
           </ToggleButtonGroup>
         </Box>
       )}
@@ -788,7 +790,7 @@ export default function OpexDeltaReport() {
           <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>Key Table</Typography>
+          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>
           <Box component={AgGridBox}>
             <AgGridReact
               rowData={processed}
@@ -837,7 +839,7 @@ export default function OpexDeltaReport() {
         </Paper>
       </Stack>
       {isLoading && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading data…</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{t("reports.shared.loadingData")}</Typography>
       )}
     </ReportLayout>
   );

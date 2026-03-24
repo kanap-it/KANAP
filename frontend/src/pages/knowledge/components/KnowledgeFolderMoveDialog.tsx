@@ -13,6 +13,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 
 type DocumentLibrary = {
@@ -98,8 +99,9 @@ export default function KnowledgeFolderMoveDialog({
   initialTargetLibraryId = null,
   templateLibraryId = null,
 }: KnowledgeFolderMoveDialogProps) {
+  const { t } = useTranslation(['knowledge', 'common']);
   const sourceLibraryId = folder?.library_id || '';
-  const sourceLibraryName = folder?.library_name || 'Unknown';
+  const sourceLibraryName = folder?.library_name || t('shared.unknown');
   const folderInTemplates = !!templateLibraryId && sourceLibraryId === templateLibraryId;
   const selectableLibraries = React.useMemo(() => {
     if (!folder) return libraries.filter((library) => library.id !== templateLibraryId);
@@ -150,32 +152,32 @@ export default function KnowledgeFolderMoveDialog({
 
   return (
     <Dialog open={open} onClose={pending ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Move Folder</DialogTitle>
+      <DialogTitle>{t('folderMoveDialog.title')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 0.5 }}>
           <Typography variant="body2" color="text.secondary">
-            Folder: {folder?.name || ''}
+            {t('folderMoveDialog.folder', { name: folder?.name || '' })}
           </Typography>
 
           <Typography variant="body2" color="text.secondary">
-            Current library: {sourceLibraryName}
+            {t('folderMoveDialog.currentLibrary', { name: sourceLibraryName })}
           </Typography>
 
           {!canChangeLibrary && !folderInTemplates && (
             <Alert severity="info">
-              Cross-library folder moves are admin-only. You can only reparent within the current library.
+              {t('folderMoveDialog.messages.crossLibraryAdminOnly')}
             </Alert>
           )}
 
           {folderInTemplates && (
             <Alert severity="info">
-              Folders in the Templates library can only be reorganized within Templates.
+              {t('folderMoveDialog.messages.templatesOnly')}
             </Alert>
           )}
 
           <TextField
             select
-            label="Target library"
+            label={t('folderMoveDialog.fields.targetLibrary')}
             fullWidth
             value={targetLibraryId}
             onChange={(e) => {
@@ -193,13 +195,13 @@ export default function KnowledgeFolderMoveDialog({
 
           <TextField
             select
-            label="Destination parent"
+            label={t('folderMoveDialog.fields.destinationParent')}
             fullWidth
             value={targetFolderId || ''}
             onChange={(e) => setTargetFolderId(e.target.value || null)}
             disabled={!targetLibraryId}
           >
-            <MenuItem value="">Top level</MenuItem>
+            <MenuItem value="">{t('folderMoveDialog.fields.topLevel')}</MenuItem>
             {flatFolders.map((folderOption) => (
               <MenuItem key={folderOption.id} value={folderOption.id}>
                 <Box component="span" sx={{ pl: folderOption.depth * 2 }}>
@@ -211,13 +213,13 @@ export default function KnowledgeFolderMoveDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={pending}>Cancel</Button>
+        <Button onClick={onClose} disabled={pending}>{t('common:buttons.cancel')}</Button>
         <Button
           variant="contained"
           onClick={() => onConfirm({ target_library_id: targetLibraryId, target_folder_id: targetFolderId })}
           disabled={disableSubmit}
         >
-          Move
+          {t('folderMoveDialog.actions.move')}
         </Button>
       </DialogActions>
     </Dialog>

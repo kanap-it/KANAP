@@ -1,6 +1,7 @@
 import React from 'react';
 import { Autocomplete, Chip, CircularProgress, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type BusinessProcess = {
@@ -21,11 +22,13 @@ type Props = {
 export default function BusinessProcessMultiSelect({
   value,
   onChange,
-  label = 'Business Processes',
+  label: labelProp,
   helperText,
   error,
   disabled,
 }: Props) {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.businessProcesses');
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['business-processes', 'enabled'],
     queryFn: async () => {
@@ -68,7 +71,7 @@ export default function BusinessProcessMultiSelect({
         <TextField
           {...params}
           label={label}
-          placeholder="Select business processes"
+          placeholder={t('selects.selectBusinessProcesses')}
           helperText={helperText}
           error={error}
           InputProps={{
@@ -83,7 +86,7 @@ export default function BusinessProcessMultiSelect({
         />
       )}
       loading={isLoading || isFetching}
-      noOptionsText={isLoading ? 'Loading...' : 'No business processes found'}
+      noOptionsText={isLoading ? t('selects.loading') : t('selects.noBusinessProcessesFound')}
       fullWidth
     />
   );

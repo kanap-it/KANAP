@@ -1,11 +1,13 @@
 import React from 'react';
 import { Alert, Box, Button, Card, CardContent, CircularProgress, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { useTenant } from '../../tenant/TenantContext';
 import ForbiddenPage from '../ForbiddenPage';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 type AuthSettings = {
   sso_provider: 'none' | 'entra' | string;
@@ -15,6 +17,7 @@ type AuthSettings = {
 };
 
 export default function AdminAuthPage() {
+  const { t } = useTranslation(['admin', 'common']);
   const { hasLevel } = useAuth();
   const { isPlatformHost } = useTenant();
 
@@ -43,10 +46,10 @@ export default function AdminAuthPage() {
       if (url) {
         window.location.href = url;
       } else {
-        setActionError('Failed to start Microsoft Entra setup.');
+        setActionError(t('auth.messages.connectStartFailed'));
       }
     } catch (e: any) {
-      setActionError(e?.response?.data?.message || e?.message || 'Failed to start Microsoft Entra setup.');
+      setActionError(getApiErrorMessage(e, t, t('auth.messages.connectStartFailed')));
     } finally {
       setConnecting(false);
     }
@@ -76,7 +79,7 @@ export default function AdminAuthPage() {
         return res.data;
       })();
     } catch (e: any) {
-      setActionError(e?.response?.data?.message || e?.message || 'Failed to disconnect Microsoft Entra.');
+      setActionError(getApiErrorMessage(e, t, t('auth.messages.disconnectFailed')));
     } finally {
       setDisconnecting(false);
     }
@@ -84,7 +87,7 @@ export default function AdminAuthPage() {
 
   return (
     <>
-      <PageHeader title="Authentication" />
+      <PageHeader title={t('auth.title')} />
       <Box maxWidth={600}>
         {isLoading && (
           <Box display="flex" justifyContent="center" alignItems="center" py={4}>
@@ -93,7 +96,7 @@ export default function AdminAuthPage() {
         )}
         {isError && (
           <Alert severity="error">
-            {error?.response?.data?.message || error?.message || 'Failed to load authentication settings.'}
+            {getApiErrorMessage(error, t, t('auth.messages.loadFailed'))}
           </Alert>
         )}
         {!!actionError && (
@@ -105,20 +108,19 @@ export default function AdminAuthPage() {
           <Card>
             <CardContent>
               <Stack spacing={2}>
-                <Typography variant="h6">Microsoft Entra SSO</Typography>
+                <Typography variant="h6">{t('auth.entra.title')}</Typography>
                 {!connected && (
                   <Typography variant="body2" color="text.secondary">
-                    Microsoft Entra is not connected for this tenant. Connect your organization&apos;s Entra tenant to
-                    allow users to sign in with their Microsoft accounts.
+                    {t('auth.entra.disconnectedDescription')}
                   </Typography>
                 )}
                 {connected && (
                   <Stack spacing={1}>
                     <Typography variant="body2" color="text.secondary">
-                      Connected to Microsoft Entra.
+                      {t('auth.entra.connected')}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Entra tenant ID:</strong> {data.entra_tenant_id}
+                      <strong>{t('auth.entra.tenantId')}:</strong> {data.entra_tenant_id}
                     </Typography>
                   </Stack>
                 )}
@@ -130,15 +132,15 @@ export default function AdminAuthPage() {
                     disabled={connecting || disconnecting}
                   >
                     {connecting
-                      ? 'Connecting…'
+                      ? t('auth.actions.connecting')
                       : connected
-                      ? 'Reconnect Microsoft Entra'
-                      : 'Connect Microsoft Entra'}
+                      ? t('auth.actions.reconnect')
+                      : t('auth.actions.connect')}
                   </Button>
                   {connected && (
                     <>
                       <Button variant="outlined" onClick={handleTestSignIn} disabled={disconnecting}>
-                        Test Microsoft sign-in
+                        {t('auth.actions.testSignIn')}
                       </Button>
                       <Button
                         variant="text"
@@ -146,7 +148,7 @@ export default function AdminAuthPage() {
                         onClick={handleDisconnect}
                         disabled={disconnecting || connecting}
                       >
-                        {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+                        {disconnecting ? t('auth.actions.disconnecting') : t('auth.actions.disconnect')}
                       </Button>
                     </>
                   )}

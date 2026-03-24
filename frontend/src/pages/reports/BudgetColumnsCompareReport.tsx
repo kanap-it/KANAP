@@ -10,6 +10,7 @@ import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, pickYearSlot as pickOpexYearSlot } from './useOpexSummary';
 import { useCapexSummaryAll, pickYearSlot as pickCapexYearSlot } from './useCapexSummary';
 import { MetricKey, metricLabels } from './reportMetrics';
+import { useTranslation } from 'react-i18next';
 
 function formatNumber(v: any) {
   const n = Number(v ?? 0);
@@ -26,6 +27,7 @@ type Selection = {
 };
 
 export default function BudgetColumnsCompareReport() {
+  const { t } = useTranslation(["ops"]);
   const now = new Date();
   const Y = now.getFullYear();
   const allowedYears = [Y - 2, Y - 1, Y, Y + 1, Y + 2];
@@ -68,10 +70,10 @@ export default function BudgetColumnsCompareReport() {
   }, [rows, sortedSelections, pickYearSlot]);
 
   const columns = useMemo<ColDef[]>(() => ([
-    { field: 'selection', headerName: 'Selection', flex: 1, minWidth: 200 },
-    { field: 'year', headerName: 'Year', width: 120 },
-    { field: 'column', headerName: 'Column', width: 160 },
-    { field: 'total', headerName: 'Total', width: 160, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
+    { field: 'selection', headerName: t('reports.columns.selection'), flex: 1, minWidth: 200 },
+    { field: 'year', headerName: t('reports.filters.year'), width: 120 },
+    { field: 'column', headerName: t('reports.filters.column'), width: 160 },
+    { field: 'total', headerName: t('reports.columns.total'), width: 160, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) },
   ]), []);
 
   const chartData = useMemo(() => tableRows.map((r) => ({ selection: r.selection, total: r.total })), [tableRows]);
@@ -180,7 +182,7 @@ export default function BudgetColumnsCompareReport() {
   const groupedColumns = useMemo<ColDef[]>(() => {
     if (!groupingEligible) return [];
     const cols: ColDef[] = [
-      { field: 'year', headerName: 'Year', width: 120 },
+      { field: 'year', headerName: t('reports.filters.year'), width: 120 },
     ];
     for (const m of metricsInUse) {
       cols.push({ field: m, headerName: metricLabels[m], width: 160, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) });
@@ -193,14 +195,14 @@ export default function BudgetColumnsCompareReport() {
 
   return (
     <ReportLayout
-      title="Budget Column Comparison"
-      subtitle="Compare up to ten budget columns for OPEX or CAPEX"
+      title={t("reports.budgetColumnsCompare.title")}
+      subtitle={t("reports.budgetColumnsCompare.subtitle")}
       filters={(
         <>
           <TextField
             select
             size="small"
-            label="Item type"
+            label={t("reports.filters.itemType")}
             value={itemType}
             onChange={(e) => setItemType((e.target.value as ItemType) || 'opex')}
             sx={{ minWidth: 160 }}
@@ -260,14 +262,14 @@ export default function BudgetColumnsCompareReport() {
         <Box>
           <FormControlLabel
             control={<Checkbox checked={yearGrouping} onChange={(e) => setYearGrouping(e.target.checked)} />}
-            label="Year grouping"
+            label={t("reports.filters.yearGrouping")}
           />
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>Key Table</Typography>
+          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>
           <Box component={AgGridBox} sx={{ height: 360 }}>
             <AgGridReact
               rowData={groupingEligible ? groupedTableRows : tableRows}
@@ -279,7 +281,7 @@ export default function BudgetColumnsCompareReport() {
         </Paper>
       </Stack>
       {(opexLoading || capexLoading) && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading data…</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{t("reports.shared.loadingData")}</Typography>
       )}
     </ReportLayout>
   );

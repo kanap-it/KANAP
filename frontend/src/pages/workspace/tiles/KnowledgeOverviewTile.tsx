@@ -10,6 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useRecentKnowledgeDocuments } from '../hooks/useRecentKnowledgeDocuments';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
@@ -42,6 +43,7 @@ function formatTime(dateStr: string): string {
 
 export default function KnowledgeOverviewTile({ config: _config }: KnowledgeOverviewTileProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   const { items: recentDocuments } = useRecentKnowledgeDocuments();
 
   const { data, isLoading } = useQuery({
@@ -59,25 +61,25 @@ export default function KnowledgeOverviewTile({ config: _config }: KnowledgeOver
 
   return (
     <DashboardTile
-      title="Knowledge"
+      title={t('dashboard.tiles.knowledge')}
       icon="Description"
       isLoading={isLoading}
       action={(
         <Button size="small" onClick={() => navigate('/knowledge')}>
-          Open
+          {t('buttons.open')}
         </Button>
       )}
     >
       {reviewItems.length === 0 && recentDocuments.length === 0 ? (
-        <TileEmptyState message="No review items or recent documents" />
+        <TileEmptyState message={t('dashboard.tiles.noReviewOrRecent')} />
       ) : (
         <Box>
           <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ px: 2 }}>
-            To Review
+            {t('dashboard.tiles.toReview')}
           </Typography>
           {reviewItems.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 1, px: 2 }}>
-              No active review assignments
+              {t('dashboard.tiles.noActiveReviews')}
             </Typography>
           ) : (
             <List dense disablePadding>
@@ -93,18 +95,18 @@ export default function KnowledgeOverviewTile({ config: _config }: KnowledgeOver
                       <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
                           <Chip
-                            label={item.stage === 'approver' ? 'Approval' : 'Review'}
+                            label={item.stage === 'approver' ? t('dashboard.tiles.approval') : t('dashboard.tiles.review')}
                             size="small"
                             color={item.stage === 'approver' ? 'secondary' : 'warning'}
                             sx={{ height: 20, fontSize: '0.7rem' }}
                           />
                           <Typography variant="caption" color="text.secondary">
-                            Requested {formatTime(item.requestedAt)}
+                            {t('dashboard.tiles.requestedAgo', { time: formatTime(item.requestedAt) })}
                           </Typography>
                         </Box>
                         {item.requestedByName && (
                           <Typography variant="caption" color="text.secondary">
-                            Requested by {item.requestedByName}
+                            {t('dashboard.tiles.requestedBy', { name: item.requestedByName })}
                           </Typography>
                         )}
                       </Box>
@@ -120,11 +122,11 @@ export default function KnowledgeOverviewTile({ config: _config }: KnowledgeOver
           <Divider sx={{ my: 1 }} />
 
           <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ px: 2 }}>
-            Last 5 Accessed
+            {t('dashboard.tiles.last5Accessed')}
           </Typography>
           {recentDocuments.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 1, px: 2 }}>
-              No recently opened documents
+              {t('dashboard.tiles.noRecentDocuments')}
             </Typography>
           ) : (
             <List dense disablePadding>

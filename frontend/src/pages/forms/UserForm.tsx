@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Stack, TextField, Typography } from '@mui/material';
 import { Controller } from 'react-hook-form';
 import { z } from 'zod';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import useZodForm from '../../hooks/useZodForm';
 import FormErrorAlert from '../../components/forms/FormErrorAlert';
 import CompanySelect from '../../components/fields/CompanySelect';
@@ -16,30 +18,28 @@ const optStr = (schema = z.string()) =>
     return result.success ? result.data : null;
   }, z.string().nullable());
 
-const emailSchema = z
-  .string()
-  .trim()
-  .regex(/^[^@\s]+@[^@\s]+$/, 'Enter a valid email')
-  .or(z.string().email('Enter a valid email'));
+export function createUserFormSchema(t: TFunction) {
+  const emailSchema = z
+    .string()
+    .trim()
+    .regex(/^[^@\s]+@[^@\s]+$/, t('validation:invalidEmail'))
+    .or(z.string().email(t('validation:invalidEmail')));
 
-export const userFormSchema = z.object({
-  email: emailSchema,
-  first_name: optStr(),
-  last_name: optStr(),
-  job_title: optStr(z.string().max(200)),
-  business_phone: optStr(z.string().max(50)),
-  mobile_phone: optStr(z.string().max(50)),
-  role_ids: z.array(z.string().uuid()).default([]),
-  company_id: optStr(z.string().uuid()),
-  department_id: optStr(z.string().uuid()),
-  status: z.boolean().default(true),
-});
+  return z.object({
+    email: emailSchema,
+    first_name: optStr(),
+    last_name: optStr(),
+    job_title: optStr(z.string().max(200)),
+    business_phone: optStr(z.string().max(50)),
+    mobile_phone: optStr(z.string().max(50)),
+    role_ids: z.array(z.string().uuid()).default([]),
+    company_id: optStr(z.string().uuid()),
+    department_id: optStr(z.string().uuid()),
+    status: z.boolean().default(true),
+  });
+}
 
-export const userFormSchemaCreate = userFormSchema;
-
-export const userFormSchemaEdit = userFormSchema;
-
-export type UserFormValues = z.infer<typeof userFormSchema>;
+export type UserFormValues = z.infer<ReturnType<typeof createUserFormSchema>>;
 export type UserInput = {
   email: string;
   first_name?: string | null;
@@ -79,6 +79,7 @@ export default function UserForm({
   onStateChange?: (s: { isDirty: boolean; isValid: boolean; isSubmitting: boolean }) => void;
   managedByEntra?: boolean;
 }) {
+  const { t } = useTranslation(['admin', 'validation']);
   const resolvedDefaults = useMemo(() => {
     const d: any = { ...(defaultValues ?? {}) };
     if (typeof d.status === 'string') d.status = d.status === 'enabled';
@@ -98,7 +99,8 @@ export default function UserForm({
     }
     return d;
   }, [defaultValues]);
-  const methods = useZodForm<UserFormValues>({ schema: userFormSchema, defaultValues: resolvedDefaults as any });
+  const schema = useMemo(() => createUserFormSchema(t), [t]);
+  const methods = useZodForm<UserFormValues>({ schema, defaultValues: resolvedDefaults as any });
   const { register, handleSubmit, formState, watch, control, reset, trigger } = methods;
   const emailRef = useRef<HTMLInputElement>(null);
 
@@ -141,21 +143,21 @@ export default function UserForm({
       <Stack spacing={2}>
         {managedByEntra && (
           <Typography variant="caption" color="text.secondary">
-            These fields are synced from Microsoft Entra on login and can’t be edited here while SSO is enabled.
+            {t('userForm.entraManagedHint')}
           </Typography>
         )}
-        <TextField label="Email" required {...register('email')} error={!!err.email} helperText={err.email?.message as string} autoComplete="email" InputLabelProps={{ shrink: true }} inputRef={emailRef} />
-        <TextField label="First Name" {...register('first_name')} autoComplete="off" disabled={managedByEntra} />
-        <TextField label="Last Name" {...register('last_name')} autoComplete="off" disabled={managedByEntra} />
-        <TextField label="Job Title" {...register('job_title')} autoComplete="organization-title" InputLabelProps={{ shrink: true }} disabled={managedByEntra} />
-        <TextField label="Business Phone" {...register('business_phone')} autoComplete="tel" InputLabelProps={{ shrink: true }} disabled={managedByEntra} />
-        <TextField label="Mobile Phone" {...register('mobile_phone')} autoComplete="tel-national" InputLabelProps={{ shrink: true }} disabled={managedByEntra} />
+        <TextField label={t('userForm.fields.email')} required {...register('email')} error={!!err.email} helperText={err.email?.message as string} autoComplete="email" InputLabelProps={{ shrink: true }} inputRef={emailRef} />
+        <TextField label={t('userForm.fields.firstName')} {...register('first_name')} autoComplete="off" disabled={managedByEntra} />
+        <TextField label={t('userForm.fields.lastName')} {...register('last_name')} autoComplete="off" disabled={managedByEntra} />
+        <TextField label={t('userForm.fields.jobTitle')} {...register('job_title')} autoComplete="organization-title" InputLabelProps={{ shrink: true }} disabled={managedByEntra} />
+        <TextField label={t('userForm.fields.businessPhone')} {...register('business_phone')} autoComplete="tel" InputLabelProps={{ shrink: true }} disabled={managedByEntra} />
+        <TextField label={t('userForm.fields.mobilePhone')} {...register('mobile_phone')} autoComplete="tel-national" InputLabelProps={{ shrink: true }} disabled={managedByEntra} />
         <Controller
           control={control}
           name="role_ids"
           render={({ field }) => (
             <MultiRoleSelect
-              label="Roles"
+              label={t('userForm.fields.roles')}
               value={field.value ?? []}
               onChange={(v) => field.onChange(v)}
               error={!!err.role_ids}
@@ -168,7 +170,7 @@ export default function UserForm({
           name="company_id"
           render={({ field }) => (
             <CompanySelect
-              label="Company (optional)"
+              label={t('userForm.fields.companyOptional')}
               value={field.value as any}
               onChange={(v) => field.onChange(v)}
               helperText=""
@@ -180,7 +182,7 @@ export default function UserForm({
           name="department_id"
           render={({ field }) => (
             <DepartmentSelect
-              label="Department (optional)"
+              label={t('userForm.fields.departmentOptional')}
               companyId={selectedCompanyId || undefined}
               value={field.value as any}
               onChange={(v) => field.onChange(v)}
@@ -193,7 +195,7 @@ export default function UserForm({
           name="status"
           render={({ field }) => (
             <StatusSwitch
-              label="Enabled"
+              label={t('userForm.fields.enabled')}
               value={!!field.value}
               onChange={(v) => field.onChange(v)}
               error={!!err.status}

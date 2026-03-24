@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button, CircularProgress, Menu, MenuItem } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { exportDocument, DocumentExportFormat } from '../api/endpoints/export';
 
 interface ExportButtonProps {
@@ -41,6 +42,7 @@ export default function ExportButton({
   disabled = false,
   size = 'small',
 }: ExportButtonProps) {
+  const { t } = useTranslation('common');
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
   const [exporting, setExporting] = React.useState<DocumentExportFormat | null>(null);
 
@@ -68,12 +70,12 @@ export default function ExportButton({
           console.error('[ExportButton] server error body:', text);
           try {
             const parsed = JSON.parse(text);
-            window.alert(`Export failed: ${parsed?.message || text}`);
+            window.alert(t('export.exportFailed', { message: parsed?.message || text }));
           } catch {
-            window.alert(`Export failed: ${text}`);
+            window.alert(t('export.exportFailed', { message: text }));
           }
         }).catch(() => {
-          window.alert('Export failed. Please try again.');
+          window.alert(t('export.exportFailedGeneric'));
         });
       } else {
         window.alert('Export failed. Please try again.');
@@ -92,7 +94,7 @@ export default function ExportButton({
         onClick={(event) => setAnchorEl(event.currentTarget)}
         startIcon={exporting ? <CircularProgress size={14} /> : undefined}
       >
-        {exporting ? `Exporting ${exporting.toUpperCase()}...` : 'Export'}
+        {exporting ? t('status.exporting', { format: exporting.toUpperCase() }) : t('export.button')}
       </Button>
       <Menu
         anchorEl={anchorEl}

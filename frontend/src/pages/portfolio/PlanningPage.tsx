@@ -29,6 +29,7 @@ import { PortfolioGantt } from './components/PortfolioGantt';
 import RoadmapGenerator from './components/RoadmapGenerator';
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useLocale } from '../../i18n/useLocale';
 
 interface TimelineData {
   projects: Array<{
@@ -79,7 +80,8 @@ const formatViewPeriod = (monthOffset: number, months: number, locale: string): 
 };
 
 export default function PlanningPage() {
-  const { t, i18n } = useTranslation(['portfolio', 'errors']);
+  const { t } = useTranslation(['portfolio', 'errors']);
+  const locale = useLocale();
   const [planningView, setPlanningView] = useState<'timeline' | 'roadmap'>('timeline');
   const [months, setMonths] = useState(3);
   const [monthOffset, setMonthOffset] = useState(0); // Offset from current month
@@ -196,7 +198,7 @@ export default function PlanningPage() {
             </ButtonGroup>
 
             <Typography variant="body2" sx={{ color: 'text.secondary', minWidth: 140 }}>
-              {formatViewPeriod(monthOffset, months, i18n.language)}
+              {formatViewPeriod(monthOffset, months, locale)}
             </Typography>
 
             <FormControl size="small" sx={{ minWidth: 120 }}>

@@ -118,7 +118,7 @@ export function getDecisionOutcomeOptions(t: TFunction) {
   }));
 }
 
-export function formatRelativeTime(t: TFunction, dateStr: string) {
+export function formatRelativeTime(t: TFunction, dateStr: string, locale = 'en') {
   const date = new Date(dateStr);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
@@ -131,5 +131,5 @@ export function formatRelativeTime(t: TFunction, dateStr: string) {
   if (hours < 24) return t('activity.relative.hoursAgo', { count: hours });
   if (days < 7) return t('activity.relative.daysAgo', { count: days });
 
-  return date.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+  return date.toLocaleDateString(locale, { day: '2-digit', month: 'short' });
 }

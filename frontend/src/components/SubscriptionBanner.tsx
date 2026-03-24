@@ -2,9 +2,11 @@ import React from 'react';
 import { Alert, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { useTranslation } from 'react-i18next';
 import { useFeatures } from '../config/FeaturesContext';
 
 export default function SubscriptionBanner() {
+  const { t } = useTranslation('common');
   const { subscription, claims } = useAuth();
   const navigate = useNavigate();
   const { config } = useFeatures();
@@ -32,13 +34,13 @@ export default function SubscriptionBanner() {
         action={
           isBillingAdmin ? (
             <Button color="inherit" size="small" onClick={() => navigate('/admin/billing')}>
-              Choose a plan
+              {t('subscription.choosePlan')}
             </Button>
           ) : undefined
         }
       >
-        Your trial expires in {trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''}.
-        {!isBillingAdmin && ' Choose a plan to continue.'}
+        {trialDaysRemaining === 1 ? t('subscription.trialExpiresIn', { count: trialDaysRemaining }) : t('subscription.trialExpiresIn_plural', { count: trialDaysRemaining })}
+        {!isBillingAdmin && ` ${t('subscription.choosePlanToContinue')}`}
       </Alert>
     );
   }
@@ -52,17 +54,17 @@ export default function SubscriptionBanner() {
           sx={{ mb: 2 }}
           action={
             <Button color="inherit" size="small" onClick={() => navigate('/admin/billing')}>
-              Choose a plan to continue
+              {t('subscription.choosePlanToContinueAction')}
             </Button>
           }
         >
-          Your trial has expired.
+          {t('subscription.trialExpired')}
         </Alert>
       );
     }
     return (
       <Alert severity="warning" sx={{ mb: 2 }}>
-        Your trial has expired. Contact your billing admin.
+        {t('subscription.trialExpiredContactAdmin')}
       </Alert>
     );
   }
@@ -75,18 +77,18 @@ export default function SubscriptionBanner() {
         sx={{ mb: 2 }}
         action={
           <Button color="inherit" size="small" onClick={() => navigate('/admin/billing')}>
-            Go to billing
+            {t('subscription.goToBilling')}
           </Button>
         }
       >
-        Your subscription needs attention.
+        {t('subscription.subscriptionNeedsAttention')}
       </Alert>
     );
   }
 
   return (
     <Alert severity="error" sx={{ mb: 2 }}>
-      Account access is limited. Contact your billing admin.
+      {t('subscription.accountAccessLimited')}
     </Alert>
   );
 }

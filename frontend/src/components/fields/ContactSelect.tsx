@@ -1,6 +1,7 @@
 import React from 'react';
 import { Autocomplete, TextField, CircularProgress } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type Contact = {
@@ -35,7 +36,7 @@ function formatLabel(c: Contact, showEmail: boolean): string {
 
 const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(function ContactSelect(
   {
-    label = 'Contact',
+    label: labelProp,
     value,
     onChange,
     disabled,
@@ -47,6 +48,8 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
   },
   ref,
 ) {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.contact');
   const [input, setInput] = React.useState(query);
   const { data: items, isFetching } = useQuery({
     queryKey: ['contacts', 'typeahead', input],
@@ -92,7 +95,7 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
         else if (reason === 'clear') setInput('');
       }}
       getOptionLabel={(option) => formatLabel(option as Contact, showEmail)}
-      groupBy={(option) => (option as Contact).supplier_name || 'No supplier'}
+      groupBy={(option) => (option as Contact).supplier_name || t('selects.noSupplier')}
       renderInput={(params) => (
         <TextField
           {...params}
@@ -115,7 +118,7 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
       disabled={disabled}
       loading={isFetching || isLoadingSelected}
       filterOptions={(x) => x}
-      noOptionsText={isFetching ? 'Loading…' : 'No contacts found'}
+      noOptionsText={isFetching ? t('selects.loadingEllipsis') : t('selects.noContactsFound')}
       fullWidth
     />
   );

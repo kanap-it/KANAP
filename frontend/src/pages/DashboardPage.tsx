@@ -2,23 +2,25 @@ import { useMemo } from 'react';
 import { Box, Grid, Typography, Stack, Button, Chip, Skeleton, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../components/PageHeader';
 import api from '../api';
 import { useAuth } from '../auth/AuthContext';
+import { useLocale } from '../i18n/useLocale';
 import DashboardTile from './workspace/tiles/DashboardTile';
 
 type ServerListResponse<T> = { items: T[]; total: number; page: number; limit: number };
 
 function formatNumber(v: any) {
   const n = Number(v ?? 0);
-  if (!isFinite(n)) return '—';
+  if (!isFinite(n)) return '\u2014';
   const i = Math.round(n);
   return i.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
 function formatCompact(v: any) {
   const n = Number(v ?? 0);
-  if (!isFinite(n)) return '—';
+  if (!isFinite(n)) return '\u2014';
   try {
     return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(n);
   } catch {
@@ -31,7 +33,7 @@ function formatCompact(v: any) {
 
 function formatThousandsK(v: any) {
   const n = Number(v ?? 0);
-  if (!isFinite(n)) return '—';
+  if (!isFinite(n)) return '\u2014';
   const thousands = Math.round(n / 1000);
   const abs = Math.abs(thousands);
   const formatted = formatNumber(abs);
@@ -184,7 +186,7 @@ function useTopOpexCurrentYear(limit: number = 5) {
       const items = res.data.items || [];
       return items.map((row: any) => ({
         id: row.id,
-        name: row.product_name || row.name || '—',
+        name: row.product_name || row.name || '\u2014',
         y: getBudgetValueFromRow(row, 'y'),
         yMinus1: getBudgetValueFromRow(row, 'yMinus1'),
       }));
@@ -204,7 +206,7 @@ function useTopOpexIncrease(limit: number = 5) {
         const y = getBudgetValueFromRow(row, 'y');
         const yMinus1 = getBudgetValueFromRow(row, 'yMinus1');
         const delta = y - yMinus1;
-        return { id: row.id, name: row.product_name || '—', y, yMinus1, delta };
+        return { id: row.id, name: row.product_name || '\u2014', y, yMinus1, delta };
       });
       const sorted = items.sort((a, b) => b.delta - a.delta);
       return sorted.slice(0, limit);
@@ -216,6 +218,8 @@ function useTopOpexIncrease(limit: number = 5) {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { hasLevel, profile } = useAuth();
+  const { t } = useTranslation('common');
+  const locale = useLocale();
   const Y = new Date().getFullYear();
 
   const { data: opexTotals, isLoading: opexLoading } = useOpexTotals();
@@ -279,7 +283,7 @@ export default function DashboardPage() {
         <Table size="small" sx={{ '& th, & td': { py: 0.75 } }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: 120, fontWeight: 600 }} align="left">Year</TableCell>
+              <TableCell sx={{ width: 120, fontWeight: 600 }} align="left">{t('labels.year')}</TableCell>
               {columns.map((c) => (
                 <TableCell key={`h-${c}`} align="center" sx={{ fontWeight: 600, minWidth: 76 }}>
                   {c.replace('_', ' ').replace(/\b\w/g, (m) => m.toUpperCase())}
@@ -303,16 +307,16 @@ export default function DashboardPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <PageHeader title="Overview" />
+      <PageHeader title={t('dashboard.overview')} />
       <Grid container spacing={3}>
         {/* OPEX Snapshot */}
         <Grid item xs={12} md={6} lg={4}>
-          <DashboardTile icon="AccountBalanceWallet" title="OPEX Snapshot" action={<Button size="small" onClick={() => navigate('/ops/opex')}>View</Button>}>
+          <DashboardTile icon="AccountBalanceWallet" title={t('dashboard.opexSnapshot')} action={<Button size="small" onClick={() => navigate('/ops/opex')}>{t('buttons.view')}</Button>}>
             {opexLoading ? (
               <Skeleton variant="rounded" width="100%" height={80} />
             ) : (
               opexSnapshot.columns.length === 0 || unionCols.length === 0 ? (
-                <Typography variant="body1" color="text.secondary">No data</Typography>
+                <Typography variant="body1" color="text.secondary">{t('labels.noData')}</Typography>
               ) : (
                 <SnapshotTable rows={opexSnapshot.rows} columns={unionCols} />
               )
@@ -322,12 +326,12 @@ export default function DashboardPage() {
 
         {/* CAPEX Snapshot */}
         <Grid item xs={12} md={6} lg={4}>
-          <DashboardTile icon="AccountBalance" title="CAPEX Snapshot" action={<Button size="small" onClick={() => navigate('/ops/capex')}>View</Button>}>
+          <DashboardTile icon="AccountBalance" title={t('dashboard.capexSnapshot')} action={<Button size="small" onClick={() => navigate('/ops/capex')}>{t('buttons.view')}</Button>}>
             {capexLoading ? (
               <Skeleton variant="rounded" width="100%" height={80} />
             ) : (
               capexSnapshot.columns.length === 0 || unionCols.length === 0 ? (
-                <Typography variant="body1" color="text.secondary">No data</Typography>
+                <Typography variant="body1" color="text.secondary">{t('labels.noData')}</Typography>
               ) : (
                 <SnapshotTable rows={capexSnapshot.rows} columns={unionCols} />
               )
@@ -337,22 +341,22 @@ export default function DashboardPage() {
 
         {/* My Tasks */}
         <Grid item xs={12} md={6} lg={4}>
-          <DashboardTile icon="Assignment" title="My Tasks" isLoading={tasksLoading} action={<Button size="small" onClick={() => navigate('/portfolio/tasks')}>View All</Button>}>
+          <DashboardTile icon="Assignment" title={t('dashboard.myTasks')} isLoading={tasksLoading} action={<Button size="small" onClick={() => navigate('/portfolio/tasks')}>{t('buttons.viewAll')}</Button>}>
             <Typography variant="h5">{openTasks}</Typography>
             <Stack spacing={0.75} sx={{ mt: 1.5 }}>
-              {taskItems.map((t) => {
-                const due = t.due_date ? new Date(t.due_date) : null;
+              {taskItems.map((tk) => {
+                const due = tk.due_date ? new Date(tk.due_date) : null;
                 const today = new Date();
                 const overdue = due ? due < new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
                 return (
-                  <Stack key={t.id} direction="row" spacing={1} alignItems="center">
-                    <Chip size="small" color={overdue ? 'error' : 'default'} label={due ? new Date(due).toLocaleDateString() : '—'} />
-                    <Typography variant="body1" noWrap sx={{ flex: 1 }}>{t.title || 'Task'}</Typography>
+                  <Stack key={tk.id} direction="row" spacing={1} alignItems="center">
+                    <Chip size="small" color={overdue ? 'error' : 'default'} label={due ? new Date(due).toLocaleDateString(locale) : '\u2014'} />
+                    <Typography variant="body1" noWrap sx={{ flex: 1 }}>{tk.title || t('labels.task')}</Typography>
                   </Stack>
                 );
               })}
               {(!tasksLoading && taskItems.length === 0) && (
-                <Typography variant="body1" color="text.secondary">No tasks with due date</Typography>
+                <Typography variant="body1" color="text.secondary">{t('dashboard.noTasksWithDueDate')}</Typography>
               )}
             </Stack>
           </DashboardTile>
@@ -360,16 +364,16 @@ export default function DashboardPage() {
 
         {/* Next Contract Renewal */}
         <Grid item xs={12} md={6} lg={4}>
-          <DashboardTile icon="EventAvailable" title="Next Renewals" isLoading={contractsLoading} action={<Button size="small" onClick={() => navigate('/ops/contracts')}>View All</Button>}>
+          <DashboardTile icon="EventAvailable" title={t('dashboard.nextRenewals')} isLoading={contractsLoading} action={<Button size="small" onClick={() => navigate('/ops/contracts')}>{t('buttons.viewAll')}</Button>}>
             <Stack spacing={0.75}>
               {upcomingRenewals.map((r) => (
                 <Stack key={r.id} direction="row" spacing={1} alignItems="center">
-                  <Chip size="small" label={r.cancellation_deadline ? new Date(r.cancellation_deadline).toLocaleDateString() : '—'} />
+                  <Chip size="small" label={r.cancellation_deadline ? new Date(r.cancellation_deadline).toLocaleDateString(locale) : '\u2014'} />
                   <Typography variant="body1" noWrap sx={{ flex: 1 }}>{r.name}</Typography>
                 </Stack>
               ))}
               {upcomingRenewals.length === 0 && (
-                <Typography variant="body1" color="text.secondary">No upcoming renewals</Typography>
+                <Typography variant="body1" color="text.secondary">{t('dashboard.noUpcomingRenewals')}</Typography>
               )}
             </Stack>
           </DashboardTile>
@@ -377,38 +381,38 @@ export default function DashboardPage() {
 
         {/* Data Hygiene */}
         <Grid item xs={12} md={6} lg={4}>
-          <DashboardTile icon="ReportProblemOutlined" title="Data Hygiene (OPEX)" isLoading={hygiene.loading} action={<Button size="small" onClick={() => navigate('/ops/opex')}>View</Button>}>
+          <DashboardTile icon="ReportProblemOutlined" title={t('dashboard.dataHygieneOpex')} isLoading={hygiene.loading} action={<Button size="small" onClick={() => navigate('/ops/opex')}>{t('buttons.view')}</Button>}>
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
-              <Chip label={`No IT owner: ${hygiene.counts.noItOwner}`} color={hygiene.counts.noItOwner ? 'warning' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
-              <Chip label={`No Biz owner: ${hygiene.counts.noBizOwner}`} color={hygiene.counts.noBizOwner ? 'warning' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
-              <Chip label={`No Paying Company: ${hygiene.counts.noPayingCompany}`} color={hygiene.counts.noPayingCompany ? 'warning' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
-              <Chip label={`CoA mismatches: ${hygiene.counts.accountWarning}`} color={hygiene.counts.accountWarning ? 'error' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
+              <Chip label={t('dashboard.noItOwner', { count: hygiene.counts.noItOwner })} color={hygiene.counts.noItOwner ? 'warning' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
+              <Chip label={t('dashboard.noBizOwner', { count: hygiene.counts.noBizOwner })} color={hygiene.counts.noBizOwner ? 'warning' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
+              <Chip label={t('dashboard.noPayingCompany', { count: hygiene.counts.noPayingCompany })} color={hygiene.counts.noPayingCompany ? 'warning' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
+              <Chip label={t('dashboard.coaMismatches', { count: hygiene.counts.accountWarning })} color={hygiene.counts.accountWarning ? 'error' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
             </Stack>
           </DashboardTile>
         </Grid>
 
         {/* Quick Actions */}
         <Grid item xs={12} md={6} lg={4}>
-          <DashboardTile icon="Assignment" title="Quick Actions">
+          <DashboardTile icon="Assignment" title={t('dashboard.quickActions')}>
             <Stack direction="row" spacing={1} sx={{ mt: 1 }} useFlexGap flexWrap="wrap">
                 {hasLevel('opex', 'manager') && (
-                  <Button variant="contained" size="small" onClick={() => navigate('/ops/opex/new')}>New OPEX</Button>
+                  <Button variant="contained" size="small" onClick={() => navigate('/ops/opex/new')}>{t('dashboard.newOpex')}</Button>
                 )}
                 {hasLevel('capex', 'manager') && (
-                  <Button variant="outlined" size="small" onClick={() => navigate('/ops/capex/new')}>New CAPEX</Button>
+                  <Button variant="outlined" size="small" onClick={() => navigate('/ops/capex/new')}>{t('dashboard.newCapex')}</Button>
                 )}
               </Stack>
               <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2">Recent OPEX updates</Typography>
+              <Typography variant="subtitle2">{t('dashboard.recentOpexUpdates')}</Typography>
               <Stack spacing={0.5} sx={{ mt: 1 }}>
                 {(recentOpex?.items || []).map((r) => (
                   <Stack key={r.id} direction="row" spacing={1} alignItems="center">
-                    <Chip size="small" label={new Date((r.updated_at || r.created_at || '')).toLocaleDateString()} />
+                    <Chip size="small" label={new Date((r.updated_at || r.created_at || '')).toLocaleDateString(locale)} />
                     <Typography variant="body1" noWrap sx={{ flex: 1 }}>{r.product_name}</Typography>
                   </Stack>
                 ))}
                 {(recentOpex?.items?.length || 0) === 0 && (
-                  <Typography variant="body1" color="text.secondary">No recent updates</Typography>
+                  <Typography variant="body1" color="text.secondary">{t('dashboard.noRecentUpdates')}</Typography>
                 )}
             </Stack>
           </DashboardTile>
@@ -416,7 +420,7 @@ export default function DashboardPage() {
 
         {/* Insights — Top OPEX */}
         <Grid item xs={12} md={6} lg={4}>
-          <DashboardTile icon="Leaderboard" title="Top OPEX (Y)" action={<Button size="small" onClick={() => navigate('/ops/reports/top-opex')}>Open</Button>}>
+          <DashboardTile icon="Leaderboard" title={t('dashboard.topOpexY')} action={<Button size="small" onClick={() => navigate('/ops/reports/top-opex')}>{t('buttons.open')}</Button>}>
             <Stack spacing={0.5} sx={{ mt: 1 }}>
               {(topOpex || []).map((r) => (
                 <Stack key={r.id} direction="row" spacing={1} alignItems="center">
@@ -425,7 +429,7 @@ export default function DashboardPage() {
                 </Stack>
               ))}
               {(topOpex?.length || 0) === 0 && (
-                <Typography variant="body1" color="text.secondary">No data</Typography>
+                <Typography variant="body1" color="text.secondary">{t('labels.noData')}</Typography>
               )}
             </Stack>
           </DashboardTile>
@@ -433,7 +437,7 @@ export default function DashboardPage() {
 
         {/* Insights — Top increases */}
         <Grid item xs={12} md={6} lg={4}>
-          <DashboardTile icon="TrendingUp" title="Top increases (Y vs Y-1)" action={<Button size="small" onClick={() => navigate('/ops/reports/opex-delta')}>Open</Button>}>
+          <DashboardTile icon="TrendingUp" title={t('dashboard.topIncreasesYvsYminus1')} action={<Button size="small" onClick={() => navigate('/ops/reports/opex-delta')}>{t('buttons.open')}</Button>}>
             <Stack spacing={0.5} sx={{ mt: 1 }}>
               {(topIncreases || []).map((r) => (
                 <Stack key={r.id} direction="row" spacing={1} alignItems="center">
@@ -442,7 +446,7 @@ export default function DashboardPage() {
                 </Stack>
               ))}
               {(topIncreases?.length || 0) === 0 && (
-                <Typography variant="body1" color="text.secondary">No data</Typography>
+                <Typography variant="body1" color="text.secondary">{t('labels.noData')}</Typography>
               )}
             </Stack>
           </DashboardTile>

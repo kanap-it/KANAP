@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Box, Button, Checkbox, CircularProgress, FormControlLabel, Stack, TextField, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import type { IFilterParams } from 'ag-grid-community';
 
 export type CheckboxSetFilterOption = {
@@ -32,7 +33,8 @@ type SetFilterModel = {
 type CheckboxSetFilterProps = IFilterParams & CheckboxSetFilterParams;
 
 const CheckboxSetFilter = React.forwardRef<any, CheckboxSetFilterProps>((props, ref) => {
-  const emptyLabel = props.emptyLabel ?? '(Blank)';
+  const { t } = useTranslation('common');
+  const emptyLabel = props.emptyLabel ?? t('filters.blank');
   const searchable = props.searchable ?? true;
   const labelFormatter = props.labelFormatter;
   const treatAllAsUnfiltered = props.treatAllAsUnfiltered ?? true;
@@ -266,7 +268,7 @@ const CheckboxSetFilter = React.forwardRef<any, CheckboxSetFilterProps>((props, 
         <TextField
           size="small"
           fullWidth
-          placeholder="Search..."
+          placeholder={t('filters.search')}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           sx={{ mb: 1 }}
@@ -276,11 +278,11 @@ const CheckboxSetFilter = React.forwardRef<any, CheckboxSetFilterProps>((props, 
         {loading && (
           <Stack direction="row" spacing={1} alignItems="center" sx={{ py: 1 }}>
             <CircularProgress size={16} />
-            <Typography variant="body2">Loading...</Typography>
+            <Typography variant="body2">{t('status.loading')}</Typography>
           </Stack>
         )}
         {!loading && filteredOptions.length === 0 && (
-          <Typography variant="body2" color="text.secondary">No options</Typography>
+          <Typography variant="body2" color="text.secondary">{t('filters.noOptions')}</Typography>
         )}
         {!loading && filteredOptions.map((opt) => {
           const value = opt.value ?? null;
@@ -303,10 +305,10 @@ const CheckboxSetFilter = React.forwardRef<any, CheckboxSetFilterProps>((props, 
       </Box>
       <Stack direction="row" spacing={1} sx={{ mt: 1 }} justifyContent="space-between">
         <Button size="small" onClick={handleSelectAll}>
-          All
+          {t('labels.all')}
         </Button>
         <Button size="small" onClick={handleClear}>
-          Clear
+          {t('buttons.clear')}
         </Button>
       </Stack>
     </Box>

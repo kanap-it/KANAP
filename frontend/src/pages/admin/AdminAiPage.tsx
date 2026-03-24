@@ -33,8 +33,11 @@ import {
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import { useFeatures } from '../../config/FeaturesContext';
+import { useLocale } from '../../i18n/useLocale';
 import {
   aiAdminApi,
   aiKeysApi,
@@ -45,6 +48,7 @@ import {
   type ProviderDescriptor,
 } from '../../ai/aiApi';
 import { AiApiKeyRecord } from '../../ai/aiTypes';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 type AiSettingsForm = {
   chat_enabled: boolean;
@@ -72,23 +76,14 @@ const EMPTY_FORM: AiSettingsForm = {
   web_enrichment_enabled: false,
 };
 
-const numberFormatter = new Intl.NumberFormat();
-
 function normalizeNullableString(value: string | null | undefined): string | null {
   if (value == null) return null;
   const normalized = String(value).trim();
   return normalized === '' ? null : normalized;
 }
 
-function formatNumber(value: number | null | undefined): string {
-  return numberFormatter.format(value ?? 0);
-}
-
-function getErrorMessage(error: any, fallback: string): string {
-  const message = error?.response?.data?.message;
-  if (typeof message === 'string' && message.trim()) return message;
-  if (Array.isArray(message) && message.length > 0) return message.map(String).join(' ');
-  return error?.message || fallback;
+function formatNumber(value: number | null | undefined, locale: string): string {
+  return new Intl.NumberFormat(locale).format(value ?? 0);
 }
 
 function getValidationErrors(error: any): string[] {
@@ -163,35 +158,44 @@ function buildProviderTestPayload(form: AiSettingsForm): Record<string, unknown>
   };
 }
 
-function providerInfoText(provider: ProviderDescriptor | undefined): string | null {
+function providerInfoText(
+  provider: ProviderDescriptor | undefined,
+  t: TFunction,
+): string | null {
   switch (provider?.id) {
     case 'ollama':
-      return 'In Docker, use http://host.docker.internal:<port>/v1 instead of localhost.';
+      return t('aiAdmin.provider.info.ollama');
     default:
       return null;
   }
 }
 
-function providerModelPlaceholder(provider: ProviderDescriptor | undefined): string {
+function providerModelPlaceholder(
+  provider: ProviderDescriptor | undefined,
+  t: TFunction,
+): string {
   switch (provider?.id) {
     case 'anthropic':
-      return 'e.g., claude-sonnet-4-20250514';
+      return t('aiAdmin.provider.placeholders.anthropicModel');
     case 'openai':
-      return 'e.g., gpt-4o';
+      return t('aiAdmin.provider.placeholders.openaiModel');
     case 'ollama':
-      return 'e.g., llama3, mistral';
+      return t('aiAdmin.provider.placeholders.ollamaModel');
     default:
-      return 'Model identifier';
+      return t('aiAdmin.provider.placeholders.modelIdentifier');
   }
 }
 
-function providerApiKeyHelperText(settings: AiSettingsPayload['settings'] | undefined): string | undefined {
+function providerApiKeyHelperText(
+  settings: AiSettingsPayload['settings'] | undefined,
+  t: TFunction,
+): string | undefined {
   const messages: string[] = [];
   if (settings?.has_llm_api_key) {
-    messages.push('Leave blank to keep the stored key for save and test actions.');
+    messages.push(t('aiAdmin.provider.apiKey.keepExisting'));
   }
   if (settings && !settings.provider_secret_writable) {
-    messages.push('Secret storage is not configured on this instance.');
+    messages.push(t('aiAdmin.provider.apiKey.storageUnavailable'));
   }
   return messages.length > 0 ? messages.join(' ') : undefined;
 }
@@ -233,14 +237,14 @@ function renderOverviewSection(overviewQuery: {
   isError: boolean;
   error: unknown;
   data: AiAdminOverview | undefined;
-}) {
+}, t: TFunction, locale: string) {
   return (
     <Card>
       <CardContent>
         <Stack spacing={2.5}>
           <Stack direction="row" spacing={1} alignItems="center">
             <AutoAwesomeIcon color="primary" />
-            <Typography variant="h6">Usage Overview</Typography>
+            <Typography variant="h6">{t('aiAdmin.overview.title')}</Typography>
           </Stack>
 
           {overviewQuery.isLoading ? (
@@ -249,12 +253,12 @@ function renderOverviewSection(overviewQuery: {
             </Box>
           ) : overviewQuery.isError ? (
             <Alert severity="error">
-              {getErrorMessage(overviewQuery.error, 'Failed to load AI overview.')}
+              {getApiErrorMessage(overviewQuery.error, t, t('aiAdmin.messages.loadOverviewFailed'))}
             </Alert>
           ) : overviewQuery.data ? (
             <>
               <Typography variant="body2" color="text.secondary">
-                Chat usage only. Token totals are aggregated from persisted `ai_messages.usage_json`.
+                {t('aiAdmin.overview.description')}
               </Typography>
 
               <Box
@@ -269,49 +273,49 @@ function renderOverviewSection(overviewQuery: {
                 }}
               >
                 <MetricCard
-                  label="All conversations"
-                  value={formatNumber(overviewQuery.data.totals.conversations_all)}
+                  label={t('aiAdmin.overview.metrics.allConversations')}
+                  value={formatNumber(overviewQuery.data.totals.conversations_all, locale)}
                 />
                 <MetricCard
-                  label="Active conversations (7d)"
-                  value={formatNumber(overviewQuery.data.totals.conversations_7d)}
+                  label={t('aiAdmin.overview.metrics.activeConversations7d')}
+                  value={formatNumber(overviewQuery.data.totals.conversations_7d, locale)}
                 />
                 <MetricCard
-                  label="Active conversations (30d)"
-                  value={formatNumber(overviewQuery.data.totals.conversations_30d)}
+                  label={t('aiAdmin.overview.metrics.activeConversations30d')}
+                  value={formatNumber(overviewQuery.data.totals.conversations_30d, locale)}
                 />
                 <MetricCard
-                  label="Active users (30d)"
-                  value={formatNumber(overviewQuery.data.totals.active_users_30d)}
+                  label={t('aiAdmin.overview.metrics.activeUsers30d')}
+                  value={formatNumber(overviewQuery.data.totals.active_users_30d, locale)}
                 />
               </Box>
 
               <Stack spacing={1}>
-                <Typography variant="subtitle1">Token usage</Typography>
+                <Typography variant="subtitle1">{t('aiAdmin.overview.tokenUsage')}</Typography>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Window</TableCell>
-                      <TableCell align="right">Input tokens</TableCell>
-                      <TableCell align="right">Output tokens</TableCell>
-                      <TableCell align="right">Total tokens</TableCell>
-                      <TableCell align="right">Messages</TableCell>
+                      <TableCell>{t('aiAdmin.overview.columns.window')}</TableCell>
+                      <TableCell align="right">{t('aiAdmin.overview.columns.inputTokens')}</TableCell>
+                      <TableCell align="right">{t('aiAdmin.overview.columns.outputTokens')}</TableCell>
+                      <TableCell align="right">{t('aiAdmin.overview.columns.totalTokens')}</TableCell>
+                      <TableCell align="right">{t('aiAdmin.overview.columns.messages')}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     <TableRow>
-                      <TableCell>Current month</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.input_tokens)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.output_tokens)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.total_tokens)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.message_count)}</TableCell>
+                      <TableCell>{t('aiAdmin.overview.windows.currentMonth')}</TableCell>
+                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.input_tokens, locale)}</TableCell>
+                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.output_tokens, locale)}</TableCell>
+                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.total_tokens, locale)}</TableCell>
+                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.message_count, locale)}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell>Last 30 days</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.input_tokens)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.output_tokens)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.total_tokens)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.message_count)}</TableCell>
+                      <TableCell>{t('aiAdmin.overview.windows.last30Days')}</TableCell>
+                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.input_tokens, locale)}</TableCell>
+                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.output_tokens, locale)}</TableCell>
+                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.total_tokens, locale)}</TableCell>
+                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.message_count, locale)}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -328,6 +332,8 @@ function renderOverviewSection(overviewQuery: {
 export default function AdminAiPage() {
   const { config } = useFeatures();
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['admin', 'common']);
+  const locale = useLocale();
 
   const [form, setForm] = useState<AiSettingsForm>(EMPTY_FORM);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -387,7 +393,7 @@ export default function AdminAiPage() {
     },
     onError: (error: any) => {
       const validationErrors = getValidationErrors(error);
-      const message = getErrorMessage(error, 'Save failed.');
+      const message = getApiErrorMessage(error, t, t('aiAdmin.messages.saveFailed'));
       setSaveError(validationErrors.length > 0 ? `${message} ${validationErrors.join(' ')}` : message);
     },
   });
@@ -406,7 +412,7 @@ export default function AdminAiPage() {
         provider: normalizeNullableString(data.llm_provider),
         model: normalizeNullableString(data.llm_model),
         latency_ms: null,
-        message: getErrorMessage(error, 'Connection test failed.'),
+        message: getApiErrorMessage(error, t, t('aiAdmin.messages.connectionTestFailed')),
         validation_errors: getValidationErrors(error),
       });
     },
@@ -423,7 +429,7 @@ export default function AdminAiPage() {
     onError: (error: any) => {
       setWebSearchTestResult({
         ok: false,
-        message: getErrorMessage(error, 'Web search test failed.'),
+        message: getApiErrorMessage(error, t, t('aiAdmin.messages.webSearchTestFailed')),
         latency_ms: null,
       });
     },
@@ -440,7 +446,7 @@ export default function AdminAiPage() {
       await queryClient.invalidateQueries({ queryKey: ['admin-ai-keys'] });
     },
     onError: (error: any) => {
-      setKeyActionError(getErrorMessage(error, 'Failed to create MCP key.'));
+      setKeyActionError(getApiErrorMessage(error, t, t('aiAdmin.messages.createMcpKeyFailed')));
     },
   });
 
@@ -453,7 +459,7 @@ export default function AdminAiPage() {
       await queryClient.invalidateQueries({ queryKey: ['admin-ai-keys'] });
     },
     onError: (error: any) => {
-      setKeyActionError(getErrorMessage(error, 'Failed to revoke MCP key.'));
+      setKeyActionError(getApiErrorMessage(error, t, t('aiAdmin.messages.revokeMcpKeyFailed')));
     },
   });
 
@@ -462,10 +468,10 @@ export default function AdminAiPage() {
 
   return (
     <>
-      <PageHeader title="AI" />
+      <PageHeader title={t('aiAdmin.title')} />
       <Stack spacing={2} maxWidth={980}>
         {!config.features.aiSettings ? (
-          <Alert severity="warning">AI settings are disabled for this instance.</Alert>
+          <Alert severity="warning">{t('aiAdmin.messages.disabled')}</Alert>
         ) : (
           <>
             <Card>
@@ -476,26 +482,26 @@ export default function AdminAiPage() {
                   </Box>
                 ) : settingsQuery.isError ? (
                   <Alert severity="error">
-                    {getErrorMessage(settingsQuery.error, 'Failed to load AI settings.')}
+                    {getApiErrorMessage(settingsQuery.error, t, t('aiAdmin.messages.loadSettingsFailed'))}
                   </Alert>
                 ) : settingsQuery.data ? (
                   <Stack spacing={2.5}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <AutoAwesomeIcon color="primary" />
-                      <Typography variant="h6">Provider</Typography>
+                      <Typography variant="h6">{t('aiAdmin.provider.title')}</Typography>
                       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ ml: 'auto' }}>
                         <Chip
-                          label={settingsQuery.data.settings.chat_enabled ? 'Chat enabled' : 'Chat disabled'}
+                          label={settingsQuery.data.settings.chat_enabled ? t('aiAdmin.provider.chips.chatEnabled') : t('aiAdmin.provider.chips.chatDisabled')}
                           size="small"
                           color={settingsQuery.data.settings.chat_enabled ? 'success' : 'default'}
                         />
                         <Chip
-                          label={settingsQuery.data.settings.mcp_enabled ? 'MCP enabled' : 'MCP disabled'}
+                          label={settingsQuery.data.settings.mcp_enabled ? t('aiAdmin.provider.chips.mcpEnabled') : t('aiAdmin.provider.chips.mcpDisabled')}
                           size="small"
                           color={settingsQuery.data.settings.mcp_enabled ? 'success' : 'default'}
                         />
                         <Chip
-                          label={settingsQuery.data.settings.chat_ready ? 'Provider ready' : 'Provider incomplete'}
+                          label={settingsQuery.data.settings.chat_ready ? t('aiAdmin.provider.chips.providerReady') : t('aiAdmin.provider.chips.providerIncomplete')}
                           size="small"
                           color={settingsQuery.data.settings.chat_ready ? 'success' : 'default'}
                         />
@@ -506,7 +512,7 @@ export default function AdminAiPage() {
                       <Alert severity="warning" variant="outlined">
                         <Stack spacing={0.75}>
                           <Typography variant="body2" fontWeight={600}>
-                            Current provider validation errors
+                            {t('aiAdmin.provider.validationErrorsTitle')}
                           </Typography>
                           <ValidationErrorList errors={currentSettings.provider_validation_errors} />
                         </Stack>
@@ -517,12 +523,12 @@ export default function AdminAiPage() {
                       <Alert severity={providerTestResult.ok ? 'success' : 'error'} variant="outlined">
                         <Stack spacing={0.75}>
                           <Typography variant="body2" fontWeight={600}>
-                            {providerTestResult.ok ? 'Connection succeeded' : 'Connection failed'}
+                            {providerTestResult.ok ? t('aiAdmin.provider.connectionSucceeded') : t('aiAdmin.provider.connectionFailed')}
                           </Typography>
                           <Typography variant="body2">{providerTestResult.message}</Typography>
                           {providerTestResult.provider || providerTestResult.model || providerTestResult.latency_ms != null ? (
                             <Typography variant="caption" color="text.secondary">
-                              {[providerTestResult.provider, providerTestResult.model].filter(Boolean).join(' / ') || 'Provider test'}
+                              {[providerTestResult.provider, providerTestResult.model].filter(Boolean).join(' / ') || t('aiAdmin.provider.testLabel')}
                               {providerTestResult.latency_ms != null ? ` • ${providerTestResult.latency_ms} ms` : ''}
                             </Typography>
                           ) : null}
@@ -534,10 +540,10 @@ export default function AdminAiPage() {
                     ) : null}
 
                     <FormControl size="small" fullWidth>
-                      <InputLabel>Provider</InputLabel>
+                      <InputLabel>{t('aiAdmin.provider.fields.provider')}</InputLabel>
                       <Select
                         value={form.llm_provider}
-                        label="Provider"
+                        label={t('aiAdmin.provider.fields.provider')}
                         onChange={(event) => {
                           const nextProvider = settingsQuery.data?.available_providers.find((provider) => provider.id === event.target.value);
                           const shouldClearEndpoint = nextProvider && nextProvider.id !== 'ollama' && nextProvider.id !== 'custom';
@@ -548,7 +554,7 @@ export default function AdminAiPage() {
                           }));
                         }}
                       >
-                        <MenuItem value="">None</MenuItem>
+                        <MenuItem value="">{t('aiAdmin.shared.none')}</MenuItem>
                         {settingsQuery.data.available_providers.map((provider) => (
                           <MenuItem key={provider.id} value={provider.id}>
                             {provider.label}
@@ -557,30 +563,30 @@ export default function AdminAiPage() {
                       </Select>
                     </FormControl>
 
-                    {providerInfoText(selectedProvider) ? (
+                    {providerInfoText(selectedProvider, t) ? (
                       <Alert severity="info" variant="outlined">
-                        {providerInfoText(selectedProvider)}
+                        {providerInfoText(selectedProvider, t)}
                       </Alert>
                     ) : null}
 
                     <TextField
                       size="small"
-                      label="Model"
+                      label={t('aiAdmin.provider.fields.model')}
                       value={form.llm_model}
                       onChange={(event) => setForm((prev) => ({ ...prev, llm_model: event.target.value }))}
-                      placeholder={providerModelPlaceholder(selectedProvider)}
+                      placeholder={providerModelPlaceholder(selectedProvider, t)}
                     />
 
                     {(selectedProvider?.id === 'ollama' || selectedProvider?.id === 'custom') ? (
                       <TextField
                         size="small"
-                        label="Endpoint URL"
+                        label={t('aiAdmin.provider.fields.endpointUrl')}
                         value={form.llm_endpoint_url}
                         onChange={(event) => setForm((prev) => ({ ...prev, llm_endpoint_url: event.target.value }))}
                         placeholder={
                           selectedProvider?.id === 'ollama'
-                            ? 'e.g., http://host.docker.internal:1234/v1'
-                            : 'e.g., https://my-provider.example.com/v1'
+                            ? t('aiAdmin.provider.placeholders.ollamaEndpoint')
+                            : t('aiAdmin.provider.placeholders.customEndpoint')
                         }
                       />
                     ) : null}
@@ -588,22 +594,22 @@ export default function AdminAiPage() {
                     {selectedProvider?.capabilities.requiresApiKey ? (
                       <TextField
                         size="small"
-                        label="API Key"
+                        label={t('aiAdmin.provider.fields.apiKey')}
                         type="password"
                         value={form.llm_api_key}
                         onChange={(event) => setForm((prev) => ({ ...prev, llm_api_key: event.target.value }))}
                         placeholder={
                           currentSettings?.has_llm_api_key
-                            ? 'Key configured (leave blank to keep)'
-                            : 'Enter API key'
+                            ? t('aiAdmin.provider.placeholders.apiKeyConfigured')
+                            : t('aiAdmin.provider.placeholders.enterApiKey')
                         }
-                        helperText={providerApiKeyHelperText(currentSettings)}
+                        helperText={providerApiKeyHelperText(currentSettings, t)}
                       />
                     ) : null}
 
                     <Divider />
 
-                    <Typography variant="subtitle2" color="text.secondary">Features</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">{t('aiAdmin.sections.features')}</Typography>
 
                     <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
                       <FormControlLabel
@@ -613,7 +619,7 @@ export default function AdminAiPage() {
                             onChange={(event) => setForm((prev) => ({ ...prev, chat_enabled: event.target.checked }))}
                           />
                         }
-                        label="Enable chat"
+                        label={t('aiAdmin.features.enableChat')}
                       />
                       <FormControlLabel
                         control={
@@ -622,9 +628,9 @@ export default function AdminAiPage() {
                             onChange={(event) => setForm((prev) => ({ ...prev, mcp_enabled: event.target.checked }))}
                           />
                         }
-                        label="Enable MCP"
+                        label={t('aiAdmin.features.enableMcp')}
                       />
-                      <Tooltip title={settingsQuery.data?.instance_features.ai_web_search ? '' : 'BRAVE_SEARCH_API_KEY not configured'}>
+                      <Tooltip title={settingsQuery.data?.instance_features.ai_web_search ? '' : t('aiAdmin.features.braveSearchNotConfigured')}>
                         <span>
                           <FormControlLabel
                             control={
@@ -645,7 +651,7 @@ export default function AdminAiPage() {
                                 }}
                               />
                             }
-                            label="Web search"
+                            label={t('aiAdmin.features.webSearch')}
                           />
                         </span>
                       </Tooltip>
@@ -657,7 +663,7 @@ export default function AdminAiPage() {
                             onChange={(event) => setForm((prev) => ({ ...prev, web_enrichment_enabled: event.target.checked }))}
                           />
                         }
-                        label="Web enrichment"
+                        label={t('aiAdmin.features.webEnrichment')}
                       />
                     </Stack>
 
@@ -670,23 +676,23 @@ export default function AdminAiPage() {
                         {webSearchTestResult.latency_ms != null ? ` (${webSearchTestResult.latency_ms}ms)` : ''}
                       </Alert>
                     ) : testWebSearchMutation.isPending ? (
-                      <Alert severity="info">Testing web search connectivity...</Alert>
+                      <Alert severity="info">{t('aiAdmin.messages.testingWebSearch')}</Alert>
                     ) : null}
 
                     <Divider />
 
-                    <Typography variant="subtitle2" color="text.secondary">Retention</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">{t('aiAdmin.sections.retention')}</Typography>
 
                     <TextField
                       size="small"
-                      label="Conversation retention (days)"
+                      label={t('aiAdmin.fields.conversationRetentionDays')}
                       type="number"
                       value={form.conversation_retention_days}
                       onChange={(event) => setForm((prev) => ({ ...prev, conversation_retention_days: event.target.value }))}
                       sx={{ width: 240 }}
                     />
 
-                    {saveSuccess ? <Alert severity="success">Settings saved.</Alert> : null}
+                    {saveSuccess ? <Alert severity="success">{t('aiAdmin.messages.settingsSaved')}</Alert> : null}
                     {saveError ? <Alert severity="error">{saveError}</Alert> : null}
 
                     <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
@@ -695,14 +701,14 @@ export default function AdminAiPage() {
                         onClick={() => saveMutation.mutate(form)}
                         disabled={saveMutation.isPending}
                       >
-                        {saveMutation.isPending ? 'Saving...' : 'Save settings'}
+                        {saveMutation.isPending ? t('common:status.saving') : t('aiAdmin.actions.saveSettings')}
                       </Button>
                       <Button
                         variant="outlined"
                         onClick={() => testProviderMutation.mutate(form)}
                         disabled={testProviderMutation.isPending}
                       >
-                        {testProviderMutation.isPending ? 'Testing...' : 'Test connection'}
+                        {testProviderMutation.isPending ? t('aiAdmin.actions.testing') : t('aiAdmin.actions.testConnection')}
                       </Button>
                     </Stack>
                   </Stack>
@@ -714,7 +720,7 @@ export default function AdminAiPage() {
               <CardContent>
                 <Stack spacing={2}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="h6">MCP API Keys</Typography>
+                    <Typography variant="h6">{t('aiAdmin.keys.title')}</Typography>
                     <Button
                       size="small"
                       variant="outlined"
@@ -724,17 +730,17 @@ export default function AdminAiPage() {
                         setKeyActionError(null);
                       }}
                     >
-                      Create key
+                      {t('aiAdmin.actions.createKey')}
                     </Button>
                   </Stack>
 
                   <TextField
                     size="small"
-                    label="Key max lifetime (days)"
+                    label={t('aiAdmin.fields.keyMaxLifetimeDays')}
                     type="number"
                     value={form.mcp_key_max_lifetime_days}
                     onChange={(event) => setForm((prev) => ({ ...prev, mcp_key_max_lifetime_days: event.target.value }))}
-                    helperText="Leave empty for no expiration limit"
+                    helperText={t('aiAdmin.fields.keyMaxLifetimeHelper')}
                     sx={{ width: 240 }}
                   />
 
@@ -746,18 +752,18 @@ export default function AdminAiPage() {
                     </Box>
                   ) : keysQuery.isError ? (
                     <Alert severity="error">
-                      {getErrorMessage(keysQuery.error, 'Failed to load MCP API keys.')}
+                      {getApiErrorMessage(keysQuery.error, t, t('aiAdmin.messages.loadKeysFailed'))}
                     </Alert>
                   ) : keysQuery.data && keysQuery.data.length > 0 ? (
                     <Table size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell>Label</TableCell>
-                          <TableCell>Prefix</TableCell>
-                          <TableCell>Created</TableCell>
-                          <TableCell>Expires</TableCell>
-                          <TableCell>Last used</TableCell>
-                          <TableCell>Status</TableCell>
+                          <TableCell>{t('aiAdmin.keys.columns.label')}</TableCell>
+                          <TableCell>{t('aiAdmin.keys.columns.prefix')}</TableCell>
+                          <TableCell>{t('aiAdmin.keys.columns.created')}</TableCell>
+                          <TableCell>{t('aiAdmin.keys.columns.expires')}</TableCell>
+                          <TableCell>{t('aiAdmin.keys.columns.lastUsed')}</TableCell>
+                          <TableCell>{t('aiAdmin.keys.columns.status')}</TableCell>
                           <TableCell />
                         </TableRow>
                       </TableHead>
@@ -766,14 +772,14 @@ export default function AdminAiPage() {
                           <TableRow key={key.id}>
                             <TableCell>{key.label}</TableCell>
                             <TableCell><code>{key.key_prefix}</code></TableCell>
-                            <TableCell>{new Date(key.created_at).toLocaleDateString()}</TableCell>
-                            <TableCell>{key.expires_at ? new Date(key.expires_at).toLocaleDateString() : 'Never'}</TableCell>
-                            <TableCell>{key.last_used_at ? new Date(key.last_used_at).toLocaleString() : 'Never'}</TableCell>
+                            <TableCell>{new Date(key.created_at).toLocaleDateString(locale)}</TableCell>
+                            <TableCell>{key.expires_at ? new Date(key.expires_at).toLocaleDateString(locale) : t('aiAdmin.shared.never')}</TableCell>
+                            <TableCell>{key.last_used_at ? new Date(key.last_used_at).toLocaleString(locale) : t('aiAdmin.shared.never')}</TableCell>
                             <TableCell>
                               {key.revoked_at ? (
-                                <Chip label="Revoked" size="small" color="error" />
+                                <Chip label={t('aiAdmin.keys.statuses.revoked')} size="small" color="error" />
                               ) : (
-                                <Chip label="Active" size="small" color="success" />
+                                <Chip label={t('aiAdmin.keys.statuses.active')} size="small" color="success" />
                               )}
                             </TableCell>
                             <TableCell>
@@ -793,14 +799,14 @@ export default function AdminAiPage() {
                     </Table>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No MCP API keys configured.
+                      {t('aiAdmin.keys.empty')}
                     </Typography>
                   )}
                 </Stack>
               </CardContent>
             </Card>
 
-            {renderOverviewSection(overviewQuery)}
+            {renderOverviewSection(overviewQuery, t, locale)}
           </>
         )}
       </Stack>
@@ -814,11 +820,11 @@ export default function AdminAiPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>{createdKey ? 'Key created' : 'Create MCP API key'}</DialogTitle>
+        <DialogTitle>{createdKey ? t('aiAdmin.dialogs.keyCreatedTitle') : t('aiAdmin.dialogs.createKeyTitle')}</DialogTitle>
         <DialogContent>
           {createdKey ? (
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <Alert severity="warning">Copy this key now. It will not be shown again.</Alert>
+              <Alert severity="warning">{t('aiAdmin.dialogs.copyKeyWarning')}</Alert>
               <Stack direction="row" spacing={1} alignItems="center">
                 <TextField
                   fullWidth
@@ -838,26 +844,26 @@ export default function AdminAiPage() {
                 autoFocus
                 fullWidth
                 size="small"
-                label="Label"
+                label={t('aiAdmin.fields.label')}
                 value={newKeyLabel}
                 onChange={(event) => setNewKeyLabel(event.target.value)}
-                placeholder="e.g., Desktop MCP client"
+                placeholder={t('aiAdmin.fields.labelPlaceholder')}
               />
             </Stack>
           )}
         </DialogContent>
         <DialogActions>
           {createdKey ? (
-            <Button onClick={() => { setCreateKeyDialog(false); setCreatedKey(null); }}>Done</Button>
+            <Button onClick={() => { setCreateKeyDialog(false); setCreatedKey(null); }}>{t('aiAdmin.actions.done')}</Button>
           ) : (
             <>
-              <Button onClick={() => setCreateKeyDialog(false)}>Cancel</Button>
+              <Button onClick={() => setCreateKeyDialog(false)}>{t('common:buttons.cancel')}</Button>
               <Button
                 variant="contained"
                 onClick={() => createKeyMutation.mutate(newKeyLabel)}
                 disabled={!newKeyLabel.trim() || createKeyMutation.isPending}
               >
-                {createKeyMutation.isPending ? 'Creating...' : 'Create'}
+                {createKeyMutation.isPending ? t('aiAdmin.actions.creating') : t('common:buttons.create')}
               </Button>
             </>
           )}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Chip, Tooltip } from '@mui/material';
 import VerifiedIcon from '@mui/icons-material/Verified';
+import { useTranslation } from 'react-i18next';
 
 type ValidatedBadgeProps = {
   size?: 'small' | 'medium';
@@ -9,7 +10,10 @@ type ValidatedBadgeProps = {
 };
 
 export default function ValidatedBadge({ size = 'small', validatedAtLabel, iconOnly = false }: ValidatedBadgeProps) {
-  const title = validatedAtLabel ? `Validated on ${validatedAtLabel}` : 'Validated';
+  const { t } = useTranslation(['knowledge']);
+  const title = validatedAtLabel
+    ? t('validatedBadge.validatedOn', { date: validatedAtLabel })
+    : t('validatedBadge.label');
   if (iconOnly) {
     return (
       <Tooltip title={title}>
@@ -24,7 +28,7 @@ export default function ValidatedBadge({ size = 'small', validatedAtLabel, iconO
     <Tooltip title={title}>
       <Chip
         icon={<VerifiedIcon />}
-        label="Validated"
+        label={t('validatedBadge.label')}
         color="success"
         variant="outlined"
         size={size}

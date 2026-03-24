@@ -1,29 +1,30 @@
 import React from 'react';
 import { Grid, Card, CardContent, CardActionArea, Typography, Box } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
-
-const cards = [
-  {
-    title: 'Freeze / Unfreeze Data',
-    description: 'Lock or unlock master data metrics for a specific year',
-    to: '/master-data/operations/freeze',
-  },
-  {
-    title: 'Master Data Copy',
-    description: 'Copy company and department metrics between fiscal years',
-    to: '/master-data/operations/copy',
-  },
-];
 
 export default function MasterDataOperationsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['admin']);
+  const cards = [
+    {
+      title: t('masterDataOperations.cards.freeze.title'),
+      description: t('masterDataOperations.cards.freeze.description'),
+      to: '/master-data/operations/freeze',
+    },
+    {
+      title: t('masterDataOperations.cards.copy.title'),
+      description: t('masterDataOperations.cards.copy.description'),
+      to: '/master-data/operations/copy',
+    },
+  ];
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <PageHeader title="Administration" />
+      <PageHeader title={t('masterDataOperations.title')} />
       <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-        Administrative tools to manage company and department metrics across years.
+        {t('masterDataOperations.subtitle')}
       </Typography>
       <Grid container spacing={2}>
         {cards.map((card) => (

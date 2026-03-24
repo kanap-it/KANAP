@@ -26,22 +26,23 @@ import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import CompanySelect from '../../components/fields/CompanySelect';
 import api from '../../api';
 import { metricLabels, MetricKey } from './reportMetrics';
+import { useLocale } from '../../i18n/useLocale';
+import { useTranslation } from 'react-i18next';
 
-function formatNumber(value: number | null | undefined): string {
+function baseFormatNumber(value: number | null | undefined, locale: string): string {
   const n = Number(value ?? 0);
   if (!Number.isFinite(n)) return '';
-  const fixed = Math.round(n);
-  return fixed.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Math.round(n));
 }
 
-function formatCurrency(value: number | null | undefined, withDecimals = false): string {
+function baseFormatCurrency(value: number | null | undefined, locale: string, withDecimals = false): string {
   const n = Number(value ?? 0);
   if (!Number.isFinite(n)) return '—';
-  const formatter = new Intl.NumberFormat('en-US', {
+  const formatter = new Intl.NumberFormat(locale, {
     minimumFractionDigits: withDecimals ? 2 : 0,
     maximumFractionDigits: withDecimals ? 2 : 0,
   });
-  return formatter.format(n).replace(/,/g, ' ');
+  return formatter.format(n);
 }
 
 function formatPercent(value: number | null | undefined): string {
@@ -49,9 +50,9 @@ function formatPercent(value: number | null | undefined): string {
   return `${value.toFixed(2)}%`;
 }
 
-function formatCount(value: number | null | undefined): string {
+function baseFormatCount(value: number | null | undefined, locale: string): string {
   if (value == null || !Number.isFinite(value)) return '—';
-  return formatNumber(value);
+  return baseFormatNumber(value, locale);
 }
 
 type CompanyChargebackDepartmentRow = {
@@ -140,6 +141,8 @@ type CompanyChargebackReportResponse = {
 type CompanyChargebackKpiRow = CompanyChargebackReportResponse['kpis'][number];
 
 export default function CompanyChargebackReport() {
+  const { t } = useTranslation(["ops"]);
+  const locale = useLocale();
   const now = new Date();
   const currentYear = now.getFullYear();
   const allowedYears = [currentYear - 1, currentYear, currentYear + 1];
@@ -176,14 +179,26 @@ export default function CompanyChargebackReport() {
   const kpiRows = data?.kpis ?? [];
   const globalKpi = data?.globalKpi;
   const warnings = data?.warnings ?? [];
+  const formatNumber = React.useCallback(
+    (value: number | null | undefined) => baseFormatNumber(value, locale),
+    [locale],
+  );
+  const formatCurrency = React.useCallback(
+    (value: number | null | undefined, withDecimals = false) => baseFormatCurrency(value, locale, withDecimals),
+    [locale],
+  );
+  const formatCount = React.useCallback(
+    (value: number | null | undefined) => baseFormatCount(value, locale),
+    [locale],
+  );
 
   // Intercompany rows (partner, receivables, payables, net)
   const intercompanyColumns = useMemo<ColDef[]>(() => [
-    { field: 'partnerName', headerName: 'Company', flex: 1, minWidth: 220 },
-    { field: 'receivables', headerName: 'Receivables', width: 160, type: 'rightAligned', valueFormatter: (p: any) => formatNumber(p.value) },
-    { field: 'payables', headerName: 'Payables', width: 160, type: 'rightAligned', valueFormatter: (p: any) => formatNumber(p.value) },
-    { field: 'net', headerName: 'Net', width: 160, type: 'rightAligned', valueFormatter: (p: any) => formatNumber(p.value) },
-  ], []);
+    { field: 'partnerName', headerName: t('reports.columns.company'), flex: 1, minWidth: 220 },
+    { field: 'receivables', headerName: t('reports.columns.receivables'), width: 160, type: 'rightAligned', valueFormatter: (p: any) => formatNumber(p.value) },
+    { field: 'payables', headerName: t('reports.columns.payables'), width: 160, type: 'rightAligned', valueFormatter: (p: any) => formatNumber(p.value) },
+    { field: 'net', headerName: t('reports.columns.net'), width: 160, type: 'rightAligned', valueFormatter: (p: any) => formatNumber(p.value) },
+  ], [formatNumber]);
 
   const intercompanyRows = useMemo(() => {
     const receivables = data?.intercompany?.receivables ?? [];
@@ -225,7 +240,7 @@ export default function CompanyChargebackReport() {
   };
 
   const departmentColumns = useMemo<ColDef[]>(() => [
-    { field: 'departmentName', headerName: 'Department', flex: 1, minWidth: 200 },
+    { field: 'departmentName', headerName: t('reports.columns.department'), flex: 1, minWidth: 200 },
     {
       field: 'amount',
       headerName: `${metricLabel} amount`,
@@ -235,30 +250,30 @@ export default function CompanyChargebackReport() {
     },
     {
       field: 'sharePct',
-      headerName: 'Share of total',
+      headerName: t('reports.columns.shareOfTotal'),
       width: 150,
       type: 'rightAligned',
       valueFormatter: (params) => (params.value != null ? `${Number(params.value).toFixed(2)}%` : ''),
     },
     {
       field: 'headcount',
-      headerName: 'Headcount',
+      headerName: t('reports.columns.headcount'),
       width: 130,
       type: 'rightAligned',
       valueFormatter: (params) => formatCount(params.value),
     },
     {
       field: 'costPerUser',
-      headerName: 'Cost per user',
+      headerName: t('reports.columns.costPerUser'),
       width: 160,
       type: 'rightAligned',
       valueFormatter: (params) => formatNumber(params.value),
     },
-  ], [metricLabel]);
+  ], [formatCount, formatNumber, metricLabel]);
 
   const itemColumns = useMemo<ColDef[]>(() => [
-    { field: 'itemName', headerName: 'Item', flex: 1, minWidth: 220 },
-    { field: 'allocationMethodLabel', headerName: 'Allocation method', minWidth: 180 },
+    { field: 'itemName', headerName: t('reports.columns.item'), flex: 1, minWidth: 220 },
+    { field: 'allocationMethodLabel', headerName: t('reports.columns.allocationMethod'), minWidth: 180 },
     {
       field: 'amount',
       headerName: `${metricLabel} amount`,
@@ -268,12 +283,12 @@ export default function CompanyChargebackReport() {
     },
     {
       field: 'sharePct',
-      headerName: 'Share of total',
+      headerName: t('reports.columns.shareOfTotal'),
       width: 150,
       type: 'rightAligned',
       valueFormatter: (params) => (params.value != null ? `${Number(params.value).toFixed(2)}%` : ''),
     },
-  ], [metricLabel]);
+  ], [formatNumber, metricLabel]);
 
   const chartData = useMemo(() => {
     return departments.map((row: CompanyChargebackDepartmentRow) => ({ label: row.departmentName, value: row.amount }));
@@ -342,7 +357,7 @@ export default function CompanyChargebackReport() {
       legend: { enabled: false },
       animation: { enabled: true, duration: 700 },
     };
-  }, [chartData, data?.company, data?.total, metricLabel]);
+  }, [chartData, data?.company, data?.total, formatCurrency, formatNumber, metricLabel]);
 
   const exportDepartmentsCsv = () => {
     if (!companyId) return;
@@ -362,13 +377,13 @@ export default function CompanyChargebackReport() {
 
   return (
     <ReportLayout
-      title="Company Chargeback"
-      subtitle="Detailed chargeback allocation per company across departments, items, and KPIs"
+      title={t("reports.companyChargeback.title")}
+      subtitle={t("reports.companyChargeback.subtitle")}
       filters={(
         <>
           <Box sx={{ minWidth: 240 }}>
             <CompanySelect
-              label="Company"
+              label={t("reports.filters.company")}
               value={companyId}
               onChange={setCompanyId}
               size="small"
@@ -377,7 +392,7 @@ export default function CompanyChargebackReport() {
           <TextField
             select
             size="small"
-            label="Year"
+            label={t("reports.filters.year")}
             value={year}
             onChange={(event) => setYear(Number(event.target.value))}
             sx={{ minWidth: 120 }}
@@ -389,7 +404,7 @@ export default function CompanyChargebackReport() {
           <TextField
             select
             size="small"
-            label="Column"
+            label={t("reports.filters.column")}
             value={metric}
             onChange={(event) => setMetric(event.target.value as MetricKey)}
             sx={{ minWidth: 160 }}
@@ -401,19 +416,19 @@ export default function CompanyChargebackReport() {
           </TextField>
           <FormControlLabel
             control={<Checkbox checked={showDepartments} onChange={(_, checked) => setShowDepartments(checked)} />}
-            label="Department totals"
+            label={t("reports.companyChargeback.departmentTotals")}
           />
           <FormControlLabel
             control={<Checkbox checked={showItems} onChange={(_, checked) => setShowItems(checked)} />}
-            label="Chargeback items"
+            label={t("reports.companyChargeback.chargebackItems")}
           />
           <FormControlLabel
             control={<Checkbox checked={showKpis} onChange={(_, checked) => setShowKpis(checked)} />}
-            label="Chargeback KPIs"
+            label={t("reports.companyChargeback.chargebackKpis")}
           />
           <FormControlLabel
             control={<Checkbox checked={showIntercompany} onChange={(_, checked) => setShowIntercompany(checked)} />}
-            label="Intercompany flows"
+            label={t("reports.companyChargeback.flowsTitle")}
           />
         </>
       )}
@@ -424,7 +439,7 @@ export default function CompanyChargebackReport() {
           onClick={() => refetch()}
           disabled={!companyId || isFetching}
         >
-          {!companyId ? 'Select a company' : isFetching ? 'Refreshing…' : 'Run'}
+          {!companyId ? t('reports.companyChargeback.selectCompany') : isFetching ? t('reports.shared.refreshing') : t('reports.shared.run')}
         </Button>
       )}
       onExportTableCsv={isReady ? exportDepartmentsCsv : undefined}
@@ -433,7 +448,7 @@ export default function CompanyChargebackReport() {
       <Stack spacing={2}>
         {!isReady && (
           <Paper variant="outlined" sx={{ p: 3 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Select a company to explore chargeback details</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t("reports.companyChargeback.selectCompanyTitle")}</Typography>
             <Typography variant="body2" color="text.secondary">
               Choose a company, year, and budget column to generate the detailed chargeback view. Department totals,
               itemised allocations, and KPIs will appear once the report runs.
@@ -455,19 +470,19 @@ export default function CompanyChargebackReport() {
                   <Typography variant="subtitle2">{formatCount(companySummary.headcount)}</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="body2" color="text.secondary">IT users</Typography>
+                  <Typography variant="body2" color="text.secondary">{t("reports.columns.itUsers")}</Typography>
                   <Typography variant="subtitle2">{formatCount(companySummary.itUsers)}</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="body2" color="text.secondary">Cost per user</Typography>
+                  <Typography variant="body2" color="text.secondary">{t("reports.columns.costPerUser")}</Typography>
                   <Typography variant="subtitle2">{companySummary.costPerUser != null ? formatCurrency(companySummary.costPerUser) : '—'}</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="body2" color="text.secondary">Cost per IT user</Typography>
+                  <Typography variant="body2" color="text.secondary">{t("reports.columns.costPerItUser")}</Typography>
                   <Typography variant="subtitle2">{companySummary.costPerItUser != null ? formatCurrency(companySummary.costPerItUser) : '—'}</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="body2" color="text.secondary">IT costs vs turnover</Typography>
+                  <Typography variant="body2" color="text.secondary">{t("reports.columns.itCostsVsTurnover")}</Typography>
                   <Typography variant="subtitle2">{companySummary.costVsTurnoverPct != null ? formatPercent(companySummary.costVsTurnoverPct) : '—'}</Typography>
                 </Box>
               </Box>
@@ -477,7 +492,7 @@ export default function CompanyChargebackReport() {
 
         {isReady && warnings.length > 0 && (
           <Alert severity="warning" sx={{ whiteSpace: 'pre-wrap' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>Some allocations were skipped</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>{t("reports.shared.warningsTitle")}</Typography>
             <Box component="ul" sx={{ pl: 3, my: 0 }}>
               {warnings.map((warning: string, index: number) => (
                 <Typography component="li" variant="body2" key={`${warning}-${index}`}>
@@ -491,9 +506,9 @@ export default function CompanyChargebackReport() {
         {isReady && showDepartments && departments.length > 0 && (
           <Stack spacing={2} direction={{ xs: 'column', xl: 'row' }} alignItems={{ xs: 'stretch', xl: 'flex-start' }}>
             <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Department totals</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t("reports.companyChargeback.departmentTotals")}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Consolidated chargeback per department. "Common Costs" aggregates allocations without a specific department.
+                {t("reports.companyChargeback.departmentTotalsDescription")}
               </Typography>
               <Box component={AgGridBox}>
                 <AgGridReact
@@ -508,14 +523,14 @@ export default function CompanyChargebackReport() {
               </Box>
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Department distribution</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t("reports.companyChargeback.departmentDistribution")}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Horizontal bar chart mirroring the table totals.
+                {t("reports.companyChargeback.departmentDistributionDescription")}
               </Typography>
               {chartOptions ? (
                 <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={480} />
               ) : (
-                <Typography variant="body2" color="text.secondary">Chart unavailable.</Typography>
+                <Typography variant="body2" color="text.secondary">{t("reports.shared.chartUnavailable")}</Typography>
               )}
             </Paper>
           </Stack>
@@ -524,15 +539,15 @@ export default function CompanyChargebackReport() {
         {isReady && showDepartments && departments.length === 0 && (
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Department totals</Typography>
-            <Typography variant="body2" color="text.secondary">No department-level allocations for the selected configuration.</Typography>
+            <Typography variant="body2" color="text.secondary">{t("reports.companyChargeback.noDepartmentAllocations")}</Typography>
           </Paper>
         )}
 
         {isReady && showItems && (
           <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Chargeback items</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t("reports.companyChargeback.chargebackItems")}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Itemised spend contributing to the company chargeback, including the allocation method and share of the total amount.
+              {t("reports.companyChargeback.chargebackItemsDescription")}
             </Typography>
             {items.length > 0 ? (
               <Box component={AgGridBox}>
@@ -545,16 +560,16 @@ export default function CompanyChargebackReport() {
                 />
               </Box>
             ) : (
-              <Typography variant="body2" color="text.secondary">No chargeback items for the selected configuration.</Typography>
+              <Typography variant="body2" color="text.secondary">{t("reports.companyChargeback.noChargebackItems")}</Typography>
             )}
           </Paper>
         )}
 
         {isReady && showIntercompany && (
           <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Intercompany flows</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t("reports.companyChargeback.flowsTitle")}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Partner companies with receivables (you paid for them), payables (they paid for you), and the net total. Self-consumption excluded.
+              {t("reports.companyChargeback.flowsDescription")}
             </Typography>
             {intercompanyRows.length > 0 ? (
               <Box component={AgGridBox}>
@@ -571,28 +586,28 @@ export default function CompanyChargebackReport() {
               <Typography variant="body2" color="text.secondary">No intercompany flows for the selected configuration.</Typography>
             )}
             <Divider sx={{ my: 2 }} />
-            <Button variant="outlined" size="small" onClick={exportIntercompanyCsv}>Export flows CSV</Button>
+            <Button variant="outlined" size="small" onClick={exportIntercompanyCsv}>{t("reports.companyChargeback.exportFlowsCsv")}</Button>
           </Paper>
         )}
 
         {isReady && showKpis && (
           <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Chargeback KPIs</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t("reports.companyChargeback.kpisTitle")}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Headcount, IT users, and turnover sourced from company metrics for the selected year.
+              {t("reports.companyChargeback.kpisDescription")}
             </Typography>
             <Box sx={{ overflowX: 'auto' }}>
               <Table size="small" sx={{ minWidth: 720 }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Company</TableCell>
+                    <TableCell>{t("reports.columns.company")}</TableCell>
                     <TableCell align="right">{metricLabel}</TableCell>
-                    <TableCell align="right">Headcount</TableCell>
-                    <TableCell align="right">IT users</TableCell>
-                    <TableCell align="right">Turnover</TableCell>
-                    <TableCell align="right">IT costs vs turnover</TableCell>
-                    <TableCell align="right">IT costs per user</TableCell>
-                    <TableCell align="right">IT costs per IT user</TableCell>
+                    <TableCell align="right">{t("reports.columns.headcount")}</TableCell>
+                    <TableCell align="right">{t("reports.columns.itUsers")}</TableCell>
+                    <TableCell align="right">{t("reports.columns.turnover")}</TableCell>
+                    <TableCell align="right">{t("reports.columns.itCostsVsTurnover")}</TableCell>
+                    <TableCell align="right">{t("reports.columns.itCostsPerUser")}</TableCell>
+                    <TableCell align="right">{t("reports.columns.itCostsPerItUser")}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -617,7 +632,7 @@ export default function CompanyChargebackReport() {
                   )}
                   {kpiRows.length > 0 && globalKpi && (
                     <TableRow sx={{ '& > *': { fontWeight: 600 } }}>
-                      <TableCell>Global totals</TableCell>
+                      <TableCell>{t("reports.companyChargeback.globalTotals")}</TableCell>
                       <TableCell align="right">{formatCurrency(globalKpi.amount)}</TableCell>
                       <TableCell align="right">{formatCount(globalKpi.headcount)}</TableCell>
                       <TableCell align="right">{formatCount(globalKpi.itUsers)}</TableCell>
@@ -634,7 +649,7 @@ export default function CompanyChargebackReport() {
         )}
 
         {isReady && isLoading && (
-          <Typography variant="body2" color="text.secondary">Loading report…</Typography>
+          <Typography variant="body2" color="text.secondary">{t("reports.shared.loadingReport")}</Typography>
         )}
       </Stack>
     </ReportLayout>

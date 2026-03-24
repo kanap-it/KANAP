@@ -24,6 +24,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
 import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
+import { useLocale } from '../../../../i18n/useLocale';
 import EffortAllocationDialog, { type EligibleUser } from '../../components/EffortAllocationDialog';
 import EffortAllocationTable, { type EffortAllocationData } from '../../components/EffortAllocationTable';
 import EffortConsumptionBar from '../../components/EffortConsumptionBar';
@@ -77,6 +78,7 @@ export default function ProjectEffortTab({
   taskTimeSummary,
 }: ProjectEffortTabProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const locale = useLocale();
   const [logTimeDialogOpen, setLogTimeDialogOpen] = React.useState(false);
   const [editingTimeEntry, setEditingTimeEntry] = React.useState<TimeEntryData | undefined>(undefined);
   const [itAllocationDialogOpen, setItAllocationDialogOpen] = React.useState(false);
@@ -436,7 +438,7 @@ export default function ProjectEffortTab({
                 return (
                   <TableRow key={`${entry.source}-${entry.id}`}>
                     <TableCell>
-                      {entry.logged_at ? new Date(entry.logged_at).toLocaleDateString() : '-'}
+                      {entry.logged_at ? new Date(entry.logged_at).toLocaleDateString(locale) : '-'}
                     </TableCell>
                     <TableCell>
                       <Typography

@@ -76,7 +76,7 @@ export default function ContactWorkspacePage() {
   const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before switching tabs?');
+      const proceed = window.confirm(t('shared.workspace.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => navigate(`/master-data/contacts/${id}/${nextValue}?${searchParams.toString()}`));
         return;

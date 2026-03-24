@@ -1,12 +1,13 @@
 import React from 'react';
 import { Autocomplete, CircularProgress, TextField, Chip } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type Role = { id: string; role_name: string; role_description: string };
 
 export default function MultiRoleSelect({
-  label = 'Roles',
+  label: labelProp,
   value,
   onChange,
   disabled,
@@ -22,6 +23,8 @@ export default function MultiRoleSelect({
   helperText?: React.ReactNode;
   required?: boolean;
 }) {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.roles');
   const { data, isLoading } = useQuery({
     queryKey: ['roles'],
     queryFn: async () => {

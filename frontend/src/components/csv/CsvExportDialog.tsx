@@ -1,12 +1,13 @@
 import React from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Stack, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 export default function CsvExportDialog({
   open,
   onClose,
   endpoint,
-  title = 'Export CSV',
+  title: titleProp,
   params,
 }: {
   open: boolean;
@@ -15,6 +16,7 @@ export default function CsvExportDialog({
   title?: string;
   params?: Record<string, string | number | boolean | null | undefined>;
 }) {
+  const { t } = useTranslation('common');
   const download = async (scope: 'template' | 'data') => {
     try {
       const queryParams = { ...(params ?? {}), scope };
@@ -42,15 +44,15 @@ export default function CsvExportDialog({
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>{title}</DialogTitle>
+      <DialogTitle>{titleProp || t('csv.exportTitle')}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" sx={{ mb: 2 }}>
-          Export data as CSV. Files use semicolon separators.
+          {t('csv.exportDescription')}
         </Typography>
-        <Button variant="contained" onClick={() => download('data')}>Export data</Button>
+        <Button variant="contained" onClick={() => download('data')}>{t('csv.exportData')}</Button>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>{t('buttons.close')}</Button>
       </DialogActions>
     </Dialog>
   );

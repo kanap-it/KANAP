@@ -31,6 +31,7 @@ import {
 } from '../../../services/masterDataOperations';
 import { useFreezeState } from '../../../hooks/useFreezeState';
 import { useAuth } from '../../../auth/AuthContext';
+import { useLocale } from '../../../i18n/useLocale';
 
 const YEARS_SPAN = 7;
 const COMPANY_METRIC_KEYS: { value: MasterDataMetric; labelKey: string }[] = [
@@ -53,17 +54,18 @@ function metricLabel(metric: MasterDataMetric, t: any) {
   return entry ? t(entry.labelKey) : metric;
 }
 
-function formatValue(value: number | null, metric: MasterDataMetric) {
+function formatValue(value: number | null, locale: string, metric: MasterDataMetric) {
   if (value == null) return '—';
   const options = metric === 'turnover'
     ? { minimumFractionDigits: 0, maximumFractionDigits: 3 }
     : { minimumFractionDigits: 0, maximumFractionDigits: 0 };
-  return Number(value).toLocaleString(undefined, options);
+  return Number(value).toLocaleString(locale, options);
 }
 
 export default function MasterDataCopyPage() {
   const theme = useTheme();
   const { t } = useTranslation(['master-data', 'common']);
+  const locale = useLocale();
   const years = useYearOptions();
   const { hasLevel } = useAuth();
   const canManageCompanies = hasLevel('companies', 'admin') || hasLevel('budget_ops', 'admin');
@@ -138,7 +140,7 @@ export default function MasterDataCopyPage() {
       headerName: t('admin.copy.columns.sourceValue'),
       width: 160,
       type: 'rightAligned',
-      valueFormatter: (params) => formatValue(params.value ?? null, params.data.metric),
+      valueFormatter: (params) => formatValue(params.value ?? null, locale, params.data.metric),
       cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : undefined,
     },
     {
@@ -146,7 +148,7 @@ export default function MasterDataCopyPage() {
       headerName: t('admin.copy.columns.currentDestination'),
       width: 180,
       type: 'rightAligned',
-      valueFormatter: (params) => formatValue(params.value ?? null, params.data.metric),
+      valueFormatter: (params) => formatValue(params.value ?? null, locale, params.data.metric),
       cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : undefined,
     },
     {
@@ -154,7 +156,7 @@ export default function MasterDataCopyPage() {
       headerName: t('admin.copy.columns.newValue'),
       width: 160,
       type: 'rightAligned',
-      valueFormatter: (params) => formatValue(params.value ?? null, params.data.metric),
+      valueFormatter: (params) => formatValue(params.value ?? null, locale, params.data.metric),
       cellStyle: (params): CellStyle => {
         if (params.data?.skipped) {
           return {
@@ -179,7 +181,7 @@ export default function MasterDataCopyPage() {
       },
       cellStyle: (params) => params.data?.skipped ? { color: theme.palette.warning.dark } : { color: theme.palette.success.dark },
     },
-  ], [theme]);
+  ], [locale, t, theme]);
 
   const disabledScopes: Record<ScopeOption, boolean> = React.useMemo(() => ({
     companies: !canManageCompanies,
@@ -244,19 +246,19 @@ export default function MasterDataCopyPage() {
     <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' } }}>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         <Typography variant="body2" color="text.secondary">{t('admin.copy.summary.totalRows')}</Typography>
-        <Typography variant="subtitle2">{summary?.totalItems.toLocaleString() ?? '0'}</Typography>
+        <Typography variant="subtitle2">{summary?.totalItems.toLocaleString(locale) ?? '0'}</Typography>
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         <Typography variant="body2" color="text.secondary">{t('admin.copy.summary.readyToCopy')}</Typography>
-        <Typography variant="subtitle2" sx={{ color: 'success.main' }}>{summary?.processed.toLocaleString() ?? '0'}</Typography>
+        <Typography variant="subtitle2" sx={{ color: 'success.main' }}>{summary?.processed.toLocaleString(locale) ?? '0'}</Typography>
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         <Typography variant="body2" color="text.secondary">{t('admin.copy.summary.skipped')}</Typography>
-        <Typography variant="subtitle2" sx={{ color: 'warning.main' }}>{summary?.skipped.toLocaleString() ?? '0'}</Typography>
+        <Typography variant="subtitle2" sx={{ color: 'warning.main' }}>{summary?.skipped.toLocaleString(locale) ?? '0'}</Typography>
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         <Typography variant="body2" color="text.secondary">{t('admin.copy.summary.errors')}</Typography>
-        <Typography variant="subtitle2" sx={{ color: 'error.main' }}>{summary?.errors.toLocaleString() ?? '0'}</Typography>
+        <Typography variant="subtitle2" sx={{ color: 'error.main' }}>{summary?.errors.toLocaleString(locale) ?? '0'}</Typography>
       </Box>
     </Box>
   );

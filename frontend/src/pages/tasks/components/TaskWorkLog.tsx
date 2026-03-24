@@ -20,6 +20,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
+import { useLocale } from '../../../i18n/useLocale';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import TaskLogTimeDialog, { TaskTimeEntryData } from './TaskLogTimeDialog';
 
@@ -50,6 +51,7 @@ const TIME_LOGGING_EXCLUDED_TYPES = ['contract', 'spend_item', 'capex_item'];
 
 export default function TaskWorkLog({ taskId, projectId, readOnly = false, relatedObjectType }: TaskWorkLogProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
   const canManageStandaloneEntries = hasLevel('tasks', 'member');
@@ -148,7 +150,7 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return date.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const formatHours = (hours: number | string | null | undefined) => {

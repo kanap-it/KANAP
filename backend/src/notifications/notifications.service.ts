@@ -298,6 +298,7 @@ export class NotificationsService {
       attachments.push({
         filename: this.safeInlineFilename(meta.originalFilename, mimeType, attachmentId),
         content: loaded.base64,
+        encoding: 'base64',
         contentType: mimeType,
         contentId,
       });

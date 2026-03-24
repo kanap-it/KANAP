@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { Logger } from '@nestjs/common';
-import { AiChatOrchestratorService } from '../ai-chat-orchestrator.service';
+import { AiChatOrchestratorService, resolveProviderMaxTokens } from '../ai-chat-orchestrator.service';
 import { AiSystemPromptService } from '../ai-system-prompt.service';
 import { ChatStreamEvent } from '../ai.types';
 
@@ -11,6 +11,8 @@ function createOrchestrator(options?: {
   toolError?: string;
   providerContextWindow?: number | null;
   historyMessages?: any[];
+  providerId?: string;
+  model?: string;
 }) {
   const persistedMessages: any[] = [];
   let conversationCreated = false;
@@ -61,8 +63,8 @@ function createOrchestrator(options?: {
 
   const mockSettings = {
     get: async () => ({
-      llm_provider: 'openai',
-      llm_model: 'gpt-4o',
+      llm_provider: options?.providerId ?? 'openai',
+      llm_model: options?.model ?? 'gpt-4o',
       llm_api_key_encrypted: 'encrypted-key',
       llm_endpoint_url: null,
       chat_enabled: true,
@@ -78,7 +80,7 @@ function createOrchestrator(options?: {
   const mockProviderRegistry = {
     get: () => ({
       descriptor: {
-        id: 'openai',
+        id: options?.providerId ?? 'openai',
         label: 'OpenAI',
         capabilities: {
           supportsStreaming: true,
@@ -491,6 +493,45 @@ async function testToolExecutionError() {
   assert.equal(toolResult.result.error, 'Permission denied');
 }
 
+async function testMalformedToolArgumentsReturnSyntheticToolError() {
+  const { orchestrator, toolExecuteCount } = createOrchestrator({
+    providerEvents: [
+      { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"query":"test"' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'done' },
+    ],
+    providerToolEvents: [
+      { type: 'text_delta', text: 'Retrying with valid arguments.' },
+      { type: 'done', usage: { input_tokens: 200, output_tokens: 50 } },
+    ],
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Search',
+    }),
+  );
+
+  const toolResult = events.find((e) => e.type === 'tool_result') as any;
+  assert.ok(toolResult);
+  assert.match(toolResult.result.error, /valid JSON arguments/i);
+  assert.equal(toolExecuteCount.value, 0);
+}
+
+async function testReasoningModelsGetLargerOpenAiTokenBudget() {
+  assert.equal(resolveProviderMaxTokens('openai', 'gpt-5.4'), 8192);
+  assert.equal(resolveProviderMaxTokens('openai', 'gpt-4o'), 4096);
+  assert.equal(resolveProviderMaxTokens('custom', 'gpt-5.4'), 4096);
+}
+
 async function run() {
   await testSimpleTextResponse();
   await testToolCallFlow();
@@ -499,6 +540,8 @@ async function run() {
   await testSystemPromptGuidance();
   await testContextCompaction();
   await testToolExecutionError();
+  await testMalformedToolArgumentsReturnSyntheticToolError();
+  await testReasoningModelsGetLargerOpenAiTokenBudget();
 }
 
 void run();

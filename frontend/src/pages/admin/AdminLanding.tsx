@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import { Card, CardActionArea, CardContent, Grid, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
@@ -16,24 +17,25 @@ type CardLink = {
 
 export default function AdminLanding() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['admin']);
   const { hasLevel, claims } = useAuth();
   const { isPlatformHost } = useTenant();
 
   const baseCards: CardLink[] = [
-    { title: 'Companies', description: 'Manage companies and year metrics', to: '/admin/companies', resource: 'companies' },
-    { title: 'Departments', description: 'Manage departments and headcount', to: '/admin/departments', resource: 'departments' },
-    { title: 'Suppliers', description: 'Manage suppliers and contacts', to: '/admin/suppliers', resource: 'suppliers' },
-    { title: 'Accounts', description: 'Manage accounting codes', to: '/admin/accounts', resource: 'accounts' },
-    { title: 'Users & Access', description: 'Assign seats and roles', to: '/admin/users', resource: 'users' },
-    { title: 'Roles', description: 'Define role permissions', to: '/admin/roles', resource: 'users' },
-    { title: 'Audit Log', description: 'Browse all change history', to: '/admin/audit-logs', resource: 'users' },
-    { title: 'Billing', description: 'Plan, seats and invoices', to: '/admin/billing', resource: 'billing', requireBillingAdmin: true },
+    { title: t('landing.cards.companies.title'), description: t('landing.cards.companies.description'), to: '/admin/companies', resource: 'companies' },
+    { title: t('landing.cards.departments.title'), description: t('landing.cards.departments.description'), to: '/admin/departments', resource: 'departments' },
+    { title: t('landing.cards.suppliers.title'), description: t('landing.cards.suppliers.description'), to: '/admin/suppliers', resource: 'suppliers' },
+    { title: t('landing.cards.accounts.title'), description: t('landing.cards.accounts.description'), to: '/admin/accounts', resource: 'accounts' },
+    { title: t('landing.cards.users.title'), description: t('landing.cards.users.description'), to: '/admin/users', resource: 'users' },
+    { title: t('landing.cards.roles.title'), description: t('landing.cards.roles.description'), to: '/admin/roles', resource: 'users' },
+    { title: t('landing.cards.auditLogs.title'), description: t('landing.cards.auditLogs.description'), to: '/admin/audit-logs', resource: 'users' },
+    { title: t('landing.cards.billing.title'), description: t('landing.cards.billing.description'), to: '/admin/billing', resource: 'billing', requireBillingAdmin: true },
   ];
 
   const cards: CardLink[] = isPlatformHost
     ? [
-        { title: 'Tenants', description: 'Tenant lifecycle controls and metrics', to: '/admin/tenants', requirePlatformAdmin: true },
-        { title: 'Ops Dashboard', description: 'API traffic, DB health, and process metrics', to: '/admin/ops-dashboard', requirePlatformAdmin: true },
+        { title: t('landing.cards.tenants.title'), description: t('landing.cards.tenants.description'), to: '/admin/tenants', requirePlatformAdmin: true },
+        { title: t('landing.cards.opsDashboard.title'), description: t('landing.cards.opsDashboard.description'), to: '/admin/ops-dashboard', requirePlatformAdmin: true },
       ]
     : baseCards;
 
@@ -46,7 +48,7 @@ export default function AdminLanding() {
 
   return (
     <>
-      <PageHeader title="Admin" />
+      <PageHeader title={t('landing.title')} />
       <Grid container spacing={2}>
         {visible.map((c) => (
           <Grid key={c.to} item xs={12} sm={6} md={4} lg={3}>

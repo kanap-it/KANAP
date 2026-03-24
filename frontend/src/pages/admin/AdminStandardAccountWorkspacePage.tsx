@@ -1,16 +1,17 @@
 import React from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Box, Button, Divider, IconButton, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import CloseIcon from '@mui/icons-material/Close';
 import AccountOverviewEditor, { AccountOverviewEditorHandle } from '../accounts/editors/AccountOverviewEditor';
 import AccountCreateEditor, { AccountCreateEditorHandle } from '../accounts/editors/AccountCreateEditor';
 import { useTemplateAccountNav } from '../../hooks/useTemplateAccountNav';
 
 type TabKey = 'overview';
-const tabs: Array<{ key: TabKey; label: string }> = [ { key: 'overview', label: 'Overview' } ];
 
 export default function AdminStandardAccountWorkspacePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['admin', 'common']);
   const params = useParams();
   const [searchParams] = useSearchParams();
   const templateId = String(params.templateId || '');
@@ -18,6 +19,7 @@ export default function AdminStandardAccountWorkspacePage() {
   const isCreate = idParam === 'new';
   const id = idParam;
   const routeTab = (params.tab as TabKey) || 'overview';
+  const tabs: Array<{ key: TabKey; label: string }> = [{ key: 'overview', label: t('standardAccountWorkspace.tabs.overview') }];
 
   const sort = searchParams.get('sort');
   const q = searchParams.get('q');
@@ -65,7 +67,7 @@ export default function AdminStandardAccountWorkspacePage() {
   const confirmAndNavigate = async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before navigating?');
+      const proceed = confirm(t('confirmations.unsavedNavigate'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -81,7 +83,7 @@ export default function AdminStandardAccountWorkspacePage() {
   const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
     if (dirty) {
-      const proceed = window.confirm('You have unsaved changes. Save before switching tabs?');
+      const proceed = confirm(t('confirmations.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => navigate(`/admin/standard-accounts/${templateId}/${id}/${nextValue}?${searchParams.toString()}`));
         return;
@@ -105,20 +107,20 @@ export default function AdminStandardAccountWorkspacePage() {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Stack>
           <Typography variant="h6">
-            {isCreate ? 'New Standard Account' : `Standard Account ${id}`}
+            {isCreate ? t('standardAccountWorkspace.newTitle') : t('standardAccountWorkspace.title', { id })}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {!isCreate && total > 0 ? `Account ${index + 1} of ${total}` : ''}
+            {!isCreate && total > 0 ? t('standardAccountWorkspace.position', { current: index + 1, total }) : ''}
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Button onClick={handlePrev} disabled={!hasPrev}>Prev</Button>
-          <Button onClick={handleReset} disabled={!dirty}>Reset</Button>
-          <Button variant="contained" onClick={() => void handleSave()} disabled={!dirty}>Save</Button>
-          <Button onClick={handleNext} disabled={!hasNext}>Next</Button>
+          <Button onClick={handlePrev} disabled={!hasPrev}>{t('shared.labels.prev')}</Button>
+          <Button onClick={handleReset} disabled={!dirty}>{t('common:buttons.reset')}</Button>
+          <Button variant="contained" onClick={() => void handleSave()} disabled={!dirty}>{t('common:buttons.save')}</Button>
+          <Button onClick={handleNext} disabled={!hasNext}>{t('shared.labels.next')}</Button>
           <IconButton
-            aria-label="Close"
-            title="Close"
+            aria-label={t('common:buttons.close')}
+            title={t('common:buttons.close')}
             onClick={() => {
               const qs = listContextParams.toString();
               navigate(`/admin/standard-accounts${qs ? `?${qs}` : ''}`);

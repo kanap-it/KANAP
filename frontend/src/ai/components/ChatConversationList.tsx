@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { useTranslation } from 'react-i18next';
 import { aiConversationsApi } from '../aiApi';
 import { ChatConversation } from '../aiTypes';
 
@@ -28,6 +29,7 @@ export default function ChatConversationList({
   onNew,
   onArchive,
 }: ChatConversationListProps) {
+  const { t } = useTranslation(['ai']);
   const { data: conversations } = useQuery<ChatConversation[]>({
     queryKey: ['ai-conversations'],
     queryFn: () => aiConversationsApi.list({ limit: 100 }),
@@ -44,7 +46,7 @@ export default function ChatConversationList({
           startIcon={<AddIcon />}
           onClick={onNew}
         >
-          New chat
+          {t('conversationList.newChat')}
         </Button>
       </Box>
 
@@ -68,12 +70,14 @@ export default function ChatConversationList({
             <ListItemText
               primary={
                 <Typography variant="body2" noWrap>
-                  {conv.title || 'Untitled'}
+                  {conv.title || t('conversationList.untitled')}
                 </Typography>
               }
             />
             <IconButton
               size="small"
+              aria-label={t('conversationList.archive')}
+              title={t('conversationList.archive')}
               onClick={(e) => { e.stopPropagation(); onArchive(conv.id); }}
               sx={{ ml: 0.5, opacity: 0.5, '&:hover': { opacity: 1 } }}
             >

@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import AgGridBox from '../../../components/AgGridBox';
+import { useLocale } from '../../../i18n/useLocale';
 import { getProjectStatusLabel } from '../../../utils/portfolioI18n';
 
 type ProjectBreakdownRow = {
@@ -21,9 +22,9 @@ type ProjectBreakdownRow = {
   contributorDays: number;
 };
 
-const formatNumber = (value: number | null | undefined): string => {
+const formatNumber = (value: number | null | undefined, locale: string): string => {
   if (value == null || !Number.isFinite(value)) return 'N/A';
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value);
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
 };
 
 const formatPercent = (value: number | null | undefined): string => {
@@ -47,6 +48,7 @@ export default function ContributorDrilldownDialog({
   onClose,
 }: ContributorDrilldownDialogProps) {
   const { t } = useTranslation('portfolio');
+  const locale = useLocale();
   const gridApiRef = useRef<any>(null);
   const navigate = useNavigate();
   const queryKey = ['portfolio-capacity-drilldown', contributorId, statuses];
@@ -97,7 +99,7 @@ export default function ContributorDrilldownDialog({
       headerName: t('dialogs.contributorDrilldown.columns.estimatedEffort'),
       width: 130,
       type: 'rightAligned',
-      valueFormatter: (p) => formatNumber(p.value),
+      valueFormatter: (p) => formatNumber(p.value, locale),
     },
     {
       field: 'executionProgress',
@@ -111,7 +113,7 @@ export default function ContributorDrilldownDialog({
       headerName: t('dialogs.contributorDrilldown.columns.remaining'),
       width: 130,
       type: 'rightAligned',
-      valueFormatter: (p) => formatNumber(p.value),
+      valueFormatter: (p) => formatNumber(p.value, locale),
     },
     {
       field: 'allocationPct',
@@ -125,9 +127,9 @@ export default function ContributorDrilldownDialog({
       headerName: t('dialogs.contributorDrilldown.columns.contributorDays'),
       width: 120,
       type: 'rightAligned',
-      valueFormatter: (p) => formatNumber(p.value),
+      valueFormatter: (p) => formatNumber(p.value, locale),
     },
-  ]), [openProject, t]);
+  ]), [locale, openProject, t]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>

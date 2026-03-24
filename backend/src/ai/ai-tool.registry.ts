@@ -27,7 +27,7 @@ import {
 const SearchAllInputSchema = z.object({
   query: z.string().trim().min(1),
   entity_types: z.array(AiSearchEntityTypeSchema).optional(),
-  limit: z.number().int().min(1).max(100).optional(),
+  limit: z.number().int().min(1).max(100).default(100),
 });
 
 const GetEntityContextInputSchema = z.object({
@@ -37,7 +37,8 @@ const GetEntityContextInputSchema = z.object({
 
 const SearchKnowledgeInputSchema = z.object({
   query: z.string().trim().min(1),
-  limit: z.number().int().min(1).max(50).optional(),
+  offset: z.number().int().min(0).max(5000).default(0),
+  limit: z.number().int().min(1).max(200).default(100),
 });
 
 const GetDocumentInputSchema = z.object({
@@ -68,7 +69,8 @@ const QueryEntitiesInputSchema = z.object({
     field: z.string().trim().min(1),
     direction: z.enum(['asc', 'desc']),
   }).optional(),
-  limit: z.number().int().min(1).max(200).optional(),
+  page: z.number().int().min(1).max(100).default(1),
+  limit: z.number().int().min(1).max(200).default(200),
 });
 
 const AggregateEntitiesInputSchema = z.object({
@@ -124,7 +126,7 @@ export class AiToolRegistry {
           inputSummary: {
             query: 'Search text or item reference such as PRJ-12, REQ-7, T-42, or DOC-3.',
             entity_types: 'Optional entity families to include.',
-            limit: 'Maximum number of results to return.',
+            limit: 'Maximum number of results to return (default 100). If the result says truncated=true, narrow the query or switch to a more specific tool.',
           },
           surfaces: ['chat', 'mcp'],
           readOnly: true,
@@ -143,7 +145,8 @@ export class AiToolRegistry {
             filters: 'Optional field filters keyed by AI field name.',
             q: 'Optional quick-search text.',
             sort: 'Optional sort field and direction.',
-            limit: 'Maximum number of items to return.',
+            page: 'Page number to fetch (default 1). Use later pages when total is greater than returned.',
+            limit: 'Maximum number of items to return per page (default 200). Use the maximum unless you have a reason to limit.',
           },
           surfaces: ['chat', 'mcp'],
           readOnly: true,
@@ -215,14 +218,15 @@ export class AiToolRegistry {
           inputSchema: SearchKnowledgeInputSchema,
           inputSummary: {
             query: 'Search text or document reference such as DOC-14.',
-            limit: 'Maximum number of documents to return.',
+            offset: 'Zero-based result offset (default 0). Increase this to fetch the next batch when truncated=true.',
+            limit: 'Maximum number of documents to return (default 100, max 200).',
           },
           surfaces: ['chat', 'mcp'],
           readOnly: true,
           execute: async (context, input) => {
             await this.policy.assertKnowledgeReadAccess(context, context.manager);
             const result = await this.knowledge.search(
-              { q: input.query, limit: input.limit ?? 20 },
+              { q: input.query, offset: input.offset, limit: input.limit },
               { manager: context.manager },
             );
             return {
@@ -240,6 +244,10 @@ export class AiToolRegistry {
                 updated_at: item.updated_at ? new Date(item.updated_at).toISOString() : null,
               })),
               total: result.total ?? 0,
+              offset: result.offset ?? input.offset,
+              limit: result.limit ?? input.limit,
+              returned: Array.isArray(result.items) ? result.items.length : 0,
+              truncated: result.truncated === true,
             };
           },
         },

@@ -17,11 +17,13 @@ import {
 } from '@mui/material';
 import { getContrastRatio, useTheme } from '@mui/material/styles';
 import ColorLensIcon from '@mui/icons-material/ColorLens';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { useTenant } from '../../tenant/TenantContext';
 import ForbiddenPage from '../ForbiddenPage';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 type BrandingSettings = {
   has_logo: boolean;
@@ -52,13 +54,16 @@ function normalizeServerHex(value: unknown): string | null {
   return text.toUpperCase();
 }
 
-function validateHexField(value: string): { normalized: string | null; error: string | null } {
+function validateHexField(
+  value: string,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): { normalized: string | null; error: string | null } {
   const text = value.trim();
   if (!text) return { normalized: null, error: null };
   if (HEX_COLOR_RE.test(text)) {
     return { normalized: text.toUpperCase(), error: null };
   }
-  return { normalized: null, error: 'Use format #RRGGBB (example: #1F3A5F)' };
+  return { normalized: null, error: t('branding.validation.hexColorFormat') };
 }
 
 function pickerValue(value: string, fallback: string): string {
@@ -94,12 +99,13 @@ function normalizeSettings(data: any): BrandingSettings {
 
 type HeaderPreviewProps = {
   label: string;
+  logoAlt: string;
   dark?: boolean;
   logoUrl: string | null;
   showLogo: boolean;
 };
 
-function HeaderPreview({ label, dark = false, logoUrl, showLogo }: HeaderPreviewProps) {
+function HeaderPreview({ label, logoAlt, dark = false, logoUrl, showLogo }: HeaderPreviewProps) {
   return (
     <Paper
       variant="outlined"
@@ -115,7 +121,7 @@ function HeaderPreview({ label, dark = false, logoUrl, showLogo }: HeaderPreview
       </Typography>
       <Box sx={{ minHeight: 42, mt: 0.5, display: 'flex', alignItems: 'center' }}>
         {showLogo && logoUrl ? (
-          <Box component="img" src={logoUrl} alt="Logo preview" sx={{ maxHeight: 32, maxWidth: 180, objectFit: 'contain' }} />
+          <Box component="img" src={logoUrl} alt={logoAlt} sx={{ maxHeight: 32, maxWidth: 180, objectFit: 'contain' }} />
         ) : (
           <Typography variant="h6" sx={{ color: dark ? '#FFFFFF' : '#111827' }}>
             KANAP
@@ -129,6 +135,7 @@ function HeaderPreview({ label, dark = false, logoUrl, showLogo }: HeaderPreview
 export default function AdminBrandingPage() {
   const theme = useTheme();
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(['admin', 'common']);
   const {
     isPlatformHost,
     logoUrl,
@@ -162,11 +169,11 @@ export default function AdminBrandingPage() {
       setSelectedFile(null);
       setError(null);
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load branding settings.');
+      setError(getApiErrorMessage(e, t, t('branding.messages.loadFailed')));
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   React.useEffect(() => {
     void loadSettings();
@@ -186,8 +193,8 @@ export default function AdminBrandingPage() {
     return <ForbiddenPage />;
   }
 
-  const lightValidation = validateHexField(form.primaryColorLight);
-  const darkValidation = validateHexField(form.primaryColorDark);
+  const lightValidation = validateHexField(form.primaryColorLight, t);
+  const darkValidation = validateHexField(form.primaryColorDark, t);
 
   const baseLight = normalizeColorForCompare(settings?.primary_color_light);
   const baseDark = normalizeColorForCompare(settings?.primary_color_dark);
@@ -272,7 +279,7 @@ export default function AdminBrandingPage() {
       }
 
       if (!changed) {
-        setSuccess('No changes to save.');
+        setSuccess(t('branding.messages.noChanges'));
         return;
       }
 
@@ -281,9 +288,9 @@ export default function AdminBrandingPage() {
         refreshTenantInfo(),
       ]);
 
-      setSuccess('Branding updated.');
+      setSuccess(t('branding.messages.updated'));
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to save branding settings.');
+      setError(getApiErrorMessage(e, t, t('branding.messages.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -300,9 +307,9 @@ export default function AdminBrandingPage() {
         loadSettings({ silent: true }),
         refreshTenantInfo(),
       ]);
-      setSuccess('Logo removed.');
+      setSuccess(t('branding.messages.logoRemoved'));
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to remove logo.');
+      setError(getApiErrorMessage(e, t, t('branding.messages.removeLogoFailed')));
     } finally {
       setDeletingLogo(false);
     }
@@ -310,7 +317,7 @@ export default function AdminBrandingPage() {
 
   const handleReset = async () => {
     if (!settings) return;
-    const confirmed = window.confirm('Reset branding to default Kanap settings? This removes logo and custom colors.');
+    const confirmed = confirm(t('branding.confirmations.reset'));
     if (!confirmed) return;
 
     setResetting(true);
@@ -322,9 +329,9 @@ export default function AdminBrandingPage() {
         loadSettings({ silent: true }),
         refreshTenantInfo(),
       ]);
-      setSuccess('Branding reset to defaults.');
+      setSuccess(t('branding.messages.resetDone'));
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to reset branding.');
+      setError(getApiErrorMessage(e, t, t('branding.messages.resetFailed')));
     } finally {
       setResetting(false);
     }
@@ -332,7 +339,7 @@ export default function AdminBrandingPage() {
 
   return (
     <>
-      <PageHeader title="Branding" />
+      <PageHeader title={t('branding.title')} />
 
       {loading && (
         <Box display="flex" justifyContent="center" alignItems="center" py={4}>
@@ -348,19 +355,21 @@ export default function AdminBrandingPage() {
           <Card>
             <CardContent>
               <Stack spacing={2}>
-                <Typography variant="h6">Logo</Typography>
+                <Typography variant="h6">{t('branding.logo.title')}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Upload one logo for the app header and login page. Best results: transparent PNG, JPG, GIF, or WEBP with a wide ratio.
+                  {t('branding.logo.description')}
                 </Typography>
 
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                   <HeaderPreview
-                    label="Light header preview"
+                    label={t('branding.logo.previews.light')}
+                    logoAlt={t('branding.logo.alt')}
                     logoUrl={previewLogoUrl}
                     showLogo={!!previewLogoUrl}
                   />
                   <HeaderPreview
-                    label={form.useLogoInDark ? 'Dark header preview' : 'Dark header preview (logo hidden)'}
+                    label={form.useLogoInDark ? t('branding.logo.previews.dark') : t('branding.logo.previews.darkHidden')}
+                    logoAlt={t('branding.logo.alt')}
                     dark
                     logoUrl={previewLogoUrl}
                     showLogo={!!previewLogoUrl && form.useLogoInDark}
@@ -373,7 +382,7 @@ export default function AdminBrandingPage() {
                     component="label"
                     disabled={saving || deletingLogo || resetting}
                   >
-                    {selectedFile ? 'Replace Selected File' : 'Upload Logo'}
+                    {selectedFile ? t('branding.actions.replaceSelectedFile') : t('branding.actions.uploadLogo')}
                     <input
                       hidden
                       type="file"
@@ -392,13 +401,13 @@ export default function AdminBrandingPage() {
                     onClick={handleDeleteLogo}
                     disabled={deletingLogo || saving || resetting || (!settings?.has_logo && !selectedFile)}
                   >
-                    {deletingLogo ? 'Removing…' : 'Remove Logo'}
+                    {deletingLogo ? t('branding.actions.removingLogo') : t('branding.actions.removeLogo')}
                   </Button>
                 </Stack>
 
                 {selectedFile && (
                   <Alert severity="info">
-                    Selected file: {selectedFile.name}. Save changes to publish it.
+                    {t('branding.messages.selectedFile', { name: selectedFile.name })}
                   </Alert>
                 )}
 
@@ -410,7 +419,7 @@ export default function AdminBrandingPage() {
                       disabled={saving || deletingLogo || resetting}
                     />
                   )}
-                  label="Show logo in dark mode"
+                  label={t('branding.fields.showLogoInDark')}
                 />
               </Stack>
             </CardContent>
@@ -419,25 +428,25 @@ export default function AdminBrandingPage() {
           <Card>
             <CardContent>
               <Stack spacing={2}>
-                <Typography variant="h6">Primary Colors</Typography>
+                <Typography variant="h6">{t('branding.colors.title')}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Set one color for light mode and one for dark mode. Leave blank to keep Kanap defaults.
+                  {t('branding.colors.description')}
                 </Typography>
 
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                   <Box sx={{ flex: 1 }}>
                     <TextField
                       fullWidth
-                      label="Light mode primary"
+                      label={t('branding.colors.lightModePrimary')}
                       placeholder="#1F3A5F"
                       value={form.primaryColorLight}
                       onChange={(event) => setForm((prev) => ({ ...prev, primaryColorLight: event.target.value }))}
                       error={!!lightValidation.error}
-                      helperText={lightValidation.error || 'Used for app bar, primary buttons, and links in light mode.'}
+                      helperText={lightValidation.error || t('branding.colors.lightHelper')}
                       disabled={saving || deletingLogo || resetting}
                     />
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
-                      <Typography variant="caption" color="text.secondary">Swatch</Typography>
+                      <Typography variant="caption" color="text.secondary">{t('branding.colors.swatch')}</Typography>
                       <Box
                         sx={{
                           width: 28,
@@ -455,7 +464,7 @@ export default function AdminBrandingPage() {
                         style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
                         onChange={(event) => setForm((prev) => ({ ...prev, primaryColorLight: event.target.value.toUpperCase() }))}
                       />
-                      <Tooltip title="Open color picker">
+                      <Tooltip title={t('branding.colors.openColorPicker')}>
                         <span>
                           <IconButton
                             size="small"
@@ -494,7 +503,7 @@ export default function AdminBrandingPage() {
                         onClick={() => setForm((prev) => ({ ...prev, primaryColorLight: '' }))}
                         disabled={saving || deletingLogo || resetting}
                       >
-                        Clear
+                        {t('branding.actions.clear')}
                       </Button>
                     </Stack>
                   </Box>
@@ -502,16 +511,16 @@ export default function AdminBrandingPage() {
                   <Box sx={{ flex: 1 }}>
                     <TextField
                       fullWidth
-                      label="Dark mode primary"
+                      label={t('branding.colors.darkModePrimary')}
                       placeholder="#9BC1FF"
                       value={form.primaryColorDark}
                       onChange={(event) => setForm((prev) => ({ ...prev, primaryColorDark: event.target.value }))}
                       error={!!darkValidation.error}
-                      helperText={darkValidation.error || 'Used in dark mode. If empty, light mode color is reused.'}
+                      helperText={darkValidation.error || t('branding.colors.darkHelper')}
                       disabled={saving || deletingLogo || resetting}
                     />
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
-                      <Typography variant="caption" color="text.secondary">Swatch</Typography>
+                      <Typography variant="caption" color="text.secondary">{t('branding.colors.swatch')}</Typography>
                       <Box
                         sx={{
                           width: 28,
@@ -529,7 +538,7 @@ export default function AdminBrandingPage() {
                         style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
                         onChange={(event) => setForm((prev) => ({ ...prev, primaryColorDark: event.target.value.toUpperCase() }))}
                       />
-                      <Tooltip title="Open color picker">
+                      <Tooltip title={t('branding.colors.openColorPicker')}>
                         <span>
                           <IconButton
                             size="small"
@@ -568,7 +577,7 @@ export default function AdminBrandingPage() {
                         onClick={() => setForm((prev) => ({ ...prev, primaryColorDark: '' }))}
                         disabled={saving || deletingLogo || resetting}
                       >
-                        Clear
+                        {t('branding.actions.clear')}
                       </Button>
                     </Stack>
                   </Box>
@@ -576,9 +585,17 @@ export default function AdminBrandingPage() {
 
                 {(lowLightContrast || lowDarkContrast) && (
                   <Alert severity="warning">
-                    {lowLightContrast && `Light mode contrast is low (${(lightContrast || 0).toFixed(2)}:1 vs ${lightTextTone || 'selected'} text${lightUsesFallback ? ', using dark-mode fallback color' : ''}). `}
-                    {lowDarkContrast && `Dark mode contrast is low (${(darkContrast || 0).toFixed(2)}:1 vs ${darkTextTone || 'selected'} text${darkUsesFallback ? ', using light-mode fallback color' : ''}). `}
-                    You can still save, but readability may suffer.
+                    {lowLightContrast && t('branding.colors.lowLightContrast', {
+                      ratio: (lightContrast || 0).toFixed(2),
+                      tone: lightTextTone || t('branding.colors.selectedText'),
+                      fallback: lightUsesFallback ? t('branding.colors.usingDarkFallback') : '',
+                    })}
+                    {lowDarkContrast && t('branding.colors.lowDarkContrast', {
+                      ratio: (darkContrast || 0).toFixed(2),
+                      tone: darkTextTone || t('branding.colors.selectedText'),
+                      fallback: darkUsesFallback ? t('branding.colors.usingLightFallback') : '',
+                    })}
+                    {t('branding.colors.readabilityWarning')}
                   </Alert>
                 )}
               </Stack>
@@ -588,17 +605,17 @@ export default function AdminBrandingPage() {
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <Button variant="contained" onClick={handleSave} disabled={!canSubmit}>
-                {saving ? 'Saving…' : 'Save Changes'}
+                {saving ? t('common:status.saving') : t('common:buttons.saveChanges')}
               </Button>
               <Button variant="outlined" onClick={handleDiscard} disabled={!isDirty || saving || deletingLogo || resetting}>
-                Discard
+                {t('branding.actions.discard')}
               </Button>
               <Button variant="text" color="warning" onClick={handleReset} disabled={saving || deletingLogo || resetting}>
-                {resetting ? 'Resetting…' : 'Reset to Default'}
+                {resetting ? t('branding.actions.resetting') : t('branding.actions.resetToDefault')}
               </Button>
             </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-              Logo version: {settings?.logo_version ?? 0}
+              {t('branding.logo.version', { count: settings?.logo_version ?? 0 })}
             </Typography>
           </Paper>
         </Stack>

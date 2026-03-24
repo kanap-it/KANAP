@@ -96,18 +96,18 @@ KANAP uses the AWS SDK v3 S3 client for object storage access; any provider with
 - Cloudflare R2 (`https://<account>.r2.cloudflarestorage.com`)
 - Hetzner (`https://<region>.your-objectstorage.com`)
 
-## Recommended : Email via Resend
+## Optional: Email via Resend
 
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `RESEND_API_KEY` | Resend API key | `re_xxxxx` |
 | `RESEND_FROM_EMAIL` | From address | `KANAP <noreply@yourdomain.com>` |
 
-If not configured, email features are disabled, including user invitations, password reset... See Operations for SQL password reset fallback.
+If not configured, KANAP can still send email through SMTP in single-tenant deployments. If neither Resend nor SMTP is configured, email features are disabled, including user invitations and password reset. See Operations for SQL password reset fallback.
 
-## Optional: Email (Phase 2 - SMTP)
+## Optional: Email via SMTP (single-tenant / on-prem only)
 
-In a future release KANAP will include an internal SMTP engine.
+SMTP is supported only in `DEPLOYMENT_MODE=single-tenant`. Multi-tenant/cloud deployments continue to use Resend.
 
 | Variable        | Description                          | Example                       |
 | --------------- | ------------------------------------ | ----------------------------- |
@@ -116,7 +116,49 @@ In a future release KANAP will include an internal SMTP engine.
 | `SMTP_USER`     | SMTP username                        | `kanap`                       |
 | `SMTP_PASSWORD` | SMTP password                        | `secret`                      |
 | `SMTP_FROM`     | From address                         | `KANAP <noreply@company.com>` |
-| `SMTP_SECURE`   | `true` for TLS, `false` for STARTTLS | `true`                        |
+| `SMTP_SECURE`   | `true` for implicit TLS (465), `false` for STARTTLS/plain connect (587/25) | `false` |
+
+Notes:
+- `SMTP_USER` and `SMTP_PASSWORD` are optional. Leave both unset for relays that trust the source host/IP.
+- If `SMTP_SECURE` is unset, KANAP defaults to `true` for port `465` and `false` otherwise.
+- If both SMTP and Resend are configured in single-tenant mode, SMTP takes precedence.
+- `SMTP_FROM` should be an address your SMTP server is allowed to send as.
+- If mail is sent outside your network, configure SPF, DKIM, and DMARC on the sender domain through your mail administrator or provider.
+
+**Common SMTP profiles**
+
+Internal relay without authentication:
+
+```env
+SMTP_HOST=mail.company.local
+SMTP_PORT=25
+SMTP_SECURE=false
+SMTP_FROM=KANAP <noreply@company.com>
+```
+
+Authenticated relay or provider:
+
+```env
+SMTP_HOST=smtp.company.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=noreply@company.com
+SMTP_PASSWORD=secret
+SMTP_FROM=KANAP <noreply@company.com>
+```
+
+Microsoft 365 SMTP submission:
+
+```env
+SMTP_HOST=smtp.office365.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=noreply@company.com
+SMTP_PASSWORD=secret
+SMTP_FROM=KANAP <noreply@company.com>
+```
+
+Use the Microsoft 365 profile only if SMTP AUTH is allowed for the mailbox and tenant.
 
 ## Optional: Entra SSO
 
@@ -173,13 +215,13 @@ S3_FORCE_PATH_STYLE=false   # true for MinIO
 # RESEND_API_KEY=re_xxxxx
 # RESEND_FROM_EMAIL=KANAP <noreply@yourdomain.com>
 
-# EMAIL (optional - SMTP, Phase 2)
+# EMAIL (optional - SMTP, single-tenant only)
 # SMTP_HOST=smtp.company.com
 # SMTP_PORT=587
+# SMTP_SECURE=false
 # SMTP_USER=
 # SMTP_PASSWORD=
 # SMTP_FROM=KANAP <noreply@company.com>
-# SMTP_SECURE=true
 
 # ADVANCED (optional - defaults are fine)
 # LOG_LEVEL=info
@@ -220,6 +262,7 @@ Only required if the corresponding feature is enabled.
 | Destination | Port | Purpose | When |
 |-------------|------|---------|------|
 | `api.resend.com` | 443 | Transactional email | If `RESEND_API_KEY` is set |
+| Your SMTP relay or provider | 25 / 465 / 587 | Transactional email via SMTP | If `SMTP_HOST` is set |
 | `login.microsoftonline.com` | 443 | Entra ID SSO metadata & tokens | If Entra SSO is configured |
 | `graph.microsoft.com` | 443 | User profile enrichment | If Entra SSO is configured |
 | `api.worldbank.org` | 443 | Annual FX rates | Optional |
@@ -243,4 +286,4 @@ The backend runs scheduled background jobs for email notifications:
 - **Expiration warnings**: daily at 08:00 UTC — alerts users about contracts and OPEX items expiring within 30 days.
 - **Weekly review digest**: hourly check — sends timezone-aware weekly summaries to users who have opted in.
 
-These jobs require the API to run as a **long-running process** (not a serverless function). In on-premise mode, `APP_BASE_URL` is used for notification email links (no subdomain derivation). If email is not configured (`RESEND_API_KEY` not set), these jobs skip sending gracefully.
+These jobs require the API to run as a **long-running process** (not a serverless function). In on-premise mode, `APP_BASE_URL` is used for notification email links (no subdomain derivation). If no outbound email transport is configured, these jobs skip sending gracefully.

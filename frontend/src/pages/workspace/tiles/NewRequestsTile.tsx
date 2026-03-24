@@ -10,6 +10,8 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../../i18n/useLocale';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
 
 interface PortfolioRequest {
@@ -26,6 +28,8 @@ interface NewRequestsTileProps {
 
 export default function NewRequestsTile({ config }: NewRequestsTileProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
+  const locale = useLocale();
   const limit = Math.min((config.limit as number) || 5, 5);
   const days = (config.days as number) || 7;
 
@@ -51,26 +55,26 @@ export default function NewRequestsTile({ config }: NewRequestsTileProps) {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
   };
 
   return (
     <DashboardTile
-      title={`New Requests (Last ${days} Days)`}
+      title={t('dashboard.tiles.newRequests', { days })}
       icon="Inbox"
       isLoading={isLoading}
       action={
         <Button size="small" onClick={() => navigate('/portfolio/requests')}>
-          View All
+          {t('buttons.viewAll')}
         </Button>
       }
     >
       {requests.length === 0 ? (
         <TileEmptyState
-          message="No new requests in this period"
+          message={t('dashboard.tiles.noNewRequests')}
           action={
             <Button size="small" onClick={() => navigate('/portfolio/requests')}>
-              Browse Requests
+              {t('dashboard.tiles.browseRequests')}
             </Button>
           }
         />
@@ -101,7 +105,7 @@ export default function NewRequestsTile({ config }: NewRequestsTileProps) {
               />
               {request.priority_score != null && request.priority_score > 80 && (
                 <Chip
-                  label="High"
+                  label={t('dashboard.tiles.high')}
                   size="small"
                   color="warning"
                   sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}

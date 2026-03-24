@@ -1,6 +1,7 @@
 import { getAccessToken } from '../auth/accessTokenStore';
 import api from '../api';
 import { ChatStreamEvent, AiApiKeyRecord, ChatConversation } from './aiTypes';
+import i18n from '../i18n';
 
 const MAX_STREAM_BUFFER_CHARS = 1_048_576;
 
@@ -108,12 +109,12 @@ export async function* streamChat(params: {
   });
 
   if (!response.ok) {
-    const text = await response.text().catch(() => 'Stream request failed.');
+    const text = await response.text().catch(() => i18n.t('ai:errors.streamRequestFailed'));
     throw new Error(text);
   }
 
   const reader = response.body?.getReader();
-  if (!reader) throw new Error('No response body.');
+  if (!reader) throw new Error(i18n.t('ai:errors.noResponseBody'));
 
   const decoder = new TextDecoder();
   let buffer = '';
@@ -125,14 +126,14 @@ export async function* streamChat(params: {
 
       buffer += decoder.decode(value, { stream: true });
       if (buffer.length > MAX_STREAM_BUFFER_CHARS) {
-        throw new Error('Stream buffer exceeded the maximum allowed size.');
+        throw new Error(i18n.t('ai:errors.streamBufferExceeded'));
       }
 
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
 
       if (buffer.length > MAX_STREAM_BUFFER_CHARS) {
-        throw new Error('Stream buffer exceeded the maximum allowed size.');
+        throw new Error(i18n.t('ai:errors.streamBufferExceeded'));
       }
 
       for (const line of lines) {

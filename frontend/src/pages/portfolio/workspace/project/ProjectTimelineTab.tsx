@@ -46,6 +46,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
 import DateEUField from '../../../../components/fields/DateEUField';
 import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
+import { useLocale } from '../../../../i18n/useLocale';
 import {
   getMilestoneStatusLabel,
   getPhaseStatusLabel,
@@ -293,6 +294,7 @@ export default function ProjectTimelineTab({
   onUpdate,
 }: ProjectTimelineTabProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const locale = useLocale();
   const [phaseTemplates, setPhaseTemplates] = React.useState<any[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = React.useState('');
   const [replaceConfirmOpen, setReplaceConfirmOpen] = React.useState(false);
@@ -368,13 +370,13 @@ export default function ProjectTimelineTab({
             <Stack direction="row" spacing={2}>
               <TextField
                 label={t('workspace.project.timeline.fields.actualStart')}
-                value={form?.actual_start ? new Date(form.actual_start).toLocaleDateString() : '-'}
+                value={form?.actual_start ? new Date(form.actual_start).toLocaleDateString(locale) : '-'}
                 disabled
                 sx={{ flex: 1 }}
               />
               <TextField
                 label={t('workspace.project.timeline.fields.actualEnd')}
-                value={form?.actual_end ? new Date(form.actual_end).toLocaleDateString() : '-'}
+                value={form?.actual_end ? new Date(form.actual_end).toLocaleDateString(locale) : '-'}
                 disabled
                 sx={{ flex: 1 }}
               />
@@ -684,7 +686,7 @@ export default function ProjectTimelineTab({
               <Typography variant="body2" color="text.secondary">
                 {t('workspace.project.timeline.fields.baselineStart')}
               </Typography>
-              <Typography>{form?.baseline_start_date ? new Date(form.baseline_start_date).toLocaleDateString() : '-'}</Typography>
+              <Typography>{form?.baseline_start_date ? new Date(form.baseline_start_date).toLocaleDateString(locale) : '-'}</Typography>
               {baselineStartVariance != null && (
                 <Typography variant="caption" color={baselineStartVariance > 0 ? 'error.main' : 'success.main'}>
                   {formatDateVariance(t, baselineStartVariance)}
@@ -695,7 +697,7 @@ export default function ProjectTimelineTab({
               <Typography variant="body2" color="text.secondary">
                 {t('workspace.project.timeline.fields.baselineEnd')}
               </Typography>
-              <Typography>{form?.baseline_end_date ? new Date(form.baseline_end_date).toLocaleDateString() : '-'}</Typography>
+              <Typography>{form?.baseline_end_date ? new Date(form.baseline_end_date).toLocaleDateString(locale) : '-'}</Typography>
               {baselineEndVariance != null && (
                 <Typography variant="caption" color={baselineEndVariance > 0 ? 'error.main' : 'success.main'}>
                   {formatDateVariance(t, baselineEndVariance)}

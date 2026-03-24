@@ -121,6 +121,7 @@ ${preferencesLink ? `<br />${preferencesLink}` : ''}
       {
         filename: 'logo.png',
         content: branding.logoBuffer.toString('base64'),
+        encoding: 'base64',
         contentType: branding.logoContentType,
         contentId: branding.logoCid,
       },

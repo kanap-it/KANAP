@@ -16,6 +16,7 @@ import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { LinkCellRenderer } from '../components/grid/renderers';
 import { readStoredOpexListContext, writeStoredOpexListContext } from './opex/listContextStorage';
 import { STATUS_VALUES } from '../constants/status';
+import { useLocale } from '../i18n/useLocale';
 import ForbiddenPage from './ForbiddenPage';
 
 type SummaryRow = {
@@ -72,6 +73,7 @@ function formatNumber(v: any) {
 export default function OpexListPage() {
   const { hasLevel } = useAuth();
   const { t } = useTranslation(['ops', 'common']);
+  const locale = useLocale();
 
   if (!hasLevel('opex', 'reader')) {
     return <ForbiddenPage />;
@@ -675,7 +677,7 @@ export default function OpexListPage() {
       headerName: t('opex.columns.effectiveStart'),
       width: 150,
       defaultHidden: true,
-      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleDateString() : ''),
+      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleDateString(locale) : ''),
       cellRenderer: (params: any) => (
         <LinkCellRenderer
           {...params}
@@ -690,7 +692,7 @@ export default function OpexListPage() {
       headerName: t('opex.columns.effectiveEnd'),
       width: 150,
       defaultHidden: true,
-      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleDateString() : ''),
+      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleDateString(locale) : ''),
       cellRenderer: (params: any) => (
         <LinkCellRenderer
           {...params}
@@ -794,7 +796,7 @@ export default function OpexListPage() {
       field: 'created_at',
       headerName: t('opex.columns.created'),
       width: 200,
-      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
       defaultHidden: true,
       cellRenderer: (params: any) => (
         <LinkCellRenderer
@@ -809,7 +811,7 @@ export default function OpexListPage() {
       field: 'updated_at',
       headerName: t('opex.columns.updated'),
       width: 200,
-      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
       defaultHidden: true,
       cellRenderer: (params: any) => (
         <LinkCellRenderer
@@ -820,7 +822,7 @@ export default function OpexListPage() {
         />
       ),
     },
-  ], [Y, getOpexFilterValues, getOpexHref, navigate, userNameById]);
+  ], [Y, getOpexFilterValues, getOpexHref, locale, navigate, t, userNameById]);
 
   return (
     <>

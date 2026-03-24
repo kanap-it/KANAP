@@ -2,6 +2,7 @@ import React from 'react';
 import PageHeader from '../../components/PageHeader';
 import { Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, Grid, InputLabel, List, ListItemButton, ListItemText, MenuItem, Select, Snackbar, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 
@@ -57,10 +58,10 @@ const RESOURCE_LABELS: Record<string, string> = {
 };
 
 const ALL_LEVEL_OPTIONS: Array<{ value: ConcretePermissionLevel; label: string }> = [
-  { value: 'reader', label: 'Reader' },
-  { value: 'contributor', label: 'Contributor' },
-  { value: 'member', label: 'Member' },
-  { value: 'admin', label: 'Admin' },
+  { value: 'reader', label: 'roles.levels.reader' },
+  { value: 'contributor', label: 'roles.levels.contributor' },
+  { value: 'member', label: 'roles.levels.member' },
+  { value: 'admin', label: 'roles.levels.admin' },
 ];
 
 function getLevelOptions(resource: string): Array<{ value: ConcretePermissionLevel; label: string }> {
@@ -78,6 +79,7 @@ function getLevelOptions(resource: string): Array<{ value: ConcretePermissionLev
 
 export default function RolesPage() {
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(['admin', 'common']);
   const canEdit = hasLevel('users','admin');
   const qc = useQueryClient();
   const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: async () => (await api.get<{ items: Role[] }>('/roles')).data.items });
@@ -107,7 +109,7 @@ export default function RolesPage() {
   React.useEffect(() => { setDraft((perms || {}) as any); }, [perms]);
 
   const [snackOpen, setSnackOpen] = React.useState(false);
-  const [snackMessage, setSnackMessage] = React.useState('Role permissions saved');
+  const [snackMessage, setSnackMessage] = React.useState(t('roles.messages.permissionsSaved'));
   const { mutateAsync: savePerms, isPending } = useMutation({
     mutationFn: async () => {
       if (!selected) return;
@@ -119,7 +121,7 @@ export default function RolesPage() {
         qc.setQueryData(['role-perms', selected.id], { ...(draft as any) });
         await qc.invalidateQueries({ queryKey: ['role-perms', selected.id] });
       }
-      setSnackMessage('Role permissions saved');
+      setSnackMessage(t('roles.messages.permissionsSaved'));
       setSnackOpen(true);
     },
   });
@@ -151,7 +153,7 @@ export default function RolesPage() {
     onSuccess: async (created: Role | null) => {
       await qc.invalidateQueries({ queryKey: ['roles'] });
       if (created?.id) setSelectedId(created.id);
-      setSnackMessage('Role duplicated');
+      setSnackMessage(t('roles.messages.duplicated'));
       setSnackOpen(true);
     },
   });
@@ -187,33 +189,37 @@ export default function RolesPage() {
   const locked = isSystem || isBuiltIn;
   const lockedMessage = isSystem
     ? (roleKey === 'contact'
-      ? 'Contact roles are system-managed for directory visibility and cannot be modified.'
-      : 'Administrator has full access and cannot be modified.')
-    : 'Built-in roles provide standard access patterns and cannot be modified. Use Duplicate to create a customizable copy.';
+      ? t('roles.messages.contactLocked')
+      : t('roles.messages.administratorLocked'))
+    : t('roles.messages.builtInLocked');
 
   const getRoleBadge = (role: Role) => {
     const key = (role.role_name ?? '').toLowerCase();
     if (role.is_system && (key === 'administrator' || key === 'contact')) {
-      return <Chip label="System" size="small" color="error" />;
+      return <Chip label={t('roles.badges.system')} size="small" color="error" />;
     }
     if (role.is_built_in) {
-      return <Chip label="Built-in" size="small" color="primary" />;
+      return <Chip label={t('roles.badges.builtIn')} size="small" color="primary" />;
     }
     return null;
   };
 
+  const getGroupLabel = (groupName: string) => t(`roles.groups.${groupName}`, { defaultValue: groupName });
+  const getResourceLabel = (resource: string) => t(`roles.resources.${resource}`, { defaultValue: RESOURCE_LABELS[resource] || resource });
+  const getLevelLabel = (key: ConcretePermissionLevel) => t(`roles.levels.${key}`);
+
   return (
     <>
       <PageHeader
-        title="Roles"
+        title={t('roles.title')}
         actions={canEdit ? (
           <Stack direction="row" spacing={1}>
             {selected && !isSystem && (
               <Button variant="outlined" onClick={() => duplicateRole()} disabled={duplicating}>
-                {duplicating ? 'Duplicating...' : 'Duplicate'}
+                {duplicating ? t('roles.actions.duplicating') : t('roles.actions.duplicate')}
               </Button>
             )}
-            <Button variant="contained" onClick={() => setCreateOpen(true)}>New Role</Button>
+            <Button variant="contained" onClick={() => setCreateOpen(true)}>{t('roles.actions.newRole')}</Button>
           </Stack>
         ) : undefined}
       />
@@ -221,7 +227,7 @@ export default function RolesPage() {
         <Grid item xs={12} md={4} lg={3}>
           <Card variant="outlined">
             <CardContent>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>Roles</Typography>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('roles.sections.roles')}</Typography>
               <List dense sx={{ maxHeight: 480, overflow: 'auto' }}>
                 {(roles || []).map((r: Role) => (
                   <ListItemButton key={r.id} selected={r.id === selected?.id} onClick={() => setSelectedId(r.id)}>
@@ -246,24 +252,24 @@ export default function RolesPage() {
                     {getRoleBadge(selected)}
                   </Stack>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    {typeof selected.user_count === 'number' && <Chip size="small" label={`${selected.user_count} users`} />}
+                    {typeof selected.user_count === 'number' && <Chip size="small" label={t('roles.userCount', { count: selected.user_count })} />}
                     {canEdit && !locked && (
-                      <Button size="small" color="error" onClick={() => setConfirmDelete(true)} disabled={!!selected.user_count && selected.user_count > 0}>Delete</Button>
+                      <Button size="small" color="error" onClick={() => setConfirmDelete(true)} disabled={!!selected.user_count && selected.user_count > 0}>{t('common:buttons.delete')}</Button>
                     )}
                   </Stack>
                 </Stack>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  {locked ? lockedMessage : 'Set per-resource access levels for this role.'}
+                  {locked ? lockedMessage : t('roles.messages.setAccessLevels')}
                 </Typography>
                 {!locked && (
                   <Stack spacing={2} sx={{ maxWidth: 520, mb: 2 }}>
-                    <TextField size="small" label="Role name" value={editName} onChange={(e) => setEditName(e.target.value)} disabled={!canEdit} InputLabelProps={{ shrink: true }} />
-                    <TextField size="small" label="Description" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} disabled={!canEdit} InputLabelProps={{ shrink: true }} />
+                    <TextField size="small" label={t('roles.fields.roleName')} value={editName} onChange={(e) => setEditName(e.target.value)} disabled={!canEdit} InputLabelProps={{ shrink: true }} />
+                    <TextField size="small" label={t('roles.fields.description')} value={editDesc} onChange={(e) => setEditDesc(e.target.value)} disabled={!canEdit} InputLabelProps={{ shrink: true }} />
                     <Box>
                       <Button variant="outlined" onClick={() => saveMeta()} disabled={!canEdit || savingMeta || editName.trim().length === 0}
                         startIcon={savingMeta ? <CircularProgress size={16} color="inherit" /> : undefined}
                       >
-                        {savingMeta ? 'Saving...' : 'Save Details'}
+                        {savingMeta ? t('common:status.saving') : t('roles.actions.saveDetails')}
                       </Button>
                     </Box>
                   </Stack>
@@ -274,19 +280,19 @@ export default function RolesPage() {
                 <Stack spacing={3}>
                   {Object.entries(PERMISSION_GROUPS).map(([groupName, resources]) => (
                     <Box key={groupName}>
-                      <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'text.secondary' }}>{groupName}</Typography>
+                      <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'text.secondary' }}>{getGroupLabel(groupName)}</Typography>
                       <Grid container spacing={2}>
                         {resources.map((r) => (
                           <Grid item xs={12} sm={6} md={4} key={r}>
                             <FormControl size="small" fullWidth disabled={!canEdit || locked}>
-                              <InputLabel id={`perm-${r}`} shrink>{RESOURCE_LABELS[r] || r}</InputLabel>
-                              <Select labelId={`perm-${r}`} value={(draft?.[r] ?? '') as any} displayEmpty label={RESOURCE_LABELS[r] || r}
+                              <InputLabel id={`perm-${r}`} shrink>{getResourceLabel(r)}</InputLabel>
+                              <Select labelId={`perm-${r}`} value={(draft?.[r] ?? '') as any} displayEmpty label={getResourceLabel(r)}
                                 onChange={(e) => setDraft((m) => ({ ...m, [r]: (e.target.value || null) as PermissionLevel }))}
                               >
-                                <MenuItem value=""><em>None</em></MenuItem>
+                                <MenuItem value=""><em>{t('roles.levels.none')}</em></MenuItem>
                                 {getLevelOptions(r).map((option) => (
                                   <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
+                                    {getLevelLabel(option.value)}
                                   </MenuItem>
                                 ))}
                               </Select>
@@ -302,20 +308,20 @@ export default function RolesPage() {
                   <Button variant="contained" onClick={() => savePerms()} disabled={!canEdit || locked || isPending}
                     startIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
                   >
-                    {isPending ? 'Saving...' : 'Save Permissions'}
+                    {isPending ? t('common:status.saving') : t('roles.actions.savePermissions')}
                   </Button>
                 </Box>
               </CardContent>
             </Card>
           ) : (
-            <Typography variant="body2" color="text.secondary">No roles found</Typography>
+            <Typography variant="body2" color="text.secondary">{t('roles.empty')}</Typography>
           )}
         </Grid>
       </Grid>
 
       {/* Create Role Dialog */}
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>New Role</DialogTitle>
+        <DialogTitle>{t('roles.dialogs.createTitle')}</DialogTitle>
         <DialogContent
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !creating && newName.trim().length > 0) {
@@ -325,25 +331,25 @@ export default function RolesPage() {
           }}
         >
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField autoFocus label="Role name" value={newName} onChange={(e) => setNewName(e.target.value)} InputLabelProps={{ shrink: true }} />
-            <TextField label="Description" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} InputLabelProps={{ shrink: true }} />
+            <TextField autoFocus label={t('roles.fields.roleName')} value={newName} onChange={(e) => setNewName(e.target.value)} InputLabelProps={{ shrink: true }} />
+            <TextField label={t('roles.fields.description')} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} InputLabelProps={{ shrink: true }} />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={() => createRole()} disabled={creating || newName.trim().length === 0}>Create</Button>
+          <Button onClick={() => setCreateOpen(false)}>{t('common:buttons.cancel')}</Button>
+          <Button variant="contained" onClick={() => createRole()} disabled={creating || newName.trim().length === 0}>{t('common:buttons.create')}</Button>
         </DialogActions>
       </Dialog>
 
       {/* Confirm Delete */}
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
-        <DialogTitle>Delete Role</DialogTitle>
+        <DialogTitle>{t('roles.dialogs.deleteTitle')}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2">This action is permanent. You can only delete roles with no users assigned.</Typography>
+          <Typography variant="body2">{t('roles.dialogs.deleteMessage')}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDelete(false)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={() => doDelete()} disabled={deleting}>Delete</Button>
+          <Button onClick={() => setConfirmDelete(false)}>{t('common:buttons.cancel')}</Button>
+          <Button color="error" variant="contained" onClick={() => doDelete()} disabled={deleting}>{t('common:buttons.delete')}</Button>
         </DialogActions>
       </Dialog>
 

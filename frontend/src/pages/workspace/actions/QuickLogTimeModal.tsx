@@ -18,6 +18,7 @@ import {
   Snackbar,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { ACTIVE_TASK_STATUSES } from '../../tasks/task.constants';
@@ -47,6 +48,7 @@ export default function QuickLogTimeModal({
   onClose,
 }: QuickLogTimeModalProps) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation('common');
   const { profile } = useAuth();
   const [target, setTarget] = useState<LogTarget>('project');
   const [projectId, setProjectId] = useState('');
@@ -126,7 +128,7 @@ export default function QuickLogTimeModal({
       setSnackOpen(true);
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.message || err.message || 'Failed to log time');
+      setError(err?.response?.data?.message || err.message || t('messages.failedToLogTime'));
     },
   });
 
@@ -143,16 +145,16 @@ export default function QuickLogTimeModal({
 
   const handleSubmit = () => {
     if (target === 'project' && !projectId) {
-      setError('Project is required');
+      setError(t('messages.projectRequired'));
       return;
     }
     if (target === 'task' && !taskId) {
-      setError('Task is required');
+      setError(t('messages.taskRequired'));
       return;
     }
     const hoursNum = parseFloat(hours);
     if (isNaN(hoursNum) || hoursNum <= 0) {
-      setError('Please enter valid hours');
+      setError(t('messages.validHoursRequired'));
       return;
     }
     logTimeMutation.mutate();
@@ -169,11 +171,11 @@ export default function QuickLogTimeModal({
       open={snackOpen}
       onClose={() => setSnackOpen(false)}
       autoHideDuration={2000}
-      message="Time logged successfully"
+      message={t('messages.timeLogged')}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
     />
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Log Time</DialogTitle>
+      <DialogTitle>{t('dashboard.quickLogTime.logTime')}</DialogTitle>
       <DialogContent>
         <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
@@ -184,7 +186,7 @@ export default function QuickLogTimeModal({
 
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Log on
+              {t('dashboard.quickLogTime.logOn')}
             </Typography>
             <ToggleButtonGroup
               value={target}
@@ -200,18 +202,18 @@ export default function QuickLogTimeModal({
               size="small"
               fullWidth
             >
-              <ToggleButton value="project">Project</ToggleButton>
-              <ToggleButton value="task">Task</ToggleButton>
+              <ToggleButton value="project">{t('labels.project')}</ToggleButton>
+              <ToggleButton value="task">{t('labels.task')}</ToggleButton>
             </ToggleButtonGroup>
           </Box>
 
           {target === 'project' ? (
             <FormControl fullWidth required>
-              <InputLabel>Project</InputLabel>
+              <InputLabel>{t('labels.project')}</InputLabel>
               <Select
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
-                label="Project"
+                label={t('labels.project')}
               >
                 {projectsData?.map((project) => (
                   <MenuItem key={project.id} value={project.id}>
@@ -222,11 +224,11 @@ export default function QuickLogTimeModal({
             </FormControl>
           ) : (
             <FormControl fullWidth required>
-              <InputLabel>Task</InputLabel>
+              <InputLabel>{t('labels.task')}</InputLabel>
               <Select
                 value={taskId}
                 onChange={(e) => setTaskId(e.target.value)}
-                label="Task"
+                label={t('labels.task')}
               >
                 {tasksData?.map((task) => (
                   <MenuItem key={task.id} value={task.id}>
@@ -238,19 +240,19 @@ export default function QuickLogTimeModal({
           )}
 
           <TextField
-            label="Hours"
+            label={t('labels.hours')}
             type="number"
             value={hours}
             onChange={(e) => setHours(e.target.value)}
             fullWidth
             required
             inputProps={{ min: 0.25, step: 0.25 }}
-            placeholder="e.g., 2.5"
+            placeholder={t('dashboard.quickLogTime.hoursPlaceholder')}
           />
 
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Category
+              {t('labels.category')}
             </Typography>
             <ToggleButtonGroup
               value={category}
@@ -259,30 +261,30 @@ export default function QuickLogTimeModal({
               size="small"
               fullWidth
             >
-              <ToggleButton value="it">IT</ToggleButton>
-              <ToggleButton value="business">Business</ToggleButton>
+              <ToggleButton value="it">{t('dashboard.quickLogTime.it')}</ToggleButton>
+              <ToggleButton value="business">{t('dashboard.quickLogTime.business')}</ToggleButton>
             </ToggleButtonGroup>
           </Box>
 
           <TextField
-            label="Notes (optional)"
+            label={t('dashboard.quickLogTime.notesOptional')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             fullWidth
             multiline
             rows={2}
-            placeholder="What did you work on?"
+            placeholder={t('dashboard.quickLogTime.whatDidYouWorkOn')}
           />
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>Cancel</Button>
+        <Button onClick={handleClose}>{t('buttons.cancel')}</Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={logTimeMutation.isPending}
         >
-          Log Time
+          {t('dashboard.quickLogTime.logTime')}
         </Button>
       </DialogActions>
     </Dialog>

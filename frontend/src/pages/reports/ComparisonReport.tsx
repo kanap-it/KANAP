@@ -6,6 +6,7 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, pickYearSlot } from './useOpexSummary';
+import { useTranslation } from 'react-i18next';
 
 function formatNumber(v: any) {
   const n = Number(v ?? 0);
@@ -15,6 +16,7 @@ function formatNumber(v: any) {
 }
 
 export default function ComparisonReport() {
+  const { t } = useTranslation(["ops"]);
   const now = new Date();
   const Y = now.getFullYear();
   const allowedYears = [Y - 2, Y - 1, Y, Y + 1, Y + 2];
@@ -57,7 +59,7 @@ export default function ComparisonReport() {
 
   const columns = useMemo<ColDef[]>(() => {
     const cols: ColDef[] = [
-      { field: 'metric', headerName: 'Metric', flex: 1, minWidth: 200 },
+      { field: 'metric', headerName: t('reports.filters.metric'), flex: 1, minWidth: 200 },
     ];
     for (const yr of years) {
       cols.push({ field: String(yr), headerName: String(yr), width: 140, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) });
@@ -92,18 +94,18 @@ export default function ComparisonReport() {
 
   return (
     <ReportLayout
-      title="Budget Trend (OPEX)"
-      subtitle="Compare selected metrics across a year range"
+      title={t("reports.budgetTrendOpex.title")}
+      subtitle={t("reports.budgetTrendOpex.subtitle")}
       filters={(
         <>
-          <TextField select size="small" label="Start year" value={startYear} onChange={(e) => {
+          <TextField select size="small" label={t("reports.filters.startYear")} value={startYear} onChange={(e) => {
             const v = parseInt(e.target.value, 10);
             setStartYear(v);
             if (v > endYear) setEndYear(v);
           }}>
             {allowedYears.map((yr) => (<MenuItem key={yr} value={yr}>{yr}</MenuItem>))}
           </TextField>
-          <TextField select size="small" label="End year" value={endYear} onChange={(e) => {
+          <TextField select size="small" label={t("reports.filters.endYear")} value={endYear} onChange={(e) => {
             const v = parseInt(e.target.value, 10);
             setEndYear(v);
             if (v < startYear) setStartYear(v);
@@ -113,7 +115,7 @@ export default function ComparisonReport() {
           <TextField
             select
             size="small"
-            label="Metrics"
+            label={t("reports.filters.metrics")}
             value={metrics}
             SelectProps={{ multiple: true, renderValue: (sel: any) => (sel as string[]).map((s) => metricLabels[s]).join(', ') }}
             onChange={(e) => {
@@ -137,7 +139,7 @@ export default function ComparisonReport() {
           <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>Key Table</Typography>
+          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>
           <Box component={AgGridBox} sx={{ height: 360 }}>
             <AgGridReact
               rowData={tableRows}
@@ -149,7 +151,7 @@ export default function ComparisonReport() {
         </Paper>
       </Stack>
       {isLoading && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading data…</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{t("reports.shared.loadingData")}</Typography>
       )}
     </ReportLayout>
   );

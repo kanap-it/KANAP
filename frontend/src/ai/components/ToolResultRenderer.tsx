@@ -10,6 +10,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import BuildIcon from '@mui/icons-material/Build';
+import { useTranslation } from 'react-i18next';
 
 type ToolResultRendererProps = {
   name: string;
@@ -18,7 +19,8 @@ type ToolResultRendererProps = {
 };
 
 function EntityList({ items }: { items: any[] }) {
-  if (!items?.length) return <Typography variant="body2" color="text.secondary">No results found.</Typography>;
+  const { t } = useTranslation(['ai']);
+  if (!items?.length) return <Typography variant="body2" color="text.secondary">{t('toolResults.noResults')}</Typography>;
   return (
     <Stack spacing={0.5}>
       {items.map((item: any, i: number) => (
@@ -34,7 +36,8 @@ function EntityList({ items }: { items: any[] }) {
 }
 
 function DocumentList({ items }: { items: any[] }) {
-  if (!items?.length) return <Typography variant="body2" color="text.secondary">No documents found.</Typography>;
+  const { t } = useTranslation(['ai']);
+  if (!items?.length) return <Typography variant="body2" color="text.secondary">{t('toolResults.noDocuments')}</Typography>;
   return (
     <Stack spacing={0.5}>
       {items.map((item: any, i: number) => (
@@ -73,6 +76,7 @@ function GenericResult({ result }: { result: unknown }) {
 }
 
 export default function ToolResultRenderer({ name, result, arguments: args }: ToolResultRendererProps) {
+  const { t } = useTranslation(['ai']);
   const [expanded, setExpanded] = useState(false);
   const data = result as any;
 
@@ -112,7 +116,7 @@ export default function ToolResultRenderer({ name, result, arguments: args }: To
     }
   };
 
-  const label = name.replace(/_/g, ' ');
+  const label = t(`toolResults.toolNames.${name}`, { defaultValue: name.replace(/_/g, ' ') });
 
   return (
     <Box

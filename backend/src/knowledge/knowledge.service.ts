@@ -4172,7 +4172,8 @@ export class KnowledgeService {
     const search = this.getDocumentSearchState(query?.q);
     if (!search) throw new BadRequestException('q is required');
 
-    const limit = Math.min(Math.max(Number(query?.limit) || 20, 1), 100);
+    const limit = Math.min(Math.max(Number(query?.limit) || 20, 1), 200);
+    const offset = Math.min(Math.max(Number(query?.offset) || 0, 0), 5000);
     const libraryId = query?.library_id ? String(query.library_id) : null;
 
     const params: Array<string | number> = [search.term, `%${search.term}%`];
@@ -4191,6 +4192,7 @@ export class KnowledgeService {
       whereClauses.push(`d.library_id = $${params.length}`);
     }
     params.push(limit);
+    params.push(offset);
 
     const rows = await manager.query(
       `SELECT d.id,
@@ -4204,6 +4206,7 @@ export class KnowledgeService {
               d.library_id,
               dl.name AS library_name,
               CASE WHEN d.title ILIKE $2 THEN 1 ELSE 0 END AS title_match,
+              COUNT(*) OVER()::int AS total_count,
               ts_rank_cd(d.search_vector, websearch_to_tsquery('simple', $1)) AS rank,
               ts_headline('simple', coalesce(d.content_plain, ''), websearch_to_tsquery('simple', $1),
                 'MaxFragments=2, MinWords=8, MaxWords=20') AS snippet
@@ -4211,16 +4214,22 @@ export class KnowledgeService {
        LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
        WHERE ${whereClauses.join(' AND ')}
        ORDER BY title_match DESC, rank DESC, d.title ASC, d.updated_at DESC
-       LIMIT $${params.length}`,
+       LIMIT $${params.length - 1}
+       OFFSET $${params.length}`,
       params,
     );
+
+    const total = rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0;
 
     return {
       items: rows.map((row: any) => ({
         ...row,
         item_ref: `DOC-${row.item_number}`,
       })),
-      total: rows.length,
+      total,
+      offset,
+      limit,
+      truncated: offset + rows.length < total,
     };
   }
 

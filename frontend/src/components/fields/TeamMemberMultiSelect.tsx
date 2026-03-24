@@ -4,6 +4,7 @@ import {
   Autocomplete, CircularProgress, Divider, IconButton, Stack, TextField, Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 
@@ -37,6 +38,7 @@ export default function TeamMemberMultiSelect({
   onChange,
   disabled,
 }: TeamMemberMultiSelectProps) {
+  const { t } = useTranslation('common');
   const [loading, setLoading] = useState(false);
   const { profile } = useAuth();
   const myId = profile?.id ?? null;
@@ -136,7 +138,7 @@ export default function TeamMemberMultiSelect({
             <Fragment key={option.id}>
               <li {...other}>
                 <Typography variant="body2" fontWeight={500}>
-                  {formatUserName(option)}{option.id === myId ? ' (me)' : ''}
+                  {formatUserName(option)}{option.id === myId ? ` ${t('selects.meSuffix')}` : ''}
                 </Typography>
               </li>
               {option.id === myId && <Divider />}
@@ -146,7 +148,7 @@ export default function TeamMemberMultiSelect({
         renderInput={(params) => (
           <TextField
             {...params}
-            placeholder="Add team member..."
+            placeholder={t('selects.addTeamMember')}
             size="small"
             InputProps={{
               ...params.InputProps,
@@ -191,7 +193,7 @@ export default function TeamMemberMultiSelect({
         </Stack>
       ) : (
         <Typography variant="body2" color="text.secondary">
-          No team members assigned.
+          {t('selects.noTeamMembers')}
         </Typography>
       )}
     </Stack>

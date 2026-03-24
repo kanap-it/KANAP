@@ -34,6 +34,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import LockIcon from '@mui/icons-material/Lock';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
@@ -50,13 +51,15 @@ import {
   unfreezeTenant,
   updateTenantPlan,
 } from '../../services/adminTenants';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useLocale } from '../../i18n/useLocale';
 
 const STATUS_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'frozen', label: 'Frozen' },
-  { value: 'deleting', label: 'Deleting' },
-  { value: 'deleted', label: 'Deleted' },
+  { value: 'all' },
+  { value: 'active' },
+  { value: 'frozen' },
+  { value: 'deleting' },
+  { value: 'deleted' },
 ];
 
 const STATUS_COLOR: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
@@ -77,6 +80,8 @@ type PlanDraft = {
 
 export default function AdminTenantsPage() {
   const { claims } = useAuth();
+  const { t } = useTranslation(['admin', 'common']);
+  const locale = useLocale();
   if (!claims?.isPlatformAdmin) {
     return <ForbiddenPage />;
   }
@@ -144,6 +149,11 @@ export default function AdminTenantsPage() {
   const [deleteReason, setDeleteReason] = useState('');
   const [purgeReport, setPurgeReport] = useState<Array<{ table: string; deleted: number }> | null>(null);
 
+  const getStatusLabel = useMemo(
+    () => (value: string) => t(`tenants.statuses.${value}`, { defaultValue: value }),
+    [t],
+  );
+
   const invalidateTenants = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-tenants'] }).catch(() => {});
     if (selectedId) {
@@ -155,20 +165,20 @@ export default function AdminTenantsPage() {
     mutationFn: (payload: { reason?: string }) => freezeTenant(selectedId!, payload),
     onSuccess: (data: TenantDetail) => {
       setSelectedSummary(data);
-      setSuccessMessage('Tenant frozen');
+      setSuccessMessage(t('tenants.messages.frozen'));
       invalidateTenants();
     },
-    onError: (err: any) => setErrorMessage(err?.response?.data?.message || err?.message || 'Failed to freeze tenant'),
+    onError: (err: any) => setErrorMessage(getApiErrorMessage(err, t, t('tenants.messages.freezeFailed'))),
   });
 
   const unfreezeMutation = useMutation<TenantDetail>({
     mutationFn: () => unfreezeTenant(selectedId!),
     onSuccess: (data: TenantDetail) => {
       setSelectedSummary(data);
-      setSuccessMessage('Tenant unfrozen');
+      setSuccessMessage(t('tenants.messages.unfrozen'));
       invalidateTenants();
     },
-    onError: (err: any) => setErrorMessage(err?.response?.data?.message || err?.message || 'Failed to unfreeze tenant'),
+    onError: (err: any) => setErrorMessage(getApiErrorMessage(err, t, t('tenants.messages.unfreezeFailed'))),
   });
 
   const planMutation = useMutation<TenantDetail, unknown, PlanDraft>({
@@ -183,10 +193,10 @@ export default function AdminTenantsPage() {
       }),
     onSuccess: (data: TenantDetail) => {
       setSelectedSummary(data);
-      setSuccessMessage('Plan updated');
+      setSuccessMessage(t('tenants.messages.planUpdated'));
       invalidateTenants();
     },
-    onError: (err: any) => setErrorMessage(err?.response?.data?.message || err?.message || 'Failed to update plan'),
+    onError: (err: any) => setErrorMessage(getApiErrorMessage(err, t, t('tenants.messages.updatePlanFailed'))),
   });
 
   const deleteMutation = useMutation<{ tenant: TenantDetail; purgeReport: { table: string; deleted: number }[] }, unknown, { confirmSlug: string; reason?: string | null }>({
@@ -194,10 +204,10 @@ export default function AdminTenantsPage() {
     onSuccess: ({ tenant, purgeReport: report }: { tenant: TenantDetail; purgeReport: { table: string; deleted: number }[] }) => {
       setSelectedSummary(tenant);
       setPurgeReport(report);
-      setSuccessMessage('Tenant deleted successfully');
+      setSuccessMessage(t('tenants.messages.deleted'));
       invalidateTenants();
     },
-    onError: (err: any) => setErrorMessage(err?.response?.data?.message || err?.message || 'Failed to delete tenant'),
+    onError: (err: any) => setErrorMessage(getApiErrorMessage(err, t, t('tenants.messages.deleteFailed'))),
   });
 
   const handleOpenDetail = (tenant: TenantSummary) => {
@@ -245,9 +255,9 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
   return (
     <>
       <PageHeader
-        title="Tenants"
+        title={t('tenants.title')}
         actions={[
-          <Tooltip key="refresh" title="Refresh">
+          <Tooltip key="refresh" title={t('tenants.actions.refresh')}>
             <span>
               <IconButton onClick={() => listQuery.refetch()} disabled={listQuery.isFetching}>
                 <RefreshIcon />
@@ -259,23 +269,23 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
       <Stack spacing={2}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
           <TextField
-            label="Search tenants"
+            label={t('tenants.filters.searchLabel')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter by slug or name"
+            placeholder={t('tenants.filters.searchPlaceholder')}
             size="small"
             sx={{ minWidth: { xs: '100%', sm: 240 } }}
           />
           <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 } }}>
-            <InputLabel id="tenant-status-label">Status</InputLabel>
+            <InputLabel id="tenant-status-label">{t('tenants.filters.status')}</InputLabel>
             <Select
               labelId="tenant-status-label"
-              label="Status"
+              label={t('tenants.filters.status')}
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
               {STATUS_OPTIONS.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                <MenuItem key={opt.value} value={opt.value}>{getStatusLabel(opt.value)}</MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -287,7 +297,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
           </Box>
         ) : tenantRows.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
-            <Typography variant="body1">No tenants found.</Typography>
+            <Typography variant="body1">{t('tenants.empty')}</Typography>
           </Paper>
         ) : (
           <Paper variant="outlined">
@@ -295,17 +305,17 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Tenant</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell align="right">Companies</TableCell>
-                    <TableCell align="right">Headcount</TableCell>
-                    <TableCell align="right">Departments</TableCell>
-                    <TableCell align="right">Suppliers</TableCell>
-                    <TableCell align="right">OPEX</TableCell>
-                    <TableCell align="right">CAPEX</TableCell>
-                    <TableCell align="right">Users</TableCell>
-                    <TableCell align="right">Seats</TableCell>
-                    <TableCell align="right">Actions</TableCell>
+                    <TableCell>{t('tenants.columns.tenant')}</TableCell>
+                    <TableCell>{t('tenants.columns.status')}</TableCell>
+                    <TableCell align="right">{t('tenants.columns.companies')}</TableCell>
+                    <TableCell align="right">{t('tenants.columns.headcount')}</TableCell>
+                    <TableCell align="right">{t('tenants.columns.departments')}</TableCell>
+                    <TableCell align="right">{t('tenants.columns.suppliers')}</TableCell>
+                    <TableCell align="right">{t('tenants.columns.opex')}</TableCell>
+                    <TableCell align="right">{t('tenants.columns.capex')}</TableCell>
+                    <TableCell align="right">{t('tenants.columns.users')}</TableCell>
+                    <TableCell align="right">{t('tenants.columns.seats')}</TableCell>
+                    <TableCell align="right">{t('tenants.columns.actions')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -320,7 +330,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                       <TableCell>
                         <Chip
                           size="small"
-                          label={tenant.status}
+                          label={getStatusLabel(tenant.status)}
                           color={STATUS_COLOR[tenant.status] ?? 'default'}
                         />
                       </TableCell>
@@ -335,7 +345,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                         {tenant.plan ? (
                           <Typography variant="body2">{tenant.plan.seats_used}/{tenant.plan.seat_limit}</Typography>
                         ) : (
-                          <Typography variant="body2" color="text.secondary">—</Typography>
+                          <Typography variant="body2" color="text.secondary">{t('tenants.shared.none')}</Typography>
                         )}
                       </TableCell>
                       <TableCell align="right">
@@ -345,7 +355,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                             variant="outlined"
                             onClick={() => handleOpenDetail(tenant)}
                           >
-                            View
+                            {t('tenants.actions.view')}
                           </Button>
                         </Stack>
                       </TableCell>
@@ -372,7 +382,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
 
       <Dialog open={detailOpen} onClose={handleCloseDetail} maxWidth="lg" fullWidth>
         <DialogTitle>
-          Tenant detail
+          {t('tenants.detail.title')}
         </DialogTitle>
         <DialogContent dividers>
           {isDetailLoading && (
@@ -395,27 +405,32 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Chip
                       size="small"
-                      label={effectiveDetail.status}
+                      label={getStatusLabel(effectiveDetail.status)}
                       color={STATUS_COLOR[effectiveDetail.status] ?? 'default'}
                     />
-                    <Typography variant="body2" color="text.secondary">Slug: {effectiveDetail.slug}</Typography>
+                    <Typography variant="body2" color="text.secondary">{t('tenants.detail.slug', { slug: effectiveDetail.slug })}</Typography>
                   </Stack>
                   <Typography variant="caption" color="text.secondary">
-                    Created {new Date(effectiveDetail.created_at).toLocaleString()} • Updated {new Date(effectiveDetail.updated_at).toLocaleString()}
+                    {t('tenants.detail.timestamps', {
+                      createdAt: new Date(effectiveDetail.created_at).toLocaleString(locale),
+                      updatedAt: new Date(effectiveDetail.updated_at).toLocaleString(locale),
+                    })}
                   </Typography>
                   {detailQuery.data?.deletion_reason && (
                     <Alert severity="warning" sx={{ mt: 1 }}>
-                      Deletion reason: {detailQuery.data?.deletion_reason}
+                      {t('tenants.detail.deletionReason', { reason: detailQuery.data?.deletion_reason })}
                     </Alert>
                   )}
                   {effectiveDetail.status === 'deleting' && (
                     <Alert severity="info" sx={{ mt: 1 }}>
-                      Deletion is in progress.
+                      {t('tenants.detail.deletionInProgress')}
                     </Alert>
                   )}
                   {effectiveDetail.status === 'deleted' && (
                     <Alert severity="info" sx={{ mt: 1 }}>
-                      Tenant deleted at {effectiveDetail.deleted_at ? new Date(effectiveDetail.deleted_at).toLocaleString() : '—'}
+                      {t('tenants.detail.deletedAt', {
+                        value: effectiveDetail.deleted_at ? new Date(effectiveDetail.deleted_at).toLocaleString(locale) : t('tenants.shared.none'),
+                      })}
                     </Alert>
                   )}
                 </Stack>
@@ -423,15 +438,15 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
 
               {'stats' in effectiveDetail && (
                 <Box>
-                  <Typography variant="subtitle1" sx={{ mb: 1 }}>Statistics</Typography>
+                  <Typography variant="subtitle1" sx={{ mb: 1 }}>{t('tenants.sections.statistics')}</Typography>
                   <Grid container spacing={2}>
-                    {renderStatCard('Companies', effectiveDetail.stats.companies)}
-                    {renderStatCard('Headcount', effectiveDetail.stats.headcount)}
-                    {renderStatCard('Departments', effectiveDetail.stats.departments)}
-                    {renderStatCard('Suppliers', effectiveDetail.stats.suppliers)}
-                    {renderStatCard('OPEX Entries', effectiveDetail.stats.opexEntries)}
-                    {renderStatCard('CAPEX Entries', effectiveDetail.stats.capexEntries)}
-                    {renderStatCard('Users (enabled/total)', `${effectiveDetail.stats.users.enabled}/${effectiveDetail.stats.users.total}`)}
+                    {renderStatCard(t('tenants.stats.companies'), effectiveDetail.stats.companies)}
+                    {renderStatCard(t('tenants.stats.headcount'), effectiveDetail.stats.headcount)}
+                    {renderStatCard(t('tenants.stats.departments'), effectiveDetail.stats.departments)}
+                    {renderStatCard(t('tenants.stats.suppliers'), effectiveDetail.stats.suppliers)}
+                    {renderStatCard(t('tenants.stats.opexEntries'), effectiveDetail.stats.opexEntries)}
+                    {renderStatCard(t('tenants.stats.capexEntries'), effectiveDetail.stats.capexEntries)}
+                    {renderStatCard(t('tenants.stats.usersEnabledTotal'), `${effectiveDetail.stats.users.enabled}/${effectiveDetail.stats.users.total}`)}
                   </Grid>
                 </Box>
               )}
@@ -440,7 +455,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
 
               <Box>
                 <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                  <Typography variant="subtitle1">Lifecycle</Typography>
+                  <Typography variant="subtitle1">{t('tenants.sections.lifecycle')}</Typography>
                   <Stack direction="row" spacing={1}>
                     <Button
                       variant="outlined"
@@ -449,7 +464,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                       onClick={() => freezeMutation.mutate({})}
                       disabled={!canFreeze || freezeMutation.isPending || isDeleted || !selectedId}
                     >
-                      Freeze
+                      {t('tenants.actions.freeze')}
                     </Button>
                     <Button
                       variant="outlined"
@@ -458,26 +473,26 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                       onClick={() => unfreezeMutation.mutate()}
                       disabled={!canUnfreeze || unfreezeMutation.isPending || isDeleted || !selectedId}
                     >
-                      Unfreeze
+                      {t('tenants.actions.unfreeze')}
                     </Button>
                   </Stack>
                 </Stack>
                 <Stack spacing={0.5}>
-                  <Typography variant="body2">Frozen at: {effectiveDetail.frozen_at ? new Date(effectiveDetail.frozen_at).toLocaleString() : '—'}</Typography>
-                  <Typography variant="body2">Deletion requested: {effectiveDetail.deletion_requested_at ? new Date(effectiveDetail.deletion_requested_at).toLocaleString() : '—'}</Typography>
-                  <Typography variant="body2">Deletion confirmed: {effectiveDetail.deletion_confirmed_at ? new Date(effectiveDetail.deletion_confirmed_at).toLocaleString() : '—'}</Typography>
+                  <Typography variant="body2">{t('tenants.lifecycle.frozenAt', { value: effectiveDetail.frozen_at ? new Date(effectiveDetail.frozen_at).toLocaleString(locale) : t('tenants.shared.none') })}</Typography>
+                  <Typography variant="body2">{t('tenants.lifecycle.deletionRequested', { value: effectiveDetail.deletion_requested_at ? new Date(effectiveDetail.deletion_requested_at).toLocaleString(locale) : t('tenants.shared.none') })}</Typography>
+                  <Typography variant="body2">{t('tenants.lifecycle.deletionConfirmed', { value: effectiveDetail.deletion_confirmed_at ? new Date(effectiveDetail.deletion_confirmed_at).toLocaleString(locale) : t('tenants.shared.none') })}</Typography>
                 </Stack>
               </Box>
 
               <Divider />
 
               <Box>
-                <Typography variant="subtitle1" sx={{ mb: 1 }}>Plan</Typography>
+                <Typography variant="subtitle1" sx={{ mb: 1 }}>{t('tenants.sections.plan')}</Typography>
                 {planDraft ? (
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={4}>
                       <TextField
-                        label="Plan name"
+                        label={t('tenants.plan.fields.planName')}
                         value={planDraft.plan_name}
                         onChange={(e) => setPlanDraft({ ...planDraft, plan_name: e.target.value })}
                         fullWidth
@@ -486,7 +501,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <TextField
-                        label="Seat limit"
+                        label={t('tenants.plan.fields.seatLimit')}
                         type="number"
                         inputProps={{ min: 0 }}
                         value={planDraft.seat_limit}
@@ -497,7 +512,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <TextField
-                        label="Active seats"
+                        label={t('tenants.plan.fields.activeSeats')}
                         type="number"
                         inputProps={{ min: 0 }}
                         value={planDraft.active_seats}
@@ -508,36 +523,36 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <FormControl fullWidth>
-                        <InputLabel id="subscription-type-label">Subscription</InputLabel>
+                        <InputLabel id="subscription-type-label">{t('tenants.plan.fields.subscription')}</InputLabel>
                         <Select
                           labelId="subscription-type-label"
-                          label="Subscription"
+                          label={t('tenants.plan.fields.subscription')}
                           value={planDraft.subscription_type}
                           onChange={(e) => setPlanDraft({ ...planDraft, subscription_type: e.target.value as PlanDraft['subscription_type'] })}
                           disabled={planMutation.isPending || isDeleted}
                         >
-                          <MenuItem value="monthly">Monthly</MenuItem>
-                          <MenuItem value="annual">Annual</MenuItem>
+                          <MenuItem value="monthly">{t('tenants.plan.values.monthly')}</MenuItem>
+                          <MenuItem value="annual">{t('tenants.plan.values.annual')}</MenuItem>
                         </Select>
                       </FormControl>
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <FormControl fullWidth>
-                        <InputLabel id="payment-mode-label">Payment mode</InputLabel>
+                        <InputLabel id="payment-mode-label">{t('tenants.plan.fields.paymentMode')}</InputLabel>
                         <Select
                           labelId="payment-mode-label"
-                          label="Payment mode"
+                          label={t('tenants.plan.fields.paymentMode')}
                           value={planDraft.payment_mode}
                           onChange={(e) => setPlanDraft({ ...planDraft, payment_mode: e.target.value as PlanDraft['payment_mode'] })}
                           disabled={planMutation.isPending || isDeleted}
                         >
-                          <MenuItem value="card">Credit card</MenuItem>
-                          <MenuItem value="bank_transfer">Bank transfer</MenuItem>
+                          <MenuItem value="card">{t('tenants.plan.values.card')}</MenuItem>
+                          <MenuItem value="bank_transfer">{t('tenants.plan.values.bankTransfer')}</MenuItem>
                         </Select>
                       </FormControl>
                     </Grid>
                     <Grid item xs={12} md={4}>
-                      <DateEUField label="Next payment date" valueYmd={planDraft.next_payment_at || ''} onChangeYmd={(v) => setPlanDraft({ ...planDraft, next_payment_at: v })} />
+                      <DateEUField label={t('tenants.plan.fields.nextPaymentDate')} valueYmd={planDraft.next_payment_at || ''} onChangeYmd={(v) => setPlanDraft({ ...planDraft, next_payment_at: v })} />
                     </Grid>
                     <Grid item xs={12}>
                       <Stack direction="row" spacing={1}>
@@ -546,16 +561,16 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                           onClick={() => planDraft && planMutation.mutate(planDraft)}
                           disabled={planMutation.isPending || isDeleted || !selectedId || !planDraft}
                         >
-                          {planMutation.isPending ? 'Saving…' : 'Save plan'}
+                          {planMutation.isPending ? t('common:status.saving') : t('tenants.actions.savePlan')}
                         </Button>
                         <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                          Seats used: {effectiveDetail?.plan?.seats_used ?? 0}
+                          {t('tenants.plan.seatsUsed', { count: effectiveDetail?.plan?.seats_used ?? 0 })}
                         </Typography>
                       </Stack>
                     </Grid>
                   </Grid>
                 ) : (
-                  <Typography variant="body2" color="text.secondary">No subscription information available.</Typography>
+                  <Typography variant="body2" color="text.secondary">{t('tenants.plan.empty')}</Typography>
                 )}
               </Box>
 
@@ -564,21 +579,21 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
               <Box>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                   <DeleteForeverIcon color="error" />
-                  <Typography variant="subtitle1">Delete tenant</Typography>
+                  <Typography variant="subtitle1">{t('tenants.sections.deleteTenant')}</Typography>
                 </Stack>
                 <Alert severity="error" sx={{ mb: 2 }}>
-                  Deleting a tenant removes all associated data immediately. This action cannot be undone. Freeze the tenant instead if you want to retain data.
+                  {t('tenants.delete.warning')}
                 </Alert>
                 <Stack spacing={2} maxWidth={360}>
                   <TextField
-                    label="Type the tenant slug to confirm"
+                    label={t('tenants.delete.confirmSlug')}
                     value={deleteConfirm}
                     onChange={(e) => setDeleteConfirm(e.target.value)}
                     disabled={deleteMutation.isPending || isDeleted}
-                    helperText={effectiveDetail ? `Slug: ${effectiveDetail.slug}` : ''}
+                    helperText={effectiveDetail ? t('tenants.delete.slugHelper', { slug: effectiveDetail.slug }) : ''}
                   />
                   <TextField
-                    label="Reason (optional)"
+                    label={t('tenants.delete.reasonOptional')}
                     value={deleteReason}
                     onChange={(e) => setDeleteReason(e.target.value)}
                     disabled={deleteMutation.isPending || isDeleted}
@@ -595,19 +610,19 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                       }}
                       disabled={deleteMutation.isPending || isDeleted || !selectedId || !confirmMatches}
                     >
-                      {deleteMutation.isPending ? 'Deleting…' : 'Delete tenant'}
+                      {deleteMutation.isPending ? t('common:status.deleting') : t('tenants.actions.deleteTenant')}
                     </Button>
-                    <Button onClick={() => { setDeleteConfirm(''); setDeleteReason(''); }} disabled={deleteMutation.isPending || isDeleted}>Clear</Button>
+                    <Button onClick={() => { setDeleteConfirm(''); setDeleteReason(''); }} disabled={deleteMutation.isPending || isDeleted}>{t('tenants.actions.clear')}</Button>
                   </Stack>
                 </Stack>
                 {purgeReport && (
                   <Paper variant="outlined" sx={{ mt: 2, p: 2 }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Deletion summary</Typography>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('tenants.delete.summaryTitle')}</Typography>
                     <Table size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell>Table</TableCell>
-                          <TableCell align="right">Rows deleted</TableCell>
+                          <TableCell>{t('tenants.delete.columns.table')}</TableCell>
+                          <TableCell align="right">{t('tenants.delete.columns.rowsDeleted')}</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -626,7 +641,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDetail}>Close</Button>
+          <Button onClick={handleCloseDetail}>{t('common:buttons.close')}</Button>
         </DialogActions>
       </Dialog>
     </>

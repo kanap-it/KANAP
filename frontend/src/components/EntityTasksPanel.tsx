@@ -12,6 +12,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
+import { useLocale } from '../i18n/useLocale';
 import { TASK_STATUS_COLORS, TASK_STATUS_LABELS } from '../pages/tasks/task.constants';
 import type { TaskStatus } from '../pages/tasks/task.constants';
 import { getApiErrorMessage } from '../utils/apiErrorMessage';
@@ -76,7 +77,8 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { t, i18n } = useTranslation(['portfolio', 'common', 'errors']);
+  const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const locale = useLocale();
   const isProject = entityType === 'project';
   const projectWorkspaceContextQuery = React.useMemo(() => {
     if (!isProject) return '';
@@ -323,7 +325,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                   </TableCell>
                 )}
                 <TableCell>
-                  {task.due_date ? new Date(task.due_date).toLocaleDateString(i18n.language) : '-'}
+                  {task.due_date ? new Date(task.due_date).toLocaleDateString(locale) : '-'}
                 </TableCell>
                 <TableCell align="right">
                   <IconButton

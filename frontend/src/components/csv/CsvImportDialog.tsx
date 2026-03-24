@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, Typography, Stack, Alert, LinearProgress, Divider } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type ImportReport = {
@@ -17,11 +18,12 @@ export default function CsvImportDialog({
   open,
   onClose,
   endpoint,
-  title = 'Import CSV',
+  title: titleProp,
   onImported,
   params,
   preflight = true,
 }: {
+  // i18n handled below
   open: boolean;
   onClose: () => void;
   endpoint: string; // e.g. '/suppliers'
@@ -30,6 +32,7 @@ export default function CsvImportDialog({
   params?: Record<string, string | number | boolean | null | undefined>;
   preflight?: boolean; // when false, skip preflight and perform single-step upload
 }) {
+  const { t } = useTranslation('common');
   const [file, setFile] = useState<File | null>(null);
   const [hover, setHover] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
@@ -72,7 +75,7 @@ export default function CsvImportDialog({
       }
     } catch (e) {
       console.error('Import failed', e);
-      setReport({ ok: false, dryRun, total: 0, inserted: 0, updated: 0, errors: [{ row: 0, message: "The provided file isn't properly formatted" }] });
+      setReport({ ok: false, dryRun, total: 0, inserted: 0, updated: 0, errors: [{ row: 0, message: t('csv.fileNotFormatted') }] });
     } finally {
       setLoading(false);
     }
@@ -106,10 +109,10 @@ export default function CsvImportDialog({
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" onTransitionExited={reset}>
-      <DialogTitle>{title}</DialogTitle>
+      <DialogTitle>{titleProp || t('csv.importTitle')}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" sx={{ mb: 2 }}>
-          Upload a CSV with semicolon separators and exact column titles from the template.
+          {t('csv.uploadDescription')}
         </Typography>
         <Button
           variant="text"
@@ -118,7 +121,7 @@ export default function CsvImportDialog({
           onClick={downloadTemplate}
           sx={{ mb: 2 }}
         >
-          Download template
+          {t('csv.downloadTemplate')}
         </Button>
         <Divider sx={{ mb: 2 }} />
         <Box
@@ -136,17 +139,17 @@ export default function CsvImportDialog({
           }}
           onClick={onPick}
         >
-          <Typography>{file ? file.name : 'Drag & drop CSV here, or click to select'}</Typography>
+          <Typography>{file ? file.name : t('csv.dragDropOrClick')}</Typography>
           <input type="file" ref={inputRef} onChange={onFileChange} hidden accept=".csv,text/csv" />
         </Box>
         <Stack direction="row" spacing={1}>
           {preflight ? (
             <>
-              <Button variant="outlined" onClick={() => upload(true)} disabled={!file || loading}>Preflight check</Button>
-              <Button variant="contained" onClick={() => upload(false)} disabled={!file || loading || !canLoad}>Load</Button>
+              <Button variant="outlined" onClick={() => upload(true)} disabled={!file || loading}>{t('csv.preflightCheck')}</Button>
+              <Button variant="contained" onClick={() => upload(false)} disabled={!file || loading || !canLoad}>{t('csv.load')}</Button>
             </>
           ) : (
-            <Button variant="contained" onClick={() => upload(false)} disabled={!file || loading}>Upload</Button>
+            <Button variant="contained" onClick={() => upload(false)} disabled={!file || loading}>{t('buttons.upload')}</Button>
           )}
         </Stack>
         {loading && <LinearProgress sx={{ mt: 2 }} />}
@@ -156,24 +159,24 @@ export default function CsvImportDialog({
               <Alert severity="success">
                 {preflight ? (
                   (report as any).dryRun ? (
-                    <>Preflight OK — {(report as any).total} rows. Inserts: {(report as any).inserted}, updates: {(report as any).updated}. You can now Load.</>
+                    <>{t('csv.preflightOk', { total: (report as any).total, inserted: (report as any).inserted, updated: (report as any).updated })}</>
                   ) : (
-                    <>Loaded successfully — processed {(report as any).processed ?? (report as any).total ?? ''} rows.</>
+                    <>{t('csv.loadedSuccessfully', { total: (report as any).processed ?? (report as any).total ?? '' })}</>
                   )
                 ) : (
-                  <>Upload completed successfully.</>
+                  <>{t('csv.uploadCompleted')}</>
                 )}
               </Alert>
             ) : (
-              <Alert severity="error">The provided file isn't properly formatted</Alert>
+              <Alert severity="error">{t('csv.fileNotFormatted')}</Alert>
             )}
             {(report as any).errors && (report as any).errors.length > 0 && (
               <Box sx={{ mt: 1 }}>
                 {(report as any).errors.slice(0, 5).map((err: any, i: number) => (
-                  <Typography key={i} variant="body2">Row {err.row}: {err.message}</Typography>
+                  <Typography key={i} variant="body2">{t('csv.rowError', { row: err.row, message: err.message })}</Typography>
                 ))}
                 {(report as any).errors.length > 5 && (
-                  <Typography variant="caption">…and {(report as any).errors.length - 5} more</Typography>
+                  <Typography variant="caption">{t('csv.andMoreErrors', { count: (report as any).errors.length - 5 })}</Typography>
                 )}
               </Box>
             )}
@@ -181,7 +184,7 @@ export default function CsvImportDialog({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>{t('buttons.close')}</Button>
       </DialogActions>
     </Dialog>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Autocomplete, Divider, TextField, CircularProgress } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 
@@ -35,7 +36,7 @@ function assignRef<T>(target: React.Ref<T | null> | undefined, value: T | null) 
 
 const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function UserSelect(
   {
-    label = 'User',
+    label: labelProp,
     value,
     onChange,
     disabled,
@@ -47,6 +48,8 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
   },
   ref,
 ) {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.user');
   const { data: users, isLoading } = useQuery({
     queryKey: ['users', 'enabled', 'select'],
     queryFn: async () => {
@@ -113,7 +116,7 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
         <React.Fragment key={option.id}>
           <li {...props}>
             <div style={{ fontWeight: 500 }}>
-              {formatName(option)}{option.id === myId ? ' (me)' : ''}
+              {formatName(option)}{option.id === myId ? ` ${t('selects.meSuffix')}` : ''}
             </div>
           </li>
           {option.id === myId && <Divider />}
@@ -154,7 +157,7 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
           o.email.toLowerCase().includes(s)
         );
       }}
-      noOptionsText={isLoading ? 'Loading...' : 'No users found'}
+      noOptionsText={isLoading ? t('selects.loading') : t('selects.noUsersFound')}
       fullWidth
     />
   );

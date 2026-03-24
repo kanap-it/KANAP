@@ -1,6 +1,7 @@
 import React from 'react';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type BusinessProcessOption = {
@@ -29,7 +30,7 @@ function assignRef<T>(target: React.Ref<T | null> | undefined, value: T | null) 
 
 const BusinessProcessSelect = React.forwardRef<HTMLInputElement, BusinessProcessSelectProps>(function BusinessProcessSelect(
   {
-    label = 'Business process',
+    label: labelProp,
     value,
     onChange,
     disabled,
@@ -39,6 +40,8 @@ const BusinessProcessSelect = React.forwardRef<HTMLInputElement, BusinessProcess
   },
   ref,
 ) {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.businessProcess');
   const { data: processes, isLoading } = useQuery({
     queryKey: ['business-processes', 'select', 'enabled'],
     queryFn: async () => {
@@ -113,7 +116,7 @@ const BusinessProcessSelect = React.forwardRef<HTMLInputElement, BusinessProcess
         />
       )}
       loading={isLoading || loadingSelected}
-      noOptionsText={isLoading ? 'Loading…' : 'No business processes found'}
+      noOptionsText={isLoading ? t('selects.loadingEllipsis') : t('selects.noBusinessProcessesFound')}
       fullWidth
     />
   );

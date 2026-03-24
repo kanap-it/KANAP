@@ -15,9 +15,11 @@ import {
 } from '@mui/material';
 import type { ChipProps } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import api from '../../api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocale } from '../../i18n/useLocale';
 import {
   BillingContact,
   BillingProfileResponse,
@@ -28,6 +30,7 @@ import {
   updateBillingProfile,
 } from '../../services/billing';
 import PlanSelectionDialog from './PlanSelectionPage';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 type BillingContactForm = {
   name: string;
@@ -114,10 +117,10 @@ function formsEqual(a: BillingContactForm, b: BillingContactForm): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-function formatMoney(amount?: number | null, currency?: string | null) {
+function formatMoney(locale: string, amount?: number | null, currency?: string | null) {
   if (amount == null || !currency) return '—';
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency.toUpperCase(),
     }).format(amount / 100);
@@ -126,18 +129,19 @@ function formatMoney(amount?: number | null, currency?: string | null) {
   }
 }
 
-function formatDate(value?: string | null) {
+function formatDate(locale: string, value?: string | null) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
 }
 
-function formatDateTime(value?: string | null) {
-  return formatDate(value);
+function formatDateTime(locale: string, value?: string | null) {
+  return formatDate(locale, value);
 }
 
 const STATUS_META: Record<string, { label: string; color: ChipProps['color'] }> = {
@@ -159,50 +163,76 @@ const INVOICE_STATUS_META: Record<string, { label: string; color: ChipProps['col
   uncollectible: { label: 'Uncollectible', color: 'error' },
 };
 
-function derivePlanLabel(subscription?: BillingSubscription | null): string {
+function derivePlanLabel(
+  subscription: BillingSubscription | null | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   if (!subscription) return '—';
   // Local trial (no Stripe subscription)
-  if (subscription.status === 'trialing' && !subscription.stripe_subscription_id) return 'Free trial';
+  if (subscription.status === 'trialing' && !subscription.stripe_subscription_id) return t('billing.subscription.planLabels.freeTrial');
   if (subscription.plan_name) return subscription.plan_name;
   const seats = Math.max(subscription.seat_limit ?? 0, subscription.seats_used ?? 0);
   if (!seats) return '—';
-  if (seats <= 2) return 'Solo';
-  if (seats <= 9) return 'Team';
-  return 'Pro';
+  if (seats <= 2) return t('billing.subscription.planLabels.solo');
+  if (seats <= 9) return t('billing.subscription.planLabels.team');
+  return t('billing.subscription.planLabels.pro');
 }
 
-function formatSubscriptionType(subscription?: BillingSubscription | null): string {
+function formatSubscriptionType(
+  subscription: BillingSubscription | null | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   if (!subscription?.subscription_type) return '—';
-  return subscription.subscription_type === 'annual' ? 'Annual' : 'Monthly';
+  return subscription.subscription_type === 'annual'
+    ? t('billing.subscription.values.annual')
+    : t('billing.subscription.values.monthly');
 }
 
-function formatCollectionMethod(subscription?: BillingSubscription | null): string {
-  if (!subscription?.collection_method) return 'Automatic charge';
-  return subscription.collection_method === 'send_invoice' ? 'Invoice (manual payment)' : 'Automatic charge';
+function formatCollectionMethod(
+  subscription: BillingSubscription | null | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  if (!subscription?.collection_method) return t('billing.subscription.values.automaticCharge');
+  return subscription.collection_method === 'send_invoice'
+    ? t('billing.subscription.values.invoiceManualPayment')
+    : t('billing.subscription.values.automaticCharge');
 }
 
-function formatPaymentMode(subscription?: BillingSubscription | null): string {
-  if (!subscription?.payment_mode) return 'Card';
-  return subscription.payment_mode === 'bank_transfer' ? 'Bank transfer' : 'Card';
+function formatPaymentMode(
+  subscription: BillingSubscription | null | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  if (!subscription?.payment_mode) return t('billing.subscription.values.card');
+  return subscription.payment_mode === 'bank_transfer'
+    ? t('billing.subscription.values.bankTransfer')
+    : t('billing.subscription.values.card');
 }
 
-function getStatusMeta(subscription?: BillingSubscription | null): { label: string; color: ChipProps['color'] } {
+function getStatusMeta(
+  subscription: BillingSubscription | null | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): { label: string; color: ChipProps['color'] } {
   if (subscription?.status) {
-    return STATUS_META[subscription.status] ?? { label: subscription.status.replace(/_/g, ' '), color: 'default' };
+    const meta = STATUS_META[subscription.status];
+    return meta
+      ? { ...meta, label: t(`billing.statuses.${subscription.status}`, { defaultValue: meta.label }) }
+      : { label: subscription.status.replace(/_/g, ' '), color: 'default' };
   }
   if (!subscription?.stripe_subscription_id) {
-    return { label: 'Not subscribed', color: 'default' };
+    return { label: t('billing.statuses.notSubscribed'), color: 'default' };
   }
-  return { label: 'Pending', color: 'default' };
+  return { label: t('billing.statuses.pending'), color: 'default' };
 }
 
-function getInvoiceStatusMeta(subscription?: BillingSubscription | null): { label: string; color: ChipProps['color'] } {
-  return getInvoiceStatusMetaFromStatus(subscription?.latest_invoice_status);
-}
-
-function getInvoiceStatusMetaFromStatus(status?: string | null): { label: string; color: ChipProps['color'] } {
+function getInvoiceStatusMetaFromStatus(
+  status: string | null | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): { label: string; color: ChipProps['color'] } {
   if (!status) return { label: '—', color: 'default' };
-  return INVOICE_STATUS_META[status] ?? { label: status.replace(/_/g, ' '), color: 'default' };
+  const meta = INVOICE_STATUS_META[status];
+  return meta
+    ? { ...meta, label: t(`billing.invoiceStatuses.${status}`, { defaultValue: meta.label }) }
+    : { label: status.replace(/_/g, ' '), color: 'default' };
 }
 
 type SummaryItemProps = {
@@ -223,6 +253,8 @@ function SummaryItem({ label, children }: SummaryItemProps) {
 
 export default function BillingCenter() {
   const { subscription, claims } = useAuth();
+  const { t } = useTranslation(['admin', 'common']);
+  const locale = useLocale();
   const [portalError, setPortalError] = React.useState<string | null>(null);
   const [planDialogOpen, setPlanDialogOpen] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -272,7 +304,7 @@ export default function BillingCenter() {
       updateBillingProfile(payload),
     onSuccess: (data: BillingProfileUpdateResponse) => {
       setFormError(null);
-      setFormSuccess('Billing details updated');
+      setFormSuccess(t('billing.messages.updateSuccess'));
       setCheckoutError(null);
       const nextCustomer = contactToForm(data.customer);
       const nextInvoice = contactToForm(data.invoice);
@@ -285,7 +317,7 @@ export default function BillingCenter() {
     },
     onError: (err: any) => {
       setFormSuccess(null);
-      setFormError(err?.response?.data?.message || err?.message || 'Failed to save billing profile');
+      setFormError(getApiErrorMessage(err, t, t('billing.messages.saveFailed')));
       setCheckoutError(null);
     },
   });
@@ -294,17 +326,18 @@ export default function BillingCenter() {
   const loadingProfile = (profileQuery.isLoading && !profileQuery.data) || profileQuery.isFetching;
   const hasSubscription = !!subscriptionSummary?.stripe_subscription_id;
   const subscriptionStatus = subscriptionSummary?.status ?? null;
-  const planLabel = React.useMemo(() => derivePlanLabel(subscriptionSummary), [subscriptionSummary]);
+  const planLabel = React.useMemo(() => derivePlanLabel(subscriptionSummary, t), [subscriptionSummary, t]);
   const seatsLabel = subscriptionSummary
     ? subscriptionSummary.seat_limit != null
       ? `${subscriptionSummary.seats_used}/${subscriptionSummary.seat_limit}`
-      : `${subscriptionSummary.seats_used} (unlimited)`
+      : t('billing.subscription.values.unlimitedSeatsUsed', { count: subscriptionSummary.seats_used })
     : '—';
-  const statusMeta = React.useMemo(() => getStatusMeta(subscriptionSummary), [subscriptionSummary]);
-  const frequencyLabel = React.useMemo(() => formatSubscriptionType(subscriptionSummary), [subscriptionSummary]);
-  const collectionLabel = React.useMemo(() => formatCollectionMethod(subscriptionSummary), [subscriptionSummary]);
-  const paymentModeLabel = React.useMemo(() => formatPaymentMode(subscriptionSummary), [subscriptionSummary]);
+  const statusMeta = React.useMemo(() => getStatusMeta(subscriptionSummary, t), [subscriptionSummary, t]);
+  const frequencyLabel = React.useMemo(() => formatSubscriptionType(subscriptionSummary, t), [subscriptionSummary, t]);
+  const collectionLabel = React.useMemo(() => formatCollectionMethod(subscriptionSummary, t), [subscriptionSummary, t]);
+  const paymentModeLabel = React.useMemo(() => formatPaymentMode(subscriptionSummary, t), [subscriptionSummary, t]);
   const amountLabel = formatMoney(
+    locale,
     subscriptionSummary?.amount ?? subscriptionSummary?.estimated_amount ?? null,
     subscriptionSummary?.currency ?? subscriptionSummary?.estimated_currency ?? null
   );
@@ -317,20 +350,21 @@ export default function BillingCenter() {
     return paymentModeLabel;
   })();
   const renewalLabel = formatDate(
+    locale,
     subscriptionSummary?.renewal_at ??
     subscriptionSummary?.current_period_end ??
     subscriptionSummary?.next_payment_at ??
     subscriptionSummary?.payment_due_at ??
     null
   );
-  const trialLabel = subscriptionSummary?.trial_end ? formatDate(subscriptionSummary.trial_end) : null;
-  const lastSyncedLabel = formatDateTime(subscriptionSummary?.last_synced_at);
+  const trialLabel = subscriptionSummary?.trial_end ? formatDate(locale, subscriptionSummary.trial_end) : null;
+  const lastSyncedLabel = formatDateTime(locale, subscriptionSummary?.last_synced_at);
   const allowPortal = hasSubscription;
   const isTrialing = subscriptionStatus === 'trialing';
   const isLocalTrial = isTrialing && !hasSubscription;
   const trialDaysRemaining = subscription?.trial_days_remaining;
   const isHealthy = subscription?.is_subscription_healthy;
-  const planActionLabel = hasSubscription ? 'Change plan' : 'Choose plan';
+  const planActionLabel = hasSubscription ? t('billing.actions.changePlan') : t('billing.actions.choosePlan');
   const invoices = profileQuery.data?.invoices ?? [];
   const invoicesToShow = showAllInvoices ? invoices : invoices.slice(0, 5);
   const canToggleInvoices = invoices.length > 5;
@@ -343,9 +377,9 @@ export default function BillingCenter() {
       const res = await api.post('/billing/portal', { returnUrl: window.location.origin + '/admin/billing' });
       const url = res.data?.url;
       if (url) window.location.href = url;
-      else setPortalError('Portal URL not available.');
+      else setPortalError(t('billing.messages.portalUnavailable'));
     } catch (e: any) {
-      setPortalError(e?.response?.data?.message || e?.message || 'Failed to open billing portal');
+      setPortalError(getApiErrorMessage(e, t, t('billing.messages.portalFailed')));
     } finally {
       setOpening(false);
     }
@@ -415,59 +449,59 @@ export default function BillingCenter() {
 
   return (
     <>
-      <PageHeader title="Billing" />
+      <PageHeader title={t('billing.title')} />
       <Stack spacing={2}>
         {!!checkoutError && <Alert severity="error">{checkoutError}</Alert>}
         {!!portalError && <Alert severity="error">{portalError}</Alert>}
         {profileQuery.isError && (
-          <Alert severity="error">{(profileQuery.error as Error)?.message || 'Failed to load billing profile'}</Alert>
+          <Alert severity="error">{getApiErrorMessage(profileQuery.error, t, t('billing.messages.loadFailed'))}</Alert>
         )}
         {!!formError && <Alert severity="error">{formError}</Alert>}
         {!!formSuccess && <Alert severity="success">{formSuccess}</Alert>}
         <Card variant="outlined">
           <CardContent>
             <Stack spacing={2}>
-              <Typography variant="h6">Subscription</Typography>
+              <Typography variant="h6">{t('billing.subscription.title')}</Typography>
               <Grid container spacing={3} alignItems="flex-start">
                 <Grid item xs={12} sm={6} md={3}>
-                  <SummaryItem label="Plan">
+                  <SummaryItem label={t('billing.subscription.labels.plan')}>
                     <Typography fontWeight={600}>{planLabel}</Typography>
                   </SummaryItem>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <SummaryItem label="Seats">
+                  <SummaryItem label={t('billing.subscription.labels.seats')}>
                     <Typography>{seatsLabel}</Typography>
                   </SummaryItem>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <SummaryItem label="Status">
+                  <SummaryItem label={t('billing.subscription.labels.status')}>
                     <Chip label={statusMeta.label} color={statusMeta.color} size="small" sx={{ textTransform: 'capitalize' }} />
                   </SummaryItem>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <SummaryItem label="Renewal date">
+                  <SummaryItem label={t('billing.subscription.labels.renewalDate')}>
                     <Typography>{renewalLabel}</Typography>
                   </SummaryItem>
                 </Grid>
                 {!isLocalTrial && (
                   <>
                     <Grid item xs={12} sm={6} md={3}>
-                      <SummaryItem label="Amount per period">
+                      <SummaryItem label={t('billing.subscription.labels.amountPerPeriod')}>
                         <Typography>{amountLabel}</Typography>
                       </SummaryItem>
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
-                      <SummaryItem label="Billing frequency">
+                      <SummaryItem label={t('billing.subscription.labels.billingFrequency')}>
                         <Typography>{frequencyLabel}</Typography>
                       </SummaryItem>
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
-                      <SummaryItem label="Collection method">
+                      <SummaryItem label={t('billing.subscription.labels.collectionMethod')}>
                         <Typography>{collectionLabel}</Typography>
                       </SummaryItem>
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
-                      <SummaryItem label="Payment method">
+                      <SummaryItem label={t('billing.subscription.labels.paymentMethod')}>
                         <Typography>{paymentMethodLabel}</Typography>
                       </SummaryItem>
                     </Grid>
@@ -475,27 +509,27 @@ export default function BillingCenter() {
                 )}
                 {trialLabel && trialLabel !== '—' && (
                   <Grid item xs={12} sm={6} md={3}>
-                    <SummaryItem label="Trial ends">
+                    <SummaryItem label={t('billing.subscription.labels.trialEnds')}>
                       <Typography>{trialLabel}</Typography>
                     </SummaryItem>
                   </Grid>
                 )}
                 {!isLocalTrial && (
                   <Grid item xs={12} sm={6} md={3}>
-                    <SummaryItem label="Last Stripe sync">
+                    <SummaryItem label={t('billing.subscription.labels.lastStripeSync')}>
                       <Typography>{lastSyncedLabel}</Typography>
                     </SummaryItem>
                   </Grid>
                 )}
                 {isTrialing && trialDaysRemaining != null && trialDaysRemaining > 0 && (
                   <Grid item xs={12} md={4}>
-                    <SummaryItem label="Trial">
-                      <Typography>{trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''} remaining</Typography>
+                    <SummaryItem label={t('billing.subscription.labels.trial')}>
+                      <Typography>{t('billing.subscription.values.daysRemaining', { count: trialDaysRemaining })}</Typography>
                     </SummaryItem>
                   </Grid>
                 )}
                 <Grid item xs={12} md={4}>
-                  <SummaryItem label="Actions">
+                  <SummaryItem label={t('billing.subscription.labels.actions')}>
                     <Stack
                       direction={{ xs: 'column', sm: 'row', md: 'column' }}
                       spacing={1}
@@ -514,13 +548,13 @@ export default function BillingCenter() {
                           onClick={openPortal}
                           disabled={!canManage || opening}
                         >
-                          {opening ? <CircularProgress size={20} sx={{ color: 'inherit' }} /> : 'Manage subscription'}
+                          {opening ? <CircularProgress size={20} sx={{ color: 'inherit' }} /> : t('billing.actions.manageSubscription')}
                         </Button>
                       )}
                     </Stack>
                     {!canManage && (
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                        Billing Admin required
+                        {t('shared.billingAdminRequired')}
                       </Typography>
                     )}
                   </SummaryItem>
@@ -533,10 +567,10 @@ export default function BillingCenter() {
         {invoices.length > 0 && (
           <Card variant="outlined">
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>Invoice history</Typography>
+              <Typography variant="h6" sx={{ mb: 2 }}>{t('billing.invoices.title')}</Typography>
               <Stack spacing={1.5}>
                 {invoicesToShow.map((invoice: BillingInvoice) => {
-                  const statusMeta = getInvoiceStatusMetaFromStatus(invoice.status);
+                  const statusMeta = getInvoiceStatusMetaFromStatus(invoice.status, t);
                   return (
                     <Stack
                       key={invoice.id}
@@ -547,12 +581,12 @@ export default function BillingCenter() {
                       <Box sx={{ minWidth: 160 }}>
                         <Typography fontWeight={600}>{invoice.number || invoice.id}</Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {invoice.createdAt ? formatDate(invoice.createdAt) : '—'}
+                          {invoice.createdAt ? formatDate(locale, invoice.createdAt) : '—'}
                         </Typography>
                       </Box>
                       <Chip label={statusMeta.label} color={statusMeta.color} size="small" sx={{ textTransform: 'capitalize' }} />
                       <Box sx={{ flexGrow: 1 }}>
-                        <Typography>{formatMoney(invoice.total, invoice.currency)}</Typography>
+                        <Typography>{formatMoney(locale, invoice.total, invoice.currency)}</Typography>
                       </Box>
                       <Stack direction="row" spacing={1}>
                         {invoice.hostedInvoiceUrl && (
@@ -563,7 +597,7 @@ export default function BillingCenter() {
                             rel="noopener noreferrer"
                             size="small"
                           >
-                            View
+                            {t('billing.invoices.actions.view')}
                           </Button>
                         )}
                         {invoice.invoicePdf && (
@@ -574,7 +608,7 @@ export default function BillingCenter() {
                             rel="noopener noreferrer"
                             size="small"
                           >
-                            Download
+                            {t('billing.invoices.actions.download')}
                           </Button>
                         )}
                       </Stack>
@@ -589,7 +623,7 @@ export default function BillingCenter() {
                   sx={{ mt: 2 }}
                   onClick={() => setShowAllInvoices((prev) => !prev)}
                 >
-                  {showAllInvoices ? 'Show fewer invoices' : 'Show more invoices'}
+                  {showAllInvoices ? t('billing.invoices.actions.showFewer') : t('billing.invoices.actions.showMore')}
                 </Button>
               )}
             </CardContent>
@@ -598,11 +632,11 @@ export default function BillingCenter() {
 
         <Card variant="outlined">
           <CardContent>
-            <Typography variant="h6" sx={{ mb: 2 }}>Customer Information</Typography>
+            <Typography variant="h6" sx={{ mb: 2 }}>{t('billing.customer.title')}</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Customer name"
+                  label={t('billing.fields.customerName')}
                   value={customerForm.name}
                   onChange={handleContactChange('customer', 'name')}
                   fullWidth
@@ -611,7 +645,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Company"
+                  label={t('billing.fields.company')}
                   value={customerForm.company}
                   onChange={handleContactChange('customer', 'company')}
                   fullWidth
@@ -620,7 +654,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Email"
+                  label={t('billing.fields.email')}
                   type="email"
                   value={customerForm.email}
                   onChange={handleContactChange('customer', 'email')}
@@ -632,7 +666,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Phone"
+                  label={t('billing.fields.phone')}
                   value={customerForm.phone}
                   onChange={handleContactChange('customer', 'phone')}
                   fullWidth
@@ -641,7 +675,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="VAT number"
+                  label={t('billing.fields.vatNumber')}
                   value={customerForm.vatNumber}
                   onChange={handleContactChange('customer', 'vatNumber')}
                   fullWidth
@@ -650,7 +684,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Address line 1"
+                  label={t('billing.fields.addressLine1')}
                   value={customerForm.address.line1}
                   onChange={handleAddressChange('customer', 'line1')}
                   fullWidth
@@ -659,7 +693,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Address line 2"
+                  label={t('billing.fields.addressLine2')}
                   value={customerForm.address.line2}
                   onChange={handleAddressChange('customer', 'line2')}
                   fullWidth
@@ -668,7 +702,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
-                  label="City"
+                  label={t('billing.fields.city')}
                   value={customerForm.address.city}
                   onChange={handleAddressChange('customer', 'city')}
                   fullWidth
@@ -677,7 +711,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
-                  label="State / Province"
+                  label={t('billing.fields.stateProvince')}
                   value={customerForm.address.state}
                   onChange={handleAddressChange('customer', 'state')}
                   fullWidth
@@ -686,7 +720,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
-                  label="Postal code"
+                  label={t('billing.fields.postalCode')}
                   value={customerForm.address.postalCode}
                   onChange={handleAddressChange('customer', 'postalCode')}
                   fullWidth
@@ -695,7 +729,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
-                  label="Country"
+                  label={t('billing.fields.country')}
                   value={customerForm.address.country}
                   onChange={handleAddressChange('customer', 'country')}
                   fullWidth
@@ -709,19 +743,19 @@ export default function BillingCenter() {
         <Card variant="outlined">
           <CardContent>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-              <Typography variant="h6">Invoicing Information</Typography>
+              <Typography variant="h6">{t('billing.invoiceDetails.title')}</Typography>
               <Button
                 startIcon={<ContentCopyIcon fontSize="small" />}
                 onClick={handleCopyFromCustomer}
                 disabled={!canManage || loadingProfile || updateMutation.isPending || checkoutLoading}
               >
-                Copy from customer
+                {t('billing.invoiceDetails.copyFromCustomer')}
               </Button>
             </Stack>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Recipient name"
+                  label={t('billing.fields.recipientName')}
                   value={invoiceForm.name}
                   onChange={handleContactChange('invoice', 'name')}
                   fullWidth
@@ -730,7 +764,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Company"
+                  label={t('billing.fields.company')}
                   value={invoiceForm.company}
                   onChange={handleContactChange('invoice', 'company')}
                   fullWidth
@@ -739,7 +773,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Email"
+                  label={t('billing.fields.email')}
                   type="email"
                   value={invoiceForm.email}
                   onChange={handleContactChange('invoice', 'email')}
@@ -751,7 +785,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Phone"
+                  label={t('billing.fields.phone')}
                   value={invoiceForm.phone}
                   onChange={handleContactChange('invoice', 'phone')}
                   fullWidth
@@ -760,7 +794,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="VAT number"
+                  label={t('billing.fields.vatNumber')}
                   value={invoiceForm.vatNumber}
                   onChange={handleContactChange('invoice', 'vatNumber')}
                   fullWidth
@@ -769,7 +803,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Address line 1"
+                  label={t('billing.fields.addressLine1')}
                   value={invoiceForm.address.line1}
                   onChange={handleAddressChange('invoice', 'line1')}
                   fullWidth
@@ -778,7 +812,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
-                  label="Address line 2"
+                  label={t('billing.fields.addressLine2')}
                   value={invoiceForm.address.line2}
                   onChange={handleAddressChange('invoice', 'line2')}
                   fullWidth
@@ -787,7 +821,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
-                  label="City"
+                  label={t('billing.fields.city')}
                   value={invoiceForm.address.city}
                   onChange={handleAddressChange('invoice', 'city')}
                   fullWidth
@@ -796,7 +830,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
-                  label="State / Province"
+                  label={t('billing.fields.stateProvince')}
                   value={invoiceForm.address.state}
                   onChange={handleAddressChange('invoice', 'state')}
                   fullWidth
@@ -805,7 +839,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
-                  label="Postal code"
+                  label={t('billing.fields.postalCode')}
                   value={invoiceForm.address.postalCode}
                   onChange={handleAddressChange('invoice', 'postalCode')}
                   fullWidth
@@ -814,7 +848,7 @@ export default function BillingCenter() {
               </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
-                  label="Country"
+                  label={t('billing.fields.country')}
                   value={invoiceForm.address.country}
                   onChange={handleAddressChange('invoice', 'country')}
                   fullWidth
@@ -832,14 +866,14 @@ export default function BillingCenter() {
               onClick={handleReset}
               disabled={!isDirty || updateMutation.isPending || loadingProfile || checkoutLoading}
             >
-              Reset
+              {t('common:buttons.reset')}
             </Button>
             <Button
               variant="contained"
               onClick={handleSave}
               disabled={!isDirty || updateMutation.isPending || loadingProfile || checkoutLoading}
             >
-              {updateMutation.isPending ? <CircularProgress size={20} sx={{ color: 'inherit' }} /> : 'Save changes'}
+              {updateMutation.isPending ? <CircularProgress size={20} sx={{ color: 'inherit' }} /> : t('common:buttons.saveChanges')}
             </Button>
           </Stack>
         )}

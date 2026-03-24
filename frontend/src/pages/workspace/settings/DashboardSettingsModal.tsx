@@ -26,6 +26,7 @@ import UpdateIcon from '@mui/icons-material/Update';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import WarningIcon from '@mui/icons-material/Warning';
 import DescriptionIcon from '@mui/icons-material/Description';
+import { useTranslation } from 'react-i18next';
 import { useDashboardConfig, DashboardTileConfig } from '../hooks/useDashboardConfig';
 import { TILE_REGISTRY } from '../tiles/TileRegistry';
 
@@ -55,6 +56,7 @@ export default function DashboardSettingsModal({
 }: DashboardSettingsModalProps) {
   const { config, updateConfig, resetConfig, isUpdating, isResetting } =
     useDashboardConfig();
+  const { t } = useTranslation('common');
   const [localTiles, setLocalTiles] = useState<DashboardTileConfig[]>([]);
 
   // Initialize local state when modal opens or config changes
@@ -110,11 +112,10 @@ export default function DashboardSettingsModal({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Dashboard Settings</DialogTitle>
+      <DialogTitle>{t('dashboard.settings.title')}</DialogTitle>
       <DialogContent dividers>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Enable or disable tiles to customize your dashboard. Drag to reorder (coming
-          soon).
+          {t('dashboard.settings.description')}
         </Typography>
 
         <List dense>
@@ -167,18 +168,18 @@ export default function DashboardSettingsModal({
             disabled={isResetting}
             size="small"
           >
-            Reset to Defaults
+            {t('dashboard.settings.resetToDefaults')}
           </Button>
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('buttons.cancel')}</Button>
         <Button
           variant="contained"
           onClick={handleSave}
           disabled={isUpdating}
         >
-          Save
+          {t('buttons.save')}
         </Button>
       </DialogActions>
     </Dialog>

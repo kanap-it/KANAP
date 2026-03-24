@@ -19,6 +19,7 @@ import {
   Chip,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import ContactSelect from '../fields/ContactSelect';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -49,14 +50,10 @@ type Props = {
   canManage: boolean;
 };
 
-const ROLE_LABELS: Record<SupplierContactRole, string> = {
-  commercial: 'Commercial',
-  technical: 'Technical',
-  support: 'Support',
-  other: 'Other',
-};
+
 
 export default function ItemContactsSection({ itemType, itemId, canManage }: Props) {
+  const { t } = useTranslation('common');
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -99,16 +96,16 @@ export default function ItemContactsSection({ itemType, itemId, canManage }: Pro
   };
 
   if (isLoading) {
-    return <Typography variant="body2" color="text.secondary">Loading contacts...</Typography>;
+    return <Typography variant="body2" color="text.secondary">{t('contacts.loadingContacts')}</Typography>;
   }
 
   return (
     <Stack spacing={1}>
       <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography variant="subtitle2">Contacts</Typography>
+        <Typography variant="subtitle2">{t('contacts.title')}</Typography>
         {canManage && !isAdding && (
           <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => setIsAdding(true)}>
-            Add
+            {t('buttons.add')}
           </Button>
         )}
       </Stack>
@@ -116,18 +113,18 @@ export default function ItemContactsSection({ itemType, itemId, canManage }: Pro
       {isAdding && (
         <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 1 }}>
           <Box sx={{ flex: 1, minWidth: 200 }}>
-            <ContactSelect label="Select Contact" value={selectedContact} onChange={setSelectedContact} />
+            <ContactSelect label={t('contacts.selectContact')} value={selectedContact} onChange={setSelectedContact} />
           </Box>
           <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel id="role-select-label">Role</InputLabel>
+            <InputLabel id="role-select-label">{t('labels.role')}</InputLabel>
             <Select
               labelId="role-select-label"
               value={selectedRole}
-              label="Role"
+              label={t('labels.role')}
               onChange={handleRoleChange}
             >
-              {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                <MenuItem key={value} value={value}>{label}</MenuItem>
+              {(['commercial', 'technical', 'support', 'other'] as const).map((value) => (
+                <MenuItem key={value} value={value}>{t(`contacts.role${value.charAt(0).toUpperCase() + value.slice(1)}`)}</MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -140,25 +137,25 @@ export default function ItemContactsSection({ itemType, itemId, canManage }: Pro
             Add
           </Button>
           <Button size="small" onClick={() => { setIsAdding(false); setSelectedContact(null); }}>
-            Cancel
+            {t('buttons.cancel')}
           </Button>
         </Stack>
       )}
 
       {contacts.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">No contacts linked</Typography>
+        <Typography variant="body2" color="text.secondary">{t('contacts.noContactsLinked')}</Typography>
       ) : (
         <Box sx={{ overflowX: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
           <Table size="small" sx={{ '& tbody tr': { cursor: 'pointer' }, '& tbody tr:hover': { backgroundColor: 'action.hover' } }}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 600, width: 130 }}>Role</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>First name</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Last name</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Job title</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Mobile</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 600, width: 80 }}>Actions</TableCell>
+                <TableCell sx={{ fontWeight: 600, width: 130 }}>{t('labels.role')}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{t('contacts.firstName')}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{t('contacts.lastName')}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{t('contacts.jobTitle')}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{t('labels.email')}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{t('contacts.mobile')}</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600, width: 80 }}>{t('labels.actions')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -166,11 +163,11 @@ export default function ItemContactsSection({ itemType, itemId, canManage }: Pro
                 <TableRow key={link.id} hover onClick={() => navigate(`/master-data/contacts/${link.contact.id}/overview`)}>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Chip
-                      label={ROLE_LABELS[link.role]}
+                      label={t(`contacts.role${link.role.charAt(0).toUpperCase() + link.role.slice(1)}`)}
                       size="small"
                       variant={link.origin === 'supplier' ? 'filled' : 'outlined'}
                       color={link.origin === 'supplier' ? 'primary' : 'default'}
-                      title={link.origin === 'supplier' ? 'From supplier' : 'Manually added'}
+                      title={link.origin === 'supplier' ? t('contacts.fromSupplier') : t('contacts.manuallyAdded')}
                     />
                   </TableCell>
                   <TableCell>{link.contact.first_name || ''}</TableCell>
@@ -179,7 +176,7 @@ export default function ItemContactsSection({ itemType, itemId, canManage }: Pro
                   <TableCell>{link.contact.email}</TableCell>
                   <TableCell>{link.contact.mobile || ''}</TableCell>
                   <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                    <Tooltip title={canManage ? 'Remove contact' : 'Insufficient permission'}>
+                    <Tooltip title={canManage ? t('contacts.removeContact') : t('contacts.insufficientPermission')}>
                       <span>
                         <IconButton
                           size="small"

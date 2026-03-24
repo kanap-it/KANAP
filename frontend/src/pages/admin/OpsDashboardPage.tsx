@@ -16,29 +16,31 @@ import {
   Chip,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import { fetchOpsSnapshot, type OpsSnapshot } from '../../services/adminOps';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatUptime(seconds: number): string {
+function formatUptime(seconds: number, t: (key: string, options?: Record<string, unknown>) => string): string {
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h ${m}m`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+  if (d > 0) return t('opsDashboard.values.uptimeDaysHoursMinutes', { days: d, hours: h, minutes: m });
+  if (h > 0) return t('opsDashboard.values.uptimeHoursMinutes', { hours: h, minutes: m });
+  return t('opsDashboard.values.uptimeMinutes', { minutes: m });
 }
 
-function ago(ts: number): string {
+function ago(ts: number, t: (key: string, options?: Record<string, unknown>) => string): string {
   const s = Math.round((Date.now() - ts) / 1000);
-  if (s < 5) return 'just now';
-  if (s < 60) return `${s}s ago`;
-  return `${Math.floor(s / 60)}m ago`;
+  if (s < 5) return t('opsDashboard.values.justNow');
+  if (s < 60) return t('opsDashboard.values.secondsAgo', { count: s });
+  return t('opsDashboard.values.minutesAgo', { count: Math.floor(s / 60) });
 }
 
 type Severity = 'ok' | 'warn' | 'critical';
@@ -107,6 +109,7 @@ export default function OpsDashboardPage() {
 }
 
 function DashboardContent() {
+  const { t } = useTranslation(['admin']);
   const { data, error, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ['admin-ops-snapshot'],
     queryFn: fetchOpsSnapshot,
@@ -117,11 +120,11 @@ function DashboardContent() {
   return (
     <>
       <PageHeader
-        title="Ops Dashboard"
+        title={t('opsDashboard.title')}
         actions={
           dataUpdatedAt ? (
             <Typography variant="caption" color="text.secondary">
-              Updated {ago(dataUpdatedAt)}
+              {t('opsDashboard.updated', { value: ago(dataUpdatedAt, t) })}
             </Typography>
           ) : null
         }
@@ -135,11 +138,11 @@ function DashboardContent() {
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          Failed to load ops snapshot: {(error as Error).message}
+          {getApiErrorMessage(error, t, t('opsDashboard.messages.loadFailed'))}
         </Alert>
       )}
 
-      {data && <SnapshotView data={data} />}
+      {data && <SnapshotView data={data} t={t} />}
     </>
   );
 }
@@ -148,7 +151,13 @@ function DashboardContent() {
 // Snapshot renderer
 // ---------------------------------------------------------------------------
 
-function SnapshotView({ data }: { data: OpsSnapshot }) {
+function SnapshotView({
+  data,
+  t,
+}: {
+  data: OpsSnapshot;
+  t: (key: string, options?: Record<string, unknown>) => string;
+}) {
   const w1 = data.windows['1m'];
   const w5 = data.windows['5m'];
   const pool = data.db.pool;
@@ -166,59 +175,59 @@ function SnapshotView({ data }: { data: OpsSnapshot }) {
   return (
     <>
       {/* ---- Traffic overview ---- */}
-      <SectionTitle>Traffic (1-minute window)</SectionTitle>
+      <SectionTitle>{t('opsDashboard.sections.traffic')}</SectionTitle>
       <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1.5 }}>
-        <StatCard label="Requests / min" value={w1.requestsPerMinute} sub={`${w1.totalRequests} total`} />
-        <StatCard label="2xx" value={w1.statusClasses['2xx']} />
-        <StatCard label="4xx" value={w1.statusClasses['4xx']} severity={w1.statusClasses['4xx'] > 20 ? 'warn' : 'ok'} />
-        <StatCard label="5xx" value={w1.statusClasses['5xx']} severity={s5xx} />
-        <StatCard label="429 (rate limited)" value={w1.exact429} severity={s429} />
+        <StatCard label={t('opsDashboard.cards.requestsPerMinute')} value={w1.requestsPerMinute} sub={t('opsDashboard.cards.totalRequests', { count: w1.totalRequests })} />
+        <StatCard label={t('opsDashboard.cards.status2xx')} value={w1.statusClasses['2xx']} />
+        <StatCard label={t('opsDashboard.cards.status4xx')} value={w1.statusClasses['4xx']} severity={w1.statusClasses['4xx'] > 20 ? 'warn' : 'ok'} />
+        <StatCard label={t('opsDashboard.cards.status5xx')} value={w1.statusClasses['5xx']} severity={s5xx} />
+        <StatCard label={t('opsDashboard.cards.rateLimited')} value={w1.exact429} severity={s429} />
       </Stack>
 
       {/* ---- Auth ---- */}
-      <SectionTitle>Auth (5-minute window)</SectionTitle>
+      <SectionTitle>{t('opsDashboard.sections.auth')}</SectionTitle>
       <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1.5 }}>
-        <StatCard label="Login attempts" value={data.auth.loginAttempts} />
-        <StatCard label="Login failures" value={data.auth.loginFailures} severity={sLoginFail} sub={data.auth.loginAttempts > 0 ? `${Math.round((data.auth.loginFailures / data.auth.loginAttempts) * 100)}% fail rate` : undefined} />
-        <StatCard label="Token refreshes" value={data.auth.refreshAttempts} />
-        <StatCard label="Refresh failures" value={data.auth.refreshFailures} severity={data.auth.refreshFailures > 0 ? 'warn' : 'ok'} />
+        <StatCard label={t('opsDashboard.cards.loginAttempts')} value={data.auth.loginAttempts} />
+        <StatCard label={t('opsDashboard.cards.loginFailures')} value={data.auth.loginFailures} severity={sLoginFail} sub={data.auth.loginAttempts > 0 ? t('opsDashboard.cards.failRate', { count: Math.round((data.auth.loginFailures / data.auth.loginAttempts) * 100) }) : undefined} />
+        <StatCard label={t('opsDashboard.cards.tokenRefreshes')} value={data.auth.refreshAttempts} />
+        <StatCard label={t('opsDashboard.cards.refreshFailures')} value={data.auth.refreshFailures} severity={data.auth.refreshFailures > 0 ? 'warn' : 'ok'} />
       </Stack>
 
       {/* ---- Database ---- */}
-      <SectionTitle>Database</SectionTitle>
+      <SectionTitle>{t('opsDashboard.sections.database')}</SectionTitle>
       <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1.5 }}>
-        <StatCard label="Pool utilization" value={`${pool.utilizationPct}%`} sub={`${pool.totalCount - pool.idleCount} / ${pool.maxPool} active`} severity={sPool} />
-        <StatCard label="Pool waiting" value={pool.waitingCount} severity={sWait} sub="Requests queued for a connection" />
-        <StatCard label="Active queries" value={dbAct.active} />
-        <StatCard label="Idle in txn" value={dbAct.idleInTransaction} severity={dbAct.idleInTransaction > 3 ? 'warn' : 'ok'} />
-        <StatCard label="Deadlocks (cumul.)" value={data.db.database.deadlocks} severity={data.db.database.deadlocks > 0 ? 'warn' : 'ok'} />
+        <StatCard label={t('opsDashboard.cards.poolUtilization')} value={`${pool.utilizationPct}%`} sub={t('opsDashboard.cards.poolActive', { active: pool.totalCount - pool.idleCount, max: pool.maxPool })} severity={sPool} />
+        <StatCard label={t('opsDashboard.cards.poolWaiting')} value={pool.waitingCount} severity={sWait} sub={t('opsDashboard.cards.requestsQueued')} />
+        <StatCard label={t('opsDashboard.cards.activeQueries')} value={dbAct.active} />
+        <StatCard label={t('opsDashboard.cards.idleInTransaction')} value={dbAct.idleInTransaction} severity={dbAct.idleInTransaction > 3 ? 'warn' : 'ok'} />
+        <StatCard label={t('opsDashboard.cards.deadlocks')} value={data.db.database.deadlocks} severity={data.db.database.deadlocks > 0 ? 'warn' : 'ok'} />
       </Stack>
 
       {/* ---- Process ---- */}
-      <SectionTitle>Node.js Process</SectionTitle>
+      <SectionTitle>{t('opsDashboard.sections.process')}</SectionTitle>
       <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1.5 }}>
-        <StatCard label="Uptime" value={formatUptime(proc.uptimeSeconds)} />
-        <StatCard label="Heap used" value={`${proc.memoryMB.heapUsed} MB`} sub={`/ ${proc.memoryMB.heapTotal} MB total`} />
+        <StatCard label={t('opsDashboard.cards.uptime')} value={formatUptime(proc.uptimeSeconds, t)} />
+        <StatCard label={t('opsDashboard.cards.heapUsed')} value={`${proc.memoryMB.heapUsed} MB`} sub={t('opsDashboard.cards.heapTotal', { total: proc.memoryMB.heapTotal })} />
         <StatCard label="RSS" value={`${proc.memoryMB.rss} MB`} />
-        <StatCard label="Event loop P99" value={`${proc.eventLoopLagMs.p99} ms`} severity={sEL} sub={`mean ${proc.eventLoopLagMs.mean} ms`} />
-        <StatCard label="CPU (user)" value={`${Math.round(proc.cpuUsage.userMs / 1000)}s`} sub={`system ${Math.round(proc.cpuUsage.systemMs / 1000)}s`} />
+        <StatCard label={t('opsDashboard.cards.eventLoopP99')} value={`${proc.eventLoopLagMs.p99} ms`} severity={sEL} sub={t('opsDashboard.cards.meanMs', { count: proc.eventLoopLagMs.mean })} />
+        <StatCard label={t('opsDashboard.cards.cpuUser')} value={`${Math.round(proc.cpuUsage.userMs / 1000)}s`} sub={t('opsDashboard.cards.cpuSystem', { count: Math.round(proc.cpuUsage.systemMs / 1000) })} />
       </Stack>
 
       {/* ---- Route latencies ---- */}
-      <SectionTitle>Top Routes by Volume (5-minute window)</SectionTitle>
+      <SectionTitle>{t('opsDashboard.sections.topRoutes')}</SectionTitle>
       {data.topRoutes.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">No traffic recorded yet.</Typography>
+        <Typography variant="body2" color="text.secondary">{t('opsDashboard.messages.noTraffic')}</Typography>
       ) : (
         <TableContainer sx={{ maxHeight: 400 }}>
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>Route</TableCell>
-                <TableCell align="right">Count</TableCell>
-                <TableCell align="right">P50</TableCell>
-                <TableCell align="right">P95</TableCell>
-                <TableCell align="right">P99</TableCell>
-                <TableCell align="right">Avg</TableCell>
+                <TableCell>{t('opsDashboard.columns.route')}</TableCell>
+                <TableCell align="right">{t('opsDashboard.columns.count')}</TableCell>
+                <TableCell align="right">{t('opsDashboard.columns.p50')}</TableCell>
+                <TableCell align="right">{t('opsDashboard.columns.p95')}</TableCell>
+                <TableCell align="right">{t('opsDashboard.columns.p99')}</TableCell>
+                <TableCell align="right">{t('opsDashboard.columns.avg')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -241,18 +250,18 @@ function SnapshotView({ data }: { data: OpsSnapshot }) {
       )}
 
       {/* ---- Recent errors ---- */}
-      <SectionTitle>Recent Errors (15-minute window)</SectionTitle>
+      <SectionTitle>{t('opsDashboard.sections.recentErrors')}</SectionTitle>
       {data.recentErrors.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">No errors recorded.</Typography>
+        <Typography variant="body2" color="text.secondary">{t('opsDashboard.messages.noErrors')}</Typography>
       ) : (
         <TableContainer sx={{ maxHeight: 300 }}>
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>Error</TableCell>
-                <TableCell>Route</TableCell>
-                <TableCell align="right">Count</TableCell>
-                <TableCell align="right">Last Seen</TableCell>
+                <TableCell>{t('opsDashboard.columns.error')}</TableCell>
+                <TableCell>{t('opsDashboard.columns.route')}</TableCell>
+                <TableCell align="right">{t('opsDashboard.columns.count')}</TableCell>
+                <TableCell align="right">{t('opsDashboard.columns.lastSeen')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -268,7 +277,7 @@ function SnapshotView({ data }: { data: OpsSnapshot }) {
                   </TableCell>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{e.route}</TableCell>
                   <TableCell align="right">{e.count}</TableCell>
-                  <TableCell align="right">{ago(e.lastSeen)}</TableCell>
+                  <TableCell align="right">{ago(e.lastSeen, t)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -277,18 +286,18 @@ function SnapshotView({ data }: { data: OpsSnapshot }) {
       )}
 
       {/* ---- Traffic comparison ---- */}
-      <SectionTitle>Window Comparison</SectionTitle>
+      <SectionTitle>{t('opsDashboard.sections.windowComparison')}</SectionTitle>
       <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Window</TableCell>
-              <TableCell align="right">Total</TableCell>
-              <TableCell align="right">Req/min</TableCell>
-              <TableCell align="right">2xx</TableCell>
-              <TableCell align="right">4xx</TableCell>
-              <TableCell align="right">5xx</TableCell>
-              <TableCell align="right">429</TableCell>
+              <TableCell>{t('opsDashboard.columns.window')}</TableCell>
+              <TableCell align="right">{t('opsDashboard.columns.total')}</TableCell>
+              <TableCell align="right">{t('opsDashboard.columns.requestsPerMinute')}</TableCell>
+              <TableCell align="right">{t('opsDashboard.columns.status2xx')}</TableCell>
+              <TableCell align="right">{t('opsDashboard.columns.status4xx')}</TableCell>
+              <TableCell align="right">{t('opsDashboard.columns.status5xx')}</TableCell>
+              <TableCell align="right">{t('opsDashboard.columns.status429')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

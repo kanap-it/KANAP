@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
+import { useTranslation } from 'react-i18next';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
 
 interface TimeSummary {
@@ -32,6 +33,7 @@ interface MyTimeLastWeekTileProps {
 
 export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   const days = (config.days as number) || 7;
 
   const { data, isLoading } = useQuery({
@@ -56,16 +58,16 @@ export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) 
 
   return (
     <DashboardTile
-      title={`My Time (Last ${days} Days)`}
+      title={t('dashboard.tiles.myTime', { days })}
       icon="AccessTime"
       isLoading={isLoading}
     >
       {summary.totalHours === 0 ? (
         <TileEmptyState
-          message="No time logged this week"
+          message={t('dashboard.tiles.noTimeLogged')}
           action={
             <Button size="small" onClick={() => navigate('/portfolio/projects')}>
-              Log Time
+              {t('dashboard.logTime')}
             </Button>
           }
         />
@@ -77,7 +79,7 @@ export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) 
               {summary.totalHours.toFixed(1)}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              hours logged
+              {t('dashboard.tiles.hoursLogged')}
             </Typography>
           </Box>
 
@@ -88,7 +90,7 @@ export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) 
                 {summary.byCategory.it.toFixed(1)}h
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                IT
+                {t('dashboard.quickLogTime.it')}
               </Typography>
             </Box>
             <Box sx={{ textAlign: 'center' }}>
@@ -96,7 +98,7 @@ export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) 
                 {summary.byCategory.business.toFixed(1)}h
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Business
+                {t('dashboard.quickLogTime.business')}
               </Typography>
             </Box>
             {summary.nonProjectTaskHours > 0 && (
@@ -105,7 +107,7 @@ export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) 
                   {summary.nonProjectTaskHours.toFixed(1)}h
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Other Tasks
+                  {t('dashboard.tiles.otherTasks')}
                 </Typography>
               </Box>
             )}
@@ -115,7 +117,7 @@ export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) 
           {summary.byProject.length > 0 && (
             <Box>
               <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                By Project
+                {t('dashboard.tiles.byProject')}
               </Typography>
               <List dense disablePadding>
                 {summary.byProject.slice(0, 5).map((project) => (

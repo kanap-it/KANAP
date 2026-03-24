@@ -11,6 +11,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
 import ForbiddenPage from '../ForbiddenPage';
@@ -18,6 +19,7 @@ import { useAuth } from '../../auth/AuthContext';
 import api from '../../api';
 import CheckboxSetFilter from '../../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
+import { useLocale } from '../../i18n/useLocale';
 
 type AuditLogItem = {
   id: string;
@@ -69,6 +71,8 @@ function getChangedKeys(beforeValue: any, afterValue: any): string[] {
 
 export default function AuditLogsPage() {
   const { hasLevel } = useAuth();
+  const { t } = useTranslation(['admin']);
+  const locale = useLocale();
   const [open, setOpen] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [selectedRow, setSelectedRow] = React.useState<AuditLogItem | null>(null);
@@ -113,14 +117,14 @@ export default function AuditLogsPage() {
     return [
       {
         field: 'created_at',
-        headerName: 'Date',
+        headerName: t('auditLogs.columns.date'),
         width: 180,
         filter: 'agDateColumnFilter',
-        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
       },
       {
         field: 'table_name',
-        headerName: 'Table',
+        headerName: t('auditLogs.columns.table'),
         width: 160,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -130,7 +134,7 @@ export default function AuditLogsPage() {
       },
       {
         field: 'action',
-        headerName: 'Action',
+        headerName: t('auditLogs.columns.action'),
         width: 130,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -143,7 +147,7 @@ export default function AuditLogsPage() {
           return (
             <Chip
               size="small"
-              label={value || '-'}
+              label={value ? t(`auditLogs.actions.${value}`, { defaultValue: value }) : t('auditLogs.shared.empty')}
               color={ACTION_COLOR[value] ?? 'default'}
               variant="outlined"
             />
@@ -152,7 +156,7 @@ export default function AuditLogsPage() {
       },
       {
         field: 'source',
-        headerName: 'Source',
+        headerName: t('auditLogs.columns.source'),
         width: 130,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
@@ -165,7 +169,7 @@ export default function AuditLogsPage() {
           return (
             <Chip
               size="small"
-              label={value}
+              label={t(`auditLogs.sources.${value}`, { defaultValue: value })}
               color={SOURCE_COLOR[value] ?? 'default'}
               variant="outlined"
             />
@@ -174,7 +178,7 @@ export default function AuditLogsPage() {
       },
       {
         field: 'record_id',
-        headerName: 'Record ID',
+        headerName: t('auditLogs.columns.recordId'),
         width: 170,
         defaultHidden: true,
         valueFormatter: (p: any) => {
@@ -185,52 +189,57 @@ export default function AuditLogsPage() {
       },
       {
         field: 'user_email',
-        headerName: 'User',
+        headerName: t('auditLogs.columns.user'),
         width: 220,
         valueGetter: (p: any) => {
           const email = p.data?.user_email;
           const userId = p.data?.user_id;
           const source = String(p.data?.source || '').toLowerCase();
           if (email) return email;
-          if (userId) return `Unknown (${String(userId).slice(0, 8)}...)`;
-          if (source === 'webhook') return 'Webhook';
-          return 'System';
+          if (userId) {
+            return t('auditLogs.values.unknownUser', {
+              id: String(userId).slice(0, 8),
+              defaultValue: `Unknown (${String(userId).slice(0, 8)}...)`,
+            });
+          }
+          if (source === 'webhook') return t('auditLogs.sources.webhook');
+          return t('auditLogs.sources.system');
         },
       },
       {
         field: 'user_id',
-        headerName: 'User ID',
+        headerName: t('auditLogs.columns.userId'),
         width: 220,
         defaultHidden: true,
       },
       {
         field: 'user_name',
-        headerName: 'User Name',
+        headerName: t('auditLogs.columns.userName'),
         width: 180,
         defaultHidden: true,
       },
       {
         field: 'source_ref',
-        headerName: 'Source Ref',
+        headerName: t('auditLogs.columns.sourceRef'),
         width: 220,
         defaultHidden: true,
       },
       {
         field: 'tenant_id',
-        headerName: 'Tenant ID',
+        headerName: t('auditLogs.columns.tenantId'),
         width: 220,
         defaultHidden: true,
       },
     ];
-  }, [getFilterValues]);
+  }, [getFilterValues, locale, t]);
 
   if (!hasLevel('users', 'admin')) {
-    return <ForbiddenPage />;
+      return <ForbiddenPage />;
   }
 
   return (
     <>
-      <PageHeader title="Audit Log" />
+      <PageHeader title={t('auditLogs.title')} />
       <ServerDataGrid<AuditLogItem>
         columns={columns}
         endpoint="/audit-logs"
@@ -256,7 +265,7 @@ export default function AuditLogsPage() {
       />
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xl">
-        <DialogTitle>Audit Entry Details</DialogTitle>
+        <DialogTitle>{t('auditLogs.details.title')}</DialogTitle>
         <DialogContent dividers>
           {detailQuery.isLoading && (
             <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
@@ -266,27 +275,47 @@ export default function AuditLogsPage() {
 
           {detailQuery.isError && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              Failed to load audit entry details.
+              {t('auditLogs.messages.loadDetailsFailed')}
             </Alert>
           )}
 
           {detail && !detailQuery.isLoading && (
             <Stack spacing={2}>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip size="small" label={`Date: ${new Date(detail.created_at).toLocaleString()}`} variant="outlined" />
-                <Chip size="small" label={`Table: ${detail.table_name}`} variant="outlined" />
-                <Chip size="small" label={`Action: ${detail.action}`} color={ACTION_COLOR[String(detail.action).toLowerCase()] ?? 'default'} variant="outlined" />
-                <Chip size="small" label={`Source: ${detail.source || 'system'}`} color={SOURCE_COLOR[String(detail.source || 'system').toLowerCase()] ?? 'default'} variant="outlined" />
-                {detail.source_ref && <Chip size="small" label={`Source Ref: ${detail.source_ref}`} variant="outlined" />}
-                <Chip size="small" label={`Tenant: ${detail.tenant_id}`} variant="outlined" />
-                {detail.record_id && <Chip size="small" label={`Record ID: ${detail.record_id}`} variant="outlined" />}
-                <Chip size="small" label={`User: ${detail.user_email || detail.user_id || (detail.source === 'webhook' ? 'webhook' : 'system')}`} variant="outlined" />
+                <Chip size="small" label={t('auditLogs.details.date', { value: new Date(detail.created_at).toLocaleString(locale) })} variant="outlined" />
+                <Chip size="small" label={t('auditLogs.details.table', { value: detail.table_name })} variant="outlined" />
+                <Chip
+                  size="small"
+                  label={t('auditLogs.details.action', {
+                    value: t(`auditLogs.actions.${detail.action}`, { defaultValue: detail.action }),
+                  })}
+                  color={ACTION_COLOR[String(detail.action).toLowerCase()] ?? 'default'}
+                  variant="outlined"
+                />
+                <Chip
+                  size="small"
+                  label={t('auditLogs.details.source', {
+                    value: t(`auditLogs.sources.${detail.source || 'system'}`, { defaultValue: detail.source || 'system' }),
+                  })}
+                  color={SOURCE_COLOR[String(detail.source || 'system').toLowerCase()] ?? 'default'}
+                  variant="outlined"
+                />
+                {detail.source_ref && <Chip size="small" label={t('auditLogs.details.sourceRef', { value: detail.source_ref })} variant="outlined" />}
+                <Chip size="small" label={t('auditLogs.details.tenant', { value: detail.tenant_id })} variant="outlined" />
+                {detail.record_id && <Chip size="small" label={t('auditLogs.details.recordId', { value: detail.record_id })} variant="outlined" />}
+                <Chip
+                  size="small"
+                  label={t('auditLogs.details.user', {
+                    value: detail.user_email || detail.user_id || t(`auditLogs.sources.${detail.source === 'webhook' ? 'webhook' : 'system'}`),
+                  })}
+                  variant="outlined"
+                />
               </Stack>
 
               <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>Changed Fields</Typography>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('auditLogs.details.changedFields')}</Typography>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {changedKeys.length === 0 && <Chip size="small" label="No key-level changes" variant="outlined" />}
+                  {changedKeys.length === 0 && <Chip size="small" label={t('auditLogs.details.noFieldChanges')} variant="outlined" />}
                   {changedKeys.map((key) => (
                     <Chip key={key} size="small" label={key} color="warning" variant="outlined" />
                   ))}
@@ -301,7 +330,7 @@ export default function AuditLogsPage() {
                 }}
               >
                 <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Before</Typography>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('auditLogs.details.before')}</Typography>
                   <Box
                     component="pre"
                     sx={{
@@ -320,7 +349,7 @@ export default function AuditLogsPage() {
                 </Box>
 
                 <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>After</Typography>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('auditLogs.details.after')}</Typography>
                   <Box
                     component="pre"
                     sx={{

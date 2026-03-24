@@ -19,8 +19,10 @@ import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import PageHeader from '../../components/PageHeader';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 type DocumentTypeItem = {
   id: string;
@@ -32,6 +34,7 @@ type DocumentTypeItem = {
 };
 
 export default function KnowledgeTypesPage() {
+  const { t } = useTranslation(['knowledge', 'common']);
   const qc = useQueryClient();
   const [newName, setNewName] = React.useState('');
   const [newTemplate, setNewTemplate] = React.useState('');
@@ -112,14 +115,14 @@ export default function KnowledgeTypesPage() {
 
   return (
     <>
-      <PageHeader title="Knowledge Types" />
+      <PageHeader title={t('typesPage.title')} />
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack spacing={2}>
-          <Typography variant="subtitle2">Create type</Typography>
+          <Typography variant="subtitle2">{t('typesPage.create.title')}</Typography>
           <TextField
             size="small"
-            label="Name"
+            label={t('typesPage.fields.name')}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             sx={{ maxWidth: 360 }}
@@ -127,7 +130,7 @@ export default function KnowledgeTypesPage() {
           <TextField
             multiline
             minRows={4}
-            label="Template content (Markdown)"
+            label={t('typesPage.fields.templateContent')}
             value={newTemplate}
             onChange={(e) => setNewTemplate(e.target.value)}
           />
@@ -138,7 +141,7 @@ export default function KnowledgeTypesPage() {
               onClick={() => createMutation.mutate()}
               disabled={!newName.trim() || createMutation.isPending}
             >
-              Create Type
+              {t('typesPage.create.button')}
             </Button>
           </Box>
         </Stack>
@@ -151,18 +154,18 @@ export default function KnowledgeTypesPage() {
           </Box>
         )}
 
-        {!!error && !isLoading && <Alert severity="error">Failed to load knowledge types.</Alert>}
+        {!!error && !isLoading && <Alert severity="error">{getApiErrorMessage(error, t, t('typesPage.messages.loadFailed'))}</Alert>}
 
         {!isLoading && !error && (
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Order</TableCell>
-                <TableCell>Active</TableCell>
-                <TableCell>Template</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell>{t('typesPage.columns.name')}</TableCell>
+                <TableCell>{t('typesPage.columns.order')}</TableCell>
+                <TableCell>{t('typesPage.columns.active')}</TableCell>
+                <TableCell>{t('typesPage.columns.template')}</TableCell>
+                <TableCell>{t('typesPage.columns.description')}</TableCell>
+                <TableCell align="right">{t('typesPage.columns.actions')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -222,7 +225,7 @@ export default function KnowledgeTypesPage() {
                         onClick={() => updateMutation.mutate(item.id)}
                         disabled={!changed || updateMutation.isPending}
                       >
-                        Save
+                        {t('common:buttons.save')}
                       </Button>
                       <Button
                         size="small"
@@ -231,7 +234,7 @@ export default function KnowledgeTypesPage() {
                         onClick={() => deleteMutation.mutate(item.id)}
                         disabled={deleteMutation.isPending}
                       >
-                        Delete
+                        {t('common:buttons.delete')}
                       </Button>
                     </Stack>
                   </TableCell>
@@ -242,7 +245,7 @@ export default function KnowledgeTypesPage() {
                 <TableRow>
                   <TableCell colSpan={6}>
                     <Typography variant="body2" color="text.secondary">
-                      No document types yet.
+                      {t('typesPage.empty')}
                     </Typography>
                   </TableCell>
                 </TableRow>

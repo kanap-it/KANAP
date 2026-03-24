@@ -16,7 +16,7 @@ KANAP can be deployed on-premise in **single-tenant mode**. You provide your own
 - Automatic database migrations on startup
 - First-boot provisioning (tenant, admin user, subscription)
 - Local username/password authentication (no external dependencies)
-- Optional email via Resend API (SMTP support planned for a future release)
+- Optional email via Resend API or customer-managed SMTP
 - Optional Microsoft Entra SSO
 
 ## What's Disabled
@@ -29,4 +29,5 @@ KANAP can be deployed on-premise in **single-tenant mode**. You provide your own
 
 - `DEPLOYMENT_MODE=single-tenant` is the single switch that activates on-premise mode.
 - `APP_BASE_URL` must match your public URL for email links and exports.
+- For outbound email, choose either **Resend** or **SMTP**. SMTP is intended for single-tenant/on-prem deployments only.
 - The backend returns structured `FEATURE_DISABLED` responses for disabled features — the UI hides them automatically.

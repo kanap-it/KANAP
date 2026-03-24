@@ -9,6 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { contentToPlainText } from '../../../utils/contentToPlainText';
+import { useLocale } from '../../../i18n/useLocale';
 import { getPriorityLabel, getTaskStatusLabel } from '../../../utils/portfolioI18n';
 
 interface Activity {
@@ -64,6 +65,7 @@ const toCommentPreview = (value: string, maxLen = 150): string => {
 
 export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
   const { t } = useTranslation('portfolio');
+  const locale = useLocale();
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ['task-activities', taskId],
     queryFn: async () => {
@@ -81,7 +83,7 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
   });
 
   const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('en-GB', {
+    return new Date(dateStr).toLocaleString(locale, {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -99,7 +101,7 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
       return value.map((entry) => String(entry)).join(', ');
     }
     if (field === 'due_date' || field === 'start_date') {
-      return value ? new Date(String(value)).toLocaleDateString('en-GB') : t('workspace.task.history.values.none');
+      return value ? new Date(String(value)).toLocaleDateString(locale) : t('workspace.task.history.values.none');
     }
     return String(value);
   };

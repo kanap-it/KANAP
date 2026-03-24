@@ -20,7 +20,13 @@ type SearchRow = {
   status: string | null;
   updated_at: Date | string | null;
   score?: number;
+  total_count?: number | null;
   metadata?: Record<string, string | number | null> | null;
+};
+
+type RankedSearchResult = {
+  items: Array<AiEntitySummaryDto & { _score: number }>;
+  total: number;
 };
 
 function buildRequestSummarySql(alias: string): string {
@@ -168,7 +174,7 @@ export class AiEntityService {
     context: AiExecutionContextWithManager,
     query: string,
     limit: number,
-  ) {
+  ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
     const rows = await context.manager.query<SearchRow[]>(
@@ -185,6 +191,7 @@ export class AiEntityService {
               a.version,
               s.name AS supplier_name,
               ${itOwnerNamesSql} AS it_owner_names,
+              COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN a.name ILIKE $1 THEN 3
                 WHEN COALESCE(a.description, '') ILIKE $1 THEN 2
@@ -215,29 +222,32 @@ export class AiEntityService {
       [like, context.tenantId, limit],
     );
 
-    return rows.map((row: any) => ({
-      ...toSummary('applications', {
-        ...row,
-        metadata: {
-          lifecycle: row.lifecycle ?? null,
-          criticality: row.criticality ?? null,
-          category: row.category ?? null,
-          hosting_model: row.hosting_model ?? null,
-          data_class: row.data_class ?? null,
-          version: row.version ?? null,
-          supplier: row.supplier_name ?? null,
-          it_owner: row.it_owner_names || null,
-        },
-      }, row.summary),
-      _score: row.score ?? 1,
-    }));
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('applications', {
+          ...row,
+          metadata: {
+            lifecycle: row.lifecycle ?? null,
+            criticality: row.criticality ?? null,
+            category: row.category ?? null,
+            hosting_model: row.hosting_model ?? null,
+            data_class: row.data_class ?? null,
+            version: row.version ?? null,
+            supplier: row.supplier_name ?? null,
+            it_owner: row.it_owner_names || null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
   }
 
   private async searchAssets(
     context: AiExecutionContextWithManager,
     query: string,
     limit: number,
-  ) {
+  ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT a.id,
@@ -245,6 +255,7 @@ export class AiEntityService {
               COALESCE(a.fqdn, a.hostname, a.notes) AS summary,
               a.status,
               a.updated_at,
+              COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN a.name ILIKE $1 THEN 3
                 WHEN COALESCE(a.fqdn, '') ILIKE $1 OR COALESCE(a.hostname, '') ILIKE $1 THEN 2
@@ -273,55 +284,71 @@ export class AiEntityService {
       [like, context.tenantId, limit],
     );
 
-    return rows.map((row) => ({ ...toSummary('assets', row, row.summary), _score: row.score ?? 1 }));
+    return {
+      items: rows.map((row) => ({ ...toSummary('assets', row, row.summary), _score: row.score ?? 1 })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
   }
 
   private async searchLocations(
     context: AiExecutionContextWithManager,
     query: string,
     limit: number,
-  ) {
+  ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const rows = await context.manager.query<SearchRow[]>(
-      `SELECT DISTINCT ON (l.id) l.id,
-              l.code || ' — ' || l.name AS label,
-              COALESCE(NULLIF(l.city, ''), l.country_iso) AS summary,
-              NULL::text AS status,
-              l.updated_at,
-              CASE
-                WHEN l.name ILIKE $1 THEN 3
-                WHEN l.code ILIKE $1 THEN 3
-                WHEN COALESCE(l.city, '') ILIKE $1 THEN 2
-                WHEN sl.name IS NOT NULL THEN 2
-                ELSE 1
-              END AS score
-       FROM locations l
-       LEFT JOIN location_sub_items sl
-         ON sl.location_id = l.id AND sl.tenant_id = l.tenant_id
-         AND (sl.name ILIKE $1 OR COALESCE(sl.description, '') ILIKE $1)
-       WHERE l.tenant_id = $2
-         AND (
-           l.code ILIKE $1
-           OR l.name ILIKE $1
-           OR COALESCE(l.city, '') ILIKE $1
-           OR COALESCE(l.country_iso, '') ILIKE $1
-           OR COALESCE(l.provider, '') ILIKE $1
-           OR COALESCE(l.hosting_type, '') ILIKE $1
-           OR sl.id IS NOT NULL
-         )
-       ORDER BY l.id, score DESC
+      `SELECT ranked.id,
+              ranked.label,
+              ranked.summary,
+              ranked.status,
+              ranked.updated_at,
+              ranked.score,
+              COUNT(*) OVER()::int AS total_count
+       FROM (
+         SELECT DISTINCT ON (l.id) l.id,
+                l.code || ' — ' || l.name AS label,
+                COALESCE(NULLIF(l.city, ''), l.country_iso) AS summary,
+                NULL::text AS status,
+                l.updated_at,
+                CASE
+                  WHEN l.name ILIKE $1 THEN 3
+                  WHEN l.code ILIKE $1 THEN 3
+                  WHEN COALESCE(l.city, '') ILIKE $1 THEN 2
+                  WHEN sl.name IS NOT NULL THEN 2
+                  ELSE 1
+                END AS score
+         FROM locations l
+         LEFT JOIN location_sub_items sl
+           ON sl.location_id = l.id AND sl.tenant_id = l.tenant_id
+           AND (sl.name ILIKE $1 OR COALESCE(sl.description, '') ILIKE $1)
+         WHERE l.tenant_id = $2
+           AND (
+             l.code ILIKE $1
+             OR l.name ILIKE $1
+             OR COALESCE(l.city, '') ILIKE $1
+             OR COALESCE(l.country_iso, '') ILIKE $1
+             OR COALESCE(l.provider, '') ILIKE $1
+             OR COALESCE(l.hosting_type, '') ILIKE $1
+             OR sl.id IS NOT NULL
+           )
+         ORDER BY l.id, score DESC
+       ) ranked
+       ORDER BY ranked.score DESC, ranked.updated_at DESC, ranked.label ASC
        LIMIT $3`,
       [like, context.tenantId, limit],
     );
 
-    return rows.map((row) => ({ ...toSummary('locations', row, row.summary), _score: row.score ?? 1 }));
+    return {
+      items: rows.map((row) => ({ ...toSummary('locations', row, row.summary), _score: row.score ?? 1 })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
   }
 
   private async searchProjects(
     context: AiExecutionContextWithManager,
     query: string,
     limit: number,
-  ) {
+  ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
     const summarySql = buildProjectSummarySql('p');
@@ -336,6 +363,7 @@ export class AiEntityService {
               ${buildUserNameSql('u_bl')} AS business_lead_name,
               ${buildUserNameSql('u_il')} AS it_lead_name,
               ${contributorNamesSql} AS contributor_names,
+              COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN $1::int IS NOT NULL AND p.item_number = $1 THEN 4
                 WHEN p.name ILIKE $2 THEN 3
@@ -379,24 +407,27 @@ export class AiEntityService {
       [ref, like, context.tenantId, limit],
     );
 
-    return rows.map((row: any) => ({
-      ...toSummary('projects', {
-        ...row,
-        metadata: {
-          business_lead: row.business_lead_name || null,
-          it_lead: row.it_lead_name || null,
-          contributors: row.contributor_names || null,
-        },
-      }, row.summary),
-      _score: row.score ?? 1,
-    }));
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('projects', {
+          ...row,
+          metadata: {
+            business_lead: row.business_lead_name || null,
+            it_lead: row.it_lead_name || null,
+            contributors: row.contributor_names || null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
   }
 
   private async searchRequests(
     context: AiExecutionContextWithManager,
     query: string,
     limit: number,
-  ) {
+  ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
     const summarySql = buildRequestSummarySql('r');
@@ -412,6 +443,7 @@ export class AiEntityService {
               ${buildUserNameSql('u_bl')} AS business_lead_name,
               ${buildUserNameSql('u_il')} AS it_lead_name,
               ${contributorNamesSql} AS contributor_names,
+              COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN $1::int IS NOT NULL AND r.item_number = $1 THEN 4
                 WHEN r.name ILIKE $2 THEN 3
@@ -458,25 +490,28 @@ export class AiEntityService {
       [ref, like, context.tenantId, limit],
     );
 
-    return rows.map((row: any) => ({
-      ...toSummary('requests', {
-        ...row,
-        metadata: {
-          requestor: row.requestor_name || null,
-          business_lead: row.business_lead_name || null,
-          it_lead: row.it_lead_name || null,
-          contributors: row.contributor_names || null,
-        },
-      }, row.summary),
-      _score: row.score ?? 1,
-    }));
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('requests', {
+          ...row,
+          metadata: {
+            requestor: row.requestor_name || null,
+            business_lead: row.business_lead_name || null,
+            it_lead: row.it_lead_name || null,
+            contributors: row.contributor_names || null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
   }
 
   private async searchTasks(
     context: AiExecutionContextWithManager,
     query: string,
     limit: number,
-  ) {
+  ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
     const rows = await context.manager.query<SearchRow[]>(
@@ -488,6 +523,7 @@ export class AiEntityService {
               t.updated_at,
               ${buildUserNameSql('u_assign')} AS assignee_name,
               ${buildUserNameSql('u_creator')} AS creator_name,
+              COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN $1::int IS NOT NULL AND t.item_number = $1 THEN 4
                 WHEN COALESCE(t.title, '') ILIKE $2 THEN 3
@@ -529,16 +565,19 @@ export class AiEntityService {
       [ref, like, context.tenantId, limit],
     );
 
-    return rows.map((row: any) => ({
-      ...toSummary('tasks', {
-        ...row,
-        metadata: {
-          assignee: row.assignee_name || null,
-          creator: row.creator_name || null,
-        },
-      }, row.summary),
-      _score: row.score ?? 1,
-    }));
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('tasks', {
+          ...row,
+          metadata: {
+            assignee: row.assignee_name || null,
+            creator: row.creator_name || null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
   }
 
   private async listApplications(context: AiExecutionContextWithManager) {
@@ -689,6 +728,7 @@ export class AiEntityService {
       query: string;
       entity_types?: AiSearchEntityType[];
       limit?: number;
+      offset?: number;
     },
   ) {
     const requested = input.entity_types && input.entity_types.length > 0
@@ -699,33 +739,39 @@ export class AiEntityService {
       return { items: [], total: 0, entity_types: [] as AiSearchEntityType[] };
     }
 
-    const limit = Math.min(Math.max(Number(input.limit) || 50, 1), 100);
+    const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 100);
+    const offset = Math.min(Math.max(Number(input.offset) || 0, 0), 5000);
+    const fetchLimit = Math.min(limit + offset, 5000);
     const results = await Promise.all(
       allowed.map(async (type) => {
-        if (type === 'applications') return this.searchApplications(context, input.query, limit);
-        if (type === 'assets') return this.searchAssets(context, input.query, limit);
-        if (type === 'locations') return this.searchLocations(context, input.query, limit);
-        if (type === 'projects') return this.searchProjects(context, input.query, limit);
-        if (type === 'requests') return this.searchRequests(context, input.query, limit);
-        if (type === 'tasks') return this.searchTasks(context, input.query, limit);
+        if (type === 'applications') return this.searchApplications(context, input.query, fetchLimit);
+        if (type === 'assets') return this.searchAssets(context, input.query, fetchLimit);
+        if (type === 'locations') return this.searchLocations(context, input.query, fetchLimit);
+        if (type === 'projects') return this.searchProjects(context, input.query, fetchLimit);
+        if (type === 'requests') return this.searchRequests(context, input.query, fetchLimit);
+        if (type === 'tasks') return this.searchTasks(context, input.query, fetchLimit);
 
-        const search = await this.knowledge.search({ q: input.query, limit }, { manager: context.manager });
-        return (search.items || []).map((item: any, index: number) => ({
-          ...toSummary('documents', {
-            id: item.id,
-            item_number: item.item_number,
-            label: item.title,
-            summary: item.summary ?? null,
-            status: item.status,
-            updated_at: item.updated_at,
-          }, item.snippet ?? item.summary ?? null),
-          _score: limit - index,
-        }));
+        const search = await this.knowledge.search({ q: input.query, limit: fetchLimit, offset: 0 }, { manager: context.manager });
+        return {
+          items: (search.items || []).map((item: any, index: number) => ({
+            ...toSummary('documents', {
+              id: item.id,
+              item_number: item.item_number,
+              label: item.title,
+              summary: item.summary ?? null,
+              status: item.status,
+              updated_at: item.updated_at,
+            }, item.snippet ?? item.summary ?? null),
+            _score: fetchLimit - index,
+          })),
+          total: search.total ?? 0,
+        } satisfies RankedSearchResult;
       }),
     );
 
+    const total = results.reduce((sum, result) => sum + (result.total || 0), 0);
     const items = results
-      .flat()
+      .flatMap((result) => result.items)
       .sort((left: any, right: any) => {
         if ((right._score ?? 0) !== (left._score ?? 0)) {
           return (right._score ?? 0) - (left._score ?? 0);
@@ -734,12 +780,16 @@ export class AiEntityService {
         const rightTime = new Date(right.updated_at || 0).getTime();
         return rightTime - leftTime;
       })
-      .slice(0, limit)
+      .slice(offset, offset + limit)
       .map(({ _score, ...item }: any) => item);
 
     return {
       items,
-      total: items.length,
+      total,
+      offset,
+      limit,
+      returned: items.length,
+      truncated: offset + items.length < total,
       entity_types: allowed,
     };
   }

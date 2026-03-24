@@ -15,6 +15,7 @@ import {
   Chip,
   LinearProgress,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useCsvExport } from './useCsvExport';
 import { CsvFieldSelector } from './CsvFieldSelector';
@@ -33,10 +34,11 @@ export default function CsvExportDialogV2({
   open,
   onClose,
   endpoint,
-  title = 'Export CSV',
+  title: titleProp,
   params,
   presets: propPresets = [],
 }: CsvExportDialogV2Props) {
+  const { t } = useTranslation('common');
   const [fieldsInfo, setFieldsInfo] = useState<CsvFieldInfo[]>([]);
   const [backendPresets, setBackendPresets] = useState<CsvExportPreset[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
@@ -122,29 +124,29 @@ export default function CsvExportDialogV2({
   };
 
   const availablePresets: CsvExportPreset[] = [
-    { name: 'full', label: 'Full Export' },
+    { name: 'full', label: t('csv.fullExport') },
     ...presets,
-    { name: 'custom', label: 'Custom Selection' },
+    { name: 'custom', label: t('csv.customSelection') },
   ];
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{title}</DialogTitle>
+      <DialogTitle>{titleProp || t('csv.exportTitle')}</DialogTitle>
       <DialogContent>
         {loadingFields ? (
           <LinearProgress sx={{ my: 2 }} />
         ) : (
           <>
             <Typography variant="body2" sx={{ mb: 2 }}>
-              Export data as CSV. Files use semicolon separators for Excel compatibility.
+              {t('csv.exportDescriptionExcel')}
             </Typography>
 
             {/* Preset selector */}
             <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-              <InputLabel>Export preset</InputLabel>
+              <InputLabel>{t('csv.exportPreset')}</InputLabel>
               <Select
                 value={preset}
-                label="Export preset"
+                label={t('csv.exportPreset')}
                 onChange={(e) => {
                   const selectedPreset = e.target.value;
                   const presetDef = availablePresets.find((p) => p.name === selectedPreset);
@@ -163,15 +165,15 @@ export default function CsvExportDialogV2({
             {/* Field count indicator */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <Chip
-                label={`${fieldCount} of ${totalFields} fields selected`}
+                label={t('csv.fieldsSelected', { selected: fieldCount, total: totalFields })}
                 size="small"
                 color={fieldCount === totalFields ? 'primary' : 'default'}
                 variant="outlined"
               />
               {preset === 'custom' && (
                 <Stack direction="row" spacing={1}>
-                  <Button size="small" onClick={selectAll}>Select all</Button>
-                  <Button size="small" onClick={deselectAll}>Clear</Button>
+                  <Button size="small" onClick={selectAll}>{t('buttons.selectAll')}</Button>
+                  <Button size="small" onClick={deselectAll}>{t('buttons.clear')}</Button>
                 </Stack>
               )}
             </Box>
@@ -193,7 +195,7 @@ export default function CsvExportDialogV2({
               onClick={() => download('data')}
               disabled={loading || fieldCount === 0}
             >
-              Export data
+              {t('csv.exportData')}
             </Button>
 
             {loading && <LinearProgress sx={{ mt: 2 }} />}
@@ -201,7 +203,7 @@ export default function CsvExportDialogV2({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>{t('buttons.close')}</Button>
       </DialogActions>
     </Dialog>
   );

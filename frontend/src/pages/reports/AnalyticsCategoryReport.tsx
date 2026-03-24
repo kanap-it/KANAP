@@ -9,6 +9,7 @@ import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import api from '../../api';
 import { useOpexSummaryAll, pickYearSlot, SummaryRow } from './useOpexSummary';
 import { metricKeys, metricLabels, MetricKey } from './reportMetrics';
+import { useTranslation } from 'react-i18next';
 
 type AnalyticsCategory = {
   id: string;
@@ -26,6 +27,7 @@ function formatNumber(v: any) {
 }
 
 export default function AnalyticsCategoryReport() {
+  const { t } = useTranslation(["ops"]);
   const now = new Date();
   const Y = now.getFullYear();
   const allowedYears = [Y - 1, Y, Y + 1];
@@ -123,7 +125,7 @@ export default function AnalyticsCategoryReport() {
 
   const columns = useMemo<ColDef[]>(() => {
     const cols: ColDef[] = [
-      { field: 'group', headerName: 'Analytics category', flex: 1, minWidth: 240 },
+      { field: 'group', headerName: t('reports.columns.analyticsCategory'), flex: 1, minWidth: 240 },
     ];
     for (const yr of years) {
       cols.push({ field: String(yr), headerName: String(yr), width: 140, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) });
@@ -244,18 +246,18 @@ export default function AnalyticsCategoryReport() {
 
   return (
     <ReportLayout
-      title="Budget by Analytics Category"
-      subtitle="Group totals by analytics category; pie for a single year, line for multi-year range"
+      title={t("reports.analyticsCategory.title")}
+      subtitle={t("reports.analyticsCategory.subtitle")}
       filters={(
         <>
-          <TextField select size="small" label="Start year" value={startYear} onChange={(e) => {
+          <TextField select size="small" label={t("reports.filters.startYear")} value={startYear} onChange={(e) => {
             const v = parseInt(e.target.value, 10);
             setStartYear(v);
             if (v > endYear) setEndYear(v);
           }} InputLabelProps={{ shrink: true }}>
             {allowedYears.map((yr) => (<MenuItem key={yr} value={yr}>{yr}</MenuItem>))}
           </TextField>
-          <TextField select size="small" label="End year" value={endYear} onChange={(e) => {
+          <TextField select size="small" label={t("reports.filters.endYear")} value={endYear} onChange={(e) => {
             const v = parseInt(e.target.value, 10);
             setEndYear(v);
             if (v < startYear) setStartYear(v);
@@ -265,7 +267,7 @@ export default function AnalyticsCategoryReport() {
           <TextField
             select
             size="small"
-            label="Metric"
+            label={t("reports.filters.metric")}
             value={metric}
             onChange={(e) => setMetric(e.target.value as MetricKey)}
             sx={{ minWidth: 200 }}
@@ -278,14 +280,14 @@ export default function AnalyticsCategoryReport() {
           <TextField
             select
             size="small"
-            label="Chart type"
+            label={t("reports.filters.chartType")}
             value={chartType}
             onChange={(e) => setChartType(e.target.value as 'pie' | 'bar')}
             disabled={!singleYear}
             InputLabelProps={{ shrink: true }}
           >
-            <MenuItem value="pie">Pie chart</MenuItem>
-            <MenuItem value="bar">Horizontal bar chart</MenuItem>
+            <MenuItem value="pie">{t("reports.filters.pieChart")}</MenuItem>
+            <MenuItem value="bar">{t("reports.filters.horizontalBarChart")}</MenuItem>
           </TextField>
           <Autocomplete
             multiple
@@ -310,8 +312,8 @@ export default function AnalyticsCategoryReport() {
               return (
                 <TextField
                   {...params}
-                  label="Exclude analytics categories"
-                  placeholder={count === 0 ? 'Select categories to exclude' : ''}
+                  label={t("reports.filters.excludeCategories")}
+                  placeholder={count === 0 ? t('reports.filters.excludeCategoriesPlaceholder') : ''}
                   InputLabelProps={{ shrink: true }}
                   InputProps={{
                     ...params.InputProps,
@@ -322,7 +324,7 @@ export default function AnalyticsCategoryReport() {
                           color="text.secondary"
                           sx={{ ml: 0.5, mr: 1, whiteSpace: 'nowrap' }}
                         >
-                          {count === 1 ? '1 category selected' : `${count} categories selected`}
+                          {t('reports.filters.categorySelected', { count })}
                         </Typography>
                         {params.InputProps.startAdornment}
                       </>
@@ -332,7 +334,7 @@ export default function AnalyticsCategoryReport() {
               );
             }}
             sx={{ minWidth: 280 }}
-            noOptionsText="No matching categories"
+            noOptionsText={t("reports.filters.noMatchingCategories")}
           />
         </>
       )}
@@ -344,7 +346,7 @@ export default function AnalyticsCategoryReport() {
           <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>Summary Table</Typography>
+          <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.summaryTable")}</Typography>
           <Box component={AgGridBox} sx={{ height: 520 }}>
             <AgGridReact
               rowData={tableRows}
@@ -357,7 +359,7 @@ export default function AnalyticsCategoryReport() {
         </Paper>
       </Stack>
       {isLoading && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Loading data…</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{t("reports.shared.loadingData")}</Typography>
       )}
     </ReportLayout>
   );

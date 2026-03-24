@@ -18,18 +18,21 @@ import EditIcon from '@mui/icons-material/Edit';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import api from '../../api';
 import ExportButton from '../../components/ExportButton';
 import ImportButton from '../../components/ImportButton';
 import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../../api/endpoints/import';
 import { useAuth } from '../../auth/AuthContext';
+import { useLocale } from '../../i18n/useLocale';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
 import { useRecentKnowledgeDocuments } from '../workspace/hooks/useRecentKnowledgeDocuments';
 import KnowledgeSidebar from './components/KnowledgeSidebar';
 import FolderTreePanel from './components/FolderTreePanel';
 import ValidatedBadge from './components/ValidatedBadge';
 import { CircularProgress } from '@mui/material';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
@@ -163,6 +166,8 @@ function MarkdownEditorLoadingFallback({ minRows }: { minRows: number }) {
 
 export default function KnowledgeWorkspacePage() {
   const theme = useTheme();
+  const { t } = useTranslation(['knowledge', 'common']);
+  const locale = useLocale();
   const { profile, hasLevel } = useAuth();
   const { addDocument } = useRecentKnowledgeDocuments();
   const qc = useQueryClient();
@@ -316,10 +321,10 @@ export default function KnowledgeWorkspacePage() {
     if (isCreate || !doc?.id) return;
     if (trackedRecentDocumentIdRef.current === doc.id) return;
     trackedRecentDocumentIdRef.current = doc.id;
-    const itemNumber = doc?.item_number ? `DOC-${doc.item_number}` : 'Document';
+    const itemNumber = doc?.item_number ? `DOC-${doc.item_number}` : t('shared.document');
     const title = String(doc?.title || '').trim();
     addDocument(doc.id, title ? `${itemNumber} - ${title}` : itemNumber);
-  }, [addDocument, doc?.id, doc?.item_number, doc?.title, isCreate]);
+  }, [addDocument, doc?.id, doc?.item_number, doc?.title, isCreate, t]);
 
   const { data: versions } = useQuery({
     queryKey: ['knowledge-versions', id],
@@ -695,7 +700,7 @@ export default function KnowledgeWorkspacePage() {
     mutationFn: async (mode: 'manual' | 'autosave') => {
       if (isCreate) {
         if (!workspaceLibraryId) {
-          throw new Error('No destination library available');
+          throw new Error(t('workspace.messages.noDestinationLibrary'));
         }
         const createRelationPayload = buildRelationPayload(relationSelections);
         const payload = {
@@ -784,10 +789,10 @@ export default function KnowledgeWorkspacePage() {
         setEditMode(false);
         setLockToken(null);
         setLockExpiresAt(null);
-        setError('Editing lock expired. Re-enter edit mode to continue.');
+        setError(t('workspace.messages.lockExpired'));
         return;
       }
-      setError(e?.response?.data?.message || e?.message || 'Failed to save document');
+      setError(getApiErrorMessage(e, t, t('workspace.messages.saveFailed')));
     },
   });
 
@@ -865,10 +870,10 @@ export default function KnowledgeWorkspacePage() {
         return;
       }
       if (!opts?.silentConflict) {
-        setError(e?.response?.data?.message || e?.message || 'Unable to acquire lock');
+        setError(getApiErrorMessage(e, t, t('workspace.messages.acquireLockFailed')));
       }
     }
-  }, [acquireLock, doc?.edit_lock, parseLockInfo, parseLockInfoFromError]);
+  }, [acquireLock, doc?.edit_lock, parseLockInfo, parseLockInfoFromError, t]);
 
   const discardChanges = async () => {
     const hasUnsavedChanges = dirty || relationsDirty || classificationsDirty || contributorsDirty;
@@ -878,7 +883,7 @@ export default function KnowledgeWorkspacePage() {
       setError(null);
       return;
     }
-    const confirmed = window.confirm('Discard unsaved changes and revert to the last saved version?');
+    const confirmed = confirm(t('confirmations.discardChanges'));
     if (!confirmed) return;
     const result = await refetch();
     applyDocumentState(result.data || doc);
@@ -944,8 +949,10 @@ export default function KnowledgeWorkspacePage() {
   }, [doc?.contributors]);
 
   const currentStatusLabel = React.useMemo(
-    () => STATUS_LABELS[String(form.status || '').toLowerCase()] || String(form.status || 'Draft'),
-    [form.status],
+    () => t(`statuses.${String(form.status || '').toLowerCase()}`, {
+      defaultValue: STATUS_LABELS[String(form.status || '').toLowerCase()] || String(form.status || t('statuses.draft')),
+    }),
+    [form.status, t],
   );
 
   const currentStatusColor = React.useMemo(
@@ -955,17 +962,17 @@ export default function KnowledgeWorkspacePage() {
 
   const currentDocumentTypeLabel = React.useMemo(() => {
     const explicitType = documentTypes.find((row) => row.id === form.document_type_id);
-    return explicitType?.name || doc?.document_type_name || 'Document';
-  }, [doc?.document_type_name, documentTypes, form.document_type_id]);
+    return explicitType?.name || doc?.document_type_name || t('shared.document');
+  }, [doc?.document_type_name, documentTypes, form.document_type_id, t]);
 
   const currentOwnerLabel = React.useMemo(() => {
     const ownerUserId = contributorAssignments.owner_user_id;
     if (ownerUserId && contributorLabelById.has(ownerUserId)) {
-      return contributorLabelById.get(ownerUserId) || 'Unassigned';
+      return contributorLabelById.get(ownerUserId) || t('workspace.values.unassigned');
     }
     const fallbackLabel = String(ownerContributor?.user_name || ownerContributor?.email || ownerContributor?.user_id || '').trim();
-    return fallbackLabel || 'Unassigned';
-  }, [contributorAssignments.owner_user_id, contributorLabelById, ownerContributor]);
+    return fallbackLabel || t('workspace.values.unassigned');
+  }, [contributorAssignments.owner_user_id, contributorLabelById, ownerContributor, t]);
 
   const activeEditorDocumentId = React.useMemo(
     () => (!isCreate && doc ? String(doc.id || id) : id),
@@ -1043,23 +1050,23 @@ export default function KnowledgeWorkspacePage() {
       setEditMode(false);
       setLockToken(null);
       setLockExpiresAt(null);
-      setError('Editing lock expired. Re-enter edit mode to continue.');
+      setError(t('workspace.messages.lockExpired'));
       return;
     }
-    setError((e as any)?.response?.data?.message || (e as any)?.message || 'Document import failed');
-  }, [doc?.edit_lock, parseLockInfo, parseLockInfoFromError]);
+    setError(getApiErrorMessage(e, t, t('workspace.messages.importFailed')));
+  }, [doc?.edit_lock, parseLockInfo, parseLockInfoFromError, t]);
 
   const handleDocumentImport = React.useCallback(async (selectedFile: File): Promise<ImportDocumentResult> => {
     if (isCreate) {
-      throw new Error('Document import is available after the document is created');
+      throw new Error(t('workspace.messages.importAvailableAfterCreate'));
     }
     if (!lockToken) {
-      throw new Error('Acquire an editing lock before importing a document');
+      throw new Error(t('workspace.messages.acquireLockBeforeImport'));
     }
     return importMarkdownDocument(`/knowledge/${id}/import`, selectedFile, {
       headers: { 'X-Lock-Token': lockToken },
     });
-  }, [id, isCreate, lockToken]);
+  }, [id, isCreate, lockToken, t]);
 
   const handleDocumentImported = React.useCallback((result: ImportDocumentResult) => {
     setError(null);
@@ -1099,7 +1106,7 @@ export default function KnowledgeWorkspacePage() {
       }));
     },
     onError: (e: any) => {
-      setRelationsError(e?.response?.data?.message || e?.message || 'Failed to save relations');
+      setRelationsError(getApiErrorMessage(e, t, t('workspace.messages.saveRelationsFailed')));
     },
   });
 
@@ -1122,7 +1129,7 @@ export default function KnowledgeWorkspacePage() {
       }));
     },
     onError: (e: any) => {
-      setClassificationError(e?.response?.data?.message || e?.message || 'Failed to save classifications');
+      setClassificationError(getApiErrorMessage(e, t, t('workspace.messages.saveClassificationsFailed')));
     },
   });
 
@@ -1131,7 +1138,7 @@ export default function KnowledgeWorkspacePage() {
       if (isCreate) return;
       const ownerUserId = contributorAssignments.owner_user_id || profile?.id || null;
       if (!ownerUserId) {
-        throw new Error('Select an owner before saving contributors');
+        throw new Error(t('workspace.messages.selectOwnerBeforeSaving'));
       }
       const rows = [
         { user_id: ownerUserId, role: 'owner', is_primary: true },
@@ -1155,7 +1162,7 @@ export default function KnowledgeWorkspacePage() {
       }));
     },
     onError: (e: any) => {
-      setContributorsError(e?.response?.data?.message || e?.message || 'Failed to save contributors');
+      setContributorsError(getApiErrorMessage(e, t, t('workspace.messages.saveContributorsFailed')));
     },
   });
 
@@ -1176,7 +1183,7 @@ export default function KnowledgeWorkspacePage() {
       await qc.invalidateQueries({ queryKey: ['knowledge-activities', id] });
     },
     onError: (e: any) => {
-      setError(e?.response?.data?.message || e?.message || 'Failed to request review');
+      setError(getApiErrorMessage(e, t, t('workspace.messages.requestReviewFailed')));
     },
   });
 
@@ -1193,7 +1200,7 @@ export default function KnowledgeWorkspacePage() {
       await qc.invalidateQueries({ queryKey: ['knowledge-activities', id] });
     },
     onError: (e: any) => {
-      setError(e?.response?.data?.message || e?.message || 'Failed to approve workflow');
+      setError(getApiErrorMessage(e, t, t('workspace.messages.approveWorkflowFailed')));
     },
   });
 
@@ -1208,7 +1215,7 @@ export default function KnowledgeWorkspacePage() {
       await qc.invalidateQueries({ queryKey: ['knowledge-activities', id] });
     },
     onError: (e: any) => {
-      setError(e?.response?.data?.message || e?.message || 'Failed to request changes');
+      setError(getApiErrorMessage(e, t, t('workspace.messages.requestChangesFailed')));
     },
   });
 
@@ -1227,7 +1234,7 @@ export default function KnowledgeWorkspacePage() {
       await startEdit({ silentConflict: true });
     },
     onError: (e: any) => {
-      setError(e?.response?.data?.message || e?.message || 'Failed to cancel review');
+      setError(getApiErrorMessage(e, t, t('workspace.messages.cancelReviewFailed')));
     },
   });
 
@@ -1269,7 +1276,7 @@ export default function KnowledgeWorkspacePage() {
   const workflow = doc?.workflow || null;
   const workflowActive = !!workflow?.is_active;
   const isValidatedCurrentRevision = !!doc?.is_validated_current_revision;
-  const validatedAtLabel = doc?.validated_at ? new Date(doc.validated_at).toLocaleString() : null;
+  const validatedAtLabel = doc?.validated_at ? new Date(doc.validated_at).toLocaleString(locale) : null;
   const isManagedIntegratedDocument = !isCreate && !!doc?.is_managed_integrated_document;
   const showTitleMeta = (!isCreate && !!doc?.item_number) || isManagedIntegratedDocument;
   const hasWorkflowAssignments = contributorAssignments.reviewer_user_ids.length > 0 || contributorAssignments.approver_user_ids.length > 0;
@@ -1278,7 +1285,7 @@ export default function KnowledgeWorkspacePage() {
   const workspaceReadOnly = !isCreate && isLockedByAnotherUser;
   const canEditContent = isCreate || (!workflowActive && editMode && !!lockToken);
   const canManageDocumentState = isCreate || (canManageDocument && !workflowActive && editMode && !!lockToken);
-  const lockHolderLabel = activeLockInfo?.holder_name || 'another user';
+  const lockHolderLabel = activeLockInfo?.holder_name || t('workspace.values.anotherUser');
   const currentWorkflowStage = workflow?.current_stage || null;
   const currentWorkflowParticipant = Array.isArray(workflow?.participants)
     ? workflow.participants.find((row: any) => row?.user_id === profile?.id && row?.stage === currentWorkflowStage)
@@ -1296,19 +1303,19 @@ export default function KnowledgeWorkspacePage() {
     if (!activeLockInfo?.expires_at) return null;
     const dt = new Date(activeLockInfo.expires_at);
     if (Number.isNaN(dt.getTime())) return null;
-    return dt.toLocaleString();
+    return dt.toLocaleString(locale);
   })();
 
   return (
     <>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1, flexWrap: 'wrap', gap: 1 }}>
         <Breadcrumbs aria-label="breadcrumb">
-          <MLink component={Link} underline="hover" color="inherit" to="/knowledge">Knowledge</MLink>
+          <MLink component={Link} underline="hover" color="inherit" to="/knowledge">{t('workspace.breadcrumbs.knowledge')}</MLink>
           {libraryName && (
             <MLink component={Link} underline="hover" color="inherit" to={libraryListUrl}>{libraryName}</MLink>
           )}
           <Typography color="text.primary">
-            {isCreate ? 'New Document' : (doc?.item_ref || id)}
+            {isCreate ? t('workspace.breadcrumbs.newDocument') : (doc?.item_ref || id)}
           </Typography>
         </Breadcrumbs>
         <Stack direction="row" alignItems="center" spacing={1}>
@@ -1319,12 +1326,12 @@ export default function KnowledgeWorkspacePage() {
               disabled={!canRequestReview || requestReviewMutation.isPending}
               onClick={() => requestReviewMutation.mutate()}
             >
-              Request Review
+              {t('workspace.actions.requestReview')}
             </Button>
           )}
           {!isCreate && !workflowActive && !editMode && canManageDocument && (
             <Button variant="outlined" size="small" startIcon={<EditIcon />} onClick={() => { void startEdit(); }}>
-              {isLockedByAnotherUser ? 'Retry lock' : 'Edit'}
+              {isLockedByAnotherUser ? t('workspace.actions.retryLock') : t('workspace.actions.edit')}
             </Button>
           )}
           {!isCreate && workflowActive && canManageDocument && (
@@ -1334,12 +1341,12 @@ export default function KnowledgeWorkspacePage() {
               onClick={() => cancelWorkflowMutation.mutate()}
               disabled={cancelWorkflowMutation.isPending}
             >
-              Cancel Review and Edit
+              {t('workspace.actions.cancelReviewAndEdit')}
             </Button>
           )}
           {!isCreate && !workflowActive && editMode && canManageDocument && (
             <Button variant="outlined" size="small" onClick={discardChanges}>
-              Discard
+              {t('workspace.actions.discard')}
             </Button>
           )}
           {!isCreate && canEditContent && (
@@ -1363,13 +1370,13 @@ export default function KnowledgeWorkspacePage() {
               disabled={workspaceReadOnly || saveMutation.isPending || (!dirty && !isCreate)}
               onClick={() => saveMutation.mutate('manual')}
             >
-              Save
+              {t('common:buttons.save')}
             </Button>
           )}
           <IconButton
             size="small"
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+            title={sidebarOpen ? t('workspace.actions.hideSidebar') : t('workspace.actions.showSidebar')}
           >
             {sidebarOpen ? <ChevronRightIcon /> : <MenuOpenIcon />}
           </IconButton>
@@ -1380,13 +1387,13 @@ export default function KnowledgeWorkspacePage() {
 
       {!canManageDocument && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          You have read-only access to this knowledge article.
+          {t('workspace.messages.readOnlyAccess')}
         </Alert>
       )}
 
       {workflowActive && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          This document is in review. Editing is disabled until the workflow is approved, changes are requested, or the review is cancelled.
+          {t('workspace.messages.inReview')}
         </Alert>
       )}
 
@@ -1396,12 +1403,14 @@ export default function KnowledgeWorkspacePage() {
           sx={{ mb: 2 }}
           action={canManageDocument && !workflowActive ? (
             <Button size="small" onClick={() => { void startEdit(); }}>
-              Retry lock
+              {t('workspace.actions.retryLock')}
             </Button>
           ) : undefined}
         >
-          This knowledge article is locked by {lockHolderLabel}
-          {lockExpiryLabel ? ` until ${lockExpiryLabel}` : ''}. You can read it while the lock is active.
+          {t('workspace.messages.lockedByUser', {
+            user: lockHolderLabel,
+            until: lockExpiryLabel ? t('workspace.messages.lockUntil', { value: lockExpiryLabel }) : '',
+          })}
         </Alert>
       )}
 
@@ -1445,7 +1454,7 @@ export default function KnowledgeWorkspacePage() {
                       variant="standard"
                       fullWidth
                       autoFocus={isCreate}
-                      placeholder="Knowledge title"
+                      placeholder={t('workspace.fields.titlePlaceholder')}
                       InputProps={{
                         disableUnderline: true,
                         sx: { fontSize: '1.5rem', fontWeight: 600 },
@@ -1453,7 +1462,7 @@ export default function KnowledgeWorkspacePage() {
                     />
                   ) : (
                     <Typography variant="h5" sx={{ fontWeight: 600, py: 0.4 }}>
-                      {displayTitle || 'Untitled Knowledge'}
+                      {displayTitle || t('workspace.values.untitled')}
                     </Typography>
                   )}
                 </Box>
@@ -1466,12 +1475,12 @@ export default function KnowledgeWorkspacePage() {
                         variant="outlined"
                         sx={{ fontFamily: 'monospace' }}
                         onClick={() => navigator.clipboard.writeText(`DOC-${doc.item_number}`)}
-                        title="Click to copy reference"
+                        title={t('workspace.messages.clickToCopyReference')}
                       />
                     )}
                     {isManagedIntegratedDocument && (
                       <Chip
-                        label="Integrated"
+                        label={t('workspace.values.integrated')}
                         size="small"
                         color="info"
                         variant="outlined"
@@ -1488,13 +1497,13 @@ export default function KnowledgeWorkspacePage() {
                           color={currentStatusColor}
                         />
                         <Chip
-                          label={`Type: ${currentDocumentTypeLabel}`}
+                          label={t('workspace.values.typeLabel', { value: currentDocumentTypeLabel })}
                           size="small"
                           variant="outlined"
                           title={currentDocumentTypeLabel}
                         />
                         <Chip
-                          label={`Owner: ${currentOwnerLabel}`}
+                          label={t('workspace.values.ownerLabel', { value: currentOwnerLabel })}
                           size="small"
                           variant="outlined"
                           title={currentOwnerLabel}

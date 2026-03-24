@@ -11,6 +11,7 @@ import { useAuth } from '../auth/AuthContext';
 import { LinkCellRenderer } from '../components/grid/renderers';
 import { STATUS_VALUES } from '../constants/status';
 import api from '../api';
+import { useLocale } from '../i18n/useLocale';
 import ForbiddenPage from './ForbiddenPage';
 
 type CompanyRow = {
@@ -33,6 +34,7 @@ type CompanyRow = {
 
 export default function CompaniesPage() {
   const { t } = useTranslation(['master-data', 'common']);
+  const locale = useLocale();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { hasLevel } = useAuth();
@@ -311,7 +313,7 @@ export default function CompaniesPage() {
       headerName: t('shared.columns.created'),
       width: 200,
       defaultHidden: true,
-      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString() : ''),
+      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
       cellRenderer: (params: any) => (
         <LinkCellRenderer
           {...params}
@@ -321,7 +323,7 @@ export default function CompaniesPage() {
         />
       ),
     },
-  ], [getWorkspaceHref, navigate, year, t]);
+  ], [getWorkspaceHref, locale, navigate, year, t]);
 
   const updateTotals = useCallback(async ({ q, filterModel, statusScope }: { q: string; filterModel: any; statusScope?: StatusScope }) => {
     try {

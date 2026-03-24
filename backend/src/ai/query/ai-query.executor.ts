@@ -142,14 +142,17 @@ export class AiQueryExecutor {
       filters?: Record<string, AiFilterValue>;
       q?: string;
       sort?: { field: string; direction: 'asc' | 'desc' };
+      page?: number;
       limit?: number;
     },
   ): { query: Record<string, any>; filtersApplied: string[]; filtersIgnored: string[] } {
     const registry = getAiEntityRegistry(entityType);
     const adapted = adaptFilters(registry, input.filters);
+    const page = Math.min(Math.max(Number(input.page) || 1, 1), 100);
+    const limit = Math.min(Math.max(Number(input.limit) || 200, 1), 200);
     const query: Record<string, any> = {
-      page: 1,
-      limit: Math.min(Math.max(Number(input.limit) || 50, 1), 200),
+      page,
+      limit,
       sort: this.resolveSort(entityType, input.sort),
     };
     if (input.q?.trim()) query.q = input.q.trim();
@@ -340,16 +343,23 @@ export class AiQueryExecutor {
       filters?: Record<string, AiFilterValue>;
       q?: string;
       sort?: { field: string; direction: 'asc' | 'desc' };
+      page?: number;
       limit?: number;
       scope?: AiQueryScope;
     },
   ): Promise<AiQueryResult> {
     const { query, filtersApplied, filtersIgnored } = this.buildBaseQuery(input.entity_type, input);
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 200;
     const scoped = await applyScopeToAiQuery(context, input.entity_type, query, input.scope);
     if (scoped.scope && scoped.scope.resolved === false) {
       return {
         items: [],
         total: 0,
+        page,
+        limit,
+        returned: 0,
+        truncated: false,
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -364,6 +374,10 @@ export class AiQueryExecutor {
       return {
         items: (result.items || []).map((row: any) => this.mapTask(row)),
         total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -378,6 +392,10 @@ export class AiQueryExecutor {
       return {
         items: (result.items || []).map((row: any) => this.mapProject(row)),
         total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -392,6 +410,10 @@ export class AiQueryExecutor {
       return {
         items: (result.items || []).map((row: any) => this.mapRequest(row)),
         total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -406,6 +428,10 @@ export class AiQueryExecutor {
       return {
         items: (result.items || []).map((row: any) => this.mapApplication(row)),
         total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -417,6 +443,10 @@ export class AiQueryExecutor {
       return {
         items: (result.items || []).map((row: any) => this.mapAsset(row)),
         total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -431,6 +461,10 @@ export class AiQueryExecutor {
       return {
         items: (result.items || []).map((row: any) => this.mapDocument(row)),
         total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -442,6 +476,10 @@ export class AiQueryExecutor {
       return {
         items: (result.items || []).map((row: any) => this.mapLocation(row)),
         total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: null,

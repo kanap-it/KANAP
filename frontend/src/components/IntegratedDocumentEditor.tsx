@@ -19,6 +19,7 @@ import api from '../api';
 import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../api/endpoints/import';
 import { useAuth } from '../auth/AuthContext';
 import { buildInlineImageUrl, getTenantSlugFromHostname } from '../utils/inlineImageUrls';
+import { useTranslation } from 'react-i18next';
 import ExportButton from './ExportButton';
 import ImportButton from './ImportButton';
 import { MarkdownContent } from './MarkdownContent';
@@ -119,6 +120,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
   ref,
 ) {
   const { hasLevel, profile } = useAuth();
+  const { t } = useTranslation('common');
   const qc = useQueryClient();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [form, setForm] = React.useState<{ content_markdown: string; revision: number }>({
@@ -283,10 +285,10 @@ export const IntegratedDocumentEditor = React.forwardRef<
         setEditMode(false);
         setLockToken(null);
         setLockExpiresAt(null);
-        setError('Editing lock expired. Re-enter edit mode to continue.');
+        setError(t('documentEditor.lockExpired'));
         return;
       }
-      setError(e?.response?.data?.message || e?.message || 'Failed to save document');
+      setError(e?.response?.data?.message || e?.message || t('documentEditor.failedToSave'));
     },
   });
 
@@ -423,7 +425,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
       setError('Editing lock expired. Re-enter edit mode to continue.');
       return;
     }
-    setError((e as any)?.response?.data?.message || (e as any)?.message || 'Document import failed');
+    setError((e as any)?.response?.data?.message || (e as any)?.message || t('documentEditor.importFailed'));
   }, [doc?.edit_lock, parseLockInfo, parseLockInfoFromError]);
 
   const handleDocumentImport = React.useCallback(async (file: File): Promise<ImportDocumentResult> => {
@@ -466,7 +468,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
     return (
       (loadError as any)?.response?.data?.message
       || (loadError as any)?.message
-      || 'Failed to load the managed document'
+      || t('documentEditor.failedToLoad')
     );
   }, [loadError]);
   const lockExpiryLabel = React.useMemo(() => {
@@ -502,7 +504,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
           <IconButton
             size="small"
             onClick={onToggleCollapsed}
-            aria-label={collapsed ? 'Expand document' : 'Collapse document'}
+            aria-label={collapsed ? t('documentEditor.expandDocument') : t('documentEditor.collapseDocument')}
             sx={{
               ml: 0.25,
               transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
@@ -546,11 +548,11 @@ export const IntegratedDocumentEditor = React.forwardRef<
 
   const persistedActions = (
     <>
-      {showManagedDocChip && <Chip label="Managed Doc" size="small" variant="outlined" />}
+      {showManagedDocChip && <Chip label={t('labels.managedDoc')} size="small" variant="outlined" />}
       {!editMode && (
         <Chip
           icon={<LockOutlinedIcon fontSize="small" />}
-          label="Read only"
+          label={t('labels.readOnly')}
           size="small"
           variant="outlined"
           sx={{ borderColor: 'divider' }}
@@ -575,7 +577,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
           startIcon={<EditIcon fontSize="small" />}
           onClick={handleEnterEdit}
         >
-          {isLockedByAnotherUser ? 'Retry lock' : 'Edit'}
+          {isLockedByAnotherUser ? t('documentEditor.retryLock') : t('buttons.edit')}
         </Button>
       )}
       {editMode && canEdit && (
@@ -648,8 +650,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
             </Button>
           ) : undefined}
         >
-          This managed document is locked by {lockHolderLabel}
-          {lockExpiryLabel ? ` until ${lockExpiryLabel}` : ''}. You can read it while the lock is active.
+          {lockExpiryLabel ? t('documentEditor.lockedByUntil', { name: lockHolderLabel, expires: lockExpiryLabel }) : t('documentEditor.lockedBy', { name: lockHolderLabel }) + '. You can read it while the lock is active.'}
         </Alert>
       )}
 
@@ -660,7 +661,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
       ) : loadErrorMessage ? (
         <Box sx={{ minHeight: minRows * 24, border: 1, borderColor: 'divider', borderRadius: 1, display: 'grid', placeItems: 'center', px: 2 }}>
           <Typography variant="body2" color="text.secondary" align="center">
-            Managed document content is unavailable until the load error is resolved.
+            {t('documentEditor.contentUnavailable')}
           </Typography>
         </Box>
       ) : editMode ? (
@@ -700,7 +701,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
             <MarkdownContent content={form.content_markdown || ''} />
           ) : (
             <Typography variant="body2" color="text.secondary">
-              {placeholder || 'No content yet.'}
+              {placeholder || t('messages.noContent')}
             </Typography>
           )}
         </Box>

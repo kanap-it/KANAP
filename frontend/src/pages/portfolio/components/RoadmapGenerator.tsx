@@ -49,6 +49,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import api from '../../../api';
 import LightModeIsland from '../../../components/LightModeIsland';
+import { useLocale } from '../../../i18n/useLocale';
 import { PortfolioGantt } from './PortfolioGantt';
 import { computeInactiveSegments } from './roadmap-inactive-segments';
 
@@ -558,8 +559,8 @@ const dayDiffUtc = (start: Date, end: Date): number => {
   return Math.round((end.getTime() - start.getTime()) / MS_PER_DAY);
 };
 
-const getMonthLabel = (date: Date): string => {
-  const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+const getMonthLabel = (date: Date, locale: string): string => {
+  const month = date.toLocaleString(locale, { month: 'short', timeZone: 'UTC' });
   return `${month} ${date.getUTCFullYear()}`;
 };
 
@@ -603,6 +604,7 @@ const exportRoadmapGanttAsPng = async (
   projects: GanttRoadmapItem[],
   months: number,
   monthOffset: number,
+  locale: string,
   fileName: string,
 ): Promise<void> => {
   const now = new Date();
@@ -664,7 +666,7 @@ const exportRoadmapGanttAsPng = async (
       ctx.strokeStyle = '#e6e9ef';
       ctx.stroke();
 
-      const label = getMonthLabel(monthStart);
+      const label = getMonthLabel(monthStart, locale);
       const textWidth = ctx.measureText(label).width;
       const centerX = startX + ((endX - startX) / 2);
       ctx.fillText(label, Math.round(centerX - (textWidth / 2)), 24);
@@ -1103,6 +1105,7 @@ type Props = {
 };
 
 export default function RoadmapGenerator({ onApplied }: Props) {
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<RoadmapTab>('schedule');
   const [occupationView, setOccupationView] = useState<OccupationView>('contributor');
@@ -2182,6 +2185,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
         ganttExportRows,
         monthsForGantt,
         monthOffsetForGantt,
+        locale,
         `roadmap-gantt-${getTodayYmd()}`,
       );
     } catch (error: any) {

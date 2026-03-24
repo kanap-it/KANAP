@@ -14,6 +14,7 @@ import {
   Alert,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 
 interface QuickCreateTaskModalProps {
@@ -31,6 +32,7 @@ export default function QuickCreateTaskModal({
   onClose,
 }: QuickCreateTaskModalProps) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation('common');
   const [title, setTitle] = useState('');
   const [projectId, setProjectId] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +72,7 @@ export default function QuickCreateTaskModal({
       handleClose();
     },
     onError: (err: Error) => {
-      setError(err.message || 'Failed to create task');
+      setError(err.message || t('messages.failedToCreateTask'));
     },
   });
 
@@ -83,7 +85,7 @@ export default function QuickCreateTaskModal({
 
   const handleSubmit = () => {
     if (!title.trim()) {
-      setError('Title is required');
+      setError(t('messages.titleRequired'));
       return;
     }
     createMutation.mutate();
@@ -91,7 +93,7 @@ export default function QuickCreateTaskModal({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Create Task</DialogTitle>
+      <DialogTitle>{t('dashboard.quickCreate.createTask')}</DialogTitle>
       <DialogContent>
         <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
@@ -101,24 +103,24 @@ export default function QuickCreateTaskModal({
           )}
 
           <TextField
-            label="Task Title"
+            label={t('dashboard.quickCreate.taskTitle')}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             fullWidth
             required
             autoFocus
-            placeholder="What needs to be done?"
+            placeholder={t('dashboard.quickCreate.whatNeedsToBeDone')}
           />
 
           <FormControl fullWidth>
-            <InputLabel>Project (optional)</InputLabel>
+            <InputLabel>{t('dashboard.quickCreate.projectOptional')}</InputLabel>
             <Select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              label="Project (optional)"
+              label={t('dashboard.quickCreate.projectOptional')}
             >
               <MenuItem value="">
-                <em>None</em>
+                <em>{t('labels.none')}</em>
               </MenuItem>
               {projectsData?.map((project) => (
                 <MenuItem key={project.id} value={project.id}>
@@ -130,13 +132,13 @@ export default function QuickCreateTaskModal({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>Cancel</Button>
+        <Button onClick={handleClose}>{t('buttons.cancel')}</Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={createMutation.isPending}
         >
-          Create
+          {t('buttons.create')}
         </Button>
       </DialogActions>
     </Dialog>

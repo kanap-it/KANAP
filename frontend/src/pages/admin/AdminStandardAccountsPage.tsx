@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +14,7 @@ type Template = { id: string; country_iso: string | null; template_code: string;
 
 export default function AdminStandardAccountsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation(['admin', 'common']);
   const [templates, setTemplates] = React.useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('');
   const [exportOpen, setExportOpen] = React.useState(false);
@@ -55,7 +57,7 @@ export default function AdminStandardAccountsPage() {
   const columns: EnhancedColDef<any>[] = React.useMemo(() => [
     {
       field: 'account_number',
-      headerName: 'Account #',
+      headerName: t('standardAccounts.columns.accountNumber'),
       width: 160,
       required: true,
       cellRenderer: (params: any) => (
@@ -64,7 +66,7 @@ export default function AdminStandardAccountsPage() {
     },
     {
       field: 'account_name',
-      headerName: 'Name',
+      headerName: t('standardAccounts.columns.name'),
       flex: 1,
       required: true,
       cellRenderer: (params: any) => (
@@ -73,7 +75,7 @@ export default function AdminStandardAccountsPage() {
     },
     {
       field: 'native_name',
-      headerName: 'Native Name',
+      headerName: t('standardAccounts.columns.nativeName'),
       width: 220,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -82,7 +84,7 @@ export default function AdminStandardAccountsPage() {
     },
     {
       field: 'description',
-      headerName: 'Description',
+      headerName: t('standardAccounts.columns.description'),
       width: 250,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -91,7 +93,7 @@ export default function AdminStandardAccountsPage() {
     },
     {
       field: 'consolidation_account_number',
-      headerName: 'Consol. Account #',
+      headerName: t('standardAccounts.columns.consolidationAccountNumber'),
       width: 180,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
@@ -99,7 +101,7 @@ export default function AdminStandardAccountsPage() {
     },
     {
       field: 'consolidation_account_name',
-      headerName: 'Consol. Name',
+      headerName: t('standardAccounts.columns.consolidationName'),
       width: 250,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
@@ -107,7 +109,7 @@ export default function AdminStandardAccountsPage() {
     },
     {
       field: 'consolidation_account_description',
-      headerName: 'Consol. Description',
+      headerName: t('standardAccounts.columns.consolidationDescription'),
       width: 300,
       defaultHidden: true,
       cellRenderer: (params: any) => (
@@ -116,17 +118,17 @@ export default function AdminStandardAccountsPage() {
     },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('standardAccounts.columns.status'),
       width: 140,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
       ),
     },
-  ], [getStandardAccountHref, navigate]);
+  ], [getStandardAccountHref, navigate, t]);
 
   const actions = (
     <Stack direction="row" spacing={1}>
-      <TextField select size="small" label="Template" value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)} sx={{ minWidth: 360 }}>
+      <TextField select size="small" label={t('standardAccounts.templateLabel')} value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)} sx={{ minWidth: 360 }}>
         {templates.map((t) => {
           const scope = t.country_iso ? t.country_iso : 'ALL';
           return (
@@ -134,9 +136,9 @@ export default function AdminStandardAccountsPage() {
           );
         })}
       </TextField>
-      <Button variant="contained" disabled={!selectedTemplateId} onClick={() => navigate(`/admin/standard-accounts/${selectedTemplateId}/new/overview`)}>New</Button>
-      <Button onClick={() => setImportOpen(true)} disabled={!selectedTemplateId}>Import CSV</Button>
-      <Button onClick={() => setExportOpen(true)} disabled={!selectedTemplateId}>Export CSV</Button>
+      <Button variant="contained" disabled={!selectedTemplateId} onClick={() => navigate(`/admin/standard-accounts/${selectedTemplateId}/new/overview`)}>{t('standardAccounts.actions.new')}</Button>
+      <Button onClick={() => setImportOpen(true)} disabled={!selectedTemplateId}>{t('standardAccounts.actions.importCsv')}</Button>
+      <Button onClick={() => setExportOpen(true)} disabled={!selectedTemplateId}>{t('standardAccounts.actions.exportCsv')}</Button>
       <DeleteSelectedButton
         selectedRows={selectedRows}
         endpoint={`/admin/coa-templates/${selectedTemplateId}/accounts/bulk`}
@@ -151,7 +153,7 @@ export default function AdminStandardAccountsPage() {
 
   return (
     <>
-      <PageHeader title="Standard Accounts (Platform Admin)" actions={actions} />
+      <PageHeader title={t('standardAccounts.title')} actions={actions} />
       {selectedTemplateId && (
         <ServerDataGrid<any>
           columns={columns}
@@ -173,7 +175,7 @@ export default function AdminStandardAccountsPage() {
           open={exportOpen}
           onClose={() => setExportOpen(false)}
           endpoint={`/admin/coa-templates/${selectedTemplateId}`}
-          title="Export Template Accounts"
+          title={t('standardAccounts.exportTitle')}
         />
       )}
       {selectedTemplateId && (
@@ -181,7 +183,7 @@ export default function AdminStandardAccountsPage() {
           open={importOpen}
           onClose={() => setImportOpen(false)}
           endpoint={`/admin/coa-templates/${selectedTemplateId}`}
-          title="Import Template Accounts"
+          title={t('standardAccounts.importTitle')}
           onImported={() => setRefreshKey((k) => k + 1)}
         />
       )}

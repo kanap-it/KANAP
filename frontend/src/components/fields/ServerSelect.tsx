@@ -1,5 +1,6 @@
 import React from 'react';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 export type ServerOption = {
@@ -52,7 +53,7 @@ function useServerOptions(search: string, opts?: { allowClusters?: boolean }) {
 }
 
 const ServerSelect: React.FC<ServerSelectProps> = ({
-  label = 'Server',
+  label: labelProp,
   value,
   onChange,
   disabled,
@@ -61,6 +62,8 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
   placeholder,
   allowClusters = true,
 }) => {
+  const { t } = useTranslation('common');
+  const label = labelProp ?? t('selects.server');
   const [inputValue, setInputValue] = React.useState('');
   const { options, loading } = useServerOptions(inputValue, { allowClusters });
   const [selectedOption, setSelectedOption] = React.useState<ServerOption | null>(null);
@@ -96,12 +99,12 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
       disabled={disabled}
       onChange={(_, newValue) => onChange(newValue?.id || null)}
       onInputChange={(_, v) => setInputValue(v)}
-      getOptionLabel={(option) => (option.is_cluster ? `Cluster: ${option.name}` : option.name)}
+      getOptionLabel={(option) => (option.is_cluster ? `${t('selects.cluster')} ${option.name}` : option.name)}
       renderOption={(props, option) => (
         <li {...props} key={option.id}>
           <div>
             <div style={{ fontWeight: 600 }}>
-              {option.is_cluster ? 'Cluster: ' : ''}
+              {option.is_cluster ? `${t('selects.cluster')} ` : ''}
               {option.name}
             </div>
             <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
@@ -132,7 +135,7 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
         />
       )}
       loading={loading}
-      noOptionsText={loading ? 'Loading…' : 'No servers found'}
+      noOptionsText={loading ? t('selects.loadingEllipsis') : t('selects.noServersFound')}
       fullWidth
     />
   );

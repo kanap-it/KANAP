@@ -20,7 +20,7 @@
 | Domain | DNS pointing to your server |
 
 Optional:
-- Resend API key (email)
+- Outbound email configuration: Resend API key or SMTP relay/server details
 - Microsoft Entra SSO (see `sso-entra.md`)
 
 ## Quick Start
@@ -60,6 +60,8 @@ docker compose -f infra/compose.onprem.yml logs -f api
 **Important:** Complete the configuration (step 2) before starting containers. The API reads `.env` at startup and creates the tenant and admin user on first boot using those values.
 
 **Database role requirement:** `DATABASE_URL` must use a dedicated PostgreSQL application role. Do not point it at `postgres` or another cluster-admin role. KANAP will fail startup rather than run without effective RLS enforcement.
+
+**Email choice:** On-premise deployments can use either **Resend** or **SMTP** for outbound email. SMTP is useful when the customer already has an internal mail relay or a managed provider such as Microsoft 365. Configure one of these options if you want password reset, invitations, and notification emails to work from day one.
 
 ## Reverse Proxy Example (nginx)
 

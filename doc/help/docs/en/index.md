@@ -92,6 +92,10 @@ If you want the shortest path to productivity, start with the Fast Track guides 
 - [Master Data Administration](master-data-operations.md) - Freeze and copy master data
 - [Operations Dashboard](operations-dashboard.md) - Overview and quick actions
 
+### Deployment & Operations
+
+- [On-Premise Deployment](on-premise/index.md) - Installation, configuration, operations, SMTP/Resend email setup, and Microsoft Entra SSO for single-tenant deployments
+
 ---
 
 **Need help?** Contact your system administrator or visit [kanap.net](https://kanap.net) for more information.

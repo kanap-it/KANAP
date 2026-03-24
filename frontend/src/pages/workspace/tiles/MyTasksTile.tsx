@@ -10,6 +10,8 @@ import {
   Button,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../../i18n/useLocale';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
@@ -61,6 +63,8 @@ function isDueThisWeek(dueDate: string | null): boolean {
 export default function MyTasksTile({ config }: MyTasksTileProps) {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { t } = useTranslation('common');
+  const locale = useLocale();
   const limit = Math.min((config.limit as number) || 5, 5);
   const showOverdue = config.showOverdue !== false;
 
@@ -99,9 +103,9 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
   const laterTasks = laterSource.slice(0, remaining);
 
   const formatDueDate = (date: string | null) => {
-    if (!date) return 'No due date';
+    if (!date) return t('dashboard.tiles.noDueDate');
     const d = new Date(date);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
   };
 
   const renderTaskList = (items: Task[], emptyMessage: string) => {
@@ -153,21 +157,21 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
 
   return (
     <DashboardTile
-      title="My Tasks"
+      title={t('dashboard.myTasks')}
       icon="Task"
       isLoading={isLoading}
       action={
         <Button size="small" onClick={() => navigate('/portfolio/tasks')}>
-          View All
+          {t('buttons.viewAll')}
         </Button>
       }
     >
       {tasks.length === 0 ? (
         <TileEmptyState
-          message="No tasks assigned to you"
+          message={t('dashboard.tiles.noTasksAssigned')}
           action={
             <Button size="small" onClick={() => navigate('/portfolio/tasks')}>
-              Browse Tasks
+              {t('dashboard.tiles.browseTasks')}
             </Button>
           }
         />
@@ -176,7 +180,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
           {showOverdue && overdueTasks.length > 0 && (
             <>
               <Typography variant="caption" color="error" fontWeight={600} sx={{ pl: 2 }}>
-                Overdue
+                {t('dashboard.tiles.overdue')}
               </Typography>
               {renderTaskList(overdueTasks, '')}
               <Divider sx={{ my: 1 }} />
@@ -185,7 +189,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
           {dueThisWeek.length > 0 && (
             <>
               <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ pl: 2 }}>
-                Due This Week
+                {t('dashboard.tiles.dueThisWeek')}
               </Typography>
               {renderTaskList(dueThisWeek, '')}
               {laterTasks.length > 0 && <Divider sx={{ my: 1 }} />}
@@ -194,7 +198,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
           {laterTasks.length > 0 && (
             <>
               <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ pl: 2 }}>
-                Later
+                {t('dashboard.tiles.later')}
               </Typography>
               {renderTaskList(laterTasks, '')}
             </>

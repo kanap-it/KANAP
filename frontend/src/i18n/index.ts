@@ -1,6 +1,7 @@
 import i18n, { type Resource, type ResourceLanguage } from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
+import { z } from 'zod';
 
 export const LANGUAGE_OVERRIDE_STORAGE_KEY = 'kanap_language';
 export const NAMESPACES = [
@@ -75,6 +76,42 @@ for (const [path, module] of Object.entries(localeModules)) {
   if (!isSupportedLocale(locale)) continue;
   (resources[locale] as ResourceLanguage)[namespace] = module.default;
 }
+
+z.setErrorMap((issue) => {
+  const t = i18n.t.bind(i18n);
+
+  switch (issue.code) {
+    case z.ZodIssueCode.invalid_type:
+      if (issue.input == null) {
+        return { message: t('validation:required') };
+      }
+      return { message: t('validation:invalidType') };
+    case z.ZodIssueCode.too_small:
+      if (issue.origin === 'string' && Number(issue.minimum) === 1) {
+        return { message: t('validation:required') };
+      }
+      if (issue.origin === 'string') {
+        return { message: t('validation:minLength', { count: Number(issue.minimum) }) };
+      }
+      break;
+    case z.ZodIssueCode.too_big:
+      if (issue.origin === 'string') {
+        return { message: t('validation:maxLength', { count: Number(issue.maximum) }) };
+      }
+      break;
+    case z.ZodIssueCode.invalid_format:
+      if (issue.format === 'email') {
+        return { message: t('validation:invalidEmail') };
+      }
+      return { message: t('validation:invalidType') };
+    case z.ZodIssueCode.invalid_value:
+      return { message: t('validation:invalidType') };
+    default:
+      break;
+  }
+
+  return undefined;
+});
 
 void i18n
   .use(LanguageDetector)

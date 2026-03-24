@@ -23,12 +23,14 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SaveIcon from '@mui/icons-material/Save';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../../i18n/useLocale';
 
 const STATUS_OPTIONS = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'published', label: 'Published' },
-  { value: 'archived', label: 'Archived' },
-  { value: 'obsolete', label: 'Obsolete' },
+  { value: 'draft' },
+  { value: 'published' },
+  { value: 'archived' },
+  { value: 'obsolete' },
 ];
 
 type RelationKey = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
@@ -212,6 +214,8 @@ export default function KnowledgeSidebar({
   onPostComment,
   postingComment,
 }: KnowledgeSidebarProps) {
+  const { t } = useTranslation(['knowledge', 'common']);
+  const locale = useLocale();
   const [activeTab, setActiveTab] = React.useState<'properties' | 'comments'>('properties');
   const [expanded, setExpanded] = React.useState<string[]>([]);
   const [workflowComment, setWorkflowComment] = React.useState('');
@@ -226,12 +230,12 @@ export default function KnowledgeSidebar({
   const isManagedIntegratedDocument = !!doc?.is_managed_integrated_document;
   const managedMetadataDisabled = disabled || isManagedIntegratedDocument;
   const workflowActive = !!workflow?.is_active;
-  const managedStatusTooltip = 'Managed docs keep status controlled by the source workspace. Knowledge review workflow is unavailable.';
-  const managedFolderTooltip = 'Managed docs keep folder placement controlled by the source workspace.';
-  const managedTypeTooltip = 'Managed docs keep the document type controlled by the source workspace.';
-  const managedTemplateTooltip = 'Managed docs keep the template controlled by the source workspace.';
-  const managedRelationsTooltip = 'Managed docs keep source relations read-only in Knowledge.';
-  const managedWorkflowTooltip = 'Managed docs do not use the Knowledge review workflow.';
+  const managedStatusTooltip = t('sidebar.tooltips.managedStatus');
+  const managedFolderTooltip = t('sidebar.tooltips.managedFolder');
+  const managedTypeTooltip = t('sidebar.tooltips.managedType');
+  const managedTemplateTooltip = t('sidebar.tooltips.managedTemplate');
+  const managedRelationsTooltip = t('sidebar.tooltips.managedRelations');
+  const managedWorkflowTooltip = t('sidebar.tooltips.managedWorkflow');
   const templateDocumentId = form?.template_document_id !== undefined
     ? form.template_document_id
     : doc?.template_document_id;
@@ -245,18 +249,18 @@ export default function KnowledgeSidebar({
     || documentTypeOptions.find((row) => row.id === doc?.document_type_id)
     || null;
   const contributorRoleLabel: Record<string, string> = {
-    owner: 'Owner',
-    author: 'Author',
-    reviewer: 'Reviewer',
-    validator: 'Approver',
+    owner: t('sidebar.contributors.roles.owner'),
+    author: t('sidebar.contributors.roles.author'),
+    reviewer: t('sidebar.contributors.roles.reviewer'),
+    validator: t('sidebar.contributors.roles.approver'),
   };
   const readOnlyClassifications = Array.isArray(doc?.classifications)
     ? doc.classifications
         .map((row: any) => ({
           key: `${row?.category_id || 'category'}:${row?.stream_id || 'stream'}`,
           label: row?.stream_name
-            ? `${row?.category_name || row?.category_id || 'Unknown'} / ${row.stream_name}`
-            : (row?.category_name || row?.category_id || 'Unknown'),
+            ? `${row?.category_name || row?.category_id || t('shared.unknown')} / ${row.stream_name}`
+            : (row?.category_name || row?.category_id || t('shared.unknown')),
         }))
         .filter((row: { label: string }) => !!row.label)
     : [];
@@ -264,14 +268,14 @@ export default function KnowledgeSidebar({
     (Object.keys(RELATION_LABELS) as RelationKey[])
       .map((key) => ({
         key,
-        label: RELATION_LABELS[key],
+        label: t(`sidebar.relations.labels.${key}`),
         items: (relationSelections[key] || []).map((entry) => ({
           id: entry.id,
           label: entry.label || entry.id,
         })),
       }))
       .filter((row) => row.items.length > 0)
-  ), [relationSelections]);
+  ), [relationSelections, t]);
   const mergedContributorOptions = React.useMemo(() => {
     const out = [...contributorOptions];
     const seen = new Set(out.map((row) => row.id));
@@ -322,7 +326,7 @@ export default function KnowledgeSidebar({
         if (content === 'Review requested') {
           return {
             id: activity.id,
-            label: 'Review requested',
+            label: t('sidebar.workflow.activity.reviewRequested'),
             actor: activity.author_name || null,
             detail: null,
             created_at: activity.created_at,
@@ -331,7 +335,7 @@ export default function KnowledgeSidebar({
         if (content === 'Approval requested' || content === 'Review stage completed. Approval requested.') {
           return {
             id: activity.id,
-            label: 'Approval requested',
+            label: t('sidebar.workflow.activity.approvalRequested'),
             actor: activity.author_name || null,
             detail: null,
             created_at: activity.created_at,
@@ -340,7 +344,7 @@ export default function KnowledgeSidebar({
         if (content === 'Workflow approved and document published') {
           return {
             id: activity.id,
-            label: 'Approved and published',
+            label: t('sidebar.workflow.activity.approvedPublished'),
             actor: activity.author_name || null,
             detail: null,
             created_at: activity.created_at,
@@ -349,7 +353,7 @@ export default function KnowledgeSidebar({
         if (content === 'Review cancelled') {
           return {
             id: activity.id,
-            label: 'Review cancelled',
+            label: t('sidebar.workflow.activity.reviewCancelled'),
             actor: activity.author_name || null,
             detail: null,
             created_at: activity.created_at,
@@ -359,7 +363,7 @@ export default function KnowledgeSidebar({
         if (changesRequestedMatch) {
           return {
             id: activity.id,
-            label: 'Changes requested',
+            label: t('sidebar.workflow.activity.changesRequested'),
             actor: activity.author_name || null,
             detail: changesRequestedMatch[1] || null,
             created_at: activity.created_at,
@@ -374,14 +378,14 @@ export default function KnowledgeSidebar({
     if (!workflowActive) return null;
     if (currentStage === 'reviewer') {
       return hasApproverStage
-        ? 'Approvers are waiting. They will be notified only after all reviewers approve.'
-        : 'This document will publish when all reviewers approve.';
+        ? t('sidebar.workflow.messages.approversWaiting')
+        : t('sidebar.workflow.messages.publishWhenReviewersApprove');
     }
     if (currentStage === 'approver') {
-      return 'This document will publish only when all approvers approve.';
+      return t('sidebar.workflow.messages.publishWhenApproversApprove');
     }
     return null;
-  }, [currentStage, hasApproverStage, workflowActive]);
+  }, [currentStage, hasApproverStage, t, workflowActive]);
   const getStageState = React.useCallback((stage: 'reviewer' | 'approver', participants: any[]) => {
     if (!participants.length) return null;
     if (currentStage === stage) return 'active';
@@ -404,8 +408,8 @@ export default function KnowledgeSidebar({
         variant="fullWidth"
         sx={{ borderBottom: 1, borderColor: 'divider', minHeight: 40, '& .MuiTab-root': { minHeight: 40, py: 0.5 } }}
       >
-        <Tab value="properties" label="Properties" />
-        <Tab value="comments" label="Comments" />
+        <Tab value="properties" label={t('sidebar.tabs.properties')} />
+        <Tab value="comments" label={t('sidebar.tabs.comments')} />
       </Tabs>
 
       <Box sx={{ flex: 1, overflow: 'auto', p: 1.5 }}>
@@ -415,35 +419,35 @@ export default function KnowledgeSidebar({
             <Stack spacing={1.5} sx={{ mb: 1 }}>
               {!isCreate && doc?.item_number && (
                 <Typography variant="caption" color="text.secondary">
-                  DOC-{doc.item_number} | Version {form.revision || 1}
+                  {t('sidebar.values.documentVersion', { itemNumber: doc.item_number, version: form.revision || 1 })}
                 </Typography>
               )}
               {isManagedIntegratedDocument && (
                 <Box>
-                  <ManagedReadonlyFieldLabel label="Status" title={managedStatusTooltip} />
+                  <ManagedReadonlyFieldLabel label={t('sidebar.fields.status')} title={managedStatusTooltip} />
                   <TextField
                     select
                     size="small"
                     value={form.status || 'draft'}
-                    onChange={(e) => onChange('status', e.target.value)}
-                    disabled={managedMetadataDisabled}
-                    fullWidth
-                  >
-                    {form.status === 'in_review' && (
-                      <MenuItem value="in_review">In Review</MenuItem>
-                    )}
-                    {STATUS_OPTIONS.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
+                      onChange={(e) => onChange('status', e.target.value)}
+                      disabled={managedMetadataDisabled}
+                      fullWidth
+                    >
+                      {form.status === 'in_review' && (
+                        <MenuItem value="in_review">{t('statuses.in_review')}</MenuItem>
+                      )}
+                      {STATUS_OPTIONS.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                        {t(`statuses.${option.value}`)}
+                        </MenuItem>
+                      ))}
                   </TextField>
                 </Box>
               )}
               {!isManagedIntegratedDocument && (
                 <TextField
                   select
-                  label="Status"
+                  label={t('sidebar.fields.status')}
                   size="small"
                   value={form.status || 'draft'}
                   onChange={(e) => onChange('status', e.target.value)}
@@ -451,18 +455,18 @@ export default function KnowledgeSidebar({
                   fullWidth
                 >
                   {form.status === 'in_review' && (
-                    <MenuItem value="in_review">In Review</MenuItem>
+                    <MenuItem value="in_review">{t('statuses.in_review')}</MenuItem>
                   )}
                   {STATUS_OPTIONS.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
-                      {option.label}
+                      {t(`statuses.${option.value}`)}
                     </MenuItem>
                   ))}
                 </TextField>
               )}
               {isManagedIntegratedDocument && (
                 <Box>
-                  <ManagedReadonlyFieldLabel label="Folder" title={managedFolderTooltip} />
+                  <ManagedReadonlyFieldLabel label={t('sidebar.fields.folder')} title={managedFolderTooltip} />
                   <TextField
                     select
                     size="small"
@@ -471,7 +475,7 @@ export default function KnowledgeSidebar({
                     disabled={managedMetadataDisabled}
                     fullWidth
                   >
-                    <MenuItem value="">Unfiled</MenuItem>
+                    <MenuItem value="">{t('shared.unfiled')}</MenuItem>
                     {folderOptions.map((folder) => (
                       <MenuItem key={folder.id} value={folder.id}>
                         {folder.label}
@@ -483,14 +487,14 @@ export default function KnowledgeSidebar({
               {!isManagedIntegratedDocument && (
                 <TextField
                   select
-                  label="Folder"
+                  label={t('sidebar.fields.folder')}
                   size="small"
                   value={form.folder_id || ''}
                   onChange={(e) => onChange('folder_id', e.target.value || null)}
                   disabled={managedMetadataDisabled}
                   fullWidth
                 >
-                  <MenuItem value="">Unfiled</MenuItem>
+                  <MenuItem value="">{t('shared.unfiled')}</MenuItem>
                   {folderOptions.map((folder) => (
                     <MenuItem key={folder.id} value={folder.id}>
                       {folder.label}
@@ -501,11 +505,11 @@ export default function KnowledgeSidebar({
               {documentTypeOptions.length > 0 ? (
                 <>
                   {isManagedIntegratedDocument && (
-                    <ManagedReadonlyFieldLabel label="Type" title={managedTypeTooltip} />
+                    <ManagedReadonlyFieldLabel label={t('sidebar.fields.type')} title={managedTypeTooltip} />
                   )}
                   <TextField
                     select
-                    label={isManagedIntegratedDocument ? undefined : 'Type'}
+                    label={isManagedIntegratedDocument ? undefined : t('sidebar.fields.type')}
                     size="small"
                     value={form.document_type_id || ''}
                     onChange={(e) => onChange('document_type_id', e.target.value || null)}
@@ -519,8 +523,8 @@ export default function KnowledgeSidebar({
                         disabled={!option.is_active && option.id !== form.document_type_id}
                       >
                         {option.name}
-                        {option.is_default ? ' (Default)' : ''}
-                        {!option.is_active ? ' (Inactive)' : ''}
+                        {option.is_default ? ` (${t('sidebar.values.default')})` : ''}
+                        {!option.is_active ? ` (${t('sidebar.values.inactive')})` : ''}
                       </MenuItem>
                     ))}
                   </TextField>
@@ -528,34 +532,34 @@ export default function KnowledgeSidebar({
               ) : (
                 <>
                   {isManagedIntegratedDocument && (
-                    <ManagedReadonlyFieldLabel label="Type" title={managedTypeTooltip} />
+                    <ManagedReadonlyFieldLabel label={t('sidebar.fields.type')} title={managedTypeTooltip} />
                   )}
                   <TextField
-                    label={isManagedIntegratedDocument ? undefined : 'Type'}
+                    label={isManagedIntegratedDocument ? undefined : t('sidebar.fields.type')}
                     size="small"
-                    value={activeDocumentType?.name || 'Document'}
+                    value={activeDocumentType?.name || t('shared.document')}
                     fullWidth
                     InputProps={{ readOnly: true }}
                   />
                 </>
               )}
               {isManagedIntegratedDocument && (
-                <ManagedReadonlyFieldLabel label="Based on template" title={managedTemplateTooltip} />
+                <ManagedReadonlyFieldLabel label={t('sidebar.fields.basedOnTemplate')} title={managedTemplateTooltip} />
               )}
               <TextField
-                label={isManagedIntegratedDocument ? undefined : 'Based on template'}
+                label={isManagedIntegratedDocument ? undefined : t('sidebar.fields.basedOnTemplate')}
                 size="small"
-                value={templateTitle || 'None'}
+                value={templateTitle || t('shared.none')}
                 disabled
                 fullWidth
               />
               {!!templateTitle && !!templateRef && (
                 <Button size="small" href={`/knowledge/${templateRef}`} sx={{ alignSelf: 'flex-start', textTransform: 'none', px: 0 }}>
-                  Open template
+                  {t('sidebar.actions.openTemplate')}
                 </Button>
               )}
               <TextField
-                label="Summary"
+                label={t('sidebar.fields.summary')}
                 size="small"
                 value={form.summary || ''}
                 onChange={(e) => onChange('summary', e.target.value)}
@@ -578,14 +582,14 @@ export default function KnowledgeSidebar({
               sx={accordionSx}
             >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle2">Contributors</Typography>
+                <Typography variant="subtitle2">{t('sidebar.sections.contributors')}</Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
                 {isCreate ? (
-                  <Alert severity="info" sx={{ fontSize: '0.75rem' }}>Save first to manage owners, reviewers, and approvers.</Alert>
+                  <Alert severity="info" sx={{ fontSize: '0.75rem' }}>{t('sidebar.contributors.messages.saveFirst')}</Alert>
                 ) : !canManage ? (
                   (doc?.contributors || []).length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">No contributors.</Typography>
+                    <Typography variant="body2" color="text.secondary">{t('sidebar.contributors.empty')}</Typography>
                   ) : (
                     <Stack spacing={0.75}>
                       {(doc?.contributors || []).map((row: any) => (
@@ -594,7 +598,7 @@ export default function KnowledgeSidebar({
                           <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {row.user_name || row.user_id}
                           </Typography>
-                          {row.is_primary && <Chip label="Primary" size="small" color="primary" />}
+                          {row.is_primary && <Chip label={t('sidebar.contributors.primary')} size="small" color="primary" />}
                         </Box>
                       ))}
                     </Stack>
@@ -611,7 +615,7 @@ export default function KnowledgeSidebar({
                       })}
                       isOptionEqualToValue={(option, value) => option.id === value.id}
                       getOptionLabel={formatContributorLabel}
-                      renderInput={(params) => <TextField {...params} label="Owner" />}
+                      renderInput={(params) => <TextField {...params} label={t('sidebar.contributors.fields.owner')} />}
                     />
                     <Autocomplete
                       multiple
@@ -624,7 +628,7 @@ export default function KnowledgeSidebar({
                       })}
                       isOptionEqualToValue={(option, value) => option.id === value.id}
                       getOptionLabel={formatContributorLabel}
-                      renderInput={(params) => <TextField {...params} label="Authors" />}
+                      renderInput={(params) => <TextField {...params} label={t('sidebar.contributors.fields.authors')} />}
                     />
                     <Autocomplete
                       multiple
@@ -637,7 +641,7 @@ export default function KnowledgeSidebar({
                       })}
                       isOptionEqualToValue={(option, value) => option.id === value.id}
                       getOptionLabel={formatContributorLabel}
-                      renderInput={(params) => <TextField {...params} label="Reviewers" />}
+                      renderInput={(params) => <TextField {...params} label={t('sidebar.contributors.fields.reviewers')} />}
                     />
                     <Autocomplete
                       multiple
@@ -650,7 +654,7 @@ export default function KnowledgeSidebar({
                       })}
                       isOptionEqualToValue={(option, value) => option.id === value.id}
                       getOptionLabel={formatContributorLabel}
-                      renderInput={(params) => <TextField {...params} label="Approvers" />}
+                      renderInput={(params) => <TextField {...params} label={t('sidebar.contributors.fields.approvers')} />}
                     />
                     {contributorsError && <Alert severity="error" sx={{ fontSize: '0.75rem' }}>{contributorsError}</Alert>}
                     <Button
@@ -660,7 +664,7 @@ export default function KnowledgeSidebar({
                       onClick={onSaveContributors}
                       disabled={!contributorAssignments.owner_user_id || savingContributors || !contributorsDirty}
                     >
-                      Save
+                      {t('common:buttons.save')}
                     </Button>
                   </Stack>
                 )}
@@ -678,7 +682,7 @@ export default function KnowledgeSidebar({
             >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Stack direction="row" spacing={0.5} alignItems="center">
-                  <Typography variant="subtitle2">Workflow</Typography>
+                  <Typography variant="subtitle2">{t('sidebar.sections.workflow')}</Typography>
                   {isManagedIntegratedDocument && (
                     <ManagedReadonlyBadge title={managedWorkflowTooltip} />
                   )}
@@ -692,17 +696,17 @@ export default function KnowledgeSidebar({
                         <Chip
                           size="small"
                           color="warning"
-                          label={currentStage === 'approver' ? 'Awaiting Approval' : 'Awaiting Review'}
+                          label={currentStage === 'approver' ? t('sidebar.workflow.values.awaitingApproval') : t('sidebar.workflow.values.awaitingReview')}
                         />
                         <Chip
                           size="small"
                           variant="outlined"
-                          label={`Revision ${workflow?.requested_revision || form.revision || 1}`}
+                          label={t('sidebar.workflow.values.revision', { count: workflow?.requested_revision || form.revision || 1 })}
                         />
                       </Stack>
                       <Typography variant="body2">
-                        Requested by {workflow?.requested_by_name || 'Unknown'}
-                        {workflow?.requested_at ? ` on ${new Date(workflow.requested_at).toLocaleString()}` : ''}
+                        {t('sidebar.workflow.requestedBy', { user: workflow?.requested_by_name || t('shared.unknown') })}
+                        {workflow?.requested_at ? ` on ${new Date(workflow.requested_at).toLocaleString(locale)}` : ''}
                       </Typography>
                       {!!currentStageExplanation && (
                         <Alert severity="info" sx={{ fontSize: '0.75rem' }}>
@@ -713,13 +717,16 @@ export default function KnowledgeSidebar({
                         <Stack spacing={0.5}>
                           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
                             <Typography variant="caption" color="text.secondary">
-                              Stage 1: Review {reviewerParticipants.filter((row: any) => row?.decision === 'approved').length}/{reviewerParticipants.length}
+                              {t('sidebar.workflow.stage1Review', {
+                                approved: reviewerParticipants.filter((row: any) => row?.decision === 'approved').length,
+                                total: reviewerParticipants.length,
+                              })}
                             </Typography>
                             <Chip
                               size="small"
                               color={reviewerStageState === 'active' ? 'warning' : reviewerStageState === 'completed' ? 'success' : 'default'}
                               variant={reviewerStageState === 'completed' ? 'filled' : 'outlined'}
-                              label={reviewerStageState === 'active' ? 'Active' : reviewerStageState === 'completed' ? 'Completed' : 'Pending'}
+                              label={reviewerStageState === 'active' ? t('sidebar.workflow.values.active') : reviewerStageState === 'completed' ? t('sidebar.workflow.values.completed') : t('sidebar.workflow.values.pending')}
                             />
                           </Stack>
                           {reviewerParticipants.map((row: any) => (
@@ -727,10 +734,10 @@ export default function KnowledgeSidebar({
                               <Typography variant="body2" sx={{ flex: 1 }}>{row.user_name || row.user_id}</Typography>
                               <Chip
                                 size="small"
-                                color={row.decision === 'approved' ? 'success' : row.decision === 'changes_requested' ? 'error' : 'default'}
-                                label={row.decision === 'approved' ? 'Approved' : row.decision === 'changes_requested' ? 'Changes Requested' : 'Pending'}
+                              color={row.decision === 'approved' ? 'success' : row.decision === 'changes_requested' ? 'error' : 'default'}
+                                label={row.decision === 'approved' ? t('sidebar.workflow.values.approved') : row.decision === 'changes_requested' ? t('sidebar.workflow.values.changesRequested') : t('sidebar.workflow.values.pending')}
                               />
-                              {row.user_id === currentUserId && <Chip size="small" variant="outlined" label="You" />}
+                              {row.user_id === currentUserId && <Chip size="small" variant="outlined" label={t('sidebar.workflow.values.you')} />}
                               {!!row.comment && (
                                 <Typography variant="caption" color="text.secondary" sx={{ width: '100%' }}>
                                   {row.comment}
@@ -744,13 +751,16 @@ export default function KnowledgeSidebar({
                         <Stack spacing={0.5}>
                           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
                             <Typography variant="caption" color="text.secondary">
-                              Stage 2: Approval {approverParticipants.filter((row: any) => row?.decision === 'approved').length}/{approverParticipants.length}
+                              {t('sidebar.workflow.stage2Approval', {
+                                approved: approverParticipants.filter((row: any) => row?.decision === 'approved').length,
+                                total: approverParticipants.length,
+                              })}
                             </Typography>
                             <Chip
                               size="small"
                               color={approverStageState === 'active' ? 'warning' : approverStageState === 'completed' ? 'success' : 'default'}
                               variant={approverStageState === 'completed' ? 'filled' : 'outlined'}
-                              label={approverStageState === 'active' ? 'Active' : approverStageState === 'completed' ? 'Completed' : approverStageState === 'waiting' ? 'Waiting' : 'Pending'}
+                              label={approverStageState === 'active' ? t('sidebar.workflow.values.active') : approverStageState === 'completed' ? t('sidebar.workflow.values.completed') : approverStageState === 'waiting' ? t('sidebar.workflow.values.waiting') : t('sidebar.workflow.values.pending')}
                             />
                           </Stack>
                           {approverParticipants.map((row: any) => (
@@ -761,15 +771,15 @@ export default function KnowledgeSidebar({
                                 color={row.decision === 'approved' ? 'success' : row.decision === 'changes_requested' ? 'error' : 'default'}
                                 label={
                                   row.decision === 'approved'
-                                    ? 'Approved'
+                                    ? t('sidebar.workflow.values.approved')
                                     : row.decision === 'changes_requested'
-                                      ? 'Changes Requested'
+                                      ? t('sidebar.workflow.values.changesRequested')
                                       : currentStage === 'reviewer'
-                                        ? 'Waiting'
-                                        : 'Pending'
+                                        ? t('sidebar.workflow.values.waiting')
+                                        : t('sidebar.workflow.values.pending')
                                 }
                               />
-                              {row.user_id === currentUserId && <Chip size="small" variant="outlined" label="You" />}
+                              {row.user_id === currentUserId && <Chip size="small" variant="outlined" label={t('sidebar.workflow.values.you')} />}
                               {!!row.comment && (
                                 <Typography variant="caption" color="text.secondary" sx={{ width: '100%' }}>
                                   {row.comment}
@@ -783,12 +793,12 @@ export default function KnowledgeSidebar({
                         <Stack spacing={1}>
                           <TextField
                             size="small"
-                            label="Decision note"
+                            label={t('sidebar.workflow.fields.decisionNote')}
                             multiline
                             minRows={2}
                             value={workflowComment}
                             onChange={(e) => setWorkflowComment(e.target.value)}
-                            placeholder="Optional for approval, required for requesting changes"
+                            placeholder={t('sidebar.workflow.fields.decisionNotePlaceholder')}
                           />
                           <Stack direction="row" spacing={1}>
                             <Button
@@ -804,7 +814,7 @@ export default function KnowledgeSidebar({
                               }}
                               disabled={approvingWorkflow || requestingWorkflowChanges}
                             >
-                              Approve
+                              {t('sidebar.workflow.actions.approve')}
                             </Button>
                             <Button
                               size="small"
@@ -820,7 +830,7 @@ export default function KnowledgeSidebar({
                               }}
                               disabled={approvingWorkflow || requestingWorkflowChanges || !workflowComment.trim()}
                             >
-                              Request Changes
+                              {t('sidebar.workflow.actions.requestChanges')}
                             </Button>
                           </Stack>
                         </Stack>
@@ -829,32 +839,32 @@ export default function KnowledgeSidebar({
                   ) : (
                     <Typography variant="body2" color="text.secondary">
                       {isManagedIntegratedDocument
-                        ? 'Review workflow is unavailable for managed integrated docs.'
-                        : 'No active workflow. You can still publish directly, or assign reviewers and approvers to use the optional review flow.'}
+                        ? t('sidebar.workflow.messages.unavailableForManagedDocs')
+                        : t('sidebar.workflow.messages.noActiveWorkflow')}
                     </Typography>
                   )}
                   <Divider />
                   <Stack spacing={0.5}>
                     <Typography variant="caption" color="text.secondary">
-                      Last approved version
+                      {t('sidebar.workflow.lastApprovedVersion')}
                     </Typography>
                     <Typography variant="body2">
-                      {lastApprovedRevision != null ? `Revision ${lastApprovedRevision}` : 'Never approved'}
+                      {lastApprovedRevision != null ? t('sidebar.workflow.values.revision', { count: lastApprovedRevision }) : t('sidebar.workflow.values.neverApproved')}
                     </Typography>
                     {lastApprovedRevision != null && latestApprovedWorkflow?.approved_at && (
                       <Typography variant="caption" color="text.secondary">
-                        Approved on {new Date(latestApprovedWorkflow.approved_at).toLocaleString()}
+                        {t('sidebar.workflow.approvedOn', { value: new Date(latestApprovedWorkflow.approved_at).toLocaleString(locale) })}
                       </Typography>
                     )}
                   </Stack>
                   <Divider />
                   <Stack spacing={0.75}>
                     <Typography variant="caption" color="text.secondary">
-                      Recent workflow activity
+                      {t('sidebar.workflow.recentActivity')}
                     </Typography>
                     {recentWorkflowActivity.length === 0 ? (
                       <Typography variant="body2" color="text.secondary">
-                        No workflow activity yet.
+                        {t('sidebar.workflow.empty')}
                       </Typography>
                     ) : (
                       recentWorkflowActivity.map((entry) => (
@@ -865,7 +875,7 @@ export default function KnowledgeSidebar({
                           </Typography>
                           {entry.created_at && (
                             <Typography variant="caption" color="text.secondary">
-                              {new Date(entry.created_at).toLocaleString()}
+                              {new Date(entry.created_at).toLocaleString(locale)}
                             </Typography>
                           )}
                           {!!entry.detail && (
@@ -892,14 +902,14 @@ export default function KnowledgeSidebar({
               sx={accordionSx}
             >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle2">Classification</Typography>
+                <Typography variant="subtitle2">{t('sidebar.sections.classification')}</Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
                 {isCreate ? (
-                  <Alert severity="info" sx={{ fontSize: '0.75rem' }}>Save first to classify.</Alert>
+                  <Alert severity="info" sx={{ fontSize: '0.75rem' }}>{t('sidebar.classification.messages.saveFirst')}</Alert>
                 ) : !canManage ? (
                   readOnlyClassifications.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">No classifications.</Typography>
+                    <Typography variant="body2" color="text.secondary">{t('sidebar.classification.empty')}</Typography>
                   ) : (
                     <Stack spacing={0.75}>
                       {readOnlyClassifications.map((row: { key: string; label: string }) => (
@@ -916,7 +926,7 @@ export default function KnowledgeSidebar({
                           <Stack direction="row" spacing={0.5} alignItems="center">
                             <TextField
                               select
-                              label="Category"
+                              label={t('sidebar.classification.fields.category')}
                               size="small"
                               value={row.category_id}
                               onChange={(e) => {
@@ -927,7 +937,7 @@ export default function KnowledgeSidebar({
                               sx={{ flex: 1 }}
                               disabled={!canManage}
                             >
-                              <MenuItem value="">Select</MenuItem>
+                              <MenuItem value="">{t('sidebar.classification.values.select')}</MenuItem>
                               {classificationCategories.map((cat: any) => (
                                 <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
                               ))}
@@ -944,7 +954,7 @@ export default function KnowledgeSidebar({
                           {row.category_id && streamOptions.length > 0 && (
                             <TextField
                               select
-                              label="Stream"
+                              label={t('sidebar.classification.fields.stream')}
                               size="small"
                               value={row.stream_id || ''}
                               onChange={(e) => {
@@ -955,7 +965,7 @@ export default function KnowledgeSidebar({
                               disabled={!canManage}
                               fullWidth
                             >
-                              <MenuItem value="">None</MenuItem>
+                              <MenuItem value="">{t('shared.none')}</MenuItem>
                               {streamOptions.map((s: any) => (
                                 <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
                               ))}
@@ -971,7 +981,7 @@ export default function KnowledgeSidebar({
                       disabled={!canManage}
                       sx={{ textTransform: 'none' }}
                     >
-                      Add
+                      {t('common:buttons.add')}
                     </Button>
                     {classificationError && <Alert severity="error" sx={{ fontSize: '0.75rem' }}>{classificationError}</Alert>}
                     <Button
@@ -981,7 +991,7 @@ export default function KnowledgeSidebar({
                       onClick={onSaveClassifications}
                       disabled={!canManage || savingClassifications || !classificationsDirty}
                     >
-                      Save
+                      {t('common:buttons.save')}
                     </Button>
                   </Stack>
                 )}
@@ -1000,7 +1010,7 @@ export default function KnowledgeSidebar({
             >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Stack direction="row" spacing={0.5} alignItems="center">
-                  <Typography variant="subtitle2">Relations</Typography>
+                  <Typography variant="subtitle2">{t('sidebar.sections.relations')}</Typography>
                   {isManagedIntegratedDocument && (
                     <ManagedReadonlyBadge title={managedRelationsTooltip} />
                   )}
@@ -1008,11 +1018,11 @@ export default function KnowledgeSidebar({
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
                 {isCreate ? (
-                  <Alert severity="info" sx={{ fontSize: '0.75rem' }}>Save first to create relations.</Alert>
+                  <Alert severity="info" sx={{ fontSize: '0.75rem' }}>{t('sidebar.relations.messages.saveFirst')}</Alert>
                 ) : isManagedIntegratedDocument ? (
                   <Stack spacing={1}>
                     {readOnlyRelations.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary">No relations.</Typography>
+                      <Typography variant="body2" color="text.secondary">{t('sidebar.relations.empty')}</Typography>
                     ) : (
                       readOnlyRelations.map((group) => (
                         <Stack key={group.key} spacing={0.5}>
@@ -1047,7 +1057,7 @@ export default function KnowledgeSidebar({
                           isOptionEqualToValue={(option, value) => option.id === value.id}
                           getOptionLabel={(option) => option.label}
                           renderInput={(params) => (
-                            <TextField {...params} label={RELATION_LABELS[key]} placeholder={`Search ${key}`} />
+                            <TextField {...params} label={t(`sidebar.relations.labels.${key}`)} placeholder={t('sidebar.relations.search', { value: key })} />
                           )}
                           disabled={!canManage}
                         />
@@ -1061,7 +1071,7 @@ export default function KnowledgeSidebar({
                       onClick={onSaveRelations}
                       disabled={!canManage || savingRelations || !relationsDirty}
                     >
-                      Save
+                      {t('common:buttons.save')}
                     </Button>
                   </Stack>
                 )}
@@ -1078,7 +1088,7 @@ export default function KnowledgeSidebar({
               sx={accordionSx}
             >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle2">Versions</Typography>
+                <Typography variant="subtitle2">{t('sidebar.sections.versions')}</Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
                 <Stack spacing={0.75}>
@@ -1089,7 +1099,7 @@ export default function KnowledgeSidebar({
                           v{version.version_number}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {version.created_at ? new Date(version.created_at).toLocaleString() : ''}
+                          {version.created_at ? new Date(version.created_at).toLocaleString(locale) : ''}
                           {version.change_note ? ` - ${version.change_note}` : ''}
                         </Typography>
                       </Box>
@@ -1100,13 +1110,13 @@ export default function KnowledgeSidebar({
                           disabled={revertingVersion || !lockToken}
                           sx={{ minWidth: 0, px: 1, fontSize: '0.7rem' }}
                         >
-                          Revert
+                          {t('sidebar.versions.actions.revert')}
                         </Button>
                       )}
                     </Box>
                   ))}
                   {(versions || []).length === 0 && (
-                    <Typography variant="body2" color="text.secondary">No versions yet.</Typography>
+                    <Typography variant="body2" color="text.secondary">{t('sidebar.versions.empty')}</Typography>
                   )}
                 </Stack>
               </AccordionDetails>
@@ -1122,7 +1132,7 @@ export default function KnowledgeSidebar({
                   multiline
                   minRows={2}
                   size="small"
-                  label="Add comment"
+                  label={t('sidebar.comments.fields.addComment')}
                   value={commentText}
                   onChange={(e) => onCommentTextChange(e.target.value)}
                   disabled={!canComment}
@@ -1134,7 +1144,7 @@ export default function KnowledgeSidebar({
                     onClick={onPostComment}
                     disabled={!canComment || !commentText.trim() || postingComment}
                   >
-                    Post
+                    {t('sidebar.comments.actions.post')}
                   </Button>
                 </Box>
                 <Divider />
@@ -1144,10 +1154,10 @@ export default function KnowledgeSidebar({
             {(activities || []).map((activity: any) => (
               <Box key={activity.id}>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {activity.author_name || 'Unknown'} - {activity.type}
+                  {activity.author_name || t('shared.unknown')} - {activity.type}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {activity.created_at ? new Date(activity.created_at).toLocaleString() : ''}
+                  {activity.created_at ? new Date(activity.created_at).toLocaleString(locale) : ''}
                 </Typography>
                 {!!activity.content && (
                   <Typography variant="body2" sx={{ mt: 0.5 }}>
@@ -1157,7 +1167,7 @@ export default function KnowledgeSidebar({
               </Box>
             ))}
             {(activities || []).length === 0 && (
-              <Typography variant="body2" color="text.secondary">No activity yet.</Typography>
+              <Typography variant="body2" color="text.secondary">{t('sidebar.comments.empty')}</Typography>
             )}
           </Stack>
         )}

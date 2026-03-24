@@ -12,6 +12,7 @@ import {
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
+import { useLocale } from '../../../../i18n/useLocale';
 import IntegratedDocumentEditor, { IntegratedDocumentEditorHandle } from '../../../../components/IntegratedDocumentEditor';
 
 type SummaryTabKey = 'activity' | 'timeline' | 'effort' | 'tasks' | 'knowledge';
@@ -80,11 +81,11 @@ function SummaryCard({
   );
 }
 
-function formatDateTime(value?: string | null) {
+function formatDateTime(locale: string, value?: string | null) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString('en-GB', {
+  return date.toLocaleString(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -93,11 +94,11 @@ function formatDateTime(value?: string | null) {
   });
 }
 
-function formatDate(value?: string | null) {
+function formatDate(locale: string, value?: string | null) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString('en-GB', {
+  return date.toLocaleDateString(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -132,6 +133,7 @@ export default function ProjectSummaryTab({
   statusLabel,
 }: ProjectSummaryTabProps) {
   const { t } = useTranslation('portfolio');
+  const locale = useLocale();
   const [purposeExpanded, setPurposeExpanded] = React.useState(true);
 
   const { data: taskSummary } = useQuery({
@@ -203,7 +205,7 @@ export default function ProjectSummaryTab({
   const latestActivityActor = latestActivity
     ? [latestActivity?.first_name, latestActivity?.last_name].filter(Boolean).join(' ') || t('activity.authorUnknown')
     : null;
-  const latestActivityAt = formatDateTime(latestActivity?.created_at);
+  const latestActivityAt = formatDateTime(locale, latestActivity?.created_at);
   const latestKnowledgeUpdate = React.useMemo(() => {
     const items = (knowledgeContext?.groups || []).flatMap((group) => group.items || []);
     const latest = [...items].sort((a, b) => {
@@ -211,8 +213,8 @@ export default function ProjectSummaryTab({
       const bTime = new Date(b?.updated_at || b?.created_at || 0).getTime();
       return bTime - aTime;
     })[0];
-    return formatDateTime(latest?.updated_at || latest?.created_at || null);
-  }, [knowledgeContext?.groups]);
+    return formatDateTime(locale, latest?.updated_at || latest?.created_at || null);
+  }, [knowledgeContext?.groups, locale]);
   const scheduleStartVariance = formatVariance(form?.planned_start, form?.baseline_start_date);
   const scheduleEndVariance = formatVariance(form?.planned_end, form?.baseline_end_date);
   const renderVariance = (variance: string | null) => {
@@ -279,11 +281,11 @@ export default function ProjectSummaryTab({
           <Typography variant="body2" color="text.secondary">
             {form?.actual_start
               ? t('workspace.project.summary.values.started', {
-                date: formatDate(form.actual_start) || t('workspace.project.summary.values.recently'),
+                date: formatDate(locale, form.actual_start) || t('workspace.project.summary.values.recently'),
               })
               : form?.planned_start
                 ? t('workspace.project.summary.values.plannedToStart', {
-                  date: formatDate(form.planned_start),
+                  date: formatDate(locale, form.planned_start),
                 })
                 : t('workspace.project.summary.values.noStartDate')}
           </Typography>
@@ -300,8 +302,8 @@ export default function ProjectSummaryTab({
           <Stack spacing={1}>
             <Typography variant="body2">
               {t('workspace.project.summary.values.plannedWindow', {
-                start: formatDate(form?.planned_start) || t('workspace.project.summary.values.notSet'),
-                end: formatDate(form?.planned_end) || t('workspace.project.summary.values.notSet'),
+                start: formatDate(locale, form?.planned_start) || t('workspace.project.summary.values.notSet'),
+                end: formatDate(locale, form?.planned_end) || t('workspace.project.summary.values.notSet'),
               })}
             </Typography>
             {(scheduleStartVariance || scheduleEndVariance) ? (
@@ -329,7 +331,7 @@ export default function ProjectSummaryTab({
             {form?.actual_end && (
               <Typography variant="body2" color="text.secondary">
                 {t('workspace.project.summary.values.actualCompletion', {
-                  date: formatDate(form.actual_end),
+                  date: formatDate(locale, form.actual_end),
                 })}
               </Typography>
             )}
