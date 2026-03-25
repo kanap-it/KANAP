@@ -19,6 +19,17 @@ export function getTenantSlugFromHostname(hostname: string): string {
   return slug || host || 'default';
 }
 
+export function resolveInlineImageTenantSlug(
+  tenantSlug: string | null | undefined,
+  hostname: string,
+): string {
+  const explicitSlug = String(tenantSlug || '').trim();
+  if (explicitSlug) {
+    return explicitSlug;
+  }
+  return getTenantSlugFromHostname(hostname);
+}
+
 export function buildInlineImageUrl(pathAfterApiBase: string): string {
   const rawBase = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8080';
   const base = normalizeBasePath(rawBase.trim());

@@ -26,7 +26,8 @@ import ImportButton from '../../components/ImportButton';
 import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../../api/endpoints/import';
 import { useAuth } from '../../auth/AuthContext';
 import { useLocale } from '../../i18n/useLocale';
-import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
+import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
+import { useTenant } from '../../tenant/TenantContext';
 import { useRecentKnowledgeDocuments } from '../workspace/hooks/useRecentKnowledgeDocuments';
 import KnowledgeSidebar from './components/KnowledgeSidebar';
 import FolderTreePanel from './components/FolderTreePanel';
@@ -120,6 +121,8 @@ type DocumentLibrary = {
 
 const EMPTY_RELATION_OPTIONS: RelationOption[] = [];
 const EMPTY_CONTRIBUTOR_OPTIONS: KnowledgeContributorOption[] = [];
+const EMPTY_VERSION_LIST: any[] = [];
+const EMPTY_ACTIVITY_LIST: any[] = [];
 
 type EditLockInfo = {
   holder_user_id: string;
@@ -169,11 +172,13 @@ export default function KnowledgeWorkspacePage() {
   const { t } = useTranslation(['knowledge', 'common']);
   const locale = useLocale();
   const { profile, hasLevel } = useAuth();
+  const { tenantSlug } = useTenant();
   const { addDocument } = useRecentKnowledgeDocuments();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
+  const inlineImageTenantSlug = resolveInlineImageTenantSlug(tenantSlug, window.location.hostname);
   const isCreate = location.pathname === '/knowledge/new' || location.pathname.startsWith('/knowledge/new/');
   const id = isCreate ? 'new' : String(params.id || '');
   const searchParams = React.useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -226,7 +231,9 @@ export default function KnowledgeWorkspacePage() {
   const canManageDocument = hasLevel('knowledge', 'member');
   const [contentFocusNonce, setContentFocusNonce] = React.useState(0);
   const [contentResetNonce, setContentResetNonce] = React.useState(0);
+  const [contentHasText, setContentHasText] = React.useState(false);
   const [editorRows, setEditorRows] = React.useState(30);
+  const contentDraftRef = React.useRef('');
   const hydratedDocumentIdRef = React.useRef<string | null>(null);
   const hasLocalWorkspaceChangesRef = React.useRef(false);
   const trackedRecentDocumentIdRef = React.useRef<string | null>(null);
@@ -296,10 +303,12 @@ export default function KnowledgeWorkspacePage() {
 
   React.useEffect(() => {
     if (!isCreate || !templateDoc) return;
+    let nextTemplateContent: string | null = null;
     setForm((prev: any) => {
       const next = { ...prev };
       if (!prev.content_markdown) {
         next.content_markdown = templateDoc.content_markdown || '';
+        nextTemplateContent = next.content_markdown;
       }
       next.template_document_id = templateDoc.id || templateDocumentIdParam || null;
       next.template_document_title = templateDoc.title || '';
@@ -308,6 +317,10 @@ export default function KnowledgeWorkspacePage() {
       next.document_type_id = templateDoc.document_type_id || next.document_type_id || null;
       return next;
     });
+    if (nextTemplateContent != null) {
+      contentDraftRef.current = nextTemplateContent;
+      setContentHasText(!!String(nextTemplateContent || '').trim());
+    }
   }, [isCreate, templateDoc, templateDocumentIdParam]);
 
   // Data queries
@@ -532,10 +545,14 @@ export default function KnowledgeWorkspacePage() {
         .map((row: any) => String(row.user_id)))),
     };
 
+    const nextContentMarkdown = nextDoc.content_markdown || '';
+    contentDraftRef.current = nextContentMarkdown;
+    setContentHasText(!!String(nextContentMarkdown || '').trim());
+
     setForm({
       title: nextDoc.title || '',
       summary: nextDoc.summary || '',
-      content_markdown: nextDoc.content_markdown || '',
+      content_markdown: nextContentMarkdown,
       status: nextDoc.status || 'draft',
       folder_id: nextDoc.folder_id || null,
       document_type_id: nextDoc.document_type_id || null,
@@ -706,7 +723,7 @@ export default function KnowledgeWorkspacePage() {
         const payload = {
           title: form.title,
           summary: form.summary,
-          content_markdown: form.content_markdown,
+          content_markdown: contentDraftRef.current,
           status: form.status,
           folder_id: form.folder_id || null,
           library_id: workspaceLibraryId,
@@ -722,7 +739,7 @@ export default function KnowledgeWorkspacePage() {
       const payload = {
         title: form.title,
         summary: form.summary,
-        content_markdown: form.content_markdown,
+        content_markdown: contentDraftRef.current,
         status: form.status,
         folder_id: form.folder_id || null,
         document_type_id: form.document_type_id || null,
@@ -762,7 +779,14 @@ export default function KnowledgeWorkspacePage() {
         navigate(`/knowledge/${itemRef}${qs ? `?${qs}` : ''}`, { replace: true });
         return;
       }
-      setForm((prev: any) => ({ ...prev, revision: Number(result.data?.revision || prev.revision + 1) }));
+      const savedContentMarkdown = String(result.data?.content_markdown ?? contentDraftRef.current ?? '');
+      contentDraftRef.current = savedContentMarkdown;
+      setContentHasText(!!savedContentMarkdown.trim());
+      setForm((prev: any) => ({
+        ...prev,
+        content_markdown: savedContentMarkdown,
+        revision: Number(result.data?.revision || prev.revision + 1),
+      }));
       updateDocumentCache((current) => result.data || current);
       await qc.invalidateQueries({ queryKey: ['knowledge-versions', id] });
       await qc.invalidateQueries({ queryKey: ['knowledge-activities', id] });
@@ -837,25 +861,27 @@ export default function KnowledgeWorkspacePage() {
     },
   });
 
-  const uploadInlineImage = async (file: File): Promise<string> => {
+  const uploadInlineImage = React.useCallback(async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
     const res = await api.post<{ id: string }>(`/knowledge/${id}/attachments/inline`, formData);
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
-    return buildInlineImageUrl(`/knowledge/inline/${tenantSlug}/${res.data.id}`);
-  };
+    return buildInlineImageUrl(`/knowledge/inline/${inlineImageTenantSlug}/${res.data.id}`);
+  }, [id, inlineImageTenantSlug]);
 
-  const importInlineImageUrl = async (sourceUrl: string): Promise<string> => {
+  const importInlineImageUrl = React.useCallback(async (sourceUrl: string): Promise<string> => {
     const res = await api.post<{ id: string }>(`/knowledge/${id}/attachments/inline/import`, {
       source_url: sourceUrl,
     });
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
-    return buildInlineImageUrl(`/knowledge/inline/${tenantSlug}/${res.data.id}`);
-  };
+    return buildInlineImageUrl(`/knowledge/inline/${inlineImageTenantSlug}/${res.data.id}`);
+  }, [id, inlineImageTenantSlug]);
 
   // Edit mode transitions
   const startEdit = React.useCallback(async (opts?: { silentConflict?: boolean }) => {
     try {
+      if (!isCreate && doc) {
+        hydratedDocumentIdRef.current = String(doc.id || id);
+        applyDocumentState(doc);
+      }
       setError(null);
       await acquireLock();
       setActiveLockInfo(null);
@@ -873,7 +899,7 @@ export default function KnowledgeWorkspacePage() {
         setError(getApiErrorMessage(e, t, t('workspace.messages.acquireLockFailed')));
       }
     }
-  }, [acquireLock, doc?.edit_lock, parseLockInfo, parseLockInfoFromError, t]);
+  }, [acquireLock, applyDocumentState, doc, doc?.edit_lock, id, isCreate, parseLockInfo, parseLockInfoFromError, t]);
 
   const discardChanges = async () => {
     const hasUnsavedChanges = dirty || relationsDirty || classificationsDirty || contributorsDirty;
@@ -992,6 +1018,34 @@ export default function KnowledgeWorkspacePage() {
     ? String(doc?.content_markdown || '')
     : String(form.content_markdown || '');
 
+  const sidebarForm = React.useMemo(
+    () => ({
+      summary: form.summary,
+      status: form.status,
+      folder_id: form.folder_id,
+      document_type_id: form.document_type_id,
+      template_document_id: form.template_document_id,
+      template_document_title: form.template_document_title,
+      template_document_type_id: form.template_document_type_id,
+      template_document_type_name: form.template_document_type_name,
+      revision: form.revision,
+    }),
+    [
+      form.document_type_id,
+      form.folder_id,
+      form.revision,
+      form.status,
+      form.summary,
+      form.template_document_id,
+      form.template_document_title,
+      form.template_document_type_id,
+      form.template_document_type_name,
+    ],
+  );
+
+  const versionList = React.useMemo(() => versions || EMPTY_VERSION_LIST, [versions]);
+  const activityList = React.useMemo(() => activities || EMPTY_ACTIVITY_LIST, [activities]);
+
   // Enrich relation labels from fetched options
   React.useEffect(() => {
     setRelationSelections((prev) => {
@@ -1035,6 +1089,55 @@ export default function KnowledgeWorkspacePage() {
     setDirty(true);
   }, []);
 
+  const handleTitleChange = React.useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => handleFormChange('title', e.target.value),
+    [handleFormChange],
+  );
+
+  const handleContentMarkdownChange = React.useCallback(
+    (value: string) => {
+      contentDraftRef.current = value;
+      setDirty(true);
+      const nextHasText = !!String(value || '').trim();
+      setContentHasText((prev) => (prev === nextHasText ? prev : nextHasText));
+    },
+    [],
+  );
+
+  const getCurrentContentMarkdown = React.useCallback(
+    () => contentDraftRef.current,
+    [],
+  );
+
+  const handleSelectFolder = React.useCallback((folderId: string | null) => {
+    const sp = new URLSearchParams();
+    if (workspaceLibrarySlug) sp.set('library', workspaceLibrarySlug);
+    sp.set('allLibraries', '0');
+    if (folderId) sp.set('folder_id', folderId);
+    const qs = sp.toString();
+    navigate(`/knowledge${qs ? `?${qs}` : ''}`);
+  }, [navigate, workspaceLibrarySlug]);
+
+  const handleContributorAssignmentsChange = React.useCallback((next: ContributorAssignments) => {
+    setContributorAssignments(next);
+    setContributorsError(null);
+    setContributorsDirty(true);
+  }, []);
+
+  const handleClassificationRowsChange = React.useCallback((rows: ClassificationRow[]) => {
+    setClassificationRows(rows);
+    setClassificationsDirty(true);
+  }, []);
+
+  const handleRelationSelectionsChange = React.useCallback((key: RelationKey, values: RelationOption[]) => {
+    setRelationSelections((prev) => ({ ...prev, [key]: values }));
+    setRelationsDirty(true);
+  }, []);
+
+  const handleRelationSearchChange = React.useCallback((key: RelationKey, value: string) => {
+    setRelationSearch((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
   const handleDocumentImportError = React.useCallback((e: unknown) => {
     const status = Number((e as any)?.response?.status || 0);
     const lockInfo = parseLockInfoFromError(e) || parseLockInfo(doc?.edit_lock);
@@ -1070,12 +1173,15 @@ export default function KnowledgeWorkspacePage() {
 
   const handleDocumentImported = React.useCallback((result: ImportDocumentResult) => {
     setError(null);
-    handleFormChange('content_markdown', result.markdown);
+    contentDraftRef.current = result.markdown;
+    setContentHasText(!!String(result.markdown || '').trim());
+    setForm((prev: any) => ({ ...prev, content_markdown: result.markdown }));
+    setDirty(true);
     setContentResetNonce((prev) => prev + 1);
     window.setTimeout(() => {
       setContentFocusNonce((prev) => prev + 1);
     }, 0);
-  }, [handleFormChange]);
+  }, []);
 
   // Save relations
   const saveRelationsMutation = useMutation({
@@ -1238,6 +1344,34 @@ export default function KnowledgeWorkspacePage() {
     },
   });
 
+  const handlePostComment = React.useCallback(() => {
+    commentMutation.mutate();
+  }, [commentMutation.mutate]);
+
+  const handleSaveRelations = React.useCallback(() => {
+    saveRelationsMutation.mutate();
+  }, [saveRelationsMutation.mutate]);
+
+  const handleSaveClassifications = React.useCallback(() => {
+    saveClassificationsMutation.mutate();
+  }, [saveClassificationsMutation.mutate]);
+
+  const handleSaveContributors = React.useCallback(() => {
+    saveContributorsMutation.mutate();
+  }, [saveContributorsMutation.mutate]);
+
+  const handleRevertVersion = React.useCallback((versionNumber: number) => {
+    revertMutation.mutate(versionNumber);
+  }, [revertMutation.mutate]);
+
+  const handleApproveWorkflow = React.useCallback((comment: string) => (
+    approveWorkflowMutation.mutateAsync(comment)
+  ), [approveWorkflowMutation.mutateAsync]);
+
+  const handleRequestWorkflowChanges = React.useCallback((comment: string) => (
+    requestChangesWorkflowMutation.mutateAsync(comment)
+  ), [requestChangesWorkflowMutation.mutateAsync]);
+
   const classificationCategories = React.useMemo(
     () => (classificationData?.categories || []).filter((row) => row?.is_active !== false),
     [classificationData?.categories],
@@ -1354,13 +1488,15 @@ export default function KnowledgeWorkspacePage() {
               onImportFile={handleDocumentImport}
               onImported={handleDocumentImported}
               onError={handleDocumentImportError}
-              hasContent={!!String(form.content_markdown || '').trim()}
+              hasContent={contentHasText}
               size="small"
             />
           )}
           <ExportButton
             content={form.content_markdown || ''}
             title={String(form.title || (!isCreate ? doc?.item_ref : '') || 'knowledge-document')}
+            disabled={!contentHasText}
+            getContent={getCurrentContentMarkdown}
           />
           {canManageDocument && !workflowActive && (isCreate || editMode) && (
             <Button
@@ -1420,14 +1556,7 @@ export default function KnowledgeWorkspacePage() {
           <FolderTreePanel
             libraryId={workspaceLibraryId}
             selectedFolderId={form.folder_id || null}
-            onSelectFolder={(folderId) => {
-              const sp = new URLSearchParams();
-              if (workspaceLibrarySlug) sp.set('library', workspaceLibrarySlug);
-              sp.set('allLibraries', '0');
-              if (folderId) sp.set('folder_id', folderId);
-              const qs = sp.toString();
-              navigate(`/knowledge${qs ? `?${qs}` : ''}`);
-            }}
+            onSelectFolder={handleSelectFolder}
             canManage={false}
           />
         )}
@@ -1443,8 +1572,8 @@ export default function KnowledgeWorkspacePage() {
                 <Box sx={{ ...titleBarSx, minWidth: 0 }}>
                   {canEditContent && !isManagedIntegratedDocument ? (
                     <TextField
-                      value={displayTitle}
-                      onChange={(e) => handleFormChange('title', e.target.value)}
+                      value={String(form.title || '')}
+                      onChange={handleTitleChange}
                       onKeyDown={(e) => {
                         if (e.key === 'Tab' && !e.shiftKey) {
                           e.preventDefault();
@@ -1520,7 +1649,7 @@ export default function KnowledgeWorkspacePage() {
                   <MarkdownEditor
                     key={`${activeEditorDocumentId}:${contentResetNonce}`}
                     value={displayContentMarkdown}
-                    onChange={(value) => handleFormChange('content_markdown', value)}
+                    onChange={handleContentMarkdownChange}
                     disabled={!canEditContent}
                     focusNonce={contentFocusNonce}
                     refreshNonce={contentResetNonce}
@@ -1549,7 +1678,7 @@ export default function KnowledgeWorkspacePage() {
           >
             <KnowledgeSidebar
               doc={doc}
-              form={form}
+              form={sidebarForm}
               onChange={handleFormChange}
               isCreate={isCreate}
               editMode={canEditContent}
@@ -1557,12 +1686,8 @@ export default function KnowledgeWorkspacePage() {
               canComment={canManageDocument && !workspaceReadOnly}
               contributorOptions={contributorOptions}
               contributorAssignments={contributorAssignments}
-              onContributorAssignmentsChange={(next) => {
-                setContributorAssignments(next);
-                setContributorsError(null);
-                setContributorsDirty(true);
-              }}
-              onSaveContributors={() => saveContributorsMutation.mutate()}
+              onContributorAssignmentsChange={handleContributorAssignmentsChange}
+              onSaveContributors={handleSaveContributors}
               savingContributors={saveContributorsMutation.isPending}
               contributorsDirty={contributorsDirty}
               contributorsError={contributorsError}
@@ -1571,41 +1696,36 @@ export default function KnowledgeWorkspacePage() {
               classificationCategories={classificationCategories}
               classificationStreams={classificationStreams}
               classificationRows={classificationRows}
-              onClassificationRowsChange={(rows) => { setClassificationRows(rows); setClassificationsDirty(true); }}
-              onSaveClassifications={() => saveClassificationsMutation.mutate()}
+              onClassificationRowsChange={handleClassificationRowsChange}
+              onSaveClassifications={handleSaveClassifications}
               savingClassifications={saveClassificationsMutation.isPending}
               classificationsDirty={classificationsDirty}
               classificationError={classificationError}
               relationSelections={relationSelections}
-              onRelationSelectionsChange={(key, values) => {
-                setRelationSelections((prev) => ({ ...prev, [key]: values }));
-                setRelationsDirty(true);
-              }}
+              onRelationSelectionsChange={handleRelationSelectionsChange}
               relationSearch={relationSearch}
-              onRelationSearchChange={(key, value) => {
-                setRelationSearch((prev) => ({ ...prev, [key]: value }));
-              }}
+              onRelationSearchChange={handleRelationSearchChange}
               relationOptions={allRelationOptions}
-              onSaveRelations={() => saveRelationsMutation.mutate()}
+              onSaveRelations={handleSaveRelations}
               savingRelations={saveRelationsMutation.isPending}
               relationsDirty={relationsDirty}
               relationsError={relationsError}
-              versions={versions || []}
-              onRevertVersion={(vn) => revertMutation.mutate(vn)}
+              versions={versionList}
+              onRevertVersion={handleRevertVersion}
               revertingVersion={revertMutation.isPending}
               lockToken={lockToken}
               workflow={workflow}
               latestApprovedWorkflow={doc?.latest_approved_workflow || null}
               currentUserId={profile?.id || null}
               canApproveWorkflow={canApproveWorkflow}
-              onApproveWorkflow={(comment) => approveWorkflowMutation.mutateAsync(comment)}
+              onApproveWorkflow={handleApproveWorkflow}
               approvingWorkflow={approveWorkflowMutation.isPending}
-              onRequestWorkflowChanges={(comment) => requestChangesWorkflowMutation.mutateAsync(comment)}
+              onRequestWorkflowChanges={handleRequestWorkflowChanges}
               requestingWorkflowChanges={requestChangesWorkflowMutation.isPending}
-              activities={activities || []}
+              activities={activityList}
               commentText={commentText}
               onCommentTextChange={setCommentText}
-              onPostComment={() => commentMutation.mutate()}
+              onPostComment={handlePostComment}
               postingComment={commentMutation.isPending}
             />
           </Box>

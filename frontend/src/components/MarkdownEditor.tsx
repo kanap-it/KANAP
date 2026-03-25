@@ -112,7 +112,7 @@ function getPasteTargetElement(target: EventTarget | null): HTMLElement | null {
   return null;
 }
 
-export default function MarkdownEditor({
+const MarkdownEditor = React.memo(function MarkdownEditor({
   value,
   onChange,
   placeholder = 'Start typing...',
@@ -180,30 +180,50 @@ export default function MarkdownEditor({
   );
 
   const codeBlockLanguages = React.useMemo<Record<string, string>>(
-    () => ({
-      '': 'Plain text',
-      txt: 'Plain text',
-      md: 'Markdown',
-      abap: 'ABAP (plain)',
-      powershell: 'PowerShell',
-      bash: 'Bash / Shell',
-      yml: 'YAML',
-      yaml: 'YAML',
-      json: 'JSON',
-      sql: 'SQL',
-      html: 'HTML',
-      css: 'CSS',
-      js: 'JavaScript',
-      jsx: 'JavaScript (React)',
-      ts: 'TypeScript',
-      tsx: 'TypeScript (React)',
-      py: 'Python',
-      java: 'Java',
-      go: 'Go',
-      rust: 'Rust',
-      xml: 'XML',
-      dockerfile: 'Dockerfile',
-    }),
+    () =>
+      // Proxy lets Object.hasOwn() return true for ANY language (so MDXEditor's
+      // codeMirrorPlugin descriptor matches unknown languages like "ini" instead
+      // of crashing), while Object.entries() still returns only the curated set
+      // shown in the toolbar dropdown.
+      new Proxy(
+        {
+          '': 'Plain text',
+          txt: 'Plain text',
+          md: 'Markdown',
+          abap: 'ABAP (plain)',
+          powershell: 'PowerShell',
+          bash: 'Bash / Shell',
+          yml: 'YAML',
+          yaml: 'YAML',
+          json: 'JSON',
+          sql: 'SQL',
+          html: 'HTML',
+          css: 'CSS',
+          js: 'JavaScript',
+          jsx: 'JavaScript (React)',
+          ts: 'TypeScript',
+          tsx: 'TypeScript (React)',
+          py: 'Python',
+          java: 'Java',
+          go: 'Go',
+          rust: 'Rust',
+          xml: 'XML',
+          dockerfile: 'Dockerfile',
+        } as Record<string, string>,
+        {
+          getOwnPropertyDescriptor(target, prop) {
+            const real = Object.getOwnPropertyDescriptor(target, prop);
+            if (real) return real;
+            // Unknown language: non-enumerable so it won't appear in the dropdown
+            return { configurable: true, enumerable: false, value: String(prop) };
+          },
+          get(target, prop) {
+            if (prop in target) return target[prop as string];
+            if (typeof prop === 'string') return prop;
+            return undefined;
+          },
+        },
+      ),
     [],
   );
 
@@ -578,4 +598,6 @@ export default function MarkdownEditor({
       </Box>
     </>
   );
-}
+});
+
+export default MarkdownEditor;

@@ -162,7 +162,7 @@ function ManagedReadonlyFieldLabel({ label, title }: { label: string; title: str
   );
 }
 
-export default function KnowledgeSidebar({
+const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
   doc,
   form,
   onChange,
@@ -1174,4 +1174,6 @@ export default function KnowledgeSidebar({
       </Box>
     </Box>
   );
-}
+});
+
+export default KnowledgeSidebar;

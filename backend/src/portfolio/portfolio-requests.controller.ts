@@ -21,6 +21,7 @@ import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { RateLimitGuard } from '../common/rate-limit.guard';
+import { resolveInlineTenantSlug } from '../common/resolve-inline-tenant-slug';
 import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
@@ -179,6 +180,7 @@ export class PortfolioRequestsController {
     @Res() res: Response,
   ) {
     // Look up tenant by slug and set app.current_tenant for RLS
+    const effectiveSlug = resolveInlineTenantSlug(tenantSlug);
     const dataSource = this.svc['repo'].manager.connection;
     const runner = dataSource.createQueryRunner();
     try {
@@ -187,7 +189,7 @@ export class PortfolioRequestsController {
       // First get tenant ID from slug (tenants table typically has no RLS)
       const tenantRows = await runner.query(
         `SELECT id FROM tenants WHERE slug = $1 LIMIT 1`,
-        [tenantSlug],
+        [effectiveSlug],
       );
       if (!tenantRows.length) {
         await runner.rollbackTransaction();

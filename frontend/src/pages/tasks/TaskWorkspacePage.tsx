@@ -35,7 +35,7 @@ import { RelatedObjectType } from '../../components/fields/RelatedObjectSelect';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
-import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
+import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
 import ConvertToRequestDialog from './components/ConvertToRequestDialog';
 import {
   TASK_STATUS_COLORS,
@@ -49,6 +49,7 @@ import {
   getTaskStatusLabel,
 } from '../../utils/portfolioI18n';
 import { useLocale } from '../../i18n/useLocale';
+import { useTenant } from '../../tenant/TenantContext';
 
 const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' | 'success'> = {
   blocker: 'error',
@@ -129,7 +130,9 @@ export default function TaskWorkspacePage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { hasLevel, profile } = useAuth();
+  const { tenantSlug } = useTenant();
   const { addToRecent } = useRecentlyViewed();
+  const inlineImageTenantSlug = resolveInlineImageTenantSlug(tenantSlug, window.location.hostname);
 
   const id = String(params.id || '');
   const isCreate = id === 'new';
@@ -137,6 +140,10 @@ export default function TaskWorkspacePage() {
   const canDelete = hasLevel('tasks', 'admin');
   const canCreateRequest = hasLevel('portfolio_requests', 'member');
   const originProjectId = cleanedSearchParams.get('projectId');
+  const createSpendItemId = cleanedSearchParams.get('spendItemId');
+  const createCapexItemId = cleanedSearchParams.get('capexItemId');
+  const createContractId = cleanedSearchParams.get('contractId');
+  const createPhaseId = cleanedSearchParams.get('phaseId');
   const originProjectTab = React.useMemo(() => {
     const tab = (cleanedSearchParams.get('projectTab') || '').trim();
     if (!tab || !PROJECT_WORKSPACE_TABS.has(tab)) return 'tasks';
@@ -201,6 +208,7 @@ export default function TaskWorkspacePage() {
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [initialized, setInitialized] = React.useState(false);
+  const createInitKeyRef = React.useRef<string | null>(null);
   const classificationTouchedRef = React.useRef({
     source_id: false,
     category_id: false,
@@ -359,8 +367,7 @@ export default function TaskWorkspacePage() {
     formData.append('source_field', 'description');
     const res = await api.post<{ id: string }>(`/tasks/${id}/attachments`, formData);
     refetchAttachments();
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
-    return buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
+    return buildInlineImageUrl(`/tasks/attachments/${inlineImageTenantSlug}/${res.data.id}/inline`);
   };
 
   const handleImportImageUrl = async (sourceUrl: string): Promise<string> => {
@@ -369,8 +376,7 @@ export default function TaskWorkspacePage() {
       source_url: sourceUrl,
     });
     refetchAttachments();
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
-    return buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
+    return buildInlineImageUrl(`/tasks/attachments/${inlineImageTenantSlug}/${res.data.id}/inline`);
   };
 
   const handleDescriptionImport = React.useCallback(async (selectedFile: File): Promise<ImportDocumentResult> => {
@@ -419,7 +425,6 @@ export default function TaskWorkspacePage() {
     const matches = [...markdown.matchAll(base64Regex)];
     if (matches.length === 0) return markdown;
 
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
     let updatedMarkdown = markdown;
 
     for (let i = 0; i < matches.length; i++) {
@@ -430,7 +435,7 @@ export default function TaskWorkspacePage() {
         formData.append('file', file);
         formData.append('source_field', 'description');
         const res = await api.post<{ id: string }>(`/tasks/${taskId}/attachments`, formData);
-        const s3Url = buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
+        const s3Url = buildInlineImageUrl(`/tasks/attachments/${inlineImageTenantSlug}/${res.data.id}/inline`);
         updatedMarkdown = updatedMarkdown.replace(base64Src, s3Url);
       } catch (err) {
         console.error('Failed to upload image to S3:', err);
@@ -494,94 +499,138 @@ export default function TaskWorkspacePage() {
     return taskType?.id || null;
   }, [taskTypesData]);
 
+  const createContextKey = React.useMemo(() => {
+    if (!isCreate || !profile?.id) return null;
+    return JSON.stringify({
+      profileId: profile.id,
+      projectId: originProjectId || '',
+      spendItemId: createSpendItemId || '',
+      capexItemId: createCapexItemId || '',
+      contractId: createContractId || '',
+      phaseId: createPhaseId || '',
+    });
+  }, [
+    isCreate,
+    profile?.id,
+    originProjectId,
+    createSpendItemId,
+    createCapexItemId,
+    createContractId,
+    createPhaseId,
+  ]);
+
   // Initialize defaults for create mode (including pre-filled entity from URL params)
   React.useEffect(() => {
-    if (isCreate && profile?.id) {
-      const projectId = cleanedSearchParams.get('projectId');
-      const spendItemId = cleanedSearchParams.get('spendItemId');
-      const capexItemId = cleanedSearchParams.get('capexItemId');
-      const contractId = cleanedSearchParams.get('contractId');
-      const phaseId = cleanedSearchParams.get('phaseId');
+    if (!createContextKey || !profile?.id) {
+      createInitKeyRef.current = null;
+      return;
+    }
+    if (createInitKeyRef.current === createContextKey) return;
+    createInitKeyRef.current = createContextKey;
 
-      setForm({
-        status: 'open',
-        task_type_id: null,
-        priority_level: 'normal',
-        assignee_user_id: profile.id,
-        creator_id: profile.id,
-        start_date: null,
-        due_date: null,
-        phase_id: phaseId || null,
-        labels: [],
-        viewer_ids: [],
-      });
-      setTitle('');
-      setDescription('');
-      classificationTouchedRef.current = {
-        source_id: false,
-        category_id: false,
-        stream_id: false,
-        company_id: false,
-      };
-
-      // Pre-fill relation based on URL params
-      if (projectId) {
-        api.get<{ id: string; name: string }>(`/portfolio/projects/${projectId}`)
-          .then((res) => {
-            setCreateRelation({
-              type: 'project',
-              id: res.data.id || projectId,
-              name: res.data.name || t('portfolio:context.project'),
-            });
-            setInitialized(true);
-          })
-          .catch(() => {
-            setInitialized(true);
-          });
-      } else if (spendItemId) {
-        api.get<{ id: string; product_name: string }>(`/spend-items/${spendItemId}`)
-          .then((res) => {
-            setCreateRelation({
-              type: 'spend_item',
-              id: res.data.id || spendItemId,
-              name: res.data.product_name || t('portfolio:context.spend_item'),
-            });
-            setInitialized(true);
-          })
-          .catch(() => {
-            setInitialized(true);
-          });
-      } else if (capexItemId) {
-        api.get<{ id: string; description: string }>(`/capex-items/${capexItemId}`)
-          .then((res) => {
-            setCreateRelation({
-              type: 'capex_item',
-              id: res.data.id || capexItemId,
-              name: res.data.description || t('portfolio:context.capex_item'),
-            });
-            setInitialized(true);
-          })
-          .catch(() => {
-            setInitialized(true);
-          });
-      } else if (contractId) {
-        api.get<{ id: string; name: string }>(`/contracts/${contractId}`)
-          .then((res) => {
-            setCreateRelation({
-              type: 'contract',
-              id: res.data.id || contractId,
-              name: res.data.name || t('portfolio:context.contract'),
-            });
-            setInitialized(true);
-          })
-          .catch(() => {
-            setInitialized(true);
-          });
-      } else {
+    let cancelled = false;
+    const finishInitialization = () => {
+      if (!cancelled) {
         setInitialized(true);
       }
+    };
+    const applyRelation = (relation: { type: RelatedObjectType; id: string; name: string }) => {
+      if (cancelled) return;
+      setCreateRelation(relation);
+      setInitialized(true);
+    };
+
+    setInitialized(false);
+    setCreateRelation({ type: null, id: null, name: null });
+    setCreateSaving(false);
+    setDirty(false);
+    setError(null);
+    setForm({
+      status: 'open',
+      task_type_id: null,
+      priority_level: 'normal',
+      assignee_user_id: profile.id,
+      creator_id: profile.id,
+      start_date: null,
+      due_date: null,
+      phase_id: createPhaseId || null,
+      labels: [],
+      viewer_ids: [],
+    });
+    setTitle('');
+    setDescription('');
+    classificationTouchedRef.current = {
+      source_id: false,
+      category_id: false,
+      stream_id: false,
+      company_id: false,
+    };
+
+    if (originProjectId) {
+      api.get<{ id: string; name: string }>(`/portfolio/projects/${originProjectId}`)
+        .then((res) => {
+          applyRelation({
+            type: 'project',
+            id: res.data.id || originProjectId,
+            name: res.data.name || t('portfolio:context.project'),
+          });
+        })
+        .catch(() => {
+          finishInitialization();
+        });
+    } else if (createSpendItemId) {
+      api.get<{ id: string; product_name: string }>(`/spend-items/${createSpendItemId}`)
+        .then((res) => {
+          applyRelation({
+            type: 'spend_item',
+            id: res.data.id || createSpendItemId,
+            name: res.data.product_name || t('portfolio:context.spend_item'),
+          });
+        })
+        .catch(() => {
+          finishInitialization();
+        });
+    } else if (createCapexItemId) {
+      api.get<{ id: string; description: string }>(`/capex-items/${createCapexItemId}`)
+        .then((res) => {
+          applyRelation({
+            type: 'capex_item',
+            id: res.data.id || createCapexItemId,
+            name: res.data.description || t('portfolio:context.capex_item'),
+          });
+        })
+        .catch(() => {
+          finishInitialization();
+        });
+    } else if (createContractId) {
+      api.get<{ id: string; name: string }>(`/contracts/${createContractId}`)
+        .then((res) => {
+          applyRelation({
+            type: 'contract',
+            id: res.data.id || createContractId,
+            name: res.data.name || t('portfolio:context.contract'),
+          });
+        })
+        .catch(() => {
+          finishInitialization();
+        });
+    } else {
+      finishInitialization();
     }
-  }, [isCreate, profile?.id, cleanedSearchParams, t]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    createContextKey,
+    profile?.id,
+    originProjectId,
+    createSpendItemId,
+    createCapexItemId,
+    createContractId,
+    createPhaseId,
+    t,
+  ]);
 
   React.useEffect(() => {
     if (!isCreate || !initialized || !pendingDescriptionFocusRef.current) return;

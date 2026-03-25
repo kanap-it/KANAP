@@ -16,7 +16,7 @@ import StatusChangeDialog from './components/StatusChangeDialog';
 import { type ProjectScoringEditorHandle } from './editors/ProjectScoringEditor';
 import { type EffortAllocationData } from './components/EffortAllocationTable';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
-import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../utils/inlineImageUrls';
+import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
 import { formatItemRef } from '../../utils/item-ref';
 import ShareDialog from '../../components/ShareDialog';
 import { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
@@ -31,6 +31,7 @@ import {
   getProjectStatusLabel,
   getProjectStatusOptions,
 } from '../../utils/portfolioI18n';
+import { useTenant } from '../../tenant/TenantContext';
 
 type TabKey = 'summary' | 'scoring' | 'timeline' | 'effort' | 'tasks' | 'knowledge' | 'activity';
 type LegacyPanelRoute = 'overview' | 'team' | 'relations';
@@ -89,7 +90,9 @@ export default function ProjectWorkspacePage() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
+  const { tenantSlug } = useTenant();
   const { addToRecent } = useRecentlyViewed();
+  const inlineImageTenantSlug = resolveInlineImageTenantSlug(tenantSlug, window.location.hostname);
 
   const idParam = String(params.id || '');
   const isCreate = idParam === 'new';
@@ -512,18 +515,16 @@ export default function ProjectWorkspacePage() {
     formData.append('file', file);
     formData.append('source_field', sourceField);
     const res = await api.post<{ id: string }>(`/portfolio/projects/${id}/attachments/inline`, formData);
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
-    return buildInlineImageUrl(`/portfolio/projects/inline/${tenantSlug}/${res.data.id}`);
-  }, [id]);
+    return buildInlineImageUrl(`/portfolio/projects/inline/${inlineImageTenantSlug}/${res.data.id}`);
+  }, [id, inlineImageTenantSlug]);
 
   const handleImageUrlImport = React.useCallback(async (sourceUrl: string, sourceField: string): Promise<string> => {
     const res = await api.post<{ id: string }>(`/portfolio/projects/${id}/attachments/inline/import`, {
       source_field: sourceField,
       source_url: sourceUrl,
     });
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
-    return buildInlineImageUrl(`/portfolio/projects/inline/${tenantSlug}/${res.data.id}`);
-  }, [id]);
+    return buildInlineImageUrl(`/portfolio/projects/inline/${inlineImageTenantSlug}/${res.data.id}`);
+  }, [id, inlineImageTenantSlug]);
 
   const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'summary') return;

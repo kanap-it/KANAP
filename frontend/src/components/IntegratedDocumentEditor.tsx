@@ -18,7 +18,8 @@ import SaveIcon from '@mui/icons-material/Save';
 import api from '../api';
 import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../api/endpoints/import';
 import { useAuth } from '../auth/AuthContext';
-import { buildInlineImageUrl, getTenantSlugFromHostname } from '../utils/inlineImageUrls';
+import { useTenant } from '../tenant/TenantContext';
+import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../utils/inlineImageUrls';
 import { useTranslation } from 'react-i18next';
 import ExportButton from './ExportButton';
 import ImportButton from './ImportButton';
@@ -120,6 +121,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
   ref,
 ) {
   const { hasLevel, profile } = useAuth();
+  const { tenantSlug } = useTenant();
   const { t } = useTranslation('common');
   const qc = useQueryClient();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -140,6 +142,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
   const isDraftMode = !entityId;
   const canEdit = !disabled;
   const canOpenKnowledge = hasLevel('knowledge', 'reader');
+  const inlineImageTenantSlug = resolveInlineImageTenantSlug(tenantSlug, window.location.hostname);
   const docQueryKey = React.useMemo(
     () => ['integrated-document', entityType, entityId, slotKey],
     [entityId, entityType, slotKey],
@@ -387,9 +390,8 @@ export const IntegratedDocumentEditor = React.forwardRef<
     const res = await api.post<{ id: string }>(`${endpointBase}/attachments/inline`, formData, {
       headers: { 'X-Lock-Token': lockToken },
     });
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
-    return buildInlineImageUrl(`/knowledge/inline/${tenantSlug}/${res.data.id}`);
-  }, [endpointBase, entityId, isDraftMode, lockToken]);
+    return buildInlineImageUrl(`/knowledge/inline/${inlineImageTenantSlug}/${res.data.id}`);
+  }, [endpointBase, entityId, inlineImageTenantSlug, isDraftMode, lockToken]);
 
   const handleInlineImageImport = React.useCallback(async (sourceUrl: string): Promise<string> => {
     if (isDraftMode || !entityId) {
@@ -403,9 +405,8 @@ export const IntegratedDocumentEditor = React.forwardRef<
     }, {
       headers: { 'X-Lock-Token': lockToken },
     });
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
-    return buildInlineImageUrl(`/knowledge/inline/${tenantSlug}/${res.data.id}`);
-  }, [endpointBase, entityId, isDraftMode, lockToken]);
+    return buildInlineImageUrl(`/knowledge/inline/${inlineImageTenantSlug}/${res.data.id}`);
+  }, [endpointBase, entityId, inlineImageTenantSlug, isDraftMode, lockToken]);
 
   const handleDocumentImportError = React.useCallback((e: unknown) => {
     const status = Number((e as any)?.response?.status || 0);

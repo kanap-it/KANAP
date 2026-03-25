@@ -354,7 +354,7 @@ function FolderTreeNode({
   );
 }
 
-export default function FolderTreePanel({
+const FolderTreePanel = React.memo(function FolderTreePanel({
   libraryId,
   selectedFolderId,
   onSelectFolder,
@@ -727,4 +727,6 @@ export default function FolderTreePanel({
       </Snackbar>
     </Paper>
   );
-}
+});
+
+export default FolderTreePanel;

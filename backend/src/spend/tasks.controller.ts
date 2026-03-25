@@ -21,6 +21,7 @@ import { contentDisposition } from '../common/content-disposition';
 import { createRequestReleaseConnection } from '../common/import-connection';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { RateLimitGuard } from '../common/rate-limit.guard';
+import { resolveInlineTenantSlug } from '../common/resolve-inline-tenant-slug';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 
@@ -407,6 +408,7 @@ export class TasksController {
   ) {
     // Look up tenant by slug and set app.current_tenant for RLS
     // This validates tenant ownership while satisfying RLS policies
+    const effectiveSlug = resolveInlineTenantSlug(tenantSlug);
     const dataSource = this.attachmentsSvc['repo'].manager.connection;
     const runner = dataSource.createQueryRunner();
     try {
@@ -415,7 +417,7 @@ export class TasksController {
       // First get tenant ID from slug (tenants table typically has no RLS)
       const tenantRows = await runner.query(
         `SELECT id FROM tenants WHERE slug = $1 LIMIT 1`,
-        [tenantSlug],
+        [effectiveSlug],
       );
       if (!tenantRows.length) {
         await runner.rollbackTransaction();

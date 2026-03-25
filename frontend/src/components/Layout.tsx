@@ -296,9 +296,17 @@ export default function Layout() {
                   textTransform: 'none',
                   fontSize: '0.95rem',
                   fontWeight: 500,
+                  textDecoration: 'none',
+                  '&:visited, &:hover, &:active': {
+                    color: 'rgba(255,255,255,0.7)',
+                    textDecoration: 'none',
+                  },
                 },
                 '& .MuiTab-root.Mui-selected': {
                   color: 'common.white',
+                  '&:visited, &:hover, &:active': {
+                    color: 'common.white',
+                  },
                 },
                 '& .MuiTabs-indicator': {
                   backgroundColor: 'common.white',

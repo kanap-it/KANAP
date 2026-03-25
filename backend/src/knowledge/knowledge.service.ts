@@ -26,6 +26,7 @@ import { validateUploadedFile } from '../common/upload-validation';
 import { parsePagination } from '../common/pagination';
 import { normalizeAgFilterModel } from '../common/ag-grid-filtering';
 import { resolveToUuid } from '../common/resolve-item-id';
+import { resolveInlineTenantSlug } from '../common/resolve-inline-tenant-slug';
 import { StorageService } from '../common/storage/storage.service';
 import { RemoteInlineImageImportService } from '../common/remote-inline-image-import.service';
 import { Features } from '../config/features';
@@ -4520,6 +4521,7 @@ export class KnowledgeService {
     mimeType: string | null;
     size: number | null;
   } | null> {
+    const effectiveSlug = resolveInlineTenantSlug(tenantSlug);
     const runner = this.dataSource.createQueryRunner();
     try {
       await runner.connect();
@@ -4530,7 +4532,7 @@ export class KnowledgeService {
          FROM tenants
          WHERE slug = $1
          LIMIT 1`,
-        [tenantSlug],
+        [effectiveSlug],
       );
       if (!tenantRows.length) {
         await runner.rollbackTransaction();

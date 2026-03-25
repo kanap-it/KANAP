@@ -12,6 +12,7 @@ import { validateUploadedFile } from '../../common/upload-validation';
 import { fixMulterFilename } from '../../common/upload';
 import { extractInlineImageUrls } from '../../common/content-image-urls';
 import { RemoteInlineImageImportService } from '../../common/remote-inline-image-import.service';
+import { resolveInlineTenantSlug } from '../../common/resolve-inline-tenant-slug';
 import { isStoragePathReferencedInAnyTable } from '../../common/storage-path-refs';
 
 /**
@@ -225,6 +226,7 @@ export class PortfolioAttachmentsService extends PortfolioProjectsBaseService {
     tenantSlug: string,
     attachmentId: string,
   ): Promise<{ storagePath: string; mimeType: string | null; size: number | null } | null> {
+    const effectiveSlug = resolveInlineTenantSlug(tenantSlug);
     const dataSource = this.projectRepo.manager.connection;
     const runner = dataSource.createQueryRunner();
     try {
@@ -234,7 +236,7 @@ export class PortfolioAttachmentsService extends PortfolioProjectsBaseService {
       // First get tenant ID from slug (tenants table typically has no RLS)
       const tenantRows = await runner.query(
         `SELECT id FROM tenants WHERE slug = $1 LIMIT 1`,
-        [tenantSlug],
+        [effectiveSlug],
       );
       if (!tenantRows.length) {
         await runner.rollbackTransaction();

@@ -16,8 +16,9 @@ import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { MarkdownContent } from '../../../components/MarkdownContent';
 import { useLocale } from '../../../i18n/useLocale';
+import { useTenant } from '../../../tenant/TenantContext';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
-import { buildInlineImageUrl, getTenantSlugFromHostname } from '../../../utils/inlineImageUrls';
+import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../../utils/inlineImageUrls';
 import { formatRelativeTime } from '../../../utils/portfolioI18n';
 import UnifiedActivityForm from './UnifiedActivityForm';
 import type { TaskStatus } from '../task.constants';
@@ -62,7 +63,9 @@ export default function TaskComments({
   const locale = useLocale();
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
+  const { tenantSlug } = useTenant();
   const canComment = hasLevel('tasks', 'member');
+  const inlineImageTenantSlug = resolveInlineImageTenantSlug(tenantSlug, window.location.hostname);
 
   const [error, setError] = React.useState<string | null>(null);
 
@@ -77,8 +80,7 @@ export default function TaskComments({
     formData.append('file', file);
     formData.append('source_field', 'content');
     const res = await api.post<{ id: string }>(`/tasks/${taskId}/attachments`, formData);
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
-    return buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
+    return buildInlineImageUrl(`/tasks/attachments/${inlineImageTenantSlug}/${res.data.id}/inline`);
   };
 
   const handleImportImageUrl = async (sourceUrl: string): Promise<string> => {
@@ -86,8 +88,7 @@ export default function TaskComments({
       source_field: 'content',
       source_url: sourceUrl,
     });
-    const tenantSlug = getTenantSlugFromHostname(window.location.hostname);
-    return buildInlineImageUrl(`/tasks/attachments/${tenantSlug}/${res.data.id}/inline`);
+    return buildInlineImageUrl(`/tasks/attachments/${inlineImageTenantSlug}/${res.data.id}/inline`);
   };
 
   const { data: activities = [], isLoading, refetch } = useQuery({

@@ -8,6 +8,7 @@ interface ExportButtonProps {
   title?: string;
   disabled?: boolean;
   size?: 'small' | 'medium' | 'large';
+  getContent?: () => string;
 }
 
 const FORMATS: Array<{ value: DocumentExportFormat; label: string }> = [
@@ -41,19 +42,24 @@ export default function ExportButton({
   title,
   disabled = false,
   size = 'small',
+  getContent,
 }: ExportButtonProps) {
   const { t } = useTranslation('common');
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
   const [exporting, setExporting] = React.useState<DocumentExportFormat | null>(null);
 
-  const canExport = !disabled && String(content || '').trim().length > 0;
+  const canExport = !disabled && (getContent ? true : String(content || '').trim().length > 0);
 
   const handleExport = async (format: DocumentExportFormat) => {
     setAnchorEl(null);
     setExporting(format);
     try {
+      const resolvedContent = getContent ? getContent() : content;
+      if (!String(resolvedContent || '').trim()) {
+        return;
+      }
       const result = await exportDocument({
-        content,
+        content: resolvedContent,
         format,
         title,
       });
@@ -91,7 +97,10 @@ export default function ExportButton({
         size={size}
         variant="outlined"
         disabled={!canExport || exporting !== null}
-        onClick={(event) => setAnchorEl(event.currentTarget)}
+        onClick={(event) => {
+          if (getContent && !String(getContent() || '').trim()) return;
+          setAnchorEl(event.currentTarget);
+        }}
         startIcon={exporting ? <CircularProgress size={14} /> : undefined}
       >
         {exporting ? t('status.exporting', { format: exporting.toUpperCase() }) : t('export.button')}
