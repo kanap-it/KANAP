@@ -337,10 +337,10 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
         <Box>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('opex.budget.annualTotals', { year })}</Typography>
           <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
-            <FormattedNumberField label={`Budget (planned)${budgetFrozen ? ' – frozen' : ''}`} value={flatBudget} onChange={handleFlatChange(setFlatBudget)} disabled={budgetFrozen || loading || saving} InputProps={budgetFrozen ? { readOnly: true } : undefined} />
-            <FormattedNumberField label={`Revision (committed)${revisionFrozen ? ' – frozen' : ''}`} value={flatRevision} onChange={handleFlatChange(setFlatRevision)} disabled={revisionFrozen || loading || saving} InputProps={revisionFrozen ? { readOnly: true } : undefined} />
-            <FormattedNumberField label={`Follow-up (actual)${actualFrozen ? ' – frozen' : ''}`} value={flatFollowUp} onChange={handleFlatChange(setFlatFollowUp)} disabled={actualFrozen || loading || saving} InputProps={actualFrozen ? { readOnly: true } : undefined} />
-            <FormattedNumberField label={`Landing (expected_landing)${landingFrozen ? ' – frozen' : ''}`} value={flatLanding} onChange={handleFlatChange(setFlatLanding)} disabled={landingFrozen || loading || saving} InputProps={landingFrozen ? { readOnly: true } : undefined} />
+            <FormattedNumberField label={`${t('opex.budget.budgetPlanned')}${budgetFrozen ? ` – ${t('opex.budget.frozen')}` : ''}`} value={flatBudget} onChange={handleFlatChange(setFlatBudget)} disabled={budgetFrozen || loading || saving} InputProps={budgetFrozen ? { readOnly: true } : undefined} />
+            <FormattedNumberField label={`${t('opex.budget.revisionCommitted')}${revisionFrozen ? ` – ${t('opex.budget.frozen')}` : ''}`} value={flatRevision} onChange={handleFlatChange(setFlatRevision)} disabled={revisionFrozen || loading || saving} InputProps={revisionFrozen ? { readOnly: true } : undefined} />
+            <FormattedNumberField label={`${t('opex.budget.followUpActual')}${actualFrozen ? ` – ${t('opex.budget.frozen')}` : ''}`} value={flatFollowUp} onChange={handleFlatChange(setFlatFollowUp)} disabled={actualFrozen || loading || saving} InputProps={actualFrozen ? { readOnly: true } : undefined} />
+            <FormattedNumberField label={`${t('opex.budget.landingExpected')}${landingFrozen ? ` – ${t('opex.budget.frozen')}` : ''}`} value={flatLanding} onChange={handleFlatChange(setFlatLanding)} disabled={landingFrozen || loading || saving} InputProps={landingFrozen ? { readOnly: true } : undefined} />
           </Stack>
         </Box>
       ) : (
@@ -384,7 +384,7 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
       <Divider />
       <TextField label="Notes" value={notes} onChange={(e) => { setNotes(e.target.value); setHasUnsavedChanges(true); }} fullWidth multiline minRows={2} disabled={loading || saving} InputLabelProps={{ shrink: true }} />
       <Typography variant="caption" color="text.secondary">
-        {freezeLoading ? 'Checking freeze state…' : (budgetFrozen || revisionFrozen || actualFrozen || landingFrozen) ? 'Some columns are frozen and read-only.' : 'All columns are editable.'}
+        {freezeLoading ? t('opex.budget.checkingFreeze') : (budgetFrozen || revisionFrozen || actualFrozen || landingFrozen) ? t('opex.budget.someColumnsFrozen') : t('opex.budget.allColumnsEditable')}
       </Typography>
     </Stack>
   );

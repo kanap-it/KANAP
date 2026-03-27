@@ -61,19 +61,19 @@ export default function AnalyticsCategoryReport() {
   const categoryOptions = useMemo<CategoryOption[]>(() => {
     const map = new Map<string, CategoryOption>();
     for (const cat of categories ?? []) {
-      const label = (cat.name ?? '').trim() || 'Unnamed category';
+      const label = (cat.name ?? '').trim() || t('reports.analyticsCategory.unnamed');
       map.set(cat.id, { id: cat.id, label });
     }
     for (const row of rows ?? []) {
       const id = row.analytics_category_id ?? undefined;
       if (!id || map.has(id)) continue;
-      const label = (row.analytics_category_name ?? '').trim() || 'Unnamed category';
+      const label = (row.analytics_category_name ?? '').trim() || t('reports.analyticsCategory.unnamed');
       map.set(id, { id, label });
     }
     const list = Array.from(map.values());
     list.sort((a, b) => a.label.localeCompare(b.label));
     return list;
-  }, [categories, rows]);
+  }, [categories, rows, t]);
 
   const selectedOptions = useMemo<CategoryOption[]>(() => {
     if (excludedCategories.length === 0) return [];
@@ -93,9 +93,9 @@ export default function AnalyticsCategoryReport() {
     const acc: Map<string, Group> = new Map();
     const source = rows ?? [];
     const makeKey = (id: string | null | undefined, fallbackName: string | null | undefined): { key: string; label: string } => {
-      if (!id) return { key: 'uncategorized', label: 'Unassigned' };
+      if (!id) return { key: 'uncategorized', label: t('reports.analyticsCategory.unassigned') };
       const labelFromCatalog = categoryById.get(id)?.name;
-      const label = (labelFromCatalog ?? fallbackName ?? '').trim() || 'Unnamed category';
+      const label = (labelFromCatalog ?? fallbackName ?? '').trim() || t('reports.analyticsCategory.unnamed');
       return { key: `cat_${id}`, label };
     };
     for (const row of source) {
@@ -115,7 +115,7 @@ export default function AnalyticsCategoryReport() {
       const pYear = years[0];
       return (b.values[pYear] || 0) - (a.values[pYear] || 0);
     });
-  }, [rows, years, metric, excludedCategories, categoryById]);
+  }, [rows, years, metric, excludedCategories, categoryById, t]);
 
   const tableRows = useMemo(() => groups.map((group) => {
     const row: any = { group: group.label };
@@ -154,8 +154,8 @@ export default function AnalyticsCategoryReport() {
       const chartData = groups.map((group) => ({ label: group.label, value: group.values[year] || 0 }));
       const total = chartData.reduce((acc, datum) => acc + (Number(datum.value) || 0), 0);
       const base = {
-        title: { text: `Budget by Analytics Category — ${year}` },
-        subtitle: { text: metricsCaption || 'Share of selected totals' },
+        title: { text: t('reports.analyticsCategory.chartTitleSingle', { year }) },
+        subtitle: { text: metricsCaption || t('reports.analyticsCategory.shareSubtitle') },
         footnote: { text: `Total (${metricsCaption || 'Selected'}): ${formatNumber(total)}` },
         data: chartData,
         legend: { enabled: false },
@@ -232,8 +232,8 @@ export default function AnalyticsCategoryReport() {
     });
     const series = groups.map((group) => ({ type: 'line', xKey: 'year', yKey: group.key, yName: group.label }));
     return {
-      title: { text: `Budget by Analytics Category — ${years[0]} to ${years[years.length - 1]}` },
-      subtitle: { text: metricsCaption || 'Annual totals per analytics category' },
+      title: { text: t('reports.analyticsCategory.chartTitleRange', { start: years[0], end: years[years.length - 1] }) },
+      subtitle: { text: metricsCaption || t('reports.analyticsCategory.annualSubtitle') },
       data: chartData,
       series,
       axes: [
@@ -242,7 +242,7 @@ export default function AnalyticsCategoryReport() {
       ],
       legend: { enabled: true },
     };
-  }, [groups, singleYear, years, metricsCaption, chartType, metricLabel]);
+  }, [groups, singleYear, years, metricsCaption, chartType, metricLabel, t]);
 
   return (
     <ReportLayout

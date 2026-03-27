@@ -117,6 +117,10 @@ export class SuppliersService {
     return { ids, total: ids.length };
   }
 
+  async listFilterValues(_query?: any, _opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {
+    return {};
+  }
+
   async create(body: SupplierUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {
     const repo = this.getRepo(opts?.manager);
     const { status: statusInput, disabled_at, ...rest } = body ?? {};

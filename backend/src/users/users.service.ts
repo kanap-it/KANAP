@@ -559,6 +559,7 @@ export class UsersService {
       inviteUrl,
       expiresInMinutes: expires,
       roleName: user.role?.role_name ?? null,
+      locale: user.locale,
     });
 
     if (user.status === 'invited') {

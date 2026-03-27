@@ -6,6 +6,24 @@ import { ApplicationsListService } from '../../applications/services/application
 import { Asset } from '../../assets/asset.entity';
 import { AssetsListService } from '../../assets/services/assets-list.service';
 import dataSource from '../../data-source';
+import { DocumentActivity } from '../../knowledge/document-activity.entity';
+import { DocumentApplication } from '../../knowledge/document-application.entity';
+import { DocumentAsset } from '../../knowledge/document-asset.entity';
+import { DocumentAttachment } from '../../knowledge/document-attachment.entity';
+import { DocumentClassification } from '../../knowledge/document-classification.entity';
+import { DocumentContributor } from '../../knowledge/document-contributor.entity';
+import { DocumentEditLock } from '../../knowledge/document-edit-lock.entity';
+import { DocumentFolder } from '../../knowledge/document-folder.entity';
+import { DocumentLibrary } from '../../knowledge/document-library.entity';
+import { DocumentProject } from '../../knowledge/document-project.entity';
+import { DocumentReference } from '../../knowledge/document-reference.entity';
+import { DocumentRequest } from '../../knowledge/document-request.entity';
+import { DocumentTask } from '../../knowledge/document-task.entity';
+import { DocumentType } from '../../knowledge/document-type.entity';
+import { DocumentVersion } from '../../knowledge/document-version.entity';
+import { Document } from '../../knowledge/document.entity';
+import { IntegratedDocumentBinding } from '../../knowledge/integrated-document-binding.entity';
+import { KnowledgeService } from '../../knowledge/knowledge.service';
 import { AiPhase1RlsRepair1844200000000 } from '../../migrations/1844200000000-ai-phase1-rls-repair';
 import { PortfolioRequest } from '../../portfolio/portfolio-request.entity';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
@@ -622,6 +640,61 @@ async function seedKnowledgeGraph(
   return knowledge;
 }
 
+async function seedIntegratedKnowledgeDocument(
+  runner: any,
+  tenantId: string,
+  graph: SeededGraph,
+  knowledge: SeededKnowledge,
+  tag: string,
+  sourceEntityType: 'projects' | 'requests',
+) {
+  await setCurrentTenant(runner, tenantId);
+
+  const documentId = randomUUID();
+  const baseNumber = Number(tag.replace(/\D/g, '').slice(0, 4) || '7401');
+  const itemNumber = sourceEntityType === 'projects' ? baseNumber + 1000 : baseNumber + 2000;
+  const title = sourceEntityType === 'projects'
+    ? `Integrated Project Purpose ${tag}`
+    : `Integrated Request Purpose ${tag}`;
+  const summary = sourceEntityType === 'projects'
+    ? `Integrated project document ${tag}`
+    : `Integrated request document ${tag}`;
+  const sourceEntityId = sourceEntityType === 'projects' ? graph.projectId : graph.requestId;
+
+  await runner.query(
+    `INSERT INTO documents (
+       id, tenant_id, item_number, title, summary, content_markdown, content_plain,
+       library_id, document_type_id, status, revision, current_version_number, created_at, updated_at
+     )
+     VALUES (
+       $1, $2, $3, $4, $5, $6, $7,
+       $8, $9, 'published', 1, 0, now(), now()
+     )`,
+    [
+      documentId,
+      tenantId,
+      itemNumber,
+      title,
+      summary,
+      `# ${title}`,
+      `${title} ${summary}`,
+      knowledge.libraryId,
+      knowledge.documentTypeId,
+    ],
+  );
+
+  await runner.query(
+    `INSERT INTO integrated_document_bindings (
+       id, tenant_id, source_entity_type, source_entity_id, slot_key,
+       document_id, hidden_from_entity_knowledge, created_at, updated_at
+     )
+     VALUES ($1, $2, $3, $4, 'purpose', $5, true, now(), now())`,
+    [randomUUID(), tenantId, sourceEntityType, sourceEntityId, documentId],
+  );
+
+  return { documentId };
+}
+
 async function insertCrossTenantLeakShapes(
   runner: any,
   tenantA: string,
@@ -1028,6 +1101,11 @@ function createAiQueryHarness(manager: any) {
   );
   const applications = new ApplicationsListService(manager.getRepository(Application));
   const assets = new AssetsListService(manager.getRepository(Asset));
+  const spendItems = {} as any;
+  const contracts = {} as any;
+  const companies = {} as any;
+  const suppliers = {} as any;
+  const departments = {} as any;
   const locations = {} as any;
   const queryExecutor = new AiQueryExecutor(
     tasks as any,
@@ -1035,6 +1113,11 @@ function createAiQueryHarness(manager: any) {
     requests as any,
     applications as any,
     assets as any,
+    spendItems,
+    contracts,
+    companies,
+    suppliers,
+    departments,
     knowledge as any,
     locations as any,
   );
@@ -1044,10 +1127,47 @@ function createAiQueryHarness(manager: any) {
     requests as any,
     applications as any,
     assets as any,
+    spendItems,
+    contracts,
+    companies,
+    suppliers,
+    departments,
     knowledge as any,
   );
 
   return { knowledge, queryExecutor, aggregateExecutor };
+}
+
+function createKnowledgeService(manager: any) {
+  return new KnowledgeService(
+    manager.getRepository(Document),
+    manager.getRepository(DocumentFolder),
+    manager.getRepository(IntegratedDocumentBinding),
+    manager.getRepository(DocumentLibrary),
+    manager.getRepository(DocumentType),
+    manager.getRepository(DocumentVersion),
+    manager.getRepository(DocumentEditLock),
+    manager.getRepository(DocumentAttachment),
+    manager.getRepository(DocumentActivity),
+    manager.getRepository(DocumentContributor),
+    manager.getRepository(DocumentClassification),
+    manager.getRepository(DocumentReference),
+    manager.getRepository(DocumentApplication),
+    manager.getRepository(DocumentAsset),
+    manager.getRepository(DocumentProject),
+    manager.getRepository(DocumentRequest),
+    manager.getRepository(DocumentTask),
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    dataSource,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
 }
 
 function createPermissivePolicyStub() {
@@ -2141,6 +2261,33 @@ async function testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting() {
     );
     assert.deepEqual(meProjects.scope, { requested: 'me', resolved: true });
 
+    const meProjectPrioritySum = await registry.execute(actorContext, 'aggregate_entities', {
+      entity_type: 'projects',
+      scope: 'me',
+      group_by: 'status',
+      metric: 'priority_score',
+      function: 'sum',
+      q: 'Scope Me Project',
+    }) as any;
+    assert.equal(meProjectPrioritySum.total, 2);
+    assert.equal(meProjectPrioritySum.metric, 'priority_score');
+    assert.equal(meProjectPrioritySum.function, 'sum');
+    assert.deepEqual(meProjectPrioritySum.groups, [
+      { key: 'planned', value: 110 },
+    ]);
+    assert.deepEqual(meProjectPrioritySum.scope, { requested: 'me', resolved: true });
+
+    await assert.rejects(
+      () => registry.execute(actorContext, 'aggregate_entities', {
+        entity_type: 'projects',
+        scope: 'me',
+        group_by: 'status',
+        function: 'sum',
+        q: 'Scope Me Project',
+      }),
+      /metric is required/i,
+    );
+
     const meRequests = await registry.execute(actorContext, 'query_entities', {
       entity_type: 'requests',
       scope: 'me',
@@ -2232,6 +2379,223 @@ async function testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting() {
     await runner.rollbackTransaction();
     await runner.release();
   }
+}
+
+async function testKnowledgeServiceSupportsLinkedDocumentFiltersAcrossLegacyAndIntegratedBindings() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  const tenantId = randomUUID();
+  const tenantUser = randomUUID();
+  const tag = '8601';
+
+  try {
+    await seedTenant(runner, tenantId, 'ai-doc-links', 'AI Doc Links');
+    const roleId = await seedRole(runner, tenantId, 'AI Knowledge');
+    await seedUser(runner, tenantId, tenantUser, 'knowledge-user@example.com', roleId, {
+      firstName: 'Kira',
+      lastName: 'Knowledge',
+    });
+
+    const graph = await seedApplicationAssetGraph(runner, tenantId, tag);
+    const knowledge = await seedKnowledgeGraph(runner, tenantId, graph, tag);
+    const integratedProject = await seedIntegratedKnowledgeDocument(
+      runner,
+      tenantId,
+      graph,
+      knowledge,
+      tag,
+      'projects',
+    );
+    const integratedRequest = await seedIntegratedKnowledgeDocument(
+      runner,
+      tenantId,
+      graph,
+      knowledge,
+      tag,
+      'requests',
+    );
+
+    const service = createKnowledgeService(runner.manager);
+    await setCurrentTenant(runner, tenantId);
+
+    const linkedProjectResult = await service.list(
+      {
+        limit: 20,
+        filters: {
+          linked_project: {
+            filterType: 'text',
+            type: 'contains',
+            filter: `PRJ-${tag}`,
+          },
+        },
+      },
+      { manager: runner.manager, tenantId },
+    );
+    assert.deepEqual(
+      linkedProjectResult.items.map((item: any) => item.id).sort(),
+      [knowledge.documentId, integratedProject.documentId].sort(),
+    );
+
+    const linkedRequestResult = await service.list(
+      {
+        limit: 20,
+        filters: {
+          linked_request: {
+            filterType: 'text',
+            type: 'contains',
+            filter: `REQ-${tag}`,
+          },
+        },
+      },
+      { manager: runner.manager, tenantId },
+    );
+    assert.deepEqual(
+      linkedRequestResult.items.map((item: any) => item.id).sort(),
+      [knowledge.documentId, integratedRequest.documentId].sort(),
+    );
+
+    const linkedTaskResult = await service.list(
+      {
+        limit: 20,
+        filters: {
+          linked_task: {
+            filterType: 'text',
+            type: 'contains',
+            filter: `T-${tag}`,
+          },
+        },
+      },
+      { manager: runner.manager, tenantId },
+    );
+    assert.deepEqual(
+      linkedTaskResult.items.map((item: any) => item.id),
+      [knowledge.documentId],
+    );
+
+    const linkedApplicationResult = await service.list(
+      {
+        limit: 20,
+        filters: {
+          linked_application: {
+            filterType: 'text',
+            type: 'contains',
+            filter: 'Shared Boundary Application',
+          },
+        },
+      },
+      { manager: runner.manager, tenantId },
+    );
+    assert.deepEqual(
+      linkedApplicationResult.items.map((item: any) => item.id),
+      [knowledge.documentId],
+    );
+
+    const linkedProjectIds = await service.listIds(
+      {
+        limit: 20,
+        filters: {
+          linked_project: {
+            filterType: 'text',
+            type: 'contains',
+            filter: `PRJ-${tag}`,
+          },
+        },
+      },
+      { manager: runner.manager, tenantId },
+    );
+    assert.deepEqual(
+      linkedProjectIds.ids.sort(),
+      [knowledge.documentId, integratedProject.documentId].sort(),
+    );
+    assert.equal(linkedProjectIds.total, 2);
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
+async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
+  const anchorYear = new Date().getFullYear();
+  const summaryCalls: any[] = [];
+  const spendItems = {
+    summary: async (query: any) => {
+      summaryCalls.push(query);
+      return {
+        items: [{
+          id: 'spend-1',
+          product_name: 'AI Budget Line',
+          description: 'Testing yearly totals',
+          status: 'enabled',
+          updated_at: '2026-03-27T09:00:00.000Z',
+          supplier_name: 'Budget Supplier',
+          currency: 'EUR',
+          versions: {
+            [`y${anchorYear - 2}`]: { year: anchorYear - 2, reporting: { budget: 10, revision: 9, follow_up: 8, landing: 7 } },
+            yMinus1: { year: anchorYear - 1, reporting: { budget: 20, revision: 19, follow_up: 18, landing: 17 } },
+            y: { year: anchorYear, reporting: { budget: 30, revision: 29, follow_up: 28, landing: 27 } },
+            yPlus1: { year: anchorYear + 1, reporting: { budget: 40, revision: 39, follow_up: 38, landing: 37 } },
+            [`y${anchorYear + 2}`]: { year: anchorYear + 2, reporting: { budget: 50, revision: 49, follow_up: 48, landing: 47 } },
+          },
+        }],
+        total: 1,
+        page: 1,
+        limit: 10,
+      };
+    },
+    summaryFilterValues: async () => ({}),
+  };
+
+  const executor = new AiQueryExecutor(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    spendItems as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const result = await executor.execute(
+    {
+      tenantId: 'tenant-ai',
+      userId: 'user-ai',
+      isPlatformHost: false,
+      surface: 'chat',
+      authMethod: 'jwt',
+      manager: {} as any,
+    },
+    {
+      entity_type: 'spend_items',
+      limit: 10,
+    },
+  );
+
+  assert.equal(summaryCalls.length, 1);
+  assert.equal(
+    summaryCalls[0].years,
+    [anchorYear - 2, anchorYear - 1, anchorYear, anchorYear + 1, anchorYear + 2].join(','),
+  );
+  assert.equal(result.total, 1);
+  assert.equal(result.items[0].metadata.budget_anchor_year, anchorYear);
+  assert.equal(result.items[0].metadata.y_minus2_budget, 10);
+  assert.equal(result.items[0].metadata.y_minus1_budget, 20);
+  assert.equal(result.items[0].metadata.y_budget, 30);
+  assert.equal(result.items[0].metadata.y_review, 29);
+  assert.equal(result.items[0].metadata.y_actual, 28);
+  assert.equal(result.items[0].metadata.y_landing, 27);
+  assert.equal(result.items[0].metadata.y_plus1_budget, 40);
+  assert.equal(result.items[0].metadata.y_plus2_budget, 50);
+  assert.deepEqual(
+    (result.items[0].metadata.yearly_totals as any[]).map((entry: any) => entry.label),
+    ['Y-2', 'Y-1', 'Y', 'Y+1', 'Y+2'],
+  );
 }
 
 async function testAiAdminOverviewAggregatesUsageAndIsTenantScoped() {
@@ -2462,9 +2826,11 @@ async function run() {
   try {
     await testAiPhase1RepairMigrationReassertsCriticalRls();
     await testAiEntityServicePhase1TenantDefenseInDepth();
-  await testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScoped();
-  await testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies();
-  await testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting();
+    await testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScoped();
+    await testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies();
+    await testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting();
+    await testKnowledgeServiceSupportsLinkedDocumentFiltersAcrossLegacyAndIntegratedBindings();
+    await testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals();
     await testAiAdminOverviewAggregatesUsageAndIsTenantScoped();
     await testAiConversationRetentionArchivesAndPurgesOldConversations();
     await testAiToolRegistryIsolationCoverageTracksRegisteredTools();

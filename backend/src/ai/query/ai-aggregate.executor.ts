@@ -2,16 +2,23 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { normalizeAgFilterModel } from '../../common/ag-grid-filtering';
 import { ApplicationsService } from '../../applications/services';
 import { AssetsService } from '../../assets/services';
+import { CompaniesService } from '../../companies/companies.service';
+import { ContractsService } from '../../contracts/contracts.service';
+import { DepartmentsService } from '../../departments/departments.service';
 import { Document } from '../../knowledge/document.entity';
 import { isDocumentStatus } from '../../knowledge/document-status';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
+import { SpendItemsService } from '../../spend/spend-items.service';
 import { TasksService } from '../../spend/tasks.service';
-import { AiExecutionContextWithManager, AiQueryScope } from '../ai.types';
+import { SuppliersService } from '../../suppliers/suppliers.service';
+import { AiExecutionContextWithManager, AiQueryEntityType, AiQueryScope } from '../ai.types';
 import { adaptFilters } from './ai-filter.adapter';
 import { applyScopeToAiQuery, ResolvedAiScope } from './ai-query-scope.util';
 import {
+  AiAggregateMetricDef,
+  AiAggregateMetricType,
   AiAggregateResult,
   AiDateFilterValue,
   AiFilterValue,
@@ -19,6 +26,118 @@ import {
 import { getAiEntityRegistry } from './registries';
 
 type DocumentSearchState = { term: string; itemNumber: number | null };
+type AiAggregateFunction = 'count' | 'sum' | 'avg' | 'min' | 'max';
+type DocumentLinkedEntityField =
+  | 'linked_application'
+  | 'linked_asset'
+  | 'linked_project'
+  | 'linked_request'
+  | 'linked_task';
+type DocumentLinkedEntitySurface =
+  | {
+      kind: 'legacy';
+      table: string;
+      relationAlias: string;
+      relationIdColumn: string;
+      targetTable: string;
+      targetAlias: string;
+      targetMatchExpressions: string[];
+    }
+  | {
+      kind: 'integrated';
+      relationAlias: string;
+      sourceEntityType: 'applications' | 'assets' | 'projects' | 'requests';
+      targetTable: string;
+      targetAlias: string;
+      targetMatchExpressions: string[];
+    };
+type SupportedAggregateEntityType =
+  'applications'
+  | 'assets'
+  | 'companies'
+  | 'contracts'
+  | 'departments'
+  | 'locations'
+  | 'projects'
+  | 'requests'
+  | 'spend_items'
+  | 'suppliers'
+  | 'tasks'
+  | 'documents';
+
+const DOCUMENT_LINKED_ENTITY_FILTERS: Record<DocumentLinkedEntityField, DocumentLinkedEntitySurface[]> = {
+  linked_application: [
+    {
+      kind: 'legacy',
+      table: 'document_applications',
+      relationAlias: 'da_link',
+      relationIdColumn: 'application_id',
+      targetTable: 'applications',
+      targetAlias: 'a_link',
+      targetMatchExpressions: ['a_link.name'],
+    },
+  ],
+  linked_asset: [
+    {
+      kind: 'legacy',
+      table: 'document_assets',
+      relationAlias: 'da_link',
+      relationIdColumn: 'asset_id',
+      targetTable: 'assets',
+      targetAlias: 'ast_link',
+      targetMatchExpressions: ['ast_link.name', 'ast_link.hostname', 'ast_link.fqdn'],
+    },
+  ],
+  linked_project: [
+    {
+      kind: 'legacy',
+      table: 'document_projects',
+      relationAlias: 'dp_link',
+      relationIdColumn: 'project_id',
+      targetTable: 'portfolio_projects',
+      targetAlias: 'p_link',
+      targetMatchExpressions: ['p_link.name', `('PRJ-' || p_link.item_number::text)`],
+    },
+    {
+      kind: 'integrated',
+      relationAlias: 'idb_project_link',
+      sourceEntityType: 'projects',
+      targetTable: 'portfolio_projects',
+      targetAlias: 'p_link',
+      targetMatchExpressions: ['p_link.name', `('PRJ-' || p_link.item_number::text)`],
+    },
+  ],
+  linked_request: [
+    {
+      kind: 'legacy',
+      table: 'document_requests',
+      relationAlias: 'dr_link',
+      relationIdColumn: 'request_id',
+      targetTable: 'portfolio_requests',
+      targetAlias: 'r_link',
+      targetMatchExpressions: ['r_link.name', `('REQ-' || r_link.item_number::text)`],
+    },
+    {
+      kind: 'integrated',
+      relationAlias: 'idb_request_link',
+      sourceEntityType: 'requests',
+      targetTable: 'portfolio_requests',
+      targetAlias: 'r_link',
+      targetMatchExpressions: ['r_link.name', `('REQ-' || r_link.item_number::text)`],
+    },
+  ],
+  linked_task: [
+    {
+      kind: 'legacy',
+      table: 'document_tasks',
+      relationAlias: 'dt_link',
+      relationIdColumn: 'task_id',
+      targetTable: 'tasks',
+      targetAlias: 't_link',
+      targetMatchExpressions: ['t_link.title', `('T-' || t_link.item_number::text)`],
+    },
+  ],
+};
 
 function parseDocumentItemNumberQuery(input: string): number | null {
   const value = String(input || '').trim();
@@ -105,6 +224,147 @@ function compileDateFilterCondition(
   }
 }
 
+function buildDocumentLinkedEntityExistsClause(
+  surface: DocumentLinkedEntitySurface,
+  documentAlias: string,
+  predicateSql?: string,
+): string {
+  if (surface.kind === 'legacy') {
+    return `EXISTS (
+      SELECT 1
+      FROM ${surface.table} ${surface.relationAlias}
+      JOIN ${surface.targetTable} ${surface.targetAlias}
+        ON ${surface.targetAlias}.id = ${surface.relationAlias}.${surface.relationIdColumn}
+       AND ${surface.targetAlias}.tenant_id = ${documentAlias}.tenant_id
+      WHERE ${surface.relationAlias}.document_id = ${documentAlias}.id
+        AND ${surface.relationAlias}.tenant_id = ${documentAlias}.tenant_id
+        ${predicateSql ? `AND (${predicateSql})` : ''}
+    )`;
+  }
+
+  return `EXISTS (
+    SELECT 1
+    FROM integrated_document_bindings ${surface.relationAlias}
+    JOIN ${surface.targetTable} ${surface.targetAlias}
+      ON ${surface.targetAlias}.id = ${surface.relationAlias}.source_entity_id
+     AND ${surface.targetAlias}.tenant_id = ${documentAlias}.tenant_id
+    WHERE ${surface.relationAlias}.document_id = ${documentAlias}.id
+      AND ${surface.relationAlias}.tenant_id = ${documentAlias}.tenant_id
+      AND ${surface.relationAlias}.source_entity_type = '${surface.sourceEntityType}'
+      ${predicateSql ? `AND (${predicateSql})` : ''}
+  )`;
+}
+
+function buildDocumentLinkedEntityExistsGroup(
+  field: DocumentLinkedEntityField,
+  documentAlias: string,
+  predicateFactory?: (surface: DocumentLinkedEntitySurface) => string,
+): string {
+  const clauses = DOCUMENT_LINKED_ENTITY_FILTERS[field].map((surface) =>
+    buildDocumentLinkedEntityExistsClause(
+      surface,
+      documentAlias,
+      predicateFactory ? predicateFactory(surface) : undefined,
+    ),
+  );
+  return clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`;
+}
+
+function compileDocumentLinkedEntityFilterCondition(
+  field: DocumentLinkedEntityField,
+  rawModel: any,
+  documentAlias: string,
+  paramRef: string,
+): { sql: string; value?: string } | null {
+  const model = normalizeAgFilterModel(rawModel);
+  if (!model || typeof model !== 'object') return null;
+
+  const type = String(model.type ?? 'contains');
+  const anyLinkedSql = buildDocumentLinkedEntityExistsGroup(field, documentAlias);
+
+  if (type === 'blank') return { sql: `NOT ${anyLinkedSql}` };
+  if (type === 'notBlank') return { sql: anyLinkedSql };
+
+  const filterText = String(model.filter ?? model.value ?? '').trim();
+  if (!filterText) return null;
+
+  let value = filterText;
+  let predicateKind: 'equals' | 'contains' = 'contains';
+  let negate = false;
+
+  switch (type) {
+    case 'equals':
+      predicateKind = 'equals';
+      break;
+    case 'notEqual':
+      predicateKind = 'equals';
+      negate = true;
+      break;
+    case 'startsWith':
+      value = `${filterText}%`;
+      break;
+    case 'endsWith':
+      value = `%${filterText}`;
+      break;
+    case 'notContains':
+      value = `%${filterText}%`;
+      negate = true;
+      break;
+    case 'contains':
+    default:
+      value = `%${filterText}%`;
+      break;
+  }
+
+  const matchSql = buildDocumentLinkedEntityExistsGroup(field, documentAlias, (surface) => {
+    const comparisons = surface.targetMatchExpressions.map((expression) =>
+      predicateKind === 'equals'
+        ? `${expression} = ${paramRef}`
+        : `${expression} ILIKE ${paramRef}`,
+    );
+    return comparisons.length === 1 ? comparisons[0] : `(${comparisons.join(' OR ')})`;
+  });
+
+  return {
+    sql: negate ? `NOT ${matchSql}` : matchSql,
+    value,
+  };
+}
+
+function normalizeAggregateFunction(value?: string | null): AiAggregateFunction {
+  return value === 'sum' || value === 'avg' || value === 'min' || value === 'max'
+    ? value
+    : 'count';
+}
+
+function getMetricOrderDirection(fn: AiAggregateFunction): 'ASC' | 'DESC' {
+  return fn === 'min' ? 'ASC' : 'DESC';
+}
+
+function buildMetricAggregateExpression(fn: AiAggregateFunction, expression: string): string {
+  switch (fn) {
+    case 'sum':
+      return `SUM(${expression})`;
+    case 'avg':
+      return `AVG(${expression})`;
+    case 'min':
+      return `MIN(${expression})`;
+    case 'max':
+      return `MAX(${expression})`;
+    default:
+      return 'COUNT(*)::int';
+  }
+}
+
+function normalizeAggregateValue(value: any, metricType: AiAggregateMetricType): number | string | null {
+  if (value == null) return null;
+  if (metricType === 'number') {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+  return String(value);
+}
+
 @Injectable()
 export class AiAggregateExecutor {
   constructor(
@@ -113,6 +373,11 @@ export class AiAggregateExecutor {
     private readonly requests: PortfolioRequestsService,
     private readonly applications: ApplicationsService,
     private readonly assets: AssetsService,
+    private readonly spendItems: SpendItemsService,
+    private readonly contracts: ContractsService,
+    private readonly companies: CompaniesService,
+    private readonly suppliers: SuppliersService,
+    private readonly departments: DepartmentsService,
     private readonly knowledge: KnowledgeService,
   ) {}
 
@@ -122,7 +387,7 @@ export class AiAggregateExecutor {
 
   private async listIdsForEntity(
     context: AiExecutionContextWithManager,
-    entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
+    entityType: SupportedAggregateEntityType,
     q: string | undefined,
     adaptedFilters: Record<string, any>,
     scope?: AiQueryScope,
@@ -211,6 +476,66 @@ export class AiAggregateExecutor {
       return { ids: result.ids || [], scope: scoped.scope };
     }
 
+    if (entityType === 'spend_items') {
+      const result = await this.spendItems.summaryIds(
+        {
+          q,
+          filters: adaptedFilters,
+          includeDisabled: true,
+        },
+        { manager: context.manager },
+      );
+      return { ids: result.ids || [], scope: null };
+    }
+
+    if (entityType === 'contracts') {
+      const result = await this.contracts.listIds(
+        {
+          q,
+          filters: adaptedFilters,
+          includeDisabled: true,
+        },
+        { manager: context.manager },
+      );
+      return { ids: result.ids || [], scope: null };
+    }
+
+    if (entityType === 'companies') {
+      const result = await this.companies.listIds(
+        {
+          q,
+          filters: adaptedFilters,
+          includeDisabled: true,
+        },
+        { manager: context.manager },
+      );
+      return { ids: result.ids || [], scope: null };
+    }
+
+    if (entityType === 'suppliers') {
+      const result = await this.suppliers.listIds(
+        {
+          q,
+          filters: adaptedFilters,
+          includeDisabled: true,
+        },
+        { manager: context.manager },
+      );
+      return { ids: result.ids || [], scope: null };
+    }
+
+    if (entityType === 'departments') {
+      const result = await this.departments.listIds(
+        {
+          q,
+          filters: adaptedFilters,
+          includeDisabled: true,
+        },
+        { manager: context.manager },
+      );
+      return { ids: result.ids || [], scope: null };
+    }
+
     if (entityType === 'assets') {
       const scoped = await applyScopeToAiQuery(
         context,
@@ -238,6 +563,46 @@ export class AiAggregateExecutor {
     }
 
     throw new BadRequestException('Unsupported entity type.');
+  }
+
+  private resolveMetric(
+    entityType: SupportedAggregateEntityType,
+    metric: string | undefined,
+    fn: AiAggregateFunction,
+  ): { key: string; def: AiAggregateMetricDef } | null {
+    if (fn === 'count') return null;
+    if (!metric) {
+      throw new BadRequestException('metric is required for non-count aggregation.');
+    }
+
+    const registry = getAiEntityRegistry(entityType);
+    const explicit = registry.aggregate.metricFields?.[metric];
+    if (explicit) {
+      if ((fn === 'sum' || fn === 'avg') && explicit.type !== 'number') {
+        throw new BadRequestException('sum and avg require a numeric metric.');
+      }
+      return { key: metric, def: explicit };
+    }
+
+    const field = registry.fields[metric];
+    if (!field || field.aggregable !== true) {
+      throw new BadRequestException('Unsupported metric field.');
+    }
+
+    if (field.type !== 'number' && field.type !== 'date') {
+      throw new BadRequestException('Unsupported metric field.');
+    }
+    if ((fn === 'sum' || fn === 'avg') && field.type !== 'number') {
+      throw new BadRequestException('sum and avg require a numeric metric.');
+    }
+
+    return {
+      key: metric,
+      def: {
+        expression: `${registry.aggregate.alias}.${field.grid}`,
+        type: field.type,
+      },
+    };
   }
 
   private buildDocumentAggregateQuery(
@@ -312,6 +677,17 @@ export class AiAggregateExecutor {
       }
     }
 
+    let linkedEntityParamIndex = 0;
+    const nextLinkedEntityParam = () => `linkedEntity${linkedEntityParamIndex++}`;
+    for (const fieldName of Object.keys(DOCUMENT_LINKED_ENTITY_FILTERS) as DocumentLinkedEntityField[]) {
+      const filter = filters[fieldName];
+      if (!filter) continue;
+      const param = nextLinkedEntityParam();
+      const condition = compileDocumentLinkedEntityFilterCondition(fieldName, filter, 'd', `:${param}`);
+      if (!condition) continue;
+      qb.andWhere(condition.sql, condition.value === undefined ? {} : { [param]: condition.value });
+    }
+
     return {
       qb,
       groupExpression: groupField.expression,
@@ -320,41 +696,65 @@ export class AiAggregateExecutor {
 
   private async aggregateByIds(
     context: AiExecutionContextWithManager,
-    entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
+    entityType: SupportedAggregateEntityType,
     groupBy: string,
     ids: string[],
-  ): Promise<Array<{ key: string | null; count: number }>> {
+    fn: AiAggregateFunction,
+    metric: { key: string; def: AiAggregateMetricDef } | null,
+  ): Promise<Array<{ key: string | null; count: number } | { key: string | null; value: number | string | null }>> {
     const registry = getAiEntityRegistry(entityType);
     const groupField = registry.aggregate.groupFields[groupBy];
     if (!groupField) {
       throw new BadRequestException('Unsupported group_by field.');
     }
 
-    const joins = (groupField.joins || []).join('\n');
+    const joins = Array.from(new Set([...(groupField.joins || []), ...(metric?.def.joins || [])])).join('\n');
     const alias = registry.aggregate.alias;
     const idColumn = registry.aggregate.idColumn ?? 'id';
+    if (fn === 'count' || !metric) {
+      const rows = await context.manager.query(
+        `SELECT ${groupField.expression} AS key, COUNT(*)::int AS count
+         FROM ${registry.aggregate.baseTable} ${alias}
+         ${joins}
+         WHERE ${alias}.tenant_id = $1
+           AND ${alias}.${idColumn} = ANY($2::uuid[])
+         GROUP BY ${groupField.expression}
+         ORDER BY count DESC, key ASC NULLS LAST`,
+        [context.tenantId, ids],
+      );
+
+      return (rows || []).map((row: any) => ({
+        key: row.key == null ? null : String(row.key),
+        count: Number(row.count) || 0,
+      }));
+    }
+
+    const aggregateExpression = buildMetricAggregateExpression(fn, metric.def.expression);
+    const orderDirection = getMetricOrderDirection(fn);
     const rows = await context.manager.query(
-      `SELECT ${groupField.expression} AS key, COUNT(*)::int AS count
+      `SELECT ${groupField.expression} AS key, ${aggregateExpression} AS value
        FROM ${registry.aggregate.baseTable} ${alias}
        ${joins}
        WHERE ${alias}.tenant_id = $1
          AND ${alias}.${idColumn} = ANY($2::uuid[])
        GROUP BY ${groupField.expression}
-       ORDER BY count DESC, key ASC NULLS LAST`,
+       ORDER BY value ${orderDirection} NULLS LAST, key ASC NULLS LAST`,
       [context.tenantId, ids],
     );
 
     return (rows || []).map((row: any) => ({
       key: row.key == null ? null : String(row.key),
-      count: Number(row.count) || 0,
+      value: normalizeAggregateValue(row.value, metric.def.type),
     }));
   }
 
   async execute(
     context: AiExecutionContextWithManager,
     input: {
-      entity_type: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents';
+      entity_type: AiQueryEntityType;
       group_by: string;
+      metric?: string;
+      function?: AiAggregateFunction;
       filters?: Record<string, AiFilterValue>;
       q?: string;
       scope?: AiQueryScope;
@@ -366,6 +766,8 @@ export class AiAggregateExecutor {
       throw new BadRequestException('Unsupported group_by field.');
     }
 
+    const fn = normalizeAggregateFunction(input.function);
+    const metric = this.resolveMetric(input.entity_type, input.metric?.trim(), fn);
     const adapted = adaptFilters(registry, input.filters);
     if (input.entity_type === 'documents') {
       const scoped = await applyScopeToAiQuery(
@@ -377,6 +779,8 @@ export class AiAggregateExecutor {
       if (scoped.scope && scoped.scope.resolved === false) {
         return {
           group_by: input.group_by,
+          metric: metric?.key ?? null,
+          function: fn,
           groups: [],
           total: 0,
           filters_applied: adapted.applied,
@@ -395,6 +799,8 @@ export class AiAggregateExecutor {
       if (total === 0) {
         return {
           group_by: input.group_by,
+          metric: metric?.key ?? null,
+          function: fn,
           groups: [],
           total: 0,
           filters_applied: adapted.applied,
@@ -403,21 +809,41 @@ export class AiAggregateExecutor {
         };
       }
 
-      const rows = await qb
-        .clone()
-        .select(groupExpression, 'key')
-        .addSelect('COUNT(*)::int', 'count')
-        .groupBy(groupExpression)
-        .orderBy('count', 'DESC')
-        .addOrderBy('key', 'ASC', 'NULLS LAST')
-        .getRawMany();
+      let rows: Array<{ key: string | null; count: number } | { key: string | null; value: number | string | null }>;
+      if (fn === 'count' || !metric) {
+        const countRows = await qb
+          .clone()
+          .select(groupExpression, 'key')
+          .addSelect('COUNT(*)::int', 'count')
+          .groupBy(groupExpression)
+          .orderBy('count', 'DESC')
+          .addOrderBy('key', 'ASC', 'NULLS LAST')
+          .getRawMany();
+        rows = (countRows || []).map((row: any) => ({
+          key: row.key == null ? null : String(row.key),
+          count: Number(row.count) || 0,
+        }));
+      } else {
+        const aggregateExpression = buildMetricAggregateExpression(fn, metric.def.expression);
+        const valueRows = await qb
+          .clone()
+          .select(groupExpression, 'key')
+          .addSelect(aggregateExpression, 'value')
+          .groupBy(groupExpression)
+          .orderBy('value', getMetricOrderDirection(fn), 'NULLS LAST')
+          .addOrderBy('key', 'ASC', 'NULLS LAST')
+          .getRawMany();
+        rows = (valueRows || []).map((row: any) => ({
+          key: row.key == null ? null : String(row.key),
+          value: normalizeAggregateValue(row.value, metric.def.type),
+        }));
+      }
 
       return {
         group_by: input.group_by,
-        groups: (rows || []).map((row: any) => ({
-          key: row.key == null ? null : String(row.key),
-          count: Number(row.count) || 0,
-        })),
+        metric: metric?.key ?? null,
+        function: fn,
+        groups: rows,
         total,
         filters_applied: adapted.applied,
         filters_ignored: adapted.ignored,
@@ -436,6 +862,8 @@ export class AiAggregateExecutor {
     if (ids.length === 0) {
       return {
         group_by: input.group_by,
+        metric: metric?.key ?? null,
+        function: fn,
         groups: [],
         total: 0,
         filters_applied: adapted.applied,
@@ -444,9 +872,11 @@ export class AiAggregateExecutor {
       };
     }
 
-    const groups = await this.aggregateByIds(context, input.entity_type, input.group_by, ids);
+    const groups = await this.aggregateByIds(context, input.entity_type, input.group_by, ids, fn, metric);
     return {
       group_by: input.group_by,
+      metric: metric?.key ?? null,
+      function: fn,
       groups,
       total: ids.length,
       filters_applied: adapted.applied,

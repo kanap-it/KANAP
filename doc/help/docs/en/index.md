@@ -31,7 +31,7 @@ If you want the shortest path to productivity, start with the Fast Track guides 
 - [Reporting](portfolio-reporting.md) - Capacity and workload reporting
 - [Settings](portfolio-settings.md) - Configure criteria, teams, and scoring
 
-### IT Operations
+### IT Landscape
 
 **Infrastructure**
 
@@ -48,7 +48,7 @@ If you want the shortest path to productivity, start with the Fast Track guides 
 
 **Settings**
 
-- [IT Operations Settings](it-ops-settings.md) - Configure dropdown values and catalogs
+- [IT Landscape Settings](it-ops-settings.md) - Configure dropdown values and catalogs
 
 ### Knowledge
 

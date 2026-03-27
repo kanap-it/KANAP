@@ -5,11 +5,15 @@ import { AuditModule } from '../audit/audit.module';
 import { AssetsModule } from '../assets/assets.module';
 import { Subscription } from '../billing/subscription.entity';
 import { BillingModule } from '../billing/billing.module';
+import { CompaniesModule } from '../companies/companies.module';
+import { ContractsModule } from '../contracts/contracts.module';
+import { DepartmentsModule } from '../departments/departments.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { LocationsModule } from '../locations/locations.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { PortfolioModule } from '../portfolio/portfolio.module';
 import { SpendModule } from '../spend/spend.module';
+import { SuppliersModule } from '../suppliers/suppliers.module';
 import { Tenant } from '../tenants/tenant.entity';
 import { TenantsModule } from '../tenants/tenants.module';
 import { UserRole } from '../users/user-role.entity';
@@ -63,11 +67,15 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AuditModule,
     AssetsModule,
     BillingModule,
+    CompaniesModule,
+    ContractsModule,
+    DepartmentsModule,
     KnowledgeModule,
     LocationsModule,
     PermissionsModule,
     PortfolioModule,
     SpendModule,
+    SuppliersModule,
     TenantsModule,
     UsersModule,
   ],

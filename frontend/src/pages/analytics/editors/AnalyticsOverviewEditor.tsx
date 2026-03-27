@@ -131,7 +131,7 @@ export default forwardRef<AnalyticsOverviewEditorHandle, Props>(function Analyti
             label="Name"
             required
             error={!!fieldState.error}
-            helperText={fieldState.error?.message || 'Enter a unique analytics category name'}
+            helperText={fieldState.error?.message || t('analytics.fields.nameHelper')}
             disabled={disabled}
             InputLabelProps={{ shrink: true }}
           />
@@ -174,4 +174,3 @@ export default forwardRef<AnalyticsOverviewEditorHandle, Props>(function Analyti
     </Stack>
   );
 });
-

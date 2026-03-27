@@ -33,7 +33,7 @@ Use Glob to find all `*Page.tsx` and `*WorkspacePage.tsx` files under `frontend/
 
 Categorize discovered pages into groups:
 - **Dashboard & Operations**: `/`, `/ops/*`
-- **IT Operations**: `/it/*`
+- **IT Landscape**: `/it/*`
 - **Master Data**: `/master-data/*`
 - **Admin & Settings**: `/admin/*`
 - **Reports**: `/ops/reports/*`
@@ -170,7 +170,7 @@ For each stale document, offer to:
 
 📁 Inventory regenerated: doc/help/_process/_documentation-inventory.md
    - Dashboard & Operations: 10/12 (83%)
-   - IT Operations: 8/10 (80%)
+   - IT Landscape: 8/10 (80%)
    - Master Data: 7/7 (100%)
    - Admin & Settings: 7/8 (88%)
    - Reports: 6/6 (100%)

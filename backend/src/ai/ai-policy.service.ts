@@ -37,9 +37,14 @@ const SURFACE_RESOURCE: Record<AiSurface, 'ai_chat' | 'ai_mcp'> = {
 const ENTITY_RESOURCE: Record<AiSearchEntityType | AiContextEntityType, string> = {
   applications: 'applications',
   assets: 'infrastructure',
+  companies: 'companies',
+  contracts: 'contracts',
+  departments: 'departments',
   locations: 'locations',
   projects: 'portfolio_projects',
   requests: 'portfolio_requests',
+  spend_items: 'opex',
+  suppliers: 'suppliers',
   tasks: 'tasks',
   documents: 'knowledge',
 };

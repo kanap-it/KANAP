@@ -18,6 +18,6 @@ import { FreezeModule } from '../freeze/freeze.module';
   imports: [TypeOrmModule.forFeature([Department, Company, DepartmentMetric]), AuditModule, PermissionsModule, forwardRef(() => UsersModule), FreezeModule],
   providers: [DepartmentsService, DepartmentsDeleteService, DepartmentMetricsService],
   controllers: [DepartmentsController, DepartmentMetricsController],
-  exports: [DepartmentMetricsService],
+  exports: [DepartmentsService, DepartmentMetricsService],
 })
 export class DepartmentsModule {}

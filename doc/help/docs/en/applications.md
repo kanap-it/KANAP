@@ -19,7 +19,7 @@ Every application or service belongs to a **category** that describes its primar
 **Tips for classification**:
 - Choose based on the application's **primary purpose**, not who manages it
 - When in doubt, ask: "What is this tool mainly used for?"
-- Categories can be customized in **IT Operations → Settings** to match your organization's terminology
+- Categories can be customized in **IT Landscape → Settings** to match your organization's terminology
 
 ### Filtering by stakeholder
 
@@ -36,7 +36,7 @@ Different teams can use categories to focus on their area of responsibility:
 
 ## Getting started
 
-Navigate to **IT Operations → Applications** to see your list. Click **New App / Service** to create your first entry.
+Navigate to **IT Landscape → Applications** to see your list. Click **New App / Service** to create your first entry.
 
 **Required fields**:
   - **Name**: A recognizable name for the application or service
@@ -123,11 +123,11 @@ The Overview tab captures the core identity of your application.
 **What you can edit**:
   - **Name**: The application's display name
   - **Description**: What this application does
-  - **Category**: The application's primary purpose (configurable in IT Operations Settings)
+  - **Category**: The application's primary purpose (configurable in IT Landscape Settings)
   - **Supplier**: Link to a supplier from your master data
   - **Publisher**: The software publisher
   - **Criticality**: Business critical, High, Medium, or Low
-  - **Lifecycle**: Current status (configurable in IT Operations Settings)
+  - **Lifecycle**: Current status (configurable in IT Landscape Settings)
   - **Can have child apps**: Enable this to use this application as a "suite" that groups other applications
   - **Licensing**: License terms and notes
   - **Notes**: Free-form notes
@@ -220,7 +220,7 @@ The Technical & Support tab captures technical details and support contacts.
 
 **Technical information**:
   - **Suites**: Parent suites this application belongs to
-  - **Access Methods**: How users access this application (multi-select). Options are configurable in [IT Operations Settings](it-ops-settings.md#access-methods). Default options include:
+  - **Access Methods**: How users access this application (multi-select). Options are configurable in [IT Landscape Settings](it-ops-settings.md#access-methods). Default options include:
     - Web
     - Locally installed application
     - Mobile application
@@ -277,7 +277,7 @@ The Compliance tab captures data protection and regulatory information.
   - **Contains PII**: Whether the application stores personally identifiable information
   - **Data Residency**: Countries where data is stored (multi-select)
 
-**Tip**: Data Classes are configurable in **IT Operations → Settings**. Customize them to match your organization's data classification policy.
+**Tip**: Data Classes are configurable in **IT Landscape → Settings**. Customize them to match your organization's data classification policy.
 
 ---
 
@@ -539,7 +539,7 @@ From the Applications list:
 
 ### Label and code acceptance
 
-For fields configured in **IT Operations → Settings**, you can use either the internal code or the display label:
+For fields configured in **IT Landscape → Settings**, you can use either the internal code or the display label:
 
 | Field | Example codes | Example labels |
 |-------|---------------|----------------|

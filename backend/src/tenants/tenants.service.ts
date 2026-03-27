@@ -89,10 +89,10 @@ const BUILT_IN_ROLES: Array<{
       portfolio_settings: 'reader'
     }
   },
-  // IT Operations Roles
+  // IT Landscape Roles
   {
-    name: 'IT Operations Administrator',
-    description: 'Full control over IT operations including applications, infrastructure, and settings',
+    name: 'IT Landscape Administrator',
+    description: 'Full control over IT landscape including applications, infrastructure, and settings',
     permissions: {
       applications: 'admin', infrastructure: 'admin', locations: 'admin', settings: 'admin',
       tasks: 'member', users: 'reader',
@@ -103,7 +103,7 @@ const BUILT_IN_ROLES: Array<{
     }
   },
   {
-    name: 'IT Operations Member',
+    name: 'IT Landscape Member',
     description: 'Can manage applications and infrastructure',
     permissions: {
       applications: 'member', infrastructure: 'member', locations: 'member', settings: 'member',
@@ -114,8 +114,8 @@ const BUILT_IN_ROLES: Array<{
     }
   },
   {
-    name: 'IT Operations Reader',
-    description: 'Read-only access to IT operations data',
+    name: 'IT Landscape Reader',
+    description: 'Read-only access to IT landscape data',
     permissions: {
       applications: 'reader', infrastructure: 'reader', locations: 'reader', settings: 'reader',
       tasks: 'reader', users: 'reader',

@@ -77,6 +77,8 @@ const AggregateEntitiesInputSchema = z.object({
   entity_type: AiQueryEntityTypeSchema,
   scope: AiQueryScopeSchema.optional(),
   group_by: z.string().trim().min(1),
+  metric: z.string().trim().min(1).optional(),
+  function: z.enum(['count', 'sum', 'avg', 'min', 'max']).optional(),
   filters: z.record(z.string(), AiFilterValueSchema).optional(),
   q: z.string().trim().optional(),
 });
@@ -140,7 +142,7 @@ export class AiToolRegistry {
           description: 'Query one readable entity family with server-side filters, pagination, and exact totals.',
           inputSchema: QueryEntitiesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, locations, projects, requests, tasks, or documents.',
+            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, or tasks.',
             scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             filters: 'Optional field filters keyed by AI field name.',
             q: 'Optional quick-search text.',
@@ -160,12 +162,14 @@ export class AiToolRegistry {
         'aggregate_entities',
         {
           name: 'aggregate_entities',
-          description: 'Break down one readable entity family by a supported field with exact server-side counts.',
+          description: 'Break down one readable entity family by a supported field with exact server-side counts or metric aggregations.',
           inputSchema: AggregateEntitiesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, locations, projects, requests, tasks, or documents.',
+            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, or tasks.',
             scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             group_by: 'A supported group-by field from the query layer registry.',
+            metric: 'Optional numeric or date field to aggregate when using sum, avg, min, or max.',
+            function: 'Optional aggregation function: count, sum, avg, min, or max. Defaults to count.',
             filters: 'Optional field filters keyed by AI field name.',
             q: 'Optional quick-search text.',
           },
@@ -184,7 +188,7 @@ export class AiToolRegistry {
           description: 'Discover exact filter values for supported set-like AI query fields.',
           inputSchema: GetFilterValuesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, locations, projects, requests, tasks, or documents.',
+            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, or tasks.',
             fields: 'AI field names to inspect.',
           },
           surfaces: ['chat', 'mcp'],
@@ -385,7 +389,7 @@ export class AiToolRegistry {
   private async loadAvailabilityContext(context: AiExecutionContextWithManager) {
     const readableEntityTypes = await this.policy.listReadableEntityTypes(
       context,
-      ['applications', 'assets', 'projects', 'requests', 'tasks', 'documents'],
+      ['applications', 'assets', 'companies', 'contracts', 'departments', 'documents', 'locations', 'projects', 'requests', 'spend_items', 'suppliers', 'tasks'],
       context.manager,
     );
     const canReadKnowledge = await this.policy.canReadKnowledge(context, context.manager);

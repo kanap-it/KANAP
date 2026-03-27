@@ -1,4 +1,4 @@
-# Locations (IT Operations)
+# Locations (IT Landscape)
 
 Metadata
 - Purpose: Document the new Locations grid + workspace, API surface, and supporting metadata.
@@ -8,7 +8,7 @@ Metadata
 
 ## Overview
 
-Locations are now a first-class IT Operations entity that anchor infrastructure hosting context. Each Location represents a physical site or cloud hosting footprint and carries type-specific metadata along with Contacts & Support info. Servers can be assigned to a Location, and the workspace derives related Servers and Applications automatically.
+Locations are now a first-class IT Landscape entity that anchor infrastructure hosting context. Each Location represents a physical site or cloud hosting footprint and carries type-specific metadata along with Contacts & Support info. Servers can be assigned to a Location, and the workspace derives related Servers and Applications automatically.
 
 Key capabilities:
 - `/it/locations` grid with quick search, AG filters, and per-row server counts.
@@ -92,7 +92,7 @@ All new tables enforce row-level security (`tenant_id = app_current_tenant()`).
 
 ### Navigation / Routing
 
-- IT Operations drawer now lists: Locations → Servers → Applications → Interfaces → Interface Map → Settings.
+- IT Landscape drawer now lists: Locations → Servers → Applications → Interfaces → Interface Map → Settings.
 - `/it` redirects to `/it/locations`.
 - Routes:
   - `/it/locations`

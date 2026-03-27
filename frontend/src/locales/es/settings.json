@@ -1,9 +1,9 @@
 {
-  "pageTitle": "Settings",
+  "pageTitle": "Configuración",
   "tabs": {
-    "profile": "Profile",
-    "notifications": "Notifications",
-    "appearance": "Appearance"
+    "profile": "Perfil",
+    "notifications": "Notificaciones",
+    "appearance": "Apariencia"
   },
   "profile": {
     "sections": {
@@ -24,64 +24,64 @@
     "messages": {
       "saveSuccess": "Perfil actualizado correctamente",
       "saveFailed": "No se pudo guardar el perfil",
-      "portfolioDescription": "Administra tu perfil de colaborador, habilidades, disponibilidad y valores predeterminados de clasificación."
+      "portfolioDescription": "Administre su perfil de colaborador, habilidades, disponibilidad y valores predeterminados de clasificación."
     },
     "actions": {
       "viewContributorProfile": "Ver perfil de colaborador"
     }
   },
   "appearance": {
-    "title": "Appearance",
-    "description": "Choose how Kanap should look in this browser.",
-    "light": "Light",
-    "dark": "Dark",
-    "system": "System",
-    "activeMode": "Active mode: {{mode}}"
+    "title": "Apariencia",
+    "description": "Elija cómo debe verse Kanap en este navegador.",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema",
+    "activeMode": "Modo activo: {{mode}}"
   },
   "notifications": {
-    "emailNotifications": "Email Notifications",
-    "emailDescription": "Receive email notifications for updates and activity",
+    "emailNotifications": "Notificaciones por correo electrónico",
+    "emailDescription": "Recibir notificaciones por correo electrónico sobre actualizaciones y actividad",
     "portfolio": {
-      "title": "Portfolio Notifications",
-      "statusChanges": "Status changes",
-      "teamAdditions": "When I'm added to a team",
-      "teamChangesAsLead": "Team changes on items I lead",
-      "comments": "Comments"
+      "title": "Notificaciones del portafolio",
+      "statusChanges": "Cambios de estado",
+      "teamAdditions": "Cuando me agregan a un equipo",
+      "teamChangesAsLead": "Cambios de equipo en elementos que lidero",
+      "comments": "Comentarios"
     },
     "tasks": {
-      "title": "Task Notifications",
-      "notifyWhen": "Notify me when I am:",
-      "asAssignee": "Assigned to a task",
-      "asRequestor": "Requestor of a task",
-      "asViewer": "Viewer of a task",
-      "viewerHint": "Can be noisy - off by default",
-      "eventTypes": "Event types:",
-      "statusChanges": "Status changes",
-      "comments": "Comments"
+      "title": "Notificaciones de tareas",
+      "notifyWhen": "Notificarme cuando soy:",
+      "asAssignee": "Asignado a una tarea",
+      "asRequestor": "Solicitante de una tarea",
+      "asViewer": "Observador de una tarea",
+      "viewerHint": "Puede ser frecuente — desactivado por defecto",
+      "eventTypes": "Tipos de eventos:",
+      "statusChanges": "Cambios de estado",
+      "comments": "Comentarios"
     },
     "budget": {
-      "title": "Budget Notifications",
-      "expirationWarnings": "Expiration warnings",
-      "statusChanges": "Status changes",
-      "comments": "Comments"
+      "title": "Notificaciones presupuestarias",
+      "expirationWarnings": "Alertas de vencimiento",
+      "statusChanges": "Cambios de estado",
+      "comments": "Comentarios"
     },
     "weeklyReview": {
-      "title": "Weekly Review Email",
-      "description": "Receive a summary of your activity and upcoming items",
-      "day": "Day",
-      "time": "Time",
-      "timezone": "Timezone",
-      "previewEmail": "Preview email",
-      "sending": "Sending..."
+      "title": "Correo de revisión semanal",
+      "description": "Recibir un resumen de su actividad y próximos elementos",
+      "day": "Día",
+      "time": "Hora",
+      "timezone": "Zona horaria",
+      "previewEmail": "Vista previa del correo",
+      "sending": "Enviando..."
     },
     "days": {
-      "sunday": "Sunday",
-      "monday": "Monday",
-      "tuesday": "Tuesday",
-      "wednesday": "Wednesday",
-      "thursday": "Thursday",
-      "friday": "Friday",
-      "saturday": "Saturday"
+      "sunday": "Domingo",
+      "monday": "Lunes",
+      "tuesday": "Martes",
+      "wednesday": "Miércoles",
+      "thursday": "Jueves",
+      "friday": "Viernes",
+      "saturday": "Sábado"
     }
   }
 }

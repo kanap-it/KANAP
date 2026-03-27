@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { emailWrapper } from '../notifications/notification-templates';
+import { getEmailStrings, interpolate } from '../i18n/email-i18n';
 import type { EmailBranding } from './email-branding';
 import { createEmailTransport } from './transports/email-transport.factory';
 import type {
@@ -18,6 +19,15 @@ interface QueuedEmail {
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 @Injectable()
 export class EmailService {
@@ -139,33 +149,45 @@ export class EmailService {
     await this.transport.send(resolved);
   }
 
-  async sendPasswordResetEmail(params: { to: string; resetUrl: string; expiresInMinutes?: number; branding?: EmailBranding }) {
+  async sendPasswordResetEmail(params: {
+    to: string;
+    resetUrl: string;
+    expiresInMinutes?: number;
+    branding?: EmailBranding;
+    locale?: string;
+  }) {
+    const strings = getEmailStrings(params.locale);
     const expires = params.expiresInMinutes ?? 60;
     const branding = params.branding;
     const pc = branding?.primaryColor ?? '#2D69E0';
-    const subject = 'Reset your KANAP password';
+    const subject = strings.auth.passwordReset.subject;
     const baseUrl = params.resetUrl.match(/^(https?:\/\/[^/]+)/)?.[1] || '';
     const preferencesUrl = baseUrl ? baseUrl + '/settings/notifications' : undefined;
+    const safeResetUrl = escapeHtml(params.resetUrl);
     const body = `
-      <p>Hello,</p>
-      <p>We received a request to reset the password associated with this email address.</p>
+      <p>${strings.common.labels.greetingHello}</p>
+      <p>${strings.auth.passwordReset.intro}</p>
       <p style="text-align: center; margin: 32px 0;">
-        <a href="${params.resetUrl}" style="background: ${pc}; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">
-          Reset password
+        <a href="${safeResetUrl}" style="background: ${pc}; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">
+          ${escapeHtml(strings.common.buttons.resetPassword)}
         </a>
       </p>
-      <p>If the button above does not work, copy and paste this link into your browser:</p>
+      <p>${strings.auth.passwordReset.copyPaste}</p>
       <p style="word-break: break-all;">
-        <a href="${params.resetUrl}">${params.resetUrl}</a>
+        <a href="${safeResetUrl}">${safeResetUrl}</a>
       </p>
-      <p>This link will expire in approximately ${expires} minutes. If you did not request a password reset, you can safely ignore this email.</p>
+      <p>${interpolate(strings.auth.passwordReset.expires, { minutes: expires })}</p>
     `;
-    const wrapper = emailWrapper(body, { preferencesUrl, branding });
-    const text = `Hello,\n\n`
-      + `We received a request to reset the password associated with this email address.\n\n`
-      + `Reset your password: ${params.resetUrl}\n\n`
-      + `This link will expire in approximately ${expires} minutes. If you did not request a password reset, you can safely ignore this email.`
-      + (preferencesUrl ? `\n\nManage notification preferences: ${preferencesUrl}` : '');
+    const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
+    const text = [
+      strings.common.labels.greetingHello,
+      strings.auth.passwordReset.intro,
+      interpolate(strings.auth.passwordReset.textAction, { url: params.resetUrl }),
+      interpolate(strings.auth.passwordReset.expires, { minutes: expires }),
+      preferencesUrl
+        ? interpolate(strings.common.footer.managePreferencesText, { url: preferencesUrl })
+        : null,
+    ].filter(Boolean).join('\n\n');
     await this.send({ to: params.to, subject, html: wrapper.html, text, attachments: wrapper.attachments });
   }
 
@@ -176,35 +198,62 @@ export class EmailService {
     roleName?: string | null;
     inviterEmail?: string | null;
     branding?: EmailBranding;
+    locale?: string;
   }) {
+    const strings = getEmailStrings(params.locale);
     const expires = params.expiresInMinutes ?? 60;
     const branding = params.branding;
     const pc = branding?.primaryColor ?? '#2D69E0';
-    const subject = 'You are invited to KANAP';
-    const roleLine = params.roleName ? ` as ${params.roleName}` : '';
-    const inviterLine = params.inviterEmail ? ` by ${params.inviterEmail}` : '';
+    const subject = strings.auth.userInvite.subject;
+    const roleLine = params.roleName
+      ? interpolate(strings.auth.userInvite.rolePart, {
+        roleName: escapeHtml(params.roleName),
+      })
+      : '';
+    const inviterLine = params.inviterEmail
+      ? interpolate(strings.auth.userInvite.inviterPart, {
+        inviterEmail: escapeHtml(params.inviterEmail),
+      })
+      : '';
+    const roleLineText = params.roleName
+      ? interpolate(strings.auth.userInvite.rolePart, { roleName: params.roleName })
+      : '';
+    const inviterLineText = params.inviterEmail
+      ? interpolate(strings.auth.userInvite.inviterPart, { inviterEmail: params.inviterEmail })
+      : '';
     const baseUrl = params.inviteUrl.match(/^(https?:\/\/[^/]+)/)?.[1] || '';
     const preferencesUrl = baseUrl ? baseUrl + '/settings/notifications' : undefined;
+    const safeInviteUrl = escapeHtml(params.inviteUrl);
     const body = `
-      <p>Hello,</p>
-      <p>You have been invited${inviterLine} to join KANAP${roleLine}.</p>
+      <p>${strings.common.labels.greetingHello}</p>
+      <p>${interpolate(strings.auth.userInvite.intro, {
+        inviterPart: inviterLine,
+        rolePart: roleLine,
+      })}</p>
       <p style="text-align: center; margin: 32px 0;">
-        <a href="${params.inviteUrl}" style="background: ${pc}; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">
-          Set your password
+        <a href="${safeInviteUrl}" style="background: ${pc}; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">
+          ${escapeHtml(strings.common.buttons.setPassword)}
         </a>
       </p>
-      <p>If the button above does not work, copy and paste this link into your browser:</p>
+      <p>${strings.auth.userInvite.copyPaste}</p>
       <p style="word-break: break-all;">
-        <a href="${params.inviteUrl}">${params.inviteUrl}</a>
+        <a href="${safeInviteUrl}">${safeInviteUrl}</a>
       </p>
-      <p>This link will expire in approximately ${expires} minutes. Once complete, you can sign in using your email and new password.</p>
+      <p>${interpolate(strings.auth.userInvite.expires, { minutes: expires })}</p>
     `;
-    const wrapper = emailWrapper(body, { preferencesUrl, branding });
-    const text = `Hello,\n\n`
-      + `You have been invited${inviterLine} to join KANAP${roleLine}.\n\n`
-      + `Set your password: ${params.inviteUrl}\n\n`
-      + `This link will expire in approximately ${expires} minutes. Once complete, you can sign in using your email and new password.`
-      + (preferencesUrl ? `\n\nManage notification preferences: ${preferencesUrl}` : '');
+    const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
+    const text = [
+      strings.common.labels.greetingHello,
+      interpolate(strings.auth.userInvite.intro, {
+        inviterPart: inviterLineText,
+        rolePart: roleLineText,
+      }),
+      interpolate(strings.auth.userInvite.textAction, { url: params.inviteUrl }),
+      interpolate(strings.auth.userInvite.expires, { minutes: expires }),
+      preferencesUrl
+        ? interpolate(strings.common.footer.managePreferencesText, { url: preferencesUrl })
+        : null,
+    ].filter(Boolean).join('\n\n');
     await this.send({ to: params.to, subject, html: wrapper.html, text, attachments: wrapper.attachments });
   }
 

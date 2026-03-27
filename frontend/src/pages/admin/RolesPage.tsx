@@ -15,7 +15,7 @@ const PERMISSION_GROUPS = {
   'AI': ['ai_chat', 'ai_mcp', 'ai_settings'],
   'Budget & Finance': ['opex', 'capex', 'budget_ops', 'contracts', 'analytics', 'reporting'],
   'Portfolio Management': ['portfolio_requests', 'portfolio_projects', 'portfolio_planning', 'portfolio_reports', 'portfolio_settings'],
-  'IT Operations': ['applications', 'infrastructure', 'locations', 'settings'],
+  'IT Landscape': ['applications', 'infrastructure', 'locations', 'settings'],
   'Master Data': ['companies', 'departments', 'suppliers', 'contacts', 'accounts', 'business_processes'],
   'Tasks': ['tasks'],
   'Knowledge': ['knowledge'],

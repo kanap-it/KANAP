@@ -1,43 +1,43 @@
 {
   "conversationList": {
-    "archive": "Archive",
-    "newChat": "New Chat",
-    "untitled": "Untitled"
+    "archive": "Archivar",
+    "newChat": "Nueva conversación",
+    "untitled": "Sin título"
   },
   "errors": {
-    "generic": "An error occurred.",
-    "noResponseBody": "No response body.",
-    "sendFailed": "Failed to send message.",
-    "streamBufferExceeded": "Stream buffer exceeded the maximum allowed size.",
-    "streamRequestFailed": "Stream request failed."
+    "generic": "Se produjo un error.",
+    "noResponseBody": "Sin cuerpo de respuesta.",
+    "sendFailed": "Error al enviar el mensaje.",
+    "streamBufferExceeded": "El búfer de flujo superó el tamaño máximo permitido.",
+    "streamRequestFailed": "La solicitud de flujo falló."
   },
   "input": {
-    "placeholder": "Send a message...",
-    "send": "Send"
+    "placeholder": "Enviar un mensaje...",
+    "send": "Enviar"
   },
   "messageList": {
-    "toolUseCount_one": "{{count}} tool used",
-    "toolUseCount_other": "{{count}} tools used",
-    "toolUseProgress": "Using tools..."
+    "toolUseCount_one": "{{count}} herramienta utilizada",
+    "toolUseCount_other": "{{count}} herramientas utilizadas",
+    "toolUseProgress": "Usando herramientas..."
   },
   "toolResults": {
-    "noDocuments": "No documents found.",
-    "noResults": "No results.",
+    "noDocuments": "No se encontraron documentos.",
+    "noResults": "Sin resultados.",
     "toolNames": {
-      "get_document": "Get document",
-      "get_entity_context": "Get entity context",
-      "search_all": "Search all",
-      "search_knowledge": "Search knowledge"
+      "get_document": "Obtener documento",
+      "get_entity_context": "Obtener contexto de entidad",
+      "search_all": "Buscar todo",
+      "search_knowledge": "Buscar en la base de conocimiento"
     }
   },
   "workspace": {
     "empty": {
-      "subtitle": "Ask a question to begin.",
-      "title": "Start a new conversation"
+      "subtitle": "Haga una pregunta para comenzar.",
+      "title": "Iniciar una nueva conversación"
     },
     "messages": {
-      "disabled": "AI chat is disabled for this workspace."
+      "disabled": "El chat de IA está desactivado para este espacio de trabajo."
     },
-    "title": "AI"
+    "title": "IA"
   }
 }

@@ -34,7 +34,7 @@ const routeToDocSlug: [RegExp, string][] = [
   [/^\/knowledge\/[^/]+/, 'knowledge'],
   [/^\/knowledge/, 'knowledge'],
 
-  // IT Operations
+  // IT Landscape
   [/^\/it\/applications\/\d+/, 'applications'],
   [/^\/it\/applications/, 'applications'],
   [/^\/it\/interfaces\/\d+/, 'interfaces'],

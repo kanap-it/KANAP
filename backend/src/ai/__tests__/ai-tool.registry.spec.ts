@@ -322,7 +322,7 @@ async function testAggregateEntitiesDelegatesToAggregateExecutor() {
     aggregateExecutor: {
       execute: async (_context: unknown, input: unknown) => {
         calls.push(input);
-        return { group_by: 'status', groups: [{ key: 'open', count: 2 }], total: 2, filters_applied: [], filters_ignored: [] };
+        return { group_by: 'status', metric: 'priority_score', function: 'sum', groups: [{ key: 'open', value: 2 }], total: 2, filters_applied: [], filters_ignored: [] };
       },
     },
   });
@@ -330,13 +330,26 @@ async function testAggregateEntitiesDelegatesToAggregateExecutor() {
   const result = await registry.execute(createContext(), 'aggregate_entities', {
     entity_type: 'tasks',
     group_by: 'status',
+    metric: 'priority_score',
+    function: 'sum',
   }) as any;
 
   assert.equal(result.total, 2);
   assert.deepEqual(calls, [{
     entity_type: 'tasks',
     group_by: 'status',
+    metric: 'priority_score',
+    function: 'sum',
   }]);
+}
+
+async function testAggregateEntitiesSchemaExposesMetricAndFunction() {
+  const registry = createRegistry();
+  const schemas = await registry.getToolJsonSchemas(createContext()) as any[];
+  const aggregate = schemas.find((schema) => schema.name === 'aggregate_entities');
+
+  assert.equal(aggregate.parameters.properties.metric.type, 'string');
+  assert.deepEqual(aggregate.parameters.properties.function.enum, ['count', 'sum', 'avg', 'min', 'max']);
 }
 
 async function testGetFilterValuesDelegatesToQueryExecutor() {
@@ -387,6 +400,7 @@ async function run() {
   await testQueryEntitiesDelegatesToQueryExecutor();
   await testQueryEntitiesAppliesGenerousDefaultLimit();
   await testAggregateEntitiesDelegatesToAggregateExecutor();
+  await testAggregateEntitiesSchemaExposesMetricAndFunction();
   await testGetFilterValuesDelegatesToQueryExecutor();
   await testGetEntityContextDelegatesToEntityTools();
   await testSearchKnowledgeMapsStableDto();

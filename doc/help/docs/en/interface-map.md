@@ -4,7 +4,7 @@ The Interface Map provides an interactive visualization of your application inte
 
 ## Where to find it
 
-Navigate to **IT Operations → Interface Map** to open the visualization.
+Navigate to **IT Landscape → Interface Map** to open the visualization.
 
 **Permissions**: You need at least `applications:reader` to view the map.
 

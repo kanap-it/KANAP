@@ -153,10 +153,10 @@
       "title": "Interface Map"
     },
     "settings": {
-      "title": "IT Operations Settings",
-      "description": "Configure reusable lists for data classification, server catalog, and interface protocols used across the IT Operations workspace.",
-      "loadFailed": "Failed to load IT Operations settings.",
-      "updateSuccess": "IT Operations settings updated successfully",
+      "title": "IT Landscape Settings",
+      "description": "Configure reusable lists for data classification, server catalog, and interface protocols used across the IT Landscape workspace.",
+      "loadFailed": "Failed to load IT Landscape settings.",
+      "updateSuccess": "IT Landscape settings updated successfully",
       "updateFailed": "Failed to update settings",
       "groups": {
         "locations": {
@@ -506,7 +506,7 @@
     "serverAssignments": {
       "title": "Server assignments",
       "description": "Track which servers host each application instance.",
-      "noRolesWarning": "No server roles configured. Update IT Operations settings before creating new assignments.",
+      "noRolesWarning": "No server roles configured. Update IT Landscape settings before creating new assignments.",
       "addAssignment": "Add assignment",
       "noServersAssigned": "No servers assigned.",
       "assignmentUpdated": "Assignment updated",

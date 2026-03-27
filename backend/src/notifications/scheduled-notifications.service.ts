@@ -1,6 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import * as dayjs from 'dayjs';
+import 'dayjs/locale/de';
+import 'dayjs/locale/es';
+import 'dayjs/locale/fr';
 import * as utc from 'dayjs/plugin/utc';
 import * as timezone from 'dayjs/plugin/timezone';
 import { EmailService } from '../email/email.service';
@@ -12,6 +15,7 @@ import { ACTIVE_TASK_STATUSES } from '../tasks/task.entity';
 import { StorageService } from '../common/storage/storage.service';
 import { type EmailBranding, resolveEmailBranding, getDefaultEmailBranding } from '../email/email-branding';
 import { ScheduledTasksService } from '../admin/scheduled-tasks/scheduled-tasks.service';
+import { resolveEmailLocale } from '../i18n/email-i18n';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -156,7 +160,8 @@ export class ScheduledNotificationsService implements OnModuleInit {
         (c.start_date + (c.duration_months || ' months')::interval - '1 day'::interval)::date as end_date,
         ((c.start_date + (c.duration_months || ' months')::interval - '1 day'::interval) - (c.notice_period_months || ' months')::interval)::date as cancellation_deadline,
         u.id as owner_id,
-        u.email as owner_email
+        u.email as owner_email,
+        u.locale as owner_locale
       FROM contracts c
       LEFT JOIN users u ON u.id = c.owner_user_id AND u.status = 'enabled'
       WHERE c.status = 'ENABLED'
@@ -189,7 +194,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
           expirationDate: cancellationDeadline.format('YYYY-MM-DD'),
           daysRemaining,
           warningType: 'cancellation_deadline',
-          recipients: [{ userId: contract.owner_id, email: contract.owner_email }],
+          recipients: [{ userId: contract.owner_id, email: contract.owner_email, locale: contract.owner_locale }],
           tenantId: contract.tenant_id,
           manager: mg,
         });
@@ -205,7 +210,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
           expirationDate: endDate.format('YYYY-MM-DD'),
           daysRemaining,
           warningType: 'expiration',
-          recipients: [{ userId: contract.owner_id, email: contract.owner_email }],
+          recipients: [{ userId: contract.owner_id, email: contract.owner_email, locale: contract.owner_locale }],
           tenantId: contract.tenant_id,
           manager: mg,
         });
@@ -227,8 +232,10 @@ export class ScheduledNotificationsService implements OnModuleInit {
         s.owner_business_id,
         it_user.id as it_owner_id,
         it_user.email as it_owner_email,
+        it_user.locale as it_owner_locale,
         biz_user.id as biz_owner_id,
-        biz_user.email as biz_owner_email
+        biz_user.email as biz_owner_email,
+        biz_user.locale as biz_owner_locale
       FROM spend_items s
       LEFT JOIN users it_user ON it_user.id = s.owner_it_id AND it_user.status = 'enabled'
       LEFT JOIN users biz_user ON biz_user.id = s.owner_business_id AND biz_user.status = 'enabled'
@@ -244,10 +251,10 @@ export class ScheduledNotificationsService implements OnModuleInit {
 
       const recipients = [];
       if (item.it_owner_email) {
-        recipients.push({ userId: item.it_owner_id, email: item.it_owner_email });
+        recipients.push({ userId: item.it_owner_id, email: item.it_owner_email, locale: item.it_owner_locale });
       }
       if (item.biz_owner_email) {
-        recipients.push({ userId: item.biz_owner_id, email: item.biz_owner_email });
+        recipients.push({ userId: item.biz_owner_id, email: item.biz_owner_email, locale: item.biz_owner_locale });
       }
 
       if (recipients.length > 0) {
@@ -387,7 +394,8 @@ export class ScheduledNotificationsService implements OnModuleInit {
             p.updated_at as preferences_updated_at,
             u.email,
             u.first_name,
-            u.last_name
+            u.last_name,
+            u.locale
           FROM users u
           JOIN roles ro ON ro.id = u.role_id
           LEFT JOIN user_notification_preferences p
@@ -474,6 +482,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
           u.email,
           u.first_name,
           u.last_name,
+          u.locale,
           COALESCE(p.weekly_review_enabled, false) as weekly_review_enabled,
           COALESCE(p.emails_enabled, false) as emails_enabled,
           COALESCE(p.weekly_review_day, 1) as weekly_review_day,
@@ -556,6 +565,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
       first_name: string;
       last_name: string;
       timezone: string;
+      locale?: string | null;
     },
     mg: any,
   ): Promise<boolean> {
@@ -566,7 +576,8 @@ export class ScheduledNotificationsService implements OnModuleInit {
     const userNow = dayjs().tz(user.timezone);
     const weekStart = userNow.subtract(7, 'day').startOf('day').utc().toISOString();
     const weekEnd = userNow.startOf('day').utc().toISOString();
-    const weekLabel = `${dayjs(weekStart).format('MMMM D')} - ${dayjs(weekEnd).subtract(1, 'day').format('MMMM D, YYYY')}`;
+    const emailLocale = resolveEmailLocale(user.locale);
+    const weekLabel = `${dayjs(weekStart).locale(emailLocale).format('MMMM D')} - ${dayjs(weekEnd).subtract(1, 'day').locale(emailLocale).format('MMMM D, YYYY')}`;
 
     // Set tenant context for RLS
     await mg.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
@@ -769,6 +780,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
         name: r.name,
       })),
       branding,
+      locale: emailLocale,
     });
 
     try {

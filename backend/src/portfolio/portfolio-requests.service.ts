@@ -283,6 +283,11 @@ export class PortfolioRequestsService {
         textExpression: `COALESCE((SELECT c.name FROM companies c WHERE c.id = r.company_id), '')`,
         dataType: 'string',
       },
+      department_name: {
+        expression: 'r.department_id',
+        textExpression: `COALESCE((SELECT d.name FROM departments d WHERE d.id = r.department_id), '')`,
+        dataType: 'string',
+      },
       requestor_name: {
         expression: 'r.requestor_id',
         textExpression: `COALESCE((SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id), '')`,
@@ -333,6 +338,7 @@ export class PortfolioRequestsService {
       `(SELECT cat.name FROM portfolio_categories cat WHERE cat.id = r.category_id)`,
       `(SELECT s.name FROM portfolio_streams s WHERE s.id = r.stream_id)`,
       `(SELECT c.name FROM companies c WHERE c.id = r.company_id)`,
+      `(SELECT d.name FROM departments d WHERE d.id = r.department_id)`,
       `(SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id)`,
       buildUserDisplayNameSql('r.business_lead_id', 'r.tenant_id'),
       buildUserDisplayNameSql('r.it_lead_id', 'r.tenant_id'),
@@ -448,6 +454,11 @@ export class PortfolioRequestsService {
         textExpression: `COALESCE((SELECT c.name FROM companies c WHERE c.id = r.company_id), '')`,
         dataType: 'string',
       },
+      department_name: {
+        expression: 'r.department_id',
+        textExpression: `COALESCE((SELECT d.name FROM departments d WHERE d.id = r.department_id), '')`,
+        dataType: 'string',
+      },
       requestor_name: {
         expression: 'r.requestor_id',
         textExpression: `COALESCE((SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id), '')`,
@@ -547,7 +558,7 @@ export class PortfolioRequestsService {
     const fm = filters && typeof filters === 'object' ? filters : undefined;
 
     const rawFields = String(query?.fields || query?.field || '').split(',').map((f) => f.trim()).filter(Boolean);
-    const allowed = new Set(['status', 'source_name', 'category_name', 'stream_name', 'company_name', 'requestor_name', 'business_lead_name', 'it_lead_name', 'contributor_name']);
+    const allowed = new Set(['status', 'source_name', 'category_name', 'stream_name', 'company_name', 'department_name', 'requestor_name', 'business_lead_name', 'it_lead_name', 'contributor_name']);
     const fields = rawFields.filter((field) => allowed.has(field));
     if (fields.length === 0) return {};
 
@@ -588,6 +599,11 @@ export class PortfolioRequestsService {
         textExpression: `COALESCE((SELECT c.name FROM companies c WHERE c.id = r.company_id), '')`,
         dataType: 'string',
       },
+      department_name: {
+        expression: 'r.department_id',
+        textExpression: `COALESCE((SELECT d.name FROM departments d WHERE d.id = r.department_id), '')`,
+        dataType: 'string',
+      },
       requestor_name: {
         expression: 'r.requestor_id',
         textExpression: `COALESCE((SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id), '')`,
@@ -616,6 +632,7 @@ export class PortfolioRequestsService {
       category_name: `(SELECT c.name FROM portfolio_categories c WHERE c.id = r.category_id)`,
       stream_name: `(SELECT s.name FROM portfolio_streams s WHERE s.id = r.stream_id)`,
       company_name: `(SELECT c.name FROM companies c WHERE c.id = r.company_id)`,
+      department_name: `(SELECT d.name FROM departments d WHERE d.id = r.department_id)`,
       requestor_name: `(SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id)`,
       business_lead_name: buildUserDisplayNameSql('r.business_lead_id', 'r.tenant_id'),
       it_lead_name: buildUserDisplayNameSql('r.it_lead_id', 'r.tenant_id'),
@@ -628,6 +645,7 @@ export class PortfolioRequestsService {
       `(SELECT cat.name FROM portfolio_categories cat WHERE cat.id = r.category_id)`,
       `(SELECT s.name FROM portfolio_streams s WHERE s.id = r.stream_id)`,
       `(SELECT c.name FROM companies c WHERE c.id = r.company_id)`,
+      `(SELECT d.name FROM departments d WHERE d.id = r.department_id)`,
       `(SELECT COALESCE(NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) FROM users u WHERE u.id = r.requestor_id)`,
       buildUserDisplayNameSql('r.business_lead_id', 'r.tenant_id'),
       buildUserDisplayNameSql('r.it_lead_id', 'r.tenant_id'),
@@ -1452,7 +1470,7 @@ export class PortfolioRequestsService {
       // Exclude users with system roles (e.g., Contact) who cannot log in
       if (change.newId && change.newId !== change.oldId) {
         const user = await mg.query(
-          `SELECT u.id, u.email, u.first_name, u.last_name FROM users u
+          `SELECT u.id, u.email, u.first_name, u.last_name, u.locale FROM users u
            JOIN roles ro ON ro.id = u.role_id
            WHERE u.id = $1 AND u.status = 'enabled'
              AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
@@ -1465,7 +1483,7 @@ export class PortfolioRequestsService {
             itemId: id,
             itemName: saved.name,
             role: change.role,
-            addedUser: { userId: user[0].id, email: user[0].email },
+            addedUser: { userId: user[0].id, email: user[0].email, locale: user[0].locale },
             tenantId,
           });
           // Notify IT Lead about the team change
@@ -1556,7 +1574,7 @@ export class PortfolioRequestsService {
     // Exclude users with system roles (e.g., Contact) who cannot log in
     if (newUserIds.length > 0) {
       const users = await mg.query(
-        `SELECT u.id, u.email, u.first_name, u.last_name FROM users u
+        `SELECT u.id, u.email, u.first_name, u.last_name, u.locale FROM users u
          JOIN roles ro ON ro.id = u.role_id
          WHERE u.id = ANY($1) AND u.status = 'enabled'
            AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
@@ -1569,7 +1587,7 @@ export class PortfolioRequestsService {
           itemId: requestId,
           itemName: request.name,
           role,
-          addedUser: { userId: user.id, email: user.email },
+          addedUser: { userId: user.id, email: user.email, locale: user.locale },
           tenantId: request.tenant_id,
           manager: mg,
         });
@@ -2796,7 +2814,7 @@ export class PortfolioRequestsService {
 
     const recipientRows = userIds.length > 0
       ? await mg.query(
-          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName"
+          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.locale
            FROM users u
            JOIN roles ro ON ro.id = u.role_id
            WHERE u.id = ANY($1) AND u.status = 'enabled'

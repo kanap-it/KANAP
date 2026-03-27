@@ -42,7 +42,7 @@ function buildProjectSummarySql(alias: string): string {
     END,
     CASE
       WHEN COALESCE(${alias}.execution_progress, 0) > 0
-      THEN CONCAT('Progress: ', ROUND(${alias}.execution_progress)::int, '%')
+      THEN CONCAT('Effort: ', ROUND(${alias}.execution_progress)::int, '%')
       ELSE NULL
     END,
     CASE
@@ -286,6 +286,278 @@ export class AiEntityService {
 
     return {
       items: rows.map((row) => ({ ...toSummary('assets', row, row.summary), _score: row.score ?? 1 })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
+  }
+
+  private async searchSpendItems(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ): Promise<RankedSearchResult> {
+    const like = `%${query}%`;
+    const rows = await context.manager.query<SearchRow[]>(
+      `SELECT si.id,
+              NULL::int AS item_number,
+              si.product_name AS label,
+              COALESCE(
+                NULLIF(si.description, ''),
+                NULLIF(CONCAT_WS(' | ', sup.name, comp.name, NULLIF(TRIM(CONCAT_WS(' ', acc.account_number, acc.account_name)), '')), '')
+              ) AS summary,
+              si.status,
+              si.updated_at,
+              sup.name AS supplier_name,
+              comp.name AS company_name,
+              NULLIF(TRIM(CONCAT_WS(' ', acc.account_number, acc.account_name)), '') AS account_display,
+              lc.contract_name,
+              COUNT(*) OVER()::int AS total_count,
+              CASE
+                WHEN si.product_name ILIKE $1 THEN 3
+                WHEN COALESCE(sup.name, '') ILIKE $1 OR COALESCE(comp.name, '') ILIKE $1 THEN 2
+                ELSE 1
+              END AS score
+       FROM spend_items si
+       LEFT JOIN suppliers sup ON sup.id = si.supplier_id AND sup.tenant_id = si.tenant_id
+       LEFT JOIN companies comp ON comp.id = si.paying_company_id AND comp.tenant_id = si.tenant_id
+       LEFT JOIN accounts acc ON acc.id = si.account_id AND acc.tenant_id = si.tenant_id
+       LEFT JOIN LATERAL (
+         SELECT c.name AS contract_name
+         FROM contract_spend_items csi
+         JOIN contracts c ON c.id = csi.contract_id AND c.tenant_id = si.tenant_id
+         WHERE csi.spend_item_id = si.id
+         ORDER BY csi.created_at DESC
+         LIMIT 1
+       ) lc ON TRUE
+       WHERE si.tenant_id = $2
+         AND (
+           si.product_name ILIKE $1
+           OR COALESCE(si.description, '') ILIKE $1
+           OR COALESCE(sup.name, '') ILIKE $1
+           OR COALESCE(comp.name, '') ILIKE $1
+           OR COALESCE(acc.account_name, '') ILIKE $1
+           OR COALESCE(acc.account_number, '') ILIKE $1
+           OR COALESCE(lc.contract_name, '') ILIKE $1
+           OR COALESCE(si.currency, '') ILIKE $1
+           OR COALESCE(si.notes, '') ILIKE $1
+         )
+       ORDER BY score DESC, si.updated_at DESC, si.product_name ASC
+       LIMIT $3`,
+      [like, context.tenantId, limit],
+    );
+
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('spend_items', {
+          ...row,
+          metadata: {
+            supplier: row.supplier_name ?? null,
+            paying_company: row.company_name ?? null,
+            account: row.account_display ?? null,
+            contract: row.contract_name ?? null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
+  }
+
+  private async searchContracts(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ): Promise<RankedSearchResult> {
+    const like = `%${query}%`;
+    const rows = await context.manager.query<SearchRow[]>(
+      `SELECT c.id,
+              NULL::int AS item_number,
+              c.name AS label,
+              COALESCE(NULLIF(c.notes, ''), NULLIF(CONCAT_WS(' | ', comp.name, sup.name), '')) AS summary,
+              c.status,
+              c.updated_at,
+              comp.name AS company_name,
+              sup.name AS supplier_name,
+              COUNT(*) OVER()::int AS total_count,
+              CASE
+                WHEN c.name ILIKE $1 THEN 3
+                WHEN COALESCE(comp.name, '') ILIKE $1 OR COALESCE(sup.name, '') ILIKE $1 THEN 2
+                ELSE 1
+              END AS score
+       FROM contracts c
+       LEFT JOIN companies comp ON comp.id = c.company_id AND comp.tenant_id = c.tenant_id
+       LEFT JOIN suppliers sup ON sup.id = c.supplier_id AND sup.tenant_id = c.tenant_id
+       WHERE c.tenant_id = $2
+         AND (
+           c.name ILIKE $1
+           OR COALESCE(c.notes, '') ILIKE $1
+           OR COALESCE(comp.name, '') ILIKE $1
+           OR COALESCE(sup.name, '') ILIKE $1
+           OR COALESCE(c.currency, '') ILIKE $1
+           OR COALESCE(c.billing_frequency, '') ILIKE $1
+         )
+       ORDER BY score DESC, c.updated_at DESC, c.name ASC
+       LIMIT $3`,
+      [like, context.tenantId, limit],
+    );
+
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('contracts', {
+          ...row,
+          metadata: {
+            company: row.company_name ?? null,
+            supplier: row.supplier_name ?? null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
+  }
+
+  private async searchCompanies(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ): Promise<RankedSearchResult> {
+    const like = `%${query}%`;
+    const rows = await context.manager.query<SearchRow[]>(
+      `SELECT c.id,
+              NULL::int AS item_number,
+              c.name AS label,
+              NULLIF(CONCAT_WS(', ', c.city, c.country_iso), '') AS summary,
+              c.status,
+              c.updated_at,
+              c.base_currency,
+              COUNT(*) OVER()::int AS total_count,
+              CASE
+                WHEN c.name ILIKE $1 THEN 3
+                WHEN COALESCE(c.city, '') ILIKE $1 OR COALESCE(c.country_iso, '') ILIKE $1 THEN 2
+                ELSE 1
+              END AS score
+       FROM companies c
+       WHERE c.tenant_id = $2
+         AND (
+           c.name ILIKE $1
+           OR COALESCE(c.country_iso, '') ILIKE $1
+           OR COALESCE(c.city, '') ILIKE $1
+           OR COALESCE(c.address1, '') ILIKE $1
+           OR COALESCE(c.address2, '') ILIKE $1
+           OR COALESCE(c.postal_code, '') ILIKE $1
+           OR COALESCE(c.reg_number, '') ILIKE $1
+           OR COALESCE(c.vat_number, '') ILIKE $1
+           OR COALESCE(c.base_currency, '') ILIKE $1
+           OR COALESCE(c.notes, '') ILIKE $1
+         )
+       ORDER BY score DESC, c.updated_at DESC, c.name ASC
+       LIMIT $3`,
+      [like, context.tenantId, limit],
+    );
+
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('companies', {
+          ...row,
+          metadata: {
+            base_currency: row.base_currency ?? null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
+  }
+
+  private async searchSuppliers(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ): Promise<RankedSearchResult> {
+    const like = `%${query}%`;
+    const rows = await context.manager.query<SearchRow[]>(
+      `SELECT s.id,
+              NULL::int AS item_number,
+              s.name AS label,
+              COALESCE(NULLIF(s.notes, ''), s.erp_supplier_id) AS summary,
+              s.status,
+              s.updated_at,
+              s.erp_supplier_id,
+              COUNT(*) OVER()::int AS total_count,
+              CASE
+                WHEN s.name ILIKE $1 THEN 3
+                WHEN COALESCE(s.erp_supplier_id, '') ILIKE $1 THEN 2
+                ELSE 1
+              END AS score
+       FROM suppliers s
+       WHERE s.tenant_id = $2
+         AND (
+           s.name ILIKE $1
+           OR COALESCE(s.erp_supplier_id, '') ILIKE $1
+           OR COALESCE(s.notes, '') ILIKE $1
+         )
+       ORDER BY score DESC, s.updated_at DESC, s.name ASC
+       LIMIT $3`,
+      [like, context.tenantId, limit],
+    );
+
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('suppliers', {
+          ...row,
+          metadata: {
+            erp_supplier_id: row.erp_supplier_id ?? null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
+  }
+
+  private async searchDepartments(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ): Promise<RankedSearchResult> {
+    const like = `%${query}%`;
+    const rows = await context.manager.query<SearchRow[]>(
+      `SELECT d.id,
+              NULL::int AS item_number,
+              d.name AS label,
+              COALESCE(NULLIF(d.description, ''), comp.name) AS summary,
+              d.status,
+              d.updated_at,
+              comp.name AS company_name,
+              COUNT(*) OVER()::int AS total_count,
+              CASE
+                WHEN d.name ILIKE $1 THEN 3
+                WHEN COALESCE(comp.name, '') ILIKE $1 THEN 2
+                ELSE 1
+              END AS score
+       FROM departments d
+       LEFT JOIN companies comp ON comp.id = d.company_id AND comp.tenant_id = d.tenant_id
+       WHERE d.tenant_id = $2
+         AND (
+           d.name ILIKE $1
+           OR COALESCE(d.description, '') ILIKE $1
+           OR COALESCE(comp.name, '') ILIKE $1
+           OR COALESCE(d.status, '') ILIKE $1
+         )
+       ORDER BY score DESC, d.updated_at DESC, d.name ASC
+       LIMIT $3`,
+      [like, context.tenantId, limit],
+    );
+
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('departments', {
+          ...row,
+          metadata: {
+            company: row.company_name ?? null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
       total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
     };
   }
@@ -733,7 +1005,7 @@ export class AiEntityService {
   ) {
     const requested = input.entity_types && input.entity_types.length > 0
       ? input.entity_types
-      : ['applications', 'assets', 'locations', 'projects', 'requests', 'tasks', 'documents'] as AiSearchEntityType[];
+      : ['applications', 'assets', 'companies', 'contracts', 'departments', 'documents', 'locations', 'projects', 'requests', 'spend_items', 'suppliers', 'tasks'] as AiSearchEntityType[];
     const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
     if (allowed.length === 0) {
       return { items: [], total: 0, entity_types: [] as AiSearchEntityType[] };
@@ -746,9 +1018,14 @@ export class AiEntityService {
       allowed.map(async (type) => {
         if (type === 'applications') return this.searchApplications(context, input.query, fetchLimit);
         if (type === 'assets') return this.searchAssets(context, input.query, fetchLimit);
+        if (type === 'companies') return this.searchCompanies(context, input.query, fetchLimit);
+        if (type === 'contracts') return this.searchContracts(context, input.query, fetchLimit);
+        if (type === 'departments') return this.searchDepartments(context, input.query, fetchLimit);
         if (type === 'locations') return this.searchLocations(context, input.query, fetchLimit);
         if (type === 'projects') return this.searchProjects(context, input.query, fetchLimit);
         if (type === 'requests') return this.searchRequests(context, input.query, fetchLimit);
+        if (type === 'spend_items') return this.searchSpendItems(context, input.query, fetchLimit);
+        if (type === 'suppliers') return this.searchSuppliers(context, input.query, fetchLimit);
         if (type === 'tasks') return this.searchTasks(context, input.query, fetchLimit);
 
         const search = await this.knowledge.search({ q: input.query, limit: fetchLimit, offset: 0 }, { manager: context.manager });

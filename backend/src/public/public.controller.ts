@@ -30,6 +30,7 @@ import {
   buildSupportRequestEmail,
   buildNewTenantNotificationEmail,
 } from '../notifications/notification-templates';
+import { resolveEmailLocale } from '../i18n/email-i18n';
 
 const STRIPE_EU_BANK_TRANSFER_COUNTRIES = new Set<string>(['BE', 'DE', 'ES', 'FR', 'IE', 'NL']);
 const STRIPE_DEFAULT_EU_BANK_TRANSFER_COUNTRY = 'FR';
@@ -264,11 +265,13 @@ export class PublicController {
     await this.trialSignups.save(signup);
 
     const activationUrl = `${this.resolveMarketingBaseUrl(req)}/activate.html#token=${token}`;
+    const emailLocale = this.resolveActivationEmailLocale(req);
 
     try {
       const activation = buildActivationEmail({
         greeting: this.nameFromEmail(email, org),
         activationUrl,
+        locale: emailLocale,
       });
       await this.emails.send({
         to: email,
@@ -552,6 +555,22 @@ export class PublicController {
     const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
     if (!host) throw new BadRequestException('Unable to resolve marketing host');
     return `${proto}://${host}`.replace(/\/$/, '');
+  }
+
+  private resolveActivationEmailLocale(req: any): string {
+    const raw = String(req?.headers?.['accept-language'] ?? '').trim();
+    if (!raw) return 'en';
+
+    for (const part of raw.split(',')) {
+      const candidate = part.split(';', 1)[0]?.trim();
+      if (!candidate) continue;
+      const resolved = resolveEmailLocale(candidate);
+      if (resolved !== 'en' || candidate.toLowerCase().startsWith('en')) {
+        return resolved;
+      }
+    }
+
+    return 'en';
   }
 
   private hashToken(token: string) {

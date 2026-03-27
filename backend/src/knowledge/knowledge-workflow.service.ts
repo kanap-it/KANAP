@@ -154,12 +154,12 @@ export class KnowledgeWorkflowService {
       document.id,
       [workflow.requested_by, actedByUserId],
     );
-    const email = buildKnowledgeWorkflowApprovedEmail({
+    await this.knowledge.sendWorkflowEmail(recipients, (locale) => buildKnowledgeWorkflowApprovedEmail({
       documentRef: `DOC-${document.item_number}`,
       documentTitle: document.title,
       documentUrl,
-    });
-    await this.knowledge.sendWorkflowEmail(recipients, email.subject, email.html, email.text);
+      locale,
+    }));
   }
 
   async requestWorkflowReview(
@@ -256,14 +256,14 @@ export class KnowledgeWorkflowService {
     const requesterName = await this.knowledge.getUserDisplayName(userId, manager);
     const stage = workflowStatus === 'pending_review' ? 'reviewer' : 'approver';
     const recipients = await this.knowledge.getWorkflowParticipantEmails(manager, savedWorkflow.id, stage);
-    const email = buildKnowledgeWorkflowRequestedEmail({
+    await this.knowledge.sendWorkflowEmail(recipients, (locale) => buildKnowledgeWorkflowRequestedEmail({
       documentRef: `DOC-${document.item_number}`,
       documentTitle: document.title,
       documentUrl,
       requesterName,
       stage: stage === 'reviewer' ? 'review' : 'approval',
-    });
-    await this.knowledge.sendWorkflowEmail(recipients.map((row) => row.email), email.subject, email.html, email.text);
+      locale,
+    }));
 
     return this.knowledge.get(documentId, { manager });
   }
@@ -345,14 +345,14 @@ export class KnowledgeWorkflowService {
         const documentUrl = this.knowledge.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
         const actorName = await this.knowledge.getUserDisplayName(userId, manager);
         const recipients = await this.knowledge.getWorkflowParticipantEmails(manager, workflow.id, 'approver');
-        const email = buildKnowledgeWorkflowRequestedEmail({
+        await this.knowledge.sendWorkflowEmail(recipients, (locale) => buildKnowledgeWorkflowRequestedEmail({
           documentRef: `DOC-${document.item_number}`,
           documentTitle: document.title,
           documentUrl,
           requesterName: actorName,
           stage: 'approval',
-        });
-        await this.knowledge.sendWorkflowEmail(recipients.map((row) => row.email), email.subject, email.html, email.text);
+          locale,
+        }));
         return this.knowledge.get(documentId, { manager });
       }
     }
@@ -423,14 +423,14 @@ export class KnowledgeWorkflowService {
       document.id,
       [workflow.requested_by],
     );
-    const email = buildKnowledgeWorkflowChangesRequestedEmail({
+    await this.knowledge.sendWorkflowEmail(recipients, (locale) => buildKnowledgeWorkflowChangesRequestedEmail({
       documentRef: `DOC-${document.item_number}`,
       documentTitle: document.title,
       documentUrl,
       actorName,
       comment,
-    });
-    await this.knowledge.sendWorkflowEmail(recipients, email.subject, email.html, email.text);
+      locale,
+    }));
 
     return this.knowledge.get(documentId, { manager });
   }
@@ -481,8 +481,8 @@ export class KnowledgeWorkflowService {
       { status: ['in_review', 'draft'] },
     );
 
-    const participantEmails = await manager.query<Array<{ email: string }>>(
-      `SELECT DISTINCT u.email
+    const participantEmails = await manager.query<Array<{ email: string; locale: string | null }>>(
+      `SELECT DISTINCT u.email, u.locale
        FROM document_workflow_participants p
        JOIN users u ON u.id = p.user_id AND u.tenant_id = p.tenant_id
        WHERE p.workflow_id = $1
@@ -490,23 +490,26 @@ export class KnowledgeWorkflowService {
          AND coalesce(u.email, '') <> ''`,
       [workflow.id],
     );
-    const recipients = new Set<string>(
-      await this.knowledge.getDocumentNotificationRecipients(manager, document.id, [workflow.requested_by, userId]),
-    );
+    const recipients = new Map<string, { email: string; locale: string | null }>();
+    for (const recipient of await this.knowledge.getDocumentNotificationRecipients(manager, document.id, [workflow.requested_by, userId])) {
+      recipients.set(recipient.email, recipient);
+    }
     for (const row of participantEmails) {
       const email = String(row.email || '').trim();
-      if (email) recipients.add(email);
+      if (email && !recipients.has(email)) {
+        recipients.set(email, { email, locale: row.locale ?? null });
+      }
     }
 
     const documentUrl = this.knowledge.buildKnowledgeDocumentUrl(appBaseUrl, document.item_number);
     const actorName = await this.knowledge.getUserDisplayName(userId, manager);
-    const email = buildKnowledgeWorkflowCancelledEmail({
+    await this.knowledge.sendWorkflowEmail(Array.from(recipients.values()), (locale) => buildKnowledgeWorkflowCancelledEmail({
       documentRef: `DOC-${document.item_number}`,
       documentTitle: document.title,
       documentUrl,
       actorName,
-    });
-    await this.knowledge.sendWorkflowEmail(Array.from(recipients), email.subject, email.html, email.text);
+      locale,
+    }));
 
     return this.knowledge.get(documentId, { manager });
   }

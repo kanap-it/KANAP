@@ -316,7 +316,7 @@ Validation/behavior:
 - POST `/departments` → create
 - PATCH `/departments/:id` → update (no metrics here)
 
-## Applications (IT Operations)
+## Applications (IT Landscape)
 - RBAC: resource `applications` (`reader` to view, `manager` to mutate). Admin inherits all.
 
 - GET `/applications?status=enabled|disabled&page=1&limit=50&sort=created_at:DESC&q&filters&include`
@@ -474,7 +474,7 @@ RBAC: All of the above share the `applications` resource.
   - Freeze: edits are rejected when the departments scope is frozen for that year
 
 ## IT Ops Settings
-Tenant-scoped configuration for IT Operations dropdowns and enums.
+Tenant-scoped configuration for IT Landscape dropdowns and enums.
 
 - GET `/it-ops/settings`
   - Guards: `JwtAuthGuard`, `PermissionGuard`, `@RequireLevel('settings', 'reader')`

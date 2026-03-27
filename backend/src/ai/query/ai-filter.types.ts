@@ -4,11 +4,16 @@ export type AiFilterFieldType = 'set' | 'text' | 'number' | 'date';
 export type AiQueryEntityType =
   | 'applications'
   | 'assets'
+  | 'companies'
+  | 'contracts'
+  | 'departments'
+  | 'documents'
   | 'locations'
   | 'projects'
   | 'requests'
+  | 'spend_items'
+  | 'suppliers'
   | 'tasks'
-  | 'documents';
 
 export type AiSetFilterValue = Array<string | null>;
 export type AiTextFilterValue = string;
@@ -38,6 +43,7 @@ export type AiFilterFieldDef = {
   discoverable?: boolean;
   sortable?: boolean;
   groupable?: boolean;
+  aggregable?: boolean;
 };
 
 export type AiAggregateGroupDef = {
@@ -45,11 +51,20 @@ export type AiAggregateGroupDef = {
   joins?: string[];
 };
 
+export type AiAggregateMetricType = 'number' | 'date';
+
+export type AiAggregateMetricDef = {
+  expression: string;
+  joins?: string[];
+  type: AiAggregateMetricType;
+};
+
 export type AiAggregateConfig = {
   baseTable: string;
   alias: string;
   idColumn?: string;
   groupFields: Record<string, AiAggregateGroupDef>;
+  metricFields?: Record<string, AiAggregateMetricDef>;
 };
 
 export type AiEntityFilterRegistry = {
@@ -87,7 +102,12 @@ export type AiQueryResult = {
 
 export type AiAggregateResult = {
   group_by: string;
-  groups: Array<{ key: string | null; count: number }>;
+  metric?: string | null;
+  function?: 'count' | 'sum' | 'avg' | 'min' | 'max';
+  groups: Array<
+    | { key: string | null; count: number }
+    | { key: string | null; value: number | string | null }
+  >;
   total: number;
   filters_applied: string[];
   filters_ignored: string[];

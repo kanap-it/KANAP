@@ -115,7 +115,7 @@ Checks documentation for staleness and coverage gaps.
 
 **What it does:**
 1. Scans `frontend/src/pages/` (using Glob) for all `*Page.tsx` and `*WorkspacePage.tsx` files
-2. Categorizes pages: Dashboard & Operations, IT Operations, Master Data, Admin & Settings, Reports, Portfolio, Knowledge
+2. Categorizes pages: Dashboard & Operations, IT Landscape, Master Data, Admin & Settings, Reports, Portfolio, Knowledge
 3. Compares git timestamps: component vs documentation
 4. Flags docs where code changed after doc was last updated
 5. Reports coverage gaps and consistency issues
@@ -152,7 +152,7 @@ Generates documentation for multiple pages at once. Supports three modes.
 ```
 # Default: generate docs for undocumented pages only
 /doc-batch all           # All categories
-/doc-batch it            # IT Operations pages only
+/doc-batch it            # IT Landscape pages only
 /doc-batch ops           # Budget Management pages only
 /doc-batch master-data   # Master Data pages only
 /doc-batch admin         # Admin & Settings pages only

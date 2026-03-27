@@ -5,6 +5,8 @@
 import type { EmailAttachment } from '../email/email.service';
 import type { EmailBranding } from '../email/email-branding';
 import { getDefaultEmailBranding } from '../email/email-branding';
+import { getEmailStrings, interpolate } from '../i18n/email-i18n';
+import type { EmailStrings } from '../i18n/email-locales/en';
 
 export interface EmailContent {
   subject: string;
@@ -22,6 +24,8 @@ export interface ActionButton {
   label: string;
   url: string;
 }
+
+type ItemTypeLabelKey = 'request' | 'project' | 'task' | 'contract' | 'opex';
 
 // Helper functions
 function formatStatus(status: string): string {
@@ -44,6 +48,31 @@ function escapeHtml(text: string): string {
 function getBaseUrl(url: string): string {
   const match = url.match(/^(https?:\/\/[^/]+)/);
   return match ? match[1] : '';
+}
+
+function getItemTypeStrings(strings: EmailStrings, itemType: ItemTypeLabelKey) {
+  return strings.common.itemTypes[itemType];
+}
+
+function buildManagePreferencesText(
+  locale: string | null | undefined,
+  preferencesUrl: string,
+): string {
+  return interpolate(getEmailStrings(locale).common.footer.managePreferencesText, {
+    url: preferencesUrl,
+  });
+}
+
+function buildViewText(locale: string | null | undefined, url: string): string {
+  return interpolate(getEmailStrings(locale).common.labels.viewText, { url });
+}
+
+function buildOpenDocumentText(locale: string | null | undefined, url: string): string {
+  return interpolate(getEmailStrings(locale).common.labels.openDocumentText, { url });
+}
+
+function joinTextBlocks(lines: Array<string | null | undefined>): string {
+  return lines.filter((line): line is string => Boolean(line && line.trim().length > 0)).join('\n\n');
 }
 
 /**
@@ -80,17 +109,19 @@ export function emailWrapper(
   options?: {
     preferencesUrl?: string;
     branding?: EmailBranding;
+    locale?: string;
   },
 ): EmailWrapperResult {
   const branding = options?.branding ?? getDefaultEmailBranding();
+  const strings = getEmailStrings(options?.locale);
   const pc = branding.primaryColor;
   const hasLogo = branding.logoBuffer.length > 0;
   const preferencesLink = options?.preferencesUrl
-    ? `<a href="${options.preferencesUrl}" style="color:#9ca3af;text-decoration:none;font-size:11px;">Manage notification preferences</a>`
+    ? `<a href="${options.preferencesUrl}" style="color:#9ca3af;text-decoration:none;font-size:11px;">${escapeHtml(strings.common.footer.managePreferencesLink)}</a>`
     : '';
 
   const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${escapeHtml(strings.common.htmlLang)}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
@@ -106,8 +137,8 @@ ${body}
 <tr><td style="padding:20px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
 ${hasLogo
     ? `<img src="cid:${branding.logoCid}" alt="KANAP" width="24" height="24" style="display:inline-block;vertical-align:middle;max-height:24px;width:auto;max-width:24px;" />
-<span style="display:inline-block;vertical-align:middle;margin-left:6px;color:#9ca3af;font-size:11px;font-weight:600;letter-spacing:0.5px;">Powered by KANAP</span>`
-    : '<span style="display:inline-block;vertical-align:middle;color:#9ca3af;font-size:11px;font-weight:600;letter-spacing:0.5px;">Powered by KANAP</span>'}
+<span style="display:inline-block;vertical-align:middle;margin-left:6px;color:#9ca3af;font-size:11px;font-weight:600;letter-spacing:0.5px;">${escapeHtml(strings.common.footer.poweredBy)}</span>`
+    : `<span style="display:inline-block;vertical-align:middle;color:#9ca3af;font-size:11px;font-weight:600;letter-spacing:0.5px;">${escapeHtml(strings.common.footer.poweredBy)}</span>`}
 ${preferencesLink ? `<br />${preferencesLink}` : ''}
 </td></tr>
 </table>
@@ -140,37 +171,49 @@ export function buildStatusChangeEmail(params: {
   newStatus: string;
   actionButtons?: ActionButton[];
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
-  const typeLabel = {
-    request: 'Request',
-    project: 'Project',
-    task: 'Task',
-    contract: 'Contract',
-    opex: 'OPEX Item',
-  }[params.itemType];
+  const strings = getEmailStrings(params.locale);
+  const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
 
-  const subject = `${typeLabel} "${params.itemName}" status updated`;
+  const subject = interpolate(strings.notifications.statusChange.subject, {
+    itemType: typeLabel.label,
+    itemName: params.itemName,
+  });
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
   const actionButtons = params.actionButtons && params.actionButtons.length > 0
     ? params.actionButtons
-    : [{ label: `View ${typeLabel}`, url: params.itemUrl }];
+    : [{ label: typeLabel.view, url: params.itemUrl }];
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${typeLabel} Status Update</h2>
-    <p>The ${typeLabel.toLowerCase()} <strong>${escapeHtml(params.itemName)}</strong> has been updated.</p>
-    <p>Status changed from <strong>${formatStatus(params.oldStatus)}</strong>
-       to <strong>${formatStatus(params.newStatus)}</strong>.</p>
+    <h2 style="margin:0 0 16px 0;color:#111827;">${interpolate(strings.notifications.statusChange.heading, {
+      itemType: typeLabel.label,
+    })}</h2>
+    <p>${interpolate(strings.notifications.statusChange.updatedHtml, {
+      itemTypeLower: typeLabel.lower,
+      itemName: escapeHtml(params.itemName),
+    })}</p>
+    <p>${interpolate(strings.notifications.statusChange.statusChangedHtml, {
+      oldStatus: formatStatus(params.oldStatus),
+      newStatus: formatStatus(params.newStatus),
+    })}</p>
     ${buildActionButtons(actionButtons, pc)}
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
   const actionText = actionButtons.map((b) => `${b.label}: ${b.url}`).join('\n');
-  const text =
-    `${typeLabel} "${params.itemName}" status changed from ${formatStatus(params.oldStatus)} to ${formatStatus(params.newStatus)}.\n` +
-    `${actionText}\n\n` +
-    `Manage notification preferences: ${preferencesUrl}`;
+  const text = joinTextBlocks([
+    interpolate(strings.notifications.statusChange.text, {
+      itemType: typeLabel.label,
+      itemName: params.itemName,
+      oldStatus: formatStatus(params.oldStatus),
+      newStatus: formatStatus(params.newStatus),
+    }),
+    actionText,
+    buildManagePreferencesText(params.locale, preferencesUrl),
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -187,43 +230,61 @@ export function buildStatusChangeWithCommentEmail(params: {
   commentTextPreview: string;
   actionButtons?: ActionButton[];
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
-  const typeLabel = {
-    request: 'Request',
-    project: 'Project',
-    task: 'Task',
-    contract: 'Contract',
-    opex: 'OPEX Item',
-  }[params.itemType];
+  const strings = getEmailStrings(params.locale);
+  const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
 
-  const subject = `${typeLabel} "${params.itemName}": status changed to ${formatStatus(params.newStatus)}`;
-  const safeHtml = params.commentHtml || '<p>(No comment content)</p>';
+  const subject = interpolate(strings.notifications.statusChangeWithComment.subject, {
+    itemType: typeLabel.label,
+    itemName: params.itemName,
+    newStatus: formatStatus(params.newStatus),
+  });
+  const safeHtml = params.commentHtml || strings.common.labels.noCommentContentHtml;
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
   const actionButtons = params.actionButtons && params.actionButtons.length > 0
     ? params.actionButtons
-    : [{ label: `View ${typeLabel}`, url: params.itemUrl }];
+    : [{ label: typeLabel.view, url: params.itemUrl }];
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${typeLabel} Status Update</h2>
-    <p>The ${typeLabel.toLowerCase()} <strong>${escapeHtml(params.itemName)}</strong> has been updated.</p>
-    <p>Status changed from <strong>${formatStatus(params.oldStatus)}</strong>
-       to <strong>${formatStatus(params.newStatus)}</strong>.</p>
-    <p style="margin:18px 0 8px 0;color:#111827;"><strong>${escapeHtml(params.authorName)}</strong> added a comment:</p>
+    <h2 style="margin:0 0 16px 0;color:#111827;">${interpolate(strings.notifications.statusChange.heading, {
+      itemType: typeLabel.label,
+    })}</h2>
+    <p>${interpolate(strings.notifications.statusChange.updatedHtml, {
+      itemTypeLower: typeLabel.lower,
+      itemName: escapeHtml(params.itemName),
+    })}</p>
+    <p>${interpolate(strings.notifications.statusChange.statusChangedHtml, {
+      oldStatus: formatStatus(params.oldStatus),
+      newStatus: formatStatus(params.newStatus),
+    })}</p>
+    <p style="margin:18px 0 8px 0;color:#111827;">${interpolate(strings.notifications.statusChangeWithComment.commentIntroHtml, {
+      authorName: escapeHtml(params.authorName),
+    })}</p>
     <div style="border-left:3px solid ${pc};padding:12px 16px;background-color:#f9fafb;border-radius:0 4px 4px 0;margin:8px 0 16px 0;color:#374151;">
       ${safeHtml}
     </div>
     ${buildActionButtons(actionButtons, pc)}
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
   const actionText = actionButtons.map((b) => `${b.label}: ${b.url}`).join('\n');
-  const text =
-    `${typeLabel} "${params.itemName}" status changed from ${formatStatus(params.oldStatus)} to ${formatStatus(params.newStatus)}.\n` +
-    `${params.authorName} commented: "${params.commentTextPreview}".\n` +
-    `${actionText}\n\n` +
-    `Manage notification preferences: ${preferencesUrl}`;
+  const text = joinTextBlocks([
+    interpolate(strings.notifications.statusChange.text, {
+      itemType: typeLabel.label,
+      itemName: params.itemName,
+      oldStatus: formatStatus(params.oldStatus),
+      newStatus: formatStatus(params.newStatus),
+    }),
+    interpolate(strings.notifications.statusChangeWithComment.textComment, {
+      authorName: params.authorName,
+      commentPreview: params.commentTextPreview,
+    }),
+    actionText,
+    buildManagePreferencesText(params.locale, preferencesUrl),
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -235,27 +296,41 @@ export function buildTeamAddedEmail(params: {
   itemUrl: string;
   role: string;
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
-  const typeLabel = params.itemType === 'request' ? 'Request' : 'Project';
+  const strings = getEmailStrings(params.locale);
+  const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
   const btnText = contrastTextColor(pc);
 
-  const subject = `You've been added to ${typeLabel} "${params.itemName}"`;
+  const subject = interpolate(strings.notifications.teamAdded.subject, {
+    itemType: typeLabel.label,
+    itemName: params.itemName,
+  });
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">You've Been Added to a ${typeLabel}</h2>
-    <p>You have been added as <strong>${formatRole(params.role)}</strong>
-       on <strong>${escapeHtml(params.itemName)}</strong>.</p>
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">View ${typeLabel}</a></p>
+    <h2 style="margin:0 0 16px 0;color:#111827;">${interpolate(strings.notifications.teamAdded.heading, {
+      itemType: typeLabel.label,
+    })}</h2>
+    <p>${interpolate(strings.notifications.teamAdded.bodyHtml, {
+      role: formatRole(params.role),
+      itemName: escapeHtml(params.itemName),
+    })}</p>
+    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(typeLabel.view)}</a></p>
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
-  const text =
-    `You've been added as ${formatRole(params.role)} on ${typeLabel} "${params.itemName}".\n` +
-    `View: ${params.itemUrl}\n\n` +
-    `Manage notification preferences: ${preferencesUrl}`;
+  const text = joinTextBlocks([
+    interpolate(strings.notifications.teamAdded.text, {
+      role: formatRole(params.role),
+      itemType: typeLabel.label,
+      itemName: params.itemName,
+    }),
+    buildViewText(params.locale, params.itemUrl),
+    buildManagePreferencesText(params.locale, preferencesUrl),
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -268,28 +343,42 @@ export function buildTeamMemberAddedEmail(params: {
   addedUserName: string;
   role: string;
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
-  const typeLabel = params.itemType === 'request' ? 'Request' : 'Project';
+  const strings = getEmailStrings(params.locale);
+  const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
   const btnText = contrastTextColor(pc);
 
-  const subject = `New team member on ${typeLabel} "${params.itemName}"`;
+  const subject = interpolate(strings.notifications.teamMemberAdded.subject, {
+    itemType: typeLabel.label,
+    itemName: params.itemName,
+  });
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">New Team Member</h2>
-    <p><strong>${escapeHtml(params.addedUserName)}</strong> has been added as
-       <strong>${formatRole(params.role)}</strong> on ${typeLabel.toLowerCase()}
-       <strong>${escapeHtml(params.itemName)}</strong>.</p>
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">View ${typeLabel}</a></p>
+    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.notifications.teamMemberAdded.heading}</h2>
+    <p>${interpolate(strings.notifications.teamMemberAdded.bodyHtml, {
+      addedUserName: escapeHtml(params.addedUserName),
+      role: formatRole(params.role),
+      itemTypeLower: typeLabel.lower,
+      itemName: escapeHtml(params.itemName),
+    })}</p>
+    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(typeLabel.view)}</a></p>
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
-  const text =
-    `${params.addedUserName} has been added as ${formatRole(params.role)} on ${typeLabel} "${params.itemName}".\n` +
-    `View: ${params.itemUrl}\n\n` +
-    `Manage notification preferences: ${preferencesUrl}`;
+  const text = joinTextBlocks([
+    interpolate(strings.notifications.teamMemberAdded.text, {
+      addedUserName: params.addedUserName,
+      role: formatRole(params.role),
+      itemType: typeLabel.label,
+      itemName: params.itemName,
+    }),
+    buildViewText(params.locale, params.itemUrl),
+    buildManagePreferencesText(params.locale, preferencesUrl),
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -303,31 +392,45 @@ export function buildCommentEmail(params: {
   commentHtml: string;
   commentTextPreview: string;
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
-  const typeLabel = { request: 'Request', project: 'Project', task: 'Task' }[params.itemType];
+  const strings = getEmailStrings(params.locale);
+  const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
   const btnText = contrastTextColor(pc);
 
-  const subject = `New comment on ${typeLabel} "${params.itemName}"`;
-  const safeHtml = params.commentHtml || '<p>(No comment content)</p>';
+  const subject = interpolate(strings.notifications.comment.subject, {
+    itemType: typeLabel.label,
+    itemName: params.itemName,
+  });
+  const safeHtml = params.commentHtml || strings.common.labels.noCommentContentHtml;
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">New Comment</h2>
-    <p><strong>${escapeHtml(params.authorName)}</strong> commented on ${typeLabel.toLowerCase()}
-       <strong>${escapeHtml(params.itemName)}</strong>:</p>
+    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.notifications.comment.heading}</h2>
+    <p>${interpolate(strings.notifications.comment.introHtml, {
+      authorName: escapeHtml(params.authorName),
+      itemTypeLower: typeLabel.lower,
+      itemName: escapeHtml(params.itemName),
+    })}</p>
     <div style="border-left:3px solid ${pc};padding:12px 16px;background-color:#f9fafb;border-radius:0 4px 4px 0;margin:16px 0;color:#374151;">
       ${safeHtml}
     </div>
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">View ${typeLabel}</a></p>
+    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(typeLabel.view)}</a></p>
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
-  const text =
-    `${params.authorName} commented on ${typeLabel} "${params.itemName}": "${params.commentTextPreview}".\n` +
-    `View: ${params.itemUrl}\n\n` +
-    `Manage notification preferences: ${preferencesUrl}`;
+  const text = joinTextBlocks([
+    interpolate(strings.notifications.comment.text, {
+      authorName: params.authorName,
+      itemType: typeLabel.label,
+      itemName: params.itemName,
+      commentPreview: params.commentTextPreview,
+    }),
+    buildViewText(params.locale, params.itemUrl),
+    buildManagePreferencesText(params.locale, preferencesUrl),
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -340,13 +443,19 @@ export function buildShareEmail(params: {
   senderName: string;
   message?: string;
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
-  const typeLabel = { request: 'Request', project: 'Project', task: 'Task' }[params.itemType];
+  const strings = getEmailStrings(params.locale);
+  const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
   const btnText = contrastTextColor(pc);
 
-  const subject = `${params.senderName} shared ${typeLabel} "${params.itemName}" with you`;
+  const subject = interpolate(strings.notifications.share.subject, {
+    senderName: params.senderName,
+    itemType: typeLabel.label,
+    itemName: params.itemName,
+  });
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
 
   const messageBlock = params.message
@@ -356,19 +465,31 @@ export function buildShareEmail(params: {
     : '';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${typeLabel} Shared With You</h2>
-    <p><strong>${escapeHtml(params.senderName)}</strong> shared the ${typeLabel.toLowerCase()}
-       <strong>${escapeHtml(params.itemName)}</strong> with you.</p>
+    <h2 style="margin:0 0 16px 0;color:#111827;">${interpolate(strings.notifications.share.heading, {
+      itemType: typeLabel.label,
+    })}</h2>
+    <p>${interpolate(strings.notifications.share.introHtml, {
+      senderName: escapeHtml(params.senderName),
+      itemTypeLower: typeLabel.lower,
+      itemName: escapeHtml(params.itemName),
+    })}</p>
     ${messageBlock}
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">View ${typeLabel}</a></p>
+    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(typeLabel.view)}</a></p>
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
-  const messageText = params.message ? `\nMessage: "${params.message}"\n` : '';
-  const text =
-    `${params.senderName} shared ${typeLabel} "${params.itemName}" with you.${messageText}\n` +
-    `View: ${params.itemUrl}\n\n` +
-    `Manage notification preferences: ${preferencesUrl}`;
+  const text = joinTextBlocks([
+    interpolate(strings.notifications.share.text, {
+      senderName: params.senderName,
+      itemType: typeLabel.label,
+      itemName: params.itemName,
+    }),
+    params.message
+      ? interpolate(strings.common.labels.messageText, { message: params.message })
+      : null,
+    buildViewText(params.locale, params.itemUrl),
+    buildManagePreferencesText(params.locale, preferencesUrl),
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -380,30 +501,43 @@ export function buildTaskAssignedEmail(params: {
   assignerName: string;
   dueDate?: string;
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
+  const strings = getEmailStrings(params.locale);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
   const btnText = contrastTextColor(pc);
-  const subject = `Task assigned: "${params.taskTitle}"`;
+  const taskType = strings.common.itemTypes.task;
+  const subject = interpolate(strings.notifications.taskAssigned.subject, {
+    taskTitle: params.taskTitle,
+  });
   const preferencesUrl = getBaseUrl(params.taskUrl) + '/settings/notifications';
 
   const dueLine = params.dueDate
-    ? `<p>Due date: <strong>${params.dueDate}</strong></p>`
+    ? `<p>${interpolate(strings.common.labels.dueDateHtml, { value: params.dueDate })}</p>`
     : '';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">Task Assigned to You</h2>
-    <p><strong>${escapeHtml(params.assignerName)}</strong> assigned you the task
-       <strong>${escapeHtml(params.taskTitle)}</strong>.</p>
+    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.notifications.taskAssigned.heading}</h2>
+    <p>${interpolate(strings.notifications.taskAssigned.introHtml, {
+      assignerName: escapeHtml(params.assignerName),
+      taskTitle: escapeHtml(params.taskTitle),
+    })}</p>
     ${dueLine}
-    <p style="margin-top:24px;"><a href="${params.taskUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">View Task</a></p>
+    <p style="margin-top:24px;"><a href="${params.taskUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(taskType.view)}</a></p>
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
-  const text =
-    `${params.assignerName} assigned you the task "${params.taskTitle}".${params.dueDate ? ` Due: ${params.dueDate}.` : ''}\n` +
-    `View: ${params.taskUrl}\n\n` +
-    `Manage notification preferences: ${preferencesUrl}`;
+  const text = joinTextBlocks([
+    `${interpolate(strings.notifications.taskAssigned.text, {
+      assignerName: params.assignerName,
+      taskTitle: params.taskTitle,
+    })}${params.dueDate
+      ? interpolate(strings.notifications.taskAssigned.dueTextSuffix, { dueDate: params.dueDate })
+      : ''}`,
+    buildViewText(params.locale, params.taskUrl),
+    buildManagePreferencesText(params.locale, preferencesUrl),
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -416,25 +550,57 @@ export function buildKnowledgeWorkflowRequestedEmail(params: {
   requesterName: string;
   stage: 'review' | 'approval';
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
+  const strings = getEmailStrings(params.locale);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
-  const subject = `${params.stage === 'review' ? 'Review requested' : 'Approval requested'}: ${params.documentRef} ${params.documentTitle}`;
+  const subject = interpolate(
+    params.stage === 'review'
+      ? strings.knowledge.requested.subjectReview
+      : strings.knowledge.requested.subjectApproval,
+    {
+      documentRef: params.documentRef,
+      documentTitle: params.documentTitle,
+    },
+  );
   const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${params.stage === 'review' ? 'Document Review Requested' : 'Document Approval Requested'}</h2>
-    <p><strong>${escapeHtml(params.requesterName)}</strong> requested ${params.stage === 'review' ? 'a review' : 'an approval'} for document
-       <strong>${escapeHtml(params.documentRef)}</strong>.</p>
-    <p>Title: <strong>${escapeHtml(params.documentTitle)}</strong></p>
-    ${buildActionButtons(params.documentUrl ? [{ label: 'Open Document', url: params.documentUrl }] : undefined, pc)}
+    <h2 style="margin:0 0 16px 0;color:#111827;">${params.stage === 'review'
+      ? strings.knowledge.requested.headingReview
+      : strings.knowledge.requested.headingApproval}</h2>
+    <p>${interpolate(
+      params.stage === 'review'
+        ? strings.knowledge.requested.introReviewHtml
+        : strings.knowledge.requested.introApprovalHtml,
+      {
+        requesterName: escapeHtml(params.requesterName),
+        documentRef: escapeHtml(params.documentRef),
+      },
+    )}</p>
+    <p>${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>
+    ${buildActionButtons(
+      params.documentUrl
+        ? [{ label: strings.common.labels.openDocument, url: params.documentUrl }]
+        : undefined,
+      pc,
+    )}
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
-  const text = [
-    `${params.requesterName} requested ${params.stage === 'review' ? 'a review' : 'an approval'} for ${params.documentRef}.`,
-    `Title: ${params.documentTitle}`,
-    params.documentUrl ? `Open document: ${params.documentUrl}` : null,
-    preferencesUrl ? `Manage notification preferences: ${preferencesUrl}` : null,
-  ].filter(Boolean).join('\n\n');
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
+  const text = joinTextBlocks([
+    interpolate(
+      params.stage === 'review'
+        ? strings.knowledge.requested.introReviewText
+        : strings.knowledge.requested.introApprovalText,
+      {
+        requesterName: params.requesterName,
+        documentRef: params.documentRef,
+      },
+    ),
+    interpolate(strings.common.labels.titleText, { value: params.documentTitle }),
+    params.documentUrl ? buildOpenDocumentText(params.locale, params.documentUrl) : null,
+    preferencesUrl ? buildManagePreferencesText(params.locale, preferencesUrl) : null,
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -445,24 +611,36 @@ export function buildKnowledgeWorkflowApprovedEmail(params: {
   documentTitle: string;
   documentUrl?: string | null;
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
+  const strings = getEmailStrings(params.locale);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
-  const subject = `Document approved: ${params.documentRef} ${params.documentTitle}`;
+  const subject = interpolate(strings.knowledge.approved.subject, {
+    documentRef: params.documentRef,
+    documentTitle: params.documentTitle,
+  });
   const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">Document Approved</h2>
-    <p>The review workflow for <strong>${escapeHtml(params.documentRef)}</strong> has been approved and the document is now published.</p>
-    <p>Title: <strong>${escapeHtml(params.documentTitle)}</strong></p>
-    ${buildActionButtons(params.documentUrl ? [{ label: 'Open Document', url: params.documentUrl }] : undefined, pc)}
+    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.knowledge.approved.heading}</h2>
+    <p>${interpolate(strings.knowledge.approved.bodyHtml, {
+      documentRef: escapeHtml(params.documentRef),
+    })}</p>
+    <p>${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>
+    ${buildActionButtons(
+      params.documentUrl
+        ? [{ label: strings.common.labels.openDocument, url: params.documentUrl }]
+        : undefined,
+      pc,
+    )}
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
-  const text = [
-    `The review workflow for ${params.documentRef} has been approved and the document is now published.`,
-    `Title: ${params.documentTitle}`,
-    params.documentUrl ? `Open document: ${params.documentUrl}` : null,
-    preferencesUrl ? `Manage notification preferences: ${preferencesUrl}` : null,
-  ].filter(Boolean).join('\n\n');
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
+  const text = joinTextBlocks([
+    interpolate(strings.knowledge.approved.text, { documentRef: params.documentRef }),
+    interpolate(strings.common.labels.titleText, { value: params.documentTitle }),
+    params.documentUrl ? buildOpenDocumentText(params.locale, params.documentUrl) : null,
+    preferencesUrl ? buildManagePreferencesText(params.locale, preferencesUrl) : null,
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -475,29 +653,44 @@ export function buildKnowledgeWorkflowChangesRequestedEmail(params: {
   actorName: string;
   comment: string;
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
+  const strings = getEmailStrings(params.locale);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
-  const subject = `Changes requested: ${params.documentRef} ${params.documentTitle}`;
+  const subject = interpolate(strings.knowledge.changesRequested.subject, {
+    documentRef: params.documentRef,
+    documentTitle: params.documentTitle,
+  });
   const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">Changes Requested</h2>
-    <p><strong>${escapeHtml(params.actorName)}</strong> requested changes for document
-       <strong>${escapeHtml(params.documentRef)}</strong>.</p>
-    <p>Title: <strong>${escapeHtml(params.documentTitle)}</strong></p>
+    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.knowledge.changesRequested.heading}</h2>
+    <p>${interpolate(strings.knowledge.changesRequested.introHtml, {
+      actorName: escapeHtml(params.actorName),
+      documentRef: escapeHtml(params.documentRef),
+    })}</p>
+    <p>${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>
     <div style="border-left:3px solid ${pc};padding:12px 16px;background-color:#f9fafb;border-radius:0 4px 4px 0;margin:16px 0;color:#374151;">
       ${escapeHtml(params.comment)}
     </div>
-    ${buildActionButtons(params.documentUrl ? [{ label: 'Open Document', url: params.documentUrl }] : undefined, pc)}
+    ${buildActionButtons(
+      params.documentUrl
+        ? [{ label: strings.common.labels.openDocument, url: params.documentUrl }]
+        : undefined,
+      pc,
+    )}
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
-  const text = [
-    `${params.actorName} requested changes for ${params.documentRef}.`,
-    `Title: ${params.documentTitle}`,
-    `Comment: ${params.comment}`,
-    params.documentUrl ? `Open document: ${params.documentUrl}` : null,
-    preferencesUrl ? `Manage notification preferences: ${preferencesUrl}` : null,
-  ].filter(Boolean).join('\n\n');
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
+  const text = joinTextBlocks([
+    interpolate(strings.knowledge.changesRequested.text, {
+      actorName: params.actorName,
+      documentRef: params.documentRef,
+    }),
+    interpolate(strings.common.labels.titleText, { value: params.documentTitle }),
+    interpolate(strings.knowledge.changesRequested.commentText, { comment: params.comment }),
+    params.documentUrl ? buildOpenDocumentText(params.locale, params.documentUrl) : null,
+    preferencesUrl ? buildManagePreferencesText(params.locale, preferencesUrl) : null,
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -509,25 +702,40 @@ export function buildKnowledgeWorkflowCancelledEmail(params: {
   documentUrl?: string | null;
   actorName: string;
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
+  const strings = getEmailStrings(params.locale);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
-  const subject = `Review cancelled: ${params.documentRef} ${params.documentTitle}`;
+  const subject = interpolate(strings.knowledge.cancelled.subject, {
+    documentRef: params.documentRef,
+    documentTitle: params.documentTitle,
+  });
   const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">Review Cancelled</h2>
-    <p><strong>${escapeHtml(params.actorName)}</strong> cancelled the active review workflow for document
-       <strong>${escapeHtml(params.documentRef)}</strong>.</p>
-    <p>Title: <strong>${escapeHtml(params.documentTitle)}</strong></p>
-    ${buildActionButtons(params.documentUrl ? [{ label: 'Open Document', url: params.documentUrl }] : undefined, pc)}
+    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.knowledge.cancelled.heading}</h2>
+    <p>${interpolate(strings.knowledge.cancelled.introHtml, {
+      actorName: escapeHtml(params.actorName),
+      documentRef: escapeHtml(params.documentRef),
+    })}</p>
+    <p>${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>
+    ${buildActionButtons(
+      params.documentUrl
+        ? [{ label: strings.common.labels.openDocument, url: params.documentUrl }]
+        : undefined,
+      pc,
+    )}
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
-  const text = [
-    `${params.actorName} cancelled the active review workflow for ${params.documentRef}.`,
-    `Title: ${params.documentTitle}`,
-    params.documentUrl ? `Open document: ${params.documentUrl}` : null,
-    preferencesUrl ? `Manage notification preferences: ${preferencesUrl}` : null,
-  ].filter(Boolean).join('\n\n');
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
+  const text = joinTextBlocks([
+    interpolate(strings.knowledge.cancelled.text, {
+      actorName: params.actorName,
+      documentRef: params.documentRef,
+    }),
+    interpolate(strings.common.labels.titleText, { value: params.documentTitle }),
+    params.documentUrl ? buildOpenDocumentText(params.locale, params.documentUrl) : null,
+    preferencesUrl ? buildManagePreferencesText(params.locale, preferencesUrl) : null,
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -541,30 +749,50 @@ export function buildExpirationWarningEmail(params: {
   daysRemaining: number;
   warningType: 'expiration' | 'cancellation_deadline';
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
-  const typeLabel = params.itemType === 'contract' ? 'Contract' : 'OPEX Item';
-  const warningLabel =
-    params.warningType === 'cancellation_deadline' ? 'cancellation deadline' : 'expiration';
+  const strings = getEmailStrings(params.locale);
+  const typeLabel = getItemTypeStrings(strings, params.itemType);
+  const warningStrings = strings.notifications.expirationWarning.warningTypes[params.warningType];
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
   const btnText = contrastTextColor(pc);
 
-  const subject = `${typeLabel} "${params.itemName}" ${warningLabel} in ${params.daysRemaining} days`;
+  const subject = interpolate(strings.notifications.expirationWarning.subject, {
+    itemType: typeLabel.label,
+    itemName: params.itemName,
+    warningLabel: warningStrings.label,
+    daysRemaining: params.daysRemaining,
+  });
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${typeLabel} ${params.warningType === 'cancellation_deadline' ? 'Cancellation Deadline' : 'Expiration'} Warning</h2>
-    <p>The ${typeLabel.toLowerCase()} <strong>${escapeHtml(params.itemName)}</strong> has a
-       ${warningLabel} coming up on <strong>${params.expirationDate}</strong>
-       (${params.daysRemaining} days remaining).</p>
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">View ${typeLabel}</a></p>
+    <h2 style="margin:0 0 16px 0;color:#111827;">${interpolate(strings.notifications.expirationWarning.heading, {
+      itemType: typeLabel.label,
+      warningHeading: warningStrings.heading,
+    })}</h2>
+    <p>${interpolate(strings.notifications.expirationWarning.bodyHtml, {
+      itemTypeLower: typeLabel.lower,
+      itemName: escapeHtml(params.itemName),
+      warningLabel: warningStrings.label,
+      expirationDate: params.expirationDate,
+      daysRemaining: params.daysRemaining,
+    })}</p>
+    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(typeLabel.view)}</a></p>
   `;
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
-  const text =
-    `${typeLabel} "${params.itemName}" ${warningLabel} on ${params.expirationDate} (${params.daysRemaining} days).\n` +
-    `View: ${params.itemUrl}\n\n` +
-    `Manage notification preferences: ${preferencesUrl}`;
+  const text = joinTextBlocks([
+    interpolate(strings.notifications.expirationWarning.text, {
+      itemType: typeLabel.label,
+      itemName: params.itemName,
+      warningLabel: warningStrings.label,
+      expirationDate: params.expirationDate,
+      daysRemaining: params.daysRemaining,
+    }),
+    buildViewText(params.locale, params.itemUrl),
+    buildManagePreferencesText(params.locale, preferencesUrl),
+  ]);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -632,11 +860,11 @@ function statusBadge(status: string): string {
   return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;background-color:${c.bg};color:${c.text};">${escapeHtml(formatStatus(status))}</span>`;
 }
 
-function buildCtaButton(appUrl: string, pc: string): string {
+function buildCtaButton(appUrl: string, pc: string, label: string): string {
   const btnText = contrastTextColor(pc);
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;">
 <tr><td align="center">
-<a href="${appUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:bold;">Go to KANAP</a>
+<a href="${appUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:bold;">${escapeHtml(label)}</a>
 </td></tr>
 </table>`;
 }
@@ -654,10 +882,14 @@ export function buildWeeklyReviewEmail(params: {
   topProjectsAsContributor: Array<{ id: string; name: string; status: string }>;
   newRequests: Array<{ id: string; name: string }>;
   branding?: EmailBranding;
+  locale?: string;
 }): EmailContent {
+  const strings = getEmailStrings(params.locale);
   const branding = params.branding;
   const pc = branding?.primaryColor ?? '#2D69E0';
-  const subject = `Your KANAP Weekly Review - Week of ${params.weekLabel}`;
+  const subject = interpolate(strings.notifications.weeklyReview.subject, {
+    weekLabel: params.weekLabel,
+  });
   const preferencesUrl = params.appUrl + '/settings/notifications';
 
   const hasContent =
@@ -669,31 +901,37 @@ export function buildWeeklyReviewEmail(params: {
     params.topProjectsAsContributor.length > 0 ||
     params.newRequests.length > 0;
 
-  let body = `<p style="font-size:16px;color:#111827;margin:0 0 24px 0;">Hi ${escapeHtml(params.userName)}, here's your summary for the week of <strong>${escapeHtml(params.weekLabel)}</strong>.</p>`;
+  let body = `<p style="font-size:16px;color:#111827;margin:0 0 24px 0;">${interpolate(strings.notifications.weeklyReview.introHtml, {
+    userName: escapeHtml(params.userName),
+    weekLabel: escapeHtml(params.weekLabel),
+  })}</p>`;
 
   if (!hasContent) {
     body += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
 <tr><td align="center" style="padding:32px;background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
 <div style="font-size:32px;margin-bottom:12px;">&#11088;</div>
-<div style="font-size:14px;color:#6b7280;">No activity to report this week. Keep up the good work!</div>
+<div style="font-size:14px;color:#6b7280;">${escapeHtml(strings.notifications.weeklyReview.empty)}</div>
 </td></tr>
 </table>`;
-    body += buildCtaButton(params.appUrl, pc);
-    const wrapper = emailWrapper(body, { preferencesUrl, branding });
-    const text =
-      `KANAP Weekly Review - ${params.weekLabel}\n\n` +
-      `Hi ${params.userName},\n\n` +
-      `No activity to report this week. Keep up the good work!\n\n` +
-      `Go to KANAP: ${params.appUrl}\n\n` +
-      `Manage notification preferences: ${preferencesUrl}`;
+    body += buildCtaButton(params.appUrl, pc, strings.common.buttons.goToKanap);
+    const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
+    const text = joinTextBlocks([
+      interpolate(strings.notifications.weeklyReview.introText, {
+        userName: params.userName,
+        weekLabel: params.weekLabel,
+      }),
+      strings.notifications.weeklyReview.empty,
+      `${strings.common.buttons.goToKanap}: ${params.appUrl}`,
+      buildManagePreferencesText(params.locale, preferencesUrl),
+    ]);
     return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
   }
 
   // Stats bar
   body += buildStatsBar([
-    { label: 'Completed', count: params.tasksClosed.length },
-    { label: 'Status Changes', count: params.projectsWithChanges.length },
-    { label: 'Open Tasks', count: params.topTasks.length },
+    { label: strings.notifications.weeklyReview.stats.completed, count: params.tasksClosed.length },
+    { label: strings.notifications.weeklyReview.stats.statusChanges, count: params.projectsWithChanges.length },
+    { label: strings.notifications.weeklyReview.stats.openTasks, count: params.topTasks.length },
   ], pc);
 
   // Section 1: Tasks You Completed
@@ -703,7 +941,7 @@ export function buildWeeklyReviewEmail(params: {
         buildItemRow(`<a href="${params.appUrl}/tasks/${t.id}" style="color:${pc};text-decoration:none;font-weight:500;">${escapeHtml(t.title)}</a>`, pc),
       )
       .join('');
-    body += buildSection('Tasks You Completed', '&#9989;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.tasksCompleted, '&#9989;', items);
   }
 
   // Section 2: Project Status Changes
@@ -717,7 +955,7 @@ export function buildWeeklyReviewEmail(params: {
         ),
       )
       .join('');
-    body += buildSection('Project Status Changes', '&#128260;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.projectStatusChanges, '&#128260;', items);
   }
 
   // Section 3: Tasks Completed on Your Projects
@@ -731,14 +969,16 @@ export function buildWeeklyReviewEmail(params: {
         ),
       )
       .join('');
-    body += buildSection('Tasks Completed on Your Projects', '&#128203;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.tasksCompletedOnProjects, '&#128203;', items);
   }
 
   // Section 4: Your Top Priority Tasks
   if (params.topTasks.length > 0) {
     const items = params.topTasks
       .map((t) => {
-        const due = t.dueDate ? `Due: ${t.dueDate}` : '';
+        const due = t.dueDate
+          ? escapeHtml(interpolate(strings.notifications.weeklyReview.dueLabel, { dueDate: t.dueDate }))
+          : '';
         const meta = [priorityBadge(t.priority), due].filter(Boolean).join(' &middot; ');
         return buildItemRow(
           `<a href="${params.appUrl}/tasks/${t.id}" style="color:${pc};text-decoration:none;font-weight:500;">${escapeHtml(t.title)}</a>`,
@@ -747,7 +987,7 @@ export function buildWeeklyReviewEmail(params: {
         );
       })
       .join('');
-    body += buildSection('Your Top Priority Tasks', '&#128293;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.topTasks, '&#128293;', items);
   }
 
   // Section 5: Projects You Lead
@@ -761,7 +1001,7 @@ export function buildWeeklyReviewEmail(params: {
         ),
       )
       .join('');
-    body += buildSection('Projects You Lead', '&#11088;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.projectsLead, '&#11088;', items);
   }
 
   // Section 6: Projects You Contribute To
@@ -775,7 +1015,7 @@ export function buildWeeklyReviewEmail(params: {
         ),
       )
       .join('');
-    body += buildSection('Projects You Contribute To', '&#129309;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.projectsContribute, '&#129309;', items);
   }
 
   // Section 7: New Requests
@@ -785,19 +1025,22 @@ export function buildWeeklyReviewEmail(params: {
         buildItemRow(`<a href="${params.appUrl}/portfolio/requests/${r.id}" style="color:${pc};text-decoration:none;font-weight:500;">${escapeHtml(r.name)}</a>`, pc),
       )
       .join('');
-    body += buildSection('New Requests', '&#128229;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.newRequests, '&#128229;', items);
   }
 
-  body += buildCtaButton(params.appUrl, pc);
+  body += buildCtaButton(params.appUrl, pc, strings.common.buttons.goToKanap);
 
-  const wrapper = emailWrapper(body, { preferencesUrl, branding });
+  const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
   // Build plaintext fallback
-  let text = `KANAP Weekly Review - ${params.weekLabel}\n\n`;
-  text += `Hi ${params.userName}, here's your summary for the week of ${params.weekLabel}.\n\n`;
+  let text = `${subject}\n\n`;
+  text += `${interpolate(strings.notifications.weeklyReview.introText, {
+    userName: params.userName,
+    weekLabel: params.weekLabel,
+  })}\n\n`;
 
   if (params.tasksClosed.length > 0) {
-    text += `TASKS YOU COMPLETED (${params.tasksClosed.length})\n`;
+    text += `${strings.notifications.weeklyReview.sections.tasksCompleted} (${params.tasksClosed.length})\n`;
     for (const t of params.tasksClosed) {
       text += `  - ${t.title}: ${params.appUrl}/tasks/${t.id}\n`;
     }
@@ -805,7 +1048,7 @@ export function buildWeeklyReviewEmail(params: {
   }
 
   if (params.projectsWithChanges.length > 0) {
-    text += `PROJECT STATUS CHANGES (${params.projectsWithChanges.length})\n`;
+    text += `${strings.notifications.weeklyReview.sections.projectStatusChanges} (${params.projectsWithChanges.length})\n`;
     for (const p of params.projectsWithChanges) {
       text += `  - ${p.name}: ${formatStatus(p.oldStatus)} -> ${formatStatus(p.newStatus)}: ${params.appUrl}/portfolio/projects/${p.id}\n`;
     }
@@ -813,7 +1056,7 @@ export function buildWeeklyReviewEmail(params: {
   }
 
   if (params.tasksClosedOnProjects.length > 0) {
-    text += `TASKS COMPLETED ON YOUR PROJECTS (${params.tasksClosedOnProjects.length})\n`;
+    text += `${strings.notifications.weeklyReview.sections.tasksCompletedOnProjects} (${params.tasksClosedOnProjects.length})\n`;
     for (const t of params.tasksClosedOnProjects) {
       text += `  - ${t.title} (${t.projectName}): ${params.appUrl}/tasks/${t.id}\n`;
     }
@@ -821,16 +1064,18 @@ export function buildWeeklyReviewEmail(params: {
   }
 
   if (params.topTasks.length > 0) {
-    text += `YOUR TOP PRIORITY TASKS (${params.topTasks.length})\n`;
+    text += `${strings.notifications.weeklyReview.sections.topTasks} (${params.topTasks.length})\n`;
     for (const t of params.topTasks) {
-      const due = t.dueDate ? ` (Due: ${t.dueDate})` : '';
+      const due = t.dueDate
+        ? ` (${interpolate(strings.notifications.weeklyReview.dueLabel, { dueDate: t.dueDate })})`
+        : '';
       text += `  - [${formatStatus(t.priority)}] ${t.title}${due}: ${params.appUrl}/tasks/${t.id}\n`;
     }
     text += '\n';
   }
 
   if (params.topProjectsAsLead.length > 0) {
-    text += `PROJECTS YOU LEAD (${params.topProjectsAsLead.length})\n`;
+    text += `${strings.notifications.weeklyReview.sections.projectsLead} (${params.topProjectsAsLead.length})\n`;
     for (const p of params.topProjectsAsLead) {
       text += `  - ${p.name} (${formatStatus(p.status)}): ${params.appUrl}/portfolio/projects/${p.id}\n`;
     }
@@ -838,7 +1083,7 @@ export function buildWeeklyReviewEmail(params: {
   }
 
   if (params.topProjectsAsContributor.length > 0) {
-    text += `PROJECTS YOU CONTRIBUTE TO (${params.topProjectsAsContributor.length})\n`;
+    text += `${strings.notifications.weeklyReview.sections.projectsContribute} (${params.topProjectsAsContributor.length})\n`;
     for (const p of params.topProjectsAsContributor) {
       text += `  - ${p.name} (${formatStatus(p.status)}): ${params.appUrl}/portfolio/projects/${p.id}\n`;
     }
@@ -846,15 +1091,15 @@ export function buildWeeklyReviewEmail(params: {
   }
 
   if (params.newRequests.length > 0) {
-    text += `NEW REQUESTS (${params.newRequests.length})\n`;
+    text += `${strings.notifications.weeklyReview.sections.newRequests} (${params.newRequests.length})\n`;
     for (const r of params.newRequests) {
       text += `  - ${r.name}: ${params.appUrl}/portfolio/requests/${r.id}\n`;
     }
     text += '\n';
   }
 
-  text += `Go to KANAP: ${params.appUrl}\n\n`;
-  text += `Manage notification preferences: ${preferencesUrl}`;
+  text += `${strings.common.buttons.goToKanap}: ${params.appUrl}\n\n`;
+  text += buildManagePreferencesText(params.locale, preferencesUrl);
 
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
@@ -863,25 +1108,28 @@ export function buildWeeklyReviewEmail(params: {
 export function buildActivationEmail(params: {
   greeting: string;
   activationUrl: string;
+  locale?: string;
 }): EmailContent {
-  const subject = 'Confirm your KANAP workspace';
+  const strings = getEmailStrings(params.locale);
+  const subject = strings.auth.activation.subject;
   const body = `
-    <p>Hello ${escapeHtml(params.greeting)},</p>
-    <p>Thanks for your interest in KANAP. Please confirm your email to provision your tenant.</p>
+    <p>${interpolate(strings.common.labels.greetingHelloName, { name: escapeHtml(params.greeting) })}</p>
+    <p>${strings.auth.activation.intro}</p>
     <p style="text-align:center;margin:32px 0;">
-      <a href="${params.activationUrl}" style="background:#2D69E0;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;display:inline-block;font-weight:600;">Activate my workspace</a>
+      <a href="${params.activationUrl}" style="background:#2D69E0;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;display:inline-block;font-weight:600;">${escapeHtml(strings.common.buttons.activateWorkspace)}</a>
     </p>
-    <p>If the button above does not work, copy and paste this link into your browser:</p>
+    <p>${strings.auth.activation.copyPaste}</p>
     <p style="word-break:break-all;"><a href="${params.activationUrl}">${escapeHtml(params.activationUrl)}</a></p>
-    <p>The link expires in 48 hours. If you did not request this trial you can ignore this message.</p>
+    <p>${interpolate(strings.auth.activation.expires, {})}</p>
   `;
   // Activation emails always use KANAP default branding (no tenant yet)
-  const wrapper = emailWrapper(body);
-  const text =
-    `Hello ${params.greeting},\n\n` +
-    `Thanks for your interest in KANAP. Confirm your email to provision your tenant.\n\n` +
-    `Activate your workspace: ${params.activationUrl}\n\n` +
-    `The link expires in 48 hours. If you did not request this trial you can ignore this message.`;
+  const wrapper = emailWrapper(body, { locale: params.locale });
+  const text = joinTextBlocks([
+    interpolate(strings.common.labels.greetingHelloName, { name: params.greeting }),
+    strings.auth.activation.textIntro,
+    interpolate(strings.auth.activation.textAction, { url: params.activationUrl }),
+    strings.auth.activation.expires,
+  ]);
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
 

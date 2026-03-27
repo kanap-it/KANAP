@@ -27,7 +27,7 @@ export default function CapexBudgetTrendReport() {
   const [metrics, setMetrics] = useState<Array<'budget' | 'follow_up' | 'landing' | 'revision'>>(['budget', 'landing']);
 
   const years = useMemo(() => allowedYears.filter((yr) => yr >= startYear && yr <= endYear), [allowedYears, startYear, endYear]);
-  const metricLabels: Record<string, string> = { budget: 'Budget', follow_up: 'Follow-up', landing: 'Landing', revision: 'Revision' };
+  const metricLabels: Record<string, string> = { budget: 'Budget', follow_up: 'Actuals', landing: 'Expected Landing', revision: 'Revision' };
 
   const totalsByMetricAndYear = useMemo(() => {
     const acc: Record<string, Record<number, number>> = {};
@@ -153,4 +153,3 @@ export default function CapexBudgetTrendReport() {
     </ReportLayout>
   );
 }
-

@@ -53,7 +53,7 @@
   "priority": {
     "blocker": "Blocker",
     "high": "High",
-    "normal": "Normal",
+    "normal": "Medium",
     "low": "Low",
     "optional": "Optional"
   },
@@ -200,7 +200,7 @@
       "loadingTabs": {
         "activity": "Activity",
         "knowledge": "Knowledge",
-        "progress": "Progress",
+        "progress": "Effort",
         "scoring": "Scoring",
         "tasks": "Tasks",
         "timeline": "Timeline"
@@ -237,7 +237,7 @@
       "tabs": {
         "activity": "Activity",
         "knowledge": "Knowledge",
-        "progress": "Progress",
+        "progress": "Effort",
         "summary": "Summary",
         "tasks": "Tasks",
         "timeline": "Timeline"
@@ -257,7 +257,7 @@
           "teamAndRelations": "Team and Relations"
         },
         "fields": {
-          "executionProgress": "Execution progress"
+          "executionProgress": "Execution effort"
         },
         "placeholders": {
           "purpose": "Describe the purpose of this project..."
@@ -357,7 +357,7 @@
           "noTimeLogged": "No time logged yet. Click \"Log Time\" to add entries."
         },
         "values": {
-          "executionProgress": "Execution Progress: {{progress}}%",
+          "executionProgress": "Execution Effort: {{progress}}%",
           "hoursValue": "{{hours}}h",
           "mdHigher": "{{count}} MD higher",
           "mdLower": "{{count}} MD lower",
@@ -735,7 +735,7 @@
           "blocker": "Blocker (+10)",
           "high": "High (+5)",
           "low": "Low (-5)",
-          "normal": "Normal (0)",
+          "normal": "Medium (0)",
           "optional": "Optional (-10)"
         },
         "sections": {
@@ -877,7 +877,7 @@
       "priority": "Priority",
       "status": "Status",
       "origin": "Origin",
-      "progress": "Progress",
+      "progress": "Effort",
       "source": "Source",
       "category": "Category",
       "stream": "Stream",
@@ -968,7 +968,7 @@
         "project": "Project",
         "status": "Status",
         "date": "Date",
-        "progress": "Progress",
+        "progress": "Effort",
         "start": "Start",
         "end": "End",
         "contributor": "Contributor",
@@ -1160,7 +1160,7 @@
         "source": "Source",
         "category": "Category",
         "stream": "Stream",
-        "progress": "Progress",
+        "progress": "Effort",
         "status": "Status"
       }
     }
@@ -1234,7 +1234,7 @@
     "analysis": "Analysis",
     "description": "Description",
     "knowledge": "Knowledge",
-    "progress": "Progress",
+    "progress": "Effort",
     "scoring": "Scoring",
     "summary": "Summary",
     "tasks": "Tasks",
@@ -1354,7 +1354,7 @@
         "plannedStart": "Planned Start",
         "priorityOverride": "Priority Override",
         "priorityScore": "Priority Score",
-        "progress": "Progress",
+        "progress": "Effort",
         "purpose": "Purpose",
         "requestor": "Requestor",
         "risks": "Risks",
@@ -1582,7 +1582,7 @@
         "date": "Date",
         "estimatedEffort": "Est. Effort",
         "notes": "Notes",
-        "progress": "Progress",
+        "progress": "Effort",
         "project": "Project",
         "remaining": "Remaining",
         "source": "Source",

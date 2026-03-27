@@ -152,7 +152,7 @@ Platform Admin (CoA Templates)
 - References:
   - `supplier_name` → Suppliers by `name` (optional)
   - `business_owner_email_*` / `it_owner_email_*` → Users by `email` (optional; up to 4 each)
-- Settings-backed fields (accept both codes and labels from IT Operations Settings):
+- Settings-backed fields (accept both codes and labels from IT Landscape Settings):
   - `category`: e.g., `line_of_business`, `productivity`, `security`
   - `lifecycle`: e.g., `active`, `proposed`, `deprecated`, `retired`
   - `data_class`: e.g., `public`, `internal`, `confidential`, `restricted`

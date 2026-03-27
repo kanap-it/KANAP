@@ -3,8 +3,8 @@ export type MetricKey = (typeof metricKeys)[number];
 
 export const metricLabels: Record<MetricKey, string> = {
   budget: 'Budget',
-  follow_up: 'Follow-up',
-  landing: 'Landing',
+  follow_up: 'Actuals',
+  landing: 'Expected Landing',
   revision: 'Revision',
 };
 

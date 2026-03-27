@@ -11,7 +11,7 @@ Metadata
 - Tech: React + TypeScript (Vite) with MUI and AG Grid (community)
 - State & Data: TanStack Query for server data fetching/caching; Axios client (`src/api.ts`)
 - Layout: Top AppBar with a workspace toggle; permanent Drawer for navigation within the active workspace
-- Workspaces: Portfolio Management, IT Operations, Budget Management, Master Data, and Admin (toggle in AppBar). The home page (`/`) renders a personal Dashboard (no tab highlighted). Admin pages are separate to reduce confusion and enable clear permissions.
+- Workspaces: Portfolio Management, IT Landscape, Budget Management, Master Data, and Admin (toggle in AppBar). The home page (`/`) renders a personal Dashboard (no tab highlighted). Admin pages are separate to reduce confusion and enable clear permissions.
 - Lists: Shared `ServerDataGrid` wrapper built on AG Grid provides server sort and per‑column floating filters (single condition). Default behavior uses infinite scroll; pages can opt into explicit server pagination (`enablePagination`) when needed for very large datasets (for example Audit Log with 100 rows per page). For entities with an enabled/disabled lifecycle, lists should expose a standard `Show: All / Enabled / Disabled` scope selector backed by the same `StatusState`/`disabled_at` helpers used server‑side, and keep the Status column hidden by default (available via the column chooser for advanced filtering).
 - Page chrome: `PageHeader` renders breadcrumbs and page title, with an actions slot for primary buttons. Admin pages display an "Admin" chip.
 
@@ -45,9 +45,9 @@ The app is configured as a Progressive Web App for a native-like experience when
 Note: No service worker or offline support is configured - the PWA setup focuses only on presentation (hiding address bar, proper icons, theme color).
 
 ## Navigation & IA
-- Workspace Toggle: AppBar segmented control is centered in the top bar, uses white styling, and navigates on click: `Portfolio → /portfolio`, `IT Operations → /it`, `Budget Management → /ops`, `Master Data → /master-data`, `Admin → /admin`. The KANAP logo links to `/` (personal Dashboard). No tab is highlighted on the home page.
+- Workspace Toggle: AppBar segmented control is centered in the top bar, uses white styling, and navigates on click: `Portfolio → /portfolio`, `IT Landscape → /it`, `Budget Management → /ops`, `Master Data → /master-data`, `Admin → /admin`. The KANAP logo links to `/` (personal Dashboard). No tab is highlighted on the home page.
 - Drawer: Shows only the routes for the active workspace; entries the user cannot at least read are hidden. Empty on the home page.
-- Routing: Explicit prefixes: `/portfolio/*` for Portfolio Management, `/ops/*` for Budget Management, `/it/*` for IT Operations, `/master-data/*` for Master Data, and `/admin/*` for Admin. Home (`/`) renders the personal Dashboard directly.
+- Routing: Explicit prefixes: `/portfolio/*` for Portfolio Management, `/ops/*` for Budget Management, `/it/*` for IT Landscape, `/master-data/*` for Master Data, and `/admin/*` for Admin. Home (`/`) renders the personal Dashboard directly.
 
 **See:** [page-and-feature-overview.md](page-and-feature-overview.md) for comprehensive page inventory with routes, purposes, and permission requirements.
 
@@ -91,7 +91,7 @@ The frontend implements automatic session management with sliding expiration:
   - “Test Microsoft sign-in” → redirects to `/auth/entra/login?redirectTo=/admin/auth` so admins can validate the tenant’s Entra connection end-to-end.
 - These flows assume the SPA is loaded over HTTPS (even in dev) so Microsoft's `SameSite=None` cookies are accepted. When testing locally, load the SPA through Cloudflare on `https://<slug>.dev.kanap.net` with `VITE_API_URL=/api`, and configure `ENTRA_REDIRECT_URI` to `https://dev.kanap.net/api/auth/entra/callback` as described in `doc/planning/cloudflare-setup.md`. Entra always calls back to the shared marketing host (`dev.kanap.net` in dev), and the backend then redirects to the appropriate tenant host (`https://<slug>.dev.kanap.net/...`) based on the slug embedded in the signed state.
 
-### IT Operations workspace
+### IT Landscape workspace
 - Drawer entries: Applications, Interfaces, Servers, Settings (servers live under `/ops` but remain in this workspace for operator convenience).
 - **Applications**
 - List: `frontend/src/pages/it/ApplicationsPage.tsx` uses `ServerDataGrid` with a default lifecycle filter (retired excluded but selectable). Closed-set columns use checkbox-set filters with scoped values (Category, Environments, Lifecycle, Criticality, Hosting, External Facing, SSO, MFA, Data Class, Contains PII). The “Environments” column renders chips for **active** App Instances and deep-links to the Instances tab; Hosting uses derived server location hosting types. Column chooser toggles `include` flags (supplier, owners, counts, structure, instances) automatically so the grid only fetches required expansions.
@@ -128,7 +128,7 @@ The frontend implements automatic session management with sliding expiration:
 - Workspace: `frontend/src/pages/ops/ServerWorkspacePage.tsx` includes Overview (name/kind/provider/env/region/zone/hostname/ip/status plus cluster toggle) and Technical (environment, OS, network segment, hostname/IP, cluster membership editor/view). Assignments tab remains a table of linked applications/envs with remove actions.
 - **Settings**
   - Page: `frontend/src/pages/it/ItOperationsSettingsPage.tsx` (`/it/settings`).
-  - Purpose: Tenant-wide configuration of Data Classes, Server Types, Hosting Types, Cloud Providers, Lifecycle, and Interface enums used across IT Operations dropdowns.
+  - Purpose: Tenant-wide configuration of Data Classes, Server Types, Hosting Types, Cloud Providers, Lifecycle, and Interface enums used across IT Landscape dropdowns.
   - Permissions: Requires `settings:reader` to view, `settings:admin` to change values.
 
 

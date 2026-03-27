@@ -1,18 +1,18 @@
-# IT Operations Settings
+# IT Landscape Settings
 
-The **IT Operations Settings** page lets you customize the dropdown values used throughout IT Operations. These lists control what options appear when users create or edit Applications, Interfaces, Assets, Connections, and Locations. Changes here apply to all users in your workspace.
+The **IT Landscape Settings** page lets you customize the dropdown values used throughout IT Landscape. These lists control what options appear when users create or edit Applications, Interfaces, Assets, Connections, and Locations. Changes here apply to all users in your workspace.
 
 For map readability, **Entities** and **Server Roles** also include a **Graph Tier** field used by the Connection Map's role-based placement.
 
 ## Where to find it
 
-- Workspace: **IT Operations**
-- Path: **IT Operations → Settings**
+- Workspace: **IT Landscape**
+- Path: **IT Landscape → Settings**
 - Permissions:
   - You need at least `settings:reader` to view the page.
   - You need `settings:admin` to change values.
 
-If you don't see the **Settings** entry in the IT Operations drawer, ask your administrator to grant you the appropriate permissions.
+If you don't see the **Settings** entry in the IT Landscape drawer, ask your administrator to grant you the appropriate permissions.
 
 ## How the page is organized
 

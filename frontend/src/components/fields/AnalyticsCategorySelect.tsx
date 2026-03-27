@@ -1,6 +1,7 @@
 import React from 'react';
 import { Autocomplete, Box, CircularProgress, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 type AnalyticsCategory = {
@@ -19,7 +20,8 @@ type Props = {
   disabled?: boolean;
 };
 
-export default function AnalyticsCategorySelect({ value, onChange, label = 'Analytics Category', helperText, error, disabled }: Props) {
+export default function AnalyticsCategorySelect({ value, onChange, label, helperText, error, disabled }: Props) {
+  const { t } = useTranslation(['master-data', 'common']);
   const { data, isLoading } = useQuery({
     queryKey: ['analytics-categories', 'all'],
     queryFn: async () => {
@@ -53,6 +55,7 @@ export default function AnalyticsCategorySelect({ value, onChange, label = 'Anal
   }, [options, selectedById]);
 
   const selected = React.useMemo(() => mergedOptions.find((cat) => cat.id === value) ?? null, [mergedOptions, value]);
+  const resolvedLabel = label ?? t('analytics.analyticsCategoryFallback');
 
   return (
     <Autocomplete
@@ -80,7 +83,7 @@ export default function AnalyticsCategorySelect({ value, onChange, label = 'Anal
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
+          label={resolvedLabel}
           error={error}
           helperText={helperText}
           InputProps={{
@@ -99,7 +102,7 @@ export default function AnalyticsCategorySelect({ value, onChange, label = 'Anal
       clearOnBlur
       clearOnEscape
       isOptionEqualToValue={(opt, val) => opt.id === val.id}
-      noOptionsText={isLoading ? 'Loading…' : 'No analytics categories found'}
+      noOptionsText={isLoading ? t('common:status.loading') : t('analytics.noOptions')}
       fullWidth
     />
   );

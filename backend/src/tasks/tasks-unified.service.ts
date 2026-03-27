@@ -79,7 +79,7 @@ export class TasksUnifiedService {
     }
 
     const assignee = await manager.query(
-      `SELECT u.email FROM users u
+      `SELECT u.email, u.locale FROM users u
        JOIN roles ro ON ro.id = u.role_id
        WHERE u.id = $1 AND u.status = 'enabled'
          AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
@@ -104,6 +104,7 @@ export class TasksUnifiedService {
       dueDate: saved.due_date ? String(saved.due_date).split('T')[0] : undefined,
       tenantId,
       manager,
+      locale: assignee[0].locale,
     });
   }
 
@@ -592,7 +593,7 @@ export class TasksUnifiedService {
 
     const recipientRows = userIds.length > 0
       ? await manager.query(
-          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName"
+          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.locale
            FROM users u
            JOIN roles ro ON ro.id = u.role_id
            WHERE u.id = ANY($1) AND u.status = 'enabled'

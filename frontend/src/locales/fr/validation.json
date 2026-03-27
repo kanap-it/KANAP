@@ -1,10 +1,10 @@
 {
   "required": "Ce champ est obligatoire",
   "invalidEmail": "Veuillez saisir une adresse e-mail valide",
-  "invalidType": "Invalid value",
+  "invalidType": "Valeur invalide",
   "minLength": "Veuillez saisir au moins {{count}} caractères",
-  "maxLength": "Must be at most {{count}} characters",
-  "minLengthPassword": "Password must be at least 8 characters long.",
-  "passwordMismatch": "Passwords do not match.",
-  "emailRequired": "Please enter the email associated with your account."
+  "maxLength": "{{count}} caractères maximum",
+  "minLengthPassword": "Le mot de passe doit comporter au moins 8 caractères.",
+  "passwordMismatch": "Les mots de passe ne correspondent pas.",
+  "emailRequired": "Veuillez saisir l'adresse e-mail associée à votre compte."
 }

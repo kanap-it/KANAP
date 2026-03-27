@@ -31,6 +31,8 @@ import { StorageService } from '../common/storage/storage.service';
 import { RemoteInlineImageImportService } from '../common/remote-inline-image-import.service';
 import { Features } from '../config/features';
 import { EmailService } from '../email/email.service';
+import { resolveEmailLocale } from '../i18n/email-i18n';
+import type { EmailContent } from '../notifications/notification-templates';
 import { PermissionLevel, PermissionsService } from '../permissions/permissions.service';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user-role.entity';
@@ -119,6 +121,104 @@ const WORKFLOW_STAGE_TO_ROLE: Record<'reviewer' | 'approver', 'reviewer' | 'vali
 type DocumentWorkflowStage = 'reviewer' | 'approver';
 type DocumentWorkflowStatus = 'pending_review' | 'pending_approval' | 'changes_requested' | 'approved' | 'cancelled';
 type DocumentWorkflowDecision = 'pending' | 'approved' | 'changes_requested';
+type DocumentLinkedEntityField =
+  | 'linked_application'
+  | 'linked_asset'
+  | 'linked_project'
+  | 'linked_request'
+  | 'linked_task';
+type DocumentLinkedEntitySurface =
+  | {
+      kind: 'legacy';
+      table: string;
+      relationAlias: string;
+      relationIdColumn: string;
+      targetTable: string;
+      targetAlias: string;
+      targetMatchExpressions: string[];
+    }
+  | {
+      kind: 'integrated';
+      relationAlias: string;
+      sourceEntityType: 'applications' | 'assets' | 'projects' | 'requests';
+      targetTable: string;
+      targetAlias: string;
+      targetMatchExpressions: string[];
+    };
+
+const DOCUMENT_LINKED_ENTITY_FILTERS: Record<DocumentLinkedEntityField, DocumentLinkedEntitySurface[]> = {
+  linked_application: [
+    {
+      kind: 'legacy',
+      table: 'document_applications',
+      relationAlias: 'da_link',
+      relationIdColumn: 'application_id',
+      targetTable: 'applications',
+      targetAlias: 'a_link',
+      targetMatchExpressions: ['a_link.name'],
+    },
+  ],
+  linked_asset: [
+    {
+      kind: 'legacy',
+      table: 'document_assets',
+      relationAlias: 'da_link',
+      relationIdColumn: 'asset_id',
+      targetTable: 'assets',
+      targetAlias: 'ast_link',
+      targetMatchExpressions: ['ast_link.name', 'ast_link.hostname', 'ast_link.fqdn'],
+    },
+  ],
+  linked_project: [
+    {
+      kind: 'legacy',
+      table: 'document_projects',
+      relationAlias: 'dp_link',
+      relationIdColumn: 'project_id',
+      targetTable: 'portfolio_projects',
+      targetAlias: 'p_link',
+      targetMatchExpressions: ['p_link.name', `('PRJ-' || p_link.item_number::text)`],
+    },
+    {
+      kind: 'integrated',
+      relationAlias: 'idb_project_link',
+      sourceEntityType: 'projects',
+      targetTable: 'portfolio_projects',
+      targetAlias: 'p_link',
+      targetMatchExpressions: ['p_link.name', `('PRJ-' || p_link.item_number::text)`],
+    },
+  ],
+  linked_request: [
+    {
+      kind: 'legacy',
+      table: 'document_requests',
+      relationAlias: 'dr_link',
+      relationIdColumn: 'request_id',
+      targetTable: 'portfolio_requests',
+      targetAlias: 'r_link',
+      targetMatchExpressions: ['r_link.name', `('REQ-' || r_link.item_number::text)`],
+    },
+    {
+      kind: 'integrated',
+      relationAlias: 'idb_request_link',
+      sourceEntityType: 'requests',
+      targetTable: 'portfolio_requests',
+      targetAlias: 'r_link',
+      targetMatchExpressions: ['r_link.name', `('REQ-' || r_link.item_number::text)`],
+    },
+  ],
+  linked_task: [
+    {
+      kind: 'legacy',
+      table: 'document_tasks',
+      relationAlias: 'dt_link',
+      relationIdColumn: 'task_id',
+      targetTable: 'tasks',
+      targetAlias: 't_link',
+      targetMatchExpressions: ['t_link.title', `('T-' || t_link.item_number::text)`],
+    },
+  ],
+};
 
 const compileDateFilterCondition = (
   rawModel: any,
@@ -174,6 +274,135 @@ const compileDateFilterCondition = (
       return null;
   }
 };
+
+function buildDocumentLinkedEntityExistsClause(
+  surface: DocumentLinkedEntitySurface,
+  documentAlias: string,
+  predicateSql?: string,
+): string {
+  if (surface.kind === 'legacy') {
+    return `EXISTS (
+      SELECT 1
+      FROM ${surface.table} ${surface.relationAlias}
+      JOIN ${surface.targetTable} ${surface.targetAlias}
+        ON ${surface.targetAlias}.id = ${surface.relationAlias}.${surface.relationIdColumn}
+       AND ${surface.targetAlias}.tenant_id = ${documentAlias}.tenant_id
+      WHERE ${surface.relationAlias}.document_id = ${documentAlias}.id
+        AND ${surface.relationAlias}.tenant_id = ${documentAlias}.tenant_id
+        ${predicateSql ? `AND (${predicateSql})` : ''}
+    )`;
+  }
+
+  return `EXISTS (
+    SELECT 1
+    FROM integrated_document_bindings ${surface.relationAlias}
+    JOIN ${surface.targetTable} ${surface.targetAlias}
+      ON ${surface.targetAlias}.id = ${surface.relationAlias}.source_entity_id
+     AND ${surface.targetAlias}.tenant_id = ${documentAlias}.tenant_id
+    WHERE ${surface.relationAlias}.document_id = ${documentAlias}.id
+      AND ${surface.relationAlias}.tenant_id = ${documentAlias}.tenant_id
+      AND ${surface.relationAlias}.source_entity_type = '${surface.sourceEntityType}'
+      ${predicateSql ? `AND (${predicateSql})` : ''}
+  )`;
+}
+
+function buildDocumentLinkedEntityExistsGroup(
+  field: DocumentLinkedEntityField,
+  documentAlias: string,
+  predicateFactory?: (surface: DocumentLinkedEntitySurface) => string,
+): string {
+  const clauses = DOCUMENT_LINKED_ENTITY_FILTERS[field].map((surface) =>
+    buildDocumentLinkedEntityExistsClause(
+      surface,
+      documentAlias,
+      predicateFactory ? predicateFactory(surface) : undefined,
+    ),
+  );
+  return clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`;
+}
+
+function compileDocumentLinkedEntityFilterCondition(
+  field: DocumentLinkedEntityField,
+  rawModel: any,
+  documentAlias: string,
+  paramRef: string,
+): { sql: string; value?: string } | null {
+  const model = normalizeAgFilterModel(rawModel);
+  if (!model || typeof model !== 'object') return null;
+
+  const type = String(model.type ?? 'contains');
+  const anyLinkedSql = buildDocumentLinkedEntityExistsGroup(field, documentAlias);
+
+  if (type === 'blank') {
+    return { sql: `NOT ${anyLinkedSql}` };
+  }
+  if (type === 'notBlank') {
+    return { sql: anyLinkedSql };
+  }
+
+  const filterText = String(model.filter ?? model.value ?? '').trim();
+  if (!filterText) return null;
+
+  let value = filterText;
+  let predicateKind: 'equals' | 'contains' = 'contains';
+  let negate = false;
+
+  switch (type) {
+    case 'equals':
+      predicateKind = 'equals';
+      break;
+    case 'notEqual':
+      predicateKind = 'equals';
+      negate = true;
+      break;
+    case 'startsWith':
+      value = `${filterText}%`;
+      break;
+    case 'endsWith':
+      value = `%${filterText}`;
+      break;
+    case 'notContains':
+      value = `%${filterText}%`;
+      negate = true;
+      break;
+    case 'contains':
+    default:
+      value = `%${filterText}%`;
+      break;
+  }
+
+  const matchSql = buildDocumentLinkedEntityExistsGroup(field, documentAlias, (surface) => {
+    const comparisons = surface.targetMatchExpressions.map((expression) =>
+      predicateKind === 'equals'
+        ? `${expression} = ${paramRef}`
+        : `${expression} ILIKE ${paramRef}`,
+    );
+    return comparisons.length === 1 ? comparisons[0] : `(${comparisons.join(' OR ')})`;
+  });
+
+  return {
+    sql: negate ? `NOT ${matchSql}` : matchSql,
+    value,
+  };
+}
+
+function applyDocumentLinkedEntityFilters(
+  builder: { andWhere: (sql: string, params?: Record<string, any>) => any },
+  filters: Record<string, any> | undefined,
+  nextParam: () => string,
+  documentAlias = 'd',
+): void {
+  if (!filters || typeof filters !== 'object') return;
+
+  for (const field of Object.keys(DOCUMENT_LINKED_ENTITY_FILTERS) as DocumentLinkedEntityField[]) {
+    const model = filters[field];
+    if (!model) continue;
+    const param = nextParam();
+    const compiled = compileDocumentLinkedEntityFilterCondition(field, model, documentAlias, `:${param}`);
+    if (!compiled) continue;
+    builder.andWhere(compiled.sql, compiled.value === undefined ? {} : { [param]: compiled.value });
+  }
+}
 
 type WorkflowParticipantView = {
   id: string;
@@ -1037,10 +1266,11 @@ export class KnowledgeService {
     manager: EntityManager,
     workflowId: string,
     stage: DocumentWorkflowStage,
-  ): Promise<Array<{ email: string; name: string; userId: string }>> {
+  ): Promise<Array<{ email: string; name: string; userId: string; locale: string | null }>> {
     const rows = await manager.query(
       `SELECT p.user_id,
               u.email,
+              u.locale,
               COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, p.user_id::text) AS user_name
        FROM document_workflow_participants p
        JOIN users u ON u.id = p.user_id AND u.tenant_id = p.tenant_id
@@ -1055,6 +1285,7 @@ export class KnowledgeService {
         email: String(row.email || '').trim(),
         name: String(row.user_name || row.user_id || '').trim() || String(row.user_id || ''),
         userId: String(row.user_id || '').trim(),
+        locale: row.locale ?? null,
       }))
       .filter((row: { email: string }) => !!row.email);
   }
@@ -1063,9 +1294,9 @@ export class KnowledgeService {
     manager: EntityManager,
     documentId: string,
     extraUserIds: Array<string | null | undefined> = [],
-  ): Promise<string[]> {
+  ): Promise<Array<{ email: string; locale: string | null }>> {
     const rows = await manager.query(
-      `SELECT DISTINCT u.email
+      `SELECT DISTINCT u.email, u.locale
        FROM document_contributors c
        JOIN users u ON u.id = c.user_id AND u.tenant_id = c.tenant_id
        WHERE c.document_id = $1
@@ -1075,11 +1306,17 @@ export class KnowledgeService {
       [documentId],
     );
 
-    const emails = new Set<string>(rows.map((row: any) => String(row.email || '').trim()).filter(Boolean));
+    const recipients = new Map<string, { email: string; locale: string | null }>();
+    for (const row of rows) {
+      const email = String(row.email || '').trim();
+      if (!email || recipients.has(email)) continue;
+      recipients.set(email, { email, locale: row.locale ?? null });
+    }
+
     const extraIds = dedupeStrings(extraUserIds);
     if (extraIds.length) {
       const extraRows = await manager.query(
-        `SELECT DISTINCT email
+        `SELECT DISTINCT email, locale
          FROM users
          WHERE id = ANY($1::uuid[])
            AND tenant_id = app_current_tenant()
@@ -1089,32 +1326,46 @@ export class KnowledgeService {
       );
       for (const row of extraRows) {
         const email = String(row.email || '').trim();
-        if (email) emails.add(email);
+        if (!email || recipients.has(email)) continue;
+        recipients.set(email, { email, locale: row.locale ?? null });
       }
     }
 
-    return Array.from(emails);
+    return Array.from(recipients.values());
   }
 
   async sendWorkflowEmail(
-    recipients: string[],
-    subject: string,
-    html: string,
-    text: string,
+    recipients: Array<{ email: string; locale?: string | null }>,
+    buildContent: (locale: string) => EmailContent,
   ): Promise<void> {
     if (!Features.EMAIL_ENABLED) return;
-    const uniqueRecipients = Array.from(new Set(recipients.map((entry) => String(entry || '').trim()).filter(Boolean)));
-    if (!uniqueRecipients.length) return;
+    const localeGroups = new Map<string, Set<string>>();
 
-    try {
-      await this.emails.send({
-        to: uniqueRecipients,
-        subject,
-        html,
-        text,
-      });
-    } catch (error) {
-      this.logger.warn(`Knowledge workflow email failed: ${error instanceof Error ? error.message : String(error)}`);
+    for (const entry of recipients) {
+      const email = String(entry?.email || '').trim();
+      if (!email) continue;
+      const locale = resolveEmailLocale(entry.locale);
+      const group = localeGroups.get(locale) ?? new Set<string>();
+      group.add(email);
+      localeGroups.set(locale, group);
+    }
+
+    for (const [locale, emails] of localeGroups) {
+      const uniqueRecipients = Array.from(emails);
+      if (!uniqueRecipients.length) continue;
+      const content = buildContent(locale);
+
+      try {
+        await this.emails.send({
+          to: uniqueRecipients,
+          subject: content.subject,
+          html: content.html,
+          text: content.text,
+          attachments: content.attachments,
+        });
+      } catch (error) {
+        this.logger.warn(`Knowledge workflow email failed for locale ${locale}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
   }
 
@@ -1685,6 +1936,8 @@ export class KnowledgeService {
     const { page, limit, skip, sort, q, filters } = parsePagination(query, { field: 'updated_at', direction: 'DESC' });
     let reviewDueDateParamIndex = 0;
     const nextReviewDueDateParam = () => `reviewDueDate${reviewDueDateParamIndex++}`;
+    let linkedEntityParamIndex = 0;
+    const nextLinkedEntityParam = () => `linkedEntity${linkedEntityParamIndex++}`;
 
     const allowedSort = new Set([
       'updated_at',
@@ -1961,6 +2214,8 @@ export class KnowledgeService {
       }
     }
 
+    applyDocumentLinkedEntityFilters(qb, filters as Record<string, any> | undefined, nextLinkedEntityParam);
+
     const total = await qb.getCount();
 
     const rows = await qb
@@ -1989,6 +2244,9 @@ export class KnowledgeService {
     const tenantId = String(opts?.tenantId || '').trim();
     const parsed = parsePagination({ ...query, page: 1, limit: query?.limit ?? 10000 }, { field: 'updated_at', direction: 'DESC' });
     const search = this.getDocumentSearchState(parsed.q);
+    const filters = parsed.filters as Record<string, any> | undefined;
+    let linkedEntityParamIndex = 0;
+    const nextLinkedEntityParam = () => `linkedEntity${linkedEntityParamIndex++}`;
 
     const qb = manager
       .getRepository(Document)
@@ -2020,6 +2278,8 @@ export class KnowledgeService {
     if (libraryId) {
       qb.andWhere('d.library_id = :libraryId', { libraryId: String(libraryId) });
     }
+
+    applyDocumentLinkedEntityFilters(qb, filters, nextLinkedEntityParam);
 
     const rows = await qb
       .orderBy('d.updated_at', 'DESC')

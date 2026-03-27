@@ -25,5 +25,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
   imports: [TypeOrmModule.forFeature([Contract, ContractSpendItem, ContractLink, ContractAttachment, ContractCapexItem, ContractContactLink, ExternalContact, SupplierContactLink]), AuditModule, PermissionsModule, forwardRef(() => UsersModule), TasksModule, StorageModule, NotificationsModule],
   providers: [ContractsService, ContractContactsService],
   controllers: [ContractsController, SpendItemContractsController, CapexItemContractsController],
+  exports: [ContractsService],
 })
 export class ContractsModule {}

@@ -189,7 +189,7 @@ Resources are organized into groups for easier management:
 | `portfolio_reports` | Portfolio reports |
 | `portfolio_settings` | Portfolio settings |
 
-**IT Operations**
+**IT Landscape**
 | Resource | What it controls |
 |----------|------------------|
 | `applications` | Applications |
@@ -241,7 +241,7 @@ KANAP ships with pre-configured roles organized by functional area:
 
 **Budget**: Budget Administrator, Budget Member, Budget Reader
 **Portfolio**: Portfolio Administrator, Portfolio Member, Portfolio Reader, **Business Contributor**
-**IT Operations**: IT Operations Administrator, IT Operations Member, IT Operations Reader
+**IT Landscape**: IT Landscape Administrator, IT Landscape Member, IT Landscape Reader
 **Master Data**: Master Data Administrator, Master Data Member, Master Data Reader
 **Tasks**: Tasks Administrator, Tasks Member, Tasks Reader
 

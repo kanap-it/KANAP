@@ -163,6 +163,50 @@ const compileHostingTypesSetFilter = (model: any, nextParam: ParamNameFactory): 
   };
 };
 
+const compileLinkedProjectTextFilter = (model: any, nextParam: ParamNameFactory): CompiledCondition | null => {
+  const normalized = normalizeAgFilterModel(model);
+  if (!normalized || typeof normalized !== 'object') return null;
+  const filterText = String(normalized.filter ?? normalized.value ?? '').trim();
+  if (!filterText) return null;
+
+  const type = String(normalized.type || 'contains');
+  const param = nextParam();
+  const refExpr = `('PRJ-' || p_link.item_number::text)`;
+  let predicate = '';
+  let value = filterText;
+
+  switch (type) {
+    case 'equals':
+      predicate = `(p_link.name = :${param} OR ${refExpr} = :${param})`;
+      break;
+    case 'startsWith':
+      value = `${filterText}%`;
+      predicate = `(p_link.name ILIKE :${param} OR ${refExpr} ILIKE :${param})`;
+      break;
+    case 'endsWith':
+      value = `%${filterText}`;
+      predicate = `(p_link.name ILIKE :${param} OR ${refExpr} ILIKE :${param})`;
+      break;
+    case 'contains':
+    default:
+      value = `%${filterText}%`;
+      predicate = `(p_link.name ILIKE :${param} OR ${refExpr} ILIKE :${param})`;
+      break;
+  }
+
+  return {
+    sql: `EXISTS (
+      SELECT 1
+      FROM application_projects ap
+      JOIN portfolio_projects p_link ON p_link.id = ap.project_id AND p_link.tenant_id = a.tenant_id
+      WHERE ap.application_id = a.id
+        AND ap.tenant_id = a.tenant_id
+        AND ${predicate}
+    )`,
+    params: { [param]: value },
+  };
+};
+
 /**
  * Service for listing and filtering applications.
  */
@@ -266,6 +310,13 @@ export class ApplicationsListService extends ApplicationsBaseService {
         }
         if (field === 'hosting_types') {
           const custom = compileHostingTypesSetFilter(model, nextParam);
+          if (custom) {
+            compiledFilters.push(custom);
+            continue;
+          }
+        }
+        if (field === 'linked_project_name') {
+          const custom = compileLinkedProjectTextFilter(model, nextParam);
           if (custom) {
             compiledFilters.push(custom);
             continue;
@@ -479,6 +530,13 @@ export class ApplicationsListService extends ApplicationsBaseService {
             continue;
           }
         }
+        if (field === 'linked_project_name') {
+          const custom = compileLinkedProjectTextFilter(model, nextParam);
+          if (custom) {
+            compiledFilters.push(custom);
+            continue;
+          }
+        }
         const target = targets[field];
         if (!target) continue;
         const cond = compileAgFilterCondition(model, target, nextParam);
@@ -555,6 +613,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       'hosting_model',
       'hosting_types',
       'supplier_name',
+      'owners_business',
       'owners_it',
       'external_facing',
       'sso_enabled',
@@ -591,6 +650,11 @@ export class ApplicationsListService extends ApplicationsBaseService {
       created_at: { expression: 'a.created_at', textExpression: 'CAST(a.created_at AS TEXT)', dataType: 'string' },
       updated_at: { expression: 'a.updated_at', textExpression: 'CAST(a.updated_at AS TEXT)', dataType: 'string' },
       supplier_name: { expression: 's.name', dataType: 'string' },
+      owners_business: {
+        expression: 'a.id',
+        textExpression: buildApplicationOwnerNamesSql('business'),
+        dataType: 'string',
+      },
       owners_it: {
         expression: 'a.id',
         textExpression: buildApplicationOwnerNamesSql('it'),
@@ -722,6 +786,17 @@ export class ApplicationsListService extends ApplicationsBaseService {
       if (field === 'owners_it') {
         const qb = baseQb.clone();
         qb.innerJoin('application_owners', 'ao', `ao.application_id = a.id AND ao.tenant_id = a.tenant_id AND ao.owner_type = 'it'`);
+        qb.innerJoin('users', 'u_owner', 'u_owner.id = ao.user_id AND u_owner.tenant_id = a.tenant_id');
+        qb.select(`DISTINCT COALESCE(NULLIF(TRIM(CONCAT(u_owner.first_name, ' ', u_owner.last_name)), ''), u_owner.email)`, 'value');
+        qb.orderBy('value', 'ASC');
+        const rows = await qb.getRawMany();
+        results[field] = rows.map((r: any) => r.value);
+        continue;
+      }
+
+      if (field === 'owners_business') {
+        const qb = baseQb.clone();
+        qb.innerJoin('application_owners', 'ao', `ao.application_id = a.id AND ao.tenant_id = a.tenant_id AND ao.owner_type = 'business'`);
         qb.innerJoin('users', 'u_owner', 'u_owner.id = ao.user_id AND u_owner.tenant_id = a.tenant_id');
         qb.select(`DISTINCT COALESCE(NULLIF(TRIM(CONCAT(u_owner.first_name, ' ', u_owner.last_name)), ''), u_owner.email)`, 'value');
         qb.orderBy('value', 'ASC');

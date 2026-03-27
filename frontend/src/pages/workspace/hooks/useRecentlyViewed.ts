@@ -142,7 +142,7 @@ export const ENTITY_TYPE_CONFIG: Record<
     route: (id) => `/ops/opex/${id}`,
     resource: 'spend',
     icon: 'Receipt',
-    label: 'Spend Item',
+    label: 'OPEX Item',
   },
   capex_item: {
     route: (id) => `/ops/capex/${id}`,

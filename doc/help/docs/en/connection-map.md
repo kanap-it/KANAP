@@ -4,7 +4,7 @@ The Connection Map provides an interactive visualization of your infrastructure 
 
 ## Where to find it
 
-Navigate to **IT Operations > Connection Map** to open the visualization.
+Navigate to **IT Landscape > Connection Map** to open the visualization.
 
 **Permissions**: You need at least `applications:reader` to view the map.
 
@@ -80,7 +80,7 @@ When enabled (default), displays individual connection legs as separate edges. T
 When enabled (default), the map keeps its force layout but adds vertical tier guidance:
 
 - **Top / Upper / Center / Lower / Bottom** bands
-- **Servers** use the role assignments configured in IT Operations settings
+- **Servers** use the role assignments configured in IT Landscape settings
 - **Entities** use their configured Graph Tier (default is Top)
 - **Unassigned servers** fall back to Center
 - **Clusters** inherit the highest-priority tier from their members
@@ -172,7 +172,7 @@ Clusters are shown as distinct nodes with a dashed cyan border:
 
 ## Configure graph tiers
 
-You can control where nodes tend to appear vertically by editing tiers in **IT Operations > Settings**:
+You can control where nodes tend to appear vertically by editing tiers in **IT Landscape > Settings**:
 
 - **Server Roles** list: set Graph Tier for each role (e.g., Web = Top, DB = Bottom)
 - **Entities** list: set Graph Tier for each entity type (entities default to Top)

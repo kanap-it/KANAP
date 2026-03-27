@@ -255,7 +255,7 @@ function AppRoutes() {
           {!isSingleTenant && <Route path="/admin/standard-accounts/:templateId/:id" element={<AdminStandardAccountWorkspacePage />} />}
           {!isSingleTenant && <Route path="/admin/standard-accounts/:templateId/:id/:tab" element={<AdminStandardAccountWorkspacePage />} />}
           {!isSingleTenant && <Route path="/admin/standard-accounts/:templateId/:id/*" element={<AdminStandardAccountWorkspacePage />} />}
-          {/* IT Operations */}
+          {/* IT Landscape */}
           <Route path="/it" element={<Navigate to="/it/locations" replace />} />
           <Route path="/it/locations" element={<LocationsPage />} />
           <Route path="/it/locations/:id" element={<LocationWorkspacePage />} />

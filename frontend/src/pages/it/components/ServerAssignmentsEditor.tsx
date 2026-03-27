@@ -357,7 +357,7 @@ export default function ServerAssignmentsEditor({ applicationId, instances, onRe
       </Stack>
       {showRoleWarning && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          No server roles configured. Update IT Operations settings before creating new assignments.
+          No server roles configured. Update IT Landscape settings before creating new assignments.
         </Alert>
       )}
       {message && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setMessage(null)}>{message}</Alert>}

@@ -28,7 +28,7 @@ Sections (mirrored by the Interface workspace tabs):
 - One Interface always models one **source** → one **main target**. If the same source fan-outs to multiple targets, those are modeled as separate Interface records sharing the same `source_application` (and optionally the same `business_process` and `interface_id` prefix).
 
 **Configurable lists**
-- All enum fields used by Interfaces (e.g. `data_category`, `trigger_type`, `integration_pattern`, `data_format`, `authentication_mode`, `data_classification`) are tenant-configurable via IT Operations settings. The default sets are provided out-of-the-box; tenants can extend or deprecate values without breaking existing records.
+- All enum fields used by Interfaces (e.g. `data_category`, `trigger_type`, `integration_pattern`, `data_format`, `authentication_mode`, `data_classification`) are tenant-configurable via IT Landscape settings. The default sets are provided out-of-the-box; tenants can extend or deprecate values without breaking existing records.
 
 ### Duplicate Interface
 

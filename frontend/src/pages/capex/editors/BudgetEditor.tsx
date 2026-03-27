@@ -274,10 +274,10 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
 
       {mode === 'flat' ? (
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <FormattedNumberField label={`Budget${budgetFrozen ? ' – frozen' : ''}`} value={flatBudget} onChange={handleFlatChange(setFlatBudget)} fullWidth disabled={budgetFrozen} InputProps={budgetFrozen ? { readOnly: true } : undefined} />
-          <FormattedNumberField label={`Revision${revisionFrozen ? ' – frozen' : ''}`} value={flatRevision} onChange={handleFlatChange(setFlatRevision)} fullWidth disabled={revisionFrozen} InputProps={revisionFrozen ? { readOnly: true } : undefined} />
-          <FormattedNumberField label={`Follow-up${actualFrozen ? ' – frozen' : ''}`} value={flatFollowUp} onChange={handleFlatChange(setFlatFollowUp)} fullWidth disabled={actualFrozen} InputProps={actualFrozen ? { readOnly: true } : undefined} />
-          <FormattedNumberField label={`Landing${landingFrozen ? ' – frozen' : ''}`} value={flatLanding} onChange={handleFlatChange(setFlatLanding)} fullWidth disabled={landingFrozen} InputProps={landingFrozen ? { readOnly: true } : undefined} />
+          <FormattedNumberField label={`${t('capex.budget.budgetLabel')}${budgetFrozen ? ` – ${t('capex.budget.frozen')}` : ''}`} value={flatBudget} onChange={handleFlatChange(setFlatBudget)} fullWidth disabled={budgetFrozen} InputProps={budgetFrozen ? { readOnly: true } : undefined} />
+          <FormattedNumberField label={`${t('capex.budget.revisionLabel')}${revisionFrozen ? ` – ${t('capex.budget.frozen')}` : ''}`} value={flatRevision} onChange={handleFlatChange(setFlatRevision)} fullWidth disabled={revisionFrozen} InputProps={revisionFrozen ? { readOnly: true } : undefined} />
+          <FormattedNumberField label={`${t('capex.budget.followUpLabel')}${actualFrozen ? ` – ${t('capex.budget.frozen')}` : ''}`} value={flatFollowUp} onChange={handleFlatChange(setFlatFollowUp)} fullWidth disabled={actualFrozen} InputProps={actualFrozen ? { readOnly: true } : undefined} />
+          <FormattedNumberField label={`${t('capex.budget.landingLabel')}${landingFrozen ? ` – ${t('capex.budget.frozen')}` : ''}`} value={flatLanding} onChange={handleFlatChange(setFlatLanding)} fullWidth disabled={landingFrozen} InputProps={landingFrozen ? { readOnly: true } : undefined} />
         </Stack>
       ) : (
         <Box>
@@ -286,10 +286,10 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
             {months.map((m, i) => (
               <Stack key={m.period} direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center">
                 <Box sx={{ width: 72 }}>{monthLabel(i + 1, locale)}</Box>
-                <FormattedNumberField label={`Budget${budgetFrozen ? ' – frozen' : ''}`} value={m.planned} onChange={handleMonthChange(i, 'planned')} disabled={budgetFrozen} InputProps={budgetFrozen ? { readOnly: true } : undefined} />
-                <FormattedNumberField label={`Revision${revisionFrozen ? ' – frozen' : ''}`} value={m.committed} onChange={handleMonthChange(i, 'committed')} disabled={revisionFrozen} InputProps={revisionFrozen ? { readOnly: true } : undefined} />
-                <FormattedNumberField label={`Follow-up${actualFrozen ? ' – frozen' : ''}`} value={m.actual} onChange={handleMonthChange(i, 'actual')} disabled={actualFrozen} InputProps={actualFrozen ? { readOnly: true } : undefined} />
-                <FormattedNumberField label={`Landing${landingFrozen ? ' – frozen' : ''}`} value={m.expected_landing} onChange={handleMonthChange(i, 'expected_landing')} disabled={landingFrozen} InputProps={landingFrozen ? { readOnly: true } : undefined} />
+                <FormattedNumberField label={`${t('capex.budget.budgetLabel')}${budgetFrozen ? ` – ${t('capex.budget.frozen')}` : ''}`} value={m.planned} onChange={handleMonthChange(i, 'planned')} disabled={budgetFrozen} InputProps={budgetFrozen ? { readOnly: true } : undefined} />
+                <FormattedNumberField label={`${t('capex.budget.revisionLabel')}${revisionFrozen ? ` – ${t('capex.budget.frozen')}` : ''}`} value={m.committed} onChange={handleMonthChange(i, 'committed')} disabled={revisionFrozen} InputProps={revisionFrozen ? { readOnly: true } : undefined} />
+                <FormattedNumberField label={`${t('capex.budget.followUpLabel')}${actualFrozen ? ` – ${t('capex.budget.frozen')}` : ''}`} value={m.actual} onChange={handleMonthChange(i, 'actual')} disabled={actualFrozen} InputProps={actualFrozen ? { readOnly: true } : undefined} />
+                <FormattedNumberField label={`${t('capex.budget.landingLabel')}${landingFrozen ? ` – ${t('capex.budget.frozen')}` : ''}`} value={m.expected_landing} onChange={handleMonthChange(i, 'expected_landing')} disabled={landingFrozen} InputProps={landingFrozen ? { readOnly: true } : undefined} />
                 <IconButton size="small" onClick={handleDeleteAndRedistribute(i, 'planned')} title={t('capex.budget.deleteRedistribute')} disabled={budgetFrozen}><DeleteIcon fontSize="small" /></IconButton>
               </Stack>
             ))}

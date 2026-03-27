@@ -115,7 +115,7 @@ Apps & Services is where you document your IT application landscape...
 
 ## Getting started
 
-Navigate to **IT Operations → Apps & Services**...
+Navigate to **IT Landscape → Apps & Services**...
 
 ## Working with the list
 
@@ -141,5 +141,5 @@ Navigate to **IT Operations → Apps & Services**...
 
 - If a workspace has many tabs, document each one as a separate subsection
 - For complex features (like Interfaces with environments and bindings), break down the workflows
-- Reference related pages where relevant (e.g., "See IT Operations Settings for...")
+- Reference related pages where relevant (e.g., "See IT Landscape Settings for...")
 - Integration points and inventory updates are handled in Steps 5-6 above

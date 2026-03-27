@@ -16,7 +16,7 @@ Production topology layers Cloudflare in front of an Nginx front door for routin
 Goals, constraints, assumptions, and relevant background for architectural choices.
 
 ## Components
- - <Frontend (web)>: React + TypeScript (Vite), MUI (with icons) + AG Grid (community); routing, protected routes, and pages; TanStack Query for data; shared `ServerDataGrid` and `PageHeader` components; left drawer navigation (Budget Management, IT Operations, Master Data, Admin)
+ - <Frontend (web)>: React + TypeScript (Vite), MUI (with icons) + AG Grid (community); routing, protected routes, and pages; TanStack Query for data; shared `ServerDataGrid` and `PageHeader` components; left drawer navigation (Budget Management, IT Landscape, Master Data, Admin)
  - <Backend API (api)>: NestJS + TypeORM; auth (password + JWT), validation, audit, import/export, tenant provisioning, outbound email
  - <Data Store (db)>: PostgreSQL 15; normalized schema; audit_log; seeds for currencies and spread_profiles (flat, 4-4-5)
  - <Integrations>: CSV import/export endpoints; future external APIs
@@ -79,7 +79,7 @@ flowchart LR
 - Transport is protected with TLS. Explicit per-request SSE headers are used where supported; when a provider rejects them, uploads fall back to bucket-default encryption behavior.
 - Configuration via env: `FILES_STORAGE=s3`, `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
 
-### Applications Portfolio (IT Operations)
+### Applications Portfolio (IT Landscape)
 - Backend: `ApplicationsModule` provides CRUD and sub-resources; tables are RLS-protected and tenant-scoped.
 - Data model: `applications` (includes `is_suite` flag), `application_owners`, `application_companies`, `application_departments`, `application_links`, `application_attachments`, `application_data_residency`, `application_suites` (parent/child join).
 - Derived metric: total users computed from audience with preference for company IT users and department headcount; de‑dups company vs department.
@@ -175,7 +175,7 @@ Notes
   - Ops aliases: `reports` → `reporting`, `assets` → `applications`
 - The `hasLevel(resource, level)` function in `AuthContext` supports both `'member'` (current) and `'manager'` (legacy) permission levels for backwards compatibility. The hierarchy is: `reader(1) < contributor(2) < member/manager(3) < admin(4)`. The `contributor` level allows editing existing items without creating new top-level items (currently used for `portfolio_projects`).
 - Menu visibility in `Layout.tsx` checks permissions using resource identifiers that must align with backend `@RequireLevel` decorators.
-- **Workspace tab visibility**: The top-bar workspace tabs (Portfolio, IT Operations, Budget Management, Master Data, Admin) are conditionally rendered based on whether the user has `reader` or higher permission on ANY resource within that workspace. This prevents users from seeing tabs that lead to "Access Denied" pages.
+- **Workspace tab visibility**: The top-bar workspace tabs (Portfolio, IT Landscape, Budget Management, Master Data, Admin) are conditionally rendered based on whether the user has `reader` or higher permission on ANY resource within that workspace. This prevents users from seeing tabs that lead to "Access Denied" pages.
 
 ## Decisions
 - Key architectural decisions with brief rationale; cross-link to ADRs

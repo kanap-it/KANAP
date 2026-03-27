@@ -1,9 +1,9 @@
 {
-  "pageTitle": "Settings",
+  "pageTitle": "Paramètres",
   "tabs": {
-    "profile": "Profile",
+    "profile": "Profil",
     "notifications": "Notifications",
-    "appearance": "Appearance"
+    "appearance": "Apparence"
   },
   "profile": {
     "sections": {
@@ -31,57 +31,57 @@
     }
   },
   "appearance": {
-    "title": "Appearance",
-    "description": "Choose how Kanap should look in this browser.",
-    "light": "Light",
-    "dark": "Dark",
-    "system": "System",
-    "activeMode": "Active mode: {{mode}}"
+    "title": "Apparence",
+    "description": "Choisissez l'apparence de Kanap dans ce navigateur.",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système",
+    "activeMode": "Mode actif : {{mode}}"
   },
   "notifications": {
-    "emailNotifications": "Email Notifications",
-    "emailDescription": "Receive email notifications for updates and activity",
+    "emailNotifications": "Notifications par e-mail",
+    "emailDescription": "Recevoir des notifications par e-mail pour les mises à jour et l'activité",
     "portfolio": {
-      "title": "Portfolio Notifications",
-      "statusChanges": "Status changes",
-      "teamAdditions": "When I'm added to a team",
-      "teamChangesAsLead": "Team changes on items I lead",
-      "comments": "Comments"
+      "title": "Notifications du portefeuille",
+      "statusChanges": "Changements de statut",
+      "teamAdditions": "Quand je suis ajouté à une équipe",
+      "teamChangesAsLead": "Changements d'équipe sur les éléments que je dirige",
+      "comments": "Commentaires"
     },
     "tasks": {
-      "title": "Task Notifications",
-      "notifyWhen": "Notify me when I am:",
-      "asAssignee": "Assigned to a task",
-      "asRequestor": "Requestor of a task",
-      "asViewer": "Viewer of a task",
-      "viewerHint": "Can be noisy - off by default",
-      "eventTypes": "Event types:",
-      "statusChanges": "Status changes",
-      "comments": "Comments"
+      "title": "Notifications des tâches",
+      "notifyWhen": "Me notifier quand je suis :",
+      "asAssignee": "Assigné à une tâche",
+      "asRequestor": "Demandeur d'une tâche",
+      "asViewer": "Observateur d'une tâche",
+      "viewerHint": "Peut être fréquent — désactivé par défaut",
+      "eventTypes": "Types d'événements :",
+      "statusChanges": "Changements de statut",
+      "comments": "Commentaires"
     },
     "budget": {
-      "title": "Budget Notifications",
-      "expirationWarnings": "Expiration warnings",
-      "statusChanges": "Status changes",
-      "comments": "Comments"
+      "title": "Notifications budgétaires",
+      "expirationWarnings": "Alertes d'expiration",
+      "statusChanges": "Changements de statut",
+      "comments": "Commentaires"
     },
     "weeklyReview": {
-      "title": "Weekly Review Email",
-      "description": "Receive a summary of your activity and upcoming items",
-      "day": "Day",
-      "time": "Time",
-      "timezone": "Timezone",
-      "previewEmail": "Preview email",
-      "sending": "Sending..."
+      "title": "E-mail de revue hebdomadaire",
+      "description": "Recevoir un résumé de votre activité et de vos prochaines échéances",
+      "day": "Jour",
+      "time": "Heure",
+      "timezone": "Fuseau horaire",
+      "previewEmail": "Aperçu de l'e-mail",
+      "sending": "Envoi en cours..."
     },
     "days": {
-      "sunday": "Sunday",
-      "monday": "Monday",
-      "tuesday": "Tuesday",
-      "wednesday": "Wednesday",
-      "thursday": "Thursday",
-      "friday": "Friday",
-      "saturday": "Saturday"
+      "sunday": "Dimanche",
+      "monday": "Lundi",
+      "tuesday": "Mardi",
+      "wednesday": "Mercredi",
+      "thursday": "Jeudi",
+      "friday": "Vendredi",
+      "saturday": "Samedi"
     }
   }
 }

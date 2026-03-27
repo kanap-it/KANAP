@@ -29,9 +29,11 @@ import {
   listsPlugin,
   ListsToggle,
   markdownShortcutPlugin,
+  createRootEditorSubscription$,
   MDXEditor,
   MDXEditorMethods,
   quotePlugin,
+  realmPlugin,
   Separator,
   StrikeThroughSupSubToggles,
   tablePlugin,
@@ -42,6 +44,8 @@ import {
   usePublisher,
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
+import { $getSelection, type LexicalEditor } from 'lexical';
+import { hasPotentiallyUnsafeMdxPaste, sanitizeMarkdownForMdxPaste } from '../lib/mdxPaste';
 import {
   convertRichClipboardToMarkdown,
   extractClipboardImageFiles,
@@ -112,6 +116,21 @@ function getPasteTargetElement(target: EventTarget | null): HTMLElement | null {
   return null;
 }
 
+const captureRootEditorPlugin = realmPlugin<{ editorRef: React.MutableRefObject<LexicalEditor | null> }>({
+  init(realm, params) {
+    if (!params?.editorRef) return;
+
+    realm.pub(createRootEditorSubscription$, (rootEditor) => {
+      params.editorRef.current = rootEditor;
+      return () => {
+        if (params.editorRef.current === rootEditor) {
+          params.editorRef.current = null;
+        }
+      };
+    });
+  },
+});
+
 const MarkdownEditor = React.memo(function MarkdownEditor({
   value,
   onChange,
@@ -132,6 +151,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   const contentHeightOffset = disabled ? 0 : 24;
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const mdxRef = React.useRef<MDXEditorMethods>(null);
+  const lexicalEditorRef = React.useRef<LexicalEditor | null>(null);
   const internalChangeRef = React.useRef(false);
   const currentMarkdownRef = React.useRef(value || '');
   const imageUploadHandlerRef = React.useRef<MarkdownEditorProps['onImageUpload']>(onImageUpload);
@@ -237,6 +257,28 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
     [onChange],
   );
 
+  const insertPlainText = React.useCallback((text: string) => {
+    const editor = lexicalEditorRef.current;
+    if (!editor || !text) return false;
+
+    let inserted = false;
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!selection) return;
+      selection.insertRawText(text);
+      inserted = true;
+    });
+
+    return inserted;
+  }, []);
+
+  const insertSanitizedMarkdown = React.useCallback((markdown: string) => {
+    const content = sanitizeMarkdownForMdxPaste(markdown);
+    if (!content.trim()) return false;
+    mdxRef.current?.insertMarkdown(content);
+    return true;
+  }, []);
+
   React.useEffect(() => {
     const incoming = value || '';
     if (internalChangeRef.current) {
@@ -281,16 +323,22 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
       const html = clipboardData.getData('text/html');
       const plainText = clipboardData.getData('text/plain');
       const imageFiles = extractClipboardImageFiles(clipboardData);
+      const hasUnsafeLiteralPlainText = Boolean(plainText) && hasPotentiallyUnsafeMdxPaste(plainText);
 
       if (!shouldHandleRichClipboardImport({ html, plainText, imageFiles })) {
+        if (hasUnsafeLiteralPlainText && !looksLikeMarkdown(plainText)) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          insertPlainText(plainText);
+          return;
+        }
+
         if (plainText && looksLikeMarkdown(plainText)) {
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
-          const content = plainText.trim();
-          if (content) {
-            mdxRef.current?.insertMarkdown(content);
-          }
+          insertSanitizedMarkdown(plainText);
         }
         return;
       }
@@ -307,16 +355,16 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
         importRemoteImage: imageUrlImportHandlerRef.current || undefined,
       })
         .then((markdown) => {
-          const content = String(markdown || '').trim();
-          if (!content) return;
-          mdxRef.current?.insertMarkdown(content);
+          insertSanitizedMarkdown(String(markdown || ''));
         })
         .catch((error) => {
           console.error('Failed to import rich clipboard content', error);
-          const fallback = plainText.trim();
-          if (fallback) {
-            mdxRef.current?.insertMarkdown(fallback);
+          if (!plainText.trim()) return;
+          if (hasUnsafeLiteralPlainText && !looksLikeMarkdown(plainText)) {
+            insertPlainText(plainText);
+            return;
           }
+          insertSanitizedMarkdown(plainText);
         });
     };
 
@@ -324,10 +372,11 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
     return () => {
       container.removeEventListener('paste', handlePaste, true);
     };
-  }, [disabled]);
+  }, [disabled, insertPlainText, insertSanitizedMarkdown]);
 
   const plugins = React.useMemo(() => {
     const basePlugins = [
+      captureRootEditorPlugin({ editorRef: lexicalEditorRef }),
       headingsPlugin({ allowedHeadingLevels: [1, 2, 3, 4, 5, 6] }),
       listsPlugin(),
       quotePlugin(),

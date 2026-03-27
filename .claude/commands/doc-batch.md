@@ -67,7 +67,7 @@ Platform admin pages (not tenant-facing): always excluded
 
 ## Category Mappings
 
-### `it` - IT Operations
+### `it` - IT Landscape
 - `/it/applications` + workspace
 - `/it/interfaces` + workspace
 - `/it/interface-map`

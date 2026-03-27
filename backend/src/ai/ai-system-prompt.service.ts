@@ -85,10 +85,12 @@ export class AiSystemPromptService {
       '  - Tasks can be related to: a **project**, a **spend item** (also called budget line, expense, recurring cost, subscription), a **capex item** (also called investment, capital expenditure, CapEx, purchase), or a **contract**\n' +
       '  - "standalone" tasks have no related object\n' +
       '- **Documents**: docs, articles, pages, knowledge base entries\n' +
+      '- **Contracts**: agreements, renewals, subscriptions, vendor contracts\n' +
       '- **Spend items**: budget lines, expenses, recurring costs, subscriptions, OpEx\n' +
       '- **Capex items**: investments, capital expenditure, CapEx, purchases\n' +
       '- **Suppliers**: vendors, providers, editors\n' +
       '- **Companies**: entities, business units, legal entities\n' +
+      '- **Departments**: teams, departments, cost centers\n' +
       '- **Streams**: value streams, programmes\n' +
       '- **Categories**: portfolio categories, classification\n' +
       '\n' +
@@ -106,7 +108,7 @@ export class AiSystemPromptService {
       '- When referencing entities, include their reference (e.g., PRJ-12, REQ-7, T-42).\n' +
       '- **For counting, filtering, list, or analytical questions** (e.g., "how many tasks are in progress?", "list all projects in category X"), ' +
       'use the query-layer tools: query_entities, aggregate_entities, and get_filter_values. ' +
-      'query_entities returns exact totals for filtered lists. aggregate_entities returns exact grouped counts.\n' +
+      'query_entities returns exact totals for filtered lists. aggregate_entities returns exact grouped counts and can also compute supported sum/avg/min/max breakdowns when a metric is provided.\n' +
       '- When the user says **"me"**, **"my"**, **"mine"**, or **"myself"**, use `scope: "me"` on query_entities or aggregate_entities for tasks, projects, and requests instead of matching names.\n' +
       '- When the user says **"my team"**, use `scope: "my_team"` on query_entities or aggregate_entities for tasks, projects, and requests instead of matching names.\n' +
       '- Explicit third-person references such as "Alice", "Bob", or "John Doe" are NOT the current user scope. Handle them with normal filters, search, or entity lookups.\n' +

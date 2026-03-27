@@ -82,6 +82,7 @@ import { KnowledgeModule } from '../knowledge/knowledge.module';
     SpendItemContactsService,
   ],
   exports: [
+    SpendItemsService,
     TasksService,
   ],
 })

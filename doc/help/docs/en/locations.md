@@ -4,7 +4,7 @@ Locations document where your IT infrastructure is hosted -- data centers, cloud
 
 ## Getting started
 
-Navigate to **IT Operations -> Locations** to open the location registry. Click **Add Location** to create a new entry.
+Navigate to **IT Landscape -> Locations** to open the location registry. Click **Add Location** to create a new entry.
 
 **Required fields**:
 - **Code**: A unique short identifier (e.g., `DC-EU-WEST`, `AWS-US-EAST-1`)
@@ -55,7 +55,7 @@ The Overview tab captures identity and geographic information, split into two se
 **Basic information**:
 - **Code**: Unique identifier (required)
 - **Name**: Display name (required)
-- **Hosting Type**: Category of facility (required). Hosting types are configurable in **IT Operations -> Settings**.
+- **Hosting Type**: Category of facility (required). Hosting types are configurable in **IT Landscape -> Settings**.
 
 **Location details** -- the fields shown here depend on the hosting type category:
 
@@ -112,7 +112,7 @@ From the workspace header, click **Delete** to remove a location.
 
 ## Hosting types
 
-Hosting types are configurable in **IT Operations -> Settings**. Each type belongs to a category that controls which fields appear in the workspace.
+Hosting types are configurable in **IT Landscape -> Settings**. Each type belongs to a category that controls which fields appear in the workspace.
 
 | Type | Category | Example |
 |------|----------|---------|

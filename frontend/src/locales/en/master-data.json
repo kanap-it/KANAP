@@ -1,7 +1,7 @@
 {
   "home": {
     "title": "Master Data",
-    "subtitle": "Manage organizational structure, suppliers, accounts, and analytics categories.",
+    "subtitle": "Manage organizational structure, suppliers, accounts, and analytics dimensions.",
     "cards": {
       "companiesTitle": "Companies",
       "companiesDescription": "Manage company entities and their metrics",
@@ -282,15 +282,16 @@
   },
   "analytics": {
     "title": "Analytics Dimensions",
-    "entity": "analytics category",
-    "newCategory": "New Category",
-    "newAnalyticsCategory": "New Analytics Category",
-    "analyticsCategoryFallback": "Analytics Category",
-    "loadError": "Failed to load analytics category.",
+    "entity": "analytics dimension",
+    "newCategory": "New Dimension",
+    "newAnalyticsCategory": "New Analytics Dimension",
+    "analyticsCategoryFallback": "Analytics Dimension",
+    "loadError": "Failed to load analytics dimension.",
+    "noOptions": "No analytics dimensions found",
     "fields": {
-      "nameHelper": "Enter a unique analytics category name",
+      "nameHelper": "Enter a unique analytics dimension name",
       "descriptionPlaceholder": "Optional description",
-      "statusHelper": "Toggle off to disable this category"
+      "statusHelper": "Toggle off to disable this dimension"
     }
   },
   "businessProcesses": {

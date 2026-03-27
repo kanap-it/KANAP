@@ -16,11 +16,16 @@ export type AiToolName =
 export const AiSearchEntityTypeSchema = z.enum([
   'applications',
   'assets',
+  'companies',
+  'contracts',
+  'departments',
+  'documents',
   'locations',
   'projects',
   'requests',
+  'spend_items',
+  'suppliers',
   'tasks',
-  'documents',
 ]);
 
 export const AiQueryEntityTypeSchema = AiSearchEntityTypeSchema;

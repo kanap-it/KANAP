@@ -17,6 +17,6 @@ import { SupplierContactsService } from './supplier-contacts.service';
   imports: [TypeOrmModule.forFeature([Supplier, SupplierContactLink, ExternalContact]), AuditModule, PermissionsModule, forwardRef(() => UsersModule), CommonModule],
   providers: [SuppliersService, SuppliersDeleteService, SupplierContactsService],
   controllers: [SuppliersController],
-  exports: [SupplierContactsService],
+  exports: [SuppliersService, SupplierContactsService],
 })
 export class SuppliersModule {}

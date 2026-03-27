@@ -1,4 +1,4 @@
-# Applications Portfolio (IT Operations)
+# Applications Portfolio (IT Landscape)
 
 Metadata
 - Purpose: Describe the Applications, App Instances, Interfaces, and Servers capabilities across DB, backend, and frontend.
@@ -115,7 +115,7 @@ All tables are tenant-scoped with standard tenant-isolation policies (`tenant_id
 
 ## Frontend (React + Vite)
 - **Navigation**
-  - AppBar workspace toggle highlights IT Operations; drawer shows Applications and Interfaces inside the IT workspace. Servers appear under IT Operations as well (even though their routes live in `/ops/servers*` for historical reasons).
+  - AppBar workspace toggle highlights IT Landscape; drawer shows Applications and Interfaces inside the IT workspace. Servers appear under IT Landscape as well (even though their routes live in `/ops/servers*` for historical reasons).
 - **Applications Grid** (`frontend/src/pages/it/ApplicationsPage.tsx`)
   - Environment column replaced by an “Environments” chip row derived from `instances`. Tooltips show hosting/base URL; clicking chips deep links to the Instances tab.
   - Column chooser toggles the necessary `include` flags (`supplier`, `owners`, `counts`, `structure`, `instances`) automatically.

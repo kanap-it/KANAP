@@ -1,15 +1,21 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ApplicationsService } from '../../applications/services';
 import { AssetsService } from '../../assets/services';
+import { CompaniesService } from '../../companies/companies.service';
+import { ContractsService } from '../../contracts/contracts.service';
+import { DepartmentsService } from '../../departments/departments.service';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
 import { LocationsService } from '../../locations/locations.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
+import { SpendItemsService } from '../../spend/spend-items.service';
 import { TasksService } from '../../spend/tasks.service';
+import { SuppliersService } from '../../suppliers/suppliers.service';
 import {
   AiEntityMetadata,
   AiEntitySummaryDto,
   AiExecutionContextWithManager,
+  AiQueryEntityType,
   AiQueryScope,
 } from '../ai.types';
 import { adaptFilters } from './ai-filter.adapter';
@@ -28,7 +34,7 @@ function toIso(value: Date | string | null | undefined): string | null {
 }
 
 function buildRef(
-  entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
+  entityType: AiQueryEntityType,
   itemNumber?: number | null,
 ): string | null {
   if (!itemNumber) return null;
@@ -84,8 +90,47 @@ function extractContributorNames(row: any): string | null {
   ]);
 }
 
+function getSpendVersionSlot(row: any, offset: number, anchorYear: number): any {
+  const versions = row?.versions;
+  if (!versions || typeof versions !== 'object') return null;
+  const targetYear = anchorYear + offset;
+  if (offset === -1) return versions.yMinus1 ?? versions[`y${targetYear}`] ?? null;
+  if (offset === 0) return versions.y ?? versions[`y${targetYear}`] ?? null;
+  if (offset === 1) return versions.yPlus1 ?? versions[`y${targetYear}`] ?? null;
+  return versions[`y${targetYear}`] ?? null;
+}
+
+function getSpendVersionMetric(
+  row: any,
+  offset: number,
+  anchorYear: number,
+  metric: 'budget' | 'revision' | 'follow_up' | 'landing',
+): number | null {
+  const slot = getSpendVersionSlot(row, offset, anchorYear);
+  if (!slot || typeof slot !== 'object') return null;
+  const reportingValue = numericScalar(slot.reporting?.[metric]);
+  if (reportingValue != null) return reportingValue;
+  return numericScalar(slot.totals?.[metric]);
+}
+
+function formatRelativeYearLabel(offset: number): string {
+  if (offset === 0) return 'Y';
+  return offset > 0 ? `Y+${offset}` : `Y${offset}`;
+}
+
+function buildSpendYearlyTotals(row: any, anchorYear: number): Array<Record<string, string | number | null>> {
+  return [-2, -1, 0, 1, 2].map((offset) => ({
+    label: formatRelativeYearLabel(offset),
+    year: anchorYear + offset,
+    budget: getSpendVersionMetric(row, offset, anchorYear, 'budget'),
+    review: getSpendVersionMetric(row, offset, anchorYear, 'revision'),
+    actual: getSpendVersionMetric(row, offset, anchorYear, 'follow_up'),
+    landing: getSpendVersionMetric(row, offset, anchorYear, 'landing'),
+  }));
+}
+
 function toEntitySummary(
-  entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
+  entityType: AiQueryEntityType,
   row: {
     id: string;
     item_number?: number | null;
@@ -116,12 +161,17 @@ export class AiQueryExecutor {
     private readonly requests: PortfolioRequestsService,
     private readonly applications: ApplicationsService,
     private readonly assets: AssetsService,
+    private readonly spendItems: SpendItemsService,
+    private readonly contracts: ContractsService,
+    private readonly companies: CompaniesService,
+    private readonly suppliers: SuppliersService,
+    private readonly departments: DepartmentsService,
     private readonly knowledge: KnowledgeService,
     private readonly locations: LocationsService,
   ) {}
 
   private resolveSort(
-    entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
+    entityType: AiQueryEntityType,
     sort?: { field: string; direction: 'asc' | 'desc' },
   ): string {
     const registry = getAiEntityRegistry(entityType);
@@ -137,7 +187,7 @@ export class AiQueryExecutor {
   }
 
   private buildBaseQuery(
-    entityType: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents',
+    entityType: AiQueryEntityType,
     input: {
       filters?: Record<string, AiFilterValue>;
       q?: string;
@@ -171,6 +221,14 @@ export class AiQueryExecutor {
     } else if (entityType === 'applications') {
       query.include = 'supplier,owners';
       query.include_inactive = true;
+    } else if (
+      entityType === 'spend_items'
+      || entityType === 'contracts'
+      || entityType === 'companies'
+      || entityType === 'suppliers'
+      || entityType === 'departments'
+    ) {
+      query.includeDisabled = true;
     }
 
     return {
@@ -203,12 +261,17 @@ export class AiQueryExecutor {
         creator: scalar(row.creator_name),
         priority: scalar(row.priority_level),
         type: scalar(row.task_type_name),
+        due_date: scalar(row.due_date),
+        labels: scalar(Array.isArray(row.labels) ? row.labels.join(', ') : null),
         related: scalar(row.related_object_type),
         related_label: scalar(row.related_object_name),
         category: scalar(row.category_name),
         stream: scalar(row.stream_name),
         company: scalar(row.company_name),
         source: scalar(row.source_name),
+        project_name: scalar(row.project_name),
+        project_stream: scalar(row.project_stream_name),
+        project_category: scalar(row.project_category_name),
       },
     });
   }
@@ -226,6 +289,7 @@ export class AiQueryExecutor {
         category: scalar(row.category_name),
         stream: scalar(row.stream_name),
         company: scalar(row.company?.name ?? row.company_name),
+        department: scalar(row.department?.name ?? row.department_name),
         business_lead: scalar(displayName(row.business_lead) ?? row.business_lead_name),
         it_lead: scalar(displayName(row.it_lead) ?? row.it_lead_name),
         contributors: scalar(extractContributorNames(row)),
@@ -250,6 +314,7 @@ export class AiQueryExecutor {
         category: scalar(row.category_name),
         stream: scalar(row.stream_name),
         company: scalar(row.company?.name ?? row.company_name),
+        department: scalar(row.department?.name ?? row.department_name),
         business_lead: scalar(displayName(row.business_lead) ?? row.business_lead_name),
         it_lead: scalar(displayName(row.it_lead) ?? row.it_lead_name),
         contributors: scalar(extractContributorNames(row)),
@@ -274,7 +339,120 @@ export class AiQueryExecutor {
         data_class: scalar(row.data_class),
         version: scalar(row.version),
         supplier: scalar(row.supplier_name),
+        business_owner: scalar(joinDisplayNames(Array.isArray(row.owners_business) ? row.owners_business : [])),
         it_owner: scalar(joinDisplayNames(Array.isArray(row.owners_it) ? row.owners_it : [])),
+      },
+    });
+  }
+
+  private mapSpendItem(row: any): AiEntitySummaryDto {
+    const anchorYear = new Date().getFullYear();
+    const summary = row.description
+      ?? ([row.supplier_name, row.paying_company_name, row.account_display].filter(Boolean).join(' | ') || null);
+    return toEntitySummary('spend_items', {
+      id: row.id,
+      label: row.product_name || 'Untitled spend item',
+      status: row.status ?? null,
+      summary,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        supplier: scalar(row.supplier_name),
+        paying_company: scalar(row.paying_company_name),
+        account: scalar(row.account_display),
+        owner_it: scalar(row.owner_it_name),
+        owner_business: scalar(row.owner_business_name),
+        analytics_category: scalar(row.analytics_category_name),
+        allocation_method: scalar(row.allocation_method_label),
+        contract: scalar(row.latest_contract_name),
+        currency: scalar(row.currency),
+        effective_start: scalar(row.effective_start),
+        effective_end: scalar(row.effective_end),
+        budget_anchor_year: anchorYear,
+        y_minus2_budget: getSpendVersionMetric(row, -2, anchorYear, 'budget'),
+        y_minus2_review: getSpendVersionMetric(row, -2, anchorYear, 'revision'),
+        y_minus2_actual: getSpendVersionMetric(row, -2, anchorYear, 'follow_up'),
+        y_minus2_landing: getSpendVersionMetric(row, -2, anchorYear, 'landing'),
+        y_minus1_budget: getSpendVersionMetric(row, -1, anchorYear, 'budget'),
+        y_minus1_review: getSpendVersionMetric(row, -1, anchorYear, 'revision'),
+        y_minus1_actual: getSpendVersionMetric(row, -1, anchorYear, 'follow_up'),
+        y_minus1_landing: getSpendVersionMetric(row, -1, anchorYear, 'landing'),
+        y_budget: getSpendVersionMetric(row, 0, anchorYear, 'budget'),
+        y_review: getSpendVersionMetric(row, 0, anchorYear, 'revision'),
+        y_actual: getSpendVersionMetric(row, 0, anchorYear, 'follow_up'),
+        y_landing: getSpendVersionMetric(row, 0, anchorYear, 'landing'),
+        y_plus1_budget: getSpendVersionMetric(row, 1, anchorYear, 'budget'),
+        y_plus1_review: getSpendVersionMetric(row, 1, anchorYear, 'revision'),
+        y_plus1_actual: getSpendVersionMetric(row, 1, anchorYear, 'follow_up'),
+        y_plus1_landing: getSpendVersionMetric(row, 1, anchorYear, 'landing'),
+        y_plus2_budget: getSpendVersionMetric(row, 2, anchorYear, 'budget'),
+        y_plus2_review: getSpendVersionMetric(row, 2, anchorYear, 'revision'),
+        y_plus2_actual: getSpendVersionMetric(row, 2, anchorYear, 'follow_up'),
+        y_plus2_landing: getSpendVersionMetric(row, 2, anchorYear, 'landing'),
+        yearly_totals: buildSpendYearlyTotals(row, anchorYear),
+      },
+    });
+  }
+
+  private mapContract(row: any): AiEntitySummaryDto {
+    const companyName = row.company?.name ?? row.company_name ?? null;
+    const supplierName = row.supplier?.name ?? row.supplier_name ?? null;
+    const summary = row.notes ?? ([companyName, supplierName].filter(Boolean).join(' | ') || null);
+    return toEntitySummary('contracts', {
+      id: row.id,
+      label: row.name,
+      status: row.status ?? null,
+      summary,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        company: scalar(companyName),
+        supplier: scalar(supplierName),
+        currency: scalar(row.currency),
+        billing_frequency: scalar(row.billing_frequency),
+        start_date: scalar(row.start_date),
+        end_date: scalar(row.end_date),
+        cancellation_deadline: scalar(row.cancellation_deadline),
+        yearly_amount: numericScalar(row.yearly_amount_at_signature),
+      },
+    });
+  }
+
+  private mapCompany(row: any): AiEntitySummaryDto {
+    return toEntitySummary('companies', {
+      id: row.id,
+      label: row.name,
+      status: row.status ?? null,
+      summary: [row.city, row.country_iso].filter(Boolean).join(', ') || null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        country: scalar(row.country_iso),
+        city: scalar(row.city),
+        base_currency: scalar(row.base_currency),
+      },
+    });
+  }
+
+  private mapSupplier(row: any): AiEntitySummaryDto {
+    return toEntitySummary('suppliers', {
+      id: row.id,
+      label: row.name,
+      status: row.status ?? null,
+      summary: row.notes ?? row.erp_supplier_id ?? null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        erp_supplier_id: scalar(row.erp_supplier_id),
+      },
+    });
+  }
+
+  private mapDepartment(row: any): AiEntitySummaryDto {
+    return toEntitySummary('departments', {
+      id: row.id,
+      label: row.name,
+      status: row.status ?? null,
+      summary: row.description ?? row.company_name ?? null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        company: scalar(row.company_name),
       },
     });
   }
@@ -291,6 +469,8 @@ export class AiQueryExecutor {
         provider: scalar(row.provider),
         environment: scalar(row.environment),
         os: scalar(row.operating_system),
+        hostname: scalar(row.hostname),
+        fqdn: scalar(row.fqdn),
         location: scalar(row.location_name),
         sub_location: scalar(row.sub_location_name),
       },
@@ -339,7 +519,7 @@ export class AiQueryExecutor {
   async execute(
     context: AiExecutionContextWithManager,
     input: {
-      entity_type: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents';
+      entity_type: AiQueryEntityType;
       filters?: Record<string, AiFilterValue>;
       q?: string;
       sort?: { field: string; direction: 'asc' | 'desc' };
@@ -438,6 +618,88 @@ export class AiQueryExecutor {
       };
     }
 
+    if (input.entity_type === 'spend_items') {
+      const anchorYear = new Date().getFullYear();
+      const result = await this.spendItems.summary(
+        {
+          ...scoped.query,
+          years: [anchorYear - 2, anchorYear - 1, anchorYear, anchorYear + 1, anchorYear + 2].join(','),
+        },
+        { manager: context.manager },
+      );
+      return {
+        items: (result.items || []).map((row: any) => this.mapSpendItem(row)),
+        total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
+    if (input.entity_type === 'contracts') {
+      const result = await this.contracts.list(scoped.query, { manager: context.manager });
+      return {
+        items: (result.items || []).map((row: any) => this.mapContract(row)),
+        total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
+    if (input.entity_type === 'companies') {
+      const result = await this.companies.list(scoped.query, { manager: context.manager });
+      return {
+        items: (result.items || []).map((row: any) => this.mapCompany(row)),
+        total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
+    if (input.entity_type === 'suppliers') {
+      const result = await this.suppliers.list(scoped.query, { manager: context.manager });
+      return {
+        items: (result.items || []).map((row: any) => this.mapSupplier(row)),
+        total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
+    if (input.entity_type === 'departments') {
+      const result = await this.departments.list(scoped.query, { manager: context.manager });
+      return {
+        items: (result.items || []).map((row: any) => this.mapDepartment(row)),
+        total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
     if (input.entity_type === 'assets') {
       const result = await this.assets.list(scoped.query, { manager: context.manager, tenantId: context.tenantId });
       return {
@@ -492,7 +754,7 @@ export class AiQueryExecutor {
   async executeFilterValues(
     context: AiExecutionContextWithManager,
     input: {
-      entity_type: 'applications' | 'assets' | 'locations' | 'projects' | 'requests' | 'tasks' | 'documents';
+      entity_type: AiQueryEntityType;
       fields: string[];
     },
   ): Promise<AiFilterValuesResult> {
@@ -534,6 +796,14 @@ export class AiQueryExecutor {
       query.status = 'all';
     } else if (input.entity_type === 'applications') {
       query.include_inactive = true;
+    } else if (
+      input.entity_type === 'spend_items'
+      || input.entity_type === 'contracts'
+      || input.entity_type === 'companies'
+      || input.entity_type === 'suppliers'
+      || input.entity_type === 'departments'
+    ) {
+      query.includeDisabled = true;
     }
 
     let raw: Record<string, Array<string | boolean | null>> = {};
@@ -556,6 +826,26 @@ export class AiQueryExecutor {
       raw = await this.applications.listFilterValues(query, {
         manager: context.manager,
         tenantId: context.tenantId,
+      }) as any;
+    } else if (input.entity_type === 'spend_items') {
+      raw = await this.spendItems.summaryFilterValues(query, {
+        manager: context.manager,
+      }) as any;
+    } else if (input.entity_type === 'contracts') {
+      raw = await this.contracts.listFilterValues(query, {
+        manager: context.manager,
+      }) as any;
+    } else if (input.entity_type === 'companies') {
+      raw = await this.companies.listFilterValues(query, {
+        manager: context.manager,
+      }) as any;
+    } else if (input.entity_type === 'suppliers') {
+      raw = await this.suppliers.listFilterValues(query, {
+        manager: context.manager,
+      }) as any;
+    } else if (input.entity_type === 'departments') {
+      raw = await this.departments.listFilterValues(query, {
+        manager: context.manager,
       }) as any;
     } else if (input.entity_type === 'assets') {
       raw = await this.assets.listFilterValues(query, { manager: context.manager, tenantId: context.tenantId }) as any;

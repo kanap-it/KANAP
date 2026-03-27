@@ -96,7 +96,7 @@ User-facing on-premise guides are in `/help/docs/en/on-premise/` (published to [
 - **[accounts-and-chart-of-accounts.md](features/master-data/accounts-and-chart-of-accounts.md)**: Accounts + CoA model, Platform Admin templates
 - **[business-processes-master-data.md](features/master-data/business-processes-master-data.md)**: Business processes catalog
 - **[currency-management.md](features/master-data/currency-management.md)**: Tenant currency settings, exchange rates
-- **[it-ops-settings.md](features/master-data/it-ops-settings.md)**: IT Operations settings and catalogs
+- **[it-ops-settings.md](features/master-data/it-ops-settings.md)**: IT Landscape settings and catalogs
 - **[operations-dashboard.md](features/master-data/operations-dashboard.md)**: Operations dashboard specification
 
 ### `/database` - Database Documentation

@@ -241,14 +241,14 @@ export class SpendItemsService {
     // Notify owners on status change
     if (before.status !== saved.status) {
       const tenantId = (saved as any).tenant_id;
-      const recipients: Array<{ userId: string; email: string }> = [];
+      const recipients: Array<{ userId: string; email: string; locale?: string | null }> = [];
       if (saved.owner_it_id) {
-        const user = await mg.query('SELECT id, email FROM users WHERE id = $1 AND status = \'enabled\'', [saved.owner_it_id]);
-        if (user.length > 0) recipients.push({ userId: user[0].id, email: user[0].email });
+        const user = await mg.query('SELECT id, email, locale FROM users WHERE id = $1 AND status = \'enabled\'', [saved.owner_it_id]);
+        if (user.length > 0) recipients.push({ userId: user[0].id, email: user[0].email, locale: user[0].locale });
       }
       if (saved.owner_business_id) {
-        const user = await mg.query('SELECT id, email FROM users WHERE id = $1 AND status = \'enabled\'', [saved.owner_business_id]);
-        if (user.length > 0) recipients.push({ userId: user[0].id, email: user[0].email });
+        const user = await mg.query('SELECT id, email, locale FROM users WHERE id = $1 AND status = \'enabled\'', [saved.owner_business_id]);
+        if (user.length > 0) recipients.push({ userId: user[0].id, email: user[0].email, locale: user[0].locale });
       }
       if (recipients.length > 0) {
         this.notifications.notifyStatusChange({
@@ -369,10 +369,12 @@ export class SpendItemsService {
       ? query.fields.split(',').map((f: string) => f.trim()).filter(Boolean)
       : [];
     const allowedFields = new Set([
+      'supplier_name',
       'paying_company_name',
       'account_display',
       'allocation_label',
       'allocation_method_label',
+      'contract_name',
       'currency',
       'owner_it_name',
       'owner_business_name',

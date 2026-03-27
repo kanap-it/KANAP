@@ -1,422 +1,422 @@
 {
   "actions": {
-    "manageTypes": "Manage Types",
-    "moveCount": "Move ({{count}})",
-    "new": "New"
+    "manageTypes": "Gestionar tipos",
+    "moveCount": "Mover ({{count}})",
+    "new": "Nuevo"
   },
   "columns": {
-    "folder": "Folder",
-    "library": "Library",
-    "owner": "Owner",
-    "ref": "Ref",
-    "status": "Status",
-    "template": "Template",
-    "title": "Title",
-    "type": "Type",
-    "updated": "Updated",
-    "version": "Version"
+    "folder": "Carpeta",
+    "library": "Biblioteca",
+    "owner": "Responsable",
+    "ref": "Ref.",
+    "status": "Estado",
+    "template": "Plantilla",
+    "title": "Título",
+    "type": "Tipo",
+    "updated": "Actualizado",
+    "version": "Versión"
   },
   "confirmations": {
-    "deleteLibrary": "Delete this library? Knowledge items and folders will be moved to the fallback library.",
-    "discardChanges": "Discard unsaved changes and revert to the last saved version?"
+    "deleteLibrary": "¿Eliminar esta biblioteca? Los documentos y carpetas se moverán a la biblioteca predeterminada.",
+    "discardChanges": "¿Descartar los cambios no guardados y volver a la última versión guardada?"
   },
   "dialogs": {
     "createLibrary": {
       "fields": {
-        "libraryName": "Library Name"
+        "libraryName": "Nombre de la biblioteca"
       },
       "messages": {
-        "failed": "Unable to create library."
+        "failed": "No se pudo crear la biblioteca."
       },
-      "title": "Create Library"
+      "title": "Crear biblioteca"
     },
     "editLibrary": {
       "fields": {
-        "libraryName": "Library Name"
+        "libraryName": "Nombre de la biblioteca"
       },
       "messages": {
-        "failed": "Unable to update library."
+        "failed": "No se pudo actualizar la biblioteca."
       },
-      "slugWarning": "Renaming this library also changes its URL slug.",
-      "title": "Edit Library"
+      "slugWarning": "Renombrar esta biblioteca también cambia su URL.",
+      "title": "Editar biblioteca"
     },
     "manageTypes": {
-      "title": "Manage Document Types"
+      "title": "Gestionar tipos de documento"
     },
     "selectTemplate": {
       "actions": {
-        "useTemplate": "Use Template"
+        "useTemplate": "Usar plantilla"
       },
-      "empty": "No published templates are available.",
+      "empty": "No hay plantillas publicadas disponibles.",
       "fields": {
-        "template": "Template"
+        "template": "Plantilla"
       },
-      "title": "Select Template"
+      "title": "Seleccionar plantilla"
     }
   },
   "folderMoveDialog": {
     "actions": {
-      "move": "Move"
+      "move": "Mover"
     },
-    "currentLibrary": "Current library: {{name}}",
+    "currentLibrary": "Biblioteca actual: {{name}}",
     "fields": {
-      "destinationParent": "Destination parent",
-      "targetLibrary": "Target library",
-      "topLevel": "Top level"
+      "destinationParent": "Carpeta padre de destino",
+      "targetLibrary": "Biblioteca de destino",
+      "topLevel": "Nivel superior"
     },
-    "folder": "Folder: {{name}}",
+    "folder": "Carpeta: {{name}}",
     "messages": {
-      "crossLibraryAdminOnly": "Cross-library folder moves are admin-only. You can only reparent within the current library.",
-      "templatesOnly": "Folders in the Templates library can only be reorganized within Templates."
+      "crossLibraryAdminOnly": "Los movimientos de carpetas entre bibliotecas solo están disponibles para administradores. Solo puede reorganizar dentro de la biblioteca actual.",
+      "templatesOnly": "Las carpetas de la biblioteca de Plantillas solo se pueden reorganizar dentro de Plantillas."
     },
-    "title": "Move Folder"
+    "title": "Mover carpeta"
   },
   "folderTree": {
     "actions": {
-      "dragFolder": "Drag folder",
-      "newSubfolder": "New subfolder",
-      "newTopLevelFolder": "New top-level folder",
-      "rename": "Rename"
+      "dragFolder": "Arrastrar carpeta",
+      "newSubfolder": "Nueva subcarpeta",
+      "newTopLevelFolder": "Nueva carpeta de nivel superior",
+      "rename": "Renombrar"
     },
-    "allDocs": "All Docs",
+    "allDocs": "Todos los documentos",
     "aria": {
-      "folderActions": "Folder actions for {{name}}",
-      "rootActions": "Folder actions"
+      "folderActions": "Acciones de carpeta para {{name}}",
+      "rootActions": "Acciones de carpeta"
     },
     "confirmations": {
-      "deleteFolder": "Delete this folder? Documents will be moved to Unfiled. Folders with subfolders cannot be deleted."
+      "deleteFolder": "¿Eliminar esta carpeta? Los documentos se moverán a Sin clasificar. Las carpetas con subcarpetas no se pueden eliminar."
     },
     "dialogs": {
-      "createFolderTitle": "Create Folder",
-      "createSubfolderTitle": "Create Subfolder"
+      "createFolderTitle": "Crear carpeta",
+      "createSubfolderTitle": "Crear subcarpeta"
     },
     "fields": {
-      "folderName": "Folder Name",
-      "parentFolder": "Parent Folder"
+      "folderName": "Nombre de la carpeta",
+      "parentFolder": "Carpeta padre"
     },
     "messages": {
-      "folderMoved": "Folder moved.",
-      "moveFailed": "Unable to move folder.",
-      "moveInProgress": "Folder move in progress"
+      "folderMoved": "Carpeta movida.",
+      "moveFailed": "No se pudo mover la carpeta.",
+      "moveInProgress": "Movimiento de carpeta en curso"
     },
-    "title": "Folders",
+    "title": "Carpetas",
     "values": {
-      "root": "Root"
+      "root": "Raíz"
     }
   },
   "menus": {
-    "blankDocument": "Blank Document",
-    "fromTemplate": "From template..."
+    "blankDocument": "Documento en blanco",
+    "fromTemplate": "Desde plantilla..."
   },
   "messages": {
-    "documentMoved": "Document moved.",
-    "documentsMoved": "Moved {{count}} documents.",
-    "dragSingleLibraryOnly": "Drag is available only in a single-library view.",
-    "dragToFolderOrLibrary": "Drag to a folder or another library",
-    "folderMoved": "Folder moved.",
-    "managedDocsCannotDelete": "Managed docs cannot be deleted from Knowledge.",
-    "managedDocsCannotMove": "Managed docs cannot be moved from Knowledge.",
-    "moveDocumentsFailed": "Unable to move documents.",
-    "moveFolderFailed": "Unable to move folder.",
-    "moveTemplatesSeparately": "Move template documents separately from other libraries.",
-    "noPermissionMoveDocuments": "You do not have permission to move documents.",
-    "selectAtLeastOneDocument": "Select at least one document.",
-    "selectSingleLibraryToMove": "Select documents from a single library to move them."
+    "documentMoved": "Documento movido.",
+    "documentsMoved": "{{count}} documentos movidos.",
+    "dragSingleLibraryOnly": "Arrastrar solo está disponible en la vista de biblioteca única.",
+    "dragToFolderOrLibrary": "Arrastrar a una carpeta u otra biblioteca",
+    "folderMoved": "Carpeta movida.",
+    "managedDocsCannotDelete": "Los documentos gestionados no se pueden eliminar desde la base de conocimiento.",
+    "managedDocsCannotMove": "Los documentos gestionados no se pueden mover desde la base de conocimiento.",
+    "moveDocumentsFailed": "No se pudieron mover los documentos.",
+    "moveFolderFailed": "No se pudo mover la carpeta.",
+    "moveTemplatesSeparately": "Mueva los documentos de plantilla por separado de otras bibliotecas.",
+    "noPermissionMoveDocuments": "No tiene permiso para mover documentos.",
+    "selectAtLeastOneDocument": "Seleccione al menos un documento.",
+    "selectSingleLibraryToMove": "Seleccione documentos de una sola biblioteca para moverlos."
   },
   "moveDialog": {
     "actions": {
-      "move": "Move"
+      "move": "Mover"
     },
     "currentLibrary": {
-      "multiple": "Current libraries: {{names}}",
-      "single": "Current library: {{names}}"
+      "multiple": "Bibliotecas actuales: {{names}}",
+      "single": "Biblioteca actual: {{names}}"
     },
     "fields": {
-      "targetFolder": "Target folder",
-      "targetLibrary": "Target library"
+      "targetFolder": "Carpeta de destino",
+      "targetLibrary": "Biblioteca de destino"
     },
     "messages": {
-      "crossLibraryAdminOnly": "Cross-library moves are admin-only. You can move the selected documents within their current library.",
-      "selectSingleLibrary": "Select documents from a single library to move them, or use an admin account for a cross-library move.",
-      "templatesBlocked": "Template documents cannot be moved together with documents from other libraries.",
-      "templatesMixed": "Template documents must be moved separately from documents in other libraries.",
-      "templatesOnly": "Documents in the Templates library can only be reorganized within Templates."
+      "crossLibraryAdminOnly": "Los movimientos entre bibliotecas solo están disponibles para administradores. Puede mover los documentos seleccionados dentro de su biblioteca actual.",
+      "selectSingleLibrary": "Seleccione documentos de una sola biblioteca para moverlos, o use una cuenta de administrador para un movimiento entre bibliotecas.",
+      "templatesBlocked": "Los documentos de plantilla no se pueden mover junto con documentos de otras bibliotecas.",
+      "templatesMixed": "Los documentos de plantilla deben moverse por separado de los documentos de otras bibliotecas.",
+      "templatesOnly": "Los documentos de la biblioteca de Plantillas solo se pueden reorganizar dentro de Plantillas."
     },
     "selection": {
-      "multiple": "{{count}} documents selected",
+      "multiple": "{{count}} documentos seleccionados",
       "single": "{{ref}} - {{title}}"
     },
-    "title": "Move Documents"
+    "title": "Mover documentos"
   },
   "scope": {
-    "allDocs": "All Docs",
-    "allLibraries": "All libraries",
-    "myDocs": "My docs",
-    "myTeamsDocs": "My team's docs",
-    "noTeamAssigned": "You are not assigned to a team.",
-    "show": "Show:"
+    "allDocs": "Todos los documentos",
+    "allLibraries": "Todas las bibliotecas",
+    "myDocs": "Mis documentos",
+    "myTeamsDocs": "Documentos de mi equipo",
+    "noTeamAssigned": "No está asignado a ningún equipo.",
+    "show": "Mostrar:"
   },
   "shared": {
-    "blank": "(Blank)",
-    "document": "Document",
-    "none": "None",
-    "unfiled": "Unfiled",
-    "unknown": "Unknown"
+    "blank": "(Vacío)",
+    "document": "Documento",
+    "none": "Ninguno",
+    "unfiled": "Sin clasificar",
+    "unknown": "Desconocido"
   },
   "sidebar": {
     "actions": {
-      "openTemplate": "Open template"
+      "openTemplate": "Abrir plantilla"
     },
     "classification": {
-      "empty": "No classifications.",
+      "empty": "Sin clasificaciones.",
       "fields": {
-        "category": "Category",
-        "stream": "Stream"
+        "category": "Categoría",
+        "stream": "Flujo"
       },
       "messages": {
-        "saveFirst": "Save first to classify."
+        "saveFirst": "Guarde primero para clasificar."
       },
       "values": {
-        "select": "Select"
+        "select": "Seleccionar"
       }
     },
     "comments": {
       "actions": {
-        "post": "Post"
+        "post": "Publicar"
       },
-      "empty": "No activity yet.",
+      "empty": "Sin actividad aún.",
       "fields": {
-        "addComment": "Add comment"
+        "addComment": "Agregar comentario"
       }
     },
     "contributors": {
-      "empty": "No contributors.",
+      "empty": "Sin colaboradores.",
       "fields": {
-        "approvers": "Approvers",
-        "authors": "Authors",
-        "owner": "Owner",
-        "reviewers": "Reviewers"
+        "approvers": "Aprobadores",
+        "authors": "Autores",
+        "owner": "Responsable",
+        "reviewers": "Revisores"
       },
       "messages": {
-        "saveFirst": "Save first to manage owners, reviewers, and approvers."
+        "saveFirst": "Guarde primero para gestionar responsables, revisores y aprobadores."
       },
-      "primary": "Primary",
+      "primary": "Principal",
       "roles": {
-        "approver": "Approver",
-        "author": "Author",
-        "owner": "Owner",
-        "reviewer": "Reviewer"
+        "approver": "Aprobador",
+        "author": "Autor",
+        "owner": "Responsable",
+        "reviewer": "Revisor"
       }
     },
     "fields": {
-      "basedOnTemplate": "Based on template",
-      "folder": "Folder",
-      "status": "Status",
-      "summary": "Summary",
-      "type": "Type"
+      "basedOnTemplate": "Basado en plantilla",
+      "folder": "Carpeta",
+      "status": "Estado",
+      "summary": "Resumen",
+      "type": "Tipo"
     },
     "relations": {
-      "empty": "No relations.",
+      "empty": "Sin relaciones.",
       "labels": {
-        "applications": "Applications",
-        "assets": "Assets",
-        "projects": "Projects",
-        "requests": "Requests",
-        "tasks": "Tasks"
+        "applications": "Aplicaciones",
+        "assets": "Activos",
+        "projects": "Proyectos",
+        "requests": "Solicitudes",
+        "tasks": "Tareas"
       },
       "messages": {
-        "saveFirst": "Save first to create relations."
+        "saveFirst": "Guarde primero para crear relaciones."
       },
-      "search": "Search {{value}}"
+      "search": "Buscar {{value}}"
     },
     "sections": {
-      "classification": "Classification",
-      "contributors": "Contributors",
-      "relations": "Relations",
-      "versions": "Versions",
-      "workflow": "Workflow"
+      "classification": "Clasificación",
+      "contributors": "Colaboradores",
+      "relations": "Relaciones",
+      "versions": "Versiones",
+      "workflow": "Flujo de trabajo"
     },
     "tabs": {
-      "comments": "Comments",
-      "properties": "Properties"
+      "comments": "Comentarios",
+      "properties": "Propiedades"
     },
     "tooltips": {
-      "managedFolder": "Managed docs keep folder placement controlled by the source workspace.",
-      "managedRelations": "Managed docs keep source relations read-only in Knowledge.",
-      "managedStatus": "Managed docs keep status controlled by the source workspace. Knowledge review workflow is unavailable.",
-      "managedTemplate": "Managed docs keep the template controlled by the source workspace.",
-      "managedType": "Managed docs keep the document type controlled by the source workspace.",
-      "managedWorkflow": "Managed docs do not use the Knowledge review workflow."
+      "managedFolder": "Los documentos gestionados mantienen la ubicación de carpeta controlada por el espacio de trabajo de origen.",
+      "managedRelations": "Los documentos gestionados mantienen las relaciones de origen en modo de solo lectura en la base de conocimiento.",
+      "managedStatus": "Los documentos gestionados mantienen el estado controlado por el espacio de trabajo de origen. El flujo de trabajo de revisión no está disponible.",
+      "managedTemplate": "Los documentos gestionados mantienen la plantilla controlada por el espacio de trabajo de origen.",
+      "managedType": "Los documentos gestionados mantienen el tipo de documento controlado por el espacio de trabajo de origen.",
+      "managedWorkflow": "Los documentos gestionados no utilizan el flujo de trabajo de revisión de la base de conocimiento."
     },
     "values": {
-      "default": "Default",
-      "documentVersion": "DOC-{{itemNumber}} | Version {{version}}",
-      "inactive": "Inactive"
+      "default": "Predeterminado",
+      "documentVersion": "DOC-{{itemNumber}} | Versión {{version}}",
+      "inactive": "Inactivo"
     },
     "versions": {
       "actions": {
-        "revert": "Revert"
+        "revert": "Revertir"
       },
-      "empty": "No versions yet."
+      "empty": "Sin versiones aún."
     },
     "workflow": {
       "actions": {
-        "approve": "Approve",
-        "requestChanges": "Request Changes"
+        "approve": "Aprobar",
+        "requestChanges": "Solicitar cambios"
       },
       "activity": {
-        "approvalRequested": "Approval requested",
-        "approvedPublished": "Approved and published",
-        "changesRequested": "Changes requested",
-        "reviewCancelled": "Review cancelled",
-        "reviewRequested": "Review requested"
+        "approvalRequested": "Aprobación solicitada",
+        "approvedPublished": "Aprobado y publicado",
+        "changesRequested": "Cambios solicitados",
+        "reviewCancelled": "Revisión cancelada",
+        "reviewRequested": "Revisión solicitada"
       },
-      "approvedOn": "Approved on {{value}}",
-      "empty": "No workflow activity yet.",
+      "approvedOn": "Aprobado el {{value}}",
+      "empty": "Sin actividad de flujo de trabajo aún.",
       "fields": {
-        "decisionNote": "Decision note",
-        "decisionNotePlaceholder": "Optional for approval, required for requesting changes"
+        "decisionNote": "Nota de decisión",
+        "decisionNotePlaceholder": "Opcional para aprobación, obligatorio para solicitar cambios"
       },
-      "lastApprovedVersion": "Last approved version",
+      "lastApprovedVersion": "Última versión aprobada",
       "messages": {
-        "approversWaiting": "Approvers are waiting. They will be notified only after all reviewers approve.",
-        "noActiveWorkflow": "No active workflow. You can still publish directly, or assign reviewers and approvers to use the optional review flow.",
-        "publishWhenApproversApprove": "This document will publish only when all approvers approve.",
-        "publishWhenReviewersApprove": "This document will publish when all reviewers approve.",
-        "unavailableForManagedDocs": "Review workflow is unavailable for managed integrated docs."
+        "approversWaiting": "Los aprobadores están en espera. Serán notificados solo después de que todos los revisores hayan aprobado.",
+        "noActiveWorkflow": "Sin flujo de trabajo activo. Puede publicar directamente, o asignar revisores y aprobadores para usar el flujo de revisión opcional.",
+        "publishWhenApproversApprove": "Este documento se publicará solo cuando todos los aprobadores hayan aprobado.",
+        "publishWhenReviewersApprove": "Este documento se publicará cuando todos los revisores hayan aprobado.",
+        "unavailableForManagedDocs": "El flujo de trabajo de revisión no está disponible para documentos integrados gestionados."
       },
-      "recentActivity": "Recent workflow activity",
-      "requestedBy": "Requested by {{user}}",
-      "stage1Review": "Stage 1: Review {{approved}}/{{total}}",
-      "stage2Approval": "Stage 2: Approval {{approved}}/{{total}}",
+      "recentActivity": "Actividad reciente del flujo de trabajo",
+      "requestedBy": "Solicitado por {{user}}",
+      "stage1Review": "Etapa 1: Revisión {{approved}}/{{total}}",
+      "stage2Approval": "Etapa 2: Aprobación {{approved}}/{{total}}",
       "values": {
-        "active": "Active",
-        "approved": "Approved",
-        "awaitingApproval": "Awaiting Approval",
-        "awaitingReview": "Awaiting Review",
-        "changesRequested": "Changes Requested",
-        "completed": "Completed",
-        "neverApproved": "Never approved",
-        "pending": "Pending",
-        "revision": "Revision {{count}}",
-        "waiting": "Waiting",
-        "you": "You"
+        "active": "Activo",
+        "approved": "Aprobado",
+        "awaitingApproval": "En espera de aprobación",
+        "awaitingReview": "En espera de revisión",
+        "changesRequested": "Cambios solicitados",
+        "completed": "Completado",
+        "neverApproved": "Nunca aprobado",
+        "pending": "Pendiente",
+        "revision": "Revisión {{count}}",
+        "waiting": "En espera",
+        "you": "Usted"
       }
     }
   },
   "statuses": {
-    "archived": "Archived",
-    "draft": "Draft",
-    "in_review": "In Review",
-    "obsolete": "Obsolete",
-    "published": "Published"
+    "archived": "Archivado",
+    "draft": "Borrador",
+    "in_review": "En revisión",
+    "obsolete": "Obsoleto",
+    "published": "Publicado"
   },
   "typesManager": {
     "columns": {
-      "actions": "Actions",
-      "active": "Active",
-      "description": "Description",
-      "flags": "Flags",
-      "name": "Name",
-      "order": "Order"
+      "actions": "Acciones",
+      "active": "Activo",
+      "description": "Descripción",
+      "flags": "Indicadores",
+      "name": "Nombre",
+      "order": "Orden"
     },
     "confirmations": {
-      "delete": "Delete document type \"{{name}}\"?"
+      "delete": "¿Eliminar el tipo de documento \"{{name}}\"?"
     },
     "create": {
-      "title": "Create type"
+      "title": "Crear tipo"
     },
-    "empty": "No document types yet.",
+    "empty": "Aún no hay tipos de documento.",
     "fields": {
-      "description": "Description",
-      "name": "Name"
+      "description": "Descripción",
+      "name": "Nombre"
     },
     "flags": {
-      "builtIn": "Built-in",
-      "default": "Default"
+      "builtIn": "Integrado",
+      "default": "Predeterminado"
     },
     "messages": {
-      "createFailed": "Failed to create document type.",
-      "documentType": "Document",
-      "introPrefix": "Types classify documents. Templates define structure and content. The built-in",
-      "introSuffix": "type is the fallback for blank documents.",
-      "loadFailed": "Failed to load document types.",
-      "updateFailed": "Failed to update document type."
+      "createFailed": "No se pudo crear el tipo de documento.",
+      "documentType": "Documento",
+      "introPrefix": "Los tipos clasifican documentos. Las plantillas definen estructura y contenido. El tipo integrado",
+      "introSuffix": "es el tipo predeterminado para documentos en blanco.",
+      "loadFailed": "No se pudieron cargar los tipos de documento.",
+      "updateFailed": "No se pudo actualizar el tipo de documento."
     }
   },
   "typesPage": {
     "columns": {
-      "actions": "Actions",
-      "active": "Active",
-      "description": "Description",
-      "name": "Name",
-      "order": "Order",
-      "template": "Template"
+      "actions": "Acciones",
+      "active": "Activo",
+      "description": "Descripción",
+      "name": "Nombre",
+      "order": "Orden",
+      "template": "Plantilla"
     },
     "create": {
-      "button": "Create Type",
-      "title": "Create type"
+      "button": "Crear tipo",
+      "title": "Crear tipo"
     },
-    "empty": "No document types yet.",
+    "empty": "Aún no hay tipos de documento.",
     "fields": {
-      "name": "Name",
-      "templateContent": "Template content (Markdown)"
+      "name": "Nombre",
+      "templateContent": "Contenido de la plantilla (Markdown)"
     },
     "messages": {
-      "loadFailed": "Failed to load document types."
+      "loadFailed": "No se pudieron cargar los tipos de documento."
     },
-    "title": "Knowledge Types"
+    "title": "Tipos de conocimiento"
   },
   "validatedBadge": {
-    "label": "Validated",
-    "validatedOn": "Validated on {{date}}"
+    "label": "Validado",
+    "validatedOn": "Validado el {{date}}"
   },
   "workspace": {
     "actions": {
-      "cancelReviewAndEdit": "Cancel Review and Edit",
-      "discard": "Discard",
-      "edit": "Edit",
-      "hideSidebar": "Hide sidebar",
-      "requestReview": "Request Review",
-      "retryLock": "Retry lock",
-      "showSidebar": "Show sidebar"
+      "cancelReviewAndEdit": "Cancelar revisión y editar",
+      "discard": "Descartar",
+      "edit": "Editar",
+      "hideSidebar": "Ocultar panel lateral",
+      "requestReview": "Solicitar revisión",
+      "retryLock": "Reintentar bloqueo",
+      "showSidebar": "Mostrar panel lateral"
     },
     "breadcrumbs": {
-      "knowledge": "Knowledge",
-      "newDocument": "New Document"
+      "knowledge": "Base de conocimiento",
+      "newDocument": "Nuevo documento"
     },
     "fields": {
-      "titlePlaceholder": "Knowledge title"
+      "titlePlaceholder": "Título del documento"
     },
     "messages": {
-      "acquireLockBeforeImport": "Acquire an editing lock before importing a document.",
-      "acquireLockFailed": "Unable to acquire lock.",
-      "approveWorkflowFailed": "Failed to approve workflow.",
-      "cancelReviewFailed": "Failed to cancel review.",
-      "clickToCopyReference": "Click to copy reference",
-      "importAvailableAfterCreate": "Document import is available after the document is created.",
-      "importFailed": "Document import failed.",
-      "inReview": "This document is in review. Editing is disabled until the workflow is approved, changes are requested, or the review is cancelled.",
-      "lockExpired": "Editing lock expired. Re-enter edit mode to continue.",
-      "lockUntil": " until {{value}}",
-      "lockedByUser": "This knowledge article is locked by {{user}}{{until}}. You can read it while the lock is active.",
-      "noDestinationLibrary": "No destination library available.",
-      "readOnlyAccess": "You have read-only access to this knowledge article.",
-      "requestChangesFailed": "Failed to request changes.",
-      "requestReviewFailed": "Failed to request review.",
-      "saveClassificationsFailed": "Failed to save classifications.",
-      "saveContributorsFailed": "Failed to save contributors.",
-      "saveFailed": "Failed to save document.",
-      "saveRelationsFailed": "Failed to save relations.",
-      "selectOwnerBeforeSaving": "Select an owner before saving contributors."
+      "acquireLockBeforeImport": "Obtenga un bloqueo de edición antes de importar un documento.",
+      "acquireLockFailed": "No se pudo obtener el bloqueo.",
+      "approveWorkflowFailed": "Error al aprobar el flujo de trabajo.",
+      "cancelReviewFailed": "Error al cancelar la revisión.",
+      "clickToCopyReference": "Haga clic para copiar la referencia",
+      "importAvailableAfterCreate": "La importación de documentos está disponible después de crear el documento.",
+      "importFailed": "Error en la importación del documento.",
+      "inReview": "Este documento está en revisión. La edición está desactivada hasta que el flujo de trabajo sea aprobado, se soliciten cambios o se cancele la revisión.",
+      "lockExpired": "El bloqueo de edición ha expirado. Vuelva a entrar en modo de edición para continuar.",
+      "lockUntil": " hasta {{value}}",
+      "lockedByUser": "Este artículo está bloqueado por {{user}}{{until}}. Puede leerlo mientras el bloqueo esté activo.",
+      "noDestinationLibrary": "No hay biblioteca de destino disponible.",
+      "readOnlyAccess": "Tiene acceso de solo lectura a este artículo.",
+      "requestChangesFailed": "Error al solicitar cambios.",
+      "requestReviewFailed": "Error al solicitar la revisión.",
+      "saveClassificationsFailed": "No se pudieron guardar las clasificaciones.",
+      "saveContributorsFailed": "No se pudieron guardar los colaboradores.",
+      "saveFailed": "No se pudo guardar el documento.",
+      "saveRelationsFailed": "No se pudieron guardar las relaciones.",
+      "selectOwnerBeforeSaving": "Seleccione un responsable antes de guardar los colaboradores."
     },
     "values": {
-      "anotherUser": "another user",
-      "integrated": "Integrated",
-      "ownerLabel": "Owner: {{value}}",
-      "typeLabel": "Type: {{value}}",
-      "unassigned": "Unassigned",
-      "untitled": "Untitled Knowledge"
+      "anotherUser": "otro usuario",
+      "integrated": "Integrado",
+      "ownerLabel": "Responsable: {{value}}",
+      "typeLabel": "Tipo: {{value}}",
+      "unassigned": "Sin asignar",
+      "untitled": "Documento sin título"
     }
   }
 }

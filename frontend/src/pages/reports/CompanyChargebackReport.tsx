@@ -409,10 +409,10 @@ export default function CompanyChargebackReport() {
             onChange={(event) => setMetric(event.target.value as MetricKey)}
             sx={{ minWidth: 160 }}
           >
-            <MenuItem value="budget">Budget</MenuItem>
-            <MenuItem value="landing">Landing</MenuItem>
-            <MenuItem value="follow_up">Follow-up</MenuItem>
-            <MenuItem value="revision">Revision</MenuItem>
+            <MenuItem value="budget">{metricLabels.budget}</MenuItem>
+            <MenuItem value="landing">{metricLabels.landing}</MenuItem>
+            <MenuItem value="follow_up">{metricLabels.follow_up}</MenuItem>
+            <MenuItem value="revision">{metricLabels.revision}</MenuItem>
           </TextField>
           <FormControlLabel
             control={<Checkbox checked={showDepartments} onChange={(_, checked) => setShowDepartments(checked)} />}

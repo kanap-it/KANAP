@@ -234,6 +234,11 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
         textExpression: `COALESCE((SELECT c.name FROM companies c WHERE c.id = p.company_id), '')`,
         dataType: 'string',
       },
+      department_name: {
+        expression: 'p.department_id',
+        textExpression: `COALESCE((SELECT d.name FROM departments d WHERE d.id = p.department_id), '')`,
+        dataType: 'string',
+      },
       business_lead_name: {
         expression: 'p.business_lead_id',
         textExpression: buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
@@ -280,6 +285,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       `(SELECT cat.name FROM portfolio_categories cat WHERE cat.id = p.category_id)`,
       `(SELECT s.name FROM portfolio_streams s WHERE s.id = p.stream_id)`,
       `(SELECT c.name FROM companies c WHERE c.id = p.company_id)`,
+      `(SELECT d.name FROM departments d WHERE d.id = p.department_id)`,
       buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
       buildUserDisplayNameSql('p.it_lead_id', 'p.tenant_id'),
       buildProjectContributorNamesSql('p'),
@@ -538,6 +544,11 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
         textExpression: `COALESCE((SELECT c.name FROM companies c WHERE c.id = p.company_id), '')`,
         dataType: 'string',
       },
+      department_name: {
+        expression: 'p.department_id',
+        textExpression: `COALESCE((SELECT d.name FROM departments d WHERE d.id = p.department_id), '')`,
+        dataType: 'string',
+      },
       business_lead_name: {
         expression: 'p.business_lead_id',
         textExpression: buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
@@ -643,7 +654,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     const fm = filters && typeof filters === 'object' ? filters : undefined;
 
     const rawFields = String(query?.fields || query?.field || '').split(',').map((f) => f.trim()).filter(Boolean);
-    const allowed = new Set(['status', 'origin', 'source_name', 'category_name', 'stream_name', 'company_name', 'business_lead_name', 'it_lead_name', 'contributor_name']);
+    const allowed = new Set(['status', 'origin', 'source_name', 'category_name', 'stream_name', 'company_name', 'department_name', 'business_lead_name', 'it_lead_name', 'contributor_name']);
     const fields = rawFields.filter((field) => allowed.has(field));
     if (fields.length === 0) return {};
 
@@ -684,6 +695,11 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
         textExpression: `COALESCE((SELECT c.name FROM companies c WHERE c.id = p.company_id), '')`,
         dataType: 'string',
       },
+      department_name: {
+        expression: 'p.department_id',
+        textExpression: `COALESCE((SELECT d.name FROM departments d WHERE d.id = p.department_id), '')`,
+        dataType: 'string',
+      },
       business_lead_name: {
         expression: 'p.business_lead_id',
         textExpression: buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
@@ -708,6 +724,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       category_name: `(SELECT cat.name FROM portfolio_categories cat WHERE cat.id = p.category_id)`,
       stream_name: `(SELECT s.name FROM portfolio_streams s WHERE s.id = p.stream_id)`,
       company_name: `(SELECT c.name FROM companies c WHERE c.id = p.company_id)`,
+      department_name: `(SELECT d.name FROM departments d WHERE d.id = p.department_id)`,
       business_lead_name: buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
       it_lead_name: buildUserDisplayNameSql('p.it_lead_id', 'p.tenant_id'),
     };
@@ -720,6 +737,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       `(SELECT cat.name FROM portfolio_categories cat WHERE cat.id = p.category_id)`,
       `(SELECT s.name FROM portfolio_streams s WHERE s.id = p.stream_id)`,
       `(SELECT c.name FROM companies c WHERE c.id = p.company_id)`,
+      `(SELECT d.name FROM departments d WHERE d.id = p.department_id)`,
       buildUserDisplayNameSql('p.business_lead_id', 'p.tenant_id'),
       buildUserDisplayNameSql('p.it_lead_id', 'p.tenant_id'),
       buildProjectContributorNamesSql('p'),

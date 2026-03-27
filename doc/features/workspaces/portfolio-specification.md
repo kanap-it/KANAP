@@ -275,7 +275,7 @@ Same structure as Request Team section. Pre-filled from source Request, fully ed
 | URLs | URL list | External references |
 | Attachments | Files | Supporting documents; max 20 MB per file |
 
-**Note on Applications and Assets:** These relationships are managed from the IT Operations side (Application and Asset workspaces). Each Application or Asset can link to multiple Projects via their respective Relations tabs. The Project Relations tab displays these links in read-only tables with click-through navigation to the source items.
+**Note on Applications and Assets:** These relationships are managed from the IT Landscape side (Application and Asset workspaces). Each Application or Asset can link to multiple Projects via their respective Relations tabs. The Project Relations tab displays these links in read-only tables with click-through navigation to the source items.
 
 ---
 

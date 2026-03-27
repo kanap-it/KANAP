@@ -4,7 +4,7 @@ Connections document the infrastructure-level network paths between servers and 
 
 ## Getting started
 
-Navigate to **IT Operations > Connections** to see your connection registry. Click **Add connection** to create your first entry.
+Navigate to **IT Landscape > Connections** to see your connection registry. Click **Add connection** to create your first entry.
 
 **Required fields**:
   - **Connection ID**: A unique identifier (e.g., `CONN-WEB-DB-001`)

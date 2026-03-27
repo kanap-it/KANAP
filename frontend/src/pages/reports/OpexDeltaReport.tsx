@@ -17,8 +17,8 @@ function formatNumber(v: any) {
 
 const METRIC_LABELS: Record<string, string> = {
   budget: 'Budget',
-  landing: 'Landing',
-  follow_up: 'Follow-up',
+  landing: 'Expected Landing',
+  follow_up: 'Actuals',
   revision: 'Revision',
 };
 

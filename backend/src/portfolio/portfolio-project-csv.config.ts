@@ -199,7 +199,7 @@ export const portfolioProjectCsvConfig: CsvEntityConfig = {
       exportable: true,
       importable: true,
       defaultExport: true,
-      label: 'Execution Progress (%)',
+      label: 'Execution Effort (%)',
       group: 'Effort',
     },
     {

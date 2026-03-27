@@ -1,0 +1,70 @@
+import { AiEntityFilterRegistry } from '../ai-filter.types';
+
+export const companiesRegistry: AiEntityFilterRegistry = {
+  entityType: 'companies',
+  fields: {
+    status: {
+      ai: 'status',
+      grid: 'status',
+      type: 'set',
+      description: 'Company lifecycle status.',
+      values: ['enabled', 'disabled'],
+      discoverable: true,
+      sortable: true,
+      groupable: true,
+    },
+    country: {
+      ai: 'country',
+      grid: 'country_iso',
+      type: 'set',
+      description: 'Company country code.',
+      dynamic: true,
+      discoverable: true,
+      sortable: true,
+      groupable: true,
+    },
+    city: {
+      ai: 'city',
+      grid: 'city',
+      type: 'set',
+      description: 'Company city.',
+      dynamic: true,
+      discoverable: true,
+      sortable: true,
+      groupable: true,
+    },
+    base_currency: {
+      ai: 'base_currency',
+      grid: 'base_currency',
+      type: 'set',
+      description: 'Company base currency.',
+      dynamic: true,
+      discoverable: true,
+      sortable: true,
+      groupable: true,
+    },
+  },
+  sortFields: {
+    label: 'name',
+    status: 'status',
+    country: 'country_iso',
+    city: 'city',
+    base_currency: 'base_currency',
+    created_at: 'created_at',
+    updated_at: 'updated_at',
+  },
+  defaultSort: {
+    field: 'name',
+    direction: 'asc',
+  },
+  aggregate: {
+    baseTable: 'companies',
+    alias: 'c',
+    groupFields: {
+      status: { expression: 'c.status' },
+      country: { expression: 'c.country_iso' },
+      city: { expression: 'c.city' },
+      base_currency: { expression: 'c.base_currency' },
+    },
+  },
+};

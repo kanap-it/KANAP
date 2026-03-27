@@ -154,7 +154,7 @@ export class TaskActivitiesService {
         authorId: userId,
         authorName,
         commentContent: normalizedContent,
-        recipients: recipients.map(r => ({ userId: r.userId, email: r.email })),
+        recipients: recipients.map(r => ({ userId: r.userId, email: r.email, locale: r.locale })),
         tenantId,
         manager: mg,
       });

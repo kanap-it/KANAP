@@ -21,6 +21,7 @@ import {
 import { renderCommentForEmail } from './comment-email-renderer';
 import { renderMarkdownToHtml } from '../common/markdown-to-html';
 import { EmailBranding, resolveEmailBranding } from '../email/email-branding';
+import { getEmailStrings, resolveEmailLocale } from '../i18n/email-i18n';
 
 type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex';
 type TriggerType = 'status_change' | 'team_added' | 'team_change_as_lead' | 'comment' | 'assignment' | 'expiration_warning';
@@ -30,6 +31,7 @@ interface NotificationRecipient {
   email: string;
   firstName?: string;
   lastName?: string;
+  locale?: string | null;
 }
 
 interface AttachmentMeta {
@@ -534,23 +536,44 @@ export class NotificationsService {
     }
   }
 
-  private buildTaskStatusActionButtons(taskUrl: string, newStatus: string): ActionButton[] {
+  private buildTaskStatusActionButtons(
+    taskUrl: string,
+    newStatus: string,
+    locale?: string | null,
+  ): ActionButton[] {
+    const taskActions = getEmailStrings(locale).taskActions;
     switch (newStatus) {
       case 'pending':
         return [
-          { label: 'Respond & Set In Progress', url: this.withTaskStatusAction(taskUrl, 'in_progress') },
-          { label: 'Mark Done', url: this.withTaskStatusAction(taskUrl, 'done') },
+          { label: taskActions.respondAndSetInProgress, url: this.withTaskStatusAction(taskUrl, 'in_progress') },
+          { label: taskActions.markDone, url: this.withTaskStatusAction(taskUrl, 'done') },
         ];
       case 'in_testing':
         return [
-          { label: 'Approve', url: this.withTaskStatusAction(taskUrl, 'done') },
-          { label: 'Set In Progress', url: this.withTaskStatusAction(taskUrl, 'in_progress') },
+          { label: taskActions.approve, url: this.withTaskStatusAction(taskUrl, 'done') },
+          { label: taskActions.setInProgress, url: this.withTaskStatusAction(taskUrl, 'in_progress') },
         ];
       case 'done':
-        return [{ label: 'Reopen', url: this.withTaskStatusAction(taskUrl, 'open') }];
+        return [{ label: taskActions.reopen, url: this.withTaskStatusAction(taskUrl, 'open') }];
       default:
-        return [{ label: 'View Task', url: taskUrl }];
+        return [{ label: taskActions.viewTask, url: taskUrl }];
     }
+  }
+
+  private groupRecipientsByLocale<T extends { locale?: string | null }>(
+    recipients: T[],
+  ): Map<string, T[]> {
+    const groups = new Map<string, T[]>();
+    for (const recipient of recipients) {
+      const locale = resolveEmailLocale(recipient.locale);
+      const existing = groups.get(locale);
+      if (existing) {
+        existing.push(recipient);
+        continue;
+      }
+      groups.set(locale, [recipient]);
+    }
+    return groups;
   }
 
   // ============================================
@@ -575,17 +598,7 @@ export class NotificationsService {
     const workspace = this.getWorkspaceForItemType(params.itemType);
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
     const branding = await this.resolveBranding(params.tenantId);
-    const actionButtons = params.actionButtons
-      ?? (params.itemType === 'task' ? this.buildTaskStatusActionButtons(itemUrl, params.newStatus) : undefined);
-    const content = buildStatusChangeEmail({
-      itemType: params.itemType,
-      itemName: params.itemName,
-      itemUrl,
-      oldStatus: params.oldStatus,
-      newStatus: params.newStatus,
-      actionButtons,
-      branding,
-    });
+    const localeGroups = new Map<string, NotificationRecipient[]>();
 
     for (const recipient of params.recipients) {
       if (recipient.userId === params.excludeUserId) continue;
@@ -600,7 +613,34 @@ export class NotificationsService {
 
       if (!this.checkPreferences(prefs, workspace, 'status_change')) continue;
 
-      this.sendNotification(recipient.email, content);
+      const locale = resolveEmailLocale(recipient.locale);
+      const existing = localeGroups.get(locale);
+      if (existing) {
+        existing.push(recipient);
+      } else {
+        localeGroups.set(locale, [recipient]);
+      }
+    }
+
+    for (const [locale, recipients] of localeGroups) {
+      const actionButtons = params.actionButtons
+        ?? (params.itemType === 'task'
+          ? this.buildTaskStatusActionButtons(itemUrl, params.newStatus, locale)
+          : undefined);
+      const content = buildStatusChangeEmail({
+        itemType: params.itemType,
+        itemName: params.itemName,
+        itemUrl,
+        oldStatus: params.oldStatus,
+        newStatus: params.newStatus,
+        actionButtons,
+        branding,
+        locale,
+      });
+
+      for (const recipient of recipients) {
+        this.sendNotification(recipient.email, content);
+      }
     }
   }
 
@@ -632,69 +672,41 @@ export class NotificationsService {
 
     if (!statusChanged && !hasComment) return;
 
-    const actionButtons = statusChanged && params.newStatus
-      ? this.buildTaskStatusActionButtons(taskUrl, params.newStatus)
-      : undefined;
-
-    let statusContent: EmailContent | null = null;
-    let commentContent: EmailContent | null = null;
-    let mergedContent: EmailContent | null = null;
-
-    if (statusChanged && params.oldStatus && params.newStatus) {
-      statusContent = buildStatusChangeEmail({
-        itemType: 'task',
-        itemName: params.taskTitle,
-        itemUrl: taskUrl,
-        oldStatus: params.oldStatus,
-        newStatus: params.newStatus,
-        actionButtons,
-        branding,
-      });
-    }
-
+    let renderedComment: { html: string; textPreview: string } | null = null;
+    let embeddedComment: { html: string; attachments: EmailAttachment[] } | null = null;
     if (hasComment) {
       const tenantSlug = await this.getTenantSlug(params.tenantId);
       const tenantBaseUrl = this.buildTenantBaseUrl(tenantSlug);
       const commentAsHtml = renderMarkdownToHtml(trimmedComment);
-      const renderedComment = renderCommentForEmail({
+      renderedComment = renderCommentForEmail({
         commentHtml: commentAsHtml,
         tenantBaseUrl,
         tenantSlug,
       });
-      const embeddedComment = await this.embedInlineImagesForComment({
+      embeddedComment = await this.embedInlineImagesForComment({
         itemType: 'task',
         itemId: params.taskId,
         tenantId: params.tenantId,
         commentHtml: renderedComment.html,
       });
-
-      commentContent = buildCommentEmail({
-        itemType: 'task',
-        itemName: params.taskTitle,
-        itemUrl: taskUrl,
-        authorName: params.authorName,
-        commentHtml: embeddedComment.html,
-        commentTextPreview: renderedComment.textPreview,
-        branding,
-      });
-      commentContent.attachments = [...(commentContent.attachments ?? []), ...embeddedComment.attachments];
-
-      if (statusChanged && params.oldStatus && params.newStatus) {
-        mergedContent = buildStatusChangeWithCommentEmail({
-          itemType: 'task',
-          itemName: params.taskTitle,
-          itemUrl: taskUrl,
-          oldStatus: params.oldStatus,
-          newStatus: params.newStatus,
-          authorName: params.authorName,
-          commentHtml: embeddedComment.html,
-          commentTextPreview: renderedComment.textPreview,
-          actionButtons,
-          branding,
-        });
-        mergedContent.attachments = [...(mergedContent.attachments ?? []), ...embeddedComment.attachments];
-      }
     }
+
+    const localeBuckets = new Map<
+    string,
+    {
+      merged: Array<NotificationRecipient & { role: 'assignee' | 'requestor' | 'owner' | 'viewer' }>;
+      status: Array<NotificationRecipient & { role: 'assignee' | 'requestor' | 'owner' | 'viewer' }>;
+      comment: Array<NotificationRecipient & { role: 'assignee' | 'requestor' | 'owner' | 'viewer' }>;
+    }
+    >();
+
+    const getLocaleBucket = (locale: string) => {
+      const existing = localeBuckets.get(locale);
+      if (existing) return existing;
+      const created = { merged: [], status: [], comment: [] };
+      localeBuckets.set(locale, created);
+      return created;
+    };
 
     for (const recipient of params.recipients) {
       if (recipient.userId === params.authorId) continue;
@@ -712,28 +724,100 @@ export class NotificationsService {
         && this.shouldNotify(recipient.userId, 'task', params.taskId, 'comment');
 
       if (statusChanged && hasComment) {
-        if (canSendStatus && canSendComment && mergedContent) {
+        const bucket = getLocaleBucket(resolveEmailLocale(recipient.locale));
+        if (canSendStatus && canSendComment) {
+          bucket.merged.push(recipient);
+          continue;
+        }
+        if (canSendStatus) {
+          bucket.status.push(recipient);
+          continue;
+        }
+        if (canSendComment) {
+          bucket.comment.push(recipient);
+        }
+        continue;
+      }
+
+      if (statusChanged && canSendStatus) {
+        getLocaleBucket(resolveEmailLocale(recipient.locale)).status.push(recipient);
+        continue;
+      }
+
+      if (hasComment && canSendComment) {
+        getLocaleBucket(resolveEmailLocale(recipient.locale)).comment.push(recipient);
+      }
+    }
+
+    for (const [locale, bucket] of localeBuckets) {
+      const localizedActionButtons = statusChanged && params.newStatus
+        ? this.buildTaskStatusActionButtons(taskUrl, params.newStatus, locale)
+        : undefined;
+
+      let statusContent: EmailContent | null = null;
+      let commentContent: EmailContent | null = null;
+      let mergedContent: EmailContent | null = null;
+
+      if ((bucket.status.length > 0 || bucket.merged.length > 0) && statusChanged && params.oldStatus && params.newStatus) {
+        statusContent = buildStatusChangeEmail({
+          itemType: 'task',
+          itemName: params.taskTitle,
+          itemUrl: taskUrl,
+          oldStatus: params.oldStatus,
+          newStatus: params.newStatus,
+          actionButtons: localizedActionButtons,
+          branding,
+          locale,
+        });
+      }
+
+      if ((bucket.comment.length > 0 || bucket.merged.length > 0) && hasComment && renderedComment && embeddedComment) {
+        commentContent = buildCommentEmail({
+          itemType: 'task',
+          itemName: params.taskTitle,
+          itemUrl: taskUrl,
+          authorName: params.authorName,
+          commentHtml: embeddedComment.html,
+          commentTextPreview: renderedComment.textPreview,
+          branding,
+          locale,
+        });
+        commentContent.attachments = [...(commentContent.attachments ?? []), ...embeddedComment.attachments];
+
+        if (statusChanged && params.oldStatus && params.newStatus) {
+          mergedContent = buildStatusChangeWithCommentEmail({
+            itemType: 'task',
+            itemName: params.taskTitle,
+            itemUrl: taskUrl,
+            oldStatus: params.oldStatus,
+            newStatus: params.newStatus,
+            authorName: params.authorName,
+            commentHtml: embeddedComment.html,
+            commentTextPreview: renderedComment.textPreview,
+            actionButtons: localizedActionButtons,
+            branding,
+            locale,
+          });
+          mergedContent.attachments = [...(mergedContent.attachments ?? []), ...embeddedComment.attachments];
+        }
+      }
+
+      if (mergedContent) {
+        for (const recipient of bucket.merged) {
           this.sendNotification(recipient.email, mergedContent);
-          continue;
         }
-        if (canSendStatus && statusContent) {
+      }
+
+      if (statusContent) {
+        for (const recipient of bucket.status) {
           this.sendNotification(recipient.email, statusContent);
-          continue;
         }
-        if (canSendComment && commentContent) {
+      }
+
+      if (commentContent) {
+        for (const recipient of bucket.comment) {
           this.sendNotification(recipient.email, commentContent);
-          continue;
         }
-        continue;
-      }
-
-      if (statusChanged && canSendStatus && statusContent) {
-        this.sendNotification(recipient.email, statusContent);
-        continue;
-      }
-
-      if (hasComment && canSendComment && commentContent) {
-        this.sendNotification(recipient.email, commentContent);
       }
     }
   }
@@ -769,6 +853,7 @@ export class NotificationsService {
       itemUrl,
       role: params.role,
       branding,
+      locale: params.addedUser.locale,
     });
 
     this.sendNotification(params.addedUser.email, content);
@@ -816,7 +901,7 @@ export class NotificationsService {
 
     // Get IT Lead's email (and verify they're eligible to receive notifications)
     const itLeadRows = await this.dataSource.query(
-      `SELECT u.id, u.email FROM users u
+      `SELECT u.id, u.email, u.locale FROM users u
        JOIN roles ro ON ro.id = u.role_id
        WHERE u.id = $1 AND u.status = 'enabled'
          AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
@@ -834,6 +919,7 @@ export class NotificationsService {
       addedUserName: params.addedUserName,
       role: params.role,
       branding,
+      locale: itLeadRows[0].locale,
     });
 
     this.sendNotification(itLeadRows[0].email, content);
@@ -870,17 +956,7 @@ export class NotificationsService {
       tenantId: params.tenantId,
       commentHtml: renderedComment.html,
     });
-
-    const content = buildCommentEmail({
-      itemType: params.itemType,
-      itemName: params.itemName,
-      itemUrl,
-      authorName: params.authorName,
-      commentHtml: embeddedComment.html,
-      commentTextPreview: renderedComment.textPreview,
-      branding,
-    });
-    content.attachments = [...(content.attachments ?? []), ...embeddedComment.attachments];
+    const localeGroups = new Map<string, NotificationRecipient[]>();
 
     for (const recipient of params.recipients) {
       // Don't notify the author
@@ -896,7 +972,31 @@ export class NotificationsService {
 
       if (!this.checkPreferences(prefs, workspace, 'comment')) continue;
 
-      this.sendNotification(recipient.email, content);
+      const locale = resolveEmailLocale(recipient.locale);
+      const existing = localeGroups.get(locale);
+      if (existing) {
+        existing.push(recipient);
+      } else {
+        localeGroups.set(locale, [recipient]);
+      }
+    }
+
+    for (const [locale, recipients] of localeGroups) {
+      const content = buildCommentEmail({
+        itemType: params.itemType,
+        itemName: params.itemName,
+        itemUrl,
+        authorName: params.authorName,
+        commentHtml: embeddedComment.html,
+        commentTextPreview: renderedComment.textPreview,
+        branding,
+        locale,
+      });
+      content.attachments = [...(content.attachments ?? []), ...embeddedComment.attachments];
+
+      for (const recipient of recipients) {
+        this.sendNotification(recipient.email, content);
+      }
     }
   }
 
@@ -912,6 +1012,7 @@ export class NotificationsService {
     dueDate?: string;
     tenantId: string;
     manager?: EntityManager;
+    locale?: string | null;
   }): Promise<void> {
     if (!this.shouldNotify(params.assigneeId, 'task', params.taskId, 'assignment')) {
       return;
@@ -932,6 +1033,7 @@ export class NotificationsService {
       assignerName: params.assignerName,
       dueDate: params.dueDate,
       branding,
+      locale: params.locale,
     });
 
     this.sendNotification(params.assigneeEmail, content);
@@ -953,15 +1055,7 @@ export class NotificationsService {
   }): Promise<void> {
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
     const branding = await this.resolveBranding(params.tenantId);
-    const content = buildExpirationWarningEmail({
-      itemType: params.itemType,
-      itemName: params.itemName,
-      itemUrl,
-      expirationDate: params.expirationDate,
-      daysRemaining: params.daysRemaining,
-      warningType: params.warningType,
-      branding,
-    });
+    const localeGroups = new Map<string, NotificationRecipient[]>();
 
     for (const recipient of params.recipients) {
       // Use a longer dedupe window for expiration warnings (7 days)
@@ -984,7 +1078,30 @@ export class NotificationsService {
 
       if (!this.checkPreferences(prefs, 'budget', 'expiration_warning')) continue;
 
-      this.sendNotification(recipient.email, content);
+      const locale = resolveEmailLocale(recipient.locale);
+      const existing = localeGroups.get(locale);
+      if (existing) {
+        existing.push(recipient);
+      } else {
+        localeGroups.set(locale, [recipient]);
+      }
+    }
+
+    for (const [locale, recipients] of localeGroups) {
+      const content = buildExpirationWarningEmail({
+        itemType: params.itemType,
+        itemName: params.itemName,
+        itemUrl,
+        expirationDate: params.expirationDate,
+        daysRemaining: params.daysRemaining,
+        warningType: params.warningType,
+        branding,
+        locale,
+      });
+
+      for (const recipient of recipients) {
+        this.sendNotification(recipient.email, content);
+      }
     }
   }
 
@@ -1003,20 +1120,36 @@ export class NotificationsService {
   }): Promise<void> {
     const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId);
     const branding = await this.resolveBranding(params.tenantId);
-    const content = buildShareEmail({
-      itemType: params.itemType,
-      itemName: params.itemName,
-      itemUrl,
-      senderName: params.senderName,
-      message: params.message,
-      branding,
-    });
+    const localeGroups = this.groupRecipientsByLocale(params.recipients);
 
-    for (const recipient of params.recipients) {
-      this.sendNotification(recipient.email, content);
+    for (const [locale, recipients] of localeGroups) {
+      const content = buildShareEmail({
+        itemType: params.itemType,
+        itemName: params.itemName,
+        itemUrl,
+        senderName: params.senderName,
+        message: params.message,
+        branding,
+        locale,
+      });
+      for (const recipient of recipients) {
+        this.sendNotification(recipient.email, content);
+      }
     }
-    for (const email of params.rawEmails ?? []) {
-      this.sendNotification(email, content);
+
+    if ((params.rawEmails ?? []).length > 0) {
+      const content = buildShareEmail({
+        itemType: params.itemType,
+        itemName: params.itemName,
+        itemUrl,
+        senderName: params.senderName,
+        message: params.message,
+        branding,
+        locale: 'en',
+      });
+      for (const email of params.rawEmails ?? []) {
+        this.sendNotification(email, content);
+      }
     }
   }
 
@@ -1051,7 +1184,7 @@ export class NotificationsService {
     manager: EntityManager,
   ): Promise<NotificationRecipient[]> {
     const rows = await manager.query(
-      `SELECT DISTINCT u.id as "userId", u.email, u.first_name as "firstName", u.last_name as "lastName"
+      `SELECT DISTINCT u.id as "userId", u.email, u.first_name as "firstName", u.last_name as "lastName", u.locale
        FROM portfolio_requests r
        LEFT JOIN users u ON u.id IN (
          r.requestor_id, r.business_sponsor_id, r.business_lead_id,
@@ -1061,7 +1194,7 @@ export class NotificationsService {
        WHERE r.id = $1 AND u.id IS NOT NULL AND u.status = 'enabled'
          AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')
        UNION
-       SELECT u.id as "userId", u.email, u.first_name as "firstName", u.last_name as "lastName"
+       SELECT u.id as "userId", u.email, u.first_name as "firstName", u.last_name as "lastName", u.locale
        FROM portfolio_request_team rt
        JOIN users u ON u.id = rt.user_id
        JOIN roles ro ON ro.id = u.role_id
@@ -1081,7 +1214,7 @@ export class NotificationsService {
     manager: EntityManager,
   ): Promise<NotificationRecipient[]> {
     const rows = await manager.query(
-      `SELECT DISTINCT u.id as "userId", u.email, u.first_name as "firstName", u.last_name as "lastName"
+      `SELECT DISTINCT u.id as "userId", u.email, u.first_name as "firstName", u.last_name as "lastName", u.locale
        FROM portfolio_projects p
        LEFT JOIN users u ON u.id IN (
          p.business_sponsor_id, p.business_lead_id,
@@ -1091,7 +1224,7 @@ export class NotificationsService {
        WHERE p.id = $1 AND u.id IS NOT NULL AND u.status = 'enabled'
          AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')
        UNION
-       SELECT u.id as "userId", u.email, u.first_name as "firstName", u.last_name as "lastName"
+       SELECT u.id as "userId", u.email, u.first_name as "firstName", u.last_name as "lastName", u.locale
        FROM portfolio_project_team pt
        JOIN users u ON u.id = pt.user_id
        JOIN roles ro ON ro.id = u.role_id
@@ -1143,7 +1276,7 @@ export class NotificationsService {
     if (userIds.size === 0) return [];
 
     const users = await manager.query(
-      `SELECT u.id as "userId", u.email, u.first_name as "firstName", u.last_name as "lastName"
+      `SELECT u.id as "userId", u.email, u.first_name as "firstName", u.last_name as "lastName", u.locale
        FROM users u
        JOIN roles ro ON ro.id = u.role_id
        WHERE u.id = ANY($1) AND u.status = 'enabled'

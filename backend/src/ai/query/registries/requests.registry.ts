@@ -43,6 +43,16 @@ export const requestsRegistry: AiEntityFilterRegistry = {
       sortable: false,
       groupable: true,
     },
+    department: {
+      ai: 'department',
+      grid: 'department_name',
+      type: 'set',
+      description: 'Department name.',
+      dynamic: true,
+      discoverable: true,
+      sortable: false,
+      groupable: true,
+    },
     requestor: {
       ai: 'requestor',
       grid: 'requestor_name',
@@ -90,6 +100,7 @@ export const requestsRegistry: AiEntityFilterRegistry = {
       description: 'Request priority score.',
       sortable: true,
       groupable: false,
+      aggregable: true,
     },
     target_date: {
       ai: 'target_date',
@@ -98,6 +109,7 @@ export const requestsRegistry: AiEntityFilterRegistry = {
       description: 'Target delivery date.',
       sortable: true,
       groupable: false,
+      aggregable: true,
     },
   },
   sortFields: {
@@ -133,6 +145,12 @@ export const requestsRegistry: AiEntityFilterRegistry = {
         expression: 'co.name',
         joins: [
           `LEFT JOIN companies co ON co.id = r.company_id AND co.tenant_id = r.tenant_id`,
+        ],
+      },
+      department: {
+        expression: 'dep.name',
+        joins: [
+          `LEFT JOIN departments dep ON dep.id = r.department_id AND dep.tenant_id = r.tenant_id`,
         ],
       },
       requestor: {

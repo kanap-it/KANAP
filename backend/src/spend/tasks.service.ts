@@ -73,6 +73,10 @@ function isSetFilter(model: any): model is { filterType: 'set'; values: any[] } 
   return !!model && model.filterType === 'set' && Array.isArray(model.values);
 }
 
+function isDateLikeFilter(model: any): boolean {
+  return !!model && typeof model === 'object' && (model.filterType === 'date' || model.filterType === 'text');
+}
+
 function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?: string, tenantId?: string) {
   let whereConditions = '1=1';
   const params: any[] = [];
@@ -109,6 +113,60 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
       whereConditions += ` AND (${clauses.join(' OR ')})`;
     }
     return true;
+  };
+
+  const applyDateFilter = (model: any, expression: string) => {
+    if (!isDateLikeFilter(model)) return false;
+    const type = String(model.type || 'equals');
+    const fromRaw = model.dateFrom ?? model.filter ?? model.value;
+    const toRaw = model.dateTo ?? model.filterTo ?? model.valueTo;
+
+    if (type === 'blank') {
+      whereConditions += ` AND ${expression} IS NULL`;
+      return true;
+    }
+    if (type === 'notBlank') {
+      whereConditions += ` AND ${expression} IS NOT NULL`;
+      return true;
+    }
+
+    const pushDateParam = (value: any) => {
+      params.push(value);
+      return `$${params.length}::date`;
+    };
+
+    if (type === 'inRange') {
+      if (!fromRaw || !toRaw) return false;
+      const fromParam = pushDateParam(fromRaw);
+      const toParam = pushDateParam(toRaw);
+      whereConditions += ` AND ${expression} BETWEEN ${fromParam} AND ${toParam}`;
+      return true;
+    }
+
+    if (!fromRaw) return false;
+    const param = pushDateParam(fromRaw);
+    switch (type) {
+      case 'equals':
+        whereConditions += ` AND ${expression} = ${param}`;
+        return true;
+      case 'notEqual':
+        whereConditions += ` AND ${expression} <> ${param}`;
+        return true;
+      case 'lessThan':
+        whereConditions += ` AND ${expression} < ${param}`;
+        return true;
+      case 'lessThanOrEqual':
+        whereConditions += ` AND ${expression} <= ${param}`;
+        return true;
+      case 'greaterThan':
+        whereConditions += ` AND ${expression} > ${param}`;
+        return true;
+      case 'greaterThanOrEqual':
+        whereConditions += ` AND ${expression} >= ${param}`;
+        return true;
+      default:
+        return false;
+    }
   };
 
   // Apply scope filters (assigneeUserId or teamId)
@@ -211,6 +269,19 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
     }
   }
 
+  if (!shouldSkip('due_date') && filters.due_date) {
+    applyDateFilter(filters.due_date, 't.due_date');
+  }
+
+  if (!shouldSkip('labels') && filters.labels?.filter) {
+    params.push(`%${filters.labels.filter}%`);
+    whereConditions += ` AND EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements_text(t.labels) AS lbl(value)
+      WHERE lbl.value ILIKE $${params.length}
+    )`;
+  }
+
   if (!shouldSkip('category_name') && filters.category_name) {
     if (!applySetFilter(filters.category_name, 'pc.name') && filters.category_name?.filter) {
       params.push(`%${filters.category_name.filter}%`);
@@ -256,6 +327,25 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
     if (!applySetFilter(filters.creator_name, `COALESCE(NULLIF(TRIM(CONCAT(uc.first_name, ' ', uc.last_name)), ''), uc.email)`) && filters.creator_name?.filter) {
       params.push(`%${filters.creator_name.filter}%`);
       whereConditions += ` AND (uc.first_name ILIKE $${params.length} OR uc.last_name ILIKE $${params.length} OR uc.email ILIKE $${params.length})`;
+    }
+  }
+
+  if (!shouldSkip('project_name') && filters.project_name?.filter) {
+    params.push(`%${filters.project_name.filter}%`);
+    whereConditions += ` AND pp.name ILIKE $${params.length}`;
+  }
+
+  if (!shouldSkip('project_stream_name') && filters.project_stream_name) {
+    if (!applySetFilter(filters.project_stream_name, 'project_pst.name') && filters.project_stream_name?.filter) {
+      params.push(`%${filters.project_stream_name.filter}%`);
+      whereConditions += ` AND project_pst.name ILIKE $${params.length}`;
+    }
+  }
+
+  if (!shouldSkip('project_category_name') && filters.project_category_name) {
+    if (!applySetFilter(filters.project_category_name, 'project_pc.name') && filters.project_category_name?.filter) {
+      params.push(`%${filters.project_category_name.filter}%`);
+      whereConditions += ` AND project_pc.name ILIKE $${params.length}`;
     }
   }
 
@@ -317,6 +407,9 @@ const TASK_FILTER_VALUE_FIELDS: Record<string, string> = {
   category_name: 'pc.name',
   stream_name: 'pst.name',
   company_name: 'comp.name',
+  labels: 'labels',
+  project_stream_name: 'project_pst.name',
+  project_category_name: 'project_pc.name',
 };
 
 @Injectable()
@@ -351,6 +444,8 @@ export class TasksService {
       LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
       LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
       LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
+      LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id
+      LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id
       WHERE ${whereConditions}
     `;
     const countResult = await manager.query(countQuery, params);
@@ -377,6 +472,8 @@ export class TasksService {
       category_name: 'category_name',
       stream_name: 'stream_name',
       company_name: 'company_name',
+      project_stream_name: 'project_stream_name',
+      project_category_name: 'project_category_name',
     };
     const sortField = sortFieldMap[sort.field] || 't.created_at';
 
@@ -434,6 +531,9 @@ export class TasksService {
             END
         END as priority_score,
         t.labels,
+        pp.name as project_name,
+        project_pst.name as project_stream_name,
+        project_pc.name as project_category_name,
         -- Classification (task value wins, falls back to project)
         COALESCE(t.source_id, pp.source_id) as source_id,
         COALESCE(t.category_id, pp.category_id) as category_id,
@@ -464,6 +564,8 @@ export class TasksService {
       LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
       LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
       LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
+      LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id
+      LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id
       WHERE ${whereConditions}
       ORDER BY ${sortField} ${sort.direction}
       LIMIT ${limit} OFFSET ${skip}
@@ -500,6 +602,8 @@ export class TasksService {
       category_name: 'pc.name',
       stream_name: 'pst.name',
       company_name: 'comp.name',
+      project_stream_name: 'project_pst.name',
+      project_category_name: 'project_pc.name',
     };
     const sortField = sortFieldMap[sort.field] || 't.created_at';
 
@@ -541,6 +645,8 @@ export class TasksService {
       LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
       LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
       LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
+      LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id
+      LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id
       WHERE ${whereConditions}
       ORDER BY ${sortField} ${sort.direction}
       LIMIT 10000
@@ -574,8 +680,37 @@ export class TasksService {
     const results: Record<string, Array<string | null>> = {};
 
     for (const field of fields) {
-      const expression = TASK_FILTER_VALUE_FIELDS[field];
       const { whereConditions, params } = buildWhereConditions(query, filters, q, field, tenantId);
+      if (field === 'labels') {
+        const labelRows: Array<{ value: string | null }> = await manager.query(
+          `
+            SELECT DISTINCT lbl.value AS value
+            FROM tasks t
+            LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
+            LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
+            LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
+            LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
+            LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
+            LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
+            LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
+            LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
+            LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
+            LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
+            LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
+            LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
+            LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id
+            LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id
+            CROSS JOIN LATERAL jsonb_array_elements_text(t.labels) AS lbl(value)
+            WHERE ${whereConditions}
+            ORDER BY value ASC
+          `,
+          params,
+        );
+        results[field] = labelRows.map((row) => row.value);
+        continue;
+      }
+
+      const expression = TASK_FILTER_VALUE_FIELDS[field];
       const distinctQuery = `
         SELECT DISTINCT ${expression} as value
         FROM tasks t
@@ -592,6 +727,8 @@ export class TasksService {
         LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
         LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
         LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
+        LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id
+        LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id
         WHERE ${whereConditions}
         ORDER BY value ASC
       `;

@@ -24,7 +24,7 @@ KANAP is organized around a simple structure. The top bar shows the sections you
 |------|-----------------|
 | **Dashboard** | Your personal hub — click the KANAP logo or navigate to `/` |
 | **Portfolio** | Tasks, Requests, Projects, Planning, Reporting, Contributors |
-| **IT Operations** | Applications, Interfaces, Interface Map, Assets, Connections, Connection Map, Locations |
+| **IT Landscape** | Applications, Interfaces, Interface Map, Assets, Connections, Connection Map, Locations |
 | **Knowledge** | Documents and templates with review workflows |
 | **Budget Management** | OPEX, CAPEX, Contracts, Reporting, Administration |
 | **Master Data** | Companies, Departments, Suppliers, Contacts, Charts of Accounts, Currency, Business Processes, Analytics Dimensions |
@@ -150,7 +150,7 @@ The scope filter **remembers your last selection** across sessions. So if you sw
 ### Where scope filters appear
 
 - **Portfolio → Tasks** — My Tasks / My Team's Tasks / All Tasks
-- **IT Operations → Applications** — My Apps / My Team's Apps / All Apps
+- **IT Landscape → Applications** — My Apps / My Team's Apps / All Apps
 - **Portfolio → Projects** — My Projects / My Team's Projects / All Projects
 - **Portfolio → Requests** — My Requests / My Team's Requests / All Requests
 

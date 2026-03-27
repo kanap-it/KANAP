@@ -1,123 +1,123 @@
 {
   "workspaces": {
     "ai": "Plaid",
-    "portfolio": "Portfolio",
-    "itOperations": "IT Operations",
-    "knowledge": "Knowledge",
-    "budgetManagement": "Budget Management",
-    "masterData": "Master Data",
-    "admin": "Admin"
+    "portfolio": "Portafolio",
+    "itOperations": "Panorama IT",
+    "knowledge": "Base de conocimiento",
+    "budgetManagement": "Gestión presupuestaria",
+    "masterData": "Datos maestros",
+    "admin": "Administración"
   },
   "topBar": {
-    "collapseNav": "Collapse navigation",
-    "expandNav": "Expand navigation",
-    "sectionNav": "Section navigation",
-    "help": "Help",
-    "openDocs": "Open documentation for this page",
-    "themeTooltip": "Theme: {{mode}} (click to switch)",
-    "themeLabel": "Theme: {{mode}}",
-    "account": "Account"
+    "collapseNav": "Contraer navegación",
+    "expandNav": "Expandir navegación",
+    "sectionNav": "Navegación por sección",
+    "help": "Ayuda",
+    "openDocs": "Abrir documentación de esta página",
+    "themeTooltip": "Tema: {{mode}} (clic para cambiar)",
+    "themeLabel": "Tema: {{mode}}",
+    "account": "Cuenta"
   },
   "userMenu": {
-    "myProfile": "My Profile",
-    "logout": "Logout"
+    "myProfile": "Mi perfil",
+    "logout": "Cerrar sesión"
   },
   "sidebar": {
     "ops": {
-      "overview": "Overview",
+      "overview": "Vista general",
       "opex": "OPEX",
       "capex": "CAPEX",
-      "contracts": "Contracts",
-      "reporting": "Reporting",
-      "administration": "Administration"
+      "contracts": "Contratos",
+      "reporting": "Informes",
+      "administration": "Administración"
     },
     "masterData": {
-      "home": "Master Data Home",
+      "home": "Inicio datos maestros",
       "sections": {
-        "organization": "Organization",
-        "externalParties": "External Parties",
-        "finance": "Finance",
-        "classification": "Classification"
+        "organization": "Organización",
+        "externalParties": "Partes externas",
+        "finance": "Finanzas",
+        "classification": "Clasificación"
       },
-      "companies": "Companies",
-      "departments": "Departments",
-      "suppliers": "Suppliers",
-      "contacts": "Contacts",
-      "chartsOfAccounts": "Charts of Accounts",
-      "currency": "Currency",
-      "businessProcesses": "Business Processes",
-      "analyticsDimensions": "Analytics Dimensions",
-      "administration": "Administration"
+      "companies": "Empresas",
+      "departments": "Departamentos",
+      "suppliers": "Proveedores",
+      "contacts": "Contactos",
+      "chartsOfAccounts": "Planes de cuentas",
+      "currency": "Moneda",
+      "businessProcesses": "Procesos de negocio",
+      "analyticsDimensions": "Dimensiones analíticas",
+      "administration": "Administración"
     },
     "it": {
       "sections": {
-        "infrastructure": "Infrastructure",
-        "applications": "Applications"
+        "infrastructure": "Infraestructura",
+        "applications": "Aplicaciones"
       },
-      "locations": "Locations",
-      "assets": "Assets",
-      "connections": "Connections",
-      "connectionMap": "Connection Map",
-      "applications": "Applications",
+      "locations": "Ubicaciones",
+      "assets": "Activos",
+      "connections": "Conexiones",
+      "connectionMap": "Mapa de conexiones",
+      "applications": "Aplicaciones",
       "interfaces": "Interfaces",
-      "interfaceMap": "Interface Map",
-      "settings": "Settings"
+      "interfaceMap": "Mapa de interfaces",
+      "settings": "Configuración"
     },
     "portfolio": {
-      "tasks": "Tasks",
-      "requests": "Requests",
-      "projects": "Projects",
-      "planning": "Planning",
-      "reporting": "Reporting",
-      "contributors": "Contributors",
-      "settings": "Settings"
+      "tasks": "Tareas",
+      "requests": "Solicitudes",
+      "projects": "Proyectos",
+      "planning": "Planificación",
+      "reporting": "Informes",
+      "contributors": "Colaboradores",
+      "settings": "Configuración"
     },
     "admin": {
-      "users": "Users",
+      "users": "Usuarios",
       "roles": "Roles",
-      "auditLog": "Audit Log",
-      "billing": "Billing",
-      "authentication": "Authentication",
-      "branding": "Branding",
+      "auditLog": "Registro de auditoría",
+      "billing": "Facturación",
+      "authentication": "Autenticación",
+      "branding": "Personalización",
       "ai": "Plaid"
     },
     "platform": {
-      "tenants": "Tenants",
-      "coaTemplates": "CoA Templates",
-      "standardAccounts": "Standard Accounts",
-      "opsDashboard": "Ops Dashboard",
-      "scheduledTasks": "Scheduled Tasks"
+      "tenants": "Espacios de trabajo",
+      "coaTemplates": "Plantillas CoA",
+      "standardAccounts": "Cuentas estándar",
+      "opsDashboard": "Panel de control Ops",
+      "scheduledTasks": "Tareas programadas"
     }
   },
   "breadcrumbs": {
-    "dashboard": "Dashboard",
-    "ops": "Budget Management",
-    "admin": "Admin",
-    "it": "IT Operations",
-    "masterData": "Master Data",
-    "portfolio": "Portfolio",
+    "dashboard": "Panel de control",
+    "ops": "Gestión presupuestaria",
+    "admin": "Administración",
+    "it": "Panorama IT",
+    "masterData": "Datos maestros",
+    "portfolio": "Portafolio",
     "ai": "Plaid",
     "opex": "OPEX",
     "capex": "CAPEX",
-    "projects": "Projects",
-    "contributors": "Contributors",
-    "teamMembers": "Team Members",
-    "companies": "Companies",
-    "departments": "Departments",
-    "suppliers": "Suppliers",
-    "accounts": "Accounts",
-    "coa": "Charts of Accounts",
-    "analytics": "Analytics Dimensions",
-    "users": "Users",
+    "projects": "Proyectos",
+    "contributors": "Colaboradores",
+    "teamMembers": "Miembros del equipo",
+    "companies": "Empresas",
+    "departments": "Departamentos",
+    "suppliers": "Proveedores",
+    "accounts": "Cuentas",
+    "coa": "Planes de cuentas",
+    "analytics": "Dimensiones analíticas",
+    "users": "Usuarios",
     "roles": "Roles",
-    "scheduledTasks": "Scheduled Tasks",
-    "billing": "Billing",
-    "reports": "Reporting",
-    "contracts": "Contracts",
-    "applications": "Applications",
-    "interfaceMap": "Interface Map",
-    "connectionMap": "Connection Map",
-    "tasks": "Tasks",
-    "operations": "Administration"
+    "scheduledTasks": "Tareas programadas",
+    "billing": "Facturación",
+    "reports": "Informes",
+    "contracts": "Contratos",
+    "applications": "Aplicaciones",
+    "interfaceMap": "Mapa de interfaces",
+    "connectionMap": "Mapa de conexiones",
+    "tasks": "Tareas",
+    "operations": "Administración"
   }
 }

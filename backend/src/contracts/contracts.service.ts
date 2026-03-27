@@ -257,7 +257,7 @@ export class ContractsService {
     // Notify owner on status change
     if (before.status !== saved.status && saved.owner_user_id) {
       const tenantId = (saved as any).tenant_id;
-      const user = await mg.query('SELECT id, email FROM users WHERE id = $1 AND status = \'enabled\'', [saved.owner_user_id]);
+      const user = await mg.query('SELECT id, email, locale FROM users WHERE id = $1 AND status = \'enabled\'', [saved.owner_user_id]);
       if (user.length > 0) {
         this.notifications.notifyStatusChange({
           itemType: 'contract',
@@ -265,7 +265,7 @@ export class ContractsService {
           itemName: saved.name,
           oldStatus: before.status,
           newStatus: saved.status,
-          recipients: [{ userId: user[0].id, email: user[0].email }],
+          recipients: [{ userId: user[0].id, email: user[0].email, locale: user[0].locale }],
           tenantId,
           excludeUserId: userId,
           manager: mg,
@@ -389,6 +389,52 @@ export class ContractsService {
       const [rows, total] = await qb.getManyAndCount();
       return { ids: rows.map(r => (r as any).id as string), total };
     }
+  }
+
+  async listFilterValues(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {
+    const rawFields = String(query?.fields || query?.field || '')
+      .split(',')
+      .map((field) => field.trim())
+      .filter(Boolean);
+    const allowed = new Set(['currency']);
+    const fields = rawFields.filter((field) => allowed.has(field));
+    if (fields.length === 0) return {};
+
+    const parseFilters = (value: any): Record<string, any> => {
+      if (!value) return {};
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return {};
+        }
+      }
+      return typeof value === 'object' ? { ...value } : {};
+    };
+
+    const baseFilters = parseFilters(query?.filters);
+    const results: Record<string, Array<string | null>> = {};
+
+    for (const field of fields) {
+      const filtersForField = { ...baseFilters };
+      delete filtersForField[field];
+      const result = await this.list(
+        { ...query, page: 1, limit: 10000, filters: filtersForField, sort: 'name:ASC' },
+        opts,
+      );
+      const values = new Set<string | null>();
+      for (const item of result.items || []) {
+        const rawValue = (item as any)?.[field];
+        values.add(rawValue == null || rawValue === '' ? null : String(rawValue));
+      }
+      results[field] = Array.from(values).sort((a, b) => {
+        if (a == null) return 1;
+        if (b == null) return -1;
+        return a.localeCompare(b);
+      });
+    }
+
+    return results;
   }
 
   // Attachments stored via StorageService (S3)

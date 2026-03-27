@@ -2,7 +2,7 @@
   "workspaces": {
     "ai": "Plaid",
     "portfolio": "Portfolio",
-    "itOperations": "IT Operations",
+    "itOperations": "IT Landscape",
     "knowledge": "Knowledge",
     "budgetManagement": "Budget Management",
     "masterData": "Master Data",
@@ -93,7 +93,7 @@
     "dashboard": "Dashboard",
     "ops": "Budget Management",
     "admin": "Admin",
-    "it": "IT Operations",
+    "it": "IT Landscape",
     "masterData": "Master Data",
     "portfolio": "Portfolio",
     "ai": "Plaid",

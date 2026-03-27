@@ -52,7 +52,7 @@ const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' |
 const PRIORITY_LABELS: Record<string, string> = {
   blocker: 'Blocker',
   high: 'High',
-  normal: 'Normal',
+  normal: 'Medium',
   low: 'Low',
   optional: 'Optional',
 };

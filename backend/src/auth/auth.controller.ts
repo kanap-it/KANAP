@@ -219,6 +219,7 @@ export class AuthController {
       to: email,
       resetUrl,
       expiresInMinutes: this.auth.getPasswordResetExpirationMinutes(),
+      locale: user.locale,
     });
     return { ok: true };
   }

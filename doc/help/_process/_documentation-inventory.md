@@ -10,7 +10,7 @@ This document tracks documentation coverage for the KANAP user manual.
 |----------|-------------|------------|-----|
 | Home | 1 | 1 | 0 |
 | Budget Management | 9 | 9 | 0 |
-| IT Operations | 8 | 8 | 0 |
+| IT Landscape | 8 | 8 | 0 |
 | Knowledge | 1 | 1 | 0 |
 | Master Data | 8 | 8 | 0 |
 | Admin & Settings | 9 | 9 | 0 |
@@ -64,7 +64,7 @@ _Note: Supplemental Fast Track guides are excluded from these route-based counts
 | 2026-01-31 | `suppliers.md` | Updated for latest changes |
 | 2026-01-29 | `portfolio-reporting.md` | New documentation for Portfolio Reporting + Capacity Heatmap |
 | 2026-01-27 | `assets.md` | Updated for latest changes |
-| 2026-01-26 | `it-ops-settings.md` | Updated IT Operations Settings |
+| 2026-01-26 | `it-ops-settings.md` | Updated IT Landscape Settings |
 | 2026-01-18 | `portfolio-team-members.md` | New documentation for Portfolio Team Members |
 | 2026-01-15 | `connections.md` | Updated for latest changes |
 | 2026-01-15 | `connection-map.md` | Added Applications filter, App Env filter, connection layers, export SVG/PNG, linked interfaces |
@@ -114,7 +114,7 @@ _Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect t
 | `/ops/operations/copy-allocations` | CopyAllocationsPage | **DOCUMENTED** | (in budget-operations) |
 | `/ops/operations/column-reset` | BudgetColumnResetPage | **DOCUMENTED** | (in budget-operations) |
 
-### IT Operations
+### IT Landscape
 
 **Infrastructure**
 

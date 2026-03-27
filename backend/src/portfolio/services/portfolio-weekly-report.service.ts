@@ -266,7 +266,7 @@ export class PortfolioWeeklyReportService {
     };
 
     addRow(['Project Updates']);
-    addRow(['Project Name', 'Priority', 'Source', 'Category', 'Stream', 'Progress', 'Status', 'Last Changed']);
+    addRow(['Project Name', 'Priority', 'Source', 'Category', 'Stream', 'Effort', 'Status', 'Last Changed']);
     projects.forEach((row) => {
       addRow([
         row.name,
@@ -329,7 +329,7 @@ export class PortfolioWeeklyReportService {
       [
         {
           name: 'Projects',
-          headers: ['Project Name', 'Priority', 'Source', 'Category', 'Stream', 'Progress', 'Status', 'Last Changed'],
+          headers: ['Project Name', 'Priority', 'Source', 'Category', 'Stream', 'Effort', 'Status', 'Last Changed'],
           rows: projects.map((row) => ({
             cells: [
               row.name,

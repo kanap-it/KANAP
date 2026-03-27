@@ -4,11 +4,16 @@ import { AiExecutionContextWithManager, AiQueryScope } from '../ai.types';
 export type ScopedAiEntityType =
   | 'applications'
   | 'assets'
+  | 'companies'
+  | 'contracts'
+  | 'departments'
+  | 'documents'
   | 'locations'
   | 'projects'
   | 'requests'
+  | 'spend_items'
+  | 'suppliers'
   | 'tasks'
-  | 'documents';
 
 export type ResolvedAiScope = {
   requested: AiQueryScope;

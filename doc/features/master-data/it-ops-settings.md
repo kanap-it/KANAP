@@ -1,14 +1,14 @@
-# IT Operations Settings
+# IT Landscape Settings
 
 Metadata
-- Purpose: Document tenant-scoped settings for the IT Operations workspace
+- Purpose: Document tenant-scoped settings for the IT Landscape workspace
 - Audience: Engineers, QA, product
 - Status: draft
 - Last Updated: 2026-02-25
 
 ## Overview
 
-IT Operations Settings let each tenant configure the enum-like values used across the IT workspace:
+IT Landscape Settings let each tenant configure the enum-like values used across the IT workspace:
 
 - **Access Methods** – methods by which users access applications (e.g., Web, Mobile, VDI, Terminal).
 - **Application Categories** – categories that describe the primary purpose of each application or service.
@@ -338,7 +338,7 @@ The settings drive validation for several tenant-scoped tables.
 
 ### Path and Navigation
 
-- Workspace: **IT Operations**.
+- Workspace: **IT Landscape**.
 - Route: `/it/settings`.
 - Component: `frontend/src/pages/it/ItOperationsSettingsPage.tsx`.
 - Drawer entry (IT workspace):
@@ -348,7 +348,7 @@ The settings drive validation for several tenant-scoped tables.
 
 ### Page Layout (current)
 
-- `PageHeader title="IT Operations Settings"` + short intro.
+- `PageHeader title="IT Landscape Settings"` + short intro.
 - Sections are accordions; only the first is expanded by default. Bodies lazy-mount on first open to cut initial render time.
 - Per-section controls (top-right): **Add item**, **Save changes**, **Reset** — act only on that list and PATCH a partial payload.
 - Editors:

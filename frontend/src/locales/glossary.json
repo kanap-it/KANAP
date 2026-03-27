@@ -1,16 +1,112 @@
 {
-  "_meta": "Feed this file to AI when generating translations. Listed terms must use these exact translations.",
-  "terms": {
-    "OPEX": { "fr": "OPEX", "de": "OPEX", "es": "OPEX", "note": "Keep as-is, industry acronym" },
-    "CAPEX": { "fr": "CAPEX", "de": "CAPEX", "es": "CAPEX" },
-    "request": { "fr": "demande", "de": "Anfrage", "es": "solicitud", "note": "Portfolio context" },
-    "contributor": { "fr": "contributeur", "de": "Mitwirkender", "es": "colaborador" },
-    "supplier": { "fr": "fournisseur", "de": "Lieferant", "es": "proveedor" },
-    "chart of accounts": { "fr": "plan comptable", "de": "Kontenplan", "es": "plan de cuentas" },
-    "master data": { "fr": "données de référence", "de": "Stammdaten", "es": "datos maestros" },
-    "interface": { "fr": "interface", "de": "Schnittstelle", "es": "interfaz", "note": "IT data flow" },
-    "business process": { "fr": "processus métier", "de": "Geschäftsprozess", "es": "proceso de negocio" },
-    "knowledge": { "fr": "base de connaissances", "de": "Wissensdatenbank", "es": "base de conocimiento" },
-    "budget management": { "fr": "gestion budgétaire", "de": "Budgetverwaltung", "es": "gestión presupuestaria" }
+  "_meta": "Feed this file to AI when generating translations. Listed terms must use these exact translations. Organized by category.",
+
+  "acronyms": {
+    "_note": "Industry acronyms — keep as-is in all languages",
+    "OPEX": { "fr": "OPEX", "de": "OPEX", "es": "OPEX", "note": "Operating expenditure" },
+    "CAPEX": { "fr": "CAPEX", "de": "CAPEX", "es": "CAPEX", "note": "Capital expenditure" },
+    "SLA": { "fr": "SLA", "de": "SLA", "es": "SLA", "note": "Service Level Agreement" },
+    "SSO": { "fr": "SSO", "de": "SSO", "es": "SSO", "note": "Single Sign-On" },
+    "MFA": { "fr": "MFA", "de": "MFA", "es": "MFA", "note": "Multi-Factor Authentication" },
+    "PII": { "fr": "PII", "de": "PII", "es": "PII", "note": "Personally Identifiable Information" },
+    "CoA": { "fr": "CoA", "de": "CoA", "es": "CoA", "note": "Chart of Accounts (abbreviation)" }
+  },
+
+  "entities": {
+    "_note": "Core objects users manage",
+    "request": { "fr": "demande", "de": "Anfrage", "es": "solicitud", "note": "Portfolio request" },
+    "project": { "fr": "projet", "de": "Projekt", "es": "proyecto", "note": "Portfolio project" },
+    "task": { "fr": "tâche", "de": "Aufgabe", "es": "tarea", "note": "Portfolio/standalone task" },
+    "contributor": { "fr": "contributeur", "de": "Mitwirkender", "es": "colaborador", "note": "Portfolio team member with capacity" },
+    "team member": { "fr": "membre d'équipe", "de": "Teammitglied", "es": "miembro del equipo", "note": "Portfolio team member" },
+    "OPEX item": { "fr": "poste OPEX", "de": "OPEX-Position", "es": "partida OPEX", "note": "Operating expenditure line item" },
+    "CAPEX item": { "fr": "poste CAPEX", "de": "CAPEX-Position", "es": "partida CAPEX", "note": "Capital expenditure item" },
+    "contract": { "fr": "contrat", "de": "Vertrag", "es": "contrato", "note": "Supplier contract" },
+    "application": { "fr": "application", "de": "Anwendung", "es": "aplicación", "note": "IT application/service" },
+    "asset": { "fr": "actif", "de": "Asset", "es": "activo", "note": "IT infrastructure asset (server)" },
+    "connection": { "fr": "connexion", "de": "Verbindung", "es": "conexión", "note": "IT network/data connection" },
+    "interface": { "fr": "interface", "de": "Schnittstelle", "es": "interfaz", "note": "IT data flow between applications" },
+    "location": { "fr": "site", "de": "Standort", "es": "ubicación", "note": "Physical/logical IT location" },
+    "company": { "fr": "société", "de": "Unternehmen", "es": "empresa", "note": "Legal entity" },
+    "department": { "fr": "département", "de": "Abteilung", "es": "departamento", "note": "Organizational unit" },
+    "supplier": { "fr": "fournisseur", "de": "Lieferant", "es": "proveedor", "note": "External vendor" },
+    "contact": { "fr": "contact", "de": "Kontakt", "es": "contacto", "note": "Business contact" },
+    "account": { "fr": "compte", "de": "Konto", "es": "cuenta", "note": "General ledger account" },
+    "chart of accounts": { "fr": "plan comptable", "de": "Kontenplan", "es": "plan de cuentas", "note": "GL structure" },
+    "analytics dimension": { "fr": "dimension analytique", "de": "Analysedimension", "es": "dimensión analítica", "note": "Analytics classification" },
+    "business process": { "fr": "processus métier", "de": "Geschäftsprozess", "es": "proceso de negocio", "note": "Operational process" },
+    "document": { "fr": "document", "de": "Dokument", "es": "documento", "note": "Knowledge document" },
+    "library": { "fr": "bibliothèque", "de": "Bibliothek", "es": "biblioteca", "note": "Knowledge library" },
+    "tenant": { "fr": "tenant", "de": "Mandant", "es": "espacio de trabajo", "note": "Multi-tenant workspace" }
+  },
+
+  "workspaces": {
+    "_note": "Navigation/domain names",
+    "portfolio": { "fr": "portefeuille", "de": "Portfolio", "es": "portafolio", "note": "Portfolio management workspace" },
+    "IT landscape": { "fr": "cartographie SI", "de": "IT-Landschaft", "es": "panorama IT", "note": "IT landscape workspace" },
+    "budget management": { "fr": "gestion budgétaire", "de": "Budgetverwaltung", "es": "gestión presupuestaria", "note": "Budget workspace" },
+    "master data": { "fr": "master data", "de": "Stammdaten", "es": "datos maestros", "note": "Reference data workspace" },
+    "knowledge": { "fr": "base de connaissances", "de": "Wissensdatenbank", "es": "base de conocimiento", "note": "Knowledge workspace" },
+    "dashboard": { "fr": "tableau de bord", "de": "Dashboard", "es": "panel de control", "note": "Home dashboard" }
+  },
+
+  "budget": {
+    "_note": "Budget-specific terms",
+    "allocation": { "fr": "ventilation", "de": "Zuordnung", "es": "asignación", "note": "Budget distribution to cost centers" },
+    "chargeback": { "fr": "refacturation", "de": "Leistungsverrechnung", "es": "contracargo", "note": "Intercompany cost allocation" },
+    "actuals": { "fr": "réalisé", "de": "Ist-Werte", "es": "realizado", "note": "Actual expenditure (budget column)" },
+    "expected landing": { "fr": "atterrissage prévu", "de": "erwarteter Endwert", "es": "aterrizaje previsto", "note": "Projected year-end budget column" },
+    "revision": { "fr": "révision", "de": "Revision", "es": "revisión", "note": "Revised budget column" },
+    "freeze": { "fr": "gel", "de": "Einfrieren", "es": "congelación", "note": "Lock data for a period" },
+    "headcount": { "fr": "effectif", "de": "Mitarbeiterzahl", "es": "plantilla", "note": "Employee count metric" },
+    "consolidation account": { "fr": "compte de consolidation", "de": "Konsolidierungskonto", "es": "cuenta de consolidación", "note": "GL consolidation account" }
+  },
+
+  "portfolio_concepts": {
+    "_note": "Portfolio-specific terms",
+    "effort": { "fr": "charge", "de": "Aufwand", "es": "esfuerzo", "note": "Man-days allocation on projects" },
+    "phase": { "fr": "phase", "de": "Phase", "es": "fase", "note": "Project execution phase" },
+    "milestone": { "fr": "jalon", "de": "Meilenstein", "es": "hito", "note": "Project milestone" },
+    "scoring": { "fr": "évaluation", "de": "Bewertung", "es": "evaluación", "note": "Project/request scoring" },
+    "feasibility": { "fr": "faisabilité", "de": "Machbarkeit", "es": "viabilidad", "note": "Feasibility assessment" },
+    "roadmap": { "fr": "roadmap", "de": "Roadmap", "es": "hoja de ruta", "note": "Planning roadmap" },
+    "capacity": { "fr": "capacité", "de": "Kapazität", "es": "capacidad", "note": "Contributor available days" },
+    "dependency": { "fr": "dépendance", "de": "Abhängigkeit", "es": "dependencia", "note": "Work item dependency" }
+  },
+
+  "it_concepts": {
+    "_note": "IT-specific terms",
+    "topology": { "fr": "topologie", "de": "Topologie", "es": "topología", "note": "Connection topology type" },
+    "criticality": { "fr": "criticité", "de": "Kritikalität", "es": "criticidad", "note": "Business criticality level" },
+    "lifecycle": { "fr": "cycle de vie", "de": "Lebenszyklus", "es": "ciclo de vida", "note": "Product/asset lifecycle" },
+    "hosting model": { "fr": "hébergement", "de": "Hosting-Modell", "es": "modelo de alojamiento", "note": "Deployment model" },
+    "instance": { "fr": "instance", "de": "Instanz", "es": "instancia", "note": "Application deployment instance" },
+    "cluster": { "fr": "cluster", "de": "Cluster", "es": "clúster", "note": "Server cluster" },
+    "binding": { "fr": "liaison", "de": "Bindung", "es": "enlace", "note": "Interface-to-instance mapping" },
+    "compliance": { "fr": "conformité", "de": "Compliance", "es": "conformidad", "note": "Data compliance classification" },
+    "version": { "fr": "version", "de": "Version", "es": "versión", "note": "Application version" }
+  },
+
+  "knowledge_workflow": {
+    "_note": "Knowledge/workflow terms",
+    "workflow": { "fr": "workflow", "de": "Workflow", "es": "flujo de trabajo", "note": "Document review/approval workflow" },
+    "review": { "fr": "revue", "de": "Review", "es": "revisión", "note": "Document review stage" },
+    "approval": { "fr": "approbation", "de": "Genehmigung", "es": "aprobación", "note": "Document approval stage" },
+    "reviewer": { "fr": "relecteur", "de": "Prüfer", "es": "revisor", "note": "Person reviewing a document" },
+    "approver": { "fr": "approbateur", "de": "Genehmiger", "es": "aprobador", "note": "Person approving a document" },
+    "draft": { "fr": "brouillon", "de": "Entwurf", "es": "borrador", "note": "Document status" },
+    "published": { "fr": "publié", "de": "Veröffentlicht", "es": "publicado", "note": "Document status" },
+    "template": { "fr": "modèle", "de": "Vorlage", "es": "plantilla", "note": "Document template" }
+  },
+
+  "roles_access": {
+    "_note": "Roles and access control",
+    "IT lead": { "fr": "responsable IT", "de": "IT-Leiter", "es": "responsable IT", "note": "Project role" },
+    "business lead": { "fr": "responsable métier", "de": "Fachbereichsleiter", "es": "responsable de negocio", "note": "Project role" },
+    "IT sponsor": { "fr": "sponsor IT", "de": "IT-Sponsor", "es": "patrocinador IT", "note": "Project role" },
+    "business sponsor": { "fr": "sponsor métier", "de": "Fachbereichssponsor", "es": "patrocinador de negocio", "note": "Project role" },
+    "owner": { "fr": "responsable", "de": "Verantwortlicher", "es": "responsable", "note": "Entity owner (IT/business)" },
+    "audit log": { "fr": "journal d'audit", "de": "Audit-Protokoll", "es": "registro de auditoría", "note": "Activity/audit trail" },
+    "permission": { "fr": "autorisation", "de": "Berechtigung", "es": "permiso", "note": "Access control" }
   }
 }

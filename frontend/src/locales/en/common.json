@@ -125,7 +125,7 @@
   },
   "dashboard": {
     "overview": "Overview",
-    "welcomeBack": "Welcome back, {{name}}",
+    "welcomeBack": "Welcome, {{name}}",
     "workOverview": "Here's an overview of your work",
     "createTask": "Create Task",
     "logTime": "Log Time",
@@ -242,7 +242,7 @@
       "recordedDecision": "{{author}} recorded a decision",
       "changedStatus": "{{author}} changed the project status",
       "createdTask": "{{author}} created a project task",
-      "updatedProgress": "{{author}} updated execution progress",
+      "updatedProgress": "{{author}} updated execution effort",
       "updatedPhase": "{{author}} updated the project phase",
       "updatedProject": "{{author}} updated the project"
     }

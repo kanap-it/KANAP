@@ -4,7 +4,7 @@ Assets document your infrastructure inventory -- physical servers, virtual machi
 
 ## Getting started
 
-Navigate to **IT Operations > Assets** to see your asset inventory. Click **Add asset** to create your first entry.
+Navigate to **IT Landscape > Assets** to see your asset inventory. Click **Add asset** to create your first entry.
 
 **Required fields**:
 - **Name**: A unique asset name or hostname
@@ -119,7 +119,7 @@ The Technical tab organizes network identity and configuration into logical sect
 
 **Identity**:
 - **Hostname**: The asset's network hostname. Automatically pre-filled from the asset name on creation; you can override it at any time. Required when a domain is selected.
-- **Domain**: The Active Directory or DNS domain the asset belongs to. Choose from domains configured in **Settings > IT Operations**. System options include "Workgroup" (standalone) and "N/A" (not applicable).
+- **Domain**: The Active Directory or DNS domain the asset belongs to. Choose from domains configured in **Settings > IT Landscape**. System options include "Workgroup" (standalone) and "N/A" (not applicable).
 - **FQDN**: Fully Qualified Domain Name, automatically computed from hostname and domain DNS suffix. Read-only.
 - **Aliases**: Additional DNS names or aliases for this asset. Type and press Enter to add.
 - **Operating System**: OS type and version (e.g., Windows Server 2022, Ubuntu 24.04 LTS). Disabled for clusters -- OS is defined per member. When selected, shows standard and extended support end dates.
@@ -228,7 +228,7 @@ A read-only view of all connections involving this asset. Each row shows:
 | **Destination** | Destination endpoint label |
 | **Lifecycle** | Connection lifecycle status |
 
-To manage connections, navigate to **IT Operations > Connections**.
+To manage connections, navigate to **IT Landscape > Connections**.
 
 ---
 
@@ -304,7 +304,7 @@ From the Assets list:
 
 ### Label and code acceptance
 
-For fields configured in **Settings > IT Operations**, you can use either the internal code or the display label:
+For fields configured in **Settings > IT Landscape**, you can use either the internal code or the display label:
 
 | Field | Example codes | Example labels |
 |-------|---------------|----------------|

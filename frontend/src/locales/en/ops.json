@@ -14,11 +14,11 @@
       "account": "Account",
       "allocation": "Allocation",
       "yMinus1Budget": "Y-1 Budget ({{year}})",
-      "yMinus1Landing": "Y-1 Landing ({{year}})",
+      "yMinus1Landing": "Y-1 Expected Landing ({{year}})",
       "yBudget": "Y Budget ({{year}})",
       "yRevision": "Y Revision ({{year}})",
-      "yFollowUp": "Y Follow-up ({{year}})",
-      "yLanding": "Y Landing ({{year}})",
+      "yFollowUp": "Y Actuals ({{year}})",
+      "yLanding": "Y Expected Landing ({{year}})",
       "yPlus1Budget": "Y+1 Budget ({{year}})",
       "yPlus1Revision": "Y+1 Revision ({{year}})",
       "yPlus2Budget": "Y+2 Budget ({{year}})",
@@ -37,8 +37,8 @@
       "updated": "Updated"
     },
     "workspace": {
-      "newSpendItem": "New Spend Item",
-      "spendItem": "Spend Item",
+      "newSpendItem": "New OPEX Item",
+      "spendItem": "OPEX Item",
       "itemOf": "Item {{index}} of {{total}}",
       "prev": "Prev",
       "next": "Next",
@@ -76,8 +76,8 @@
       "month": "Month",
       "budgetPlanned": "Budget (planned)",
       "revisionCommitted": "Revision (committed)",
-      "followUpActual": "Follow-up (actual)",
-      "landingExpected": "Landing (expected_landing)",
+      "followUpActual": "Actuals",
+      "landingExpected": "Expected Landing",
       "frozen": "frozen",
       "forecast": "Forecast",
       "checkingFreeze": "Checking freeze state…",
@@ -150,9 +150,9 @@
       "priority": "Priority",
       "yAllocation": "Y Allocation",
       "yPlus1Allocation": "Y+1 Allocation",
-      "yMinus1Landing": "Y-1 Landing ({{year}})",
+      "yMinus1Landing": "Y-1 Expected Landing ({{year}})",
       "yBudget": "Y Budget ({{year}})",
-      "yLanding": "Y Landing ({{year}})",
+      "yLanding": "Y Expected Landing ({{year}})",
       "yPlus1Budget": "Y+1 Budget ({{year}})",
       "currency": "Currency",
       "start": "Start",
@@ -207,8 +207,8 @@
       "manualByMonth": "Manual by month",
       "budgetLabel": "Budget",
       "revisionLabel": "Revision",
-      "followUpLabel": "Follow-up",
-      "landingLabel": "Landing",
+      "followUpLabel": "Actuals",
+      "landingLabel": "Expected Landing",
       "frozen": "frozen",
       "enterBudgetHint": "Enter budget data or notes to enable save.",
       "deleteRedistribute": "Delete budget and redistribute",
@@ -457,7 +457,7 @@
       "reportingCurrency": "Reporting Currency",
       "reportingCurrencyHelp": "Primary currency used for reports and totals",
       "defaultOpexCurrency": "Default OPEX Currency",
-      "defaultOpexCurrencyHelp": "Prefills currency when creating new spend items",
+      "defaultOpexCurrencyHelp": "Prefills currency when creating new OPEX items",
       "defaultCapexCurrency": "Default CAPEX Currency",
       "defaultCapexCurrencyHelp": "Prefills currency when creating new CAPEX items",
       "allowedCurrencies": "Allowed Currencies",
@@ -476,8 +476,8 @@
     "budgetColumns": {
       "budget": "Budget",
       "revision": "Revision",
-      "followUp": "Follow-up",
-      "landing": "Landing"
+      "followUp": "Actuals",
+      "landing": "Expected Landing"
     }
   },
   "confirmations": {
@@ -487,7 +487,7 @@
     "deleteAttachment": "Delete attachment \"{{name}}\"?"
   },
   "shared": {
-    "noSpendItemsFound": "No spend items found",
+    "noSpendItemsFound": "No OPEX items found",
     "noCapexItemsFound": "No CAPEX items found",
     "blank": "(Blank)",
     "total": "Total",
@@ -537,8 +537,8 @@
           "description": "Budget grouped by consolidation account (pie or line)"
         },
         "analytics": {
-          "title": "Analytics Categories",
-          "description": "Budget grouped by analytics category (pie or line)"
+          "title": "Analytics Dimensions",
+          "description": "Budget grouped by analytics dimension (pie or line)"
         }
       }
     },
@@ -575,19 +575,19 @@
       "excludeItemsPlaceholder": "Select items to exclude",
       "excludeAccounts": "Exclude accounts",
       "excludeAccountsPlaceholder": "Select accounts to exclude",
-      "excludeCategories": "Exclude analytics categories",
-      "excludeCategoriesPlaceholder": "Select categories to exclude",
+      "excludeCategories": "Exclude analytics dimensions",
+      "excludeCategoriesPlaceholder": "Select dimensions to exclude",
       "noMatchingItems": "No matching items",
       "noMatchingAccounts": "No matching accounts",
-      "noMatchingCategories": "No matching categories",
+      "noMatchingCategories": "No matching dimensions",
       "noYearsAvailable": "No years available",
       "noMetricsAvailable": "No metrics available",
       "itemSelected_one": "1 item selected",
       "itemSelected_other": "{{count}} items selected",
       "accountSelected_one": "1 account selected",
       "accountSelected_other": "{{count}} accounts selected",
-      "categorySelected_one": "1 category selected",
-      "categorySelected_other": "{{count}} categories selected",
+      "categorySelected_one": "1 dimension selected",
+      "categorySelected_other": "{{count}} dimensions selected",
       "yearGrouping": "Year grouping"
     },
     "columns": {
@@ -618,7 +618,7 @@
       "selection": "Selection",
       "total": "Total",
       "consolidationAccount": "Consolidation account",
-      "analyticsCategory": "Analytics category"
+      "analyticsCategory": "Analytics dimension"
     },
     "globalChargeback": {
       "title": "Global Chargeback",
@@ -737,16 +737,16 @@
       "unassigned": "Unassigned"
     },
     "analyticsCategory": {
-      "title": "Budget by Analytics Category",
-      "subtitle": "Group totals by analytics category; pie for a single year, line for multi-year range",
-      "chartTitleSingle": "Budget by Analytics Category — {{year}}",
-      "chartTitleRange": "Budget by Analytics Category — {{start}} to {{end}}",
+      "title": "Budget by Analytics Dimension",
+      "subtitle": "Group totals by analytics dimension; pie for a single year, line for multi-year range",
+      "chartTitleSingle": "Budget by Analytics Dimension — {{year}}",
+      "chartTitleRange": "Budget by Analytics Dimension — {{start}} to {{end}}",
       "shareSubtitle": "Share of selected totals",
-      "annualSubtitle": "Annual totals per analytics category",
+      "annualSubtitle": "Annual totals per analytics dimension",
       "totalLabel": "Total ({{metric}}): {{value}}",
       "totalMetric": "Total {{metric}}",
       "unassigned": "Unassigned",
-      "unnamed": "Unnamed category"
+      "unnamed": "Unnamed dimension"
     }
   }
 }

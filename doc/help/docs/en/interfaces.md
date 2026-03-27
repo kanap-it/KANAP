@@ -4,7 +4,7 @@ Interfaces document the logical data flows between your applications. Unlike dir
 
 ## Getting started
 
-Navigate to **IT Operations > Interfaces** to see your integration registry. Click **Add Interface** to create your first entry.
+Navigate to **IT Landscape > Interfaces** to see your integration registry. Click **Add Interface** to create your first entry.
 
 **Required fields**:
 

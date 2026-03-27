@@ -43,6 +43,16 @@ export const projectsRegistry: AiEntityFilterRegistry = {
       sortable: false,
       groupable: true,
     },
+    department: {
+      ai: 'department',
+      grid: 'department_name',
+      type: 'set',
+      description: 'Department name.',
+      dynamic: true,
+      discoverable: true,
+      sortable: false,
+      groupable: true,
+    },
     business_lead: {
       ai: 'business_lead',
       grid: 'business_lead_name',
@@ -90,6 +100,7 @@ export const projectsRegistry: AiEntityFilterRegistry = {
       description: 'Project priority score.',
       sortable: true,
       groupable: false,
+      aggregable: true,
     },
     planned_start: {
       ai: 'planned_start',
@@ -98,6 +109,7 @@ export const projectsRegistry: AiEntityFilterRegistry = {
       description: 'Planned start date.',
       sortable: true,
       groupable: false,
+      aggregable: true,
     },
     planned_end: {
       ai: 'planned_end',
@@ -106,6 +118,7 @@ export const projectsRegistry: AiEntityFilterRegistry = {
       description: 'Planned end date.',
       sortable: true,
       groupable: false,
+      aggregable: true,
     },
   },
   sortFields: {
@@ -143,6 +156,12 @@ export const projectsRegistry: AiEntityFilterRegistry = {
         expression: 'c.name',
         joins: [
           `LEFT JOIN companies c ON c.id = p.company_id AND c.tenant_id = p.tenant_id`,
+        ],
+      },
+      department: {
+        expression: 'dep.name',
+        joins: [
+          `LEFT JOIN departments dep ON dep.id = p.department_id AND dep.tenant_id = p.tenant_id`,
         ],
       },
       business_lead: {

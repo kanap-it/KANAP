@@ -20,7 +20,7 @@ For full details, see the [Applications](../applications.md) and [Assets](../ass
 
 ![Application to Server Overview](images/app-to-server-overview.png)
 
-Everything in KANAP's IT Operations module connects to paint a complete picture of your landscape:
+Everything in KANAP's IT Landscape module connects to paint a complete picture of your landscape:
 
 | Object | What it represents |
 |--------|--------------------|
@@ -39,7 +39,7 @@ The chain is simple: **Application → Environment → Server**. By the end of t
 
 ## Step 1: Create Your Application
 
-Go to **IT Operations → Applications** and click **New App / Service**.
+Go to **IT Landscape → Applications** and click **New App / Service**.
 
 Fill in the essentials:
 
@@ -115,7 +115,7 @@ Go to the **Technical & Support** tab. Under **Access Methods**, select how user
 - **Proprietary HMI** -- industrial interface
 - **Kiosk** -- dedicated terminal
 
-Access methods are configurable in [IT Operations Settings](../it-ops-settings.md#access-methods), so your list may include additional options.
+Access methods are configurable in [IT Landscape Settings](../it-ops-settings.md#access-methods), so your list may include additional options.
 
 Also set:
 
@@ -156,13 +156,13 @@ Go to the **Compliance** tab. This is increasingly important for audits and regu
 | **Last DR Test** | Last disaster recovery test date | `2025-11-15` |
 
 !!! info "Data Classes are configurable"
-    The default classes (Public, Internal, Confidential, Restricted) can be customized in **IT Operations → Settings** to match your organization's data classification policy.
+    The default classes (Public, Internal, Confidential, Restricted) can be customized in **IT Landscape → Settings** to match your organization's data classification policy.
 
 ---
 
 ## Step 7: Create Your Server (Asset)
 
-Go to **IT Operations → Assets** and click **Add asset**.
+Go to **IT Landscape → Assets** and click **Add asset**.
 
 ### Overview tab
 
@@ -187,7 +187,7 @@ Once a Location is selected, several **read-only fields** are automatically deri
 - **City**
 
 !!! info "Location is the key"
-    The Location drives many attributes of your asset automatically. Locations are managed in **IT Operations → Locations** -- set them up once and every asset assigned to them inherits hosting type, provider, country, and city. You don't need to fill these in manually.
+    The Location drives many attributes of your asset automatically. Locations are managed in **IT Landscape → Locations** -- set them up once and every asset assigned to them inherits hosting type, provider, country, and city. You don't need to fill these in manually.
 
 Click **Save** to unlock the full workspace. For physical asset types, additional **Hardware** and **Support** tabs become available to track serial numbers, manufacturer details, and vendor support contracts.
 
@@ -285,20 +285,20 @@ Then use the [Interface Map](../interface-map.md) to visualize the full applicat
 
 | I want to... | Go to... |
 |------------|--------|
-| Create an application | IT Operations → Applications → New App / Service |
+| Create an application | IT Landscape → Applications → New App / Service |
 | Add environments | Open app → Instances tab |
 | Assign owners | Open app → Ownership & Audience tab |
 | Set access methods | Open app → Technical & Support tab |
 | Link budgets/contracts | Open app → Relations tab |
 | Attach knowledge docs | Open app → Knowledge tab |
 | Add compliance info | Open app → Compliance tab |
-| Create a server | IT Operations → Assets → Add asset |
+| Create a server | IT Landscape → Assets → Add asset |
 | Link server to app (from app) | Open app → Servers tab → Add assignment |
 | Link server to app (from asset) | Open asset → Assignments tab → Add assignment |
 | View server connections | Open asset → Connections tab |
-| View connection map | IT Operations → Connection Map |
-| View interface map | IT Operations → Interface Map |
-| Configure dropdowns | IT Operations → Settings |
+| View connection map | IT Landscape → Connection Map |
+| View interface map | IT Landscape → Interface Map |
+| Configure dropdowns | IT Landscape → Settings |
 
 ---
 

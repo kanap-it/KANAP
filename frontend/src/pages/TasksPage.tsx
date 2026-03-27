@@ -73,7 +73,7 @@ const PRIORITY_COLOR_MAP: Record<string, 'error' | 'warning' | 'default' | 'info
 const PRIORITY_LABEL_MAP: Record<string, string> = {
   blocker: 'Blocker',
   high: 'High',
-  normal: 'Normal',
+  normal: 'Medium',
   low: 'Low',
   optional: 'Optional',
 };

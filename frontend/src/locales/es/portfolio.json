@@ -1,1603 +1,1603 @@
 {
   "statuses": {
     "task": {
-      "open": "Open",
-      "in_progress": "In Progress",
-      "pending": "Pending",
-      "in_testing": "In Testing",
-      "done": "Done",
-      "cancelled": "Cancelled"
+      "open": "Abierta",
+      "in_progress": "En curso",
+      "pending": "Pendiente",
+      "in_testing": "En pruebas",
+      "done": "Completada",
+      "cancelled": "Cancelada"
     },
     "project": {
-      "waiting_list": "Waiting List",
-      "planned": "Planned",
-      "in_progress": "In Progress",
-      "in_testing": "In Testing",
-      "on_hold": "On Hold",
-      "done": "Done",
-      "cancelled": "Cancelled"
+      "waiting_list": "Lista de espera",
+      "planned": "Planificado",
+      "in_progress": "En curso",
+      "in_testing": "En pruebas",
+      "on_hold": "En pausa",
+      "done": "Completado",
+      "cancelled": "Cancelado"
     },
     "request": {
-      "pending_review": "Pending Review",
-      "candidate": "Candidate",
-      "approved": "Approved",
-      "on_hold": "On Hold",
-      "rejected": "Rejected",
-      "converted": "Converted"
+      "pending_review": "Pendiente de revisión",
+      "candidate": "Candidata",
+      "approved": "Aprobada",
+      "on_hold": "En pausa",
+      "rejected": "Rechazada",
+      "converted": "Convertida"
     },
     "decisionOutcome": {
       "go": "Go",
       "no_go": "No-Go",
-      "defer": "Defer",
-      "need_info": "Need Info",
-      "analysis_complete": "Analysis Complete"
+      "defer": "Aplazar",
+      "need_info": "Más información necesaria",
+      "analysis_complete": "Análisis completado"
     },
     "feasibility": {
-      "blocker": "Blocker",
-      "major_concerns": "Major concerns",
-      "minor_concerns": "Minor concerns",
-      "no_concerns": "No concerns",
-      "not_assessed": "Not assessed"
+      "blocker": "Bloqueante",
+      "major_concerns": "Preocupaciones importantes",
+      "minor_concerns": "Preocupaciones menores",
+      "no_concerns": "Sin preocupaciones",
+      "not_assessed": "No evaluado"
     },
     "phase": {
-      "pending": "Pending",
-      "in_progress": "In Progress",
-      "completed": "Completed"
+      "pending": "Pendiente",
+      "in_progress": "En curso",
+      "completed": "Completada"
     },
     "milestone": {
-      "pending": "Pending",
-      "achieved": "Achieved",
-      "missed": "Missed"
+      "pending": "Pendiente",
+      "achieved": "Alcanzado",
+      "missed": "No alcanzado"
     }
   },
   "priority": {
-    "blocker": "Blocker",
-    "high": "High",
-    "normal": "Normal",
-    "low": "Low",
-    "optional": "Optional"
+    "blocker": "Bloqueante",
+    "high": "Alta",
+    "normal": "Media",
+    "low": "Baja",
+    "optional": "Opcional"
   },
   "context": {
-    "project": "Project",
+    "project": "Proyecto",
     "spend_item": "OPEX",
-    "contract": "Contract",
+    "contract": "Contrato",
     "capex_item": "CAPEX",
-    "standalone": "Standalone"
+    "standalone": "Independiente"
   },
   "origin": {
-    "standard": "Request",
+    "standard": "Solicitud",
     "fast_track": "Fast-track",
-    "legacy": "Legacy"
+    "legacy": "Histórico"
   },
   "scope": {
-    "my": "My {{entity}}",
-    "myTeam": "My team's {{entity}}",
-    "all": "All {{entity}}",
-    "teamUnavailable": "You are not assigned to a team"
+    "my": "Mis {{entity}}",
+    "myTeam": "{{entity}} de mi equipo",
+    "all": "Todos los {{entity}}",
+    "teamUnavailable": "No está asignado a ningún equipo"
   },
   "shared": {
-    "blankValue": "(Blank)",
+    "blankValue": "(Vacío)",
     "entityTasksPanel": {
-      "title": "Tasks ({{count}})",
-      "titleFiltered": "Tasks ({{count}} / {{total}})",
-      "toggleFilters": "Toggle filters",
-      "clearFilters": "Clear filters",
-      "addTask": "Add Task",
+      "title": "Tareas ({{count}})",
+      "titleFiltered": "Tareas ({{count}} / {{total}})",
+      "toggleFilters": "Mostrar/ocultar filtros",
+      "clearFilters": "Restablecer filtros",
+      "addTask": "Agregar tarea",
       "filters": {
-        "status": "Status",
-        "phase": "Phase",
-        "all": "All",
-        "activeNotDone": "Active (not done)",
-        "allPhases": "All Phases",
-        "projectLevel": "Project-level"
+        "status": "Estado",
+        "phase": "Fase",
+        "all": "Todos",
+        "activeNotDone": "Activas (no completadas)",
+        "allPhases": "Todas las fases",
+        "projectLevel": "Nivel de proyecto"
       },
       "states": {
-        "loading": "Loading tasks...",
-        "empty": "No tasks yet.",
-        "noMatches": "No tasks match the current filters."
+        "loading": "Cargando tareas...",
+        "empty": "Aún no hay tareas.",
+        "noMatches": "Ninguna tarea coincide con los filtros actuales."
       },
       "table": {
-        "title": "Title",
-        "status": "Status",
-        "priority": "Priority",
-        "phase": "Phase",
-        "dueDate": "Due Date",
-        "actions": "Actions"
+        "title": "Título",
+        "status": "Estado",
+        "priority": "Prioridad",
+        "phase": "Fase",
+        "dueDate": "Fecha de vencimiento",
+        "actions": "Acciones"
       },
       "actions": {
-        "openTask": "Open task",
-        "deleteTask": "Delete task"
+        "openTask": "Abrir tarea",
+        "deleteTask": "Eliminar tarea"
       },
       "messages": {
-        "confirmDelete": "Delete this task?",
-        "deleteFailed": "Failed to delete task"
+        "confirmDelete": "¿Eliminar esta tarea?",
+        "deleteFailed": "Error al eliminar la tarea"
       },
       "phase": {
-        "projectLevel": "Project-level",
-        "unknown": "Unknown Phase"
+        "projectLevel": "Nivel de proyecto",
+        "unknown": "Fase desconocida"
       }
     }
   },
   "workspace": {
-    "loadingTab": "Loading tab...",
-    "sidebarTitle": "Properties",
-    "openProperties": "Open properties",
-    "closeProperties": "Close properties",
+    "loadingTab": "Cargando pestaña...",
+    "sidebarTitle": "Propiedades",
+    "openProperties": "Abrir propiedades",
+    "closeProperties": "Cerrar propiedades",
     "contributor": {
-      "titleFallback": "Contributor",
+      "titleFallback": "Colaborador",
       "actions": {
-        "backToList": "Back to list",
-        "backToSettings": "Back to Settings"
+        "backToList": "Volver a la lista",
+        "backToSettings": "Volver a configuración"
       },
       "chart": {
-        "manDays": "Man-days",
-        "other": "Other",
-        "project": "Project",
+        "manDays": "Días-persona",
+        "other": "Otros",
+        "project": "Proyecto",
         "total": "Total"
       },
       "confirmations": {
-        "remove": "Remove this contributor configuration?"
+        "remove": "¿Eliminar la configuración de este colaborador?"
       },
       "fields": {
-        "assignTeam": "Assign to Team",
-        "category": "Category",
-        "company": "Company",
-        "source": "Source",
-        "stream": "Stream"
+        "assignTeam": "Asignar a un equipo",
+        "category": "Categoría",
+        "company": "Empresa",
+        "source": "Origen",
+        "stream": "Línea"
       },
       "messages": {
-        "deleteFailed": "Failed to delete",
-        "saveFailed": "Failed to save"
+        "deleteFailed": "Error al eliminar",
+        "saveFailed": "Error al guardar"
       },
       "placeholders": {
-        "notes": "Additional notes about this contributor...",
-        "searchSkills": "Search skills..."
+        "notes": "Notas adicionales sobre este colaborador...",
+        "searchSkills": "Buscar competencias..."
       },
       "proficiency": {
-        "0": "No knowledge",
-        "1": "Basic / Theoretical",
-        "2": "Can execute with support",
-        "3": "Autonomous",
-        "4": "Expert"
+        "0": "Sin conocimiento",
+        "1": "Básico / Teórico",
+        "2": "Puede ejecutar con soporte",
+        "3": "Autónomo",
+        "4": "Experto"
       },
       "sections": {
-        "addSkill": "Add Skill",
-        "classificationDefaults": "Classification Defaults",
-        "classificationDefaultsHelp": "These defaults are used to pre-fill new tasks, requests, and projects when classification fields are still empty.",
-        "monthlyEffort": "Monthly Effort (12 months)",
-        "notes": "Notes",
-        "projectAvailability": "Project Availability (days per month)",
-        "team": "Team",
-        "timeStatistics": "Time Statistics"
+        "addSkill": "Agregar competencia",
+        "classificationDefaults": "Valores de clasificación predeterminados",
+        "classificationDefaultsHelp": "Estos valores predeterminados se utilizan para precargar nuevas tareas, solicitudes y proyectos cuando los campos de clasificación aún están vacíos.",
+        "monthlyEffort": "Esfuerzo mensual (12 meses)",
+        "notes": "Notas",
+        "projectAvailability": "Disponibilidad de proyecto (días por mes)",
+        "team": "Equipo",
+        "timeStatistics": "Estadísticas de tiempo"
       },
       "states": {
-        "noSkills": "No skills selected. Use the field above to add skills.",
-        "noTimeData": "No time data available yet.",
-        "notFound": "Contributor not found"
+        "noSkills": "No se han seleccionado competencias. Use el campo de arriba para agregar competencias.",
+        "noTimeData": "Aún no hay datos de tiempo disponibles.",
+        "notFound": "Colaborador no encontrado"
       },
       "tabs": {
-        "defaults": "Defaults",
+        "defaults": "Valores predeterminados",
         "general": "General",
-        "skills": "Skills",
-        "timeLogged": "Time Logged"
+        "skills": "Competencias",
+        "timeLogged": "Tiempo registrado"
       },
       "values": {
-        "averageMonthlyProjectEffort": "Average monthly project effort (last 6 months): {{value}} d/mo",
-        "daysPerMonth": "{{count}} days/month",
-        "skillCount": "({{count}} skills)",
-        "unassigned": "Unassigned"
+        "averageMonthlyProjectEffort": "Esfuerzo promedio mensual en proyectos (últimos 6 meses): {{value}} d/mes",
+        "daysPerMonth": "{{count}} días/mes",
+        "skillCount": "({{count}} competencias)",
+        "unassigned": "Sin asignar"
       }
     },
     "project": {
-      "browserTitle": "{{ref}} {{name}} | Portfolio Project",
+      "browserTitle": "{{ref}} {{name}} | Proyecto del portafolio",
       "actions": {
-        "copyReference": "Copy reference"
+        "copyReference": "Copiar referencia"
       },
       "confirmations": {
-        "unsavedNavigate": "You have unsaved changes. Save before leaving?",
-        "unsavedSwitchTabs": "You have unsaved changes. Save before switching tabs?"
+        "unsavedNavigate": "Tiene cambios sin guardar. ¿Guardar antes de salir?",
+        "unsavedSwitchTabs": "Tiene cambios sin guardar. ¿Guardar antes de cambiar de pestaña?"
       },
       "loadingTabs": {
-        "activity": "Activity",
-        "knowledge": "Knowledge",
-        "progress": "Progress",
-        "scoring": "Scoring",
-        "tasks": "Tasks",
-        "timeline": "Timeline"
+        "activity": "Actividad",
+        "knowledge": "Conocimiento",
+        "progress": "Esfuerzo",
+        "scoring": "Evaluación",
+        "tasks": "Tareas",
+        "timeline": "Cronograma"
       },
       "messages": {
-        "loadFailed": "Failed to load project",
-        "loading": "Loading project...",
-        "loadingTabData": "Loading tab data...",
-        "permissionSavePanel": "You do not have permission to save these panel changes.",
-        "permissionSaveWorkspace": "You do not have permission to save this workspace.",
-        "refreshing": "Refreshing...",
-        "saveFailed": "Failed to save project",
-        "savePanelFailed": "Failed to save project panel",
-        "updateStatusFailed": "Failed to update status",
-        "noSourceRequests": "No source requests linked."
+        "loadFailed": "Error al cargar el proyecto",
+        "loading": "Cargando proyecto...",
+        "loadingTabData": "Cargando datos de la pestaña...",
+        "permissionSavePanel": "No tiene permiso para guardar estos cambios del panel.",
+        "permissionSaveWorkspace": "No tiene permiso para guardar este espacio de trabajo.",
+        "refreshing": "Actualizando...",
+        "saveFailed": "Error al guardar el proyecto",
+        "savePanelFailed": "Error al guardar el panel del proyecto",
+        "updateStatusFailed": "Error al actualizar el estado",
+        "noSourceRequests": "No hay solicitudes de origen vinculadas."
       },
       "navigation": {
-        "position": "{{index}} of {{total}}"
+        "position": "{{index}} de {{total}}"
       },
       "origin": {
         "fastTrack": "Fast-track",
-        "legacy": "Legacy",
-        "standard": "Request",
-        "viewSourceRequest": "View source request"
+        "legacy": "Histórico",
+        "standard": "Solicitud",
+        "viewSourceRequest": "Ver solicitud de origen"
       },
       "priority": {
-        "overriddenTitle": "Priority override active",
-        "title": "Priority"
+        "overriddenTitle": "Sobrescritura de prioridad activa",
+        "title": "Prioridad"
       },
       "sidebar": {
-        "createTitle": "Create Project",
-        "editTitle": "Project Details"
+        "createTitle": "Crear proyecto",
+        "editTitle": "Detalles del proyecto"
       },
       "tabs": {
-        "activity": "Activity",
-        "knowledge": "Knowledge",
-        "progress": "Progress",
-        "summary": "Summary",
-        "tasks": "Tasks",
-        "timeline": "Timeline"
+        "activity": "Actividad",
+        "knowledge": "Conocimiento",
+        "progress": "Esfuerzo",
+        "summary": "Resumen",
+        "tasks": "Tareas",
+        "timeline": "Cronograma"
       },
       "title": {
-        "fallback": "Untitled Project",
-        "new": "New Project"
+        "fallback": "Proyecto sin título",
+        "new": "Nuevo proyecto"
       },
       "summary": {
         "cards": {
-          "deliverySnapshot": "Delivery Snapshot",
-          "effortAndTasks": "Effort and Tasks",
-          "knowledgeSummary": "Knowledge Summary",
-          "purpose": "Purpose",
-          "recentActivity": "Recent Activity",
-          "statusSnapshot": "Status Snapshot",
-          "teamAndRelations": "Team and Relations"
+          "deliverySnapshot": "Resumen de entrega",
+          "effortAndTasks": "Esfuerzo y tareas",
+          "knowledgeSummary": "Resumen de conocimiento",
+          "purpose": "Objetivo",
+          "recentActivity": "Actividad reciente",
+          "statusSnapshot": "Resumen de estado",
+          "teamAndRelations": "Equipo y relaciones"
         },
         "fields": {
-          "executionProgress": "Execution progress"
+          "executionProgress": "Esfuerzo de ejecución"
         },
         "placeholders": {
-          "purpose": "Describe the purpose of this project..."
+          "purpose": "Describa el objetivo de este proyecto..."
         },
         "values": {
-          "activeTasks": "Active {{count}}",
-          "actualCompletion": "Actual completion: {{date}}",
-          "baselineComparisonPending": "Baseline comparison will appear after the project moves into execution.",
-          "cancelledTasks": "Cancelled {{count}}",
-          "contributorsLinked": "{{count}} contributors linked across business and IT teams",
-          "daysEarlier": "{{count}} days earlier",
-          "daysLater": "{{count}} days later",
-          "department": "Department: {{name}}",
-          "doneTasks": "Done {{count}}",
-          "draft": "Draft",
-          "dependenciesTracked": "{{count}} dependencies tracked",
-          "effortBusiness": "Business {{actual}} / {{planned}} MD",
-          "effortIt": "IT {{actual}} / {{planned}} MD",
-          "effortTotal": "Effort: {{actual}} / {{planned}} MD actual vs planned",
-          "endVariance": "End variance: {{value}}",
-          "inProgressTasks": "In Progress {{count}}",
-          "keyRolesAssigned": "{{count}} of 4 key roles assigned",
-          "knowledgeAfterSave": "Knowledge links become available after the first save.",
-          "knowledgeDocuments": "{{count}} linked documents{{related}}",
-          "latestEntryBy": "Latest entry by {{actor}}",
-          "latestKnowledgeUpdate": "Latest update {{date}}",
-          "noActivity": "No activity yet.",
-          "noKnowledgeActivity": "No standalone knowledge activity yet.",
-          "noSourceRequests": "No source requests linked",
-          "noStartDate": "No start date set yet.",
-          "notSet": "Not set",
-          "onTrack": "On track",
-          "pendingTasks": "Pending {{count}}",
-          "phase": "Phase: {{name}}",
-          "plannedToStart": "Planned to start {{date}}",
-          "plannedWindow": "Planned window: {{start}} to {{end}}",
-          "priority": "Priority {{value}}",
-          "recently": "recently",
-          "relatedCount": "{{count}} related",
-          "sourceRequestsLinked": "{{count}} source requests linked",
-          "startVariance": "Start variance: {{value}}",
-          "started": "Started {{date}}"
+          "activeTasks": "Activas {{count}}",
+          "actualCompletion": "Finalización real: {{date}}",
+          "baselineComparisonPending": "La comparación de línea base aparecerá después de que el proyecto pase a ejecución.",
+          "cancelledTasks": "Canceladas {{count}}",
+          "contributorsLinked": "{{count}} colaboradores vinculados entre equipos de negocio e IT",
+          "daysEarlier": "{{count}} días antes",
+          "daysLater": "{{count}} días después",
+          "department": "Departamento: {{name}}",
+          "doneTasks": "Completadas {{count}}",
+          "draft": "Borrador",
+          "dependenciesTracked": "{{count}} dependencias rastreadas",
+          "effortBusiness": "Negocio {{actual}} / {{planned}} DP",
+          "effortIt": "IT {{actual}} / {{planned}} DP",
+          "effortTotal": "Esfuerzo: {{actual}} / {{planned}} DP real vs planificado",
+          "endVariance": "Variación de fin: {{value}}",
+          "inProgressTasks": "En curso {{count}}",
+          "keyRolesAssigned": "{{count}} de 4 roles clave asignados",
+          "knowledgeAfterSave": "Los enlaces de conocimiento estarán disponibles después del primer guardado.",
+          "knowledgeDocuments": "{{count}} documentos vinculados{{related}}",
+          "latestEntryBy": "Última entrada por {{actor}}",
+          "latestKnowledgeUpdate": "Última actualización {{date}}",
+          "noActivity": "Aún no hay actividad.",
+          "noKnowledgeActivity": "Aún no hay actividad de conocimiento independiente.",
+          "noSourceRequests": "No hay solicitudes de origen vinculadas",
+          "noStartDate": "Aún no se ha establecido fecha de inicio.",
+          "notSet": "No definido",
+          "onTrack": "En plazo",
+          "pendingTasks": "Pendientes {{count}}",
+          "phase": "Fase: {{name}}",
+          "plannedToStart": "Inicio previsto el {{date}}",
+          "plannedWindow": "Ventana planificada: {{start}} a {{end}}",
+          "priority": "Prioridad {{value}}",
+          "recently": "recientemente",
+          "relatedCount": "{{count}} relacionados",
+          "sourceRequestsLinked": "{{count}} solicitudes de origen vinculadas",
+          "startVariance": "Variación de inicio: {{value}}",
+          "started": "Iniciado el {{date}}"
         }
       },
       "fields": {
-        "businessContributors": "Business Contributors",
-        "businessLead": "Business Lead",
-        "businessSponsor": "Business Sponsor",
-        "category": "Category",
-        "company": "Company",
-        "department": "Department",
-        "itContributors": "IT Contributors",
-        "itLead": "IT Lead",
-        "itSponsor": "IT Sponsor",
-        "origin": "Origin",
-        "phase": "Phase",
-        "plannedEnd": "Planned End",
-        "plannedStart": "Planned Start",
-        "projectName": "Project Name",
-        "source": "Source",
-        "status": "Status",
-        "stream": "Stream"
+        "businessContributors": "Colaboradores de negocio",
+        "businessLead": "Responsable de negocio",
+        "businessSponsor": "Patrocinador de negocio",
+        "category": "Categoría",
+        "company": "Empresa",
+        "department": "Departamento",
+        "itContributors": "Colaboradores IT",
+        "itLead": "Responsable IT",
+        "itSponsor": "Patrocinador IT",
+        "origin": "Origen",
+        "phase": "Fase",
+        "plannedEnd": "Fin planificado",
+        "plannedStart": "Inicio planificado",
+        "projectName": "Nombre del proyecto",
+        "source": "Origen",
+        "status": "Estado",
+        "stream": "Línea"
       },
       "sections": {
-        "core": "Core Properties",
-        "dependencies": "Dependencies",
-        "relations": "Relations",
-        "sourceRequests": "Source Requests",
-        "team": "Team"
+        "core": "Propiedades principales",
+        "dependencies": "Dependencias",
+        "relations": "Relaciones",
+        "sourceRequests": "Solicitudes de origen",
+        "team": "Equipo"
       },
       "effort": {
         "fields": {
-          "baselineBusinessEffort": "Baseline Business Effort",
-          "baselineItEffort": "Baseline IT Effort",
-          "businessEffort": "Business Effort (MD)",
-          "date": "Date",
-          "hours": "Hours",
-          "itEffort": "IT Effort (MD)",
-          "notes": "Notes",
-          "person": "Person",
-          "source": "Source",
-          "type": "Type"
+          "baselineBusinessEffort": "Esfuerzo de negocio de línea base",
+          "baselineItEffort": "Esfuerzo IT de línea base",
+          "businessEffort": "Esfuerzo de negocio (DP)",
+          "date": "Fecha",
+          "hours": "Horas",
+          "itEffort": "Esfuerzo IT (DP)",
+          "notes": "Notas",
+          "person": "Persona",
+          "source": "Origen",
+          "type": "Tipo"
         },
         "messages": {
-          "deleteTimeEntryFailed": "Failed to delete time entry",
-          "resetAllocationsFailed": "Failed to reset allocations"
+          "deleteTimeEntryFailed": "Error al eliminar la entrada de tiempo",
+          "resetAllocationsFailed": "Error al restablecer las asignaciones"
         },
         "sections": {
-          "actualEffort": "Actual Effort",
-          "baseline": "Baseline (captured at In Progress)",
-          "estimatedEffort": "Estimated Effort",
-          "progressAndConsumption": "Progress & Effort Consumption",
-          "timeBreakdown": "Time Breakdown",
-          "timeLog": "Time Log"
+          "actualEffort": "Esfuerzo real",
+          "baseline": "Línea base (capturada al pasar a En curso)",
+          "estimatedEffort": "Esfuerzo estimado",
+          "progressAndConsumption": "Avance y consumo de esfuerzo",
+          "timeBreakdown": "Desglose de tiempo",
+          "timeLog": "Registro de tiempo"
         },
         "states": {
-          "noTimeLogged": "No time logged yet. Click \"Log Time\" to add entries."
+          "noTimeLogged": "Aún no se ha registrado tiempo. Haga clic en «Registrar tiempo» para agregar entradas."
         },
         "values": {
-          "executionProgress": "Execution Progress: {{progress}}%",
-          "hoursValue": "{{hours}}h",
-          "mdHigher": "{{count}} MD higher",
-          "mdLower": "{{count}} MD lower",
-          "mdValue": "{{value}} MD",
-          "onTrack": "On track",
-          "projectOverhead": "Project Overhead",
-          "shareOfTotal": "{{percent}}% of total ({{hours}}h)",
-          "taskSourceFallback": "Task",
-          "taskTime": "Task Time",
-          "totalLogged": "Total Logged",
-          "workloadConsumption": "Workload consumption: {{actual}} / {{planned}} MD"
+          "executionProgress": "Esfuerzo de ejecución: {{progress}} %",
+          "hoursValue": "{{hours}} h",
+          "mdHigher": "{{count}} DP más",
+          "mdLower": "{{count}} DP menos",
+          "mdValue": "{{value}} DP",
+          "onTrack": "En plazo",
+          "projectOverhead": "Gastos generales del proyecto",
+          "shareOfTotal": "{{percent}} % del total ({{hours}} h)",
+          "taskSourceFallback": "Tarea",
+          "taskTime": "Tiempo en tareas",
+          "totalLogged": "Total registrado",
+          "workloadConsumption": "Consumo de esfuerzo: {{actual}} / {{planned}} DP"
         }
       },
       "timeline": {
         "actions": {
-          "addMilestone": "Add Milestone",
-          "addPhase": "Add Phase",
-          "addTaskToPhase": "Add task to phase",
-          "applyTemplate": "Apply Template",
-          "deletePhase": "Delete phase",
-          "replaceAll": "Replace All",
-          "replaceWithTemplate": "Replace with Template"
+          "addMilestone": "Agregar hito",
+          "addPhase": "Agregar fase",
+          "addTaskToPhase": "Agregar tarea a la fase",
+          "applyTemplate": "Aplicar plantilla",
+          "deletePhase": "Eliminar fase",
+          "replaceAll": "Reemplazar todo",
+          "replaceWithTemplate": "Reemplazar por plantilla"
         },
         "defaults": {
-          "newMilestone": "New Milestone",
-          "newPhase": "New Phase",
-          "phaseComplete": "{{phase}} Complete"
+          "newMilestone": "Nuevo hito",
+          "newPhase": "Nueva fase",
+          "phaseComplete": "{{phase}} completada"
         },
         "dialogs": {
           "replaceAll": {
-            "description": "This will delete all existing phases and milestones, then apply the selected template.",
-            "title": "Replace All Phases?"
+            "description": "Esto eliminará todas las fases e hitos existentes y luego aplicará la plantilla seleccionada.",
+            "title": "¿Reemplazar todas las fases?"
           }
         },
         "fields": {
-          "actualEnd": "Actual End",
-          "actualStart": "Actual Start",
-          "baselineEnd": "Baseline End",
-          "baselineStart": "Baseline Start",
-          "end": "End",
-          "milestone": "Milestone",
-          "name": "Name",
-          "start": "Start",
-          "targetDate": "Target Date"
+          "actualEnd": "Fin real",
+          "actualStart": "Inicio real",
+          "baselineEnd": "Fin de línea base",
+          "baselineStart": "Inicio de línea base",
+          "end": "Fin",
+          "milestone": "Hito",
+          "name": "Nombre",
+          "start": "Inicio",
+          "targetDate": "Fecha objetivo"
         },
         "messages": {
-          "addMilestoneFailed": "Failed to add milestone",
-          "addPhaseFailed": "Failed to add phase",
-          "applyTemplateFailed": "Failed to apply template",
-          "deleteMilestoneFailed": "Failed to delete milestone",
-          "deletePhaseFailed": "Failed to delete phase",
-          "invalidDateRange": "End date cannot be before start date",
-          "reorderPhasesFailed": "Failed to reorder phases",
-          "toggleMilestoneFailed": "Failed to toggle milestone",
-          "unlinkPhaseMilestoneFirst": "Uncheck phase milestone to delete",
-          "updateMilestoneFailed": "Failed to update milestone",
-          "updatePhaseFailed": "Failed to update phase"
+          "addMilestoneFailed": "Error al agregar el hito",
+          "addPhaseFailed": "Error al agregar la fase",
+          "applyTemplateFailed": "Error al aplicar la plantilla",
+          "deleteMilestoneFailed": "Error al eliminar el hito",
+          "deletePhaseFailed": "Error al eliminar la fase",
+          "invalidDateRange": "La fecha de fin no puede ser anterior a la fecha de inicio",
+          "reorderPhasesFailed": "Error al reordenar las fases",
+          "toggleMilestoneFailed": "Error al alternar el hito",
+          "unlinkPhaseMilestoneFirst": "Desmarque el hito de fase para poder eliminarlo",
+          "updateMilestoneFailed": "Error al actualizar el hito",
+          "updatePhaseFailed": "Error al actualizar la fase"
         },
         "sections": {
-          "applyPhaseTemplate": "Apply Phase Template",
-          "baseline": "Baseline (captured at In Progress)",
-          "milestones": "Milestones",
-          "phases": "Phases",
-          "projectDates": "Project Dates"
+          "applyPhaseTemplate": "Aplicar plantilla de fase",
+          "baseline": "Línea base (capturada al pasar a En curso)",
+          "milestones": "Hitos",
+          "phases": "Fases",
+          "projectDates": "Fechas del proyecto"
         },
         "states": {
-          "noMilestones": "No milestones defined. Add milestones manually or enable phase milestones above.",
-          "noPlannedPhases": "No phases with planned dates",
-          "noPlannedPhasesHelp": "Set planned start and end dates on phases to see them on the Gantt chart.",
-          "noPlannedProjects": "No projects with planned dates",
-          "noPlannedProjectsHelp": "Set planned start and end dates on projects to see them on the timeline.",
-          "selectTemplate": "Select a template..."
+          "noMilestones": "No hay hitos definidos. Agregue hitos manualmente o active los hitos de fase arriba.",
+          "noPlannedPhases": "No hay fases con fechas planificadas",
+          "noPlannedPhasesHelp": "Establezca fechas de inicio y fin planificadas en las fases para verlas en el diagrama de Gantt.",
+          "noPlannedProjects": "No hay proyectos con fechas planificadas",
+          "noPlannedProjectsHelp": "Establezca fechas de inicio y fin planificadas en los proyectos para verlos en el cronograma.",
+          "selectTemplate": "Seleccione una plantilla..."
         },
         "values": {
-          "daysEarlier": "{{count}} day(s) earlier",
-          "daysLater": "{{count}} day(s) later",
-          "onTrack": "On track"
+          "daysEarlier": "{{count}} día(s) antes",
+          "daysLater": "{{count}} día(s) después",
+          "onTrack": "En plazo"
         },
         "views": {
           "gantt": "Gantt",
-          "table": "Table"
+          "table": "Tabla"
         }
       }
     },
     "request": {
-      "browserTitle": "{{ref}} {{name}} | Portfolio Request",
+      "browserTitle": "{{ref}} {{name}} | Solicitud del portafolio",
       "actions": {
-        "copyReference": "Copy reference",
-        "submitNewRecommendation": "Submit New Recommendation",
-        "submitRecommendation": "Submit Recommendation"
+        "copyReference": "Copiar referencia",
+        "submitNewRecommendation": "Enviar nueva recomendación",
+        "submitRecommendation": "Enviar recomendación"
       },
       "confirmations": {
-        "unsavedNavigate": "You have unsaved changes. Save before leaving?",
-        "unsavedRecommendation": "You have an unsaved recommendation. Discard it?",
-        "unsavedSwitchTabs": "You have unsaved changes. Save before switching tabs?"
+        "unsavedNavigate": "Tiene cambios sin guardar. ¿Guardar antes de salir?",
+        "unsavedRecommendation": "Tiene una recomendación sin guardar. ¿Descartarla?",
+        "unsavedSwitchTabs": "Tiene cambios sin guardar. ¿Guardar antes de cambiar de pestaña?"
       },
       "deleteDialog": {
-        "message": "Delete this request? This cannot be undone.",
-        "title": "Delete Request"
+        "message": "¿Eliminar esta solicitud? Esta acción no se puede deshacer.",
+        "title": "Eliminar solicitud"
       },
       "loadingTabs": {
-        "activity": "Activity",
-        "analysis": "Analysis",
-        "knowledge": "Knowledge",
-        "scoring": "Scoring"
+        "activity": "Actividad",
+        "analysis": "Análisis",
+        "knowledge": "Conocimiento",
+        "scoring": "Evaluación"
       },
       "messages": {
-        "deleteFailed": "Failed to delete request",
-        "loadFailed": "Failed to load request",
-        "loading": "Loading request...",
-        "loadingTabData": "Loading tab data...",
-        "permissionSavePanel": "You do not have permission to save these panel changes.",
-        "permissionSaveWorkspace": "You do not have permission to save this workspace.",
-        "recommendationSubmitted": "{{outcome}} recommendation submitted.",
-        "recommendationSubmittedFallback": "Recommendation submitted.",
-        "refreshing": "Refreshing...",
-        "saveFailed": "Failed to save request",
-        "savePanelFailed": "Failed to save request panel",
-        "updateStatusFailed": "Failed to update status",
-        "noResultingProjects": "No resulting projects yet."
+        "deleteFailed": "Error al eliminar la solicitud",
+        "loadFailed": "Error al cargar la solicitud",
+        "loading": "Cargando solicitud...",
+        "loadingTabData": "Cargando datos de la pestaña...",
+        "permissionSavePanel": "No tiene permiso para guardar estos cambios del panel.",
+        "permissionSaveWorkspace": "No tiene permiso para guardar este espacio de trabajo.",
+        "recommendationSubmitted": "Recomendación {{outcome}} enviada.",
+        "recommendationSubmittedFallback": "Recomendación enviada.",
+        "refreshing": "Actualizando...",
+        "saveFailed": "Error al guardar la solicitud",
+        "savePanelFailed": "Error al guardar el panel de la solicitud",
+        "updateStatusFailed": "Error al actualizar el estado",
+        "noResultingProjects": "Aún no hay proyectos resultantes."
       },
       "navigation": {
-        "position": "{{index}} of {{total}}"
+        "position": "{{index}} de {{total}}"
       },
       "originTask": {
-        "fallback": "Task",
-        "title": "Origin task",
+        "fallback": "Tarea",
+        "title": "Tarea de origen",
         "withReference": "{{reference}}"
       },
       "priority": {
-        "overriddenTitle": "Priority override active",
-        "title": "Priority"
+        "overriddenTitle": "Sobrescritura de prioridad activa",
+        "title": "Prioridad"
       },
       "sidebar": {
-        "createTitle": "Create Request",
-        "editTitle": "Request Details"
+        "createTitle": "Crear solicitud",
+        "editTitle": "Detalles de la solicitud"
       },
       "tabs": {
-        "activity": "Activity",
-        "analysis": "Analysis",
-        "knowledge": "Knowledge",
-        "summary": "Summary"
+        "activity": "Actividad",
+        "analysis": "Análisis",
+        "knowledge": "Conocimiento",
+        "summary": "Resumen"
       },
       "title": {
-        "fallback": "Untitled Request",
-        "new": "New Request"
+        "fallback": "Solicitud sin título",
+        "new": "Nueva solicitud"
       },
       "summary": {
         "cards": {
-          "analysisSnapshot": "Analysis Snapshot",
-          "purpose": "Purpose",
-          "recentActivity": "Recent Activity",
-          "statusSnapshot": "Status Snapshot",
-          "teamAndKnowledge": "Team and Knowledge"
+          "analysisSnapshot": "Resumen del análisis",
+          "purpose": "Objetivo",
+          "recentActivity": "Actividad reciente",
+          "statusSnapshot": "Resumen de estado",
+          "teamAndKnowledge": "Equipo y conocimiento"
         },
         "fields": {
-          "businessProcesses": "Impacted business processes",
-          "latestRecommendation": "Latest recommendation"
+          "businessProcesses": "Procesos de negocio impactados",
+          "latestRecommendation": "Última recomendación"
         },
         "placeholders": {
-          "purpose": "Describe the purpose of this request..."
+          "purpose": "Describa el objetivo de esta solicitud..."
         },
         "values": {
-          "contributorsLinked": "{{count}} contributors linked across business and IT teams",
-          "dimensionsAssessed": "{{count}} of 7 dimensions assessed",
-          "draft": "Draft",
-          "keyRolesAssigned": "{{count}} of 4 key roles assigned",
-          "knowledgeDocuments": "{{count}} linked documents{{related}}",
-          "lastActivityUpdate": "Last activity update {{date}} by {{actor}}",
-          "latestEntryBy": "Latest entry by {{actor}}",
-          "noActivity": "No activity yet.",
-          "noActivityUpdates": "No activity updates yet.",
-          "noBusinessProcesses": "No business processes linked yet.",
-          "noKnowledgeDocuments": "No standalone knowledge documents linked yet.",
-          "noRecommendation": "No analysis recommendation has been submitted yet.",
-          "originTask": "Origin task: {{task}}",
-          "priority": "Priority {{value}}",
-          "recently": "recently",
-          "relatedCount": "{{count}} related",
-          "statusChanged": "Status changed from {{from}} to {{to}}."
+          "contributorsLinked": "{{count}} colaboradores vinculados entre equipos de negocio e IT",
+          "dimensionsAssessed": "{{count}} de 7 dimensiones evaluadas",
+          "draft": "Borrador",
+          "keyRolesAssigned": "{{count}} de 4 roles clave asignados",
+          "knowledgeDocuments": "{{count}} documentos vinculados{{related}}",
+          "lastActivityUpdate": "Última actualización de actividad el {{date}} por {{actor}}",
+          "latestEntryBy": "Última entrada por {{actor}}",
+          "noActivity": "Aún no hay actividad.",
+          "noActivityUpdates": "Aún no hay actualizaciones de actividad.",
+          "noBusinessProcesses": "Aún no hay procesos de negocio vinculados.",
+          "noKnowledgeDocuments": "Aún no hay documentos de conocimiento independientes vinculados.",
+          "noRecommendation": "Aún no se ha enviado ninguna recomendación de análisis.",
+          "originTask": "Tarea de origen: {{task}}",
+          "priority": "Prioridad {{value}}",
+          "recently": "recientemente",
+          "relatedCount": "{{count}} relacionados",
+          "statusChanged": "Estado cambiado de {{from}} a {{to}}."
         }
       },
       "fields": {
-        "businessContributors": "Business Contributors",
-        "businessLead": "Business Lead",
-        "businessSponsor": "Business Sponsor",
-        "category": "Category",
-        "company": "Company",
-        "department": "Department",
-        "itContributors": "IT Contributors",
-        "itLead": "IT Lead",
-        "itSponsor": "IT Sponsor",
-        "requestName": "Request Name",
-        "requestor": "Requestor",
-        "source": "Source",
-        "status": "Status",
-        "stream": "Stream",
-        "targetDeliveryDate": "Target Delivery Date"
+        "businessContributors": "Colaboradores de negocio",
+        "businessLead": "Responsable de negocio",
+        "businessSponsor": "Patrocinador de negocio",
+        "category": "Categoría",
+        "company": "Empresa",
+        "department": "Departamento",
+        "itContributors": "Colaboradores IT",
+        "itLead": "Responsable IT",
+        "itSponsor": "Patrocinador IT",
+        "requestName": "Nombre de la solicitud",
+        "requestor": "Solicitante",
+        "source": "Origen",
+        "status": "Estado",
+        "stream": "Línea",
+        "targetDeliveryDate": "Fecha de entrega objetivo"
       },
       "sections": {
-        "core": "Core Properties",
-        "dependencies": "Dependencies",
-        "relations": "Relations",
-        "resultingProjects": "Resulting Projects",
-        "team": "Team"
+        "core": "Propiedades principales",
+        "dependencies": "Dependencias",
+        "relations": "Relaciones",
+        "resultingProjects": "Proyectos resultantes",
+        "team": "Equipo"
       },
       "analysis": {
         "actions": {
-          "viewInActivity": "View in Activity"
+          "viewInActivity": "Ver en actividad"
         },
         "fields": {
-          "businessProcesses": "Business Processes",
-          "risksMitigations": "Risks & Mitigations"
+          "businessProcesses": "Procesos de negocio",
+          "risksMitigations": "Riesgos y mitigaciones"
         },
         "labels": {
-          "currentSituation": "Current Situation",
-          "expectedBenefits": "Expected Benefits",
-          "latestRecommendation": "Latest recommendation"
+          "currentSituation": "Situación actual",
+          "expectedBenefits": "Beneficios esperados",
+          "latestRecommendation": "Última recomendación"
         },
         "messages": {
-          "publishRecommendation": "Publish a formal decision to Activity with context \"Analysis Recommendation\".",
-          "statusChanged": "Status changed: {{from}} → {{to}}"
+          "publishRecommendation": "Publique una decisión formal en la actividad con el contexto «Recomendación de análisis».",
+          "statusChanged": "Cambio de estado: {{from}} → {{to}}"
         },
         "placeholders": {
-          "risksMitigations": "List key residual risks, mitigation actions, and responsible owners..."
+          "risksMitigations": "Liste los riesgos residuales principales, las acciones de mitigación y los responsables..."
         },
         "sections": {
-          "analysisRecommendation": "Analysis Recommendation",
-          "businessProcesses": "Impacted Business Processes",
-          "feasibilityReview": "Feasibility Review",
-          "previousAnalysis": "Previous Analysis (Legacy)"
+          "analysisRecommendation": "Recomendación de análisis",
+          "businessProcesses": "Procesos de negocio impactados",
+          "feasibilityReview": "Revisión de viabilidad",
+          "previousAnalysis": "Análisis anterior (histórico)"
         },
         "states": {
-          "noRecommendation": "No recommendation submitted yet."
+          "noRecommendation": "Aún no se ha enviado ninguna recomendación."
         }
       },
       "scoring": {
-        "frozen": "Scoring is frozen. This request has been converted to a project."
+        "frozen": "La evaluación está congelada. Esta solicitud ha sido convertida en un proyecto."
       }
     },
     "task": {
-      "browserTitle": "{{ref}} {{title}} | Task",
+      "browserTitle": "{{ref}} {{title}} | Tarea",
       "fields": {
-        "relatedItem": "Related item"
+        "relatedItem": "Elemento relacionado"
       },
       "confirmations": {
-        "deleteTask": "Are you sure you want to delete this task? This cannot be undone.",
-        "unsavedNavigate": "You have unsaved changes. Save before leaving?"
+        "deleteTask": "¿Está seguro de que desea eliminar esta tarea? Esta acción no se puede deshacer.",
+        "unsavedNavigate": "Tiene cambios sin guardar. ¿Guardar antes de salir?"
       },
       "description": {
-        "label": "Description",
-        "placeholder": "Describe the task..."
+        "label": "Descripción",
+        "placeholder": "Describa la tarea..."
       },
       "footer": {
-        "created": "Created {{date}}",
-        "updated": "Updated {{date}}"
+        "created": "Creada el {{date}}",
+        "updated": "Actualizada el {{date}}"
       },
       "navigation": {
-        "position": "{{index}} of {{total}}"
+        "position": "{{index}} de {{total}}"
       },
       "priority": {
-        "title": "Priority"
+        "title": "Prioridad"
       },
       "title": {
-        "label": "Task Title",
-        "placeholder": "Enter a task title",
-        "untitled": "(untitled task)"
+        "label": "Título de la tarea",
+        "placeholder": "Ingrese un título de tarea",
+        "untitled": "(tarea sin título)"
       },
       "values": {
-        "other": "Other"
+        "other": "Otros"
       },
       "actions": {
-        "alreadyConverted": "Already converted",
-        "alreadyConvertedWithReference": "Already converted ({{reference}})",
-        "attachFiles": "Attach files",
-        "convertRequiresPermission": "You do not have permission to convert this task",
-        "copyReference": "Copy reference",
-        "openProjectActivity": "Open project activity"
+        "alreadyConverted": "Ya convertida",
+        "alreadyConvertedWithReference": "Ya convertida ({{reference}})",
+        "attachFiles": "Adjuntar archivos",
+        "convertRequiresPermission": "No tiene permiso para convertir esta tarea",
+        "copyReference": "Copiar referencia",
+        "openProjectActivity": "Abrir actividad del proyecto"
       },
       "comments": {
         "placeholders": {
-          "writeComment": "Write a comment..."
+          "writeComment": "Escriba un comentario..."
         }
       },
       "activity": {
         "actions": {
-          "combineThree": "{{first}}, {{second}} & {{third}}",
-          "combineTwo": "{{first}} & {{second}}",
-          "comment": "Comment",
-          "logHours": "Log {{hours}}h",
-          "setStatus": "Set {{status}}",
-          "submit": "Submit",
-          "submitting": "Submitting..."
+          "combineThree": "{{first}}, {{second}} y {{third}}",
+          "combineTwo": "{{first}} y {{second}}",
+          "comment": "Comentario",
+          "logHours": "Registrar {{hours}} h",
+          "setStatus": "Establecer {{status}}",
+          "submit": "Enviar",
+          "submitting": "Enviando..."
         },
         "messages": {
-          "doneRequiresTime": "Cannot mark task as done without logging time.",
-          "emptySubmission": "Add a comment, status change, or time log before submitting.",
-          "submitFailed": "Failed to submit activity"
+          "doneRequiresTime": "No se puede marcar la tarea como completada sin registrar tiempo.",
+          "emptySubmission": "Agregue un comentario, un cambio de estado o un registro de tiempo antes de enviar.",
+          "submitFailed": "Error al enviar la actividad"
         }
       },
       "attachments": {
-        "browseFiles": "Browse files",
-        "dragAndDrop": "Drag and drop files here, or"
+        "browseFiles": "Explorar archivos",
+        "dragAndDrop": "Arrastre y suelte archivos aquí, o"
       },
       "history": {
         "actions": {
-          "changedField": "Changed {{field}}: {{from}} → {{to}}",
-          "changedMultiple": "Changed {{changes}}"
+          "changedField": "{{field}} cambiado: {{from}} → {{to}}",
+          "changedMultiple": "Cambios: {{changes}}"
         },
         "fields": {
-          "assignee": "Assignee",
-          "category": "Category",
-          "company": "Company",
-          "convertedToRequest": "Converted To Request",
-          "description": "Description",
-          "dueDate": "Due Date",
-          "labels": "Labels",
-          "phase": "Phase",
-          "priority": "Priority",
-          "relatedTo": "Related To",
-          "requestor": "Requestor",
-          "source": "Source",
-          "startDate": "Start Date",
-          "status": "Status",
-          "stream": "Stream",
-          "taskType": "Task Type",
-          "timeLogged": "Time Logged",
-          "title": "Title"
+          "assignee": "Asignado a",
+          "category": "Categoría",
+          "company": "Empresa",
+          "convertedToRequest": "Convertida en solicitud",
+          "description": "Descripción",
+          "dueDate": "Fecha de vencimiento",
+          "labels": "Etiquetas",
+          "phase": "Fase",
+          "priority": "Prioridad",
+          "relatedTo": "Relacionado con",
+          "requestor": "Solicitante",
+          "source": "Origen",
+          "startDate": "Fecha de inicio",
+          "status": "Estado",
+          "stream": "Línea",
+          "taskType": "Tipo de tarea",
+          "timeLogged": "Tiempo registrado",
+          "title": "Título"
         },
         "values": {
-          "empty": "(empty)",
-          "none": "(none)"
+          "empty": "(vacío)",
+          "none": "(ninguno)"
         }
       },
       "messages": {
-        "createFailed": "Failed to create task",
-        "creating": "Creating task...",
-        "deleteFailed": "Failed to delete task",
-        "documentImportAfterCreate": "Save the task before importing a document.",
-        "documentImportFailed": "Failed to import document",
-        "importPermissionRequired": "You do not have permission to import a document.",
-        "importSaveFirst": "Save this task before importing a document.",
-        "invalidRelationConfiguration": "Invalid relation configuration",
-        "invalidRelationType": "Invalid related object type",
-        "invalidStandaloneRelation": "Standalone tasks cannot use that relation.",
-        "loadFailed": "Failed to load task",
-        "loading": "Loading task...",
-        "notFound": "Task not found",
-        "relatedItemRequired": "Please select a related item",
-        "saveFailed": "Failed to save task",
-        "titleRequired": "Title is required"
+        "createFailed": "Error al crear la tarea",
+        "creating": "Creando tarea...",
+        "deleteFailed": "Error al eliminar la tarea",
+        "documentImportAfterCreate": "Guarde la tarea antes de importar un documento.",
+        "documentImportFailed": "Error al importar el documento",
+        "importPermissionRequired": "No tiene permiso para importar un documento.",
+        "importSaveFirst": "Guarde esta tarea antes de importar un documento.",
+        "invalidRelationConfiguration": "Configuración de relación no válida",
+        "invalidRelationType": "Tipo de objeto relacionado no válido",
+        "invalidStandaloneRelation": "Las tareas independientes no pueden usar esa relación.",
+        "loadFailed": "Error al cargar la tarea",
+        "loading": "Cargando tarea...",
+        "notFound": "Tarea no encontrada",
+        "relatedItemRequired": "Seleccione un elemento relacionado",
+        "saveFailed": "Error al guardar la tarea",
+        "titleRequired": "El título es obligatorio"
       },
       "sidebar": {
         "fields": {
-          "assignee": "Assignee",
-          "category": "Category",
-          "company": "Company",
-          "dueDate": "Due Date",
-          "phase": "Phase",
-          "priority": "Priority",
-          "relatedTo": "Related To",
-          "requestor": "Requestor",
-          "source": "Source",
-          "startDate": "Start Date",
-          "status": "Status",
-          "stream": "Stream",
-          "taskType": "Task Type",
-          "timeSpent": "Time Spent",
-          "viewers": "Viewers"
+          "assignee": "Asignado a",
+          "category": "Categoría",
+          "company": "Empresa",
+          "dueDate": "Fecha de vencimiento",
+          "phase": "Fase",
+          "priority": "Prioridad",
+          "relatedTo": "Relacionado con",
+          "requestor": "Solicitante",
+          "source": "Origen",
+          "startDate": "Fecha de inicio",
+          "status": "Estado",
+          "stream": "Línea",
+          "taskType": "Tipo de tarea",
+          "timeSpent": "Tiempo dedicado",
+          "viewers": "Observadores"
         },
         "messages": {
-          "doneRequiresTimeAlert": "Cannot mark task as done without logging time. Please log time first."
+          "doneRequiresTimeAlert": "No se puede marcar la tarea como completada sin registrar tiempo. Registre tiempo primero."
         },
         "priorityOptions": {
-          "blocker": "Blocker (+10)",
-          "high": "High (+5)",
-          "low": "Low (-5)",
-          "normal": "Normal (0)",
-          "optional": "Optional (-10)"
+          "blocker": "Bloqueante (+10)",
+          "high": "Alta (+5)",
+          "low": "Baja (-5)",
+          "normal": "Media (0)",
+          "optional": "Opcional (-10)"
         },
         "sections": {
-          "classification": "Classification",
-          "context": "Context",
-          "dates": "Dates",
-          "details": "Task Details",
-          "knowledge": "Knowledge",
-          "people": "People",
-          "time": "Time"
+          "classification": "Clasificación",
+          "context": "Contexto",
+          "dates": "Fechas",
+          "details": "Detalles de la tarea",
+          "knowledge": "Conocimiento",
+          "people": "Personas",
+          "time": "Tiempo"
         },
         "values": {
-          "doneRequiresTime": "{{status}} (requires time)",
-          "noClassification": "No classification set.",
-          "projectLevel": "Project-level",
-          "standaloneTask": "Standalone task",
-          "unknown": "Unknown",
+          "doneRequiresTime": "{{status}} (requiere tiempo)",
+          "noClassification": "Sin clasificación definida.",
+          "projectLevel": "Nivel de proyecto",
+          "standaloneTask": "Tarea independiente",
+          "unknown": "Desconocido",
           "relatedTypes": {
-            "budget": "Budget",
+            "budget": "Presupuesto",
             "capex": "CAPEX",
-            "contract": "Contract",
-            "project": "Project",
-            "related": "Related"
+            "contract": "Contrato",
+            "project": "Proyecto",
+            "related": "Relacionado"
           }
         }
       },
       "workLog": {
-        "total": "Total: {{time}} ({{md}} MD)",
+        "total": "Total: {{time}} ({{md}} DP)",
         "actions": {
-          "delete": "Delete",
-          "edit": "Edit"
+          "delete": "Eliminar",
+          "edit": "Editar"
         },
         "columns": {
-          "actions": "Actions",
-          "category": "Category",
-          "date": "Date",
-          "notes": "Notes",
-          "person": "Person",
-          "time": "Time"
+          "actions": "Acciones",
+          "category": "Categoría",
+          "date": "Fecha",
+          "notes": "Notas",
+          "person": "Persona",
+          "time": "Tiempo"
         },
         "duration": {
-          "daysHours": "{{days}}d {{hours}}h",
-          "daysOnly": "{{days}}d",
-          "hoursOnly": "{{hours}}h"
+          "daysHours": "{{days}} d {{hours}} h",
+          "daysOnly": "{{days}} d",
+          "hoursOnly": "{{hours}} h"
         },
         "messages": {
-          "deleteFailed": "Failed to delete time entry",
-          "empty": "No time logged yet."
+          "deleteFailed": "Error al eliminar la entrada de tiempo",
+          "empty": "Aún no se ha registrado tiempo."
         },
         "values": {
           "emptyNotes": "-",
-          "unknownPerson": "Unknown"
+          "unknownPerson": "Desconocido"
         }
       }
     },
     "teamMember": {
       "actions": {
-        "backToList": "Back to list"
+        "backToList": "Volver a la lista"
       },
       "confirmations": {
-        "remove": "Remove this team member configuration?"
+        "remove": "¿Eliminar la configuración de este miembro del equipo?"
       },
       "messages": {
-        "deleteFailed": "Failed to delete",
-        "saveFailed": "Failed to save"
+        "deleteFailed": "Error al eliminar",
+        "saveFailed": "Error al guardar"
       },
       "placeholders": {
-        "notes": "Additional notes about this team member...",
-        "searchSkills": "Search skills..."
+        "notes": "Notas adicionales sobre este miembro del equipo...",
+        "searchSkills": "Buscar competencias..."
       },
       "proficiency": {
-        "0": "No knowledge",
-        "1": "Basic / Theoretical",
-        "2": "Can execute with support",
-        "3": "Autonomous",
-        "4": "Expert"
+        "0": "Sin conocimiento",
+        "1": "Básico / Teórico",
+        "2": "Puede ejecutar con soporte",
+        "3": "Autónomo",
+        "4": "Experto"
       },
       "sections": {
-        "addSkill": "Add Skill",
-        "notes": "Notes",
-        "projectAvailability": "Project Availability (days per month)"
+        "addSkill": "Agregar competencia",
+        "notes": "Notas",
+        "projectAvailability": "Disponibilidad de proyecto (días por mes)"
       },
       "states": {
-        "noSkills": "No skills selected. Use the field above to add skills.",
-        "notFound": "Team member not found"
+        "noSkills": "No se han seleccionado competencias. Use el campo de arriba para agregar competencias.",
+        "notFound": "Miembro del equipo no encontrado"
       },
       "tabs": {
         "general": "General",
-        "skills": "Skills"
+        "skills": "Competencias"
       },
       "values": {
-        "daysPerMonth": "{{count}} days/month",
-        "skillCount": "({{count}} skills)"
+        "daysPerMonth": "{{count}} días/mes",
+        "skillCount": "({{count}} competencias)"
       }
     }
   },
   "tasks": {
-    "title": "Tasks",
-    "entityName": "tasks",
+    "title": "Tareas",
+    "entityName": "tareas",
     "columns": {
-      "taskTitle": "Task Title",
-      "taskType": "Task Type",
-      "context": "Context",
-      "relatedEntry": "Related Entry",
-      "phase": "Phase",
-      "status": "Status",
-      "priority": "Priority",
-      "score": "Score",
-      "assignee": "Assignee",
-      "dueDate": "Due Date",
-      "created": "Created",
-      "lastChanged": "Last changed",
-      "description": "Description",
-      "source": "Source",
-      "classification": "Classification",
-      "stream": "Stream",
-      "company": "Company"
+      "taskTitle": "Título de la tarea",
+      "taskType": "Tipo de tarea",
+      "context": "Contexto",
+      "relatedEntry": "Entrada relacionada",
+      "phase": "Fase",
+      "status": "Estado",
+      "priority": "Prioridad",
+      "score": "Puntuación",
+      "assignee": "Asignado a",
+      "dueDate": "Fecha de vencimiento",
+      "created": "Creada",
+      "lastChanged": "Última modificación",
+      "description": "Descripción",
+      "source": "Origen",
+      "classification": "Clasificación",
+      "stream": "Línea",
+      "company": "Empresa"
     },
     "values": {
-      "standalone": "Standalone",
-      "projectLevel": "Project-level"
+      "standalone": "Independiente",
+      "projectLevel": "Nivel de proyecto"
     },
     "actions": {
-      "new": "New",
-      "importCsv": "Import CSV",
-      "exportCsv": "Export CSV"
+      "new": "Nueva",
+      "importCsv": "Importar CSV",
+      "exportCsv": "Exportar CSV"
     },
     "csv": {
-      "exportTitle": "Export Tasks",
-      "importTitle": "Import Tasks",
-      "presetEnrichment": "Data Enrichment"
+      "exportTitle": "Exportar tareas",
+      "importTitle": "Importar tareas",
+      "presetEnrichment": "Enriquecimiento de datos"
     }
   },
   "projects": {
-    "title": "Portfolio Projects",
-    "entityName": "projects",
+    "title": "Proyectos del portafolio",
+    "entityName": "proyectos",
     "columns": {
-      "projectName": "Project Name",
-      "priority": "Priority",
-      "status": "Status",
-      "origin": "Origin",
-      "progress": "Progress",
-      "source": "Source",
-      "category": "Category",
-      "stream": "Stream",
-      "company": "Company",
-      "start": "Start",
-      "end": "End",
-      "created": "Created",
-      "lastChanged": "Last changed"
+      "projectName": "Nombre del proyecto",
+      "priority": "Prioridad",
+      "status": "Estado",
+      "origin": "Origen",
+      "progress": "Esfuerzo",
+      "source": "Origen",
+      "category": "Categoría",
+      "stream": "Línea",
+      "company": "Empresa",
+      "start": "Inicio",
+      "end": "Fin",
+      "created": "Creado",
+      "lastChanged": "Última modificación"
     },
     "actions": {
-      "new": "New Project",
-      "importCsv": "Import CSV",
-      "exportCsv": "Export CSV"
+      "new": "Nuevo proyecto",
+      "importCsv": "Importar CSV",
+      "exportCsv": "Exportar CSV"
     },
     "csv": {
-      "exportTitle": "Export Portfolio Projects",
-      "importTitle": "Import Portfolio Projects",
-      "presetEnrichment": "Data Enrichment"
+      "exportTitle": "Exportar proyectos del portafolio",
+      "importTitle": "Importar proyectos del portafolio",
+      "presetEnrichment": "Enriquecimiento de datos"
     }
   },
   "requests": {
-    "title": "Portfolio Requests",
-    "entityName": "requests",
+    "title": "Solicitudes del portafolio",
+    "entityName": "solicitudes",
     "columns": {
-      "requestName": "Request Name",
-      "priority": "Priority",
-      "status": "Status",
-      "source": "Source",
-      "category": "Category",
-      "stream": "Stream",
-      "company": "Company",
-      "requestor": "Requestor",
-      "targetDate": "Target Date",
-      "created": "Created",
-      "lastChanged": "Last changed"
+      "requestName": "Nombre de la solicitud",
+      "priority": "Prioridad",
+      "status": "Estado",
+      "source": "Origen",
+      "category": "Categoría",
+      "stream": "Línea",
+      "company": "Empresa",
+      "requestor": "Solicitante",
+      "targetDate": "Fecha objetivo",
+      "created": "Creada",
+      "lastChanged": "Última modificación"
     },
     "actions": {
-      "new": "New Request",
-      "importCsv": "Import CSV",
-      "exportCsv": "Export CSV"
+      "new": "Nueva solicitud",
+      "importCsv": "Importar CSV",
+      "exportCsv": "Exportar CSV"
     },
     "csv": {
-      "exportTitle": "Export Portfolio Requests",
-      "importTitle": "Import Portfolio Requests",
-      "presetEnrichment": "Data Enrichment"
+      "exportTitle": "Exportar solicitudes del portafolio",
+      "importTitle": "Importar solicitudes del portafolio",
+      "presetEnrichment": "Enriquecimiento de datos"
     }
   },
   "planning": {
-    "title": "Portfolio Timeline",
+    "title": "Cronograma del portafolio",
     "views": {
-      "timeline": "Timeline",
-      "roadmap": "Roadmap Generator"
+      "timeline": "Cronograma",
+      "roadmap": "Generador de hoja de ruta"
     },
     "navigation": {
-      "backOneMonth": "Go back 1 month",
-      "today": "Go to today",
-      "forwardOneMonth": "Go forward 1 month"
+      "backOneMonth": "Retroceder un mes",
+      "today": "Ir a hoy",
+      "forwardOneMonth": "Avanzar un mes"
     },
     "filters": {
-      "timeRange": "Time Range",
-      "category": "Category",
-      "allCategories": "All Categories",
-      "status": "Status",
-      "milestones": "Milestones"
+      "timeRange": "Período",
+      "category": "Categoría",
+      "allCategories": "Todas las categorías",
+      "status": "Estado",
+      "milestones": "Hitos"
     },
     "timeRanges": {
-      "oneMonth": "1 month",
-      "threeMonths": "3 months",
-      "sixMonths": "6 months",
-      "oneYear": "1 year"
+      "oneMonth": "1 mes",
+      "threeMonths": "3 meses",
+      "sixMonths": "6 meses",
+      "oneYear": "1 año"
     },
     "messages": {
-      "loadFailed": "Failed to load timeline data. Please try again."
+      "loadFailed": "Error al cargar los datos del cronograma. Inténtelo de nuevo."
     },
     "gantt": {
-      "columnProject": "Project",
+      "columnProject": "Proyecto",
       "milestoneStatuses": {
-        "pending": "Pending",
-        "achieved": "Achieved",
-        "missed": "Missed"
+        "pending": "Pendiente",
+        "achieved": "Alcanzado",
+        "missed": "No alcanzado"
       },
       "reservationReasons": {
-        "not_recalculated": "Not Recalculated",
-        "external_blocker": "External Blocker"
+        "not_recalculated": "No recalculado",
+        "external_blocker": "Bloqueante externo"
       },
       "tooltip": {
-        "na": "N/A",
-        "project": "Project",
-        "status": "Status",
-        "date": "Date",
-        "progress": "Progress",
-        "start": "Start",
-        "end": "End",
-        "contributor": "Contributor",
-        "contributorActive": "Contributor Active",
-        "projectWindow": "Project Window",
-        "typeCapacityReservation": "Type: Capacity Reservation",
-        "reason": "Reason",
-        "historicalStart": "Historical Start",
-        "paused_one": "Paused: ~{{count}} week",
-        "paused_other": "Paused: ~{{count}} weeks",
-        "dragToPin": "Drag to pin start week",
-        "clickForExplanation": "Click for explanation"
+        "na": "N/D",
+        "project": "Proyecto",
+        "status": "Estado",
+        "date": "Fecha",
+        "progress": "Esfuerzo",
+        "start": "Inicio",
+        "end": "Fin",
+        "contributor": "Colaborador",
+        "contributorActive": "Colaborador activo",
+        "projectWindow": "Ventana del proyecto",
+        "typeCapacityReservation": "Tipo: Reserva de capacidad",
+        "reason": "Razón",
+        "historicalStart": "Inicio histórico",
+        "paused_one": "En pausa: ~{{count}} semana",
+        "paused_other": "En pausa: ~{{count}} semanas",
+        "dragToPin": "Arrastre para fijar la semana de inicio",
+        "clickForExplanation": "Haga clic para obtener explicación"
       }
     }
   },
   "reports": {
-    "title": "Portfolio Reporting",
-    "subtitle": "Explore portfolio reports focused on capacity, workload, and portfolio status trends.",
+    "title": "Reportes del portafolio",
+    "subtitle": "Explore los reportes del portafolio centrados en la capacidad, el esfuerzo y las tendencias de estado.",
     "cards": {
       "statusChange": {
-        "title": "Status Change Report",
-        "description": "Track standalone tasks, requests, and projects with status changes over a period."
+        "title": "Reporte de cambios de estado",
+        "description": "Rastree las tareas independientes, solicitudes y proyectos con cambios de estado en un período."
       },
       "capacityHeatmap": {
-        "title": "Capacity Heatmap",
-        "description": "Visualize expected workload vs capacity for contributors and teams."
+        "title": "Mapa de calor de capacidad",
+        "description": "Visualice el esfuerzo esperado frente a la capacidad de los colaboradores y equipos."
       },
       "weekly": {
-        "title": "Weekly Report",
-        "description": "Weekly summary of project updates, closed tasks, and request changes."
+        "title": "Reporte semanal",
+        "description": "Resumen semanal de actualizaciones de proyectos, tareas cerradas y cambios de solicitudes."
       }
     },
     "itemTypes": {
-      "task": "Task",
-      "request": "Request",
-      "project": "Project",
-      "tasks": "Tasks",
-      "requests": "Requests",
-      "projects": "Projects"
+      "task": "Tarea",
+      "request": "Solicitud",
+      "project": "Proyecto",
+      "tasks": "Tareas",
+      "requests": "Solicitudes",
+      "projects": "Proyectos"
     },
     "statusChange": {
-      "title": "Status Change Report",
-      "subtitle": "Items whose status changed during a selected period (latest status change per item in period).",
+      "title": "Reporte de cambios de estado",
+      "subtitle": "Elementos cuyo estado cambió durante un período seleccionado (último cambio de estado por elemento en el período).",
       "filters": {
-        "startDate": "Start Date",
-        "endDate": "End Date",
-        "status": "Status",
-        "allStatuses": "All statuses",
-        "itemType": "Item Type",
-        "allItemTypes": "All item types",
-        "source": "Source",
-        "allSources": "All sources",
-        "category": "Category",
-        "allCategories": "All categories",
-        "stream": "Stream",
-        "allStreams": "All streams"
+        "startDate": "Fecha de inicio",
+        "endDate": "Fecha de fin",
+        "status": "Estado",
+        "allStatuses": "Todos los estados",
+        "itemType": "Tipo de elemento",
+        "allItemTypes": "Todos los tipos de elementos",
+        "source": "Origen",
+        "allSources": "Todos los orígenes",
+        "category": "Categoría",
+        "allCategories": "Todas las categorías",
+        "stream": "Línea",
+        "allStreams": "Todas las líneas"
       },
       "columns": {
-        "name": "Name",
-        "itemType": "Item Type",
-        "priority": "Priority",
-        "status": "Status",
-        "source": "Source",
-        "category": "Category",
-        "stream": "Stream",
-        "company": "Company",
-        "lastChanged": "Last Changed"
+        "name": "Nombre",
+        "itemType": "Tipo de elemento",
+        "priority": "Prioridad",
+        "status": "Estado",
+        "source": "Origen",
+        "category": "Categoría",
+        "stream": "Línea",
+        "company": "Empresa",
+        "lastChanged": "Última modificación"
       },
       "actions": {
-        "exportCsv": "Export CSV",
-        "exportXlsx": "Export XLSX",
-        "exporting": "Exporting..."
+        "exportCsv": "Exportar CSV",
+        "exportXlsx": "Exportar XLSX",
+        "exporting": "Exportando..."
       },
       "messages": {
-        "invalidPeriod": "Start Date must be before or equal to End Date.",
-        "loadFailed": "Failed to load report data.",
-        "exportFailed": "Export failed"
+        "invalidPeriod": "La fecha de inicio debe ser anterior o igual a la fecha de fin.",
+        "loadFailed": "Error al cargar los datos del reporte.",
+        "exportFailed": "Error en la exportación"
       },
-      "itemCount_one": "{{count}} item",
-      "itemCount_other": "{{count}} items"
+      "itemCount_one": "{{count}} elemento",
+      "itemCount_other": "{{count}} elementos"
     },
     "capacityHeatmap": {
-      "title": "Capacity Heatmap",
-      "subtitle": "Expected workload vs capacity for contributors and teams",
+      "title": "Mapa de calor de capacidad",
+      "subtitle": "Esfuerzo esperado frente a la capacidad de los colaboradores y equipos",
       "filters": {
-        "teams": "Teams",
-        "allTeams": "All teams",
-        "teamsSelected_one": "1 team selected",
-        "teamsSelected_other": "{{count}} teams selected",
-        "status": "Status",
-        "historical": "Historical",
-        "theoretical": "Theoretical",
-        "contributors": "Contributors",
-        "teamsGroup": "Teams"
+        "teams": "Equipos",
+        "allTeams": "Todos los equipos",
+        "teamsSelected_one": "1 equipo seleccionado",
+        "teamsSelected_other": "{{count}} equipos seleccionados",
+        "status": "Estado",
+        "historical": "Histórico",
+        "theoretical": "Teórico",
+        "contributors": "Colaboradores",
+        "teamsGroup": "Equipos"
       },
       "summary": {
-        "totalContributors": "Total contributors",
-        "totalContributorsHelper_one": "{{count}} team",
-        "totalContributorsHelper_other": "{{count}} teams",
-        "avgMonthsOfWork": "Avg months of work",
-        "avgMonthsOfWorkHelper": "Based on contributors with capacity",
-        "unassignedWork": "Unassigned work",
-        "unassignedWorkValue": "{{value}} days",
-        "unassignedWorkHelper_one": "{{count}} project",
-        "unassignedWorkHelper_other": "{{count}} projects"
+        "totalContributors": "Total de colaboradores",
+        "totalContributorsHelper_one": "{{count}} equipo",
+        "totalContributorsHelper_other": "{{count}} equipos",
+        "avgMonthsOfWork": "Promedio de meses de trabajo",
+        "avgMonthsOfWorkHelper": "Basado en colaboradores con capacidad",
+        "unassignedWork": "Trabajo sin asignar",
+        "unassignedWorkValue": "{{value}} días",
+        "unassignedWorkHelper_one": "{{count}} proyecto",
+        "unassignedWorkHelper_other": "{{count}} proyectos"
       },
       "sections": {
-        "teamCapacity": "Team Capacity",
-        "contributorCapacity": "Contributor Capacity",
-        "unassignedWork": "Unassigned Work"
+        "teamCapacity": "Capacidad del equipo",
+        "contributorCapacity": "Capacidad del colaborador",
+        "unassignedWork": "Trabajo sin asignar"
       },
       "actions": {
-        "showDetails": "Show details",
-        "hideDetails": "Hide details"
+        "showDetails": "Mostrar detalles",
+        "hideDetails": "Ocultar detalles"
       },
       "states": {
-        "loading": "Loading capacity data...",
-        "empty": "No capacity data for the selected filters.",
-        "noUnassignedWork": "No unassigned work for the selected filters."
+        "loading": "Cargando datos de capacidad...",
+        "empty": "No hay datos de capacidad para los filtros seleccionados.",
+        "noUnassignedWork": "No hay trabajo sin asignar para los filtros seleccionados."
       },
       "columns": {
-        "contributor": "Contributor",
-        "team": "Team",
-        "remainingDays": "Remaining days",
-        "capacityPerMonth": "Capacity / mo",
-        "source": "Source",
-        "monthsOfWork": "Months of work",
-        "members": "Members",
-        "project": "Project",
-        "status": "Status",
-        "estimatedEffort": "Est. Effort",
-        "remaining": "Remaining",
-        "unallocatedPercent": "Unallocated %",
-        "unallocatedDays": "Unallocated Days"
+        "contributor": "Colaborador",
+        "team": "Equipo",
+        "remainingDays": "Días restantes",
+        "capacityPerMonth": "Capacidad / mes",
+        "source": "Origen",
+        "monthsOfWork": "Meses de trabajo",
+        "members": "Miembros",
+        "project": "Proyecto",
+        "status": "Estado",
+        "estimatedEffort": "Esfuerzo est.",
+        "remaining": "Restante",
+        "unallocatedPercent": "% sin asignar",
+        "unallocatedDays": "Días sin asignar"
       },
       "values": {
-        "noTeam": "No team",
-        "historical": "Historical",
-        "theoretical": "Theoretical",
-        "notAvailable": "N/A",
-        "contributorFallback": "Contributor"
+        "noTeam": "Sin equipo",
+        "historical": "Histórico",
+        "theoretical": "Teórico",
+        "notAvailable": "N/D",
+        "contributorFallback": "Colaborador"
       }
     },
     "weekly": {
-      "title": "Weekly Report",
-      "subtitle": "Weekly stakeholder summary across project updates, closed tasks, and request updates.",
+      "title": "Reporte semanal",
+      "subtitle": "Resumen semanal para las partes interesadas: actualizaciones de proyectos, tareas cerradas y cambios de solicitudes.",
       "filters": {
-        "startDate": "Start Date",
-        "endDate": "End Date",
-        "source": "Source",
-        "allSources": "All sources",
-        "category": "Category",
-        "allCategories": "All categories",
-        "stream": "Stream",
-        "allStreams": "All streams",
-        "taskTypes": "Task Types",
-        "allTaskTypes": "All task types",
-        "selectedCount": "{{count}} selected"
+        "startDate": "Fecha de inicio",
+        "endDate": "Fecha de fin",
+        "source": "Origen",
+        "allSources": "Todos los orígenes",
+        "category": "Categoría",
+        "allCategories": "Todas las categorías",
+        "stream": "Línea",
+        "allStreams": "Todas las líneas",
+        "taskTypes": "Tipos de tarea",
+        "allTaskTypes": "Todos los tipos de tarea",
+        "selectedCount": "{{count}} seleccionado(s)"
       },
       "actions": {
-        "exportCsv": "Export CSV",
-        "exportXlsx": "Export XLSX",
-        "exporting": "Exporting..."
+        "exportCsv": "Exportar CSV",
+        "exportXlsx": "Exportar XLSX",
+        "exporting": "Exportando..."
       },
       "messages": {
-        "invalidPeriod": "Start Date must be before or equal to End Date.",
-        "loadFailed": "Failed to load report data.",
-        "exportFailed": "Export failed"
+        "invalidPeriod": "La fecha de inicio debe ser anterior o igual a la fecha de fin.",
+        "loadFailed": "Error al cargar los datos del reporte.",
+        "exportFailed": "Error en la exportación"
       },
       "summary": {
-        "projectUpdates_one": "{{count}} project update",
-        "projectUpdates_other": "{{count}} project updates",
-        "closedTasks_one": "{{count}} closed task",
-        "closedTasks_other": "{{count}} closed tasks",
-        "requestUpdates_one": "{{count}} request update",
-        "requestUpdates_other": "{{count}} request updates"
+        "projectUpdates_one": "{{count}} actualización de proyecto",
+        "projectUpdates_other": "{{count}} actualizaciones de proyectos",
+        "closedTasks_one": "{{count}} tarea cerrada",
+        "closedTasks_other": "{{count}} tareas cerradas",
+        "requestUpdates_one": "{{count}} actualización de solicitud",
+        "requestUpdates_other": "{{count}} actualizaciones de solicitudes"
       },
       "sections": {
-        "projectUpdates": "Project Updates",
-        "closedTasks": "Closed Tasks",
-        "requestUpdates": "Request Updates"
+        "projectUpdates": "Actualizaciones de proyectos",
+        "closedTasks": "Tareas cerradas",
+        "requestUpdates": "Actualizaciones de solicitudes"
       },
       "columns": {
-        "projectName": "Project Name",
-        "taskName": "Task Name",
-        "requestName": "Request Name",
-        "taskType": "Task Type",
-        "priority": "Priority",
-        "source": "Source",
-        "category": "Category",
-        "stream": "Stream",
-        "progress": "Progress",
-        "status": "Status"
+        "projectName": "Nombre del proyecto",
+        "taskName": "Nombre de la tarea",
+        "requestName": "Nombre de la solicitud",
+        "taskType": "Tipo de tarea",
+        "priority": "Prioridad",
+        "source": "Origen",
+        "category": "Categoría",
+        "stream": "Línea",
+        "progress": "Esfuerzo",
+        "status": "Estado"
       }
     }
   },
   "contributors": {
-    "title": "Contributors",
+    "title": "Colaboradores",
     "actions": {
-      "addContributor": "Add Contributor"
+      "addContributor": "Agregar colaborador"
     },
     "filters": {
-      "team": "Filter by Team",
-      "allTeams": "All Teams",
-      "unassigned": "Unassigned"
+      "team": "Filtrar por equipo",
+      "allTeams": "Todos los equipos",
+      "unassigned": "Sin asignar"
     },
     "states": {
-      "empty": "No contributors configured yet. Add contributors to define their skills and availability."
+      "empty": "Aún no hay colaboradores configurados. Agregue colaboradores para definir sus competencias y disponibilidad."
     },
     "teams": {
-      "unknown": "Unknown Team"
+      "unknown": "Equipo desconocido"
     },
     "cards": {
-      "skillCount_one": "{{count}} skill",
-      "skillCount_other": "{{count}} skills",
-      "daysPerMonth": "{{count}}d/mo",
-      "avgDaysPerMonth": "Avg: {{count}}d/mo"
+      "skillCount_one": "{{count}} competencia",
+      "skillCount_other": "{{count}} competencias",
+      "daysPerMonth": "{{count}} d/mes",
+      "avgDaysPerMonth": "Prom.: {{count}} d/mes"
     },
     "dialog": {
-      "title": "Add Contributor",
-      "selectUser": "Select User",
-      "searchUsers": "Search users...",
-      "adding": "Adding..."
+      "title": "Agregar colaborador",
+      "selectUser": "Seleccionar usuario",
+      "searchUsers": "Buscar usuarios...",
+      "adding": "Agregando..."
     },
     "messages": {
-      "addFailed": "Failed to add contributor"
+      "addFailed": "Error al agregar el colaborador"
     }
   },
   "teamMembers": {
-    "title": "Team Members",
+    "title": "Miembros del equipo",
     "actions": {
-      "addTeamMember": "Add Team Member"
+      "addTeamMember": "Agregar miembro del equipo"
     },
     "states": {
-      "empty": "No team members configured yet. Add team members to define their skills and availability."
+      "empty": "Aún no hay miembros del equipo configurados. Agregue miembros del equipo para definir sus competencias y disponibilidad."
     },
     "cards": {
-      "skillCount_one": "{{count}} skill",
-      "skillCount_other": "{{count}} skills",
-      "daysPerMonth": "{{count}} days/mo"
+      "skillCount_one": "{{count}} competencia",
+      "skillCount_other": "{{count}} competencias",
+      "daysPerMonth": "{{count}} días/mes"
     },
     "dialog": {
-      "title": "Add Team Member",
-      "selectUser": "Select User",
-      "searchUsers": "Search users...",
-      "adding": "Adding..."
+      "title": "Agregar miembro del equipo",
+      "selectUser": "Seleccionar usuario",
+      "searchUsers": "Buscar usuarios...",
+      "adding": "Agregando..."
     },
     "messages": {
-      "addFailed": "Failed to add team member"
+      "addFailed": "Error al agregar el miembro del equipo"
     }
   },
   "actions": {
-    "backToTasks": "Back to Tasks",
-    "convertToProject": "Convert to Project",
-    "convertToRequest": "Convert to Request",
-    "next": "Next",
-    "previous": "Previous",
-    "sendLink": "Send Link",
-    "edit": "Edit"
+    "backToTasks": "Volver a tareas",
+    "convertToProject": "Convertir en proyecto",
+    "convertToRequest": "Convertir en solicitud",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "sendLink": "Enviar enlace",
+    "edit": "Editar"
   },
   "labels": {
-    "activity": "Activity",
-    "analysis": "Analysis",
-    "description": "Description",
-    "knowledge": "Knowledge",
-    "progress": "Progress",
-    "scoring": "Scoring",
-    "summary": "Summary",
-    "tasks": "Tasks",
-    "timeline": "Timeline"
+    "activity": "Actividad",
+    "analysis": "Análisis",
+    "description": "Descripción",
+    "knowledge": "Conocimiento",
+    "progress": "Esfuerzo",
+    "scoring": "Evaluación",
+    "summary": "Resumen",
+    "tasks": "Tareas",
+    "timeline": "Cronograma"
   },
   "activity": {
-    "title": "Activity",
-    "authorUnknown": "Unknown",
+    "title": "Actividad",
+    "authorUnknown": "Desconocido",
     "tabs": {
-      "comments": "Comments",
-      "history": "History",
-      "workLog": "Time Log"
+      "comments": "Comentarios",
+      "history": "Historial",
+      "workLog": "Registro de tiempo"
     },
     "labels": {
-      "change": "Change",
-      "comment": "Comment",
-      "decision": "Decision",
-      "edited": "(edited)",
-      "statusChange": "Status: {{from}} → {{to}}"
+      "change": "Cambio",
+      "comment": "Comentario",
+      "decision": "Decisión",
+      "edited": "(editado)",
+      "statusChange": "Estado: {{from}} → {{to}}"
     },
     "relative": {
-      "justNow": "Just now",
-      "minutesAgo": "{{count}}m ago",
-      "hoursAgo": "{{count}}h ago",
-      "daysAgo": "{{count}}d ago"
+      "justNow": "Justo ahora",
+      "minutesAgo": "Hace {{count}} min",
+      "hoursAgo": "Hace {{count}} h",
+      "daysAgo": "Hace {{count}} d"
     },
     "actions": {
-      "addComment": "Add Comment",
-      "addDecision": "Add Decision",
-      "adding": "Adding...",
-      "editComment": "Edit comment"
+      "addComment": "Agregar comentario",
+      "addDecision": "Agregar decisión",
+      "adding": "Agregando...",
+      "editComment": "Editar comentario"
     },
     "placeholders": {
-      "editComment": "Edit your comment..."
+      "editComment": "Edite su comentario..."
     },
     "messages": {
-      "addCommentFailed": "Failed to add comment",
-      "beFirstToAdd": "Be the first to add one!",
-      "imageImportNotConfigured": "Image URL import not configured",
-      "imageUploadNotConfigured": "Image upload not configured",
-      "loadingComments": "Loading comments...",
-      "loadingHistory": "Loading history...",
-      "noComments": "No comments yet.",
-      "noCommentsOrDecisions": "No comments or decisions yet.",
-      "noHistory": "No history recorded yet.",
-      "updateCommentFailed": "Failed to update comment"
+      "addCommentFailed": "Error al agregar el comentario",
+      "beFirstToAdd": "¡Sea el primero en agregar uno!",
+      "imageImportNotConfigured": "Importación de imagen por URL no configurada",
+      "imageUploadNotConfigured": "Carga de imagen no configurada",
+      "loadingComments": "Cargando comentarios...",
+      "loadingHistory": "Cargando historial...",
+      "noComments": "Aún no hay comentarios.",
+      "noCommentsOrDecisions": "Aún no hay comentarios ni decisiones.",
+      "noHistory": "Aún no se ha registrado historial.",
+      "updateCommentFailed": "Error al actualizar el comentario"
     },
     "form": {
-      "formalDecision": "Formal decision",
-      "noChange": "(No change)",
+      "formalDecision": "Decisión formal",
+      "noChange": "(Sin cambio)",
       "fields": {
-        "changeStatus": "Change Status to...",
-        "comment": "Add a comment",
-        "contextMeeting": "Context / Meeting",
-        "contextOptional": "Context (optional)",
-        "decisionOutcome": "Decision Outcome",
-        "rationaleNotes": "Rationale / Notes"
+        "changeStatus": "Cambiar estado a...",
+        "comment": "Agregar un comentario",
+        "contextMeeting": "Contexto / Reunión",
+        "contextOptional": "Contexto (opcional)",
+        "decisionOutcome": "Resultado de la decisión",
+        "rationaleNotes": "Justificación / Notas"
       },
       "placeholders": {
-        "comment": "Share your thoughts, updates, or questions...",
-        "commentContext": "e.g., Weekly Review, Stakeholder Meeting",
-        "decisionContext": "e.g., CAB Meeting 2025-01-03",
-        "decisionNotes": "Explain the decision rationale..."
+        "comment": "Comparta sus ideas, actualizaciones o preguntas...",
+        "commentContext": "ej.: Revisión semanal, Reunión de partes interesadas",
+        "decisionContext": "ej.: Reunión CAB 03/01/2025",
+        "decisionNotes": "Explique la justificación de la decisión..."
       }
     },
     "history": {
       "actions": {
-        "addedComment": "Added a comment",
-        "addedField": "Added {{field}}: {{value}}",
+        "addedComment": "Agregó un comentario",
+        "addedField": "{{field}} agregado: {{value}}",
         "changedField": "{{field}}: {{from}} → {{to}}",
-        "decisionWithOutcome": "Decision: {{outcome}}",
-        "recorded": "Activity recorded",
-        "removedField": "Removed {{field}}: {{value}}",
-        "updatedMultiple": "Updated: {{changes}}"
+        "decisionWithOutcome": "Decisión: {{outcome}}",
+        "recorded": "Actividad registrada",
+        "removedField": "{{field}} eliminado: {{value}}",
+        "updatedMultiple": "Actualizado: {{changes}}"
       },
       "feasibilityDimensions": {
-        "changeManagement": "Change Management",
-        "deliveryConstraints": "Delivery Constraints",
-        "infrastructureNeeds": "Infrastructure Needs",
-        "integrationCompatibility": "Integration & Compatibility",
-        "resourceSkills": "Resource & Skills",
-        "securityCompliance": "Security & Compliance",
-        "technicalFeasibility": "Technical Feasibility"
+        "changeManagement": "Gestión del cambio",
+        "deliveryConstraints": "Restricciones de entrega",
+        "infrastructureNeeds": "Necesidades de infraestructura",
+        "integrationCompatibility": "Integración y compatibilidad",
+        "resourceSkills": "Recursos y competencias",
+        "securityCompliance": "Seguridad y conformidad",
+        "technicalFeasibility": "Viabilidad técnica"
       },
       "fields": {
-        "actualEffortBusiness": "Actual Business Effort",
-        "actualEffortIt": "Actual IT Effort",
-        "applications": "Applications",
-        "assets": "Assets",
-        "businessLead": "Business Lead",
-        "businessSponsor": "Business Sponsor",
-        "businessTeam": "Business Team",
-        "capexItems": "CAPEX Items",
-        "category": "Category",
-        "company": "Company",
-        "createdFromTask": "Created From Task",
-        "convertedToRequest": "Converted To Request",
-        "currentSituation": "Current Situation",
-        "dependency": "Dependency",
-        "department": "Department",
-        "estimatedEffortBusiness": "Business Effort",
-        "estimatedEffortIt": "IT Effort",
-        "expectedBenefits": "Expected Benefits",
-        "feasibilityReview": "Feasibility Review",
-        "itEffortAllocationMode": "IT Effort Allocation Mode",
-        "itLead": "IT Lead",
-        "itSponsor": "IT Sponsor",
-        "name": "Name",
-        "opexItems": "OPEX Items",
-        "originTask": "Origin Task",
-        "overrideJustification": "Override Justification",
-        "overrideValue": "Override Value",
-        "phase": "Phase",
-        "phaseWithId": "Phase {{phase}} {{field}}",
-        "phaseWithName": "Phase \"{{phase}}\" {{field}}",
-        "plannedEnd": "Planned End",
-        "plannedStart": "Planned Start",
-        "priorityOverride": "Priority Override",
-        "priorityScore": "Priority Score",
-        "progress": "Progress",
-        "purpose": "Purpose",
-        "requestor": "Requestor",
-        "risks": "Risks",
-        "source": "Source",
-        "status": "Status",
-        "stream": "Stream",
-        "targetDeliveryDate": "Target Delivery Date",
-        "taskCreated": "Task Created",
-        "itTeam": "IT Team",
-        "businessEffortAllocationMode": "Business Effort Allocation Mode"
+        "actualEffortBusiness": "Esfuerzo de negocio real",
+        "actualEffortIt": "Esfuerzo IT real",
+        "applications": "Aplicaciones",
+        "assets": "Activos",
+        "businessLead": "Responsable de negocio",
+        "businessSponsor": "Patrocinador de negocio",
+        "businessTeam": "Equipo de negocio",
+        "capexItems": "Partidas CAPEX",
+        "category": "Categoría",
+        "company": "Empresa",
+        "createdFromTask": "Creado a partir de tarea",
+        "convertedToRequest": "Convertida en solicitud",
+        "currentSituation": "Situación actual",
+        "dependency": "Dependencia",
+        "department": "Departamento",
+        "estimatedEffortBusiness": "Esfuerzo de negocio",
+        "estimatedEffortIt": "Esfuerzo IT",
+        "expectedBenefits": "Beneficios esperados",
+        "feasibilityReview": "Revisión de viabilidad",
+        "itEffortAllocationMode": "Modo de asignación de esfuerzo IT",
+        "itLead": "Responsable IT",
+        "itSponsor": "Patrocinador IT",
+        "name": "Nombre",
+        "opexItems": "Partidas OPEX",
+        "originTask": "Tarea de origen",
+        "overrideJustification": "Justificación de la sobrescritura",
+        "overrideValue": "Valor de sobrescritura",
+        "phase": "Fase",
+        "phaseWithId": "Fase {{phase}} {{field}}",
+        "phaseWithName": "Fase «{{phase}}» {{field}}",
+        "plannedEnd": "Fin planificado",
+        "plannedStart": "Inicio planificado",
+        "priorityOverride": "Sobrescritura de prioridad",
+        "priorityScore": "Puntuación de prioridad",
+        "progress": "Esfuerzo",
+        "purpose": "Objetivo",
+        "requestor": "Solicitante",
+        "risks": "Riesgos",
+        "source": "Origen",
+        "status": "Estado",
+        "stream": "Línea",
+        "targetDeliveryDate": "Fecha de entrega objetivo",
+        "taskCreated": "Tarea creada",
+        "itTeam": "Equipo IT",
+        "businessEffortAllocationMode": "Modo de asignación de esfuerzo de negocio"
       },
       "values": {
-        "allDimensionsNotAssessed": "All dimensions not assessed",
-        "dimensionsAssessed": "{{count}} dimensions assessed",
-        "empty": "(empty)",
+        "allDimensionsNotAssessed": "Todas las dimensiones no evaluadas",
+        "dimensionsAssessed": "{{count}} dimensiones evaluadas",
+        "empty": "(vacío)",
         "no": "No",
-        "none": "(none)",
-        "notSet": "(not set)",
-        "yes": "Yes"
+        "none": "(ninguno)",
+        "notSet": "(no definido)",
+        "yes": "Sí"
       }
     },
     "dependencies": {
       "groups": {
-        "projects": "Projects",
-        "requests": "Requests"
+        "projects": "Proyectos",
+        "requests": "Solicitudes"
       },
       "fields": {
-        "addDependency": "Add Dependency"
+        "addDependency": "Agregar dependencia"
       },
       "labels": {
-        "current": "Current Dependencies:"
+        "current": "Dependencias actuales:"
       },
       "placeholders": {
-        "search": "Search requests or projects..."
+        "search": "Buscar solicitudes o proyectos..."
       },
       "states": {
-        "empty": "No dependencies defined."
+        "empty": "No hay dependencias definidas."
       },
       "types": {
-        "project": "Project",
-        "request": "Request"
+        "project": "Proyecto",
+        "request": "Solicitud"
       }
     }
   },
   "dialogs": {
     "statusChange": {
-      "title": "Change Status",
+      "title": "Cambiar estado",
       "summary": "{{currentStatus}} → {{newStatus}}",
-      "formalDecision": "Log as formal decision",
+      "formalDecision": "Registrar como decisión formal",
       "actions": {
-        "confirm": "Change Status"
+        "confirm": "Cambiar estado"
       },
       "fields": {
-        "decisionOutcome": "Decision Outcome",
-        "meetingContext": "Meeting / Context",
-        "meetingContextPlaceholder": "e.g., Steering committee, CAB, review",
-        "rationaleNotes": "Rationale / Notes",
-        "selectOutcome": "Select an outcome"
+        "decisionOutcome": "Resultado de la decisión",
+        "meetingContext": "Reunión / Contexto",
+        "meetingContextPlaceholder": "ej.: Comité de dirección, CAB, revisión",
+        "rationaleNotes": "Justificación / Notas",
+        "selectOutcome": "Seleccione un resultado"
       }
     },
     "recommendation": {
-      "title": "Submit Analysis Recommendation",
-      "contextValue": "Analysis Recommendation",
-      "currentStatus": "Current request status: {{status}}",
-      "prioritySnapshot": "Current priority score snapshot: {{score}}",
+      "title": "Enviar recomendación de análisis",
+      "contextValue": "Recomendación de análisis",
+      "currentStatus": "Estado actual de la solicitud: {{status}}",
+      "prioritySnapshot": "Puntuación de prioridad actual: {{score}}",
       "actions": {
-        "submit": "Submit Recommendation"
+        "submit": "Enviar recomendación"
       },
       "fields": {
-        "changeStatus": "Change Status to...",
-        "context": "Context",
-        "decisionOutcome": "Decision Outcome",
-        "rationale": "Rationale"
+        "changeStatus": "Cambiar estado a...",
+        "context": "Contexto",
+        "decisionOutcome": "Resultado de la decisión",
+        "rationale": "Justificación"
       },
       "messages": {
-        "submitFailed": "Failed to submit recommendation"
+        "submitFailed": "Error al enviar la recomendación"
       },
       "placeholders": {
-        "rationale": "Summarize the recommendation, conditions, and key constraints..."
+        "rationale": "Resuma la recomendación, las condiciones y las restricciones principales..."
       },
       "validation": {
-        "outcomeRequired": "Decision outcome is required"
+        "outcomeRequired": "El resultado de la decisión es obligatorio"
       }
     },
     "logTime": {
-      "confirmDelete": "Delete this time entry?",
+      "confirmDelete": "¿Eliminar esta entrada de tiempo?",
       "title": {
-        "create": "Log Time",
-        "edit": "Edit Time Entry"
+        "create": "Registrar tiempo",
+        "edit": "Editar entrada de tiempo"
       },
       "actions": {
-        "logTime": "Log Time"
+        "logTime": "Registrar tiempo"
       },
       "categories": {
-        "business": "Business",
+        "business": "Negocio",
         "it": "IT"
       },
       "fields": {
-        "category": "Category",
-        "date": "Date",
-        "days": "Days",
-        "hours": "Hours",
-        "notes": "Notes",
-        "person": "Person"
+        "category": "Categoría",
+        "date": "Fecha",
+        "days": "Días",
+        "hours": "Horas",
+        "notes": "Notas",
+        "person": "Persona"
       },
       "helper": {
-        "dayLength": "8 hours/day",
-        "hoursRange": "0-7 hours",
-        "total": "Total: {{hours}}h ({{md}} MD)"
+        "dayLength": "8 horas/día",
+        "hoursRange": "0-7 horas",
+        "total": "Total: {{hours}} h ({{md}} DP)"
       },
       "messages": {
-        "saveFailed": "Failed to save time entry"
+        "saveFailed": "Error al guardar la entrada de tiempo"
       },
       "placeholders": {
-        "notes": "Optional description of work done...",
-        "searchUsers": "Search users..."
+        "notes": "Descripción opcional del trabajo realizado...",
+        "searchUsers": "Buscar usuarios..."
       },
       "validation": {
-        "dateRequired": "Please select a date",
-        "minimumOneHour": "Minimum loggable time is 1 hour",
-        "personRequired": "Please select a person",
-        "totalPositive": "Total time must be greater than 0"
+        "dateRequired": "Seleccione una fecha",
+        "minimumOneHour": "El tiempo mínimo registrable es de 1 hora",
+        "personRequired": "Seleccione una persona",
+        "totalPositive": "El tiempo total debe ser mayor que 0"
       }
     },
     "effortAllocation": {
-      "description": "Set the percentage allocation for each contributor. Must sum to exactly 100%.",
-      "total": "Total: {{total}}%",
+      "description": "Defina el porcentaje de asignación para cada colaborador. La suma debe ser exactamente 100 %.",
+      "total": "Total: {{total}} %",
       "effortTypes": {
-        "business": "Business",
+        "business": "Negocio",
         "it": "IT"
       },
       "title": {
-        "business": "Business Effort Allocation",
-        "it": "IT Effort Allocation"
+        "business": "Asignación de esfuerzo de negocio",
+        "it": "Asignación de esfuerzo IT"
       },
       "actions": {
-        "edit": "Edit",
+        "edit": "Editar",
         "manual": "Manual"
       },
       "chips": {
-        "autoCalculated": "Auto-calculated",
-        "lead": "Lead",
+        "autoCalculated": "Calculado automáticamente",
+        "lead": "Responsable",
         "manual": "Manual",
-        "orphaned": "Orphaned"
+        "orphaned": "Huérfano"
       },
       "messages": {
-        "noEligibleUsers": "No eligible users. Assign a {{effortType}} lead or team members first.",
-        "orphanedUsers": "Some users are no longer team members",
-        "saveFailed": "Failed to save allocations"
+        "noEligibleUsers": "No hay usuarios elegibles. Asigne primero un responsable o miembros de equipo de {{effortType}}.",
+        "orphanedUsers": "Algunos usuarios ya no son miembros del equipo",
+        "saveFailed": "Error al guardar las asignaciones"
       },
       "states": {
-        "empty": "No allocations - assign a {{effortType}} lead or team members",
-        "loading": "Loading allocations..."
+        "empty": "Sin asignaciones - asigne un responsable o miembros de equipo de {{effortType}}",
+        "loading": "Cargando asignaciones..."
       },
       "table": {
-        "contributor": "Contributor"
+        "contributor": "Colaborador"
       },
       "validation": {
-        "totalDisplay": "Must equal 100%",
-        "totalMustEqual100": "Allocations must sum to exactly 100%"
+        "totalDisplay": "Debe ser igual a 100 %",
+        "totalMustEqual100": "Las asignaciones deben sumar exactamente 100 %"
       }
     },
     "convertToProject": {
-      "title": "Convert to Project",
+      "title": "Convertir en proyecto",
       "actions": {
-        "converting": "Converting...",
-        "create": "Create Project"
+        "converting": "Convirtiendo...",
+        "create": "Crear proyecto"
       },
       "fields": {
-        "effortBusiness": "Business Effort (MD)",
-        "effortIt": "IT Effort (MD)",
-        "plannedEnd": "Planned End",
-        "plannedStart": "Planned Start",
-        "projectName": "Project Name"
+        "effortBusiness": "Esfuerzo de negocio (DP)",
+        "effortIt": "Esfuerzo IT (DP)",
+        "plannedEnd": "Fin planificado",
+        "plannedStart": "Inicio planificado",
+        "projectName": "Nombre del proyecto"
       },
       "helper": {
-        "effortBusiness": "Derived from Time estimation Business criteria",
-        "effortIt": "Derived from Time estimation IT criteria"
+        "effortBusiness": "Derivado del criterio de estimación de tiempo de negocio",
+        "effortIt": "Derivado del criterio de estimación de tiempo IT"
       },
       "messages": {
-        "convertFailed": "Failed to convert request"
+        "convertFailed": "Error al convertir la solicitud"
       },
       "sections": {
-        "purpose": "Purpose"
+        "purpose": "Objetivo"
       },
       "states": {
-        "loadingEffort": "Loading effort estimates...",
-        "loadingPurpose": "Loading current purpose..."
+        "loadingEffort": "Cargando estimaciones de esfuerzo...",
+        "loadingPurpose": "Cargando el objetivo actual..."
       }
     },
     "convertToRequest": {
-      "title": "Convert to Request",
-      "summary": "Converting {{taskRef}}: {{taskTitle}} into a portfolio request",
+      "title": "Convertir en solicitud",
+      "summary": "Convirtiendo {{taskRef}}: {{taskTitle}} en una solicitud del portafolio",
       "actions": {
-        "convert": "Convert to Request",
-        "converting": "Converting..."
+        "convert": "Convertir en solicitud",
+        "converting": "Convirtiendo..."
       },
       "fields": {
-        "closeTask": "Close the original task after conversion",
-        "requestName": "Request Name"
+        "closeTask": "Cerrar la tarea original después de la conversión",
+        "requestName": "Nombre de la solicitud"
       },
       "messages": {
-        "convertFailed": "Failed to convert task to request"
+        "convertFailed": "Error al convertir la tarea en solicitud"
       },
       "sections": {
-        "purposePreview": "Purpose Preview"
+        "purposePreview": "Vista previa del objetivo"
       },
       "states": {
-        "noDescription": "(No description)"
+        "noDescription": "(Sin descripción)"
       }
     },
     "contributorDrilldown": {
-      "title": "Project Breakdown",
-      "titleWithName": "{{name}} - Project Breakdown",
+      "title": "Desglose por proyecto",
+      "titleWithName": "{{name}} - Desglose por proyecto",
       "actions": {
-        "close": "Close",
-        "delete": "Delete",
-        "edit": "Edit"
+        "close": "Cerrar",
+        "delete": "Eliminar",
+        "edit": "Editar"
       },
       "columns": {
-        "actions": "Actions",
-        "allocationPct": "Allocation %",
-        "category": "Category",
-        "contributorDays": "Your Days",
-        "date": "Date",
-        "estimatedEffort": "Est. Effort",
-        "notes": "Notes",
-        "progress": "Progress",
-        "project": "Project",
-        "remaining": "Remaining",
-        "source": "Source",
-        "status": "Status",
-        "time": "Time"
+        "actions": "Acciones",
+        "allocationPct": "% de asignación",
+        "category": "Categoría",
+        "contributorDays": "Sus días",
+        "date": "Fecha",
+        "estimatedEffort": "Esfuerzo est.",
+        "notes": "Notas",
+        "progress": "Esfuerzo",
+        "project": "Proyecto",
+        "remaining": "Restante",
+        "source": "Origen",
+        "status": "Estado",
+        "time": "Tiempo"
       },
       "messages": {
-        "missingIdentifiers": "Time entry is missing required identifiers.",
-        "missingProjectId": "Project entry is missing project ID.",
-        "missingTaskId": "Task entry is missing task ID."
+        "missingIdentifiers": "La entrada de tiempo no contiene los identificadores requeridos.",
+        "missingProjectId": "La entrada de proyecto no contiene el ID del proyecto.",
+        "missingTaskId": "La entrada de tarea no contiene el ID de la tarea."
       },
       "states": {
-        "loadingProjects": "Loading project breakdown...",
-        "noMatchingProjects": "No matching projects for this contributor.",
-        "noTimeEntries": "No time entries yet."
+        "loadingProjects": "Cargando desglose por proyecto...",
+        "noMatchingProjects": "No hay proyectos correspondientes para este colaborador.",
+        "noTimeEntries": "Aún no hay entradas de tiempo."
       },
       "values": {
         "emptyNotes": "-"
@@ -1607,316 +1607,316 @@
   "editors": {
     "feasibility": {
       "actions": {
-        "hideDetailedNotes": "Hide detailed notes",
-        "showDetailedNotes": "Detailed notes"
+        "hideDetailedNotes": "Ocultar notas detalladas",
+        "showDetailedNotes": "Notas detalladas"
       },
       "columns": {
-        "comment": "Comment",
-        "dimension": "Dimension",
-        "status": "Status"
+        "comment": "Comentario",
+        "dimension": "Dimensión",
+        "status": "Estado"
       },
       "dimensions": {
         "technical_feasibility": {
-          "label": "Technical Feasibility",
-          "description": "Is the proposed approach technically sound? Are the technologies proven and viable?"
+          "label": "Viabilidad técnica",
+          "description": "¿El enfoque propuesto es técnicamente sólido? ¿Las tecnologías son probadas y viables?"
         },
         "integration_compatibility": {
-          "label": "Integration & Compatibility",
-          "description": "Interfaces, data flows, and dependencies with existing systems. Landscape fit and architectural coherence."
+          "label": "Integración y compatibilidad",
+          "description": "Interfaces, flujos de datos y dependencias con los sistemas existentes. Encaje con el panorama y coherencia arquitectónica."
         },
         "infrastructure_needs": {
-          "label": "Infrastructure Needs",
-          "description": "Platform, network, hosting, and operations requirements."
+          "label": "Necesidades de infraestructura",
+          "description": "Requisitos de plataforma, red, alojamiento y operaciones."
         },
         "security_compliance": {
-          "label": "Security & Compliance",
-          "description": "Security posture impacts, legal obligations, and control requirements."
+          "label": "Seguridad y conformidad",
+          "description": "Impactos en la postura de seguridad, obligaciones legales y requisitos de control."
         },
         "resource_skills": {
-          "label": "Resource & Skills",
-          "description": "Capacity, ownership, expertise, and vendor availability."
+          "label": "Recursos y competencias",
+          "description": "Capacidad, responsabilidad, experiencia y disponibilidad de proveedores."
         },
         "delivery_constraints": {
-          "label": "Delivery Constraints",
-          "description": "External dependencies, windows, lead times, and sequencing constraints."
+          "label": "Restricciones de entrega",
+          "description": "Dependencias externas, ventanas, plazos y restricciones de secuenciación."
         },
         "change_management": {
-          "label": "Change Management",
-          "description": "Adoption, communication, process changes, and training implications."
+          "label": "Gestión del cambio",
+          "description": "Adopción, comunicación, cambios de procesos e implicaciones de formación."
         }
       },
       "fields": {
-        "status": "Status"
+        "status": "Estado"
       },
       "hints": {
-        "infrastructure": "Focus on resilience, capacity, change windows, rollback readiness, and support model fit.",
-        "businessApplications": "Focus on business-process fit, data quality or migration impact, integrations, and user adoption readiness.",
-        "security": "Focus on threat reduction, control coverage, regulatory urgency, and residual risk acceptance.",
-        "default": "Keep comments short and concrete: key concern, impact, and required action."
+        "infrastructure": "Concéntrese en la resiliencia, la capacidad, las ventanas de cambio, la preparación para la reversión y la adecuación del modelo de soporte.",
+        "businessApplications": "Concéntrese en la adecuación a los procesos de negocio, el impacto en la calidad o migración de datos, las integraciones y la preparación para la adopción del usuario.",
+        "security": "Concéntrese en la reducción de amenazas, la cobertura de controles, la urgencia regulatoria y la aceptación del riesgo residual.",
+        "default": "Mantenga los comentarios breves y concretos: preocupación principal, impacto y acción requerida."
       },
       "placeholders": {
-        "comment": "Key note, blocker, or next action",
-        "detailedNotes": "Detailed notes for {{dimension}}"
+        "comment": "Punto clave, bloqueante o próxima acción",
+        "detailedNotes": "Notas detalladas para {{dimension}}"
       }
     },
     "relations": {
       "actions": {
-        "addUrl": "Add URL",
-        "deleteLink": "Delete link",
-        "selectFiles": "Select files"
+        "addUrl": "Agregar URL",
+        "deleteLink": "Eliminar enlace",
+        "selectFiles": "Seleccionar archivos"
       },
       "confirmations": {
-        "deleteAttachment": "Delete attachment \"{{name}}\"?"
+        "deleteAttachment": "¿Eliminar el adjunto «{{name}}»?"
       },
       "dialogs": {
         "addExternalLink": {
-          "title": "Add external link"
+          "title": "Agregar enlace externo"
         }
       },
       "fields": {
-        "capexItems": "CAPEX Items",
-        "linkDescription": "Link description",
-        "opexItems": "OPEX Items",
+        "capexItems": "Partidas CAPEX",
+        "linkDescription": "Descripción del enlace",
+        "opexItems": "Partidas OPEX",
         "url": "URL"
       },
       "messages": {
-        "dragDropFiles": "Drag & drop files here, or use the button to select",
-        "loadFailed": "Failed to load relations",
-        "saveFailed": "Failed to save relations",
-        "uploadingFiles": "Uploading {{count}} file(s)..."
+        "dragDropFiles": "Arrastre y suelte archivos aquí, o use el botón para seleccionar",
+        "loadFailed": "Error al cargar las relaciones",
+        "saveFailed": "Error al guardar las relaciones",
+        "uploadingFiles": "Subiendo {{count}} archivo(s)..."
       },
       "placeholders": {
-        "applications": "Search applications",
-        "assets": "Search assets",
-        "capexItems": "Select CAPEX items",
-        "linkDescription": "Optional",
-        "opexItems": "Select OPEX items",
+        "applications": "Buscar aplicaciones",
+        "assets": "Buscar activos",
+        "capexItems": "Seleccionar partidas CAPEX",
+        "linkDescription": "Opcional",
+        "opexItems": "Seleccionar partidas OPEX",
         "url": "https://example.com"
       },
       "sections": {
-        "appsAndAssets": "Apps & Assets",
-        "attachments": "Attachments",
-        "budgetItems": "Budget Items",
-        "externalLinks": "External links"
+        "appsAndAssets": "Aplicaciones y activos",
+        "attachments": "Adjuntos",
+        "budgetItems": "Partidas presupuestarias",
+        "externalLinks": "Enlaces externos"
       },
       "states": {
-        "noExternalLinks": "No external links added."
+        "noExternalLinks": "No se han agregado enlaces externos."
       }
     },
     "scoring": {
       "columns": {
-        "criterion": "Criterion",
-        "current": "Current",
+        "criterion": "Criterio",
+        "current": "Actual",
         "original": "Original"
       },
       "fields": {
-        "enablePriorityOverride": "Enable priority override",
-        "justification": "Justification",
-        "overrideValue": "Override Value: {{value}}"
+        "enablePriorityOverride": "Activar sobrescritura de prioridad",
+        "justification": "Justificación",
+        "overrideValue": "Valor de sobrescritura: {{value}}"
       },
       "helper": {
-        "justification": "Justification is required when using priority override"
+        "justification": "La justificación es obligatoria al usar la sobrescritura de prioridad"
       },
       "labels": {
-        "mandatoryBypassSuffix": "(Mandatory Bypass)",
-        "originalScore": "Original Score",
-        "overrideJustification": "Override Justification:",
-        "overrideSuffix": "(Override)",
-        "priorityScore": "Priority Score"
+        "mandatoryBypassSuffix": "(Omisión obligatoria)",
+        "originalScore": "Puntuación original",
+        "overrideJustification": "Justificación de la sobrescritura:",
+        "overrideSuffix": "(Sobrescritura)",
+        "priorityScore": "Puntuación de prioridad"
       },
       "messages": {
-        "loadCriteriaFailed": "Failed to load evaluation criteria",
-        "loadOriginalFailed": "Failed to load original request scoring",
-        "overrideDisabled": "Manual override is disabled when mandatory bypass is active",
-        "saveFailed": "Failed to save scoring"
+        "loadCriteriaFailed": "Error al cargar los criterios de evaluación",
+        "loadOriginalFailed": "Error al cargar la evaluación de la solicitud original",
+        "overrideDisabled": "La sobrescritura manual está desactivada cuando la omisión obligatoria está activa",
+        "saveFailed": "Error al guardar la evaluación"
       },
       "sections": {
-        "evaluationCriteria": "Evaluation Criteria",
-        "originalRequestScoring": "Original Request Scoring"
+        "evaluationCriteria": "Criterios de evaluación",
+        "originalRequestScoring": "Evaluación de la solicitud original"
       },
       "states": {
-        "loadingOriginal": "Loading original scoring...",
-        "noCriteria": "No evaluation criteria configured. Configure criteria in Portfolio Settings.",
-        "unableToLoadOriginal": "Unable to load original request scoring."
+        "loadingOriginal": "Cargando evaluación original...",
+        "noCriteria": "No hay criterios de evaluación configurados. Configure los criterios en la configuración del portafolio.",
+        "unableToLoadOriginal": "No se pudo cargar la evaluación de la solicitud original."
       },
       "values": {
-        "frozenScoringFrom": "Frozen scoring from: {{name}}",
-        "inverted": "(inverted)",
+        "frozenScoringFrom": "Evaluación congelada de: {{name}}",
+        "inverted": "(invertido)",
         "none": "-",
-        "sourceRequest": "Source Request",
-        "weight": "(weight: {{weight}})"
+        "sourceRequest": "Solicitud de origen",
+        "weight": "(peso: {{weight}})"
       }
     }
   },
   "settings": {
-    "title": "Portfolio Settings",
+    "title": "Configuración del portafolio",
     "tabs": {
-      "scoringCriteria": "Scoring Criteria",
-      "skills": "Skills",
-      "phaseTemplates": "Phase Templates",
-      "classification": "Classification",
-      "teams": "Teams"
+      "scoringCriteria": "Criterios de evaluación",
+      "skills": "Competencias",
+      "phaseTemplates": "Plantillas de fase",
+      "classification": "Clasificación",
+      "teams": "Equipos"
     },
     "actions": {
-      "addCriterion": "Add Criterion",
-      "addSkill": "Add Skill",
-      "addTemplate": "Add Template",
-      "addTeam": "Add Team",
-      "addSource": "Add Source",
-      "addCategory": "Add Category",
-      "addStream": "Add Stream",
-      "addTaskType": "Add Task Type",
-      "addValue": "Add Value",
-      "addPhase": "Add Phase",
-      "seedDefaults": "Seed Defaults"
+      "addCriterion": "Agregar criterio",
+      "addSkill": "Agregar competencia",
+      "addTemplate": "Agregar plantilla",
+      "addTeam": "Agregar equipo",
+      "addSource": "Agregar origen",
+      "addCategory": "Agregar categoría",
+      "addStream": "Agregar línea",
+      "addTaskType": "Agregar tipo de tarea",
+      "addValue": "Agregar valor",
+      "addPhase": "Agregar fase",
+      "seedDefaults": "Cargar valores predeterminados"
     },
     "fields": {
-      "name": "Name",
-      "description": "Description"
+      "name": "Nombre",
+      "description": "Descripción"
     },
     "labels": {
-      "system": "System"
+      "system": "Sistema"
     },
     "messages": {
-      "loadFailed": "Failed to load settings",
-      "saveFailed": "Failed to save"
+      "loadFailed": "Error al cargar la configuración",
+      "saveFailed": "Error al guardar"
     },
     "scoring": {
-      "title": "Evaluation Criteria",
-      "mandatoryBypassTitle": "Mandatory requests automatically score 100 points",
-      "mandatoryBypassDescription": "When enabled, requests with the flagged mandatory item receive a priority score of 100, regardless of other criteria. Manual override is blocked.",
-      "empty": "No evaluation criteria configured yet. Add criteria to enable request scoring.",
+      "title": "Criterios de evaluación",
+      "mandatoryBypassTitle": "Las solicitudes obligatorias obtienen automáticamente 100 puntos",
+      "mandatoryBypassDescription": "Cuando se activa, las solicitudes marcadas como obligatorias reciben una puntuación de prioridad de 100, independientemente de otros criterios. La sobrescritura manual se bloquea.",
+      "empty": "Aún no hay criterios de evaluación configurados. Agregue criterios para activar la evaluación de solicitudes.",
       "chips": {
-        "inverted": "Inverted",
-        "weight": "Weight: {{value}}"
+        "inverted": "Invertido",
+        "weight": "Peso: {{value}}"
       },
       "dialog": {
-        "editTitle": "Edit Criterion",
-        "createTitle": "Create Criterion",
-        "weight": "Weight",
-        "inverted": "Inverted (higher position = lower score)",
-        "scaleValues": "Scale Values (in order)",
-        "scaleValuesDescription": "For non-inverted criteria: first value = lowest score, last value = highest score. For inverted criteria: first value = highest score, last value = lowest score.",
-        "valueLabelPlaceholder": "Value label",
-        "mandatory": "Mandatory",
+        "editTitle": "Editar criterio",
+        "createTitle": "Crear criterio",
+        "weight": "Peso",
+        "inverted": "Invertido (posición más alta = puntuación más baja)",
+        "scaleValues": "Valores de la escala (en orden)",
+        "scaleValuesDescription": "Para criterios no invertidos: primer valor = puntuación más baja, último valor = puntuación más alta. Para criterios invertidos: primer valor = puntuación más alta, último valor = puntuación más baja.",
+        "valueLabelPlaceholder": "Etiqueta del valor",
+        "mandatory": "Obligatorio",
         "defaults": {
-          "low": "Low",
-          "high": "High"
+          "low": "Bajo",
+          "high": "Alto"
         }
       },
-      "confirmDelete": "Delete this criterion? Existing evaluations will be removed.",
+      "confirmDelete": "¿Eliminar este criterio? Las evaluaciones existentes serán eliminadas.",
       "messages": {
-        "updateFailed": "Failed to update criterion",
-        "updateSettingsFailed": "Failed to update settings",
-        "deleteFailed": "Failed to delete criterion"
+        "updateFailed": "Error al actualizar el criterio",
+        "updateSettingsFailed": "Error al actualizar la configuración",
+        "deleteFailed": "Error al eliminar el criterio"
       }
     },
     "skills": {
-      "empty": "No skills configured yet. Use Seed Defaults to populate with standard skills, or add skills manually.",
-      "description": "Skills are used to define team member expertise areas. Configure the skills that are relevant to your organization.",
+      "empty": "Aún no hay competencias configuradas. Use «Cargar valores predeterminados» para cargar competencias estándar, o agregue competencias manualmente.",
+      "description": "Las competencias se utilizan para definir las áreas de experiencia de los miembros del equipo. Configure las competencias relevantes para su organización.",
       "dialog": {
-        "editTitle": "Edit Skill",
-        "createTitle": "Create Skill",
-        "category": "Category",
-        "categoryPlaceholder": "Select or type a new category",
-        "name": "Skill Name"
+        "editTitle": "Editar competencia",
+        "createTitle": "Crear competencia",
+        "category": "Categoría",
+        "categoryPlaceholder": "Seleccione o escriba una nueva categoría",
+        "name": "Nombre de la competencia"
       },
-      "confirmDelete": "Delete this skill?",
+      "confirmDelete": "¿Eliminar esta competencia?",
       "messages": {
-        "seedDefaultsFailed": "Failed to seed defaults",
-        "updateFailed": "Failed to update skill",
-        "deleteFailed": "Failed to delete skill"
+        "seedDefaultsFailed": "Error al cargar los valores predeterminados",
+        "updateFailed": "Error al actualizar la competencia",
+        "deleteFailed": "Error al eliminar la competencia"
       }
     },
     "phaseTemplates": {
-      "empty": "No phase templates configured yet. Templates will be automatically seeded when first accessed.",
-      "description": "Phase templates define the standard phases and milestones for projects. Apply a template when setting up a new project's timeline.",
+      "empty": "Aún no hay plantillas de fase configuradas. Las plantillas se crearán automáticamente en el primer acceso.",
+      "description": "Las plantillas de fase definen las fases e hitos estándar para los proyectos. Aplique una plantilla al configurar el cronograma de un nuevo proyecto.",
       "chips": {
-        "phaseCount_one": "{{count}} phase",
-        "phaseCount_other": "{{count}} phases"
+        "phaseCount_one": "{{count}} fase",
+        "phaseCount_other": "{{count}} fases"
       },
       "dialog": {
-        "editTitle": "Edit Phase Template",
-        "createTitle": "Create Phase Template",
-        "templateName": "Template Name",
-        "phases": "Phases",
-        "phasesDescription": "Define the phases for this template. Each phase can optionally have a milestone that gets created when the template is applied.",
-        "phaseNamePlaceholder": "Phase name",
-        "milestone": "Milestone",
-        "milestoneNamePlaceholder": "Milestone name",
+        "editTitle": "Editar plantilla de fase",
+        "createTitle": "Crear plantilla de fase",
+        "templateName": "Nombre de la plantilla",
+        "phases": "Fases",
+        "phasesDescription": "Defina las fases de esta plantilla. Cada fase puede opcionalmente tener un hito que se creará al aplicar la plantilla.",
+        "phaseNamePlaceholder": "Nombre de la fase",
+        "milestone": "Hito",
+        "milestoneNamePlaceholder": "Nombre del hito",
         "defaults": {
-          "phaseName": "Phase {{number}}",
-          "milestoneName": "Phase {{number}} Complete"
+          "phaseName": "Fase {{number}}",
+          "milestoneName": "Fase {{number}} completada"
         }
       },
-      "confirmDelete": "Delete this phase template?",
+      "confirmDelete": "¿Eliminar esta plantilla de fase?",
       "messages": {
-        "deleteFailed": "Failed to delete template"
+        "deleteFailed": "Error al eliminar la plantilla"
       }
     },
     "classification": {
-      "description": "Configure sources, categories, and streams for classifying requests and projects.",
+      "description": "Configure los orígenes, categorías y líneas para clasificar las solicitudes y los proyectos.",
       "sections": {
-        "sources": "Sources",
-        "categoriesAndStreams": "Categories & Streams",
-        "taskTypes": "Task Types"
+        "sources": "Orígenes",
+        "categoriesAndStreams": "Categorías y líneas",
+        "taskTypes": "Tipos de tarea"
       },
       "empty": {
-        "sources": "No sources configured.",
-        "categories": "No categories configured.",
-        "streams": "No streams in this category.",
-        "taskTypes": "No task types configured."
+        "sources": "No hay orígenes configurados.",
+        "categories": "No hay categorías configuradas.",
+        "streams": "No hay líneas en esta categoría.",
+        "taskTypes": "No hay tipos de tarea configurados."
       },
       "chips": {
-        "streamsCount": "{{active}}/{{total}} streams"
+        "streamsCount": "{{active}}/{{total}} líneas"
       },
       "sourceDialog": {
-        "editTitle": "Edit Source",
-        "createTitle": "Create Source"
+        "editTitle": "Editar origen",
+        "createTitle": "Crear origen"
       },
       "categoryDialog": {
-        "editTitle": "Edit Category",
-        "createTitle": "Create Category"
+        "editTitle": "Editar categoría",
+        "createTitle": "Crear categoría"
       },
       "streamDialog": {
-        "editTitle": "Edit Stream",
-        "createTitle": "Create Stream"
+        "editTitle": "Editar línea",
+        "createTitle": "Crear línea"
       },
       "taskTypeDialog": {
-        "editTitle": "Edit Task Type",
-        "createTitle": "Create Task Type"
+        "editTitle": "Editar tipo de tarea",
+        "createTitle": "Crear tipo de tarea"
       },
       "confirmations": {
-        "deleteSource": "Delete this source?",
-        "deleteCategory": "Delete this category and all its streams?",
-        "deleteStream": "Delete this stream?",
-        "deleteTaskType": "Delete this task type?"
+        "deleteSource": "¿Eliminar este origen?",
+        "deleteCategory": "¿Eliminar esta categoría y todas sus líneas?",
+        "deleteStream": "¿Eliminar esta línea?",
+        "deleteTaskType": "¿Eliminar este tipo de tarea?"
       },
       "messages": {
-        "deleteSourceFailed": "Failed to delete source",
-        "updateSourceFailed": "Failed to update source",
-        "deleteCategoryFailed": "Failed to delete category",
-        "updateCategoryFailed": "Failed to update category",
-        "deleteStreamFailed": "Failed to delete stream",
-        "updateStreamFailed": "Failed to update stream",
-        "deleteTaskTypeFailed": "Failed to delete task type",
-        "updateTaskTypeFailed": "Failed to update task type"
+        "deleteSourceFailed": "Error al eliminar el origen",
+        "updateSourceFailed": "Error al actualizar el origen",
+        "deleteCategoryFailed": "Error al eliminar la categoría",
+        "updateCategoryFailed": "Error al actualizar la categoría",
+        "deleteStreamFailed": "Error al eliminar la línea",
+        "updateStreamFailed": "Error al actualizar la línea",
+        "deleteTaskTypeFailed": "Error al eliminar el tipo de tarea",
+        "updateTaskTypeFailed": "Error al actualizar el tipo de tarea"
       }
     },
     "teams": {
-      "empty": "No teams configured yet. Use Seed Defaults to populate with standard teams, or add teams manually.",
-      "description": "Teams are organizational groups that contributors belong to. Assign contributors to teams to organize them by department or function.",
-      "memberCount_one": "{{count}} member",
-      "memberCount_other": "{{count}} members",
+      "empty": "Aún no hay equipos configurados. Use «Cargar valores predeterminados» para cargar equipos estándar, o agregue equipos manualmente.",
+      "description": "Los equipos son grupos organizacionales a los que pertenecen los colaboradores. Asigne colaboradores a equipos para organizarlos por departamento o función.",
+      "memberCount_one": "{{count}} miembro",
+      "memberCount_other": "{{count}} miembros",
       "dialog": {
-        "editTitle": "Edit Team",
-        "createTitle": "Create Team"
+        "editTitle": "Editar equipo",
+        "createTitle": "Crear equipo"
       },
-      "confirmDelete": "Delete this team?",
+      "confirmDelete": "¿Eliminar este equipo?",
       "messages": {
-        "seedDefaultsFailed": "Failed to seed defaults",
-        "deleteFailed": "Failed to delete team",
-        "updateFailed": "Failed to update team"
+        "seedDefaultsFailed": "Error al cargar los valores predeterminados",
+        "deleteFailed": "Error al eliminar el equipo",
+        "updateFailed": "Error al actualizar el equipo"
       }
     }
   }

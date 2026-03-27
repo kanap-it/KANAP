@@ -840,7 +840,7 @@ export default function ItOperationsSettingsPage() {
     onSuccess: (next: ItOpsSettings) => {
       queryClient.invalidateQueries({ queryKey: ['it-ops-settings'] });
       dispatch({ type: 'hydrate', payload: next });
-      dispatch({ type: 'setSuccess', message: 'IT Operations settings updated successfully' });
+      dispatch({ type: 'setSuccess', message: 'IT Landscape settings updated successfully' });
     },
     onError: (error) => {
       dispatch({ type: 'setError', message: error instanceof Error ? error.message : 'Failed to update settings' });
@@ -901,9 +901,9 @@ export default function ItOperationsSettingsPage() {
         <PageHeader title={t('pages.settings.title')} />
       </Box>
       <Typography variant="body1" color="text.secondary">
-        Configure reusable lists for data classification, server catalog, and interface protocols used across the IT Operations workspace.
+        Configure reusable lists for data classification, server catalog, and interface protocols used across the IT Landscape workspace.
       </Typography>
-      {isError && <Alert severity="error">Failed to load IT Operations settings.</Alert>}
+      {isError && <Alert severity="error">Failed to load IT Landscape settings.</Alert>}
       {state.successMessage && <Alert severity="success">{state.successMessage}</Alert>}
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
       <Stack spacing={3}>

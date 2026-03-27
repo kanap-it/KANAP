@@ -108,7 +108,7 @@ itops = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</style
 
 <div class="nb">
 <h2>① Create Your Application</h2>
-<p><b>IT Operations → Applications → + New</b></p>
+<p><b>IT Landscape → Applications → + New</b></p>
 <table>
 <tr><th>Field</th><th>What to enter</th><th>Example</th></tr>
 <tr><td>Name</td><td>Clear, recognizable name</td><td>Salesforce CRM</td></tr>
@@ -157,7 +157,7 @@ itops = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</style
 <tr><td>Data Residency</td><td>France, Germany</td></tr>
 <tr><td>Last DR Test</td><td>2025-11-15</td></tr>
 </table>
-<div class="box">ℹ️ Data Classes (Public, Internal, Confidential, Restricted) are configurable in <b>IT Operations → Settings</b>.</div>
+<div class="box">ℹ️ Data Classes (Public, Internal, Confidential, Restricted) are configurable in <b>IT Landscape → Settings</b>.</div>
 </div>
 
 <div class="nb">
@@ -175,7 +175,7 @@ itops = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</style
 
 <div class="nb">
 <h2>⑥ Create Your Server (Asset)</h2>
-<p><b>IT Operations → Assets → Add Asset</b></p>
+<p><b>IT Landscape → Assets → Add Asset</b></p>
 <table>
 <tr><th>Field</th><th>What to enter</th><th>Example</th></tr>
 <tr><td>Name</td><td>Hostname or identifier</td><td>PROD-WEB-01</td></tr>
@@ -183,7 +183,7 @@ itops = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>{CSS}</style
 <tr><td>Location</td><td>Where it's hosted</td><td>Paris Datacenter</td></tr>
 <tr><td>Lifecycle</td><td>Current status</td><td>Active</td></tr>
 </table>
-<div class="box">ℹ️ <b>Location is the key.</b> Hosting type, provider, country, and city are all derived automatically. Set up Locations once in IT Operations → Locations.</div>
+<div class="box">ℹ️ <b>Location is the key.</b> Hosting type, provider, country, and city are all derived automatically. Set up Locations once in IT Landscape → Locations.</div>
 <p><b>Technical tab — Identity:</b> Hostname, Domain, FQDN (auto-computed), Aliases, OS.</p>
 <p><b>Technical tab — IP Addresses:</b> Add as many entries as needed (management, production VLAN, backup network…). Each can have its own type and subnet. Network Zone & VLAN are derived from Subnet automatically.</p>
 </div>

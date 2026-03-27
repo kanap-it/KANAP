@@ -1,528 +1,528 @@
 {
   "aiAdmin": {
     "actions": {
-      "createKey": "Create key",
-      "creating": "Creating...",
-      "done": "Done",
-      "saveSettings": "Save settings",
-      "testConnection": "Test connection",
-      "testing": "Testing..."
+      "createKey": "Crear clave",
+      "creating": "Creando...",
+      "done": "Listo",
+      "saveSettings": "Guardar configuración",
+      "testConnection": "Probar conexión",
+      "testing": "Probando..."
     },
     "dialogs": {
-      "copyKeyWarning": "Copy this key now. It will not be shown again.",
-      "createKeyTitle": "Create MCP API key",
-      "keyCreatedTitle": "Key created"
+      "copyKeyWarning": "Copie esta clave ahora. No se mostrará de nuevo.",
+      "createKeyTitle": "Crear clave API MCP",
+      "keyCreatedTitle": "Clave creada"
     },
     "features": {
-      "braveSearchNotConfigured": "BRAVE_SEARCH_API_KEY not configured",
-      "enableChat": "Enable chat",
-      "enableMcp": "Enable MCP",
-      "webEnrichment": "Web enrichment",
-      "webSearch": "Web search"
+      "braveSearchNotConfigured": "BRAVE_SEARCH_API_KEY no configurada",
+      "enableChat": "Habilitar chat",
+      "enableMcp": "Habilitar MCP",
+      "webEnrichment": "Enriquecimiento web",
+      "webSearch": "Búsqueda web"
     },
     "fields": {
-      "conversationRetentionDays": "Conversation retention (days)",
-      "keyMaxLifetimeDays": "Key max lifetime (days)",
-      "keyMaxLifetimeHelper": "Leave empty for no expiration limit",
-      "label": "Label",
-      "labelPlaceholder": "e.g., Desktop MCP client"
+      "conversationRetentionDays": "Retención de conversaciones (días)",
+      "keyMaxLifetimeDays": "Vida útil máxima de la clave (días)",
+      "keyMaxLifetimeHelper": "Deje vacío para sin límite de expiración",
+      "label": "Etiqueta",
+      "labelPlaceholder": "Ej.: Cliente MCP de escritorio"
     },
     "keys": {
       "columns": {
-        "created": "Created",
-        "expires": "Expires",
-        "label": "Label",
-        "lastUsed": "Last used",
-        "prefix": "Prefix",
-        "status": "Status"
+        "created": "Creada",
+        "expires": "Expira",
+        "label": "Etiqueta",
+        "lastUsed": "Último uso",
+        "prefix": "Prefijo",
+        "status": "Estado"
       },
-      "empty": "No MCP API keys configured.",
+      "empty": "No hay claves API MCP configuradas.",
       "statuses": {
-        "active": "Active",
-        "revoked": "Revoked"
+        "active": "Activa",
+        "revoked": "Revocada"
       },
-      "title": "MCP API Keys"
+      "title": "Claves API MCP"
     },
     "messages": {
-      "connectionTestFailed": "Connection test failed.",
-      "createMcpKeyFailed": "Failed to create MCP key.",
-      "disabled": "AI settings are disabled for this instance.",
-      "loadKeysFailed": "Failed to load MCP API keys.",
-      "loadOverviewFailed": "Failed to load AI overview.",
-      "loadSettingsFailed": "Failed to load AI settings.",
-      "revokeMcpKeyFailed": "Failed to revoke MCP key.",
-      "saveFailed": "Failed to save.",
-      "settingsSaved": "Settings saved.",
-      "testingWebSearch": "Testing web search connectivity...",
-      "webSearchTestFailed": "Web search test failed."
+      "connectionTestFailed": "La prueba de conexión falló.",
+      "createMcpKeyFailed": "No se pudo crear la clave MCP.",
+      "disabled": "La configuración de IA está deshabilitada para esta instancia.",
+      "loadKeysFailed": "No se pudieron cargar las claves API MCP.",
+      "loadOverviewFailed": "No se pudo cargar la vista general de IA.",
+      "loadSettingsFailed": "No se pudo cargar la configuración de IA.",
+      "revokeMcpKeyFailed": "No se pudo revocar la clave MCP.",
+      "saveFailed": "No se pudo guardar.",
+      "settingsSaved": "Configuración guardada.",
+      "testingWebSearch": "Probando conectividad de búsqueda web...",
+      "webSearchTestFailed": "La prueba de búsqueda web falló."
     },
     "overview": {
       "columns": {
-        "inputTokens": "Input tokens",
-        "messages": "Messages",
-        "outputTokens": "Output tokens",
-        "totalTokens": "Total tokens",
-        "window": "Window"
+        "inputTokens": "Tokens de entrada",
+        "messages": "Mensajes",
+        "outputTokens": "Tokens de salida",
+        "totalTokens": "Tokens totales",
+        "window": "Ventana"
       },
-      "description": "Chat usage only. Token totals are aggregated from persisted `ai_messages.usage_json`.",
+      "description": "Solo uso de chat. Los totales de tokens se agregan desde `ai_messages.usage_json`.",
       "metrics": {
-        "activeConversations30d": "Active conversations (30d)",
-        "activeConversations7d": "Active conversations (7d)",
-        "activeUsers30d": "Active users (30d)",
-        "allConversations": "All conversations"
+        "activeConversations30d": "Conversaciones activas (30d)",
+        "activeConversations7d": "Conversaciones activas (7d)",
+        "activeUsers30d": "Usuarios activos (30d)",
+        "allConversations": "Todas las conversaciones"
       },
-      "title": "Usage Overview",
-      "tokenUsage": "Token usage",
+      "title": "Vista general de uso",
+      "tokenUsage": "Uso de tokens",
       "windows": {
-        "currentMonth": "Current month",
-        "last30Days": "Last 30 days"
+        "currentMonth": "Mes actual",
+        "last30Days": "Últimos 30 días"
       }
     },
     "provider": {
       "apiKey": {
-        "keepExisting": "Leave blank to keep the stored key for save and test actions.",
-        "storageUnavailable": "Secret storage is not configured on this instance."
+        "keepExisting": "Deje vacío para mantener la clave almacenada para las acciones de guardado y prueba.",
+        "storageUnavailable": "El almacenamiento seguro no está configurado en esta instancia."
       },
       "chips": {
-        "chatDisabled": "Chat disabled",
-        "chatEnabled": "Chat enabled",
-        "mcpDisabled": "MCP disabled",
-        "mcpEnabled": "MCP enabled",
-        "providerIncomplete": "Provider incomplete",
-        "providerReady": "Provider ready"
+        "chatDisabled": "Chat deshabilitado",
+        "chatEnabled": "Chat habilitado",
+        "mcpDisabled": "MCP deshabilitado",
+        "mcpEnabled": "MCP habilitado",
+        "providerIncomplete": "Proveedor incompleto",
+        "providerReady": "Proveedor listo"
       },
-      "connectionFailed": "Connection failed",
-      "connectionSucceeded": "Connection succeeded",
+      "connectionFailed": "Conexión fallida",
+      "connectionSucceeded": "Conexión exitosa",
       "fields": {
-        "apiKey": "API Key",
-        "endpointUrl": "Endpoint URL",
-        "model": "Model",
-        "provider": "Provider"
+        "apiKey": "Clave API",
+        "endpointUrl": "URL del endpoint",
+        "model": "Modelo",
+        "provider": "Proveedor"
       },
       "info": {
-        "ollama": "In Docker, use http://host.docker.internal:<port>/v1 instead of localhost."
+        "ollama": "En Docker, use http://host.docker.internal:<port>/v1 en lugar de localhost."
       },
       "placeholders": {
-        "anthropicModel": "e.g., claude-sonnet-4-20250514",
-        "apiKeyConfigured": "Key configured (leave blank to keep)",
-        "customEndpoint": "e.g., https://my-provider.example.com/v1",
-        "enterApiKey": "Enter API key",
-        "modelIdentifier": "Model identifier",
-        "ollamaEndpoint": "e.g., http://host.docker.internal:1234/v1",
-        "ollamaModel": "e.g., llama3, mistral",
-        "openaiModel": "e.g., gpt-4o"
+        "anthropicModel": "Ej.: claude-sonnet-4-20250514",
+        "apiKeyConfigured": "Clave configurada (deje vacío para mantener)",
+        "customEndpoint": "Ej.: https://my-provider.example.com/v1",
+        "enterApiKey": "Introduzca la clave API",
+        "modelIdentifier": "Identificador del modelo",
+        "ollamaEndpoint": "Ej.: http://host.docker.internal:1234/v1",
+        "ollamaModel": "Ej.: llama3, mistral",
+        "openaiModel": "Ej.: gpt-4o"
       },
-      "testLabel": "Provider test",
-      "title": "Provider",
-      "validationErrorsTitle": "Current provider validation errors"
+      "testLabel": "Prueba del proveedor",
+      "title": "Proveedor",
+      "validationErrorsTitle": "Errores de validación del proveedor actual"
     },
     "sections": {
-      "features": "Features",
-      "retention": "Retention"
+      "features": "Funcionalidades",
+      "retention": "Retención"
     },
     "shared": {
-      "never": "Never",
-      "none": "None"
+      "never": "Nunca",
+      "none": "Ninguno"
     },
-    "title": "AI"
+    "title": "IA"
   },
   "auditLogs": {
     "actions": {
-      "create": "Create",
-      "delete": "Delete",
-      "disable": "Disable",
-      "update": "Update"
+      "create": "Crear",
+      "delete": "Eliminar",
+      "disable": "Deshabilitar",
+      "update": "Actualizar"
     },
     "columns": {
-      "action": "Action",
-      "date": "Date",
-      "recordId": "Record ID",
-      "source": "Source",
-      "sourceRef": "Source Ref",
-      "table": "Table",
-      "tenantId": "Tenant ID",
-      "user": "User",
-      "userId": "User ID",
-      "userName": "User Name"
+      "action": "Acción",
+      "date": "Fecha",
+      "recordId": "ID del registro",
+      "source": "Origen",
+      "sourceRef": "Ref. de origen",
+      "table": "Tabla",
+      "tenantId": "ID del espacio de trabajo",
+      "user": "Usuario",
+      "userId": "ID de usuario",
+      "userName": "Nombre de usuario"
     },
     "details": {
-      "action": "Action: {{value}}",
-      "after": "After",
-      "before": "Before",
-      "changedFields": "Changed Fields",
-      "date": "Date: {{value}}",
-      "noFieldChanges": "No key-level changes",
-      "recordId": "Record ID: {{value}}",
-      "source": "Source: {{value}}",
-      "sourceRef": "Source Ref: {{value}}",
-      "table": "Table: {{value}}",
-      "tenant": "Tenant: {{value}}",
-      "title": "Audit Entry Details",
-      "user": "User: {{value}}"
+      "action": "Acción: {{value}}",
+      "after": "Después",
+      "before": "Antes",
+      "changedFields": "Campos modificados",
+      "date": "Fecha: {{value}}",
+      "noFieldChanges": "Sin cambios a nivel de claves",
+      "recordId": "ID del registro: {{value}}",
+      "source": "Origen: {{value}}",
+      "sourceRef": "Ref. de origen: {{value}}",
+      "table": "Tabla: {{value}}",
+      "tenant": "Espacio de trabajo: {{value}}",
+      "title": "Detalles de la entrada de auditoría",
+      "user": "Usuario: {{value}}"
     },
     "messages": {
-      "loadDetailsFailed": "Failed to load audit entry details."
+      "loadDetailsFailed": "No se pudieron cargar los detalles de la entrada de auditoría."
     },
     "shared": {
       "empty": "-"
     },
     "sources": {
-      "system": "System",
-      "user": "User",
+      "system": "Sistema",
+      "user": "Usuario",
       "webhook": "Webhook"
     },
-    "title": "Audit Log",
+    "title": "Registro de auditoría",
     "values": {
-      "unknownUser": "Unknown ({{id}}...)"
+      "unknownUser": "Desconocido ({{id}}...)"
     }
   },
   "auth": {
     "actions": {
-      "connect": "Connect",
-      "connecting": "Connecting...",
-      "disconnect": "Disconnect",
-      "disconnecting": "Disconnecting...",
-      "reconnect": "Reconnect",
-      "testSignIn": "Test sign-in"
+      "connect": "Conectar",
+      "connecting": "Conectando...",
+      "disconnect": "Desconectar",
+      "disconnecting": "Desconectando...",
+      "reconnect": "Reconectar",
+      "testSignIn": "Probar inicio de sesión"
     },
     "entra": {
-      "connected": "Connected",
-      "disconnectedDescription": "Single sign-on is not connected for this workspace.",
-      "tenantId": "Tenant ID",
+      "connected": "Conectado",
+      "disconnectedDescription": "El inicio de sesión único no está conectado para este espacio de trabajo.",
+      "tenantId": "ID del espacio de trabajo",
       "title": "Microsoft Entra ID"
     },
     "messages": {
-      "connectStartFailed": "Failed to start the connection flow.",
-      "disconnectFailed": "Failed to disconnect single sign-on.",
-      "loadFailed": "Failed to load authentication settings."
+      "connectStartFailed": "No se pudo iniciar el flujo de conexión.",
+      "disconnectFailed": "No se pudo desconectar el inicio de sesión único.",
+      "loadFailed": "No se pudo cargar la configuración de autenticación."
     },
-    "title": "Authentication"
+    "title": "Autenticación"
   },
   "billing": {
     "actions": {
-      "changePlan": "Change plan",
-      "choosePlan": "Choose plan",
-      "manageSubscription": "Manage subscription"
+      "changePlan": "Cambiar plan",
+      "choosePlan": "Elegir plan",
+      "manageSubscription": "Gestionar suscripción"
     },
     "customer": {
-      "title": "Customer Information"
+      "title": "Información del cliente"
     },
     "fields": {
-      "addressLine1": "Address line 1",
-      "addressLine2": "Address line 2",
-      "city": "City",
-      "company": "Company",
-      "country": "Country",
-      "customerName": "Customer name",
-      "email": "Email",
-      "phone": "Phone",
-      "postalCode": "Postal code",
-      "recipientName": "Recipient name",
-      "stateProvince": "State / Province",
-      "vatNumber": "VAT number"
+      "addressLine1": "Dirección línea 1",
+      "addressLine2": "Dirección línea 2",
+      "city": "Ciudad",
+      "company": "Empresa",
+      "country": "País",
+      "customerName": "Nombre del cliente",
+      "email": "Correo electrónico",
+      "phone": "Teléfono",
+      "postalCode": "Código postal",
+      "recipientName": "Nombre del destinatario",
+      "stateProvince": "Estado / Provincia",
+      "vatNumber": "Número de IVA"
     },
     "invoiceDetails": {
-      "copyFromCustomer": "Copy from customer",
-      "title": "Invoicing Information"
+      "copyFromCustomer": "Copiar del cliente",
+      "title": "Información de facturación"
     },
     "invoiceStatuses": {
-      "draft": "Draft",
-      "open": "Open",
-      "paid": "Paid",
-      "uncollectible": "Uncollectible",
-      "void": "Void"
+      "draft": "Borrador",
+      "open": "Abierta",
+      "paid": "Pagada",
+      "uncollectible": "Incobrable",
+      "void": "Anulada"
     },
     "invoices": {
       "actions": {
-        "download": "Download",
-        "showFewer": "Show fewer invoices",
-        "showMore": "Show more invoices",
-        "view": "View"
+        "download": "Descargar",
+        "showFewer": "Mostrar menos facturas",
+        "showMore": "Mostrar más facturas",
+        "view": "Ver"
       },
-      "title": "Invoice history"
+      "title": "Historial de facturas"
     },
     "messages": {
-      "loadFailed": "Failed to load billing details.",
-      "portalFailed": "Failed to open the billing portal.",
-      "portalUnavailable": "Billing portal is unavailable.",
-      "saveFailed": "Failed to save billing details.",
-      "updateSuccess": "Billing details updated."
+      "loadFailed": "No se pudieron cargar los detalles de facturación.",
+      "portalFailed": "No se pudo abrir el portal de facturación.",
+      "portalUnavailable": "El portal de facturación no está disponible.",
+      "saveFailed": "No se pudieron guardar los detalles de facturación.",
+      "updateSuccess": "Detalles de facturación actualizados."
     },
     "statuses": {
-      "active": "Active",
-      "canceled": "Canceled",
-      "incomplete": "Incomplete",
-      "incomplete_expired": "Incomplete expired",
-      "notSubscribed": "Not subscribed",
-      "past_due": "Past due",
-      "paused": "Paused",
-      "pending": "Pending",
-      "trialing": "Trialing",
-      "unpaid": "Unpaid"
+      "active": "Activo",
+      "canceled": "Cancelado",
+      "incomplete": "Incompleto",
+      "incomplete_expired": "Incompleto expirado",
+      "notSubscribed": "No suscrito",
+      "past_due": "Vencido",
+      "paused": "Pausado",
+      "pending": "Pendiente",
+      "trialing": "En prueba",
+      "unpaid": "Impago"
     },
     "subscription": {
       "labels": {
-        "actions": "Actions",
-        "amountPerPeriod": "Amount per period",
-        "billingFrequency": "Billing frequency",
-        "collectionMethod": "Collection method",
-        "lastStripeSync": "Last Stripe sync",
-        "paymentMethod": "Payment method",
+        "actions": "Acciones",
+        "amountPerPeriod": "Importe por período",
+        "billingFrequency": "Frecuencia de facturación",
+        "collectionMethod": "Método de cobro",
+        "lastStripeSync": "Última sincronización de Stripe",
+        "paymentMethod": "Método de pago",
         "plan": "Plan",
-        "renewalDate": "Renewal date",
-        "seats": "Seats",
-        "status": "Status",
-        "trial": "Trial",
-        "trialEnds": "Trial ends"
+        "renewalDate": "Fecha de renovación",
+        "seats": "Puestos",
+        "status": "Estado",
+        "trial": "Prueba",
+        "trialEnds": "Fin de la prueba"
       },
       "planLabels": {
-        "freeTrial": "Free trial",
+        "freeTrial": "Prueba gratuita",
         "pro": "Pro",
         "solo": "Solo",
         "team": "Team"
       },
-      "title": "Subscription",
+      "title": "Suscripción",
       "values": {
-        "annual": "Annual",
-        "automaticCharge": "Automatic charge",
-        "bankTransfer": "Bank transfer",
-        "card": "Card",
-        "daysRemaining_one": "{{count}} day remaining",
-        "daysRemaining_other": "{{count}} days remaining",
-        "invoiceManualPayment": "Invoice (manual payment)",
-        "monthly": "Monthly",
-        "unlimitedSeatsUsed": "{{count}} used"
+        "annual": "Anual",
+        "automaticCharge": "Cobro automático",
+        "bankTransfer": "Transferencia bancaria",
+        "card": "Tarjeta",
+        "daysRemaining_one": "{{count}} día restante",
+        "daysRemaining_other": "{{count}} días restantes",
+        "invoiceManualPayment": "Factura (pago manual)",
+        "monthly": "Mensual",
+        "unlimitedSeatsUsed": "{{count}} utilizados"
       }
     },
-    "title": "Billing"
+    "title": "Facturación"
   },
   "branding": {
     "actions": {
-      "clear": "Clear",
-      "discard": "Discard",
-      "removeLogo": "Remove Logo",
-      "removingLogo": "Removing...",
-      "replaceSelectedFile": "Replace Selected File",
-      "resetToDefault": "Reset to Default",
-      "resetting": "Resetting...",
-      "uploadLogo": "Upload Logo"
+      "clear": "Borrar",
+      "discard": "Descartar",
+      "removeLogo": "Eliminar logo",
+      "removingLogo": "Eliminando...",
+      "replaceSelectedFile": "Reemplazar archivo seleccionado",
+      "resetToDefault": "Restablecer a predeterminado",
+      "resetting": "Restableciendo...",
+      "uploadLogo": "Subir logo"
     },
     "colors": {
-      "darkHelper": "Used in dark mode. If empty, light mode color is reused.",
-      "darkModePrimary": "Dark mode primary",
-      "description": "Set one color for light mode and one for dark mode. Leave blank to keep Kanap defaults.",
-      "lightHelper": "Used for app bar, primary buttons, and links in light mode.",
-      "lightModePrimary": "Light mode primary",
-      "lowDarkContrast": "Dark mode contrast is low ({{ratio}}:1 vs {{tone}} text{{fallback}}). ",
-      "lowLightContrast": "Light mode contrast is low ({{ratio}}:1 vs {{tone}} text{{fallback}}). ",
-      "openColorPicker": "Open color picker",
-      "readabilityWarning": "You can still save, but readability may suffer.",
-      "selectedText": "selected",
-      "swatch": "Swatch",
-      "title": "Primary Colors",
-      "usingDarkFallback": ", using dark-mode fallback color",
-      "usingLightFallback": ", using light-mode fallback color"
+      "darkHelper": "Utilizado en modo oscuro. Si está vacío, se reutiliza el color del modo claro.",
+      "darkModePrimary": "Color primario modo oscuro",
+      "description": "Establezca un color para el modo claro y otro para el modo oscuro. Deje vacío para mantener los valores predeterminados de KANAP.",
+      "lightHelper": "Utilizado para la barra de la aplicación, botones principales y enlaces en modo claro.",
+      "lightModePrimary": "Color primario modo claro",
+      "lowDarkContrast": "El contraste en modo oscuro es bajo ({{ratio}}:1 vs. texto {{tone}}{{fallback}}). ",
+      "lowLightContrast": "El contraste en modo claro es bajo ({{ratio}}:1 vs. texto {{tone}}{{fallback}}). ",
+      "openColorPicker": "Abrir selector de color",
+      "readabilityWarning": "Puede guardar, pero la legibilidad podría verse afectada.",
+      "selectedText": "seleccionado",
+      "swatch": "Muestra",
+      "title": "Colores primarios",
+      "usingDarkFallback": ", utilizando color de respaldo del modo oscuro",
+      "usingLightFallback": ", utilizando color de respaldo del modo claro"
     },
     "confirmations": {
-      "reset": "Reset branding to default Kanap settings? This removes logo and custom colors."
+      "reset": "¿Restablecer la personalización a la configuración predeterminada de KANAP? Se eliminarán el logo y los colores personalizados."
     },
     "fields": {
-      "showLogoInDark": "Show logo in dark mode"
+      "showLogoInDark": "Mostrar logo en modo oscuro"
     },
     "logo": {
-      "alt": "Logo preview",
-      "description": "Upload one logo for the app header and login page. Best results: transparent PNG, JPG, GIF, or WEBP with a wide ratio.",
+      "alt": "Vista previa del logo",
+      "description": "Suba un logo para el encabezado de la aplicación y la página de inicio de sesión. Mejores resultados: PNG transparente, JPG, GIF o WEBP con formato ancho.",
       "previews": {
-        "dark": "Dark header preview",
-        "darkHidden": "Dark header preview (logo hidden)",
-        "light": "Light header preview"
+        "dark": "Vista previa encabezado oscuro",
+        "darkHidden": "Vista previa encabezado oscuro (logo oculto)",
+        "light": "Vista previa encabezado claro"
       },
       "title": "Logo",
-      "version": "Logo version: {{count}}"
+      "version": "Versión del logo: {{count}}"
     },
     "messages": {
-      "loadFailed": "Failed to load branding settings.",
-      "logoRemoved": "Logo removed.",
-      "noChanges": "No changes to save.",
-      "removeLogoFailed": "Failed to remove logo.",
-      "resetDone": "Branding reset to defaults.",
-      "resetFailed": "Failed to reset branding.",
-      "saveFailed": "Failed to save branding settings.",
-      "selectedFile": "Selected file: {{name}}. Save changes to publish it.",
-      "updated": "Branding updated."
+      "loadFailed": "No se pudo cargar la configuración de personalización.",
+      "logoRemoved": "Logo eliminado.",
+      "noChanges": "No hay cambios que guardar.",
+      "removeLogoFailed": "No se pudo eliminar el logo.",
+      "resetDone": "Personalización restablecida a valores predeterminados.",
+      "resetFailed": "No se pudo restablecer la personalización.",
+      "saveFailed": "No se pudo guardar la configuración de personalización.",
+      "selectedFile": "Archivo seleccionado: {{name}}. Guarde los cambios para publicarlo.",
+      "updated": "Personalización actualizada."
     },
-    "title": "Branding",
+    "title": "Personalización",
     "validation": {
-      "hexColorFormat": "Use format #RRGGBB (example: #1F3A5F)"
+      "hexColorFormat": "Use el formato #RRGGBB (ejemplo: #1F3A5F)"
     }
   },
   "coaTemplates": {
     "actions": {
-      "edit": "Edit",
-      "exportCsv": "Export CSV",
-      "importCsv": "Import CSV",
-      "new": "New"
+      "edit": "Editar",
+      "exportCsv": "Exportar CSV",
+      "importCsv": "Importar CSV",
+      "new": "Nuevo"
     },
     "columns": {
-      "code": "Code",
-      "loadedByDefault": "Loaded by default",
-      "name": "Name",
-      "scope": "Scope",
-      "updated": "Updated",
-      "version": "Version"
+      "code": "Código",
+      "loadedByDefault": "Cargada por defecto",
+      "name": "Nombre",
+      "scope": "Alcance",
+      "updated": "Actualizada",
+      "version": "Versión"
     },
     "dialog": {
-      "createTitle": "New CoA Template",
-      "editTitle": "Edit CoA Template",
+      "createTitle": "Nueva plantilla de plan de cuentas",
+      "editTitle": "Editar plantilla de plan de cuentas",
       "fields": {
-        "allCountries": "All countries (global template)",
-        "code": "Code",
-        "country": "Country",
-        "loadedByDefault": "Loaded by default for all new tenants",
-        "name": "Name",
-        "version": "Version"
+        "allCountries": "Todos los países (plantilla global)",
+        "code": "Código",
+        "country": "País",
+        "loadedByDefault": "Cargada por defecto para todos los nuevos espacios de trabajo",
+        "name": "Nombre",
+        "version": "Versión"
       },
       "messages": {
-        "saveFailed": "Failed to save."
+        "saveFailed": "No se pudo guardar."
       }
     },
-    "exportTitle": "Export Template {{code}} {{version}}",
-    "importTitle": "Import Template CSV — {{code}} {{version}}",
+    "exportTitle": "Exportar plantilla {{code}} {{version}}",
+    "importTitle": "Importar CSV de plantilla — {{code}} {{version}}",
     "shared": {
-      "allCountries": "All countries",
+      "allCountries": "Todos los países",
       "no": "No",
-      "yes": "Yes"
+      "yes": "Sí"
     },
-    "title": "CoA Templates (Platform Admin)"
+    "title": "Plantillas de plan de cuentas (Admin plataforma)"
   },
   "confirmations": {
-    "unsavedNavigate": "You have unsaved changes. Save before navigating?",
-    "unsavedSwitchTab": "You have unsaved changes. Save before switching tabs?"
+    "unsavedNavigate": "Tiene cambios sin guardar. ¿Desea guardar antes de navegar?",
+    "unsavedSwitchTab": "Tiene cambios sin guardar. ¿Desea guardar antes de cambiar de pestaña?"
   },
   "landing": {
     "cards": {
       "accounts": {
-        "description": "Manage accounts.",
-        "title": "Accounts"
+        "description": "Gestionar cuentas.",
+        "title": "Cuentas"
       },
       "auditLogs": {
-        "description": "Review audit log activity.",
-        "title": "Audit Logs"
+        "description": "Revisar la actividad del registro de auditoría.",
+        "title": "Registro de auditoría"
       },
       "billing": {
-        "description": "Manage billing and subscriptions.",
-        "title": "Billing"
+        "description": "Gestionar facturación y suscripciones.",
+        "title": "Facturación"
       },
       "companies": {
-        "description": "Manage companies.",
-        "title": "Companies"
+        "description": "Gestionar empresas.",
+        "title": "Empresas"
       },
       "departments": {
-        "description": "Manage departments.",
-        "title": "Departments"
+        "description": "Gestionar departamentos.",
+        "title": "Departamentos"
       },
       "opsDashboard": {
-        "description": "View platform operations metrics.",
-        "title": "Ops Dashboard"
+        "description": "Ver métricas de operaciones de la plataforma.",
+        "title": "Panel de operaciones"
       },
       "roles": {
-        "description": "Manage roles and permissions.",
+        "description": "Gestionar roles y permisos.",
         "title": "Roles"
       },
       "suppliers": {
-        "description": "Manage suppliers.",
-        "title": "Suppliers"
+        "description": "Gestionar proveedores.",
+        "title": "Proveedores"
       },
       "tenants": {
-        "description": "Manage tenants.",
-        "title": "Tenants"
+        "description": "Gestionar espacios de trabajo.",
+        "title": "Espacios de trabajo"
       },
       "users": {
-        "description": "Manage users.",
-        "title": "Users"
+        "description": "Gestionar usuarios.",
+        "title": "Usuarios"
       }
     },
-    "title": "Administration"
+    "title": "Administración"
   },
   "masterDataOperations": {
     "cards": {
       "copy": {
-        "description": "Copy master data between workspaces.",
-        "title": "Copy"
+        "description": "Copiar datos maestros entre espacios de trabajo.",
+        "title": "Copiar"
       },
       "freeze": {
-        "description": "Freeze master data to prevent changes.",
-        "title": "Freeze"
+        "description": "Congelar datos maestros para prevenir cambios.",
+        "title": "Congelar"
       }
     },
-    "subtitle": "Run platform-wide master data operations.",
-    "title": "Master Data Operations"
+    "subtitle": "Ejecutar operaciones de datos maestros a nivel de plataforma.",
+    "title": "Operaciones de datos maestros"
   },
   "opsDashboard": {
     "cards": {
-      "activeQueries": "Active Queries",
-      "cpuSystem": "system {{count}}s",
-      "cpuUser": "CPU (user)",
-      "deadlocks": "Deadlocks (cumul.)",
+      "activeQueries": "Consultas activas",
+      "cpuSystem": "sistema {{count}}s",
+      "cpuUser": "CPU (usuario)",
+      "deadlocks": "Deadlocks (acum.)",
       "eventLoopP99": "Event Loop P99",
-      "failRate": "{{count}}% fail rate",
+      "failRate": "{{count}} % de fallos",
       "heapTotal": "/ {{total}} MB total",
-      "heapUsed": "Heap used",
-      "idleInTransaction": "Idle in txn",
-      "loginAttempts": "Login attempts",
-      "loginFailures": "Login failures",
-      "meanMs": "mean {{count}} ms",
-      "poolActive": "{{active}} / {{max}} active",
-      "poolUtilization": "Pool utilization",
-      "poolWaiting": "Pool waiting",
-      "rateLimited": "429 (rate limited)",
-      "refreshFailures": "Refresh failures",
-      "requestsPerMinute": "Requests / min",
-      "requestsQueued": "Requests queued for a connection",
+      "heapUsed": "Heap utilizado",
+      "idleInTransaction": "Inactivo en txn",
+      "loginAttempts": "Intentos de inicio de sesión",
+      "loginFailures": "Fallos de inicio de sesión",
+      "meanMs": "media {{count}} ms",
+      "poolActive": "{{active}} / {{max}} activos",
+      "poolUtilization": "Utilización del pool",
+      "poolWaiting": "Pool en espera",
+      "rateLimited": "429 (límite de tasa)",
+      "refreshFailures": "Fallos de actualización",
+      "requestsPerMinute": "Solicitudes / min",
+      "requestsQueued": "Solicitudes en cola para una conexión",
       "status2xx": "2xx",
       "status4xx": "4xx",
       "status5xx": "5xx",
-      "tokenRefreshes": "Token refreshes",
-      "totalRequests": "{{count}} total",
-      "uptime": "Uptime"
+      "tokenRefreshes": "Actualizaciones de tokens",
+      "totalRequests": "{{count}} en total",
+      "uptime": "Tiempo de actividad"
     },
     "columns": {
-      "avg": "Avg",
-      "count": "Count",
+      "avg": "Prom.",
+      "count": "Cantidad",
       "error": "Error",
-      "lastSeen": "Last Seen",
+      "lastSeen": "Visto por última vez",
       "p50": "P50",
       "p95": "P95",
       "p99": "P99",
-      "requestsPerMinute": "Req/min",
-      "route": "Route",
+      "requestsPerMinute": "Sol./min",
+      "route": "Ruta",
       "status2xx": "2xx",
       "status429": "429",
       "status4xx": "4xx",
       "status5xx": "5xx",
       "total": "Total",
-      "window": "Window"
+      "window": "Ventana"
     },
     "messages": {
-      "loadFailed": "Failed to load ops snapshot.",
-      "noErrors": "No errors recorded.",
-      "noTraffic": "No traffic recorded yet."
+      "loadFailed": "No se pudo cargar la captura de operaciones.",
+      "noErrors": "No se registraron errores.",
+      "noTraffic": "Aún no se ha registrado tráfico."
     },
     "sections": {
-      "auth": "Auth (5-minute window)",
-      "database": "Database",
-      "process": "Node.js Process",
-      "recentErrors": "Recent Errors (15-minute window)",
-      "topRoutes": "Top Routes by Volume (5-minute window)",
-      "traffic": "Traffic (1-minute window)",
-      "windowComparison": "Window Comparison"
+      "auth": "Auth (ventana de 5 minutos)",
+      "database": "Base de datos",
+      "process": "Proceso Node.js",
+      "recentErrors": "Errores recientes (ventana de 15 minutos)",
+      "topRoutes": "Principales rutas por volumen (ventana de 5 minutos)",
+      "traffic": "Tráfico (ventana de 1 minuto)",
+      "windowComparison": "Comparación de ventanas"
     },
-    "title": "Ops Dashboard",
-    "updated": "Updated {{value}}",
+    "title": "Panel de operaciones",
+    "updated": "Actualizado {{value}}",
     "values": {
-      "justNow": "just now",
-      "minutesAgo": "{{count}}m ago",
-      "secondsAgo": "{{count}}s ago",
+      "justNow": "justo ahora",
+      "minutesAgo": "hace {{count}} min",
+      "secondsAgo": "hace {{count}} s",
       "uptimeDaysHoursMinutes": "{{days}}d {{hours}}h {{minutes}}m",
       "uptimeHoursMinutes": "{{hours}}h {{minutes}}m",
       "uptimeMinutes": "{{minutes}}m"
@@ -530,382 +530,382 @@
   },
   "planSelection": {
     "actions": {
-      "changePlanBankTransfer": "Change Plan (Bank Transfer)",
-      "changePlanCard": "Change Plan (Card)",
-      "payByBankTransfer": "Pay by Bank Transfer",
-      "payByCard": "Pay by Card"
+      "changePlanBankTransfer": "Cambiar plan (transferencia)",
+      "changePlanCard": "Cambiar plan (tarjeta)",
+      "payByBankTransfer": "Pagar por transferencia",
+      "payByCard": "Pagar con tarjeta"
     },
     "billingCycle": {
-      "annual": "Annual",
-      "monthly": "Monthly"
+      "annual": "Anual",
+      "monthly": "Mensual"
     },
     "errors": {
-      "noActiveSubscription": "No active subscription was found.",
-      "planNotBankTransferEligible": "This plan is not eligible for bank transfer."
+      "noActiveSubscription": "No se encontró ninguna suscripción activa.",
+      "planNotBankTransferEligible": "Este plan no es elegible para transferencia bancaria."
     },
     "messages": {
-      "checkoutUrlUnavailable": "Checkout URL is unavailable.",
-      "invoiceCreated": "Invoice created.",
-      "loadFailed": "Failed to load plans.",
-      "requestFailed": "Request failed.",
-      "trialExpired": "Trial expired.",
-      "trialExpires_one": "Trial expires in {{count}} day.",
-      "trialExpires_other": "Trial expires in {{count}} days."
+      "checkoutUrlUnavailable": "La URL de pago no está disponible.",
+      "invoiceCreated": "Factura creada.",
+      "loadFailed": "No se pudieron cargar los planes.",
+      "requestFailed": "La solicitud falló.",
+      "trialExpired": "La prueba expiró.",
+      "trialExpires_one": "La prueba expira en {{count}} día.",
+      "trialExpires_other": "La prueba expira en {{count}} días."
     },
-    "pricePer": "per {{period}}",
-    "seatLimitContributors_one": "{{count}} contributor included",
-    "seatLimitContributors_other": "{{count}} contributors included",
+    "pricePer": "por {{period}}",
+    "seatLimitContributors_one": "{{count}} colaborador incluido",
+    "seatLimitContributors_other": "{{count}} colaboradores incluidos",
     "shared": {
-      "month": "month",
-      "unlimited": "Unlimited",
-      "upToSeats_one": "Up to {{count}} seat",
-      "upToSeats_other": "Up to {{count}} seats",
-      "year": "year"
+      "month": "mes",
+      "unlimited": "Ilimitado",
+      "upToSeats_one": "Hasta {{count}} puesto",
+      "upToSeats_other": "Hasta {{count}} puestos",
+      "year": "año"
     },
-    "title": "Choose a Plan"
+    "title": "Elegir un plan"
   },
   "roles": {
     "actions": {
-      "duplicate": "Duplicate",
-      "duplicating": "Duplicating...",
-      "newRole": "New Role",
-      "saveDetails": "Save Details",
-      "savePermissions": "Save Permissions"
+      "duplicate": "Duplicar",
+      "duplicating": "Duplicando...",
+      "newRole": "Nuevo rol",
+      "saveDetails": "Guardar detalles",
+      "savePermissions": "Guardar permisos"
     },
     "badges": {
-      "builtIn": "Built-in",
-      "system": "System"
+      "builtIn": "Integrado",
+      "system": "Sistema"
     },
     "dialogs": {
-      "createTitle": "New Role",
-      "deleteMessage": "This action is permanent. You can only delete roles with no users assigned.",
-      "deleteTitle": "Delete Role"
+      "createTitle": "Nuevo rol",
+      "deleteMessage": "Esta acción es permanente. Solo puede eliminar roles sin usuarios asignados.",
+      "deleteTitle": "Eliminar rol"
     },
-    "empty": "No roles found.",
+    "empty": "No se encontraron roles.",
     "fields": {
-      "description": "Description",
-      "roleName": "Role name"
+      "description": "Descripción",
+      "roleName": "Nombre del rol"
     },
     "groups": {
-      "AI": "AI",
-      "Administration": "Administration",
-      "Budget & Finance": "Budget & Finance",
-      "IT Operations": "IT Operations",
-      "Knowledge": "Knowledge",
-      "Master Data": "Master Data",
-      "Portfolio Management": "Portfolio Management",
-      "Tasks": "Tasks"
+      "AI": "IA",
+      "Administration": "Administración",
+      "Budget & Finance": "Presupuesto y finanzas",
+      "IT Landscape": "Panorama IT",
+      "Knowledge": "Base de conocimiento",
+      "Master Data": "Datos maestros",
+      "Portfolio Management": "Gestión de portafolio",
+      "Tasks": "Tareas"
     },
     "levels": {
-      "admin": "Admin",
-      "contributor": "Contributor",
-      "member": "Member",
-      "none": "None",
-      "reader": "Reader"
+      "admin": "Administrador",
+      "contributor": "Colaborador",
+      "member": "Miembro",
+      "none": "Ninguno",
+      "reader": "Lector"
     },
     "messages": {
-      "administratorLocked": "Administrator has full access and cannot be modified.",
-      "builtInLocked": "Built-in roles provide standard access patterns and cannot be modified. Use Duplicate to create a customizable copy.",
-      "contactLocked": "Contact roles are system-managed for directory visibility and cannot be modified.",
-      "duplicated": "Role duplicated.",
-      "permissionsSaved": "Role permissions saved.",
-      "setAccessLevels": "Set per-resource access levels for this role."
+      "administratorLocked": "El administrador tiene acceso completo y no puede ser modificado.",
+      "builtInLocked": "Los roles integrados proporcionan patrones de acceso estándar y no pueden ser modificados. Use Duplicar para crear una copia personalizable.",
+      "contactLocked": "Los roles de contacto son gestionados por el sistema para la visibilidad del directorio y no pueden ser modificados.",
+      "duplicated": "Rol duplicado.",
+      "permissionsSaved": "Permisos del rol guardados.",
+      "setAccessLevels": "Establezca los niveles de acceso por recurso para este rol."
     },
     "resources": {
-      "accounts": "Accounts",
-      "ai_chat": "AI Chat",
-      "ai_mcp": "AI MCP",
-      "ai_settings": "AI Settings",
-      "analytics": "Analytics",
-      "applications": "Applications",
-      "billing": "Billing",
-      "budget_ops": "Budget Ops",
-      "business_processes": "Business Processes",
+      "accounts": "Cuentas",
+      "ai_chat": "Chat IA",
+      "ai_mcp": "MCP IA",
+      "ai_settings": "Configuración IA",
+      "analytics": "Analítica",
+      "applications": "Aplicaciones",
+      "billing": "Facturación",
+      "budget_ops": "Operaciones presupuestarias",
+      "business_processes": "Procesos de negocio",
       "capex": "Capex",
-      "companies": "Companies",
-      "contacts": "Contacts",
-      "contracts": "Contracts",
-      "departments": "Departments",
-      "infrastructure": "Infrastructure",
-      "knowledge": "Knowledge",
-      "locations": "Locations",
+      "companies": "Empresas",
+      "contacts": "Contactos",
+      "contracts": "Contratos",
+      "departments": "Departamentos",
+      "infrastructure": "Infraestructura",
+      "knowledge": "Base de conocimiento",
+      "locations": "Ubicaciones",
       "opex": "Opex",
-      "portfolio_planning": "Portfolio Planning",
-      "portfolio_projects": "Portfolio Projects",
-      "portfolio_reports": "Portfolio Reports",
-      "portfolio_requests": "Portfolio Requests",
-      "portfolio_settings": "Portfolio Settings",
-      "reporting": "Reporting",
-      "settings": "Settings",
-      "suppliers": "Suppliers",
-      "tasks": "Tasks",
-      "users": "Users"
+      "portfolio_planning": "Planificación de portafolio",
+      "portfolio_projects": "Proyectos de portafolio",
+      "portfolio_reports": "Informes de portafolio",
+      "portfolio_requests": "Solicitudes de portafolio",
+      "portfolio_settings": "Configuración de portafolio",
+      "reporting": "Informes",
+      "settings": "Configuración",
+      "suppliers": "Proveedores",
+      "tasks": "Tareas",
+      "users": "Usuarios"
     },
     "sections": {
       "roles": "Roles"
     },
     "title": "Roles",
-    "userCount_one": "{{count}} user",
-    "userCount_other": "{{count}} users"
+    "userCount_one": "{{count}} usuario",
+    "userCount_other": "{{count}} usuarios"
   },
   "scheduledTasks": {
     "actions": {
-      "runNow": "Run now",
-      "viewHistory": "View history"
+      "runNow": "Ejecutar ahora",
+      "viewHistory": "Ver historial"
     },
     "columns": {
-      "actions": "Actions",
-      "description": "Description",
-      "duration": "Duration",
-      "enabled": "Enabled",
-      "lastRun": "Last run",
-      "name": "Name",
-      "schedule": "Schedule",
-      "status": "Status"
+      "actions": "Acciones",
+      "description": "Descripción",
+      "duration": "Duración",
+      "enabled": "Habilitada",
+      "lastRun": "Última ejecución",
+      "name": "Nombre",
+      "schedule": "Programación",
+      "status": "Estado"
     },
     "cronLabels": {
-      "daily3am": "Daily at 3 AM",
-      "daily8am": "Daily at 8 AM",
-      "dailyMidnight": "Daily at midnight",
-      "everyFifteenMinutes": "Every 15 minutes",
-      "everyFiveMinutes": "Every 5 minutes",
-      "everyHour": "Every hour",
-      "everyThirtyMinutes": "Every 30 minutes",
-      "firstOfMonthMidnight": "1st of month at midnight",
-      "sundays4am": "Sundays at 4 AM",
-      "sundaysMidnight": "Sundays at midnight"
+      "daily3am": "Diariamente a las 3:00",
+      "daily8am": "Diariamente a las 8:00",
+      "dailyMidnight": "Diariamente a medianoche",
+      "everyFifteenMinutes": "Cada 15 minutos",
+      "everyFiveMinutes": "Cada 5 minutos",
+      "everyHour": "Cada hora",
+      "everyThirtyMinutes": "Cada 30 minutos",
+      "firstOfMonthMidnight": "1.o del mes a medianoche",
+      "sundays4am": "Domingos a las 4:00",
+      "sundaysMidnight": "Domingos a medianoche"
     },
-    "empty": "No scheduled tasks registered.",
+    "empty": "No hay tareas programadas registradas.",
     "messages": {
-      "invalidCronExpression": "Invalid cron expression.",
-      "loadFailed": "Failed to load scheduled tasks.",
-      "loadRunsFailed": "Failed to load runs.",
-      "scheduleUpdated": "Schedule updated.",
-      "taskTriggered": "Task '{{name}}' triggered"
+      "invalidCronExpression": "Expresión cron no válida.",
+      "loadFailed": "No se pudieron cargar las tareas programadas.",
+      "loadRunsFailed": "No se pudieron cargar las ejecuciones.",
+      "scheduleUpdated": "Programación actualizada.",
+      "taskTriggered": "Tarea '{{name}}' activada"
     },
     "runHistory": {
       "columns": {
-        "details": "Details",
-        "duration": "Duration",
-        "started": "Started",
-        "status": "Status"
+        "details": "Detalles",
+        "duration": "Duración",
+        "started": "Iniciada",
+        "status": "Estado"
       },
-      "empty": "No runs yet.",
-      "title": "Run History: {{name}}"
+      "empty": "Aún no hay ejecuciones.",
+      "title": "Historial de ejecución: {{name}}"
     },
     "shared": {
       "empty": "-"
     },
     "statuses": {
-      "failure": "Failed",
-      "neverRun": "Never run",
-      "running": "Running",
-      "success": "Success"
+      "failure": "Fallida",
+      "neverRun": "Nunca ejecutada",
+      "running": "En ejecución",
+      "success": "Exitosa"
     },
-    "title": "Scheduled Tasks"
+    "title": "Tareas programadas"
   },
   "shared": {
-    "billingAdminRequired": "Billing admin access required.",
+    "billingAdminRequired": "Se requiere acceso de administrador de facturación.",
     "labels": {
-      "next": "Next",
-      "prev": "Previous"
+      "next": "Siguiente",
+      "prev": "Anterior"
     }
   },
   "standardAccountWorkspace": {
-    "newTitle": "New Standard Account",
-    "position": "Position {{current}} of {{total}}",
+    "newTitle": "Nueva cuenta estándar",
+    "position": "Posición {{current}} de {{total}}",
     "tabs": {
-      "overview": "Overview"
+      "overview": "Vista general"
     },
-    "title": "Standard Account {{accountNumber}}"
+    "title": "Cuenta estándar {{accountNumber}}"
   },
   "standardAccounts": {
     "actions": {
-      "exportCsv": "Export CSV",
-      "importCsv": "Import CSV",
-      "new": "New"
+      "exportCsv": "Exportar CSV",
+      "importCsv": "Importar CSV",
+      "new": "Nuevo"
     },
     "columns": {
-      "accountNumber": "Account Number",
-      "consolidationAccountNumber": "Consolidation Account Number",
-      "consolidationDescription": "Consolidation Description",
-      "consolidationName": "Consolidation Name",
-      "description": "Description",
-      "name": "Name",
-      "nativeName": "Native Name",
-      "status": "Status"
+      "accountNumber": "Número de cuenta",
+      "consolidationAccountNumber": "Número de cuenta de consolidación",
+      "consolidationDescription": "Descripción de consolidación",
+      "consolidationName": "Nombre de consolidación",
+      "description": "Descripción",
+      "name": "Nombre",
+      "nativeName": "Nombre nativo",
+      "status": "Estado"
     },
-    "exportTitle": "Export Template Accounts",
-    "importTitle": "Import Template Accounts",
-    "templateLabel": "Template",
-    "title": "Standard Accounts (Platform Admin)"
+    "exportTitle": "Exportar cuentas de la plantilla",
+    "importTitle": "Importar cuentas de la plantilla",
+    "templateLabel": "Plantilla",
+    "title": "Cuentas estándar (Admin plataforma)"
   },
   "tenants": {
     "actions": {
-      "clear": "Clear",
-      "deleteTenant": "Delete tenant",
-      "freeze": "Freeze",
-      "refresh": "Refresh",
-      "savePlan": "Save plan",
-      "unfreeze": "Unfreeze",
-      "view": "View"
+      "clear": "Borrar",
+      "deleteTenant": "Eliminar espacio de trabajo",
+      "freeze": "Congelar",
+      "refresh": "Actualizar",
+      "savePlan": "Guardar plan",
+      "unfreeze": "Descongelar",
+      "view": "Ver"
     },
     "columns": {
-      "actions": "Actions",
+      "actions": "Acciones",
       "capex": "Capex",
-      "companies": "Companies",
-      "departments": "Departments",
-      "headcount": "Headcount",
+      "companies": "Empresas",
+      "departments": "Departamentos",
+      "headcount": "Plantilla",
       "opex": "Opex",
-      "seats": "Seats",
-      "status": "Status",
-      "suppliers": "Suppliers",
-      "tenant": "Tenant",
-      "users": "Users"
+      "seats": "Puestos",
+      "status": "Estado",
+      "suppliers": "Proveedores",
+      "tenant": "Espacio de trabajo",
+      "users": "Usuarios"
     },
     "delete": {
       "columns": {
-        "rowsDeleted": "Rows Deleted",
-        "table": "Table"
+        "rowsDeleted": "Filas eliminadas",
+        "table": "Tabla"
       },
-      "confirmSlug": "Type the tenant slug to confirm",
-      "reasonOptional": "Reason (optional)",
+      "confirmSlug": "Escriba el slug del espacio de trabajo para confirmar",
+      "reasonOptional": "Motivo (opcional)",
       "slugHelper": "Slug: {{slug}}",
-      "summaryTitle": "Deletion Summary",
-      "warning": "Deleting a tenant removes all associated data immediately. This action cannot be undone. Freeze the tenant instead if you want to retain data."
+      "summaryTitle": "Resumen de eliminación",
+      "warning": "Eliminar un espacio de trabajo elimina todos los datos asociados inmediatamente. Esta acción no se puede deshacer. Congele el espacio de trabajo si desea conservar los datos."
     },
     "detail": {
-      "deletedAt": "Tenant deleted at {{value}}",
-      "deletionInProgress": "Deletion is in progress.",
-      "deletionReason": "Deletion reason: {{reason}}",
+      "deletedAt": "Espacio de trabajo eliminado el {{value}}",
+      "deletionInProgress": "La eliminación está en curso.",
+      "deletionReason": "Motivo de eliminación: {{reason}}",
       "slug": "Slug: {{slug}}",
-      "timestamps": "Created {{createdAt}} • Updated {{updatedAt}}",
-      "title": "Tenant detail"
+      "timestamps": "Creado {{createdAt}} • Actualizado {{updatedAt}}",
+      "title": "Detalle del espacio de trabajo"
     },
-    "empty": "No tenants found.",
+    "empty": "No se encontraron espacios de trabajo.",
     "filters": {
-      "searchLabel": "Search tenants",
-      "searchPlaceholder": "Filter by slug or name",
-      "status": "Status"
+      "searchLabel": "Buscar espacios de trabajo",
+      "searchPlaceholder": "Filtrar por slug o nombre",
+      "status": "Estado"
     },
     "lifecycle": {
-      "deletionConfirmed": "Deletion confirmed: {{value}}",
-      "deletionRequested": "Deletion requested: {{value}}",
-      "frozenAt": "Frozen at: {{value}}"
+      "deletionConfirmed": "Eliminación confirmada: {{value}}",
+      "deletionRequested": "Eliminación solicitada: {{value}}",
+      "frozenAt": "Congelado el: {{value}}"
     },
     "messages": {
-      "deleteFailed": "Failed to delete tenant.",
-      "deleted": "Tenant deleted successfully.",
-      "freezeFailed": "Failed to freeze tenant.",
-      "frozen": "Tenant frozen.",
-      "planUpdated": "Plan updated.",
-      "unfreezeFailed": "Failed to unfreeze tenant.",
-      "unfrozen": "Tenant unfrozen.",
-      "updatePlanFailed": "Failed to update plan."
+      "deleteFailed": "No se pudo eliminar el espacio de trabajo.",
+      "deleted": "Espacio de trabajo eliminado correctamente.",
+      "freezeFailed": "No se pudo congelar el espacio de trabajo.",
+      "frozen": "Espacio de trabajo congelado.",
+      "planUpdated": "Plan actualizado.",
+      "unfreezeFailed": "No se pudo descongelar el espacio de trabajo.",
+      "unfrozen": "Espacio de trabajo descongelado.",
+      "updatePlanFailed": "No se pudo actualizar el plan."
     },
     "plan": {
-      "empty": "No subscription information available.",
+      "empty": "No hay información de suscripción disponible.",
       "fields": {
-        "activeSeats": "Active seats",
-        "nextPaymentDate": "Next payment date",
-        "paymentMode": "Payment mode",
-        "planName": "Plan name",
-        "seatLimit": "Seat limit",
-        "subscription": "Subscription"
+        "activeSeats": "Puestos activos",
+        "nextPaymentDate": "Fecha del próximo pago",
+        "paymentMode": "Modo de pago",
+        "planName": "Nombre del plan",
+        "seatLimit": "Límite de puestos",
+        "subscription": "Suscripción"
       },
-      "seatsUsed": "Seats used: {{count}}",
+      "seatsUsed": "Puestos utilizados: {{count}}",
       "values": {
-        "annual": "Annual",
-        "bankTransfer": "Bank transfer",
-        "card": "Card",
-        "monthly": "Monthly"
+        "annual": "Anual",
+        "bankTransfer": "Transferencia bancaria",
+        "card": "Tarjeta",
+        "monthly": "Mensual"
       }
     },
     "sections": {
-      "deleteTenant": "Delete tenant",
-      "lifecycle": "Lifecycle",
+      "deleteTenant": "Eliminar espacio de trabajo",
+      "lifecycle": "Ciclo de vida",
       "plan": "Plan",
-      "statistics": "Statistics"
+      "statistics": "Estadísticas"
     },
     "shared": {
       "none": "—"
     },
     "stats": {
-      "capexEntries": "CAPEX Entries",
-      "companies": "Companies",
-      "departments": "Departments",
-      "headcount": "Headcount",
-      "opexEntries": "OPEX Entries",
-      "suppliers": "Suppliers",
-      "usersEnabledTotal": "Users (enabled/total)"
+      "capexEntries": "Entradas CAPEX",
+      "companies": "Empresas",
+      "departments": "Departamentos",
+      "headcount": "Plantilla",
+      "opexEntries": "Entradas OPEX",
+      "suppliers": "Proveedores",
+      "usersEnabledTotal": "Usuarios (activos/total)"
     },
     "statuses": {
-      "active": "Active",
-      "all": "All",
-      "deleted": "Deleted",
-      "deleting": "Deleting",
-      "frozen": "Frozen"
+      "active": "Activo",
+      "all": "Todos",
+      "deleted": "Eliminado",
+      "deleting": "Eliminando",
+      "frozen": "Congelado"
     },
-    "title": "Tenants"
+    "title": "Espacios de trabajo"
   },
   "userForm": {
-    "entraManagedHint": "This user is managed by Microsoft Entra ID and cannot be edited here.",
+    "entraManagedHint": "Este usuario es gestionado por Microsoft Entra ID y no puede ser editado aquí.",
     "fields": {
-      "businessPhone": "Business Phone",
-      "companyOptional": "Company (optional)",
-      "departmentOptional": "Department (optional)",
-      "email": "Email",
-      "enabled": "Enabled",
-      "firstName": "First Name",
-      "jobTitle": "Job Title",
-      "lastName": "Last Name",
-      "mobilePhone": "Mobile Phone",
+      "businessPhone": "Teléfono de empresa",
+      "companyOptional": "Empresa (opcional)",
+      "departmentOptional": "Departamento (opcional)",
+      "email": "Correo electrónico",
+      "enabled": "Habilitado",
+      "firstName": "Nombre",
+      "jobTitle": "Cargo",
+      "lastName": "Apellido",
+      "mobilePhone": "Teléfono móvil",
       "roles": "Roles"
     }
   },
   "users": {
-    "title": "Users",
+    "title": "Usuarios",
     "actions": {
-      "new": "New",
-      "importCsv": "Import CSV",
-      "exportCsv": "Export CSV",
-      "invite": "Invite ({{count}})",
-      "inviting": "Inviting…"
+      "new": "Nuevo",
+      "importCsv": "Importar CSV",
+      "exportCsv": "Exportar CSV",
+      "invite": "Invitar ({{count}})",
+      "inviting": "Invitando…"
     },
     "columns": {
-      "lastName": "Last Name",
-      "firstName": "First Name",
-      "email": "Email Address",
-      "jobTitle": "Job Title",
-      "role": "Role",
-      "company": "Company",
-      "department": "Department",
-      "businessPhone": "Business Phone",
-      "mobilePhone": "Mobile Phone",
-      "mfaEnabled": "MFA Enabled",
-      "created": "Created"
+      "lastName": "Apellido",
+      "firstName": "Nombre",
+      "email": "Correo electrónico",
+      "jobTitle": "Cargo",
+      "role": "Rol",
+      "company": "Empresa",
+      "department": "Departamento",
+      "businessPhone": "Teléfono de empresa",
+      "mobilePhone": "Teléfono móvil",
+      "mfaEnabled": "MFA habilitado",
+      "created": "Creado"
     },
     "mfaValues": {
-      "yes": "Yes",
+      "yes": "Sí",
       "no": "No"
     },
     "dialogs": {
-      "newUser": "New User",
-      "editUser": "Edit User",
-      "saveAndInvite": "Save and Invite",
-      "saving": "Saving…"
+      "newUser": "Nuevo usuario",
+      "editUser": "Editar usuario",
+      "saveAndInvite": "Guardar e invitar",
+      "saving": "Guardando…"
     },
     "messages": {
-      "emailUnique": "Email must be unique.",
-      "inviteSuccess": "Invited {{success}} user(s)",
-      "invitePartialFail": "Invited {{success}} user(s); {{failed}} failed",
-      "inviteFailed": "Failed to invite selected users"
+      "emailUnique": "El correo electrónico debe ser único.",
+      "inviteSuccess": "{{success}} usuario(s) invitado(s)",
+      "invitePartialFail": "{{success}} usuario(s) invitado(s); {{failed}} fallidos",
+      "inviteFailed": "No se pudieron invitar los usuarios seleccionados"
     },
-    "exportTitle": "Export Users",
-    "importTitle": "Import Users",
+    "exportTitle": "Exportar usuarios",
+    "importTitle": "Importar usuarios",
     "seats": {
-      "limited": "Seats {{used}}/{{limit}}",
-      "unlimited": "Seats {{used}} (unlimited)"
+      "limited": "Puestos {{used}}/{{limit}}",
+      "unlimited": "Puestos {{used}} (ilimitado)"
     }
   }
 }

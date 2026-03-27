@@ -662,7 +662,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
       // Exclude users with system roles (e.g., Contact) who cannot log in
       if (change.newId && change.newId !== change.oldId) {
         const user = await mg.query(
-          `SELECT u.id, u.email, u.first_name, u.last_name FROM users u
+          `SELECT u.id, u.email, u.first_name, u.last_name, u.locale FROM users u
            JOIN roles ro ON ro.id = u.role_id
            WHERE u.id = $1 AND u.status = 'enabled'
              AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
@@ -675,7 +675,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
             itemId: id,
             itemName: saved.name,
             role: change.role,
-            addedUser: { userId: user[0].id, email: user[0].email },
+            addedUser: { userId: user[0].id, email: user[0].email, locale: user[0].locale },
             tenantId,
           });
           // Notify IT Lead about the team change
@@ -760,7 +760,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     // Exclude users with system roles (e.g., Contact) who cannot log in
     if (newUserIds.length > 0) {
       const users = await mg.query(
-        `SELECT u.id, u.email, u.first_name, u.last_name FROM users u
+        `SELECT u.id, u.email, u.first_name, u.last_name, u.locale FROM users u
          JOIN roles ro ON ro.id = u.role_id
          WHERE u.id = ANY($1) AND u.status = 'enabled'
            AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
@@ -773,7 +773,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
           itemId: projectId,
           itemName: project.name,
           role,
-          addedUser: { userId: user.id, email: user.email },
+          addedUser: { userId: user.id, email: user.email, locale: user.locale },
           tenantId: project.tenant_id,
           manager: mg,
         });
@@ -1345,7 +1345,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
 
     const recipientRows = userIds.length > 0
       ? await mg.query(
-          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName"
+          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.locale
            FROM users u
            JOIN roles ro ON ro.id = u.role_id
            WHERE u.id = ANY($1) AND u.status = 'enabled'
