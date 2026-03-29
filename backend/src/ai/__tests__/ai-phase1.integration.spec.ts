@@ -2441,6 +2441,7 @@ async function testAiEntityCommentsReturnsPaginatedCommentFeedsAndStaysTenantSco
     const entityService = new AiEntityService(
       {} as any,
       {
+        canReadKnowledge: async () => true,
         assertEntityTypeReadAccess: async () => undefined,
       } as any,
     );
