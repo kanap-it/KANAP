@@ -1,0 +1,3096 @@
+
+<!doctype html>
+<html lang="fr" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User documentation for KANAP - IT portfolio and budget management platform">
+      
+      
+      
+        <link rel="canonical" href="https://doc.kanap.net/fr/opex/">
+      
+      
+        <link rel="prev" href="../knowledge/">
+      
+      
+        <link rel="next" href="../capex/">
+      
+      
+        
+          <link rel="alternate" href="../../opex/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="fr">
+        
+          <link rel="alternate" href="../../de/opex/" hreflang="de">
+        
+          <link rel="alternate" href="../../es/opex/" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>OPEX - KANAP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#opex" class="md-skip">
+          Aller au contenu
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="En-tête">
+    <a href="../" title="KANAP" class="md-header__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            KANAP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              OPEX
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Sélectionner la langue">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../opex/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../de/opex/" hreflang="de" class="md-select__link">
+              Deutsch
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../es/opex/" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Rechercher" placeholder="Rechercher" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Recherche">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Effacer" aria-label="Effacer" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initialisation de la recherche
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/your-org/kanap" title="Aller au dépôt" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="KANAP" class="md-nav__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    KANAP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/your-org/kanap" title="Aller au dépôt" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accueil
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Démarrage rapide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Démarrage rapide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Premiers pas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    De la demande à la livraison
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/apps-and-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    De l'application au serveur
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/task-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run, Build & Tâches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../my-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tableau de bord
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gestion de portefeuille
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gestion de portefeuille
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tâches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-requests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demandes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-planning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-team-members/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributeurs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rapports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paramètres
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cartographie SI
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Cartographie SI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infrastructure
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Infrastructure
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../locations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sites
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actifs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connexions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connection-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Carte des connexions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Applications
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Applications
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../applications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Applications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interface-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Carte des interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../it-ops-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paramètres
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base de connaissances
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Base de connaissances
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base de connaissances
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gestion budgétaire
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gestion budgétaire
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OPEX
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table des matières
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#premiers-pas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Premiers pas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#travailler-avec-la-liste-opex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Travailler avec la liste OPEX
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lespace-de-travail-opex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L'espace de travail OPEX
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="L&#39;espace de travail OPEX">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vue-densemble" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vue d'ensemble
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ventilations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ventilations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tâches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importexport-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import/export CSV
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#autorisations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Autorisations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conseils-et-bonnes-pratiques" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conseils et bonnes pratiques
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../capex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CAPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contrats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../budget-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration budgétaire
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rapports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Données de référence
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Données de référence
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_1" id="__nav_8_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Organisation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Organisation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../companies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sociétés
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../departments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Départements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parties externes
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Parties externes
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suppliers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fournisseurs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contacts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contacts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Finance
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Finance
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chart-of-accounts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plans comptables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../currencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Devises
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Classification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Classification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../business-processes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processus métier
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dimensions analytiques
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration & Utilisateurs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../branding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personnalisation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../master-data-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration des données de référence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vue d'ensemble budgétaire
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On-Premise
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    On-Premise
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vue d'ensemble
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/installation-example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exemple d'installation (Ubuntu)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Opérations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/sso-entra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Microsoft Entra SSO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table des matières
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#premiers-pas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Premiers pas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#travailler-avec-la-liste-opex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Travailler avec la liste OPEX
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lespace-de-travail-opex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L'espace de travail OPEX
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="L&#39;espace de travail OPEX">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vue-densemble" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vue d'ensemble
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ventilations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ventilations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tâches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importexport-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import/export CSV
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#autorisations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Autorisations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conseils-et-bonnes-pratiques" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conseils et bonnes pratiques
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="opex">OPEX<a class="headerlink" href="#opex" title="Permanent link">&para;</a></h1>
+<p>Les postes OPEX (dépenses opérationnelles) sont vos coûts IT récurrents : licences logicielles, abonnements cloud, contrats de maintenance et services. C'est ici que vous planifiez les budgets, suivez le réalisé et répartissez les coûts à travers votre organisation.</p>
+<p>L'espace de travail OPEX vous aide à gérer chaque poste de dépense de la budgétisation initiale jusqu'à l'exécution et le reporting -- le tout en un seul endroit avec des colonnes budgétaires annuelles, des méthodes de ventilation flexibles et des liens directs vers les fournisseurs, contrats, applications et projets.</p>
+<h2 id="premiers-pas">Premiers pas<a class="headerlink" href="#premiers-pas" title="Permanent link">&para;</a></h2>
+<p>Rendez-vous dans <strong>Gestion budgétaire &gt; OPEX</strong> pour voir votre liste. Cliquez sur <strong>Nouveau</strong> pour créer votre premier poste.</p>
+<p><strong>Champs obligatoires</strong> :
+  - <strong>Nom du produit</strong> : Ce que vous dépensez (ex. : « Licences Salesforce », « Compute AWS »)
+  - <strong>Fournisseur</strong> : À qui vous payez. Lié à vos données de référence Fournisseurs
+  - <strong>Devise</strong> : Code ISO (ex. : USD, EUR). Par défaut la devise de votre espace de travail ; modifiable par poste
+  - <strong>Société payeuse</strong> : Quelle société paie le fournisseur (obligatoire pour la comptabilité)
+  - <strong>Compte</strong> : Le compte du grand livre pour cette dépense. Seuls les comptes du plan comptable de la société payeuse apparaissent
+  - <strong>Date de début effective</strong> : Quand cette dépense commence (JJ/MM/AAAA)</p>
+<p><strong>Optionnel mais utile</strong> :
+  - <strong>Description</strong> : Contexte ou notes supplémentaires sur la dépense
+  - <strong>Date de fin effective</strong> : Quand cette dépense s'arrête (laisser vide pour les postes permanents)
+  - <strong>Responsable IT</strong> / <strong>Responsable métier</strong> : Qui est en charge
+  - <strong>Catégorie analytique</strong> : Regroupement personnalisé pour le reporting (ex. : « Infrastructure », « Apps métier »). De nouvelles catégories peuvent être créées à la volée
+  - <strong>Notes</strong> : Notes internes libres</p>
+<p>Une fois enregistré, l'espace de travail déverrouille tous les onglets : <strong>Vue d'ensemble</strong>, <strong>Budget</strong>, <strong>Ventilations</strong>, <strong>Tâches</strong> et <strong>Relations</strong>.</p>
+<p><strong>Conseil</strong> : Vous pouvez créer des postes rapidement et remplir les budgets et ventilations plus tard. Commencez par l'essentiel et itérez.</p>
+<hr />
+<h2 id="travailler-avec-la-liste-opex">Travailler avec la liste OPEX<a class="headerlink" href="#travailler-avec-la-liste-opex" title="Permanent link">&para;</a></h2>
+<p>La liste OPEX (dans <strong>Gestion budgétaire &gt; OPEX</strong>) est votre vue principale pour parcourir, filtrer et naviguer dans les postes de dépenses.</p>
+<p><strong>Colonnes par défaut</strong> :
+  - <strong>Nom du produit</strong> : Le nom du poste (ouvre l'onglet Vue d'ensemble)
+  - <strong>Fournisseur</strong> : Le nom du fournisseur
+  - <strong>Société payeuse</strong> : Quelle société paie ce poste
+  - <strong>Contrat</strong> : Le nom du dernier contrat lié (ouvre l'espace de travail du Contrat)
+  - <strong>Compte</strong> : Le numéro et nom du compte comptable
+  - <strong>Ventilation</strong> : Le libellé de la méthode de ventilation pour l'année en cours (ouvre l'onglet Ventilations)
+  - <strong>Budget A</strong> : Montant du budget de l'année en cours (ouvre l'onglet Budget pour cette année)
+  - <strong>Atterrissage A</strong> : Montant de l'atterrissage de l'année en cours (ouvre l'onglet Budget pour cette année)
+  - <strong>Tâche</strong> : Le titre de la dernière tâche (ouvre l'onglet Tâches)</p>
+<p><strong>Colonnes supplémentaires</strong> (masquées par défaut, activez via le sélecteur de colonnes) :
+  - <strong>Budget A-1 / Atterrissage A-1</strong> : Chiffres de l'année précédente
+  - <strong>Révision A / Suivi A</strong> : Montants de révision et suivi de l'année en cours
+  - <strong>Budget A+1 / Révision A+1</strong> : Chiffres de l'année suivante
+  - <strong>Budget A+2</strong> : Budget à deux ans
+  - <strong>Activé</strong> : Statut du poste (activé ou désactivé)
+  - <strong>Description</strong> : Description du poste
+  - <strong>Devise</strong> : Code devise ISO
+  - <strong>Début effectif / Fin effective</strong> : Dates de début et fin
+  - <strong>Responsable IT / Responsable métier</strong> : Utilisateurs responsables
+  - <strong>Analytique</strong> : Nom de la catégorie analytique
+  - <strong>ID Projet</strong> : Identifiant du projet lié
+  - <strong>Notes</strong> : Notes internes
+  - <strong>Créé / Mis à jour</strong> : Horodatages</p>
+<p><strong>Filtrage</strong> :
+  - <strong>Recherche rapide</strong> : Recherche dans nom du produit, fournisseur, description et autres champs texte. Filtre la liste en temps réel
+  - <strong>Filtres de colonnes</strong> : Cliquez sur l'icône de filtre dans n'importe quel en-tête de colonne. <strong>Société payeuse</strong>, <strong>Compte</strong>, <strong>Ventilation</strong>, <strong>Devise</strong>, <strong>Responsable IT</strong>, <strong>Responsable métier</strong> et <strong>Analytique</strong> utilisent des filtres par jeu de cases à cocher (multi-sélection). Les autres colonnes utilisent des filtres texte ou numériques
+  - <strong>Périmètre par statut</strong> : Utilisez la bascule <strong>Afficher : Activé / Désactivé / Tous</strong> au-dessus de la grille (par défaut <strong>Activé</strong>)</p>
+<p><strong>Tri</strong> :
+  - Cliquez sur un en-tête de colonne pour trier croissant/décroissant
+  - Le tri par défaut est par <strong>Budget A</strong> décroissant
+  - La liste mémorise votre dernier tri, recherche et filtres quand vous revenez</p>
+<p><strong>Ligne de totaux</strong> :
+  - La ligne épinglée en bas affiche les totaux pour toutes les colonnes budgétaires
+  - Les totaux respectent vos filtres et recherche actuels</p>
+<p><strong>Liens profonds</strong> :
+  - Cliquer sur n'importe quelle cellule ouvre l'espace de travail sur l'onglet le plus pertinent :
+    - <strong>Nom du produit</strong>, <strong>Fournisseur</strong>, <strong>Société payeuse</strong>, <strong>Compte</strong> et autres colonnes générales : Ouvre l'onglet <strong>Vue d'ensemble</strong>
+    - <strong>Colonnes budgétaires</strong> (Budget A, Atterrissage A, Budget A-1, etc.) : Ouvre l'onglet <strong>Budget</strong> pré-positionné sur cette année
+    - <strong>Ventilation</strong> : Ouvre l'onglet <strong>Ventilations</strong> pour l'année en cours
+    - <strong>Tâche</strong> : Ouvre l'onglet <strong>Tâches</strong>
+    - <strong>Contrat</strong> : Ouvre directement l'espace de travail du Contrat lié (pas l'espace de travail OPEX)</p>
+<p><strong>Actions</strong> :
+  - <strong>Nouveau</strong> : Créer un nouveau poste OPEX (nécessite <code>opex:manager</code>)
+  - <strong>Import CSV</strong> : Charger en masse depuis un CSV (nécessite <code>opex:admin</code>)
+  - <strong>Export CSV</strong> : Exporter en CSV (nécessite <code>opex:admin</code>)
+  - <strong>Supprimer la sélection</strong> : Suppression en masse des postes sélectionnés (nécessite <code>opex:admin</code> ; sélectionnez via les cases à cocher)</p>
+<p><strong>Navigation Préc./Suiv.</strong> :
+  - Lorsque vous ouvrez un poste, l'espace de travail affiche les boutons <strong>Préc.</strong> et <strong>Suiv.</strong>
+  - Ceux-ci naviguent dans la liste selon le tri actuel, respectant les filtres et la recherche
+  - Votre contexte de liste (tri, filtres, recherche) est préservé lorsque vous fermez l'espace de travail</p>
+<p><strong>Conseil</strong> : Utilisez les filtres de colonnes + la recherche rapide pour construire des vues focalisées (ex. : « Toutes les dépenses cloud de plus de 10k »), puis naviguez poste par poste avec Préc./Suiv. pour revoir les budgets.</p>
+<hr />
+<h2 id="lespace-de-travail-opex">L'espace de travail OPEX<a class="headerlink" href="#lespace-de-travail-opex" title="Permanent link">&para;</a></h2>
+<p>Cliquez sur n'importe quelle ligne de la liste pour ouvrir l'espace de travail. Il comporte cinq onglets disposés verticalement à gauche, chacun focalisé sur un aspect spécifique du poste de dépense.</p>
+<h3 id="vue-densemble">Vue d'ensemble<a class="headerlink" href="#vue-densemble" title="Permanent link">&para;</a></h3>
+<p>Cet onglet affiche toutes les informations générales sur le poste de dépense.</p>
+<p><strong>Ce que vous pouvez modifier</strong> :
+  - <strong>Nom du produit</strong> (obligatoire)
+  - <strong>Description</strong>
+  - <strong>Fournisseur</strong> (autocomplétion depuis vos données de référence Fournisseurs ; obligatoire)
+  - <strong>Devise</strong> (par défaut la devise de l'espace de travail ; affiche uniquement les devises autorisées)
+  - <strong>Société payeuse</strong> (autocomplétion depuis vos Sociétés ; obligatoire)
+  - <strong>Compte</strong> (filtré par le plan comptable de la société payeuse ; obligatoire)
+  - <strong>Début effectif</strong> et <strong>Fin effective</strong> (champs de date)
+  - <strong>Responsable IT</strong> et <strong>Responsable métier</strong> (autocomplétion depuis les utilisateurs actifs)
+  - <strong>Catégorie analytique</strong> (autocomplétion ; crée de nouvelles catégories à la volée)
+  - <strong>Notes</strong></p>
+<p><strong>Statut et cycle de vie</strong> :
+  - Utilisez la bascule <strong>Activé</strong> ou définissez une <strong>Date de désactivation</strong> pour contrôler quand le poste apparaît dans les rapports et listes de sélection
+  - Les postes désactivés sont exclus des rapports pour les années strictement postérieures à la date de désactivation
+  - Les données historiques restent intactes ; vous verrez toujours les postes désactivés dans les rapports couvrant les années où ils étaient actifs</p>
+<p><strong>Enregistrer et Réinitialiser</strong> :
+  - Les modifications ne sont <strong>pas</strong> enregistrées automatiquement
+  - Cliquez sur <strong>Enregistrer</strong> pour persister vos modifications, ou <strong>Réinitialiser</strong> pour les annuler
+  - Si vous tentez de naviguer ou changer d'onglet avec des modifications non enregistrées, vous serez invité à enregistrer ou annuler</p>
+<p><strong>Conseil</strong> : Si vous voyez un avertissement « Compte obsolète », cela signifie que le compte sélectionné n'appartient pas au plan comptable de la société payeuse. Choisissez un autre compte pour résoudre l'avertissement.</p>
+<hr />
+<h3 id="budget">Budget<a class="headerlink" href="#budget" title="Permanent link">&para;</a></h3>
+<p>L'onglet Budget est l'endroit où vous saisissez les données financières par année. Il supporte plusieurs colonnes budgétaires et deux modes de saisie : <strong>Forfaitaire</strong> (totaux annuels) et <strong>Manuel</strong> (ventilation mensuelle).</p>
+<p><strong>Sélection d'année</strong> :
+  - Utilisez les onglets d'année en haut pour basculer entre A-2, A-1, A (année en cours), A+1 et A+2
+  - Chaque année a sa propre version, son mode et ses montants
+  - Changer d'année avec des modifications non enregistrées ouvre une boîte de dialogue enregistrer/annuler</p>
+<p><strong>Colonnes budgétaires</strong> :
+  - <strong>Budget (planifié)</strong> : Budget annuel initial approuvé en début d'année
+  - <strong>Révision (engagé)</strong> : Mise à jour budgétaire en cours d'année (ex. : après une re-prévision)
+  - <strong>Suivi (réalisé)</strong> : Dépense réelle attendue (votre meilleure estimation au fil de l'année)
+  - <strong>Atterrissage (atterrissage prévu)</strong> : Dépense réelle finale après la clôture de fin d'année</p>
+<p><strong>Mode Forfaitaire vs Manuel</strong> :
+  - <strong>Forfaitaire</strong> : Saisissez un total par colonne ; les montants sont répartis uniformément sur 12 mois pour les besoins de ventilation
+  - <strong>Manuel</strong> : Saisissez les montants par mois (Jan-Déc) pour chaque colonne, plus une colonne <strong>Prévision</strong> pour la planification complémentaire
+  - Basculez entre les modes avec les boutons radio en haut de l'onglet</p>
+<p><strong>Comportement du gel</strong> :
+  - Si les colonnes budgétaires d'une année sont gelées (via l'Administration budgétaire), les champs correspondants passent en lecture seule
+  - Vous pouvez toujours consulter les données gelées ; les administrateurs peuvent dégeler via <strong>Gestion budgétaire &gt; Administration &gt; Geler/Dégeler</strong>
+  - Chaque colonne peut être gelée indépendamment (Budget, Révision, Suivi, Atterrissage)</p>
+<p><strong>Champ Notes</strong> :
+  - Chaque version budgétaire annuelle a un champ <strong>Notes</strong> pour les commentaires spécifiques à l'année (ex. : « Inclut une hausse de prix de 10 % au T3 »)</p>
+<p><strong>Comment l'utiliser</strong> :
+  1. Sélectionnez l'année pour laquelle vous planifiez
+  2. Choisissez le mode Forfaitaire ou Manuel
+  3. Remplissez les colonnes pertinentes (Budget pour la planification initiale, Suivi pour le tracking, Atterrissage pour le réalisé)
+  4. Cliquez sur <strong>Enregistrer</strong> pour persister vos modifications</p>
+<p><strong>Conseil</strong> : Pour la plupart des postes, le mode Forfaitaire est plus rapide. Utilisez le mode Manuel lorsque la dépense varie significativement par mois (ex. : licences saisonnières, frais de mise en place ponctuels).</p>
+<hr />
+<h3 id="ventilations">Ventilations<a class="headerlink" href="#ventilations" title="Permanent link">&para;</a></h3>
+<p>L'onglet Ventilations répartit la dépense entre vos sociétés et départements. Cela alimente les rapports de refacturation et les KPI de coût par utilisateur.</p>
+<p><strong>Sélection d'année</strong> :
+  - Fonctionne comme le Budget : utilisez les onglets d'année pour basculer entre A-2, A-1, A, A+1, A+2
+  - Chaque année peut avoir une méthode de ventilation différente</p>
+<p><strong>Méthodes de ventilation</strong> :</p>
+<table>
+<thead>
+<tr>
+<th>Méthode</th>
+<th>Comment ça fonctionne</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Effectif (Par défaut)</strong></td>
+<td>Répartit la dépense proportionnellement par effectif de chaque société pour l'année sélectionnée. C'est la méthode par défaut. Aucune sélection manuelle requise -- les pourcentages sont calculés automatiquement depuis les métriques des sociétés.</td>
+</tr>
+<tr>
+<td><strong>Utilisateurs IT</strong></td>
+<td>Répartit la dépense proportionnellement par nombre d'utilisateurs IT de chaque société pour l'année sélectionnée.</td>
+</tr>
+<tr>
+<td><strong>Chiffre d'affaires</strong></td>
+<td>Répartit la dépense proportionnellement par chiffre d'affaires de chaque société pour l'année sélectionnée.</td>
+</tr>
+<tr>
+<td><strong>Manuel par société</strong></td>
+<td>Vous sélectionnez quelles sociétés reçoivent cette dépense et choisissez un driver (Effectif, Utilisateurs IT ou Chiffre d'affaires) pour calculer les pourcentages parmi les sociétés sélectionnées uniquement.</td>
+</tr>
+<tr>
+<td><strong>Manuel par département</strong></td>
+<td>Vous sélectionnez des paires société/département spécifiques. Les pourcentages sont calculés à partir de l'effectif de chaque département. Utile lorsqu'un poste ne bénéficie qu'à certains départements (ex. : un CRM utilisé par les ventes).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Comment fonctionnent les pourcentages</strong> :
+  - Pour les <strong>méthodes automatiques</strong> (Effectif, Utilisateurs IT, Chiffre d'affaires) : les pourcentages sont calculés depuis les dernières métriques des sociétés à chaque chargement de page. Vous ne les modifiez pas directement
+  - Pour les <strong>méthodes manuelles</strong> : vous sélectionnez les sociétés ou départements, et le système calcule les pourcentages basé sur votre driver choisi et les métriques actuelles
+  - Les pourcentages reflètent les données en temps réel. Si vous mettez à jour l'effectif d'une société, les ventilations se recalculent immédiatement
+  - L'indicateur de pourcentage total affiche un total glissant. Pour les méthodes auto, le reste est auto-distribué ; pour les méthodes manuelles, l'aperçu utilise les métriques en temps réel</p>
+<p><strong>Comment l'utiliser</strong> :
+  1. Sélectionnez l'année
+  2. Choisissez une méthode de ventilation depuis le menu déroulant
+  3. Si vous utilisez Manuel par société, choisissez un driver (Effectif, Utilisateurs IT ou Chiffre d'affaires) et sélectionnez les sociétés
+  4. Si vous utilisez Manuel par département, sélectionnez les paires société/département
+  5. Cliquez sur <strong>Enregistrer</strong> pour persister la méthode et la sélection</p>
+<p><strong>Problèmes courants</strong> :
+  - <strong>Erreur « Métriques manquantes »</strong> : Une ou plusieurs sociétés ont un effectif/utilisateurs IT/chiffre d'affaires nul ou manquant pour l'année sélectionnée. Remplissez les métriques dans <strong>Données de référence &gt; Sociétés</strong> (onglet Détails)
+  - <strong>« Le total n'est pas 100 % »</strong> : Généralement causé par des métriques manquantes. Corrigez les données des sociétés et rechargez les ventilations</p>
+<p><strong>Conseil</strong> : Utilisez Effectif (Par défaut) pour la plupart des postes -- c'est le plus simple et se met à jour automatiquement. Réservez les méthodes manuelles pour les dépenses qui ne bénéficient qu'à des sociétés ou départements spécifiques.</p>
+<hr />
+<h3 id="taches">Tâches<a class="headerlink" href="#taches" title="Permanent link">&para;</a></h3>
+<p>L'onglet Tâches vous aide à suivre les actions et relances liées à ce poste OPEX (ex. : « Renouveler la licence d'ici le T3 », « Revoir les métriques d'utilisation »).</p>
+<p><strong>Liste des tâches</strong> :
+  - Affiche toutes les tâches liées à ce poste OPEX
+  - Colonnes : <strong>Titre</strong>, <strong>Statut</strong>, <strong>Priorité</strong>, <strong>Date d'échéance</strong>, <strong>Actions</strong>
+  - Cliquez sur un titre de tâche pour ouvrir l'espace de travail complet de la tâche
+  - Le filtre par défaut affiche les tâches actives (masque terminées et annulées)</p>
+<p><strong>Création d'une tâche</strong> :
+  - Cliquez sur <strong>Ajouter une tâche</strong> pour ouvrir l'espace de travail de création de tâche
+  - La tâche est automatiquement liée à ce poste OPEX
+  - Remplissez le titre, la description, la priorité, le responsable et la date d'échéance dans l'espace de travail de la tâche</p>
+<p><strong>Remarques</strong> :
+  - Les tâches sont des objets indépendants avec leurs propres autorisations (<code>tasks:member</code> pour créer/modifier)
+  - Avoir l'accès manager OPEX ne donne pas automatiquement les droits de modification de tâches ; vérifiez avec votre admin si vous ne pouvez pas créer de tâches
+  - Les tâches peuvent aussi être consultées et gérées depuis <strong>Portefeuille &gt; Tâches</strong>, qui affiche toutes les tâches de votre organisation</p>
+<p><strong>Conseil</strong> : Utilisez les tâches pour capturer les actions identifiées lors des revues budgétaires ou des renouvellements de contrats. Définissez des dates d'échéance pour suivre les délais à venir.</p>
+<hr />
+<h3 id="relations">Relations<a class="headerlink" href="#relations" title="Permanent link">&para;</a></h3>
+<p>L'onglet Relations lie ce poste OPEX aux objets associés : Projets, Applications, Contrats, Contacts, Sites web pertinents et Pièces jointes.</p>
+<p><strong>Projets</strong> :
+  - Utilisez l'autocomplétion pour lier un ou plusieurs projets depuis votre Portefeuille
+  - Cela aide à regrouper les dépenses par projet dans les rapports et permet la comptabilité projet</p>
+<p><strong>Applications</strong> :
+  - Utilisez l'autocomplétion pour lier une ou plusieurs applications depuis votre catalogue IT
+  - Cela aide à suivre quels postes OPEX financent quelles applications ou services</p>
+<p><strong>Contrats</strong> :
+  - Utilisez l'autocomplétion pour lier un ou plusieurs contrats
+  - Lorsqu'ils sont liés, le nom du contrat apparaît dans la colonne <strong>Contrat</strong> de la liste OPEX pour référence rapide</p>
+<p><strong>Contacts</strong> :
+  - Ajoutez des contacts fournisseurs liés à ce poste de dépense
+  - Chaque contact a un <strong>Rôle</strong> (Commercial, Technique, Support ou Autre)</p>
+<p><strong>Sites web pertinents</strong> :
+  - Ajoutez des URL liées à ce poste (ex. : portails fournisseurs, documentation, consoles d'administration)
+  - Chaque lien a un champ <strong>Description</strong> optionnel</p>
+<p><strong>Pièces jointes</strong> :
+  - Téléversez des fichiers liés à ce poste (ex. : contrats, factures, devis, cahiers des charges)
+  - Glissez-déposez ou cliquez sur <strong>Sélectionner des fichiers</strong>
+  - Les pièces jointes sont enregistrées immédiatement lors du téléversement (pas besoin de cliquer sur <strong>Enregistrer</strong>)</p>
+<p><strong>Conseil</strong> : Liez les contrats pour suivre les renouvellements à travers plusieurs postes OPEX. Ajoutez les URL de portails fournisseurs pour un accès rapide. Téléversez les devis et factures en pièces jointes pour centraliser toute la documentation liée aux dépenses.</p>
+<hr />
+<h2 id="importexport-csv">Import/export CSV<a class="headerlink" href="#importexport-csv" title="Permanent link">&para;</a></h2>
+<p>Vous pouvez charger en masse les postes OPEX via CSV pour accélérer la configuration initiale ou la synchronisation avec des systèmes externes.</p>
+<p><strong>Export</strong> :
+  1. Cliquez sur <strong>Export CSV</strong> dans la liste OPEX
+  2. Choisissez :
+     - <strong>Modèle</strong> : En-têtes uniquement (utilisez-le pour créer un CSV vierge à remplir)
+     - <strong>Données</strong> : Tous les postes OPEX actuels avec les budgets pour A-1, A et A+1</p>
+<p><strong>Import</strong> :
+  1. Cliquez sur <strong>Import CSV</strong> dans la liste OPEX
+  2. Téléversez votre fichier CSV (glisser-déposer ou sélecteur de fichiers)
+  3. Cliquez sur <strong>Vérification préalable</strong> pour valider
+  4. Examinez le rapport de vérification
+  5. Si OK, cliquez sur <strong>Charger</strong> pour importer</p>
+<p><strong>Remarques importantes</strong> :
+  - <strong>Clé unique</strong> : Les postes OPEX sont identifiés par <code>(product_name, supplier_name)</code>. Si une combinaison existe déjà, elle est <strong>ignorée</strong> (pas de mise à jour)
+  - <strong>Insertion uniquement</strong> : L'importateur ne crée que de nouveaux postes ; il ne mettra pas à jour les existants. Utilisez l'interface pour modifier les postes existants
+  - <strong>Références</strong> : <code>supplier_name</code> doit correspondre à un Fournisseur par nom (insensible à la casse). <code>account_number</code> doit correspondre à un Compte. <code>owner_it_email</code> et <code>owner_business_email</code> doivent correspondre à des utilisateurs actifs par e-mail</p>
+<p><strong>Conseil</strong> : Commencez par l'export du modèle, remplissez quelques lignes, et lancez une vérification préalable pour attraper les erreurs tôt. Corrigez les erreurs dans le CSV et re-téléversez jusqu'à ce que la vérification passe, puis chargez.</p>
+<hr />
+<h2 id="autorisations">Autorisations<a class="headerlink" href="#autorisations" title="Permanent link">&para;</a></h2>
+<p>L'accès OPEX est contrôlé par trois niveaux :</p>
+<ul>
+<li><code>opex:reader</code> -- Consulter la liste OPEX, ouvrir les postes, voir les budgets et ventilations (lecture seule), télécharger les pièces jointes</li>
+<li><code>opex:manager</code> -- Créer et modifier les postes OPEX, mettre à jour les budgets et ventilations, téléverser et supprimer les pièces jointes, gérer les relations et liens</li>
+<li><code>opex:admin</code> -- Tous les droits manager plus import/export CSV, opérations budgétaires (gel, copie, réinitialisation) et suppression en masse</li>
+</ul>
+<p>De plus :
+- Les tâches ont des autorisations séparées (<code>tasks:member</code> pour créer/modifier des tâches sur les postes OPEX)
+- Les utilisateurs avec <code>tasks:reader</code> peuvent consulter les tâches mais ne peuvent pas les créer ou les modifier</p>
+<p>Si vous ne pouvez pas effectuer une action (ex. : le bouton <strong>Import CSV</strong> est manquant, impossible de téléverser des pièces jointes), vérifiez auprès de l'administrateur de votre espace de travail pour revoir les autorisations de votre rôle.</p>
+<hr />
+<h2 id="conseils-et-bonnes-pratiques">Conseils et bonnes pratiques<a class="headerlink" href="#conseils-et-bonnes-pratiques" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Commencez simple</strong> : Créez les postes avec juste l'essentiel (nom du produit, fournisseur, société payeuse, compte), puis ajoutez les budgets et ventilations au fur et à mesure que vous planifiez.</li>
+<li><strong>Utilisez la méthode de ventilation par défaut</strong> : Pour la plupart des postes, Effectif (Par défaut) suffit. Réservez les ventilations manuelles pour les dépenses ne bénéficiant qu'à des sociétés ou départements spécifiques.</li>
+<li><strong>Liez les contrats</strong> : Si vous gérez les dépenses via des contrats, liez-les dans l'onglet Relations. Cela facilite le suivi des renouvellements.</li>
+<li><strong>Liez les applications</strong> : Associez les postes OPEX aux applications ou services qu'ils financent. Cela fournit un mapping clair coût-vers-application.</li>
+<li><strong>Téléversez la documentation</strong> : Utilisez la fonctionnalité Pièces jointes pour stocker les contrats fournisseurs, devis, factures et cahiers des charges.</li>
+<li><strong>Maintenez les métriques des sociétés à jour</strong> : Les ventilations dépendent de l'effectif, des utilisateurs IT et du chiffre d'affaires des sociétés. Des métriques obsolètes causent des erreurs de ventilation.</li>
+<li><strong>Utilisez le CSV pour la configuration en masse</strong> : Si vous migrez depuis un autre système ou avez des centaines de postes, commencez par l'import CSV.</li>
+<li><strong>Désactivez, ne supprimez pas</strong> : Préservez l'historique en désactivant les postes lorsqu'ils ne sont plus actifs. Ne supprimez que s'il s'agit d'une erreur.</li>
+<li><strong>Vérifiez la ligne de totaux</strong> : Avant de finaliser les budgets, vérifiez la ligne de totaux épinglée dans la liste pour vous assurer que vos dépenses s'additionnent comme prévu.</li>
+<li><strong>Utilisez les liens profonds</strong> : Cliquez directement sur une colonne budgétaire dans la liste pour accéder à l'onglet Budget pour cette année. Cliquez sur la colonne Tâche pour accéder aux Tâches. Cela fait gagner du temps de navigation.</li>
+<li><strong>Gelez les budgets après la clôture de fin d'année</strong> : Utilisez l'Administration budgétaire pour geler les budgets de l'année précédente une fois le réalisé finalisé, empêchant les modifications accidentelles.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Retour en haut de la page
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://kanap.net" target="_blank" rel="noopener" title="KANAP Website" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

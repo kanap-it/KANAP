@@ -310,7 +310,7 @@ Alle drei lokalen Konten werden dem gleichen IFRS-Konsolidierungskonto `6200` zu
 ### Konsolidierungszuordnungen einrichten
 
 **Option 1: Vorlagen (empfohlen)**
-Alle integrierten Vorlagen enthalten IFRS-Konsolidierungszuordnungen für jedes Konto. Laden Sie eine beliebige Ländervorlage und die Konsolidierungsspalten sind bereits ausgefüllt -- keine manuelle Zuordnung nötig. Siehe [Verfügbare Vorlagen](#verfügbare-vorlagen) für die vollständige Liste.
+Alle integrierten Vorlagen enthalten IFRS-Konsolidierungszuordnungen für jedes Konto. Laden Sie eine beliebige Ländervorlage und die Konsolidierungsspalten sind bereits ausgefüllt -- keine manuelle Zuordnung nötig. Siehe [Verfügbare Vorlagen](#verfugbare-vorlagen) für die vollständige Liste.
 
 **Option 2: CSV-Import**
 Beim Import von Konten fügen Sie die Konsolidierungsfelder in Ihre CSV ein:

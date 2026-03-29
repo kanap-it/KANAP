@@ -327,7 +327,7 @@ Edite cuentas individualmente y complete los campos de consolidación en el espa
 
 ### Mejores prácticas
 
-  - **Use un estándar común**: IFRS es típico para grupos europeos; US GAAP para empresas americanas. Todas las plantillas integradas ya se mapean a las mismas 14 cuentas de consolidación IFRS (consulte [Consolidación IFRS integrada](#consolidación-ifrs-integrada))
+  - **Use un estándar común**: IFRS es típico para grupos europeos; US GAAP para empresas americanas. Todas las plantillas integradas ya se mapean a las mismas 14 cuentas de consolidación IFRS (consulte [Consolidación IFRS integrada](#consolidacion-ifrs-integrada))
   - **Mantenga un plan de consolidación**: Conserve un documento de referencia listando sus cuentas de consolidación y lo que representan. Si usa las plantillas integradas, las 14 cuentas IFRS sirven como esta referencia
   - **Mapee con la granularidad adecuada**: No consolide demasiado ampliamente (pierde información) ni demasiado estrechamente (demasiado complejo)
   - **Involucre a finanzas**: Los mapeos de cuentas de consolidación deben alinearse con los requisitos de informes financieros de su grupo

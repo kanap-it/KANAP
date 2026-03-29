@@ -220,7 +220,7 @@ La pestaña Técnico y soporte captura detalles técnicos y contactos de soporte
 
 **Información técnica**:
   - **Suites**: Suites padre a las que pertenece esta aplicación
-  - **Métodos de acceso**: Cómo acceden los usuarios a esta aplicación (selección múltiple). Las opciones son configurables en [Configuración del Panorama IT](it-ops-settings.md#access-methods). Las opciones predeterminadas incluyen:
+  - **Métodos de acceso**: Cómo acceden los usuarios a esta aplicación (selección múltiple). Las opciones son configurables en [Configuración del Panorama IT](it-ops-settings.md#metodos-de-acceso). Las opciones predeterminadas incluyen:
     - Web
     - Aplicación instalada localmente
     - Aplicación móvil

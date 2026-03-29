@@ -222,7 +222,7 @@ Utilice esto cuando desee crear una copia independiente de una interfaz -- típi
 
 ### Migración de versiones (desde el versionado de Aplicaciones)
 
-Utilice esto al actualizar una aplicación a una nueva versión y necesitar migrar interfaces a la nueva versión. Consulte [Aplicaciones > Gestión de versiones](applications.md#version-management) para más detalles.
+Utilice esto al actualizar una aplicación a una nueva versión y necesitar migrar interfaces a la nueva versión. Consulte [Aplicaciones > Gestión de versiones](applications.md#gestion-de-versiones) para más detalles.
 
 **Diferencias clave con Duplicar**:
 

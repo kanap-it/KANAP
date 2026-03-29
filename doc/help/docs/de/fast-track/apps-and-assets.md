@@ -115,7 +115,7 @@ Gehen Sie zum Tab **Technik & Support**. Unter **Zugriffsmethoden** wählen Sie,
 - **Proprietäre HMI** -- industrielle Oberfläche
 - **Kiosk** -- dediziertes Terminal
 
-Zugriffsmethoden sind in den [IT-Landschaft-Einstellungen](../it-ops-settings.md#access-methods) konfigurierbar, Ihre Liste kann also zusätzliche Optionen enthalten.
+Zugriffsmethoden sind in den [IT-Landschaft-Einstellungen](../it-ops-settings.md#zugriffsmethoden) konfigurierbar, Ihre Liste kann also zusätzliche Optionen enthalten.
 
 Setzen Sie außerdem:
 

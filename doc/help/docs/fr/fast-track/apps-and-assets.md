@@ -115,7 +115,7 @@ Allez dans l'onglet **Technique et support**. Sous **Méthodes d'accès**, séle
 - **IHM propriétaire** -- interface industrielle
 - **Borne** -- terminal dédié
 
-Les méthodes d'accès sont configurables dans les [Paramètres de la Cartographie SI](../it-ops-settings.md#méthodes-daccès), votre liste peut donc inclure des options supplémentaires.
+Les méthodes d'accès sont configurables dans les [Paramètres de la Cartographie SI](../it-ops-settings.md#methodes-dacces), votre liste peut donc inclure des options supplémentaires.
 
 Définissez aussi :
 

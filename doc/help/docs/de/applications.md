@@ -196,7 +196,7 @@ Der Reiter Technik & Support erfasst technische Details und Supportkontakte.
 
 **Technische Informationen**:
   - **Suites**: Übergeordnete Suites, zu denen diese Anwendung gehört
-  - **Zugriffsmethoden**: Wie Benutzer auf diese Anwendung zugreifen (Mehrfachauswahl). Optionen sind in den [IT-Landschaft-Einstellungen](it-ops-settings.md#access-methods) konfigurierbar.
+  - **Zugriffsmethoden**: Wie Benutzer auf diese Anwendung zugreifen (Mehrfachauswahl). Optionen sind in den [IT-Landschaft-Einstellungen](it-ops-settings.md#zugriffsmethoden) konfigurierbar.
   - **Extern erreichbar**: Ob die Anwendung aus dem Internet zugänglich ist
   - **Datenintegration / ETL**: Ob die Anwendung an Datenintegrations-Pipelines teilnimmt
 

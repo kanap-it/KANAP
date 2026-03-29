@@ -115,7 +115,7 @@ Vaya a la pestaña **Técnico y soporte**. En **Métodos de acceso**, seleccione
 - **HMI propietario** -- interfaz industrial
 - **Kiosk** -- terminal dedicado
 
-Los métodos de acceso son configurables en [Configuración del Panorama IT](../it-ops-settings.md#access-methods), por lo que su lista puede incluir opciones adicionales.
+Los métodos de acceso son configurables en [Configuración del Panorama IT](../it-ops-settings.md#metodos-de-acceso), por lo que su lista puede incluir opciones adicionales.
 
 También configure:
 

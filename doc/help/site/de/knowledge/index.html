@@ -1,0 +1,3429 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User documentation for KANAP - IT portfolio and budget management platform">
+      
+      
+      
+        <link rel="canonical" href="https://doc.kanap.net/de/knowledge/">
+      
+      
+        <link rel="prev" href="../it-ops-settings/">
+      
+      
+        <link rel="next" href="../opex/">
+      
+      
+        
+          <link rel="alternate" href="../../knowledge/" hreflang="en">
+        
+          <link rel="alternate" href="../../fr/knowledge/" hreflang="fr">
+        
+          <link rel="alternate" href="./" hreflang="de">
+        
+          <link rel="alternate" href="../../es/knowledge/" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Wissensdatenbank - KANAP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#wissensdatenbank" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../" title="KANAP" class="md-header__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            KANAP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Wissensdatenbank
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Sprache wechseln">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../knowledge/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../fr/knowledge/" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="de" class="md-select__link">
+              Deutsch
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../es/knowledge/" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/your-org/kanap" title="Zum Repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="KANAP" class="md-nav__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    KANAP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/your-org/kanap" title="Zum Repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Startseite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnellstart
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Schnellstart
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erste Schritte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Von der Anfrage zur Lieferung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/apps-and-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Von der Anwendung zum Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/task-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run, Build & Aufgaben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../my-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dashboard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolioverwaltung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Portfolioverwaltung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aufgaben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-requests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anfragen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-planning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-team-members/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mitwirkende
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Berichte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Einstellungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IT-Landschaft
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    IT-Landschaft
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infrastruktur
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Infrastruktur
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../locations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standorte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connection-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungskarte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anwendungen
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Anwendungen
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../applications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anwendungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnittstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interface-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnittstellenkarte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../it-ops-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Einstellungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wissensdatenbank
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wissensdatenbank
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wissensdatenbank
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wissensdatenbank
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#wo-sie-es-finden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wo Sie es finden
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wie-die-wissensdatenbank-organisiert-ist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wie die Wissensdatenbank organisiert ist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Wie die Wissensdatenbank organisiert ist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bibliotheken" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bibliotheken
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ordner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ordner
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bereichsfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bereichsfilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vorlagen-und-dokumenttypen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vorlagen und Dokumenttypen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verwaltete-dokumente" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verwaltete Dokumente
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mit-der-wissensdatenbank-liste-arbeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mit der Wissensdatenbank-Liste arbeiten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mit der Wissensdatenbank-Liste arbeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#was-die-liste-zeigt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Was die Liste zeigt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suche-filter-und-durchsuchen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suche, Filter und Durchsuchen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dokumente-und-ordner-verschieben" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dokumente und Ordner verschieben
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#listenaktionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Listenaktionen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dokumente-erstellen-und-gestalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dokumente erstellen und gestalten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dokumente erstellen und gestalten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#status-und-seine-bedeutung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status und seine Bedeutung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schreiben-sperren-und-automatisches-speichern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schreiben, Sperren und automatisches Speichern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dokument-importieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dokument importieren
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exportformate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exportformate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mitwirkende-und-review-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mitwirkende und Review-Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mitwirkende und Review-Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#review-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Review-Workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#die-dokumenten-arbeitsbereich-seitenleiste" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Die Dokumenten-Arbeitsbereich-Seitenleiste
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Die Dokumenten-Arbeitsbereich-Seitenleiste">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#eigenschaften-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eigenschaften-Tab
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kommentare-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kommentare-Tab
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verknupfungen-und-arbeitsbereichsubergreifender-kontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verknüpfungen und arbeitsbereichsübergreifender Kontext
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gute-operative-gewohnheiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gute operative Gewohnheiten
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetverwaltung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Budgetverwaltung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../opex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../capex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CAPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verträge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../budget-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetadministration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Berichte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stammdaten
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stammdaten
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_1" id="__nav_8_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Organisation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Organisation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../companies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unternehmen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../departments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Abteilungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Externe Parteien
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Externe Parteien
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suppliers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lieferanten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contacts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kontakte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Finanzen
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Finanzen
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chart-of-accounts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kontenpläne
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../currencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Währungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Klassifizierung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Klassifizierung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../business-processes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geschäftsprozesse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysedimensionen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration & Benutzer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../branding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../master-data-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stammdatenadministration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetübersicht
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On-Premise
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    On-Premise
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/installation-example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installationsbeispiel (Ubuntu)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfiguration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Betrieb
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/sso-entra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Microsoft Entra SSO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#wo-sie-es-finden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wo Sie es finden
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wie-die-wissensdatenbank-organisiert-ist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wie die Wissensdatenbank organisiert ist
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Wie die Wissensdatenbank organisiert ist">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bibliotheken" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bibliotheken
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ordner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ordner
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bereichsfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bereichsfilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vorlagen-und-dokumenttypen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vorlagen und Dokumenttypen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verwaltete-dokumente" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verwaltete Dokumente
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mit-der-wissensdatenbank-liste-arbeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mit der Wissensdatenbank-Liste arbeiten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mit der Wissensdatenbank-Liste arbeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#was-die-liste-zeigt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Was die Liste zeigt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suche-filter-und-durchsuchen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suche, Filter und Durchsuchen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dokumente-und-ordner-verschieben" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dokumente und Ordner verschieben
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#listenaktionen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Listenaktionen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dokumente-erstellen-und-gestalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dokumente erstellen und gestalten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dokumente erstellen und gestalten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#status-und-seine-bedeutung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status und seine Bedeutung
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schreiben-sperren-und-automatisches-speichern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schreiben, Sperren und automatisches Speichern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dokument-importieren" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dokument importieren
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exportformate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exportformate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mitwirkende-und-review-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mitwirkende und Review-Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mitwirkende und Review-Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#review-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Review-Workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#die-dokumenten-arbeitsbereich-seitenleiste" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Die Dokumenten-Arbeitsbereich-Seitenleiste
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Die Dokumenten-Arbeitsbereich-Seitenleiste">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#eigenschaften-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eigenschaften-Tab
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kommentare-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kommentare-Tab
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verknupfungen-und-arbeitsbereichsubergreifender-kontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verknüpfungen und arbeitsbereichsübergreifender Kontext
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gute-operative-gewohnheiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gute operative Gewohnheiten
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="wissensdatenbank">Wissensdatenbank<a class="headerlink" href="#wissensdatenbank" title="Permanent link">&para;</a></h1>
+<p>Die Wissensdatenbank ist KANAPs Dokumenten-Arbeitsbereich für Richtlinien, Verfahren, technische Notizen, Referenzmaterial und Dokumentation, die mit der tatsächlichen Arbeit verbunden sein muss. Sie kombiniert freies Schreiben mit Governance-Funktionen wie Vorlagen, Verantwortlichkeit, Review, Versionshistorie und Verknüpfungen zu Anwendungen, Assets, Projekten, Anfragen und Aufgaben.</p>
+<p>Anders als ein Dateifreigabesystem ist die Wissensdatenbank nicht nur ein Ort zum Speichern von Dokumenten. Die wichtige Designentscheidung ist, dass jeder Artikel klassifiziert, geprüft, versioniert, exportiert und mit operativen Objekten auf der gesamten Plattform verknüpft werden kann. Das macht den Artikel leichter auffindbar und gibt ihm Kontext, wenn Personen ihn aus einem anderen Arbeitsbereich öffnen.</p>
+<h2 id="wo-sie-es-finden">Wo Sie es finden<a class="headerlink" href="#wo-sie-es-finden" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Arbeitsbereich: <strong>Wissensdatenbank</strong></li>
+<li>Berechtigungen:</li>
+<li><code>knowledge:reader</code> ermöglicht das Öffnen und Lesen von Dokumenten</li>
+<li><code>knowledge:member</code> ermöglicht das Erstellen, Bearbeiten, Kommentieren, Organisieren von Ordnern und Verwalten von Dokumentmetadaten</li>
+<li><code>knowledge:admin</code> fügt Bibliotheksverwaltung und bibliotheksübergreifende Verschiebungen hinzu</li>
+</ul>
+<p>Wenn Sie ein Dokument lesen, aber nicht bearbeiten können, bleibt der Arbeitsbereich im schreibgeschützten Modus verfügbar.</p>
+<h2 id="wie-die-wissensdatenbank-organisiert-ist">Wie die Wissensdatenbank organisiert ist<a class="headerlink" href="#wie-die-wissensdatenbank-organisiert-ist" title="Permanent link">&para;</a></h2>
+<p>Die Wissensdatenbank basiert auf vier Organisationsebenen: Bibliotheken, Ordner, Dokumenttypen und Verknüpfungen.</p>
+<h3 id="bibliotheken">Bibliotheken<a class="headerlink" href="#bibliotheken" title="Permanent link">&para;</a></h3>
+<p>Bibliotheken sind die obersten Container. Sie trennen Dokumentpopulationen, die unterschiedlich verwaltet werden sollen.</p>
+<p>Typische Muster:
+- Verwenden Sie eine reguläre Bibliothek für die Wissensbasis Ihres Teams.
+- Verwenden Sie die <strong>Vorlagen</strong>-Bibliothek für wiederverwendbare Dokumentvorlagen.
+- Verwenden Sie die <strong>Verwaltete Dokumente</strong>-Bibliothek für Dokumente, die aus einem anderen Arbeitsbereich stammen und dort teilweise verwaltet werden.</p>
+<p>Konsequenzen der Bibliothekswahl:
+- Die aktive Bibliothek bestimmt, welchen Ordnerbaum Sie sehen und wo neue leere Dokumente erstellt werden.
+- In einer normalen Bibliothek verhalten sich Dokumente wie Standard-Wissensartikel.
+- In <strong>Vorlagen</strong> werden veröffentlichte Dokumente zu wiederverwendbaren Ausgangspunkten für neue Artikel und werden nach Dokumenttyp im Vorlagenauswahldialog gruppiert.
+- In <strong>Verwaltete Dokumente</strong> können Artikel weiterhin lesbar und bearbeitbar sein, aber einige Metadaten werden vom Quellarbeitsbereich gesteuert statt von der Wissensdatenbank selbst.</p>
+<p>Die Bibliotheksverwaltung ist absichtlich strenger als die Dokumentbearbeitung. Das Erstellen, Umbenennen, Löschen oder Reorganisieren von Bibliotheken ist eine Administratorenaufgabe, da diese Änderungen Navigation und Zuständigkeit für alle betreffen.</p>
+<h3 id="ordner">Ordner<a class="headerlink" href="#ordner" title="Permanent link">&para;</a></h3>
+<p>Ordner organisieren Dokumente innerhalb einer Bibliothek. Sie sind nicht kosmetisch: Sie formen, wie Benutzer die Bibliothek durchsuchen und wie Teams eine gemeinsame Struktur im Laufe der Zeit pflegen.</p>
+<p>Wichtiges Verhalten:
+- Ordner existieren innerhalb einer Bibliothek. Sie werden nicht bibliotheksübergreifend geteilt.
+- In der Einzelbibliotheksansicht können Dokumente per Drag-and-Drop in Ordner verschoben werden.
+- Ordner können verschachtelt werden, um eine Browsingstruktur zu schaffen.
+- Das Löschen eines Ordners löscht seine Dokumente nicht. Dokumente wandern stattdessen zu <strong>Nicht abgelegt</strong>.
+- Ein Ordner mit Unterordnern kann nicht gelöscht werden, bis die Hierarchie bereinigt ist.</p>
+<p>Verwenden Sie Ordner für stabile Themenbereiche, nicht für temporäre Workflow-Zustände. Status und Workflow existieren bereits dafür.</p>
+<h3 id="bereichsfilter">Bereichsfilter<a class="headerlink" href="#bereichsfilter" title="Permanent link">&para;</a></h3>
+<p>Der übergeordnete Bereichsfilter ändert, welche Dokumente aufgelistet werden:</p>
+<ul>
+<li><strong>Meine Dokumente</strong> fokussiert auf Dokumente, die Ihnen gehören.</li>
+<li><strong>Dokumente meines Teams</strong> fokussiert auf Dokumente, die Ihrem Team gehören.</li>
+<li><strong>Alle Dokumente</strong> entfernt den Eigentumsbereich und zeigt die gesamte Population, die Sie sehen dürfen.</li>
+</ul>
+<p>Wenn Sie keinem Team zugewiesen sind, ist der Team-Bereich nicht verfügbar. Ihre letzte Bereichswahl wird gespeichert, was praktisch ist, wenn sie Ihrem normalen Arbeitsmodus entspricht, und leicht verwirrend, wenn Sie vergessen haben, dass Sie sie gestern geändert haben.</p>
+<h3 id="vorlagen-und-dokumenttypen">Vorlagen und Dokumenttypen<a class="headerlink" href="#vorlagen-und-dokumenttypen" title="Permanent link">&para;</a></h3>
+<p>Vorlagen sind gewöhnliche Wissensdatenbank-Dokumente, die in der <strong>Vorlagen</strong>-Bibliothek gespeichert und zur Wiederverwendung veröffentlicht sind. Das Erstellen eines Dokuments aus einer Vorlage kopiert den Vorlageninhalt in einen neuen Artikel und bewahrt die Vorlagenreferenz.</p>
+<p>Dokumenttypen sind wichtig, weil sie:
+- den Artikel für Filterung und Berichterstattung klassifizieren
+- Vorlagen im Erstellungsdialog gruppieren
+- Lesern helfen zu verstehen, welche Art von Dokument sie öffnen</p>
+<p>Ein subtiles, aber wichtiges Verhalten: Wenn ein Dokument aus einer Vorlage erstellt wurde und Sie später seinen Dokumenttyp in einen anderen Typ ändern, wird die Vorlagenverknüpfung gelöscht. Das verhindert, dass der Artikel vorgibt, einer Vorlage zu folgen, die er nicht mehr verwendet.</p>
+<p>Beim Durchsuchen der <strong>Vorlagen</strong>-Bibliothek können Administratoren das Panel <strong>Typen verwalten</strong> öffnen, um Dokumenttypen zu erstellen, umzubenennen oder zu deaktivieren.</p>
+<h3 id="verwaltete-dokumente">Verwaltete Dokumente<a class="headerlink" href="#verwaltete-dokumente" title="Permanent link">&para;</a></h3>
+<p>Einige Wissensdatenbank-Artikel werden aus Anfragen, Projekten, Anwendungen, Assets oder Aufgaben erstellt. Diese erscheinen als <strong>integrierte</strong> Dokumente.</p>
+<p>Verwaltete Dokumente behalten die Schreiberfahrung innerhalb der Wissensdatenbank, aber der Quellarbeitsbereich steuert weiterhin einen Teil ihrer Metadaten. In der Praxis bedeutet das:
+- Der Status kann vom Quellobjekt gesteuert werden
+- Die Ordnerplatzierung kann vom Quellarbeitsbereich festgelegt sein
+- Dokumenttyp oder Vorlage können festgelegt sein
+- Direkte Verknüpfungen können in der Wissensdatenbank schreibgeschützt sein
+- Der Review-Workflow der Wissensdatenbank ist für diese Dokumente nicht verfügbar
+- Verwaltete Dokumente können nicht aus der Wissensdatenbank verschoben oder aus der Wissensdatenbank-Liste gelöscht werden</p>
+<p>Dies schützt die Verbindung zwischen dem Dokument und dem operativen Datensatz, dem es gehört.</p>
+<h2 id="mit-der-wissensdatenbank-liste-arbeiten">Mit der Wissensdatenbank-Liste arbeiten<a class="headerlink" href="#mit-der-wissensdatenbank-liste-arbeiten" title="Permanent link">&para;</a></h2>
+<p>Die Hauptseite der Wissensdatenbank ist ein Dokumentregister mit Navigations- und Organisationswerkzeugen.</p>
+<h3 id="was-die-liste-zeigt">Was die Liste zeigt<a class="headerlink" href="#was-die-liste-zeigt" title="Permanent link">&para;</a></h3>
+<p>Das Standard-Grid fokussiert auf Dokumentidentität und Governance:</p>
+<ul>
+<li><strong>Ref</strong>: die permanente <code>DOC-{Nummer}</code>-Referenz</li>
+<li><strong>Titel</strong></li>
+<li><strong>Status</strong></li>
+<li><strong>Typ</strong></li>
+<li><strong>Version</strong></li>
+<li><strong>Verantwortlicher</strong></li>
+<li><strong>Ordner</strong></li>
+<li><strong>Aktualisiert</strong></li>
+</ul>
+<p><strong>Zusätzliche Spalten</strong> (standardmäßig ausgeblendet, verfügbar über Spaltenauswahl):
+- <strong>Vorlage</strong>: zeigt die Vorlage, aus der das Dokument erstellt wurde, falls vorhanden
+- <strong>Bibliothek</strong>: erscheint automatisch, wenn <strong>Alle Bibliotheken</strong> aktiviert ist, und kann manuell anderweitig eingeblendet werden</p>
+<h3 id="suche-filter-und-durchsuchen">Suche, Filter und Durchsuchen<a class="headerlink" href="#suche-filter-und-durchsuchen" title="Permanent link">&para;</a></h3>
+<p>Die Wissensdatenbank unterstützt zwei Navigationsstile:</p>
+<ul>
+<li>Eine Bibliothek mit ihrem Ordnerbaum durchsuchen, wenn Sie den Themenbereich bereits kennen.</li>
+<li>Über alle Bibliotheken suchen, wenn Ihnen der Artikel wichtiger ist als sein Speicherort.</li>
+</ul>
+<p>Der Schalter <strong>Alle Bibliotheken</strong> ändert die Erfahrung erheblich:
+- Der Ordnerbaum ist nicht mehr der Haupttreiber
+- Die Suche wird breiter
+- Die Liste kann Inhalte bibliotheksübergreifend vergleichen
+- Die Bibliotheksspalte wird Teil des Ergebniskontexts</p>
+<p>Einzelbibliothek-Browsen ist besser für die Pflege. Bibliotheksübergreifende Suche ist besser für das Auffinden.</p>
+<p><strong>Filtern</strong>:
+- Schnellsuchleiste oben im Grid
+- Spaltenfilter für <strong>Status</strong>, <strong>Typ</strong>, <strong>Verantwortlicher</strong>, <strong>Ordner</strong>, <strong>Vorlage</strong> und <strong>Bibliothek</strong> mit Kontrollkästchen-Set-Selektoren</p>
+<h3 id="dokumente-und-ordner-verschieben">Dokumente und Ordner verschieben<a class="headerlink" href="#dokumente-und-ordner-verschieben" title="Permanent link">&para;</a></h3>
+<p>In der Einzelbibliotheksansicht können Dokumente in Ordner gezogen werden. Ein Ziehgriff erscheint an jeder Zeile, wenn Ziehen verfügbar ist. Dies ist der schnellste Weg, eine Bibliothek aufzuräumen, ohne jeden Artikel zu öffnen.</p>
+<p>Bibliotheksübergreifende Verschiebungen sind stärker kontrolliert:
+- Sie erfordern höhere Berechtigungen
+- Sie sind für verwaltete Dokumente nicht verfügbar
+- Vorlagen-Dokumente sind absichtlich eingeschränkt, da Vorlagen im Vorlagensystem bleiben sollen</p>
+<p>Ordner können auch per Drag-and-Drop zwischen Bibliotheken verschoben werden, indem sie auf den Zielbibliotheks-Tab abgelegt werden.</p>
+<p>Ordnerverschiebungen folgen der gleichen Idee. Das Reorganisieren eines Ordners ändert die Browsingstruktur für alle, die diese Bibliothek nutzen, behandeln Sie es also als Informationsarchitektur-Änderung, nicht nur als persönliches Aufräumen.</p>
+<h3 id="listenaktionen">Listenaktionen<a class="headerlink" href="#listenaktionen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Neu</strong> (aufgeteilte Schaltfläche): erstellt ein leeres Dokument in der aktiven Bibliothek oder öffnet den Vorlagenauswahldialog zum Erstellen aus einer veröffentlichten Vorlage</li>
+<li><strong>Verschieben</strong>: verschiebt ausgewählte Dokumente in einen anderen Ordner oder eine andere Bibliothek</li>
+<li><strong>Löschen</strong>: entfernt ausgewählte Dokumente dauerhaft (nur Admin; nicht verfügbar für verwaltete Dokumente)</li>
+</ul>
+<h2 id="dokumente-erstellen-und-gestalten">Dokumente erstellen und gestalten<a class="headerlink" href="#dokumente-erstellen-und-gestalten" title="Permanent link">&para;</a></h2>
+<p>Neue Artikel können auf zwei Arten beginnen:</p>
+<ul>
+<li><strong>Leeres Dokument</strong>: am besten, wenn Sie die benötigte Struktur bereits kennen</li>
+<li><strong>Aus Vorlage</strong>: am besten, wenn das Team konsistente Abschnitte, Sprache oder Review-Erwartungen wünscht</li>
+</ul>
+<p>Wenn Sie aus einer Vorlage erstellen, wird der Vorlageninhalt in das neue Dokument kopiert. Ab diesem Punkt ist der neue Artikel unabhängig. Eine spätere Aktualisierung der Vorlage überschreibt keine bestehenden Dokumente.</p>
+<p>Der Dokumenten-Arbeitsbereich hält das Schreiben im Zentrum und die Governance in der Seitenleiste.</p>
+<p>Kerneigenschaften umfassen:
+- <strong>Titel</strong>: die primäre Bezeichnung, nach der Leser suchen und die sie zitieren
+- <strong>Status</strong>: der Lebenszyklus des Artikels
+- <strong>Ordner</strong>: wo der Artikel innerhalb seiner Bibliothek lebt
+- <strong>Typ</strong>: welche Art von Dokument es ist
+- <strong>Basiert auf Vorlage</strong>: die Vorlagen-Abstammung, wenn relevant
+- <strong>Zusammenfassung</strong>: eine kurze Beschreibung für Kontext</p>
+<p>Nach dem ersten Speichern wird das vollständige Dokumenten-Governance-Modell verfügbar. Ab dann können Sie Mitwirkende, Klassifizierungen, Verknüpfungen, Kommentare und Versionshistorie gegen eine stabile Dokumentreferenz verwalten.</p>
+<h3 id="status-und-seine-bedeutung">Status und seine Bedeutung<a class="headerlink" href="#status-und-seine-bedeutung" title="Permanent link">&para;</a></h3>
+<p>Der Status ist keine Dekoration. Er sagt Lesern, wie ernst sie den Artikel nehmen sollen.</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Bedeutung</th>
+<th>Praktische Konsequenz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Entwurf</strong></td>
+<td>In Bearbeitung</td>
+<td>Geeignet für Autorschaft und interne Iteration</td>
+</tr>
+<tr>
+<td><strong>Im Review</strong></td>
+<td>Unter formaler Prüfung</td>
+<td>Bearbeitung ist gesperrt, während der Workflow aktiv ist</td>
+</tr>
+<tr>
+<td><strong>Veröffentlicht</strong></td>
+<td>Für den normalen Gebrauch genehmigt</td>
+<td>Beste Wahl für Inhalte, auf die sich Personen verlassen sollen</td>
+</tr>
+<tr>
+<td><strong>Archiviert</strong></td>
+<td>Für die Aufzeichnung aufbewahrt</td>
+<td>In der Regel weiterhin nützlich für die Historie, nicht für aktive Orientierung</td>
+</tr>
+<tr>
+<td><strong>Veraltet</strong></td>
+<td>Abgelöst oder nicht mehr gültig</td>
+<td>Leser sollten es nicht als aktuelle Praxis befolgen</td>
+</tr>
+</tbody>
+</table>
+<p>Die Wissensdatenbank ermöglicht direkte Veröffentlichung auch ohne formalen Review-Workflow. Das ist nützlich für risikoarmes Material, bedeutet aber auch, dass Teams Disziplin brauchen, wann ein Review optional ist und wann er erwartet werden sollte.</p>
+<h2 id="schreiben-sperren-und-automatisches-speichern">Schreiben, Sperren und automatisches Speichern<a class="headerlink" href="#schreiben-sperren-und-automatisches-speichern" title="Permanent link">&para;</a></h2>
+<p>Die Wissensdatenbank verwendet eine Bearbeitungssperre, sodass nur eine Person gleichzeitig ein Dokument aktiv bearbeitet.</p>
+<p>Funktionsweise:
+- Das Starten des Bearbeitungsmodus erwirbt die Sperre
+- Andere Benutzer können den Artikel weiterhin öffnen und lesen
+- Sie können nicht bearbeiten, während die Sperre von jemand anderem gehalten wird
+- Wenn die Sperre abläuft oder verloren geht, stoppt der Bearbeitungsmodus und muss erneut gestartet werden</p>
+<p>Dies vermeidet stille Überschreibungen, was für die Dokumentintegrität hervorragend ist und weniger gut, wenn zwei Personen dachten, sie hätten „nur eine schnelle Änderung".</p>
+<p>Während Sie bearbeiten:
+- Änderungen werden manuell mit <strong>Speichern</strong> gespeichert
+- Nicht gespeicherter Inhalt wird auch periodisch automatisch gespeichert, während Ihre Sperre aktiv ist
+- <strong>Verwerfen</strong> kehrt zum zuletzt gespeicherten Zustand zurück</p>
+<p>Der Arbeitsbereich unterstützt auch den Inline-Upload von Bildern im Markdown-Inhaltsbereich, sodass Screenshots und Diagramme beim Artikel leben können, statt in einem mysteriösen Ordner auf dem Desktop von jemandem. Wenn Sie ein Bild von einer externen URL einfügen oder referenzieren, wird das Bild automatisch importiert und im Dokument gespeichert, sodass es auch dann verfügbar bleibt, wenn die ursprüngliche URL offline geht.</p>
+<h2 id="dokument-importieren">Dokument importieren<a class="headerlink" href="#dokument-importieren" title="Permanent link">&para;</a></h2>
+<p>Sie können ein Word-Dokument (.docx) in einen bestehenden Wissensdatenbank-Artikel importieren. Die Schaltfläche <strong>Importieren</strong> erscheint in der Arbeitsbereich-Symbolleiste, sobald das Dokument mindestens einmal gespeichert wurde und Sie sich im Bearbeitungsmodus befinden.</p>
+<p>Funktionsweise:
+- Klicken Sie auf <strong>Importieren</strong> und wählen Sie eine <code>.docx</code>-Datei von Ihrem Computer.
+- Wenn der Artikel bereits Inhalt hat, fragt ein Bestätigungsdialog, ob Sie ihn ersetzen möchten. Durch Auswahl von <strong>Fortfahren</strong> wird der aktuelle Markdown mit dem importierten Inhalt überschrieben.
+- Der importierte Word-Inhalt wird in Markdown umgewandelt und in den Editor geladen. In der Word-Datei eingebettete Bilder werden extrahiert und als Inline-Anhänge gespeichert.
+- Nach dem Import sind Ihre Änderungen ungespeichert. Verwenden Sie <strong>Speichern</strong>, um den importierten Inhalt zu sichern.</p>
+<p>Wenn der Import auf einen Sperrkonflikt stößt (jemand anderes hat die Sperre erworben) oder eine abgelaufene Sperre, endet der Bearbeitungsmodus und eine entsprechende Meldung wird angezeigt. Starten Sie den Bearbeitungsmodus erneut und versuchen Sie es erneut.</p>
+<p>Importwarnungen, wie nicht unterstützte Formatierungen, die während der Konvertierung vereinfacht wurden, erscheinen kurz als Benachrichtigung am unteren Bildschirmrand.</p>
+<h2 id="exportformate">Exportformate<a class="headerlink" href="#exportformate" title="Permanent link">&para;</a></h2>
+<p>Wissensdatenbank-Artikel können exportiert werden als:</p>
+<ul>
+<li><strong>PDF</strong></li>
+<li><strong>DOCX</strong></li>
+<li><strong>ODT</strong></li>
+</ul>
+<p>Der Export ist verfügbar, wenn der Artikel Inhalt hat. Dies ist nützlich, wenn:
+- ein Dokument außerhalb von KANAP zirkulieren muss
+- ein Prüfer Word-Format-Markup bevorzugt
+- ein stabiler PDF-Snapshot zum Teilen oder zur Dokumentation benötigt wird</p>
+<p>Der Export ersetzt nicht den Live-Artikel. Die Wissensdatenbank-Version bleibt die verwaltete Quelle, während exportierte Dateien Verbreitungsformate sind.</p>
+<h2 id="mitwirkende-und-review-workflow">Mitwirkende und Review-Workflow<a class="headerlink" href="#mitwirkende-und-review-workflow" title="Permanent link">&para;</a></h2>
+<p>Jedes Dokument kann ein strukturiertes Mitwirkenden-Modell haben:</p>
+<ul>
+<li><strong>Verantwortlicher</strong>: die rechenschaftspflichtige Person für den Artikel</li>
+<li><strong>Autoren</strong>: Personen, die den Inhalt pflegen</li>
+<li><strong>Prüfer</strong>: Prüfer der Stufe 1</li>
+<li><strong>Genehmiger</strong>: Genehmiger der Stufe 2</li>
+</ul>
+<p>Der Verantwortliche ist operativ wichtig. Bereichsfilterung basiert auf Verantwortlichkeit, und ein Dokument ohne klaren Verantwortlichen wird mit hoher Wahrscheinlichkeit zu „wichtigem Hintergrundmaterial", das niemand aktualisiert.</p>
+<h3 id="review-workflow">Review-Workflow<a class="headerlink" href="#review-workflow" title="Permanent link">&para;</a></h3>
+<p>Der Review-Workflow ist optional, aber bewusst:</p>
+<ul>
+<li>Prüfer arbeiten zuerst</li>
+<li>Genehmiger handeln, nachdem die Prüfphase abgeschlossen ist</li>
+<li>Genehmiger und Prüfer können Entscheidungsnotizen festhalten</li>
+<li>Das Anfordern von Änderungen sendet das Dokument zur Überarbeitung zurück</li>
+<li>Der Workflow verfolgt die zuletzt genehmigte Revision</li>
+</ul>
+<p>Wichtige Konsequenzen:
+- Sie können keinen Review anfordern, während es ungespeicherte Änderungen gibt
+- Sie benötigen zugewiesene Prüfer oder Genehmiger, bevor ein Review angefordert werden kann
+- Archivierte und veraltete Dokumente kommen nicht für eine neue Review-Anforderung in Frage
+- Sobald der Review beginnt, ist die normale Bearbeitung deaktiviert, bis der Review genehmigt wird, Änderungen angefordert werden oder der Review abgebrochen wird</p>
+<p>Dies macht den Review aussagekräftig. Wenn Autoren den Inhalt während der Genehmigung weiter bearbeiten könnten, wäre das genehmigte Dokument ein bewegliches Ziel, was eine hervorragende Art ist, Diskussionen zu erzeugen, und eine schlechte Art, Dokumentation zu erstellen.</p>
+<h2 id="die-dokumenten-arbeitsbereich-seitenleiste">Die Dokumenten-Arbeitsbereich-Seitenleiste<a class="headerlink" href="#die-dokumenten-arbeitsbereich-seitenleiste" title="Permanent link">&para;</a></h2>
+<p>Die Seitenleiste hat zwei Tabs: <strong>Eigenschaften</strong> und <strong>Kommentare</strong>.</p>
+<h3 id="eigenschaften-tab">Eigenschaften-Tab<a class="headerlink" href="#eigenschaften-tab" title="Permanent link">&para;</a></h3>
+<p>Der Eigenschaften-Tab organisiert Governance-Daten in einklappbare Abschnitte:</p>
+<ul>
+<li><strong>Status, Ordner, Typ, Vorlage und Zusammenfassung</strong> sind immer oben sichtbar.</li>
+<li><strong>Mitwirkende</strong>: Verantwortlichen, Autoren, Prüfer und Genehmiger zuweisen. Jede Rolle wird unabhängig vom Hauptdokument-Speichern gesichert.</li>
+<li><strong>Review-Workflow</strong>: zeigt den aktuellen Workflow-Status, wenn ein Review aktiv ist, einschließlich Stufenfortschritt, Teilnehmerentscheidungen und aktuelle Workflow-Aktivität. Wenn kein Workflow aktiv ist, können Sie von hier einen Review anfordern.</li>
+<li><strong>Klassifizierung</strong>: das Dokument mit Kategorien und Streams aus dem Klassifizierungsschema Ihrer Organisation taggen. Mehrere Klassifizierungszeilen können hinzugefügt werden.</li>
+<li><strong>Verknüpfungen</strong>: das Dokument mit Anwendungen, Assets, Projekten, Anfragen oder Aufgaben verknüpfen. Jeder Verknüpfungstyp hat sein eigenes Such-und-Auswahl-Feld.</li>
+<li><strong>Versionen</strong>: listet gespeicherte Revisionen mit Zeitstempeln. <strong>Wiederherstellen</strong> ist nur verfügbar, wenn Sie eine aktive Bearbeitungssperre halten.</li>
+</ul>
+<h3 id="kommentare-tab">Kommentare-Tab<a class="headerlink" href="#kommentare-tab" title="Permanent link">&para;</a></h3>
+<p>Der Kommentare-Tab zeigt Aktivitäten rund um das Dokument: Kommentare, Workflow-Ereignisse und Änderungshistorie. Verwenden Sie Kommentare für Review-Kontext, redaktionelle Klärung oder Änderungsbegründungen, die am Artikel angehängt bleiben sollen.</p>
+<h2 id="verknupfungen-und-arbeitsbereichsubergreifender-kontext">Verknüpfungen und arbeitsbereichsübergreifender Kontext<a class="headerlink" href="#verknupfungen-und-arbeitsbereichsubergreifender-kontext" title="Permanent link">&para;</a></h2>
+<p>Wissensdatenbank-Dokumente können direkt verknüpft werden mit:</p>
+<ul>
+<li>Anwendungen</li>
+<li>Assets</li>
+<li>Projekten</li>
+<li>Anfragen</li>
+<li>Aufgaben</li>
+</ul>
+<p>Verknüpfungen sind nicht nur Tags. Sie steuern, wo das Dokument anderswo in KANAP erscheint und wie Benutzer es aus operativen Arbeitsbereichen entdecken.</p>
+<p>Konsequenzen des Hinzufügens von Verknüpfungen:
+- das Dokument wird leichter vom verknüpften Objekt aus auffindbar
+- Leser, die das Objekt öffnen, erhalten kontextbezogene Dokumentation, ohne manuell suchen zu müssen
+- Berichterstattung und Governance rund um das Objekt werden vollständiger</p>
+<p>Konsequenzen schlechter Verknüpfungen:
+- nützliche Dokumente bleiben außerhalb der Wissensdatenbank unsichtbar
+- Benutzer erstellen Duplikate, weil sie den bestehenden Artikel nicht finden können
+- dasselbe Thema beginnt sich über mehrere Dokumente zu verteilen</p>
+<p>In verwandten Arbeitsbereichen unterscheiden Wissensdatenbank-Panels zwischen:
+- <strong>Verknüpfte Dokumente</strong>: direkt am Objekt angehängt
+- <strong>Verwandte Dokumente</strong>: durch Kontext und Herkunft aus verbundener Arbeit aufgetaucht</p>
+<p>Diese Unterscheidung ist wichtig. Direkte Verknüpfungen drücken eine beabsichtigte Beziehung aus. Verwandte Dokumente drücken nützlichen Kontext aus, aber nicht das gleiche Maß an Zuständigkeit.</p>
+<h2 id="gute-operative-gewohnheiten">Gute operative Gewohnheiten<a class="headerlink" href="#gute-operative-gewohnheiten" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Verwenden Sie Bibliotheken für Governance-Grenzen, Ordner für Navigation und Verknüpfungen für Geschäftskontext.</li>
+<li>Halten Sie die Verantwortlichkeit aktuell. Ein guter Artikel mit dem falschen Verantwortlichen lebt meist auf geborgter Zeit.</li>
+<li>Verwenden Sie Vorlagen, wenn Konsistenz über Teams hinweg wichtig ist.</li>
+<li>Verwenden Sie Review für Dokumente, die Entscheidungen, Kontrollen oder wiederholbare Prozesse steuern.</li>
+<li>Markieren Sie veralteten Inhalt als archiviert oder veraltet, anstatt Leser raten zu lassen.</li>
+<li>Importieren Sie Word-Dokumente beim Migrieren bestehender Inhalte in die Wissensdatenbank, anstatt zu kopieren und einzufügen, damit eingebettete Bilder automatisch erhalten bleiben.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://kanap.net" target="_blank" rel="noopener" title="KANAP Website" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

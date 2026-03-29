@@ -1,0 +1,1623 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+    <url>
+        <loc>https://doc.kanap.net/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/admin/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/admin/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/admin/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/admin/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/admin/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/analytics/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/analytics/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/applications/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/applications/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/applications/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/applications/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/applications/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/assets/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/assets/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/assets/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/assets/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/assets/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/branding/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/branding/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/branding/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/branding/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/branding/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/budget-operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/budget-operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/business-processes/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/business-processes/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/capex/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/capex/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/capex/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/capex/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/capex/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/chart-of-accounts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/chart-of-accounts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/companies/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/companies/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/companies/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/companies/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/companies/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/connection-map/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/connection-map/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/connections/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/connections/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/connections/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/connections/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/connections/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/contacts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/contacts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/contracts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/contracts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/currencies/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/currencies/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/departments/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/departments/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/departments/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/departments/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/departments/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/interface-map/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/interface-map/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/interfaces/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/interfaces/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/it-ops-settings/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/it-ops-settings/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/knowledge/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/knowledge/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/locations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/locations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/locations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/locations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/locations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/master-data-operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/master-data-operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/my-dashboard/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/my-dashboard/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/operations-dashboard/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/operations-dashboard/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/opex/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/opex/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/opex/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/opex/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/opex/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/portfolio-planning/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-planning/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/portfolio-projects/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-projects/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/portfolio-reporting/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-reporting/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/portfolio-requests/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-requests/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/portfolio-settings/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-settings/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/portfolio-team-members/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-team-members/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/reports/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/reports/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/reports/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/reports/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/reports/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/suppliers/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/suppliers/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/tasks/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/tasks/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fast-track/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fast-track/apps-and-assets/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/apps-and-assets/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fast-track/getting-started/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/getting-started/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fast-track/task-types/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/task-types/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/on-premise/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/on-premise/configuration/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/configuration/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/on-premise/installation-example/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/installation-example/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/on-premise/installation/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/installation/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/on-premise/operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/on-premise/sso-entra/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/sso-entra/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/admin/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/admin/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/admin/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/admin/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/admin/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/analytics/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/analytics/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/applications/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/applications/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/applications/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/applications/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/applications/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/assets/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/assets/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/assets/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/assets/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/assets/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/branding/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/branding/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/branding/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/branding/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/branding/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/budget-operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/budget-operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/business-processes/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/business-processes/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/capex/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/capex/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/capex/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/capex/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/capex/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/chart-of-accounts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/chart-of-accounts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/companies/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/companies/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/companies/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/companies/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/companies/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/connection-map/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/connection-map/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/connections/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/connections/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/connections/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/connections/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/connections/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/contacts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/contacts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/contracts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/contracts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/currencies/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/currencies/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/departments/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/departments/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/departments/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/departments/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/departments/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/interface-map/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/interface-map/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/interfaces/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/interfaces/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/it-ops-settings/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/it-ops-settings/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/knowledge/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/knowledge/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/locations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/locations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/locations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/locations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/locations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/master-data-operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/master-data-operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/my-dashboard/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/my-dashboard/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/operations-dashboard/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/operations-dashboard/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/opex/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/opex/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/opex/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/opex/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/opex/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/portfolio-planning/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-planning/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/portfolio-projects/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-projects/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/portfolio-reporting/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-reporting/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/portfolio-requests/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-requests/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/portfolio-settings/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-settings/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/portfolio-team-members/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-team-members/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/reports/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/reports/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/reports/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/reports/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/reports/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/suppliers/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/suppliers/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/tasks/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/tasks/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/fast-track/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/fast-track/apps-and-assets/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/apps-and-assets/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/fast-track/getting-started/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/getting-started/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/fast-track/task-types/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/task-types/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/on-premise/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/on-premise/configuration/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/configuration/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/on-premise/installation-example/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/installation-example/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/on-premise/installation/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/installation/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/on-premise/operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/fr/on-premise/sso-entra/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/sso-entra/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/admin/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/admin/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/admin/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/admin/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/admin/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/analytics/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/analytics/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/applications/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/applications/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/applications/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/applications/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/applications/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/assets/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/assets/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/assets/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/assets/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/assets/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/branding/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/branding/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/branding/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/branding/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/branding/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/budget-operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/budget-operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/business-processes/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/business-processes/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/capex/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/capex/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/capex/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/capex/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/capex/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/chart-of-accounts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/chart-of-accounts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/companies/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/companies/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/companies/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/companies/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/companies/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/connection-map/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/connection-map/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/connections/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/connections/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/connections/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/connections/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/connections/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/contacts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/contacts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/contracts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/contracts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/currencies/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/currencies/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/departments/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/departments/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/departments/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/departments/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/departments/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/interface-map/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/interface-map/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/interfaces/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/interfaces/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/it-ops-settings/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/it-ops-settings/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/knowledge/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/knowledge/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/locations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/locations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/locations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/locations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/locations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/master-data-operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/master-data-operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/my-dashboard/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/my-dashboard/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/operations-dashboard/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/operations-dashboard/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/opex/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/opex/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/opex/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/opex/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/opex/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/portfolio-planning/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-planning/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/portfolio-projects/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-projects/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/portfolio-reporting/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-reporting/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/portfolio-requests/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-requests/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/portfolio-settings/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-settings/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/portfolio-team-members/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-team-members/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/reports/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/reports/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/reports/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/reports/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/reports/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/suppliers/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/suppliers/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/tasks/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/tasks/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/fast-track/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/fast-track/apps-and-assets/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/apps-and-assets/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/fast-track/getting-started/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/getting-started/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/fast-track/task-types/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/task-types/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/on-premise/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/on-premise/configuration/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/configuration/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/on-premise/installation-example/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/installation-example/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/on-premise/installation/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/installation/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/on-premise/operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/de/on-premise/sso-entra/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/sso-entra/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/admin/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/admin/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/admin/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/admin/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/admin/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/analytics/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/analytics/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/analytics/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/applications/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/applications/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/applications/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/applications/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/applications/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/assets/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/assets/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/assets/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/assets/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/assets/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/branding/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/branding/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/branding/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/branding/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/branding/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/budget-operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/budget-operations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/budget-operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/business-processes/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/business-processes/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/business-processes/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/capex/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/capex/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/capex/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/capex/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/capex/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/chart-of-accounts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/chart-of-accounts/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/chart-of-accounts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/companies/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/companies/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/companies/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/companies/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/companies/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/connection-map/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/connection-map/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/connection-map/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/connections/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/connections/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/connections/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/connections/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/connections/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/contacts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/contacts/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/contacts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/contracts/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/contracts/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/contracts/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/currencies/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/currencies/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/currencies/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/departments/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/departments/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/departments/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/departments/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/departments/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/interface-map/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/interface-map/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/interface-map/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/interfaces/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/interfaces/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/it-ops-settings/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/it-ops-settings/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/it-ops-settings/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/knowledge/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/knowledge/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/knowledge/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/locations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/locations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/locations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/locations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/locations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/master-data-operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/master-data-operations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/master-data-operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/my-dashboard/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/my-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/my-dashboard/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/operations-dashboard/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/operations-dashboard/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/operations-dashboard/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/opex/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/opex/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/opex/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/opex/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/opex/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/portfolio-planning/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-planning/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-planning/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/portfolio-projects/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-projects/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-projects/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/portfolio-reporting/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-reporting/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-reporting/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/portfolio-requests/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-requests/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-requests/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/portfolio-settings/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-settings/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-settings/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/portfolio-team-members/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/portfolio-team-members/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/portfolio-team-members/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/reports/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/reports/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/reports/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/reports/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/reports/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/suppliers/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/suppliers/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/suppliers/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/tasks/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/tasks/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/tasks/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/fast-track/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/fast-track/apps-and-assets/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/apps-and-assets/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/apps-and-assets/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/fast-track/getting-started/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/getting-started/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/getting-started/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/fast-track/task-types/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/fast-track/task-types/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/fast-track/task-types/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/on-premise/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/on-premise/configuration/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/configuration/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/configuration/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/on-premise/installation-example/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/installation-example/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/installation-example/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/on-premise/installation/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/installation/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/installation/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/on-premise/operations/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/operations/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/operations/"/>
+    </url>
+    <url>
+        <loc>https://doc.kanap.net/es/on-premise/sso-entra/</loc>
+        <lastmod>2026-03-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://doc.kanap.net/es/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://doc.kanap.net/de/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://doc.kanap.net/on-premise/sso-entra/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://doc.kanap.net/fr/on-premise/sso-entra/"/>
+    </url>
+</urlset>

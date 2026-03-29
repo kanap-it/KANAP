@@ -1,0 +1,3397 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User documentation for KANAP - IT portfolio and budget management platform">
+      
+      
+      
+        <link rel="canonical" href="https://doc.kanap.net/de/portfolio-planning/">
+      
+      
+        <link rel="prev" href="../portfolio-projects/">
+      
+      
+        <link rel="next" href="../portfolio-team-members/">
+      
+      
+        
+          <link rel="alternate" href="../../portfolio-planning/" hreflang="en">
+        
+          <link rel="alternate" href="../../fr/portfolio-planning/" hreflang="fr">
+        
+          <link rel="alternate" href="./" hreflang="de">
+        
+          <link rel="alternate" href="../../es/portfolio-planning/" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Planung - KANAP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#portfolio-planung" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../" title="KANAP" class="md-header__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            KANAP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Planung
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Sprache wechseln">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../portfolio-planning/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../fr/portfolio-planning/" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="de" class="md-select__link">
+              Deutsch
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../es/portfolio-planning/" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/your-org/kanap" title="Zum Repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="KANAP" class="md-nav__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    KANAP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/your-org/kanap" title="Zum Repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Startseite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnellstart
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Schnellstart
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erste Schritte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Von der Anfrage zur Lieferung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/apps-and-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Von der Anwendung zum Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/task-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run, Build & Aufgaben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../my-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dashboard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolioverwaltung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Portfolioverwaltung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aufgaben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-requests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anfragen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planung
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#erste-schritte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erste Schritte
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#planungsmodi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Planungsmodi
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#zeitplan-modus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zeitplan-Modus
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Zeitplan-Modus">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#was-sie-tun-konnen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Was Sie tun können
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anzeigeverhalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anzeigeverhalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#roadmap-generator-modus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Roadmap-Generator-Modus
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Roadmap-Generator-Modus">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#szenario-steuerungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Szenario-Steuerungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reiter-zeitplan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reiter Zeitplan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reiter-engpasse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reiter Engpässe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reiter-auslastung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reiter Auslastung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gantt-vorschau-verhalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gantt-Vorschau-Verhalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generierte-termine-anwenden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generierte Termine anwenden
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Generierte Termine anwenden">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#anwende-regeln" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anwende-Regeln
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verhalten-bei-gestarteten-projekten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verhalten bei gestarteten Projekten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#haufige-grunde-fur-nicht-planbarkeit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Häufige Gründe für Nicht-Planbarkeit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wie-der-planer-funktioniert" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wie der Planer funktioniert
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Wie der Planer funktioniert">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kapazitat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kapazität
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reservierungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reservierungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abhangigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abhängigkeiten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projektrangfolge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Projektrangfolge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kontinuitatsregel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kontinuitätsregel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kollaborative-planung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kollaborative Planung
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Kollaborative Planung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kollaborativ-schalter-an" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kollaborativ (Schalter AN)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nicht-kollaborativ-schalter-aus-standard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nicht-kollaborativ (Schalter AUS, Standard)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallelisierungslimit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallelisierungslimit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kontextwechsel-abzug" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kontextwechsel-Abzug
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensitivitatsanalyse-engpasse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensitivitätsanalyse (Engpässe)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-team-members/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mitwirkende
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Berichte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Einstellungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IT-Landschaft
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    IT-Landschaft
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infrastruktur
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Infrastruktur
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../locations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standorte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connection-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungskarte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anwendungen
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Anwendungen
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../applications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anwendungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnittstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interface-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnittstellenkarte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../it-ops-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Einstellungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wissensdatenbank
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wissensdatenbank
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wissensdatenbank
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetverwaltung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Budgetverwaltung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../opex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../capex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CAPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verträge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../budget-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetadministration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Berichte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stammdaten
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stammdaten
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_1" id="__nav_8_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Organisation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Organisation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../companies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unternehmen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../departments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Abteilungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Externe Parteien
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Externe Parteien
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suppliers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lieferanten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contacts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kontakte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Finanzen
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Finanzen
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chart-of-accounts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kontenpläne
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../currencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Währungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Klassifizierung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Klassifizierung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../business-processes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geschäftsprozesse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysedimensionen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration & Benutzer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../branding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../master-data-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stammdatenadministration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetübersicht
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On-Premise
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    On-Premise
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/installation-example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installationsbeispiel (Ubuntu)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfiguration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Betrieb
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/sso-entra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Microsoft Entra SSO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#erste-schritte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erste Schritte
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#planungsmodi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Planungsmodi
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#zeitplan-modus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zeitplan-Modus
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Zeitplan-Modus">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#was-sie-tun-konnen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Was Sie tun können
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anzeigeverhalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anzeigeverhalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#roadmap-generator-modus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Roadmap-Generator-Modus
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Roadmap-Generator-Modus">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#szenario-steuerungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Szenario-Steuerungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reiter-zeitplan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reiter Zeitplan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reiter-engpasse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reiter Engpässe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reiter-auslastung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reiter Auslastung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gantt-vorschau-verhalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gantt-Vorschau-Verhalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generierte-termine-anwenden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generierte Termine anwenden
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Generierte Termine anwenden">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#anwende-regeln" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anwende-Regeln
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verhalten-bei-gestarteten-projekten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verhalten bei gestarteten Projekten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#haufige-grunde-fur-nicht-planbarkeit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Häufige Gründe für Nicht-Planbarkeit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wie-der-planer-funktioniert" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wie der Planer funktioniert
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Wie der Planer funktioniert">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kapazitat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kapazität
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reservierungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reservierungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abhangigkeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abhängigkeiten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projektrangfolge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Projektrangfolge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kontinuitatsregel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kontinuitätsregel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kollaborative-planung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kollaborative Planung
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Kollaborative Planung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kollaborativ-schalter-an" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kollaborativ (Schalter AN)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nicht-kollaborativ-schalter-aus-standard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nicht-kollaborativ (Schalter AUS, Standard)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallelisierungslimit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallelisierungslimit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kontextwechsel-abzug" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kontextwechsel-Abzug
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensitivitatsanalyse-engpasse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensitivitätsanalyse (Engpässe)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="portfolio-planung">Portfolio-Planung<a class="headerlink" href="#portfolio-planung" title="Permanent link">&para;</a></h1>
+<p>Die Portfolio-Planung hilft Ihnen, Projekttermine auf Portfolio-Ebene zu planen und zu aktualisieren. Sie kombiniert eine manuelle Zeitplanansicht mit einem automatischen Roadmap-Generator, der Projekte basierend auf verbleibendem Aufwand, Abhängigkeiten und Mitwirkenden-Kapazität einplant.</p>
+<h2 id="erste-schritte">Erste Schritte<a class="headerlink" href="#erste-schritte" title="Permanent link">&para;</a></h2>
+<p>Navigieren Sie zu <strong>Portfolio &gt; Planung</strong>.</p>
+<p><strong>Berechtigungen</strong>:
+- Sie benötigen <code>portfolio_projects:reader</code>, um auf die Planungsseite und Zeitplandaten zuzugreifen.
+- Sie benötigen <code>portfolio_reports:reader</code>, um Roadmap-Szenarien zu generieren.
+- Sie benötigen <code>portfolio_projects:contributor</code>, um generierte Termine auf Projekte anzuwenden.</p>
+<p>Wenn Sie Planung nicht im Menü sehen, bitten Sie Ihren Administrator, den erforderlichen Zugriff zu gewähren.</p>
+<hr />
+<h2 id="planungsmodi">Planungsmodi<a class="headerlink" href="#planungsmodi" title="Permanent link">&para;</a></h2>
+<p>Verwenden Sie den Modus-Umschalter oben auf der Seite:
+- <strong>Zeitplan</strong>: Manuelle Terminbearbeitung im Gantt-Diagramm
+- <strong>Roadmap-Generator</strong>: Automatische Zeitplansimulation und selektive Anwendung</p>
+<hr />
+<h2 id="zeitplan-modus">Zeitplan-Modus<a class="headerlink" href="#zeitplan-modus" title="Permanent link">&para;</a></h2>
+<p>Verwenden Sie den Zeitplan-Modus für direkte Planungsbearbeitungen.</p>
+<h3 id="was-sie-tun-konnen">Was Sie tun können<a class="headerlink" href="#was-sie-tun-konnen" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Projekte, Abhängigkeiten und optionale Meilensteine anzeigen</li>
+<li>Nach Kategorie und Status filtern</li>
+<li>Zeitfenster wählen: 1 Monat, 3 Monate, 6 Monate oder 1 Jahr</li>
+<li>Zeitlich vor-/zurücknavigieren oder auf <strong>Heute</strong> zurücksetzen</li>
+<li>Projektbalken ziehen, um geplante Start-/Endtermine zu aktualisieren</li>
+</ul>
+<h3 id="anzeigeverhalten">Anzeigeverhalten<a class="headerlink" href="#anzeigeverhalten" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Das Diagramm zentriert sich um heute mit etwa <strong>25 % Vergangenheit / 75 % Zukunft</strong>, wenn es auf den aktuellen Zeitraum zurückgesetzt wird.</li>
+<li>Meilensteine werden angezeigt, sind aber nicht ziehbar.</li>
+</ul>
+<hr />
+<h2 id="roadmap-generator-modus">Roadmap-Generator-Modus<a class="headerlink" href="#roadmap-generator-modus" title="Permanent link">&para;</a></h2>
+<p>Der Roadmap-Generator berechnet vorgeschlagene Projekttermine aus dem ausgewählten Umfang und den Planungsparametern.</p>
+<h3 id="szenario-steuerungen">Szenario-Steuerungen<a class="headerlink" href="#szenario-steuerungen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Startdatum</strong></li>
+<li><strong>Status</strong> (Standard: Warteliste, Geplant, In Bearbeitung, Im Test)</li>
+<li><strong>Kapazitätsmodus</strong>: Theoretisch oder Historisch</li>
+<li><strong>Parallellimit</strong>: Maximale gleichzeitige Projekte pro Mitwirkendem</li>
+<li><strong>Optimierungsmodus</strong>: Prioritätsfokussiert oder Abschlussfokussiert</li>
+<li><strong>Bereits geplante Projekte neu berechnen</strong> (standardmäßig aktiviert)</li>
+<li><strong>Kollaborative Planung</strong> (standardmäßig deaktiviert)</li>
+<li><strong>Kontextwechsel-Abzug</strong> und <strong>Kontextwechsel-Toleranz</strong></li>
+</ul>
+<p><strong>Wichtig</strong>: Wenn <strong>Bereits geplante Projekte neu berechnen</strong> aktiviert ist, können Projekte, die bereits geplante Termine haben, im generierten Szenario verschoben werden.</p>
+<h3 id="reiter-zeitplan">Reiter Zeitplan<a class="headerlink" href="#reiter-zeitplan" title="Permanent link">&para;</a></h3>
+<p>Nach der Generierung zeigt der Reiter Zeitplan die vorgeschlagenen Projekttermine.</p>
+<ul>
+<li>Projekttitel sind klickbar und öffnen den Reiter <strong>Fortschritt</strong> des Projekts.</li>
+<li>Kontrollkästchen definieren den Szenarioumfang.</li>
+<li>Ein Filter <strong>Kategorie (Vorschau)</strong> ermöglicht es, die Roadmap-Gantt-Anzeige zu filtern, ohne den generierten Zeitplan selbst zu ändern.</li>
+<li>Das Abwählen eines Projekts generiert das Szenario sofort neu:</li>
+<li>das abgewählte Projekt wird vollständig ausgeschlossen,</li>
+<li>es verbraucht keine Kapazität mehr in Engpässen/Auslastung/Zeitplan.</li>
+<li><strong>Sichtbare auswählen</strong> / <strong>Sichtbare Auswahl aufheben</strong> wirken nur auf Projekte, die aktuell in der gefilterten Gantt-Vorschau sichtbar sind.</li>
+<li>Nicht planbare Projekte werden mit einem Grund aufgelistet.</li>
+</ul>
+<h3 id="reiter-engpasse">Reiter Engpässe<a class="headerlink" href="#reiter-engpasse" title="Permanent link">&para;</a></h3>
+<p>Zeigt Mitwirkende, gerankt nach Auswirkung auf das Roadmap-Enddatum (<code>impactDays</code>) unter Verwendung von Sensitivitätssimulationen.
+- Jede Mitwirkenden-Zeile hat einen Auf-/Zuklapp-Pfeil, um eine Projektaufschlüsselungstabelle zu öffnen.
+- Die Aufschlüsselung enthält nur Projekte im aktuellen generierten Szenario, bei denen der Mitwirkende eine Zuordnung hat.
+- Die Aufschlüsselung ist nach Projektstartdatum sortiert und zeigt:
+  - Projektname
+  - Projektstartdatum
+  - Projektenddatum
+  - Gesamtbeitrag (Tage)
+  - Bereits aufgewendete Zeit (Tage)
+- <code>Gesamtbeitrag</code> und <code>Bereits aufgewendete Zeit</code> werden aus der generierten Mitwirkenden-Auslastung plus dem Projektausführungsfortschritt abgeleitet.</p>
+<h3 id="reiter-auslastung">Reiter Auslastung<a class="headerlink" href="#reiter-auslastung" title="Permanent link">&para;</a></h3>
+<p>Zeigt wöchentliche Auslastungs-Heatmaps:
+- Mitwirkenden-Ansicht: Eine Zeile pro Mitwirkendem, gruppiert nach Team, mit ISO-Wochenspalten
+- Team-Ansicht: Eine Zeile pro Team, mit ISO-Wochenspalten
+- Team-Bezeichnungen werden als zusammengeführte mehrzeilige Zellen in der Mitwirkenden-Ansicht angezeigt, um Wiederholung zu vermeiden
+- Jede Zelle zeigt die gerundete wöchentliche Auslastung (%) mit Farbintensität basierend auf der Belastung</p>
+<h3 id="gantt-vorschau-verhalten">Gantt-Vorschau-Verhalten<a class="headerlink" href="#gantt-vorschau-verhalten" title="Permanent link">&para;</a></h3>
+<p>Das Roadmap-Gantt ist schreibgeschützt und:
+- verwendet dieselbe heute-zentrierte 25/75-Anzeigelogik wie der Zeitplan-Modus,
+- erweitert sich automatisch weit genug in die Zukunft, um den spätesten geplanten Abschluss zu erreichen,
+- zeigt jeden Projektbalken mit seinem aktuellen Ausführungsfortschritt,
+- passt die Höhe automatisch basierend auf sichtbaren Zeilen an, sodass größere Szenarien viele Projekte ohne internes vertikales Scrollen zeigen können.</p>
+<hr />
+<h2 id="generierte-termine-anwenden">Generierte Termine anwenden<a class="headerlink" href="#generierte-termine-anwenden" title="Permanent link">&para;</a></h2>
+<p>Klicken Sie auf <strong>Termine anwenden</strong>, um generierte geplante Termine zurück auf ausgewählte Projekte zu schreiben.</p>
+<h3 id="anwende-regeln">Anwende-Regeln<a class="headerlink" href="#anwende-regeln" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Nur ausgewählte Projekte, die aktuell in der Roadmap-Gantt-Vorschau sichtbar sind, werden angewendet.</li>
+<li>Die Anwendung ist <strong>transaktional</strong> (alles oder nichts):</li>
+<li>Wenn ein Projekt die Validierung nicht besteht, wird kein Projekttermin aktualisiert.</li>
+</ul>
+<hr />
+<h2 id="verhalten-bei-gestarteten-projekten">Verhalten bei gestarteten Projekten<a class="headerlink" href="#verhalten-bei-gestarteten-projekten" title="Permanent link">&para;</a></h2>
+<p>Für Projekte, die bereits in der Vergangenheit gestartet wurden:
+- wird das historische Startdatum beibehalten (<code>Tatsächlicher Start</code> oder geeigneter <code>Geplanter Start</code>-Fallback),
+- verwendet die Planung die verbleibende Arbeit ab heute, um das voraussichtliche Enddatum zu berechnen.</p>
+<p>Dies bewahrt den historischen Zeitplankontext, während eine realistische Fertigstellung weiterhin neu berechnet wird.</p>
+<hr />
+<h2 id="haufige-grunde-fur-nicht-planbarkeit">Häufige Gründe für Nicht-Planbarkeit<a class="headerlink" href="#haufige-grunde-fur-nicht-planbarkeit" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Kein verbleibender Aufwand</strong></li>
+<li><strong>Keine Mitwirkenden</strong></li>
+<li><strong>Fehlende Mitwirkenden-Kapazität</strong></li>
+<li><strong>Fehlendes Blocker-Datum</strong></li>
+<li><strong>Zyklische Abhängigkeit</strong></li>
+<li><strong>Unzureichende Kapazität</strong></li>
+</ul>
+<p>Wenn Projekte nicht planbar sind, überprüfen Sie Mitwirkenden-Zuweisungen, Mitwirkenden-Verfügbarkeit, Abhängigkeitsdaten und Statusumfang.</p>
+<hr />
+<h2 id="wie-der-planer-funktioniert">Wie der Planer funktioniert<a class="headerlink" href="#wie-der-planer-funktioniert" title="Permanent link">&para;</a></h2>
+<p>Der Roadmap-Generator simuliert die Projektausführung Woche für Woche. Jede Woche entscheidet er, welche Projekte Arbeit erhalten und wie viel Aufwand jeder Mitwirkende verbraucht. Die Simulation läuft vom <strong>Startdatum</strong> vorwärts, bis alle Projekte abgeschlossen sind oder das Horizontlimit erreicht ist.</p>
+<h3 id="kapazitat">Kapazität<a class="headerlink" href="#kapazitat" title="Permanent link">&para;</a></h3>
+<p>Jeder Mitwirkende hat eine monatliche Kapazität (konfiguriert unter <strong>Mitwirkende</strong>). Der Planer rechnet diese in einen Wochenwert um: <code>monatlich * 12 / 52</code>.</p>
+<ul>
+<li><strong>Theoretischer Modus</strong> verwendet die konfigurierte Kapazität direkt.</li>
+<li><strong>Historischer Modus</strong> verwendet tatsächliche Zeiterfassungsdaten der letzten Monate als Kapazitätsbasis.</li>
+</ul>
+<h3 id="reservierungen">Reservierungen<a class="headerlink" href="#reservierungen" title="Permanent link">&para;</a></h3>
+<p>Projekte, die <strong>nicht neu berechnet</strong> werden (wenn <strong>Bereits geplante Projekte neu berechnen</strong> deaktiviert ist oder Projekte mit externen Blockern), behalten ihre bestehenden geplanten Termine. Ihre Mitwirkenden-Auslastung wird im Kapazitätsbuch vorab festgeschrieben, bevor die Kandidatenplanung beginnt. Das bedeutet, reservierte Projekte verbrauchen Mitwirkenden-Zeit in den Wochen, die sie umfassen, und reduzieren die Verfügbarkeit für andere Projekte.</p>
+<h3 id="abhangigkeiten">Abhängigkeiten<a class="headerlink" href="#abhangigkeiten" title="Permanent link">&para;</a></h3>
+<p>Ein Projekt kann nicht beginnen, bevor alle seine Abhängigkeits-Vorgänger abgeschlossen sind. Wenn ein Vorgänger ein Kandidat im aktuellen Lauf ist, wartet das abhängige Projekt, bis das berechnete Enddatum des Vorgängers vergangen ist. Wenn ein Vorgänger außerhalb des Kandidatensatzes liegt (z. B. ausgeschlossen oder in einem anderen Status), wird sein bekanntes geplantes/tatsächliches Enddatum verwendet.</p>
+<h3 id="projektrangfolge">Projektrangfolge<a class="headerlink" href="#projektrangfolge" title="Permanent link">&para;</a></h3>
+<p>Jede Woche werden bereite Projekte (nicht blockiert, nicht erledigt) sortiert, um die Planungspriorität zu bestimmen. Die Rangfolge hängt vom <strong>Optimierungsmodus</strong> ab.</p>
+<p><strong>Prioritätsfokussierter</strong> Modus ordnet nach <strong>effektiver Priorität</strong> (höchste zuerst):</p>
+<ul>
+<li><strong>Gestartete Projekte</strong> (haben bereits in einer früheren Woche Arbeit erhalten): effektive Priorität = <code>min(100, priorityScore + 5 * weeksSinceStart)</code>. Ein gestartetes Projekt gewinnt 5 Prioritätspunkte pro Woche aktiver Arbeit, bis maximal 100. Dies stellt sicher, dass laufende Projekte stetig in der Priorität steigen, damit sie abgeschlossen werden.</li>
+<li><strong>Wartende Projekte</strong> (bereit, aber noch nicht gestartet): effektive Priorität = <code>min(90, priorityScore + weeksWaiting)</code>. Jede Woche, die ein bereites Projekt wartet, ohne Arbeit zu erhalten, gewinnt es 1 Prioritätspunkt, bis maximal 90. Dies verhindert endlose Blockierung, aber ein wartendes Projekt kann nie ein mäßig priorisiertes gestartetes Projekt übertrumpfen.</li>
+<li><strong>Andere Projekte</strong> (noch nicht bereit): verwenden ihren rohen <code>priorityScore</code> unverändert.</li>
+</ul>
+<p><strong>Abschlussfokussierter</strong> Modus ordnet nach <strong>Engpasswochen</strong> (niedrigste zuerst), dann roher <code>priorityScore</code> (höchster zuerst). Engpasswochen schätzen, wie viele Wochen ein Projekt dauern würde, wenn es das einzige geplante Projekt wäre, basierend auf seinem am stärksten eingeschränkten Mitwirkenden. Dieser Modus priorisiert schnell abschließbare Projekte.</p>
+<p><strong>Tiebreaker</strong> (beide Modi): Abhängigkeitstiefe absteigend (Projekte, die die meiste nachgelagerte Arbeit blockieren, kommen zuerst), dann Projekt-ID lexikografisch für Determinismus.</p>
+<h3 id="kontinuitatsregel">Kontinuitätsregel<a class="headerlink" href="#kontinuitatsregel" title="Permanent link">&para;</a></h3>
+<p>Bevor neue Projektstarts jede Woche in Betracht gezogen werden, weist der Planer Mitwirkende vorab ihren <strong>laufenden Projekten</strong> zu. Ein Mitwirkender „fährt fort" mit einem Projekt, wenn:</p>
+<ul>
+<li>Das Projekt bereits gestartet ist (in einer früheren Woche Arbeit erhalten hat).</li>
+<li>Das Projekt bereit ist (nicht durch eine Abhängigkeit blockiert).</li>
+<li>Der Mitwirkende noch verbleibenden Aufwand dafür hat.</li>
+<li>Der Mitwirkende bereits zuvor daran gearbeitet hat.</li>
+</ul>
+<p>Laufende Projekte werden in Rangfolge verarbeitet (höchste Priorität zuerst). Jede Vorab-Fortsetzung verbraucht einen Parallelisierungsslot für diesen Mitwirkenden.</p>
+<p><strong>Effekt</strong>: Bei <strong>Parallellimit = 1</strong> muss ein Mitwirkender, der an einem Projekt arbeitet, es abschließen (oder warten, bis es wieder freigegeben wird), bevor er etwas Neues beginnt. Bei höheren Limits füllt laufende Arbeit zuerst Slots, und verbleibende Slots werden für neue Projekte verfügbar.</p>
+<p>Die Kontinuitätsregel gilt in kollaborativen und nicht-kollaborativen Modi, aber die Machbarkeitsprüfung unterscheidet sich:</p>
+<ul>
+<li><strong>Kollaborativ</strong>: Alle fortsetzenden Mitwirkenden an einem Projekt müssen freie Slots haben, damit das Projekt als Ganzes vorausgewählt wird.</li>
+<li><strong>Nicht-kollaborativ</strong>: Jeder fortsetzende Mitwirkende wird einzeln vorausgewählt, wenn er einen freien Slot hat.</li>
+</ul>
+<h3 id="kollaborative-planung">Kollaborative Planung<a class="headerlink" href="#kollaborative-planung" title="Permanent link">&para;</a></h3>
+<p>Der Schalter <strong>Kollaborative Planung</strong> steuert, wie der Planer Projekte auswählt und Arbeit jede Woche verteilt.</p>
+<h4 id="kollaborativ-schalter-an">Kollaborativ (Schalter AN)<a class="headerlink" href="#kollaborativ-schalter-an" title="Permanent link">&para;</a></h4>
+<p>Alle Mitwirkenden, die einem Projekt zugewiesen sind, müssen einen freien Parallelisierungsslot <strong>und</strong> verfügbare Kapazität haben, damit das Projekt ausgewählt wird. Wenn auch nur ein Mitwirkender vollständig ausgelastet ist, wartet das gesamte Projekt.</p>
+<p>Arbeit wird <strong>proportional</strong> verbraucht: Alle Mitwirkenden machen Fortschritt im Tempo des am stärksten eingeschränkten Mitwirkenden. Wenn Mitwirkender A 4 Tage verfügbar hat und Mitwirkender B 1 Tag, schreitet das Projekt mit einer Rate voran, die durch die Verfügbarkeit von Mitwirkendem B eingeschränkt ist. Dies hält alle Mitwirkenden synchron, bedeutet aber, dass verfügbare Kapazität von schnelleren Mitwirkenden für dieses Projekt ungenutzt bleibt.</p>
+<p>Verwenden Sie die kollaborative Planung, wenn Projekte tatsächlich erfordern, dass alle Teammitglieder im Gleichschritt arbeiten (z. B. eng gekoppelte Entwicklungsphasen, Workshops oder gemeinsame Liefergegenstände).</p>
+<h4 id="nicht-kollaborativ-schalter-aus-standard">Nicht-kollaborativ (Schalter AUS, Standard)<a class="headerlink" href="#nicht-kollaborativ-schalter-aus-standard" title="Permanent link">&para;</a></h4>
+<p>Ein Projekt wird ausgewählt, wenn <strong>irgendein</strong> Mitwirkender einen freien Parallelisierungsslot und verfügbare Kapazität hat. Mitwirkende arbeiten <strong>unabhängig</strong>: Jeder verbraucht Aufwand in seinem eigenen Tempo, bis zu seiner verfügbaren wöchentlichen Kapazität. Ein Projekt kann Fortschritt machen, auch wenn einige seiner Mitwirkenden mit anderer Arbeit beschäftigt sind.</p>
+<p>Dieser Modus enthält eine <strong>Mindeststart-Absicherung</strong> für neue Projekte: Ein Projekt startet erst, wenn der erwartete Gesamtverbrauch aller machbaren Mitwirkenden mindestens 0,5 Tage in dieser Woche beträgt. Dies verhindert optimistisch frühe Startdaten durch winzige Tropfenverbräuche. Die Absicherung gilt nicht für Fortsetzungen (bereits gestartete Projekte laufen weiter über die Kontinuitätsregel unabhängig von der wöchentlichen Kapazität).</p>
+<p>Verwenden Sie die nicht-kollaborative Planung (Standard), wenn Mitwirkende unabhängig an ihren Anteilen arbeiten können, was typisch für die meisten IT-Projekte ist, bei denen verschiedene Teammitglieder separate Aufgaben bearbeiten.</p>
+<h3 id="parallelisierungslimit">Parallelisierungslimit<a class="headerlink" href="#parallelisierungslimit" title="Permanent link">&para;</a></h3>
+<p>Das <strong>Parallellimit</strong> steuert, an wie vielen Kandidatenprojekten ein einzelner Mitwirkender gleichzeitig in einer bestimmten Woche arbeiten kann. Reservierungen (vorab festgeschriebene Projekte) verbrauchen ebenfalls Slots.</p>
+<p>Bei einem Limit von 1 arbeitet jeder Mitwirkende an höchstens einem Kandidatenprojekt pro Woche. Bei einem Limit von 2 oder 3 können Mitwirkende ihre Zeit auf mehrere Projekte aufteilen.</p>
+<h3 id="kontextwechsel-abzug">Kontextwechsel-Abzug<a class="headerlink" href="#kontextwechsel-abzug" title="Permanent link">&para;</a></h3>
+<p>Wenn ein Mitwirkender in derselben Woche an mehr als einem Kandidatenprojekt arbeitet (Parallelität &gt; Toleranzschwelle), wird seine effektive Kapazität um den <strong>Kontextwechsel-Abzug</strong>-Prozentsatz für jedes zusätzliche Projekt über der Toleranzgrenze reduziert.</p>
+<ul>
+<li><strong>Kontextwechsel-Abzug</strong>: Der Prozentsatz der Kapazität, der pro zusätzlichem gleichzeitigem Projekt verloren geht (Standard 10 %).</li>
+<li><strong>Kontextwechsel-Toleranz</strong>: Die Anzahl gleichzeitiger Projekte, bevor der Abzug greift (Standard 1).</li>
+</ul>
+<p>Zum Beispiel, bei 10 % Abzug und Toleranz von 1: Die Arbeit an 2 Projekten kostet 10 % Kapazität, 3 Projekte kosten 20 %.</p>
+<h3 id="sensitivitatsanalyse-engpasse">Sensitivitätsanalyse (Engpässe)<a class="headerlink" href="#sensitivitatsanalyse-engpasse" title="Permanent link">&para;</a></h3>
+<p>Nach dem Hauptplanungslauf führt der Planer die Simulation mehrmals erneut durch, wobei jeweils einem Mitwirkenden +20 % zusätzliche monatliche Kapazität gegeben wird. Die Differenz zwischen dem Original-Roadmap-Enddatum und dem Enddatum jeder Variante misst die <strong>Auswirkung dieses Mitwirkenden auf den Zeitplan</strong>. Mitwirkende werden nach dieser Auswirkung im Reiter <strong>Engpässe</strong> gerankt.</p>
+<p>Dies hilft zu identifizieren, welche Mitwirkenden die größten Planungseinschränkungen darstellen. Das Hinzufügen von Kapazität bei Mitwirkenden mit hoher Auswirkung (durch Einstellung, Umverteilung oder Arbeitslastreduzierung) würde den gesamten Portfolio-Zeitplan am meisten verbessern.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://kanap.net" target="_blank" rel="noopener" title="KANAP Website" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

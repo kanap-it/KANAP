@@ -1,0 +1,25 @@
+/* KANAP Documentation - Custom Styles */
+
+/* Slightly tighter line height for tables */
+.md-typeset table:not([class]) td,
+.md-typeset table:not([class]) th {
+  padding: 0.5em 1em;
+}
+
+/* Permission codes styling */
+.md-typeset code {
+  background-color: var(--md-code-bg-color);
+  border-radius: 0.2rem;
+  padding: 0 0.3em;
+}
+
+/* Tip/Note callout styling improvements */
+.md-typeset .admonition.tip,
+.md-typeset details.tip {
+  border-color: #00bfa5;
+}
+
+/* Make navigation sections more distinct */
+.md-nav__item--nested > .md-nav__link {
+  font-weight: 500;
+}

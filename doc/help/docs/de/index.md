@@ -88,7 +88,7 @@ Wenn Sie den kürzesten Weg zur produktiven Nutzung suchen, beginnen Sie mit den
 
 - [Administration & Benutzer](admin.md) - Benutzer, Rollen, Authentifizierung und Audit-Protokolle verwalten
 - [Branding](branding.md) - Mandantenlogo und primäre Farben für Hell-/Dunkelmodus anpassen
-- [Audit-Protokoll](admin.md#audit-log) - Änderungsverlauf des Mandanten mit Filtern und Detailansicht überprüfen
+- [Audit-Protokoll](admin.md#audit-protokoll) - Änderungsverlauf des Mandanten mit Filtern und Detailansicht überprüfen
 - [Stammdaten-Administration](master-data-operations.md) - Stammdaten einfrieren und kopieren
 - [Operations-Dashboard](operations-dashboard.md) - Übersicht und Schnellaktionen
 

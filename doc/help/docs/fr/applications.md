@@ -220,7 +220,7 @@ L'onglet Technique et support capture les détails techniques et les contacts de
 
 **Informations techniques** :
   - **Suites** : Suites parentes auxquelles cette application appartient
-  - **Méthodes d'accès** : Comment les utilisateurs accèdent à cette application (multi-sélection). Les options sont configurables dans les [Paramètres de la Cartographie SI](it-ops-settings.md#méthodes-daccès). Les options par défaut incluent :
+  - **Méthodes d'accès** : Comment les utilisateurs accèdent à cette application (multi-sélection). Les options sont configurables dans les [Paramètres de la Cartographie SI](it-ops-settings.md#methodes-dacces). Les options par défaut incluent :
     - Web
     - Application installée localement
     - Application mobile

@@ -1,0 +1,3588 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User documentation for KANAP - IT portfolio and budget management platform">
+      
+      
+      
+        <link rel="canonical" href="https://doc.kanap.net/de/capex/">
+      
+      
+        <link rel="prev" href="../opex/">
+      
+      
+        <link rel="next" href="../contracts/">
+      
+      
+        
+          <link rel="alternate" href="../../capex/" hreflang="en">
+        
+          <link rel="alternate" href="../../fr/capex/" hreflang="fr">
+        
+          <link rel="alternate" href="./" hreflang="de">
+        
+          <link rel="alternate" href="../../es/capex/" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>CAPEX - KANAP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#capex" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../" title="KANAP" class="md-header__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            KANAP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              CAPEX
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Sprache wechseln">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../capex/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../fr/capex/" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="de" class="md-select__link">
+              Deutsch
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../es/capex/" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/your-org/kanap" title="Zum Repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="KANAP" class="md-nav__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    KANAP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/your-org/kanap" title="Zum Repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Startseite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnellstart
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Schnellstart
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erste Schritte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Von der Anfrage zur Lieferung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/apps-and-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Von der Anwendung zum Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/task-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run, Build & Aufgaben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../my-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dashboard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolioverwaltung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Portfolioverwaltung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aufgaben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-requests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anfragen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-planning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-team-members/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mitwirkende
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Berichte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Einstellungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IT-Landschaft
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    IT-Landschaft
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infrastruktur
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Infrastruktur
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../locations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standorte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connection-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungskarte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anwendungen
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Anwendungen
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../applications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anwendungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnittstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interface-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnittstellenkarte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../it-ops-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Einstellungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wissensdatenbank
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wissensdatenbank
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wissensdatenbank
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetverwaltung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Budgetverwaltung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../opex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CAPEX
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CAPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#erste-schritte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erste Schritte
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#investitionsarten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investitionsarten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mit-der-capex-liste-arbeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mit der CAPEX-Liste arbeiten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mit der CAPEX-Liste arbeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standardspalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standardspalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zusatzliche-spalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zusätzliche Spalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schnellsuche" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schnellsuche
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spaltenfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spaltenfilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sortierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sortierung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#summenzeile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summenzeile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deep-linking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deep Linking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#statusfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Statusfilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suchkontext-erhaltung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suchkontext-Erhaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zuruckweiter-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zurück/Weiter-Navigation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#der-capex-arbeitsbereich" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Der CAPEX-Arbeitsbereich
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Der CAPEX-Arbeitsbereich">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Übersicht
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zuordnungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zuordnungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aufgaben" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufgaben
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verknupfungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verknüpfungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csv-importexport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSV-Import/Export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#status-und-lebenszyklus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status und Lebenszyklus
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#berechtigungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Berechtigungen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tipps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tipps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verträge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../budget-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetadministration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Berichte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stammdaten
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stammdaten
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_1" id="__nav_8_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Organisation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Organisation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../companies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unternehmen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../departments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Abteilungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Externe Parteien
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Externe Parteien
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suppliers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lieferanten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contacts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kontakte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Finanzen
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Finanzen
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chart-of-accounts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kontenpläne
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../currencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Währungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Klassifizierung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Klassifizierung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../business-processes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geschäftsprozesse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysedimensionen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration & Benutzer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../branding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../master-data-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stammdatenadministration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetübersicht
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On-Premise
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    On-Premise
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/installation-example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installationsbeispiel (Ubuntu)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfiguration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Betrieb
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/sso-entra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Microsoft Entra SSO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#erste-schritte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Erste Schritte
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#investitionsarten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investitionsarten
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mit-der-capex-liste-arbeiten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mit der CAPEX-Liste arbeiten
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mit der CAPEX-Liste arbeiten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standardspalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standardspalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zusatzliche-spalten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zusätzliche Spalten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schnellsuche" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schnellsuche
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spaltenfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spaltenfilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sortierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sortierung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#summenzeile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summenzeile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deep-linking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deep Linking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#statusfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Statusfilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suchkontext-erhaltung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suchkontext-Erhaltung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zuruckweiter-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zurück/Weiter-Navigation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#der-capex-arbeitsbereich" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Der CAPEX-Arbeitsbereich
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Der CAPEX-Arbeitsbereich">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Übersicht
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zuordnungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zuordnungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aufgaben" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aufgaben
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verknupfungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verknüpfungen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csv-importexport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSV-Import/Export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#status-und-lebenszyklus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status und Lebenszyklus
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#berechtigungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Berechtigungen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tipps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tipps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="capex">CAPEX<a class="headerlink" href="#capex" title="Permanent link">&para;</a></h1>
+<p>CAPEX-Positionen (Capital Expenditure / Investitionsausgaben) sind Ihre Investitionen in langfristige Vermögenswerte: Hardwarekäufe, Softwarelizenzen mit mehrjährigem Wert, Infrastrukturprojekte und Ausrüstung. Hier planen Sie Investitionsbudgets, verfolgen Projektausgaben und ordnen Kosten Ihrer Organisation zu.</p>
+<p>Der CAPEX-Arbeitsbereich unterstützt Sie bei der Verwaltung jeder Investitionsposition von der ersten Budgetierung über die Durchführung bis zur Berichterstattung -- alles an einem Ort mit jahresbezogenen Budgetspalten, flexiblen Zuordnungsmethoden und direkten Verknüpfungen zu Projekten, Verträgen und Kontakten.</p>
+<h2 id="erste-schritte">Erste Schritte<a class="headerlink" href="#erste-schritte" title="Permanent link">&para;</a></h2>
+<p>Navigieren Sie zu <strong>Budgetverwaltung &gt; CAPEX</strong>, um Ihre Liste zu sehen. Klicken Sie auf <strong>Neu</strong>, um Ihre erste Position zu erstellen.</p>
+<p><strong>Pflichtfelder</strong>:</p>
+<ul>
+<li><strong>Beschreibung</strong>: Was Sie investieren (z. B. „Neue Server-Infrastruktur", „ERP-Softwarelizenz")</li>
+<li><strong>Anlagentyp</strong>: Sachanlagen-Klassifizierung -- Hardware oder Software</li>
+<li><strong>Investitionsart</strong>: Zweck der Investition (siehe Optionen unten)</li>
+<li><strong>Priorität</strong>: Geschäftliche Prioritätsstufe (siehe Optionen unten)</li>
+<li><strong>Währung</strong>: ISO-Code (z. B. USD, EUR). Standardmäßig Ihre Arbeitsbereich-CAPEX-Währung; kann pro Position überschrieben werden</li>
+<li><strong>Gültig ab</strong>: Wann diese Investition beginnt (TT/MM/JJJJ)</li>
+<li><strong>Zahlendes Unternehmen</strong>: Welches Unternehmen die Investition tätigt (erforderlich für die Buchhaltung)</li>
+</ul>
+<p><strong>Dringend empfohlen</strong>:</p>
+<ul>
+<li><strong>Konto</strong>: Das Sachkonto für diese Investitionsausgabe. Es erscheinen nur Konten aus dem Kontenplan des zahlenden Unternehmens</li>
+<li><strong>Lieferant</strong>: Der Anbieter oder Lieferant für diese Investition. Auswahl aus Ihren Stammdaten-Lieferanten</li>
+</ul>
+<p><strong>Optional aber nützlich</strong>:</p>
+<ul>
+<li><strong>Gültig bis</strong>: Wann die Nutzungsdauer dieses Vermögenswerts endet oder das Projekt abgeschlossen ist (leer lassen für laufende Vermögenswerte)</li>
+<li><strong>Notizen</strong>: Freitext-Notizen zur Investition</li>
+</ul>
+<p>Nach dem Speichern werden alle Tabs freigeschaltet: <strong>Übersicht</strong>, <strong>Budget</strong>, <strong>Zuordnungen</strong>, <strong>Aufgaben</strong> und <strong>Verknüpfungen</strong>.</p>
+<p><strong>Tipp</strong>: Sie können Positionen schnell erstellen und Budgets und Zuordnungen später ergänzen. Beginnen Sie mit dem Wesentlichen und verfeinern Sie iterativ.</p>
+<hr />
+<h2 id="investitionsarten">Investitionsarten<a class="headerlink" href="#investitionsarten" title="Permanent link">&para;</a></h2>
+<p>CAPEX-Positionen müssen nach Investitionsart klassifiziert werden. Dies hilft bei der Analyse von Investitionsmustern:</p>
+<ul>
+<li><strong>Ersatz</strong>: Ersetzen bestehender Vermögenswerte, die veraltet sind oder das Lebensende erreicht haben</li>
+<li><strong>Kapazität</strong>: Kapazitätserweiterung zur Unterstützung von Geschäftswachstum oder erhöhter Nachfrage</li>
+<li><strong>Produktivität</strong>: Verbesserung der Effizienz oder Senkung der Betriebskosten</li>
+<li><strong>Sicherheit</strong>: Stärkung der Sicherheitsposition, Compliance oder Risikominderung</li>
+<li><strong>Konformität</strong>: Erfüllung regulatorischer oder Compliance-Anforderungen</li>
+<li><strong>Geschäftswachstum</strong>: Ermöglichung neuer Produkte, Märkte oder Geschäftsfähigkeiten</li>
+<li><strong>Sonstige</strong>: Investitionen, die nicht in die obigen Kategorien passen</li>
+</ul>
+<p><strong>Prioritätsstufen</strong>:</p>
+<ul>
+<li><strong>Obligatorisch</strong>: Muss umgesetzt werden (regulatorisch, kritische Infrastruktur, Sicherheit)</li>
+<li><strong>Hoch</strong>: Starker Business Case, hoher ROI oder strategische Bedeutung</li>
+<li><strong>Mittel</strong>: Wertvoll, kann aber bei Bedarf aufgeschoben werden</li>
+<li><strong>Niedrig</strong>: Nice-to-have, kann verschoben werden</li>
+</ul>
+<hr />
+<h2 id="mit-der-capex-liste-arbeiten">Mit der CAPEX-Liste arbeiten<a class="headerlink" href="#mit-der-capex-liste-arbeiten" title="Permanent link">&para;</a></h2>
+<p>Die CAPEX-Liste (unter <strong>Budgetverwaltung &gt; CAPEX</strong>) ist Ihre Hauptansicht zum Durchsuchen, Filtern und Navigieren von Investitionspositionen.</p>
+<h3 id="standardspalten">Standardspalten<a class="headerlink" href="#standardspalten" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Spalte</th>
+<th>Was sie zeigt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Beschreibung</strong></td>
+<td>Name der Investition</td>
+</tr>
+<tr>
+<td><strong>Unternehmen</strong></td>
+<td>Zahlendes Unternehmen</td>
+</tr>
+<tr>
+<td><strong>Anlagentyp</strong></td>
+<td>Hardware oder Software</td>
+</tr>
+<tr>
+<td><strong>Investitionsart</strong></td>
+<td>Zweck der Investition</td>
+</tr>
+<tr>
+<td><strong>Priorität</strong></td>
+<td>Geschäftliche Prioritätsstufe</td>
+</tr>
+<tr>
+<td><strong>J Zuordnung</strong></td>
+<td>Zuordnungsmethoden-Bezeichnung des aktuellen Jahres</td>
+</tr>
+<tr>
+<td><strong>J Budget</strong></td>
+<td>Geplantes Investitionsbudget des aktuellen Jahres (Berichtswährung)</td>
+</tr>
+<tr>
+<td><strong>J Endwert</strong></td>
+<td>Tatsächliche Investitionsausgaben des aktuellen Jahres (Berichtswährung)</td>
+</tr>
+<tr>
+<td><strong>J+1 Budget</strong></td>
+<td>Geplantes Investitionsbudget des nächsten Jahres (Berichtswährung)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="zusatzliche-spalten">Zusätzliche Spalten<a class="headerlink" href="#zusatzliche-spalten" title="Permanent link">&para;</a></h3>
+<p>Diese Spalten sind standardmäßig ausgeblendet. Zeigen Sie sie über die Spaltenauswahl an (Hamburger-Menü im Grid-Header):</p>
+<table>
+<thead>
+<tr>
+<th>Spalte</th>
+<th>Was sie zeigt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>J+1 Zuordnung</strong></td>
+<td>Zuordnungsmethoden-Bezeichnung des nächsten Jahres</td>
+</tr>
+<tr>
+<td><strong>J-1 Endwert</strong></td>
+<td>Tatsächliche Investitionsausgaben des Vorjahres</td>
+</tr>
+<tr>
+<td><strong>Währung</strong></td>
+<td>Währungscode der Position</td>
+</tr>
+<tr>
+<td><strong>Start</strong></td>
+<td>Gültig-ab-Datum</td>
+</tr>
+<tr>
+<td><strong>Ende</strong></td>
+<td>Gültig-bis-Datum</td>
+</tr>
+<tr>
+<td><strong>Notizen</strong></td>
+<td>Freitext-Notizen</td>
+</tr>
+<tr>
+<td><strong>Aufgabe</strong></td>
+<td>Titel der neuesten mit dieser Position verknüpften Aufgabe</td>
+</tr>
+<tr>
+<td><strong>Aktiviert</strong></td>
+<td>Status (aktiviert oder deaktiviert)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="schnellsuche">Schnellsuche<a class="headerlink" href="#schnellsuche" title="Permanent link">&para;</a></h3>
+<p>Das Suchfeld oben durchsucht Beschreibung, Notizen, Anlagentyp, Investitionsart, Priorität, Währung und Status. Ergebnisse aktualisieren sich in Echtzeit während der Eingabe.</p>
+<h3 id="spaltenfilter">Spaltenfilter<a class="headerlink" href="#spaltenfilter" title="Permanent link">&para;</a></h3>
+<p>Jede filterbare Spaltenüberschrift hat ein Filtersymbol. <strong>Unternehmen</strong>, <strong>Anlagentyp</strong>, <strong>Investitionsart</strong>, <strong>Priorität</strong> und <strong>Währung</strong> verwenden Kontrollkästchen-Set-Filter mit <strong>Alle</strong>, <strong>Keine</strong> und einer Löschen-Schaltfläche. Mehrere Filter werden mit UND-Logik kombiniert.</p>
+<h3 id="sortierung">Sortierung<a class="headerlink" href="#sortierung" title="Permanent link">&para;</a></h3>
+<p>Klicken Sie auf eine Spaltenüberschrift, um aufsteigend oder absteigend zu sortieren. Die Liste merkt sich Ihre letzte Sortierung bei der Rückkehr.</p>
+<h3 id="summenzeile">Summenzeile<a class="headerlink" href="#summenzeile" title="Permanent link">&para;</a></h3>
+<p>Die angeheftete Zeile unten zeigt Summen für alle Budgetspalten. Summen berücksichtigen Ihre aktuellen Filter und Suche. Alle Beträge werden in Ihre Berichtswährung umgerechnet, die im Seitentitel angezeigt wird (z. B. „CAPEX (EUR)").</p>
+<h3 id="deep-linking">Deep Linking<a class="headerlink" href="#deep-linking" title="Permanent link">&para;</a></h3>
+<p>Klicken Sie auf eine beliebige Zelle in einer Zeile, um den Arbeitsbereich auf dem für diese Spalte relevantesten Tab zu öffnen:</p>
+<ul>
+<li><strong>Beschreibung</strong>, <strong>Unternehmen</strong>, <strong>Anlagentyp</strong>, <strong>Investitionsart</strong>, <strong>Priorität</strong>: Öffnet die <strong>Übersicht</strong></li>
+<li><strong>J Budget</strong>, <strong>J Endwert</strong>: Öffnet den <strong>Budget</strong>-Tab für das aktuelle Jahr</li>
+<li><strong>J-1 Endwert</strong>: Öffnet den <strong>Budget</strong>-Tab für das Vorjahr</li>
+<li><strong>J+1 Budget</strong>: Öffnet den <strong>Budget</strong>-Tab für das nächste Jahr</li>
+<li><strong>J Zuordnung</strong>: Öffnet den <strong>Zuordnungen</strong>-Tab für das aktuelle Jahr</li>
+<li><strong>J+1 Zuordnung</strong>: Öffnet den <strong>Zuordnungen</strong>-Tab für das nächste Jahr</li>
+<li><strong>Aufgabe</strong>: Öffnet den <strong>Aufgaben</strong>-Tab</li>
+</ul>
+<h3 id="statusfilter">Statusfilter<a class="headerlink" href="#statusfilter" title="Permanent link">&para;</a></h3>
+<p>Verwenden Sie den Umschalter <strong>Anzeigen: Aktiviert / Deaktiviert / Alle</strong> über dem Grid, um den Lebenszyklusbereich zu steuern (Standard ist <strong>Aktiviert</strong>). Wählen Sie <strong>Deaktiviert</strong>, um archivierte Investitionen zu überprüfen, oder <strong>Alle</strong>, um beide Zustände einzuschließen. Summen aktualisieren sich sofort.</p>
+<h3 id="suchkontext-erhaltung">Suchkontext-Erhaltung<a class="headerlink" href="#suchkontext-erhaltung" title="Permanent link">&para;</a></h3>
+<p>Ihr Listenkontext -- Sortierreihenfolge, Suchtext und aktive Filter -- wird beibehalten, wenn Sie eine Position öffnen, und wiederhergestellt, wenn Sie zur Liste zurückkehren. Sie können also mehrere Positionen nacheinander aufrufen, ohne Ihren Platz zu verlieren.</p>
+<h3 id="zuruckweiter-navigation">Zurück/Weiter-Navigation<a class="headerlink" href="#zuruckweiter-navigation" title="Permanent link">&para;</a></h3>
+<p>Wenn Sie eine Position öffnen, zeigt der Arbeitsbereich die Schaltflächen <strong>Zurück</strong> und <strong>Weiter</strong>. Diese navigieren durch die Liste in der aktuellen Sortierreihenfolge unter Berücksichtigung von Filtern und Suche. Der Zähler (z. B. „Position 3 von 47") zeigt Ihre Position in der gefilterten Liste.</p>
+<p><strong>Tipp</strong>: Verwenden Sie Spaltenfilter und Schnellsuche, um fokussierte Ansichten zu erstellen (z. B. „Alle Hardware-Investitionen mit hoher Priorität"), und navigieren Sie dann mit <strong>Zurück</strong>/<strong>Weiter</strong> von Position zu Position, um Budgets zu überprüfen.</p>
+<hr />
+<h2 id="der-capex-arbeitsbereich">Der CAPEX-Arbeitsbereich<a class="headerlink" href="#der-capex-arbeitsbereich" title="Permanent link">&para;</a></h2>
+<p>Klicken Sie auf eine beliebige Zeile in der Liste, um den Arbeitsbereich zu öffnen. Er hat fünf Tabs, die jeweils auf einen bestimmten Aspekt der Investitionsposition fokussiert sind.</p>
+<h3 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h3>
+<p>Dieser Tab zeigt alle allgemeinen Informationen zur CAPEX-Position.</p>
+<p><strong>Was Sie bearbeiten können</strong>:</p>
+<ul>
+<li><strong>Beschreibung</strong>: Was Sie investieren (mehrzeiliger Text)</li>
+<li><strong>Zahlendes Unternehmen</strong>: Autovervollständigung aus Ihren Unternehmen</li>
+<li><strong>Konto</strong>: Gefiltert nach dem Kontenplan des zahlenden Unternehmens</li>
+<li><strong>Lieferant</strong>: Autovervollständigung aus Ihren Stammdaten-Lieferanten</li>
+<li><strong>Anlagentyp</strong>: Hardware oder Software</li>
+<li><strong>Investitionsart</strong>: Ersatz, Kapazität, Produktivität, Sicherheit, Konformität, Geschäftswachstum oder Sonstige</li>
+<li><strong>Priorität</strong>: Obligatorisch, Hoch, Mittel oder Niedrig</li>
+<li><strong>Währung</strong>: Standard ist die Arbeitsbereich-CAPEX-Währung; zeigt nur zugelassene Währungen</li>
+<li><strong>Gültig ab</strong> und <strong>Gültig bis</strong>: Datumsfelder im Format TT/MM/JJJJ</li>
+<li><strong>Notizen</strong>: Freitext-Notizen</li>
+</ul>
+<p><strong>Status und Lebenszyklus</strong>:</p>
+<ul>
+<li>Verwenden Sie den <strong>Aktiviert</strong>-Umschalter oder setzen Sie ein <strong>Deaktivierungsdatum</strong>, um zu steuern, wann die Position in Berichten und Auswahllisten erscheint</li>
+<li>Deaktivierte Positionen werden aus Berichten für Jahre ausgeschlossen, die strikt nach dem Deaktivierungsdatum liegen</li>
+<li>Historische Daten bleiben erhalten; Sie sehen deaktivierte Positionen weiterhin in Berichten, die Jahre abdecken, in denen sie aktiv waren</li>
+</ul>
+<p><strong>Speichern und Zurücksetzen</strong>:</p>
+<ul>
+<li>Änderungen werden <strong>nicht</strong> automatisch gespeichert</li>
+<li>Klicken Sie auf <strong>Speichern</strong>, um Ihre Bearbeitungen zu sichern, oder <strong>Zurücksetzen</strong>, um sie zu verwerfen</li>
+<li>Wenn Sie mit nicht gespeicherten Änderungen navigieren, werden Sie aufgefordert, zu speichern oder zu verwerfen</li>
+</ul>
+<p><strong>Tipp</strong>: Wenn Sie eine Warnung „Veraltetes Konto" sehen, bedeutet dies, dass das ausgewählte Konto nicht zum Kontenplan des zahlenden Unternehmens gehört. Wählen Sie ein anderes Konto, um die Warnung zu beheben.</p>
+<hr />
+<h3 id="budget">Budget<a class="headerlink" href="#budget" title="Permanent link">&para;</a></h3>
+<p>Der Budget-Tab ist der Ort, an dem Sie Finanzdaten pro Jahr eingeben. Er unterstützt mehrere Budgetspalten und zwei Eingabemodi: <strong>Pauschal</strong> (Jahressumme) und <strong>Manuell pro Monat</strong> (12-Monats-Aufschlüsselung).</p>
+<p><strong>Jahrauswahl</strong>:</p>
+<ul>
+<li>Verwenden Sie die Jahrreiter oben, um zwischen J-2, J-1, J (aktuelles Jahr), J+1 und J+2 zu wechseln</li>
+<li>Jedes Jahr hat seine eigene Version, Zuordnungsmethode und Beträge</li>
+<li>Jahreswechsel mit nicht gespeicherten Änderungen löst einen Speichern/Verwerfen-Dialog aus</li>
+</ul>
+<p><strong>Budgetspalten</strong> (alle Jahre):</p>
+<ul>
+<li><strong>Budget</strong>: Geplantes Investitionsbudget</li>
+<li><strong>Revision</strong>: Halbjahres-Budgetaktualisierung (z. B. nach Umfangsänderungen oder Neuprognosen)</li>
+<li><strong>Prognose</strong>: Erwartete tatsächliche Ausgaben (Ihre beste Schätzung im Jahresverlauf)</li>
+<li><strong>Endwert</strong>: Tatsächliche Investitionsausgaben nach dem Jahresabschluss</li>
+</ul>
+<p><strong>Pauschal vs. Manuell pro Monat</strong>:</p>
+<ul>
+<li><strong>Pauschal</strong>: Geben Sie eine Summe pro Spalte ein; Beträge werden gleichmäßig auf 12 Monate verteilt</li>
+<li><strong>Manuell pro Monat</strong>: Geben Sie Beträge pro Monat (Jan bis Dez) für granulare Projektverfolgung ein</li>
+<li>Wechseln Sie zwischen den Modi mit den Optionsfeldern oben im Tab</li>
+<li>Beim Moduswechsel berechnet das System Monatswerte aus der Pauschalsumme (Gleichverteilung) oder summiert Monatswerte zurück zu einer Pauschalsumme</li>
+</ul>
+<p><strong>Einfrierverhalten</strong>:</p>
+<ul>
+<li>Wenn das Budget eines Jahres eingefroren ist (über Budget-Administration), sind die Eingaben deaktiviert und zeigen ein „Eingefroren"-Label</li>
+<li>Sie können eingefrorene Daten weiterhin einsehen; Administratoren können über <strong>Budgetverwaltung &gt; Administration &gt; Einfrieren/Freigeben</strong> entsperren</li>
+</ul>
+<p><strong>Löschen und umverteilen</strong> (nur im Modus Manuell pro Monat):</p>
+<ul>
+<li>Klicken Sie auf das Löschsymbol neben einem Monat, um diesen auf Null zu setzen und seinen Wert auf andere nicht gesperrte Monate umzuverteilen</li>
+<li>Nützlich zum Entfernen von Platzhaltermonaten oder zum Anpassen von Projektzeitplänen</li>
+<li>Gesperrte Monate (in dieser Sitzung zuvor gelöscht) sind von der Umverteilung ausgeschlossen</li>
+</ul>
+<p><strong>Notizfeld</strong>:</p>
+<ul>
+<li>Jede Jahresbudget-Version hat ein <strong>Notizen</strong>-Feld für jahresspezifische Kommentare (z. B. „Auf Q2 verschoben wegen Lieferantenverzögerungen")</li>
+</ul>
+<p><strong>Vorgehensweise</strong>:</p>
+<ol>
+<li>Wählen Sie das Jahr, für das Sie planen</li>
+<li>Wählen Sie den Modus Pauschal oder Manuell pro Monat</li>
+<li>Füllen Sie die relevanten Spalten aus (Budget für die Erstplanung, Prognose für die Nachverfolgung, Endwert für Ist-Werte)</li>
+<li>Klicken Sie auf <strong>Speichern</strong>, um Ihre Änderungen zu sichern</li>
+</ol>
+<p><strong>Tipp</strong>: Für die meisten Positionen ist der Pauschalmodus schneller. Verwenden Sie den Modus Manuell pro Monat, wenn Sie die zeitliche Verteilung der Projektausgaben oder phasenweise Einführungen verfolgen müssen.</p>
+<hr />
+<h3 id="zuordnungen">Zuordnungen<a class="headerlink" href="#zuordnungen" title="Permanent link">&para;</a></h3>
+<p>Der Zuordnungen-Tab verteilt die Investitionsausgaben auf Ihre Unternehmen und Abteilungen. Dies steuert Leistungsverrechnungsberichte und hilft bei der Zuordnung von Vermögenskosten.</p>
+<p><strong>Jahrauswahl</strong>:</p>
+<ul>
+<li>Funktioniert wie beim Budget: verwenden Sie Jahrreiter zum Wechseln zwischen J-2, J-1, J, J+1, J+2</li>
+<li>Jedes Jahr kann eine andere Zuordnungsmethode haben</li>
+</ul>
+<p><strong>Zuordnungsmethoden</strong>:</p>
+<ol>
+<li>
+<p><strong>Mitarbeiterzahl (Standard)</strong>: Teilt Investitionsausgaben proportional nach der Mitarbeiterzahl jedes Unternehmens für das ausgewählte Jahr. Erfordert, dass alle aktiven Unternehmen eine Mitarbeiterzahl &gt; 0 haben. Prozentsätze aktualisieren sich automatisch, wenn Sie Unternehmenskennzahlen bearbeiten.</p>
+</li>
+<li>
+<p><strong>IT-Benutzer</strong>: Teilt Ausgaben proportional nach der IT-Benutzerzahl jedes Unternehmens für das ausgewählte Jahr. Nützlich für IT-Infrastrukturinvestitionen, die mit dem IT-Personal skalieren.</p>
+</li>
+<li>
+<p><strong>Umsatz</strong>: Teilt Ausgaben proportional nach dem Umsatz jedes Unternehmens für das ausgewählte Jahr. Nützlich für unternehmensweite Plattformen oder Infrastruktur.</p>
+</li>
+<li>
+<p><strong>Manuell nach Unternehmen</strong>: Sie wählen aus, welche Unternehmen diese Investition erhalten. Wählen Sie einen Treiber (Mitarbeiterzahl, IT-Benutzer oder Umsatz), um die Prozentsätze unter den ausgewählten Unternehmen zu berechnen. Nur die ausgewählten Unternehmen sind in der Aufteilung enthalten. Das System füllt bei der ersten Verwendung automatisch alle aktivierten Unternehmen vor; entfernen Sie Unternehmen, die nicht von dieser Investition profitieren.</p>
+</li>
+<li>
+<p><strong>Manuell nach Abteilung</strong>: Sie wählen bestimmte Unternehmen/Abteilungs-Paare aus. Prozentsätze werden aus der Mitarbeiterzahl jeder Abteilung berechnet. Nützlich, wenn eine Investition nur bestimmten Abteilungen zugutekommt (z. B. Fertigungsausrüstung).</p>
+</li>
+</ol>
+<p><strong>Wie Prozentsätze funktionieren</strong>:</p>
+<ul>
+<li>Für <strong>automatische Methoden</strong> (Mitarbeiterzahl, IT-Benutzer, Umsatz): Prozentsätze werden bei jedem Laden der Seite aus den aktuellen Unternehmenskennzahlen berechnet. Sie bearbeiten sie nicht direkt.</li>
+<li>Für <strong>manuelle Methoden</strong>: Sie wählen die Unternehmen oder Abteilungen aus, und das System berechnet Prozentsätze basierend auf Ihrem gewählten Treiber und den aktuellen Kennzahlen.</li>
+<li>Prozentsätze spiegeln Live-Daten wider. Wenn Sie die Mitarbeiterzahl eines Unternehmens aktualisieren, werden die Zuordnungen sofort neu berechnet.</li>
+</ul>
+<p><strong>Zuordnungen anzeigen</strong>:</p>
+<ul>
+<li>Das Grid zeigt: Unternehmen, Abteilung (falls zutreffend), Prozentsatz</li>
+<li>Der Gesamtprozentsatz sollte 100 % ergeben; Warnungen erscheinen, wenn Kennzahlen fehlen oder die Summe Null ergibt</li>
+</ul>
+<p><strong>Vorgehensweise</strong>:</p>
+<ol>
+<li>Wählen Sie das Jahr</li>
+<li>Wählen Sie eine Zuordnungsmethode aus dem Dropdown</li>
+<li>Bei manueller Methode wählen Sie die Unternehmen oder Abteilungen aus (entfernen Sie alle, die nicht von dieser Investition profitieren)</li>
+<li>Klicken Sie auf <strong>Speichern</strong>, um Methode und Auswahl zu sichern</li>
+</ol>
+<p><strong>Häufige Probleme</strong>:</p>
+<ul>
+<li><strong>Fehler „Fehlende Kennzahlen"</strong>: Ein oder mehrere Unternehmen haben für das ausgewählte Jahr keine oder eine Mitarbeiterzahl/IT-Benutzer/Umsatz von Null. Füllen Sie die Kennzahlen unter <strong>Stammdaten &gt; Unternehmen</strong> (Details-Tab) aus.</li>
+<li><strong>„Summe ist nicht 100 %"</strong>: Meist durch fehlende Kennzahlen verursacht. Korrigieren Sie die Unternehmensdaten und laden Sie die Zuordnungen neu.</li>
+</ul>
+<p><strong>Tipp</strong>: Verwenden Sie Mitarbeiterzahl für die meisten Positionen (es ist am einfachsten und aktualisiert sich automatisch). Reservieren Sie Manuell nach Unternehmen für Investitionen, die nur bestimmten Einheiten zugutekommen (z. B. regionales Rechenzentrum). Verwenden Sie Manuell nach Abteilung für sehr gezielte Investitionen.</p>
+<hr />
+<h3 id="aufgaben">Aufgaben<a class="headerlink" href="#aufgaben" title="Permanent link">&para;</a></h3>
+<p>Der Aufgaben-Tab hilft Ihnen, Aufgaben und Nachverfolgungen im Zusammenhang mit dieser CAPEX-Position zu verfolgen (z. B. „Lieferantenauswahl bis Q2", „Installation bis Juni abschließen", „Vorstandsgenehmigung einholen").</p>
+<p><strong>Aufgabenliste</strong>:</p>
+<ul>
+<li>Zeigt alle mit dieser CAPEX-Position verknüpften Aufgaben</li>
+<li>Spalten: Titel, Status, Priorität, Fälligkeitsdatum, Aktionen</li>
+<li>Klicken Sie auf einen Aufgabentitel, um den vollständigen Aufgaben-Arbeitsbereich zu öffnen</li>
+<li>Standardfilter zeigt aktive Aufgaben (blendet erledigte und abgebrochene aus)</li>
+</ul>
+<p><strong>Filtern</strong>:</p>
+<ul>
+<li>Klicken Sie auf das Filtersymbol, um Filtersteuerungen ein-/auszublenden</li>
+<li><strong>Statusfilter</strong>: Alle, Aktiv (blendet erledigte/abgebrochene aus) oder ein bestimmter Status</li>
+<li>Klicken Sie auf die Löschen-Schaltfläche, um Filter zurückzusetzen</li>
+</ul>
+<p><strong>Aufgabe erstellen</strong>:</p>
+<ul>
+<li>Klicken Sie auf <strong>Aufgabe hinzufügen</strong>, um den Aufgaben-Erstellungsarbeitsbereich zu öffnen</li>
+<li>Die Aufgabe wird automatisch mit dieser CAPEX-Position verknüpft</li>
+<li>Füllen Sie im Aufgaben-Arbeitsbereich Titel, Beschreibung, Priorität, Beauftragten und Fälligkeitsdatum aus</li>
+</ul>
+<p><strong>Aufgabe löschen</strong>:</p>
+<ul>
+<li>Klicken Sie auf das Löschsymbol in der Aktionen-Spalte</li>
+<li>Bestätigen Sie die Löschung im Dialog</li>
+</ul>
+<p><strong>Hinweise</strong>:</p>
+<ul>
+<li>Aufgaben sind eigenständige Objekte mit eigenen Berechtigungen (<code>tasks:member</code> zum Erstellen/Bearbeiten)</li>
+<li>CAPEX-Manager-Zugriff gewährt nicht automatisch Aufgabenbearbeitungsrechte; prüfen Sie mit Ihrem Admin, wenn Sie keine Aufgaben erstellen können</li>
+<li>Aufgaben können auch unter <strong>Portfolio &gt; Aufgaben</strong> angezeigt und verwaltet werden, wo alle Aufgaben Ihrer gesamten Organisation dargestellt werden</li>
+<li>Der neueste Aufgabentitel wird auch in der <strong>Aufgabe</strong>-Spalte der Listenansicht angezeigt (standardmäßig ausgeblendet)</li>
+</ul>
+<p><strong>Tipp</strong>: Verwenden Sie Aufgaben, um Handlungspunkte während der Investitionsplanung oder Genehmigungszyklen festzuhalten. Setzen Sie Fälligkeitsdaten, um Beschaffungsmeilensteine und Implementierungsfristen zu verfolgen.</p>
+<hr />
+<h3 id="verknupfungen">Verknüpfungen<a class="headerlink" href="#verknupfungen" title="Permanent link">&para;</a></h3>
+<p>Der Verknüpfungen-Tab verbindet diese CAPEX-Position mit verwandten Objekten: Projekten, Verträgen, Kontakten, relevanten Websites und Anhängen.</p>
+<p><strong>Projekte</strong>:</p>
+<ul>
+<li>Verwenden Sie die Autovervollständigung, um ein oder mehrere Projekte zu verknüpfen</li>
+<li>Dies hilft, Investitionsausgaben nach Projekt in Berichten zu gruppieren und ermöglicht Projektbuchhaltung</li>
+<li>Entfernen Sie ein Projekt durch Klicken auf das X an seinem Chip, dann speichern</li>
+</ul>
+<p><strong>Verträge</strong>:</p>
+<ul>
+<li>Verwenden Sie die Autovervollständigung, um einen oder mehrere Verträge zu verknüpfen</li>
+<li>Bei Verknüpfung erscheint der Vertragsname zur schnellen Referenz</li>
+<li>Verträge können auch mit mehreren CAPEX-Positionen verknüpft werden (n:m-Beziehung)</li>
+<li>Entfernen Sie Verträge durch Klicken auf das X am Chip, dann speichern</li>
+</ul>
+<p><strong>Kontakte</strong>:</p>
+<ul>
+<li>Verknüpfen Sie Kontakte mit dieser CAPEX-Position mit einer Rolle: <strong>Kommerziell</strong>, <strong>Technisch</strong>, <strong>Support</strong> oder <strong>Sonstige</strong></li>
+<li>Klicken Sie auf <strong>Hinzufügen</strong>, um einen Kontakt aus Ihren Stammdaten auszuwählen und eine Rolle zuzuweisen</li>
+<li>Vom Lieferanten übernommene Kontakte werden mit einem ausgefüllten Chip angezeigt; manuell hinzugefügte Kontakte zeigen einen umrandeten Chip</li>
+<li>Klicken Sie auf eine Kontaktzeile, um den Kontakt-Arbeitsbereich zu öffnen</li>
+<li>Entfernen Sie einen Kontakt durch Klicken auf das Löschsymbol in der Aktionen-Spalte</li>
+</ul>
+<p><strong>Relevante Websites</strong>:</p>
+<ul>
+<li>Fügen Sie URLs hinzu, die sich auf diese Investition beziehen (z. B. Lieferanten-Produktseiten, technische Dokumentation, interne Wikis)</li>
+<li>Jeder Link hat ein optionales <strong>Beschreibung</strong>-Feld für Kontext</li>
+<li>Klicken Sie auf <strong>URL hinzufügen</strong>, um weitere Links hinzuzufügen</li>
+<li>Links werden gespeichert, wenn Sie auf <strong>Speichern</strong> oben im Arbeitsbereich klicken</li>
+</ul>
+<p><strong>Anhänge</strong>:</p>
+<ul>
+<li>Laden Sie Dateien hoch, die sich auf diese Investitionsposition beziehen (z. B. Angebote, Lieferantenvorschläge, technische Spezifikationen, Genehmigungsvermerke)</li>
+<li>Ziehen Sie Dateien per Drag-and-Drop in den Anhangbereich oder klicken Sie auf <strong>Dateien auswählen</strong></li>
+<li>Alle Dateien werden sicher gespeichert und können durch Klicken auf den Dateinamen heruntergeladen werden</li>
+<li>Löschen Sie Anhänge durch Klicken auf das X am Datei-Chip (erfordert <code>capex:manager</code>-Berechtigung)</li>
+<li>Anhänge werden sofort beim Hochladen gespeichert (kein Klick auf Speichern nötig)</li>
+</ul>
+<p><strong>Warum verknüpfen?</strong>:</p>
+<ul>
+<li><strong>Projekte</strong>: Investitionsausgaben nach Projekt für Projektbuchhaltung und Berichte zusammenführen</li>
+<li><strong>Verträge</strong>: Nachverfolgen, welche Investitionspositionen durch Kaufverträge oder Serviceverträge abgedeckt sind</li>
+<li><strong>Kontakte</strong>: Lieferanten- und Stakeholder-Kontaktdetails mit der Investition verknüpfen</li>
+<li><strong>Websites &amp; Anhänge</strong>: Alle investitionsbezogenen Dokumentationen und Referenzen an einem Ort zentralisieren</li>
+</ul>
+<p><strong>Tipp</strong>: Laden Sie Lieferantenangebote, Genehmigungsvermerke und technische Spezifikationen als Anhänge hoch. Verknüpfen Sie Verträge für die Beschaffungsverfolgung. Verwenden Sie Kontakte, um Lieferantenvertreter jeder Investitionsposition zuzuordnen.</p>
+<hr />
+<h2 id="csv-importexport">CSV-Import/Export<a class="headerlink" href="#csv-importexport" title="Permanent link">&para;</a></h2>
+<p>Sie können CAPEX-Positionen per CSV massenimportieren, um die Ersteinrichtung zu beschleunigen oder mit externen Systemen zu synchronisieren.</p>
+<p><strong>Export</strong>:</p>
+<ol>
+<li>Klicken Sie in der CAPEX-Liste auf <strong>CSV exportieren</strong></li>
+<li>Wählen Sie:</li>
+<li><strong>Vorlage</strong>: Nur Kopfzeilen (verwenden Sie dies, um eine leere CSV zum Ausfüllen zu erstellen)</li>
+<li><strong>Daten</strong>: Alle aktuellen CAPEX-Positionen mit Budgets für J-1, J und J+1</li>
+</ol>
+<p><strong>CSV-Struktur</strong>:</p>
+<ul>
+<li>Trennzeichen: Semikolon <code>;</code> (kein Komma)</li>
+<li>Kodierung: UTF-8 (in Excel als „CSV UTF-8" speichern)</li>
+<li>Kopfzeilen: <code>description;ppe_type;investment_type;priority;currency;effective_start;effective_end;status;disabled_at;notes;company_name;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget</code></li>
+</ul>
+<p><strong>Import</strong>:</p>
+<ol>
+<li>Klicken Sie in der CAPEX-Liste auf <strong>CSV importieren</strong></li>
+<li>Laden Sie Ihre CSV-Datei hoch (Drag-and-Drop oder Dateiauswahl)</li>
+<li>Klicken Sie auf <strong>Vorprüfung</strong> zur Validierung:</li>
+<li>Kopfzeilen stimmen exakt überein</li>
+<li>Unternehmen existieren in Ihrem Arbeitsbereich</li>
+<li>Pflichtfelder (description, ppe_type, investment_type, priority, currency, effective_start, company_name) sind vorhanden</li>
+<li>Keine doppelten Beschreibungen</li>
+<li>Überprüfen Sie den Vorprüfungsbericht (zeigt Zählungen und bis zu 5 Beispielfehler)</li>
+<li>Wenn OK, klicken Sie auf <strong>Laden</strong> zum Importieren</li>
+</ol>
+<p><strong>Wichtige Hinweise</strong>:</p>
+<ul>
+<li><strong>Eindeutiger Schlüssel</strong>: CAPEX-Positionen werden über <code>description</code> identifiziert. Existiert eine Beschreibung bereits, wird sie <strong>übersprungen</strong> (keine Aktualisierungen).</li>
+<li><strong>Nur Neuanlage</strong>: Der Importer erstellt nur neue Positionen; er aktualisiert keine bestehenden. Verwenden Sie die Benutzeroberfläche zum Bearbeiten bestehender Positionen.</li>
+<li><strong>Referenzen</strong>: <code>company_name</code> muss einem Unternehmen namentlich entsprechen (Groß-/Kleinschreibung wird ignoriert).</li>
+<li><strong>Anlagentyp</strong>: Muss <code>hardware</code> oder <code>software</code> sein (Groß-/Kleinschreibung wird ignoriert).</li>
+<li><strong>Investitionsart</strong>: Muss eine von: <code>replacement</code>, <code>capacity</code>, <code>productivity</code>, <code>security</code>, <code>conformity</code>, <code>business_growth</code>, <code>other</code> sein (Groß-/Kleinschreibung wird ignoriert).</li>
+<li><strong>Priorität</strong>: Muss <code>mandatory</code>, <code>high</code>, <code>medium</code> oder <code>low</code> sein (Groß-/Kleinschreibung wird ignoriert).</li>
+<li><strong>Budgets</strong>: Budgetspalten füllen J-1, J und J+1 Versionen. Beträge werden gleichmäßig auf 12 Monate verteilt (Pauschalmodus).</li>
+</ul>
+<p><strong>Häufige Fehler</strong>:</p>
+<ul>
+<li><strong>„Unternehmen nicht gefunden"</strong>: Erstellen Sie das Unternehmen zuerst unter <strong>Stammdaten &gt; Unternehmen</strong>, dann importieren Sie erneut.</li>
+<li><strong>„Ungültiger ppe_type"</strong>: Verwenden Sie exakt <code>hardware</code> oder <code>software</code>.</li>
+<li><strong>„Ungültiger investment_type"</strong>: Verwenden Sie eine der 7 gültigen Investitionsarten (siehe Liste oben).</li>
+<li><strong>„Ungültige Priorität"</strong>: Verwenden Sie <code>mandatory</code>, <code>high</code>, <code>medium</code> oder <code>low</code>.</li>
+<li><strong>„Ungültige Währung"</strong>: Verwenden Sie 3-stellige ISO-Codes (USD, EUR, GBP), die in Ihren Arbeitsbereich-Währungseinstellungen zugelassen sind.</li>
+<li><strong>„Kopfzeilen stimmen nicht überein"</strong>: Laden Sie eine frische Vorlage herunter; Kopfzeilen müssen exakt übereinstimmen (einschließlich Reihenfolge).</li>
+</ul>
+<p><strong>Tipp</strong>: Beginnen Sie mit dem Vorlagenexport, füllen Sie einige Zeilen aus und führen Sie eine Vorprüfung durch, um Probleme frühzeitig zu erkennen. Beheben Sie Fehler in der CSV und laden Sie sie erneut hoch, bis die Vorprüfung besteht, dann laden Sie.</p>
+<hr />
+<h2 id="status-und-lebenszyklus">Status und Lebenszyklus<a class="headerlink" href="#status-und-lebenszyklus" title="Permanent link">&para;</a></h2>
+<p>Jede CAPEX-Position hat einen <strong>Status</strong> (Aktiviert oder Deaktiviert) und ein optionales <strong>Deaktivierungsdatum</strong>, das steuert, wann sie in Berichten und Auswahllisten erscheint.</p>
+<p><strong>Funktionsweise</strong>:</p>
+<ul>
+<li><strong>Aktiviert</strong>: Die Position ist aktiv und erscheint überall (Listen, Berichte, Zuordnungen)</li>
+<li><strong>Deaktivierungsdatum</strong>: Wenn gesetzt, wird die Position am Ende dieses Tages deaktiviert</li>
+<li>Nach dem Deaktivierungsdatum:</li>
+<li>Die Position erscheint nicht mehr in Auswahllisten für neue Verträge oder Zuordnungen</li>
+<li>Sie wird aus Berichten für Jahre ausgeschlossen, die strikt nach dem Deaktivierungsdatum liegen</li>
+<li>Historische Daten bleiben erhalten; die Position erscheint weiterhin in Berichten, die Jahre abdecken, in denen sie aktiv war</li>
+</ul>
+<p><strong>Status setzen</strong>:</p>
+<ul>
+<li>Im <strong>Übersichts</strong>-Tab verwenden Sie den <strong>Aktiviert</strong>-Umschalter oder setzen ein <strong>Deaktivierungsdatum</strong></li>
+<li>Sie können ein zukünftiges Deaktivierungsdatum planen (nützlich für geplante Anlagenveräußerungen oder End-of-Life-Termine)</li>
+</ul>
+<p><strong>Deaktivierte Positionen anzeigen</strong>:</p>
+<ul>
+<li>Standardmäßig zeigt die CAPEX-Liste nur <strong>aktivierte</strong> Positionen</li>
+<li>Verwenden Sie den Umschalter <strong>Anzeigen: Aktiviert / Deaktiviert / Alle</strong>, um den Bereich zu ändern</li>
+</ul>
+<p><strong>Wann deaktivieren vs. löschen</strong>:</p>
+<ul>
+<li><strong>Bevorzugen Sie das Deaktivieren</strong>: Bewahrt die Historie, stellt konsistente Berichte sicher und unterstützt Audit-Trails</li>
+<li><strong>Nur löschen, wenn</strong>: Die Position versehentlich erstellt wurde und keine Budgets, Zuordnungen oder Aufgaben hat</li>
+<li>Das Löschen ist geschützt: Sie können keine Position löschen, die Budgetdaten, Zuordnungen, Aufgaben hat oder von Verträgen referenziert wird</li>
+</ul>
+<p><strong>Tipp</strong>: Verwenden Sie das Deaktivierungsdatum, um vollständig abgeschriebene, veräußerte Vermögenswerte oder abgeschlossene Projekte zu kennzeichnen. Löschen Sie nur bei echten Fehlern.</p>
+<hr />
+<h2 id="berechtigungen">Berechtigungen<a class="headerlink" href="#berechtigungen" title="Permanent link">&para;</a></h2>
+<p>Der CAPEX-Zugriff wird durch drei Stufen gesteuert:</p>
+<ul>
+<li><code>capex:reader</code> -- CAPEX-Liste anzeigen, Positionen öffnen, Budgets und Zuordnungen einsehen (schreibgeschützt)</li>
+<li><code>capex:manager</code> -- CAPEX-Positionen erstellen und bearbeiten, Budgets und Zuordnungen aktualisieren, Anhänge hochladen, Verknüpfungen und Kontakte verwalten</li>
+<li><code>capex:admin</code> -- Alle Manager-Rechte plus CSV-Import, Budget-Operationen (Einfrieren, Kopieren, Zurücksetzen) und Massenlöschung</li>
+</ul>
+<p>Zusätzlich:</p>
+<ul>
+<li>Aufgaben haben separate Berechtigungen (<code>tasks:member</code> zum Erstellen/Bearbeiten von Aufgaben an CAPEX-Positionen)</li>
+<li>Benutzer mit <code>tasks:reader</code> können Aufgaben anzeigen, aber nicht erstellen oder bearbeiten</li>
+</ul>
+<p>Wenn Sie eine Aktion nicht ausführen können (z. B. die Schaltfläche <strong>CSV importieren</strong> fehlt), prüfen Sie mit Ihrem Arbeitsbereich-Administrator Ihre Rollenberechtigungen.</p>
+<hr />
+<h2 id="tipps">Tipps<a class="headerlink" href="#tipps" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Einfach anfangen</strong>: Erstellen Sie Positionen nur mit dem Wesentlichen (Beschreibung, Anlagentyp, Investitionsart, Unternehmen), dann ergänzen Sie Budgets und Zuordnungen bei der Planung.</li>
+<li><strong>Mitarbeiterzahl-Zuordnung verwenden</strong>: Für die meisten Investitionen reicht Mitarbeiterzahl aus. Reservieren Sie manuelle Zuordnungen für Investitionen, die nur bestimmten Unternehmen oder Abteilungen zugutekommen.</li>
+<li><strong>Verträge verknüpfen</strong>: Wenn Sie Investitionen über Verträge verwalten, verknüpfen Sie sie im Verknüpfungen-Tab für die Beschaffungsverfolgung.</li>
+<li><strong>Dokumentation hochladen</strong>: Verwenden Sie die Anhangfunktion, um Lieferantenangebote, Genehmigungsvermerke und technische Spezifikationen neben der Position zu speichern.</li>
+<li><strong>Genau klassifizieren</strong>: Verwenden Sie Investitionsart und Priorität konsistent, um aussagekräftige Analysen und Priorisierung der Investitionsausgaben zu ermöglichen.</li>
+<li><strong>Unternehmenskennzahlen aktuell halten</strong>: Zuordnungen hängen von Mitarbeiterzahl, IT-Benutzern und Umsatz der Unternehmen ab. Veraltete Kennzahlen verursachen Zuordnungsfehler.</li>
+<li><strong>CSV für Masseneinrichtung verwenden</strong>: Wenn Sie von einem anderen System migrieren oder viele Investitionspositionen haben, beginnen Sie mit dem CSV-Import.</li>
+<li><strong>Deaktivieren statt löschen</strong>: Bewahren Sie die Historie, indem Sie Positionen deaktivieren, wenn Vermögenswerte veräußert oder Projekte abgeschlossen werden.</li>
+<li><strong>Summenzeile überprüfen</strong>: Bevor Sie Investitionsbudgets finalisieren, prüfen Sie die angeheftete Summenzeile, um sicherzustellen, dass Ihre Investitionsausgaben wie erwartet aufgehen.</li>
+<li><strong>Deep Linking nutzen</strong>: Klicken Sie direkt auf eine Budget- oder Zuordnungsspalte in der Liste, um direkt zum entsprechenden Tab und Jahr zu springen.</li>
+<li><strong>Ausgaben zeitlich verfolgen</strong>: Für große Projekte mit phasenweisen Ausgaben verwenden Sie den Modus Manuell pro Monat, um Ausgaben gegen Projektmeilensteine zu verfolgen.</li>
+<li><strong>Nach Jahresende einfrieren</strong>: Verwenden Sie die Budget-Administration, um Vorjahresbudgets einzufrieren, sobald die Ist-Werte finalisiert sind, um versehentliche Bearbeitungen zu verhindern.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://kanap.net" target="_blank" rel="noopener" title="KANAP Website" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

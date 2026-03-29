@@ -1,0 +1,4166 @@
+
+<!doctype html>
+<html lang="es" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User documentation for KANAP - IT portfolio and budget management platform">
+      
+      
+      
+        <link rel="canonical" href="https://doc.kanap.net/es/chart-of-accounts/">
+      
+      
+        <link rel="prev" href="../contacts/">
+      
+      
+        <link rel="next" href="../currencies/">
+      
+      
+        
+          <link rel="alternate" href="../../chart-of-accounts/" hreflang="en">
+        
+          <link rel="alternate" href="../../fr/chart-of-accounts/" hreflang="fr">
+        
+          <link rel="alternate" href="../../de/chart-of-accounts/" hreflang="de">
+        
+          <link rel="alternate" href="./" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Planes de cuentas - KANAP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#planes-de-cuentas-y-gestion-de-cuentas" class="md-skip">
+          Saltar a contenido
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabecera">
+    <a href="../" title="KANAP" class="md-header__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            KANAP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Planes de cuentas
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Seleccionar idioma">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../chart-of-accounts/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../fr/chart-of-accounts/" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../de/chart-of-accounts/" hreflang="de" class="md-select__link">
+              Deutsch
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Búsqueda" placeholder="Búsqueda" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Buscar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpiar" aria-label="Limpiar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando búsqueda
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/your-org/kanap" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navegación" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="KANAP" class="md-nav__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    KANAP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/your-org/kanap" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inicio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inicio rápido
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Inicio rápido
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Primeros pasos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    De la solicitud a la entrega
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/apps-and-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    De la aplicación al servidor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fast-track/task-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run, Build & Tareas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../my-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Panel de control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gestión de portafolio
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gestión de portafolio
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tareas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-requests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solicitudes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proyectos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-planning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planificación
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-team-members/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Colaboradores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Informes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuración
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Panorama IT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Panorama IT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infraestructura
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Infraestructura
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../locations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ubicaciones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Activos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conexiones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connection-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mapa de conexiones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aplicaciones
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Aplicaciones
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../applications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aplicaciones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interface-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mapa de interfaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../it-ops-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuración
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base de conocimiento
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Base de conocimiento
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base de conocimiento
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gestión presupuestaria
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gestión presupuestaria
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../opex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../capex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CAPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contratos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../budget-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administración presupuestaria
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Informes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datos maestros
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Datos maestros
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_1" id="__nav_8_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Organización
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Organización
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../companies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Empresas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../departments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Departamentos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Partes externas
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Partes externas
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suppliers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proveedores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contacts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contactos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Finanzas
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Finanzas
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planes de cuentas
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planes de cuentas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#por-que-usar-planes-de-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ¿Por qué usar Planes de cuentas?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#la-relacion-coa-empresa-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        La relación: CoA -&gt; Empresa -&gt; Cuentas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#donde-encontrarlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dónde encontrarlo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trabajar-con-la-lista" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trabajar con la lista
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trabajar con la lista">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#barra-de-chips-de-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Barra de chips de CoA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resumen-del-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resumen del CoA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cuadricula-de-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuadrícula de cuentas
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#el-espacio-de-trabajo-de-la-cuenta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        El espacio de trabajo de la cuenta
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="El espacio de trabajo de la cuenta">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vision-general" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visión general
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configurar-planes-de-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configurar Planes de cuentas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configurar Planes de cuentas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#crear-un-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crear un CoA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cargar-desde-plantillas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cargar desde plantillas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plantillas-disponibles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plantillas disponibles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#consolidacion-ifrs-integrada" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consolidación IFRS integrada
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coa-predeterminado-global-aprovisionamiento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CoA predeterminado global (aprovisionamiento)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gestionar-planes-de-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gestionar Planes de cuentas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Gestionar Planes de cuentas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#el-modal-de-gestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        El modal de Gestión
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gestionar-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gestionar cuentas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Gestionar cuentas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#numeros-de-cuenta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Números de cuenta
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nombres-nativos-para-soporte-multilingue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nombres nativos para soporte multilingüe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cuentas-de-consolidacion-informes-a-nivel-de-grupo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuentas de consolidación (Informes a nivel de grupo)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cuentas de consolidación (Informes a nivel de grupo)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#como-funciona" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cómo funciona
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#por-que-es-importante" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Por qué es importante
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configurar-mapeos-de-consolidacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configurar mapeos de consolidación
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mejores-practicas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mejores prácticas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#informes-con-cuentas-de-consolidacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Informes con cuentas de consolidación
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cuentas-legado-soporte-de-migracion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuentas legado (soporte de migración)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advertencias-de-cuenta-obsoleta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advertencias de cuenta obsoleta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estado-y-fecha-de-desactivacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estado y fecha de desactivación
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#eliminacion-del-espacio-de-trabajo-y-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eliminación del espacio de trabajo y CoA
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importacionexportacion-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Importación/exportación CSV
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Importación/exportación CSV">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#planes-de-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Planes de cuentas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cuentas-endpoint-global" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuentas (endpoint global)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cuentas-con-alcance-de-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuentas (con alcance de CoA)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consejos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consejos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#escenarios-comunes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escenarios comunes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Escenarios comunes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#escenario-1-organizacion-multi-pais" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escenario 1: Organización multi-país
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escenario-2-migrar-de-legado-a-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escenario 2: Migrar de legado a CoA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escenario-3-cambiar-una-empresa-a-un-nuevo-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escenario 3: Cambiar una empresa a un nuevo CoA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escenario-4-configurar-consolidacion-de-grupo-multi-pais" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escenario 4: Configurar consolidación de grupo (multi-país)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preguntas-frecuentes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preguntas frecuentes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../currencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monedas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clasificación
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Clasificación
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../business-processes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Procesos de negocio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dimensiones analíticas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administración
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administración
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administración & Usuarios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../branding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personalización
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../master-data-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administración de datos maestros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vista general del presupuesto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On-Premise
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    On-Premise
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vista general
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Instalación
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/installation-example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ejemplo de instalación (Ubuntu)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuración
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operaciones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on-premise/sso-entra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Microsoft Entra SSO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#por-que-usar-planes-de-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ¿Por qué usar Planes de cuentas?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#la-relacion-coa-empresa-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        La relación: CoA -&gt; Empresa -&gt; Cuentas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#donde-encontrarlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dónde encontrarlo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trabajar-con-la-lista" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trabajar con la lista
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trabajar con la lista">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#barra-de-chips-de-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Barra de chips de CoA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resumen-del-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resumen del CoA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cuadricula-de-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuadrícula de cuentas
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#el-espacio-de-trabajo-de-la-cuenta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        El espacio de trabajo de la cuenta
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="El espacio de trabajo de la cuenta">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vision-general" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visión general
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configurar-planes-de-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configurar Planes de cuentas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configurar Planes de cuentas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#crear-un-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crear un CoA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cargar-desde-plantillas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cargar desde plantillas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#plantillas-disponibles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plantillas disponibles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#consolidacion-ifrs-integrada" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consolidación IFRS integrada
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coa-predeterminado-global-aprovisionamiento" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CoA predeterminado global (aprovisionamiento)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gestionar-planes-de-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gestionar Planes de cuentas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Gestionar Planes de cuentas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#el-modal-de-gestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        El modal de Gestión
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gestionar-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gestionar cuentas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Gestionar cuentas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#numeros-de-cuenta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Números de cuenta
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nombres-nativos-para-soporte-multilingue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nombres nativos para soporte multilingüe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cuentas-de-consolidacion-informes-a-nivel-de-grupo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuentas de consolidación (Informes a nivel de grupo)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cuentas de consolidación (Informes a nivel de grupo)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#como-funciona" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cómo funciona
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#por-que-es-importante" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Por qué es importante
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configurar-mapeos-de-consolidacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configurar mapeos de consolidación
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mejores-practicas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mejores prácticas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#informes-con-cuentas-de-consolidacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Informes con cuentas de consolidación
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cuentas-legado-soporte-de-migracion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuentas legado (soporte de migración)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advertencias-de-cuenta-obsoleta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advertencias de cuenta obsoleta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estado-y-fecha-de-desactivacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estado y fecha de desactivación
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#eliminacion-del-espacio-de-trabajo-y-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eliminación del espacio de trabajo y CoA
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importacionexportacion-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Importación/exportación CSV
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Importación/exportación CSV">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#planes-de-cuentas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Planes de cuentas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cuentas-endpoint-global" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuentas (endpoint global)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cuentas-con-alcance-de-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cuentas (con alcance de CoA)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consejos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consejos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#escenarios-comunes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escenarios comunes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Escenarios comunes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#escenario-1-organizacion-multi-pais" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escenario 1: Organización multi-país
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escenario-2-migrar-de-legado-a-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escenario 2: Migrar de legado a CoA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escenario-3-cambiar-una-empresa-a-un-nuevo-coa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escenario 3: Cambiar una empresa a un nuevo CoA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escenario-4-configurar-consolidacion-de-grupo-multi-pais" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escenario 4: Configurar consolidación de grupo (multi-país)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preguntas-frecuentes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preguntas frecuentes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="planes-de-cuentas-y-gestion-de-cuentas">Planes de cuentas y gestión de cuentas<a class="headerlink" href="#planes-de-cuentas-y-gestion-de-cuentas" title="Permanent link">&para;</a></h1>
+<p>Los Planes de cuentas (CoA) organizan su estructura contable agrupando cuentas en conjuntos nombrados. Cada empresa puede vincularse a un CoA, que determina qué cuentas están disponibles al registrar partidas OPEX o CAPEX.</p>
+<h2 id="por-que-usar-planes-de-cuentas">¿Por qué usar Planes de cuentas?<a class="headerlink" href="#por-que-usar-planes-de-cuentas" title="Permanent link">&para;</a></h2>
+<p>Sin CoA, todas las cuentas están disponibles para todas las empresas, lo que facilita usar accidentalmente la cuenta incorrecta o mezclar estándares contables entre entidades. Los Planes de cuentas resuelven esto al:</p>
+<ul>
+<li><strong>Asegurar consistencia</strong>: Las empresas solo ven cuentas de su CoA asignado</li>
+<li><strong>Soportar múltiples estándares</strong>: Diferentes países o unidades de negocio pueden usar diferentes estructuras de cuentas</li>
+<li><strong>Simplificar la selección</strong>: Los desplegables de cuentas muestran solo cuentas relevantes, no todo su catálogo</li>
+<li><strong>Habilitar plantillas</strong>: Cargue conjuntos de cuentas preconfigurados desde plantillas específicas por país</li>
+</ul>
+<p><strong>Ejemplo</strong>: Su filial francesa utiliza el PCG (Plan Comptable General) francés, mientras que su entidad del Reino Unido usa UK GAAP. Cree dos CoA -- uno para cada estándar -- y asigne las empresas en consecuencia. Al registrar gasto, los usuarios ven automáticamente las cuentas correctas.</p>
+<h2 id="la-relacion-coa-empresa-cuentas">La relación: CoA -&gt; Empresa -&gt; Cuentas<a class="headerlink" href="#la-relacion-coa-empresa-cuentas" title="Permanent link">&para;</a></h2>
+<p>La jerarquía funciona así:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Plan de cuentas (FR-2024)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  -&gt; asignado a
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>Empresa (Acme Francia)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  -&gt; utilizado al registrar
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>Partidas OPEX/CAPEX -&gt; Selección de cuenta (filtrada a cuentas de FR-2024 únicamente)
+</code></pre></div>
+<p><strong>Puntos clave</strong>:
+  - Un CoA puede asignarse a múltiples empresas
+  - Cada empresa tiene un CoA
+  - Las cuentas pertenecen a un CoA
+  - Cuando crea/edita partidas de gasto, el desplegable de cuentas se filtra por el CoA de la empresa</p>
+<h2 id="donde-encontrarlo">Dónde encontrarlo<a class="headerlink" href="#donde-encontrarlo" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Ruta: <strong>Datos maestros &gt; Planes de cuentas</strong></li>
+<li>Permisos:</li>
+<li>Ver: <code>accounts:reader</code></li>
+<li>Crear/editar cuentas y CoA: <code>accounts:manager</code></li>
+<li>Importar CSV, Exportar CSV, Eliminar: <code>accounts:admin</code></li>
+</ul>
+<h2 id="trabajar-con-la-lista">Trabajar con la lista<a class="headerlink" href="#trabajar-con-la-lista" title="Permanent link">&para;</a></h2>
+<p>La página tiene dos capas: un <strong>selector de CoA</strong> en la parte superior y una <strong>cuadrícula de cuentas</strong> debajo.</p>
+<h3 id="barra-de-chips-de-coa">Barra de chips de CoA<a class="headerlink" href="#barra-de-chips-de-coa" title="Permanent link">&para;</a></h3>
+<p>Una fila horizontal de chips representa cada Plan de cuentas. Haga clic en un chip para cambiar la cuadrícula de cuentas a ese CoA.</p>
+<ul>
+<li>El chip seleccionado está relleno; los demás están delineados.</li>
+<li>Una insignia de estrella (<strong>★</strong>) marca el predeterminado del país para ese CoA.</li>
+<li>Una insignia de círculo más marca el predeterminado global.</li>
+<li>Pase el cursor sobre un chip para ver el nombre del CoA y el conteo de cuentas.</li>
+</ul>
+<p>Si tiene permiso <code>accounts:manager</code>, aparecen dos controles adicionales a la derecha:</p>
+<ul>
+<li><strong>Nuevo</strong>: Abre el diálogo de <strong>Nuevo Plan de cuentas</strong>.</li>
+<li><strong>Gestionar</strong>: Abre el modal de <strong>Gestionar Planes de cuentas</strong> para la administración.</li>
+</ul>
+<p>Cuando no existen CoA, la barra de chips muestra un aviso para crear su primer Plan de cuentas.</p>
+<h3 id="resumen-del-coa">Resumen del CoA<a class="headerlink" href="#resumen-del-coa" title="Permanent link">&para;</a></h3>
+<p>Debajo de la barra de chips, una línea de resumen muestra el <strong>código</strong>, <strong>conteo de cuentas</strong>, <strong>nombre</strong> y <strong>país</strong> del CoA seleccionado (para CoA con alcance de país).</p>
+<h3 id="cuadricula-de-cuentas">Cuadrícula de cuentas<a class="headerlink" href="#cuadricula-de-cuentas" title="Permanent link">&para;</a></h3>
+<p>La cuadrícula muestra cuentas solo del CoA seleccionado.</p>
+<p><strong>Columnas predeterminadas</strong>:
+- <strong>N.º de cuenta</strong>: El número de la cuenta. Haga clic para abrir el espacio de trabajo de la cuenta.
+- <strong>Nombre</strong>: El nombre de la cuenta. Haga clic para abrir el espacio de trabajo de la cuenta.
+- <strong>N.º cuenta consolidación</strong>: El número de la cuenta de consolidación.
+- <strong>Nombre consolidación</strong>: El nombre de la cuenta de consolidación.</p>
+<p><strong>Columnas adicionales</strong> (ocultas por defecto, habilite mediante el selector de columnas):
+- <strong>Nombre nativo</strong>: El nombre de la cuenta en el idioma local.
+- <strong>Descripción</strong>: Descripción de la cuenta.
+- <strong>Descripción consolidación</strong>: Descripción de la cuenta de consolidación.
+- <strong>Estado</strong>: Si la cuenta está habilitada o deshabilitada.
+- <strong>Creado</strong>: Marca de tiempo de la creación de la cuenta.</p>
+<p><strong>Filtrado</strong>:
+- Búsqueda rápida: Busca en las columnas de texto visibles.
+- Conmutador de alcance de estado: Predeterminado a <strong>Habilitadas</strong>, mostrando solo cuentas activas. Cambie a <strong>Todas</strong> para incluir cuentas deshabilitadas.
+- Filtros de columna: Use filtros en los encabezados de columna (p. ej., la columna <strong>Estado</strong> tiene un filtro de conjunto).</p>
+<p><strong>Ordenación</strong>: Predeterminada por <strong>N.º de cuenta</strong> ascendente.</p>
+<p><strong>Acciones</strong> (en el encabezado de la página):
+- <strong>Nueva cuenta</strong> (<code>accounts:manager</code>): Abre un nuevo espacio de trabajo de cuenta previnculado al CoA seleccionado.
+- <strong>Importar CSV</strong> (<code>accounts:admin</code>): Importar cuentas al CoA seleccionado.
+- <strong>Exportar CSV</strong> (<code>accounts:admin</code>): Exportar cuentas del CoA seleccionado.
+- <strong>Eliminar seleccionadas</strong> (<code>accounts:admin</code>): Eliminar filas de cuentas seleccionadas. Seleccione filas usando la columna de casilla de verificación (visible para administradores).</p>
+<p>Todas las celdas de fila son enlaces clicables al espacio de trabajo de la cuenta. Puede hacer clic derecho o Ctrl+clic para abrir en una nueva pestaña.</p>
+<h2 id="el-espacio-de-trabajo-de-la-cuenta">El espacio de trabajo de la cuenta<a class="headerlink" href="#el-espacio-de-trabajo-de-la-cuenta" title="Permanent link">&para;</a></h2>
+<p>Haga clic en cualquier fila de la cuadrícula de cuentas para abrir el espacio de trabajo de la cuenta.</p>
+<h3 id="vision-general">Visión general<a class="headerlink" href="#vision-general" title="Permanent link">&para;</a></h3>
+<p>El espacio de trabajo tiene una única pestaña <strong>Visión general</strong> con un formulario para ver y editar los campos de la cuenta.</p>
+<p><strong>Qué puede editar</strong>:
+- <strong>Plan de cuentas</strong>: El CoA al que pertenece esta cuenta (desplegable de todos los CoA en su espacio de trabajo).
+- <strong>Número de cuenta</strong> (obligatorio): El número de la cuenta.
+- <strong>Nombre de la cuenta</strong> (obligatorio): El nombre de la cuenta en inglés (o su idioma principal).
+- <strong>Nombre nativo (idioma local)</strong>: El nombre de la cuenta en el idioma local.
+- <strong>Descripción</strong>: Descripción de texto libre.
+- <strong>Número de cuenta de consolidación</strong>: El número de cuenta de consolidación estandarizado.
+- <strong>Nombre de cuenta de consolidación</strong>: El nombre de consolidación estandarizado.
+- <strong>Descripción de cuenta de consolidación</strong>: Detalles sobre la categoría de consolidación.
+- <strong>Estado / Fecha de desactivación</strong>: Use el campo de ciclo de vida para habilitar o deshabilitar la cuenta. Establezca una <strong>Fecha de desactivación</strong> para programar cuándo la cuenta deja de aparecer en los desplegables de selección.</p>
+<p><strong>Navegación</strong>:
+- <strong>Anterior / Siguiente</strong>: Navegar entre cuentas en el orden actual de la lista.
+- <strong>Guardar</strong>: Guardar cambios (habilitado cuando el formulario tiene cambios y tiene <code>accounts:manager</code>).
+- <strong>Restablecer</strong>: Descartar cambios no guardados.
+- <strong>Cerrar</strong> (botón X): Volver a la lista de cuentas, preservando su selección de CoA, ordenación, búsqueda y filtros.</p>
+<p>Si navega fuera con cambios sin guardar, el sistema le solicita que guarde o descarte.</p>
+<p><strong>Consejo</strong>: Necesita <code>accounts:manager</code> para editar. Los usuarios de solo lectura ven un banner informativo.</p>
+<h2 id="configurar-planes-de-cuentas">Configurar Planes de cuentas<a class="headerlink" href="#configurar-planes-de-cuentas" title="Permanent link">&para;</a></h2>
+<h3 id="crear-un-coa">Crear un CoA<a class="headerlink" href="#crear-un-coa" title="Permanent link">&para;</a></h3>
+<p>Puede crear un CoA de dos formas:</p>
+<ol>
+<li><strong>Desde cero</strong>: Elija un Alcance y luego cree un CoA vacío.</li>
+<li><strong>Alcance</strong>: <code>GLOBAL</code> (sin país) o <code>PAÍS</code> (requiere selección de país)</li>
+<li>Para alcance <code>PAÍS</code>, puede marcarlo como el predeterminado para ese país. Solo existe un predeterminado por país a la vez.</li>
+<li>Puede cargar cuentas más tarde vía CSV.</li>
+<li><strong>Desde una plantilla</strong>: Cargue un conjunto de cuentas preconfigurado mantenido por los administradores de la plataforma.</li>
+<li>Las plantillas globales crean un CoA con alcance <code>GLOBAL</code> (sin campo de país).</li>
+<li>Las plantillas de país crean un CoA con alcance <code>PAÍS</code> con el país de la plantilla prerrellenado.</li>
+</ol>
+<p><strong>Campos del diálogo de creación</strong>:
+- <strong>Modo</strong>: Elija <strong>Crear desde cero</strong> o <strong>Copiar de plantilla</strong>.
+- <strong>Plantilla</strong> (solo modo plantilla): Seleccione una plantilla del desplegable. Las plantillas globales se muestran como "ALL -- ..."; las plantillas de país muestran su código de 2 letras.
+- <strong>Código</strong> (obligatorio): Un identificador estable usado en exportaciones/importaciones CSV y enlaces directos.
+- <strong>Nombre</strong> (obligatorio): Un nombre descriptivo para el CoA.
+- <strong>Alcance</strong>: <code>País</code> o <code>Global</code>.
+- <strong>País</strong> (solo alcance país): Seleccione un país de la lista.
+- <strong>Establecer como predeterminado para este país</strong> (solo alcance país): Marque para hacer de este el CoA predeterminado para el país seleccionado.</p>
+<p>En modo plantilla, puede ejecutar <strong>Verificación previa</strong> antes de crear para ver cuántas cuentas se insertarán y actualizarán. Luego haga clic en <strong>Crear</strong> para finalizar.</p>
+<p><strong>Predeterminados</strong>:
+  - Por país: Puede marcar un CoA como predeterminado para cada país. Las nuevas empresas de ese país se asignan automáticamente a ese CoA (puede cambiarlo después en la pestaña Visión general de la empresa).
+  - Respaldo global: Su espacio de trabajo puede tener un CoA predeterminado global usado para países que aún no tienen un predeterminado específico. Los predeterminados de país tienen precedencia; el predeterminado global se aplica en todas partes.</p>
+<h3 id="cargar-desde-plantillas">Cargar desde plantillas<a class="headerlink" href="#cargar-desde-plantillas" title="Permanent link">&para;</a></h3>
+<p>Las plantillas son conjuntos de cuentas estándar gestionados por los administradores de la plataforma. Pueden ser:
+  - Específicas de país (p. ej., PCG francés, UK GAAP)
+  - Globales (disponibles para todos los países)</p>
+<p><strong>Cómo funciona</strong>:
+  - Vaya a <strong>Datos maestros &gt; Planes de cuentas</strong>
+  - Haga clic en <strong>Nuevo</strong> en la barra de chips
+  - Seleccione el modo <strong>Copiar de plantilla</strong>
+  - Seleccione una plantilla; las plantillas globales se muestran como "ALL -- ..." (carga un CoA <code>GLOBAL</code>); las plantillas de país muestran su código de 2 letras
+  - El sistema muestra un informe de verificación previa (cuántas cuentas se insertarán/actualizarán)
+  - Confirme para copiar las cuentas en su CoA</p>
+<p><strong>Qué se copia</strong>: Números de cuenta, nombres, nombres nativos (idioma local), descripciones, mapeos de consolidación y estado. Las cuentas pasan a ser suyas para editar -- los cambios en la plantilla de la plataforma no afectan a su CoA a menos que la recargue explícitamente.</p>
+<p><strong>Consejo</strong>: Después de cargar una plantilla, puede añadir cuentas específicas de la empresa, renombrar entradas o deshabilitar cuentas no utilizadas. Las plantillas proporcionan un punto de partida, no una estructura bloqueada.</p>
+<h3 id="plantillas-disponibles">Plantillas disponibles<a class="headerlink" href="#plantillas-disponibles" title="Permanent link">&para;</a></h3>
+<p>KANAP incluye <strong>20 plantillas preconfiguradas</strong> que cubren 10 estándares contables. Cada estándar viene en dos versiones:</p>
+<ul>
+<li><strong>v1.0 (Simple)</strong>: Un conjunto enfocado de ~20 cuentas relevantes para IT -- licencias de software, alojamiento en la nube, ciberseguridad, telecomunicaciones, consultoría, costes de personal, formación y más. Ideal para organizaciones que quieren un punto de partida ligero.</li>
+<li><strong>v2.0 (Detallado)</strong>: Todo lo de v1.0 más subcuentas granulares adicionales (~30 cuentas). Añade desgloses como Software comprado vs. Desarrollado internamente, Equipos de red, SaaS vs. Licencias perpetuas, Comunicaciones móviles, Bonificaciones IT, Seguro IT y más. Ideal para organizaciones que necesitan un seguimiento de costes más fino.</li>
+</ul>
+<p>Ambas versiones usan <strong>números de cuenta reales del estándar contable oficial de cada país</strong> e incluyen nombres nativos en el idioma local.</p>
+<table>
+<thead>
+<tr>
+<th>Código plantilla</th>
+<th>País</th>
+<th>Estándar</th>
+<th>Cuentas (v1 / v2)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>IFRS</strong></td>
+<td>Global</td>
+<td>Normas Internacionales de Información Financiera</td>
+<td>14 / 30</td>
+</tr>
+<tr>
+<td><strong>FR-PCG</strong></td>
+<td>Francia</td>
+<td>Plan Comptable General</td>
+<td>20 / 31</td>
+</tr>
+<tr>
+<td><strong>DE-SKR03</strong></td>
+<td>Alemania</td>
+<td>Standardkontenrahmen 03</td>
+<td>20 / 32</td>
+</tr>
+<tr>
+<td><strong>GB-UKGAAP</strong></td>
+<td>Reino Unido</td>
+<td>UK GAAP</td>
+<td>20 / 31</td>
+</tr>
+<tr>
+<td><strong>ES-PGC</strong></td>
+<td>España</td>
+<td>Plan General de Contabilidad</td>
+<td>20 / 31</td>
+</tr>
+<tr>
+<td><strong>IT-PDC</strong></td>
+<td>Italia</td>
+<td>Piano dei Conti</td>
+<td>20 / 31</td>
+</tr>
+<tr>
+<td><strong>NL-RGS</strong></td>
+<td>Países Bajos</td>
+<td>Rekeningschema (RGS)</td>
+<td>20 / 31</td>
+</tr>
+<tr>
+<td><strong>BE-PCMN</strong></td>
+<td>Bélgica</td>
+<td>Plan Comptable Minimum Normalise</td>
+<td>20 / 31</td>
+</tr>
+<tr>
+<td><strong>CH-KMU</strong></td>
+<td>Suiza</td>
+<td>Kontenrahmen KMU</td>
+<td>20 / 31</td>
+</tr>
+<tr>
+<td><strong>US-USGAAP</strong></td>
+<td>Estados Unidos</td>
+<td>US GAAP</td>
+<td>20 / 32</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Elegir una versión</strong>:</p>
+<ul>
+<li>Comience con <strong>v1.0</strong> si desea un plan limpio y mínimo que cubra las categorías esenciales de costes IT. Siempre puede añadir cuentas más adelante.</li>
+<li>Elija <strong>v2.0</strong> si su organización hace seguimiento del gasto IT a nivel granular (p. ej., distinguiendo suscripciones SaaS de licencias perpetuas, o separando salarios IT de bonificaciones).</li>
+</ul>
+<h3 id="consolidacion-ifrs-integrada">Consolidación IFRS integrada<a class="headerlink" href="#consolidacion-ifrs-integrada" title="Permanent link">&para;</a></h3>
+<p>Todas las plantillas -- independientemente del país -- mapean cada cuenta a una de <strong>14 cuentas de consolidación IFRS estandarizadas</strong>. Esto significa que los informes a nivel de grupo funcionan desde el principio, incluso entre diferentes estándares locales.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Cuenta de consolidación</th>
+<th>Qué cubre</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1000</td>
+<td>Activos tangibles (CAPEX)</td>
+<td>Equipamiento IT físico -- servidores, estaciones de trabajo, equipos de red</td>
+</tr>
+<tr>
+<td>1100</td>
+<td>Activos intangibles (CAPEX)</td>
+<td>Software capitalizado y costes de desarrollo</td>
+</tr>
+<tr>
+<td>1200</td>
+<td>Depreciación y amortización</td>
+<td>Depreciación de hardware y software</td>
+</tr>
+<tr>
+<td>1300</td>
+<td>Deterioros y provisiones</td>
+<td>Deterioros y reducciones de valor de activos</td>
+</tr>
+<tr>
+<td>2000</td>
+<td>Licencias de software (OPEX)</td>
+<td>Licencias perpetuas, suscripciones SaaS, soporte de código abierto</td>
+</tr>
+<tr>
+<td>2100</td>
+<td>Servicios cloud y alojamiento</td>
+<td>IaaS, PaaS, monitorización, herramientas de ciberseguridad</td>
+</tr>
+<tr>
+<td>2200</td>
+<td>Telecomunicaciones y red</td>
+<td>Internet, móvil, WAN/LAN</td>
+</tr>
+<tr>
+<td>2300</td>
+<td>Mantenimiento y soporte</td>
+<td>Contratos de mantenimiento de hardware y software</td>
+</tr>
+<tr>
+<td>2400</td>
+<td>Consultoría IT y servicios externos</td>
+<td>Asesoría, integración de sistemas, contratistas</td>
+</tr>
+<tr>
+<td>2500</td>
+<td>Costes de personal IT</td>
+<td>Salarios, bonificaciones, cargas sociales, pensiones</td>
+</tr>
+<tr>
+<td>2600</td>
+<td>Formación y certificación</td>
+<td>Programas de formación, certificaciones, conferencias</td>
+</tr>
+<tr>
+<td>2700</td>
+<td>IT de puesto de trabajo (no capitalizado)</td>
+<td>Dispositivos de usuario final por debajo del umbral de capitalización</td>
+</tr>
+<tr>
+<td>2800</td>
+<td>Viajes y movilidad (proyectos IT)</td>
+<td>Viajes relacionados con proyectos</td>
+</tr>
+<tr>
+<td>2900</td>
+<td>Otros gastos operativos IT</td>
+<td>Costes IT varios, ciberseguro</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Ejemplo</strong>: Su filial francesa carga <strong>FR-PCG v1.0</strong> y su filial alemana carga <strong>DE-SKR03 v1.0</strong>. Ambas usan diferentes números de cuenta locales y nombres nativos, pero cada cuenta se mapea a la misma estructura de consolidación IFRS. Los informes a nivel de grupo se agregan sin ningún trabajo manual de mapeo.</p>
+<h3 id="coa-predeterminado-global-aprovisionamiento">CoA predeterminado global (aprovisionamiento)<a class="headerlink" href="#coa-predeterminado-global-aprovisionamiento" title="Permanent link">&para;</a></h3>
+<p>Los nuevos espacios de trabajo se aprovisionan automáticamente con la plantilla <strong>IFRS v1.0</strong>. Esto crea un CoA con alcance <code>GLOBAL</code> que contiene las 14 cuentas de consolidación IFRS y lo establece como predeterminado global del espacio de trabajo, para que las empresas puedan usarlo inmediatamente sin ninguna configuración. Puede editar o eliminar las cuentas/CoA precargados más adelante según sea necesario (sujeto a las protecciones estándar).</p>
+<p>Los CoA globales se muestran con metadatos de alcance en el modal de <strong>Gestionar</strong>, sin valor de país para las entradas <code>GLOBAL</code>. Solo los CoA <code>GLOBAL</code> pueden marcarse como predeterminado global, y solo los CoA <code>PAÍS</code> pueden establecerse como predeterminado por país.</p>
+<h2 id="gestionar-planes-de-cuentas">Gestionar Planes de cuentas<a class="headerlink" href="#gestionar-planes-de-cuentas" title="Permanent link">&para;</a></h2>
+<h3 id="el-modal-de-gestion">El modal de Gestión<a class="headerlink" href="#el-modal-de-gestion" title="Permanent link">&para;</a></h3>
+<p>Haga clic en <strong>Gestionar</strong> en la barra de chips para abrir el modal de administración. El modal tiene dos paneles:</p>
+<p><strong>Panel izquierdo</strong> -- Lista de CoA:
+- Muestra todos sus Planes de cuentas con sus códigos y nombres.
+- Insignias de predeterminado: <strong>★</strong> para predeterminado de país, círculo más para predeterminado global.
+- Haga clic en una fila para ver sus detalles.</p>
+<p><strong>Panel derecho</strong> -- Detalles del CoA:
+- <strong>Código</strong> y <strong>Nombre</strong>
+- <strong>Alcance</strong>: <code>GLOBAL</code> o <code>PAÍS</code>
+- <strong>País</strong> (para CoA con alcance de país)
+- <strong>Predeterminado de país</strong>: Sí/No
+- <strong>Predeterminado global</strong>: Sí/No
+- <strong>Empresas vinculadas</strong>: Número de empresas asignadas a este CoA
+- <strong>Cuentas</strong>: Número de cuentas en este CoA</p>
+<p><strong>Acciones</strong> (en la barra de herramientas del modal):
+- <strong>Nuevo</strong> (<code>accounts:manager</code>): Abre el diálogo de crear CoA.
+- <strong>Establecer predeterminado de país</strong> (<code>accounts:manager</code>): Marcar el CoA con alcance de país seleccionado como predeterminado para su país. Deshabilitado para CoA globales.
+- <strong>Establecer predeterminado global</strong> (<code>accounts:manager</code>): Marcar el CoA con alcance global seleccionado como predeterminado global. Deshabilitado para CoA de país.
+- <strong>Eliminar seleccionado</strong> (<code>accounts:admin</code>): Eliminar el CoA seleccionado. La eliminación se bloquea si alguna empresa lo referencia o alguna partida OPEX/CAPEX usa sus cuentas.</p>
+<h2 id="gestionar-cuentas">Gestionar cuentas<a class="headerlink" href="#gestionar-cuentas" title="Permanent link">&para;</a></h2>
+<h3 id="numeros-de-cuenta">Números de cuenta<a class="headerlink" href="#numeros-de-cuenta" title="Permanent link">&para;</a></h3>
+<p>Los números de cuenta se almacenan como texto pero típicamente contienen valores numéricos. Al editar cuentas:
+  - Puede introducir números (p. ej., <code>6011</code>) o texto (p. ej., <code>6011-TRAVEL</code>)
+  - El sistema convierte automáticamente las entradas numéricas a cadenas
+  - Dentro de un CoA, los números de cuenta deben ser únicos (verificado tras el llenado)</p>
+<h3 id="nombres-nativos-para-soporte-multilingue">Nombres nativos para soporte multilingüe<a class="headerlink" href="#nombres-nativos-para-soporte-multilingue" title="Permanent link">&para;</a></h3>
+<p>Algunos países requieren que las cuentas se registren en el idioma local. Utilice el campo <strong>Nombre nativo</strong> para almacenar el nombre original mientras mantiene el nombre en inglés en el campo principal <strong>Nombre de la cuenta</strong>.</p>
+<p><strong>Ejemplo</strong>: Cuenta francesa
+  - <strong>Nombre de la cuenta</strong>: <code>Travel expenses</code> (inglés, para informes)
+  - <strong>Nombre nativo</strong>: <code>Frais de deplacement</code> (francés, para conformidad legal)</p>
+<p>El nombre nativo está disponible como columna oculta en la cuadrícula de cuentas. Habilítelo desde el selector de columnas para ver ambos nombres lado a lado.</p>
+<h2 id="cuentas-de-consolidacion-informes-a-nivel-de-grupo">Cuentas de consolidación (Informes a nivel de grupo)<a class="headerlink" href="#cuentas-de-consolidacion-informes-a-nivel-de-grupo" title="Permanent link">&para;</a></h2>
+<p>Para organizaciones multi-país, el trabajo diario se realiza usando Planes de cuentas locales (PCG francés, UK GAAP, HGB alemán, etc.), pero los informes a nivel de grupo a menudo requieren consolidación a un estándar común como <strong>IFRS</strong> o <strong>US GAAP</strong>.</p>
+<p>Las <strong>cuentas de consolidación</strong> resuelven esto mapeando cuentas locales a cuentas de consolidación estandarizadas.</p>
+<h3 id="como-funciona">Cómo funciona<a class="headerlink" href="#como-funciona" title="Permanent link">&para;</a></h3>
+<p>Cada cuenta puede tener tres campos de consolidación:
+  - <strong>Número de cuenta de consolidación</strong>: El número de cuenta estandarizado (p. ej., cuenta IFRS <code>6200</code>)
+  - <strong>Nombre de cuenta de consolidación</strong>: El nombre estandarizado (p. ej., <code>IT Services and Software</code>)
+  - <strong>Descripción de cuenta de consolidación</strong>: Detalles opcionales sobre la categoría de consolidación</p>
+<p><strong>Ejemplo de mapeo</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>País</th>
+<th>CoA local</th>
+<th>Cuenta local</th>
+<th>Nombre local</th>
+<th>-&gt;</th>
+<th>Cuenta consolidación</th>
+<th>Nombre consolidación</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Francia</td>
+<td>FR-PCG</td>
+<td>6061</td>
+<td>Frais postaux</td>
+<td>-&gt;</td>
+<td>6200</td>
+<td>IT Services and Software</td>
+</tr>
+<tr>
+<td>Reino Unido</td>
+<td>UK-GAAP</td>
+<td>5200</td>
+<td>Postage and courier</td>
+<td>-&gt;</td>
+<td>6200</td>
+<td>IT Services and Software</td>
+</tr>
+<tr>
+<td>Alemania</td>
+<td>DE-HGB</td>
+<td>4920</td>
+<td>Portokosten</td>
+<td>-&gt;</td>
+<td>6200</td>
+<td>IT Services and Software</td>
+</tr>
+</tbody>
+</table>
+<p>Las tres cuentas locales se mapean a la misma cuenta de consolidación IFRS <code>6200</code>, habilitando la agregación a nivel de grupo.</p>
+<h3 id="por-que-es-importante">Por qué es importante<a class="headerlink" href="#por-que-es-importante" title="Permanent link">&para;</a></h3>
+<p><strong>Operaciones diarias</strong>: Los usuarios trabajan con sus cuentas locales familiares
+  - Los usuarios franceses seleccionan la cuenta <code>6061 - Frais postaux</code>
+  - Los usuarios del Reino Unido seleccionan la cuenta <code>5200 - Postage and courier</code>
+  - Los usuarios alemanes seleccionan la cuenta <code>4920 - Portokosten</code></p>
+<p><strong>Informes de grupo</strong>: El sistema puede agregar costes por cuenta de consolidación
+  - Todos los costes de servicios IT entre países se agregan a <code>6200 - IT Services and Software</code>
+  - La dirección ve una vista unificada independientemente de las diferencias contables locales
+  - Los informes estatutarios por país siguen usando cuentas locales</p>
+<h3 id="configurar-mapeos-de-consolidacion">Configurar mapeos de consolidación<a class="headerlink" href="#configurar-mapeos-de-consolidacion" title="Permanent link">&para;</a></h3>
+<p><strong>Opción 1: Plantillas (recomendado)</strong>
+Todas las plantillas integradas incluyen mapeos de consolidación IFRS en cada cuenta. Cargue cualquier plantilla de país y las columnas de consolidación ya están rellenadas -- sin mapeo manual necesario. Consulte <a href="#plantillas-disponibles">Plantillas disponibles</a> para la lista completa.</p>
+<p><strong>Opción 2: Importación CSV</strong>
+Al importar cuentas, incluya los campos de consolidación en su CSV:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>coa_code;account_number;account_name;consolidation_account_number;consolidation_account_name;consolidation_account_description
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>FR-PCG;6061;Frais postaux;6200;IT Services and Software;
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>UK-GAAP;5200;Postage and courier;6200;IT Services and Software;
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>DE-HGB;4920;Portokosten;6200;IT Services and Software;
+</code></pre></div>
+<p><strong>Opción 3: Entrada manual</strong>
+Edite cuentas individualmente y complete los campos de consolidación en el espacio de trabajo de la cuenta.</p>
+<h3 id="mejores-practicas">Mejores prácticas<a class="headerlink" href="#mejores-practicas" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Use un estándar común</strong>: IFRS es típico para grupos europeos; US GAAP para empresas americanas. Todas las plantillas integradas ya se mapean a las mismas 14 cuentas de consolidación IFRS (consulte <a href="#consolidacion-ifrs-integrada">Consolidación IFRS integrada</a>)</li>
+<li><strong>Mantenga un plan de consolidación</strong>: Conserve un documento de referencia listando sus cuentas de consolidación y lo que representan. Si usa las plantillas integradas, las 14 cuentas IFRS sirven como esta referencia</li>
+<li><strong>Mapee con la granularidad adecuada</strong>: No consolide demasiado ampliamente (pierde información) ni demasiado estrechamente (demasiado complejo)</li>
+<li><strong>Involucre a finanzas</strong>: Los mapeos de cuentas de consolidación deben alinearse con los requisitos de informes financieros de su grupo</li>
+<li><strong>Actualice sistemáticamente</strong>: Cuando añada cuentas locales, mapéelas inmediatamente a cuentas de consolidación</li>
+</ul>
+<h3 id="informes-con-cuentas-de-consolidacion">Informes con cuentas de consolidación<a class="headerlink" href="#informes-con-cuentas-de-consolidacion" title="Permanent link">&para;</a></h3>
+<p>Al construir informes, puede elegir agrupar por:
+  - <strong>Cuentas locales</strong>: Muestra detalle específico del país (para gestión local)
+  - <strong>Cuentas de consolidación</strong>: Muestra categorías a nivel de grupo (para informes ejecutivos)</p>
+<p>Esta doble vista le permite satisfacer tanto los requisitos de conformidad local como las necesidades de informes de grupo sin mantener datos duplicados.</p>
+<h2 id="cuentas-legado-soporte-de-migracion">Cuentas legado (soporte de migración)<a class="headerlink" href="#cuentas-legado-soporte-de-migracion" title="Permanent link">&para;</a></h2>
+<p>Las <strong>cuentas legado</strong> son cuentas sin un <code>coa_id</code> (creadas antes de que se introdujeran los Planes de cuentas).</p>
+<p><strong>Cómo funcionan</strong>:
+  - Las empresas SIN CoA pueden usar cuentas legado
+  - Las empresas CON CoA no pueden usar cuentas legado -- se filtran automáticamente
+  - Las cuentas legado pueden migrarse vía CSV (<code>coa_code</code>) y flujos de trabajo de reasignación</p>
+<p><strong>Ruta de migración</strong>:
+  1. Cree o cargue Planes de cuentas para sus empresas
+  2. Asigne CoA a las empresas (en la pestaña Visión general de la empresa)
+  3. Asigne <code>coa_id</code> a sus cuentas legado (vía importación CSV con <code>coa_code</code> o edición masiva)
+  4. Actualice las partidas OPEX/CAPEX existentes que muestren advertencias de "cuenta obsoleta"</p>
+<p><strong>Consejo</strong>: No tiene que migrar todo a la vez. Las empresas sin CoA continúan trabajando con cuentas legado, permitiendo una adopción gradual.</p>
+<h2 id="advertencias-de-cuenta-obsoleta">Advertencias de cuenta obsoleta<a class="headerlink" href="#advertencias-de-cuenta-obsoleta" title="Permanent link">&para;</a></h2>
+<p>Al editar partidas OPEX o CAPEX, puede ver:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Cuenta obsoleta detectada. La cuenta seleccionada no pertenece al
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>Plan de cuentas de la empresa. Por favor actualice la cuenta.
+</code></pre></div>
+<p><strong>Por qué sucede esto</strong>:
+  - La cuenta de la partida pertenece al CoA "A"
+  - La empresa de la partida pertenece al CoA "B"
+  - Se detectó un desajuste</p>
+<p><strong>Escenarios comunes</strong>:
+  - Migró una empresa a un nuevo CoA pero no ha actualizado las partidas de gasto antiguas
+  - Una cuenta fue reasignada manualmente a un CoA diferente
+  - Está viendo datos históricos de antes de la migración de CoA</p>
+<p><strong>Cómo solucionarlo</strong>: Edite la partida y seleccione una cuenta del Plan de cuentas actual de la empresa. La advertencia desaparecerá una vez que la cuenta coincida con el CoA de la empresa.</p>
+<h2 id="estado-y-fecha-de-desactivacion">Estado y fecha de desactivación<a class="headerlink" href="#estado-y-fecha-de-desactivacion" title="Permanent link">&para;</a></h2>
+<p>Las cuentas utilizan la misma gestión de ciclo de vida que otros datos maestros:</p>
+<ul>
+<li><strong>Habilitadas</strong> por defecto</li>
+<li>Establezca una <strong>Fecha de desactivación</strong> para dejar de usar una cuenta a partir de una fecha específica</li>
+<li>Después de la fecha de desactivación:<ul>
+<li>La cuenta ya no aparece en los desplegables de selección para nuevos elementos</li>
+<li>Los datos históricos permanecen intactos; los elementos existentes conservan sus asignaciones de cuenta</li>
+<li>Los informes de años cuando la cuenta estaba activa siguen incluyéndola</li>
+</ul>
+</li>
+<li>La cuadrícula de cuentas muestra por defecto solo cuentas <strong>Habilitadas</strong>. Use el conmutador de alcance de estado para cambiar a <strong>Todas</strong> e incluir cuentas deshabilitadas.</li>
+</ul>
+<h2 id="eliminacion-del-espacio-de-trabajo-y-coa">Eliminación del espacio de trabajo y CoA<a class="headerlink" href="#eliminacion-del-espacio-de-trabajo-y-coa" title="Permanent link">&para;</a></h2>
+<p>Cuando un espacio de trabajo es eliminado por un administrador de la plataforma, todos los datos contables del espacio de trabajo se eliminan permanentemente como parte del proceso de purga:
+- Planes de cuentas (<code>chart_of_accounts</code>)
+- Cuentas (<code>accounts</code>)
+- Vínculos de empresas a un CoA (<code>companies.coa_id</code>)</p>
+<p>La eliminación es inmediata e irreversible. El registro del espacio de trabajo permanece por auditabilidad, y su slug se borra para reutilización.</p>
+<p><strong>Consejo</strong>: Prefiera deshabilitar en lugar de eliminar. La eliminación solo está permitida si ninguna partida OPEX/CAPEX referencia la cuenta.</p>
+<h2 id="importacionexportacion-csv">Importación/exportación CSV<a class="headerlink" href="#importacionexportacion-csv" title="Permanent link">&para;</a></h2>
+<h3 id="planes-de-cuentas">Planes de cuentas<a class="headerlink" href="#planes-de-cuentas" title="Permanent link">&para;</a></h3>
+<p>Puede exportar una lista de sus CoA (con metadatos como código, nombre, país, estado de predeterminado) pero no importar CoA directamente vía CSV. Cree CoA a través de la interfaz o cárguelos desde plantillas.</p>
+<h3 id="cuentas-endpoint-global">Cuentas (endpoint global)<a class="headerlink" href="#cuentas-endpoint-global" title="Permanent link">&para;</a></h3>
+<p>El CSV global <code>/accounts</code> incluye una columna <code>coa_code</code> para identificar a qué CoA pertenece cada cuenta.</p>
+<ul>
+<li><strong>Exportar</strong><ul>
+<li><strong>Plantilla</strong>: solo encabezados (úselo para preparar importaciones)</li>
+<li><strong>Datos</strong>: todas las cuentas con sus códigos de CoA, números de cuenta, nombres, nombres nativos, descripciones, mapeos de consolidación y estado</li>
+</ul>
+</li>
+<li><strong>Importar</strong><ul>
+<li>Comience con <strong>Verificación previa</strong> (valida estructura, codificación, campos obligatorios, duplicados)</li>
+<li>Si la verificación previa es correcta, <strong>Cargar</strong> aplica inserciones/actualizaciones</li>
+<li><strong>Coincidencia</strong>: por <code>(coa_code, account_number)</code> dentro de su espacio de trabajo</li>
+<li><strong>Campos obligatorios</strong>: <code>coa_code</code>, <code>account_number</code>, <code>account_name</code></li>
+<li><strong>Campos opcionales</strong>: <code>native_name</code>, <code>description</code>, campos de consolidación, <code>status</code></li>
+<li>Los duplicados en el archivo (mismo coa_code + account_number) se deduplicar; gana la primera ocurrencia</li>
+</ul>
+</li>
+</ul>
+<p><strong>Esquema CSV</strong> (separado por punto y coma <code>;</code>, UTF-8):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>coa_code;account_number;account_name;native_name;description;consolidation_account_number;consolidation_account_name;consolidation_account_description;status
+</code></pre></div></p>
+<h3 id="cuentas-con-alcance-de-coa">Cuentas (con alcance de CoA)<a class="headerlink" href="#cuentas-con-alcance-de-coa" title="Permanent link">&para;</a></h3>
+<p>Desde la página de Planes de cuentas, <strong>Importar CSV</strong> y <strong>Exportar CSV</strong> se limitan automáticamente al CoA seleccionado actualmente.</p>
+<ul>
+<li><strong>Exportar</strong>: cuentas de este CoA (no se necesita columna <code>coa_code</code>)</li>
+<li><strong>Importar</strong>: las cuentas se insertan/actualizan en este CoA automáticamente</li>
+</ul>
+<p><strong>Esquema CSV</strong> (con alcance de CoA, separado por punto y coma <code>;</code>, UTF-8):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>account_number;account_name;native_name;description;consolidation_account_number;consolidation_account_name;consolidation_account_description;status
+</code></pre></div></p>
+<p><strong>Notas</strong>:
+  - Utilice codificación <strong>UTF-8</strong> y <strong>puntos y coma</strong> como separadores
+  - El <code>coa_code</code> debe coincidir con un Plan de cuentas existente en su espacio de trabajo
+  - Los números de cuenta deben ser únicos dentro de un CoA
+  - Valores de estado: <code>enabled</code> o <code>disabled</code> (predeterminado: enabled)</p>
+<h2 id="consejos">Consejos<a class="headerlink" href="#consejos" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Comience con plantillas</strong>: KANAP incluye plantillas para 9 países más IFRS. Cargue una en lugar de construir desde cero -- obtiene números de cuenta adecuados, nombres nativos y mapeos de consolidación IFRS desde el principio. Comience con v1.0 (Simple) si no está seguro; actualice a v2.0 (Detallado) si necesita más granularidad.</li>
+<li><strong>Un predeterminado por país</strong>: Establezca un CoA predeterminado para cada país para que las nuevas empresas se asignen automáticamente a la estructura de cuentas correcta.</li>
+<li><strong>Nombres nativos para conformidad</strong>: Utilice el campo Nombre nativo si la normativa local requiere cuentas en el idioma local. Habilite la columna <strong>Nombre nativo</strong> en la cuadrícula para ver ambos nombres de un vistazo.</li>
+<li><strong>Migre gradualmente</strong>: No tiene que convertir todo a la vez. Las empresas sin CoA continúan trabajando con cuentas legado.</li>
+<li><strong>Corrija cuentas obsoletas</strong>: Cuando vea advertencias, actualice la cuenta para que coincida con el CoA actual de la empresa. Esto mantiene sus datos limpios para informes.</li>
+<li><strong>Deshabilite en lugar de eliminar</strong>: Deshabilitar cuentas preserva el historial. Solo elimine cuentas que fueron creadas por error y nunca se usaron.</li>
+<li><strong>Las importaciones CSV son aditivas</strong>: Importar cuentas añade nuevas y actualiza las existentes (emparejadas por coa_code + account_number). No elimina cuentas que no están en el archivo.</li>
+<li><strong>Las cuentas de consolidación son clave para grupos</strong>: Si opera en múltiples países, configure los mapeos de consolidación desde el primer día. Esto hace que los informes a nivel de grupo no requieran esfuerzo y mantiene a los usuarios locales trabajando con cuentas familiares.</li>
+<li><strong>IFRS como estándar de consolidación</strong>: La mayoría de grupos europeos usan IFRS para consolidación. Todas las plantillas integradas ya se mapean a las mismas 14 cuentas de consolidación IFRS, por lo que los informes de grupo funcionan entre países sin configuración adicional.</li>
+<li><strong>Enlace directo</strong>: La URL preserva su CoA seleccionado, orden de clasificación, texto de búsqueda y filtros. Comparta o marque un enlace para volver exactamente a la misma vista.</li>
+</ul>
+<h2 id="escenarios-comunes">Escenarios comunes<a class="headerlink" href="#escenarios-comunes" title="Permanent link">&para;</a></h2>
+<h3 id="escenario-1-organizacion-multi-pais">Escenario 1: Organización multi-país<a class="headerlink" href="#escenario-1-organizacion-multi-pais" title="Permanent link">&para;</a></h3>
+<p>Tiene filiales en Francia, Reino Unido y Alemania, cada una siguiendo estándares contables locales.</p>
+<p><strong>Configuración</strong>:
+  1. Cargue tres plantillas: <strong>FR-PCG v1.0</strong>, <strong>GB-UKGAAP v1.0</strong>, <strong>DE-SKR03 v1.0</strong> (o v2.0 para más granularidad)
+  2. Establezca cada una como predeterminada para su país
+  3. Asigne empresas a sus CoA respectivos
+  4. Las nuevas empresas obtienen automáticamente el CoA correcto; la selección de cuentas se filtra en consecuencia
+  5. Los mapeos de consolidación ya están en su lugar -- los informes de grupo funcionan inmediatamente</p>
+<h3 id="escenario-2-migrar-de-legado-a-coa">Escenario 2: Migrar de legado a CoA<a class="headerlink" href="#escenario-2-migrar-de-legado-a-coa" title="Permanent link">&para;</a></h3>
+<p>Tiene 50 cuentas y 5 empresas, todo configurado antes de que existieran los Planes de cuentas.</p>
+<p><strong>Pasos de migración</strong>:
+  1. Cree un CoA (p. ej., <code>US-GAAP</code>)
+  2. Exporte sus cuentas a CSV
+  3. Añada una columna <code>coa_code</code> (p. ej., <code>US-GAAP</code>) a todas las filas
+  4. Importe el CSV actualizado (las cuentas ahora pertenecen al CoA)
+  5. Asigne el CoA a sus empresas
+  6. Edite cualquier partida OPEX/CAPEX que muestre advertencias de "cuenta obsoleta"</p>
+<h3 id="escenario-3-cambiar-una-empresa-a-un-nuevo-coa">Escenario 3: Cambiar una empresa a un nuevo CoA<a class="headerlink" href="#escenario-3-cambiar-una-empresa-a-un-nuevo-coa" title="Permanent link">&para;</a></h3>
+<p>Su filial del Reino Unido cambia de UK GAAP a IFRS.</p>
+<p><strong>Pasos</strong>:
+  1. Cree un nuevo CoA: <code>UK-IFRS</code> (o cargue desde plantilla)
+  2. En la pestaña Visión general de la empresa, cambie Plan de cuentas a <code>UK-IFRS</code>
+  3. En adelante, los usuarios solo pueden seleccionar cuentas de <code>UK-IFRS</code>
+  4. Las partidas OPEX/CAPEX existentes conservan sus cuentas antiguas pero muestran advertencias
+  5. Actualice las partidas según sea necesario (o deje los datos históricos como están si los informes lo permiten)</p>
+<h3 id="escenario-4-configurar-consolidacion-de-grupo-multi-pais">Escenario 4: Configurar consolidación de grupo (multi-país)<a class="headerlink" href="#escenario-4-configurar-consolidacion-de-grupo-multi-pais" title="Permanent link">&para;</a></h3>
+<p>Su grupo tiene filiales en Francia, Reino Unido y Alemania. Cada país usa su estándar contable local, pero necesita informes IFRS consolidados.</p>
+<p><strong>Configuración</strong>:
+  1. Cargue plantillas de país con consolidación IFRS integrada:
+      - <strong>FR-PCG v1.0</strong> -- Plan Comptable General francés (20 cuentas)
+      - <strong>GB-UKGAAP v1.0</strong> -- UK GAAP (20 cuentas)
+      - <strong>DE-SKR03 v1.0</strong> -- Standardkontenrahmen 03 (20 cuentas)</p>
+<ol>
+<li>
+<p>Cada cuenta en estas plantillas ya se mapea a una de las 14 cuentas de consolidación IFRS. Por ejemplo:</p>
+<ul>
+<li>FR-PCG <code>205000</code> (Logiciels informatiques) -&gt; IFRS <code>1100</code> (Intangible Assets)</li>
+<li>GB-UKGAAP <code>510</code> (Capitalized Software) -&gt; IFRS <code>1100</code> (Intangible Assets)</li>
+<li>DE-SKR03 <code>27</code> (EDV-Software) -&gt; IFRS <code>1100</code> (Intangible Assets)</li>
+</ul>
+</li>
+<li>
+<p>Establezca cada CoA como predeterminado para su país y asigne empresas</p>
+</li>
+</ol>
+<p><strong>Resultado</strong>:
+  - Los usuarios franceses trabajan con cuentas PCG francés y nombres nativos en sus tareas diarias
+  - Los usuarios del Reino Unido trabajan con cuentas UK GAAP
+  - Los usuarios alemanes trabajan con cuentas SKR03 y nombres nativos en alemán
+  - Finanzas de grupo ejecuta informes por cuenta de consolidación para ver el gasto total en categorías IFRS
+  - No se necesita trabajo manual de mapeo -- las plantillas lo gestionan todo
+  - Tanto los informes estatutarios locales como los informes IFRS de grupo funcionan sin problemas desde los mismos datos</p>
+<h2 id="preguntas-frecuentes">Preguntas frecuentes<a class="headerlink" href="#preguntas-frecuentes" title="Permanent link">&para;</a></h2>
+<p><strong>P: ¿Puedo tener cuentas que pertenezcan a múltiples CoA?</strong>
+R: No. Cada cuenta pertenece a exactamente un CoA (o a ninguno para cuentas legado). Si necesita la misma estructura de cuentas en múltiples CoA, cargue la plantilla en cada uno o use exportación/importación CSV con diferentes valores de <code>coa_code</code>.</p>
+<p><strong>P: ¿Qué pasa si elimino un Plan de cuentas?</strong>
+R: La eliminación se bloquea si alguna empresa lo referencia o alguna partida OPEX/CAPEX usa sus cuentas. Reasigne empresas y actualice partidas primero, luego puede eliminar el CoA. Eliminar un CoA también elimina todas las cuentas dentro de él que no estén referenciadas en otra parte.</p>
+<p><strong>P: ¿Puedo cambiar números de cuenta?</strong>
+R: Sí, en el espacio de trabajo de la cuenta. Cambiar el número de cuenta actualiza todas las referencias en partidas OPEX/CAPEX automáticamente (el UUID de la cuenta permanece igual internamente).</p>
+<p><strong>P: ¿Cómo veo qué empresas usan un CoA específico?</strong>
+R: Abra <strong>Gestionar</strong> en la página de Planes de cuentas, seleccione el CoA y verifique <strong>Empresas vinculadas</strong> en el panel de detalles. También puede filtrar la página de Empresas por CoA.</p>
+<p><strong>P: ¿Qué pasa si mi país no tiene plantilla?</strong>
+R: KANAP incluye plantillas para 9 países (FR, DE, GB, ES, IT, NL, BE, CH, US) más IFRS como estándar global. Si su país no está cubierto, cree un CoA desde cero y añada cuentas manualmente o vía importación CSV. Aún puede usar los números de cuenta de consolidación IFRS (1000-2900) en sus mapeos de consolidación para mantenerse compatible con las plantillas integradas.</p>
+<p><strong>P: ¿Cuál es la diferencia entre las plantillas v1.0 y v2.0?</strong>
+R: <strong>v1.0 (Simple)</strong> tiene ~20 cuentas enfocadas en IT que cubren categorías esenciales de costes. <strong>v2.0 (Detallado)</strong> añade ~10 subcuentas más granulares para un seguimiento más fino (p. ej., separando suscripciones SaaS de licencias perpetuas, o salarios IT de bonificaciones). Ambas versiones usan los mismos mapeos de consolidación. Comience con v1.0 y cambie a v2.0 si necesita más detalle.</p>
+<p><strong>P: ¿Puedo editar cuentas que vinieron de una plantilla?</strong>
+R: Sí. Una vez que carga una plantilla, las cuentas se copian en su CoA y son completamente editables. Los cambios en la plantilla de la plataforma no afectan a su CoA a menos que lo recargue explícitamente (lo que sobrescribe sus cambios si elige el modo "sobrescribir").</p>
+<p><strong>P: ¿Son obligatorios los mapeos de cuentas de consolidación?</strong>
+R: No, son opcionales. Si solo opera en un país o no necesita consolidación a nivel de grupo, puede dejar estos campos vacíos. Las cuentas de consolidación solo son necesarias para organizaciones multi-país que informan a nivel de grupo usando un estándar diferente al de su contabilidad local.</p>
+<p><strong>P: ¿Pueden varias cuentas locales mapearse a la misma cuenta de consolidación?</strong>
+R: Sí, ese es precisamente el objetivo. Muchas cuentas locales de diferentes CoA pueden mapearse a la misma cuenta de consolidación. Así es como se agregan costes de diferentes países en una sola categoría consolidada.</p>
+<p><strong>P: ¿Qué pasa si cambio un mapeo de consolidación?</strong>
+R: Las partidas OPEX/CAPEX existentes no almacenan datos de consolidación directamente -- referencian la cuenta, que tiene el mapeo de consolidación. Cuando cambia un mapeo, todas las partidas históricas y futuras que usen esa cuenta se reportarán bajo la nueva cuenta de consolidación. Actualice los mapeos con cuidado si necesita preservar categorías de informes históricos.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Volver al principio
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://kanap.net" target="_blank" rel="noopener" title="KANAP Website" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copiado al portapapeles", "clipboard.copy": "Copiar al portapapeles", "search.result.more.one": "1 m\u00e1s en esta p\u00e1gina", "search.result.more.other": "# m\u00e1s en esta p\u00e1gina", "search.result.none": "No se encontraron documentos", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Teclee para comenzar b\u00fasqueda", "search.result.term.missing": "Falta", "select.version": "Seleccionar versi\u00f3n"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -88,7 +88,7 @@ plugins:
           link: /
         - locale: fr
           name: "Français"
-          build: false
+          build: true
           link: /fr/
           nav_translations:
             Home: Accueil
@@ -150,7 +150,7 @@ plugins:
             Microsoft Entra SSO: Microsoft Entra SSO
         - locale: de
           name: Deutsch
-          build: false
+          build: true
           link: /de/
           nav_translations:
             Home: Startseite
@@ -212,7 +212,7 @@ plugins:
             Microsoft Entra SSO: Microsoft Entra SSO
         - locale: es
           name: "Español"
-          build: false
+          build: true
           link: /es/
           nav_translations:
             Home: Inicio

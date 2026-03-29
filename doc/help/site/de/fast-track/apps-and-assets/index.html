@@ -1,0 +1,3678 @@
+
+<!doctype html>
+<html lang="de" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Dokumentieren Sie Ihre Anwendungslandschaft in Minuten. Ein praktischer Leitfaden von der App-Erstellung bis zur Server-Zuordnung.">
+      
+      
+      
+        <link rel="canonical" href="https://doc.kanap.net/de/fast-track/apps-and-assets/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../task-types/">
+      
+      
+        
+          <link rel="alternate" href="../../../fast-track/apps-and-assets/" hreflang="en">
+        
+          <link rel="alternate" href="../../../fr/fast-track/apps-and-assets/" hreflang="fr">
+        
+          <link rel="alternate" href="./" hreflang="de">
+        
+          <link rel="alternate" href="../../../es/fast-track/apps-and-assets/" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>IT Ops Schnelleinstieg: Von der Anwendung zum Server - KANAP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#it-ops-schnelleinstieg-von-der-anwendung-zum-server" class="md-skip">
+          Zum Inhalt
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Kopfzeile">
+    <a href="../../" title="KANAP" class="md-header__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            KANAP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              IT Ops Schnelleinstieg: Von der Anwendung zum Server
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Sprache wechseln">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../fast-track/apps-and-assets/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../../fr/fast-track/apps-and-assets/" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="de" class="md-select__link">
+              Deutsch
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../../es/fast-track/apps-and-assets/" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Suche" placeholder="Suche" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Suche">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Zurücksetzen" aria-label="Zurücksetzen" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Suche wird initialisiert
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/your-org/kanap" title="Zum Repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="KANAP" class="md-nav__button md-logo" aria-label="KANAP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    KANAP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/your-org/kanap" title="Zum Repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    kanap
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Startseite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnellstart
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Schnellstart
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erste Schritte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Von der Anfrage zur Lieferung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Von der Anwendung zum Server
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Von der Anwendung zum Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#das-gesamtbild" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Das Gesamtbild
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-1-ihre-anwendung-erstellen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 1: Ihre Anwendung erstellen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-2-eine-umgebung-hinzufugen-instanz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 2: Eine Umgebung hinzufügen (Instanz)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-3-verantwortliche-zuweisen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 3: Verantwortliche zuweisen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schritt 3: Verantwortliche zuweisen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fachbereichsverantwortliche" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fachbereichsverantwortliche
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#it-verantwortliche" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IT-Verantwortliche
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zielgruppe-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zielgruppe (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-4-zugriffsmethoden-festlegen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 4: Zugriffsmethoden festlegen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-5-mit-anderen-objekten-verknupfen-verknupfungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 5: Mit anderen Objekten verknüpfen (Verknüpfungen)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-6-compliance-informationen-hinzufugen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 6: Compliance-Informationen hinzufügen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-7-ihren-server-erstellen-asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 7: Ihren Server erstellen (Asset)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schritt 7: Ihren Server erstellen (Asset)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ubersichts-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Übersichts-Tab
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#technik-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Technik-Tab
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-8-den-server-mit-ihrer-anwendung-verknupfen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 8: Den Server mit Ihrer Anwendung verknüpfen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schritt 8: Den Server mit Ihrer Anwendung verknüpfen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#von-der-anwendungsseite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Von der Anwendungsseite
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#von-der-asset-seite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Von der Asset-Seite
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wie-alles-zusammenhangt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wie alles zusammenhängt
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Wie alles zusammenhängt">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#anwendungslandschaft-ansicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anwendungslandschaft-Ansicht
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#infrastruktur-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Infrastruktur-Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compliance-berichterstattung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compliance-Berichterstattung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wissensdatenbank" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wissensdatenbank
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verbindungskarte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verbindungskarte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schnittstellen-schnittstellenkarte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schnittstellen &amp; Schnittstellenkarte
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kurzreferenz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kurzreferenz
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../task-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run, Build & Aufgaben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../my-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dashboard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolioverwaltung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Portfolioverwaltung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tasks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aufgaben
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio-requests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anfragen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio-projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projekte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio-planning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planung
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio-team-members/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mitwirkende
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio-reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Berichte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Einstellungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IT-Landschaft
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    IT-Landschaft
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infrastruktur
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Infrastruktur
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../locations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standorte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connections/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connection-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verbindungskarte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anwendungen
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Anwendungen
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../applications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anwendungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../interfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnittstellen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../interface-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schnittstellenkarte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../it-ops-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Einstellungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wissensdatenbank
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Wissensdatenbank
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../knowledge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wissensdatenbank
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetverwaltung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Budgetverwaltung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../opex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../capex/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CAPEX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verträge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../budget-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetadministration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Berichte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stammdaten
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stammdaten
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_1" id="__nav_8_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Organisation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Organisation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../companies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unternehmen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../departments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Abteilungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Externe Parteien
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Externe Parteien
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../suppliers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lieferanten
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contacts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kontakte
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Finanzen
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Finanzen
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../chart-of-accounts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kontenpläne
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../currencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Währungen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Klassifizierung
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Klassifizierung
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../business-processes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geschäftsprozesse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysedimensionen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration & Benutzer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../branding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../master-data-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stammdatenadministration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Budgetübersicht
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On-Premise
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    On-Premise
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../on-premise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Übersicht
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../on-premise/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../on-premise/installation-example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installationsbeispiel (Ubuntu)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../on-premise/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Konfiguration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../on-premise/operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Betrieb
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../on-premise/sso-entra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Microsoft Entra SSO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Inhaltsverzeichnis">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Inhaltsverzeichnis
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#das-gesamtbild" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Das Gesamtbild
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-1-ihre-anwendung-erstellen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 1: Ihre Anwendung erstellen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-2-eine-umgebung-hinzufugen-instanz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 2: Eine Umgebung hinzufügen (Instanz)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-3-verantwortliche-zuweisen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 3: Verantwortliche zuweisen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schritt 3: Verantwortliche zuweisen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fachbereichsverantwortliche" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fachbereichsverantwortliche
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#it-verantwortliche" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IT-Verantwortliche
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zielgruppe-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zielgruppe (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-4-zugriffsmethoden-festlegen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 4: Zugriffsmethoden festlegen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-5-mit-anderen-objekten-verknupfen-verknupfungen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 5: Mit anderen Objekten verknüpfen (Verknüpfungen)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-6-compliance-informationen-hinzufugen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 6: Compliance-Informationen hinzufügen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-7-ihren-server-erstellen-asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 7: Ihren Server erstellen (Asset)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schritt 7: Ihren Server erstellen (Asset)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ubersichts-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Übersichts-Tab
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#technik-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Technik-Tab
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schritt-8-den-server-mit-ihrer-anwendung-verknupfen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schritt 8: Den Server mit Ihrer Anwendung verknüpfen
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schritt 8: Den Server mit Ihrer Anwendung verknüpfen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#von-der-anwendungsseite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Von der Anwendungsseite
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#von-der-asset-seite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Von der Asset-Seite
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wie-alles-zusammenhangt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wie alles zusammenhängt
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Wie alles zusammenhängt">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#anwendungslandschaft-ansicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anwendungslandschaft-Ansicht
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#infrastruktur-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Infrastruktur-Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compliance-berichterstattung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compliance-Berichterstattung
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wissensdatenbank" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wissensdatenbank
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verbindungskarte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verbindungskarte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schnittstellen-schnittstellenkarte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schnittstellen &amp; Schnittstellenkarte
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kurzreferenz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kurzreferenz
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="it-ops-schnelleinstieg-von-der-anwendung-zum-server">IT Ops Schnelleinstieg: Von der Anwendung zum Server<a class="headerlink" href="#it-ops-schnelleinstieg-von-der-anwendung-zum-server" title="Permanent link">&para;</a></h1>
+<p>Dieser Leitfaden führt Sie durch die Dokumentation einer Anwendung und ihrer unterstützenden Infrastruktur -- von der Erstellung des App-Eintrags bis zur Verknüpfung mit dem Server, auf dem sie gehostet wird. Er ist darauf ausgelegt, Sie schnell produktiv zu machen und deckt die wesentlichen Schritte ab, ohne Sie in Optionen zu ertränken.</p>
+<div class="admonition tip">
+<p class="admonition-title">Bevorzugen Sie eine einseitige Zusammenfassung? <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m-9.5 8.5c0 .8-.7 1.5-1.5 1.5H7v2H5.5V9H8c.8 0 1.5.7 1.5 1.5zm5 2c0 .8-.7 1.5-1.5 1.5h-2.5V9H13c.8 0 1.5.7 1.5 1.5zm4-3H17v1h1.5V13H17v2h-1.5V9h3zm-6.5 0h1v3h-1zm-5 0h1v1H7z"/></svg></span></p>
+<p>Alle wichtigen Schritte auf einer einzigen A4-Seite -- ausdrucken, aufhängen, mit dem Team teilen.</p>
+<p><a class="md-button md-button--primary" href="../downloads/kanap-itops-fast-track.pdf"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7z"/></svg></span> Spickzettel herunterladen (PDF)</a></p>
+</div>
+<p>Für vollständige Details siehe die Referenzdokumentation zu <a href="../../applications/">Anwendungen</a> und <a href="../../assets/">Assets</a>.</p>
+<hr />
+<h2 id="das-gesamtbild">Das Gesamtbild<a class="headerlink" href="#das-gesamtbild" title="Permanent link">&para;</a></h2>
+<p><img alt="Übersicht Anwendung zu Server" src="../images/app-to-server-overview.png" /></p>
+<p>Alles in KANAPs IT-Landschaft-Modul ist verbunden, um ein vollständiges Bild Ihrer Landschaft zu zeichnen:</p>
+<table>
+<thead>
+<tr>
+<th>Objekt</th>
+<th>Was es repräsentiert</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Anwendung</strong></td>
+<td>Eine Geschäftsanwendung oder ein IT-Dienst, den Sie dokumentieren möchten</td>
+</tr>
+<tr>
+<td><strong>Umgebung</strong></td>
+<td>Wo sie läuft -- Prod, QA, Dev usw. (in KANAP „Instanzen" genannt)</td>
+</tr>
+<tr>
+<td><strong>Server (Asset)</strong></td>
+<td>Die Infrastruktur, die sie hostet -- VMs, physische Server, Container</td>
+</tr>
+</tbody>
+</table>
+<p>Die Kette ist einfach: <strong>Anwendung → Umgebung → Server</strong>. Am Ende dieses Leitfadens haben Sie diese Kette vollständig dokumentiert.</p>
+<p><img alt="Anwendungs-Beziehungsmodell" src="../images/app-relationship-model.png" /></p>
+<div class="admonition info">
+<p class="admonition-title">Warum das wichtig ist</p>
+<p>Wenn jemand fragt „Wo läuft diese App?", „Wer ist verantwortlich?" oder „Ist sie compliant?" -- haben Sie die Antwort in Sekunden, anstatt Tabellenkalkulationen zu durchsuchen.</p>
+</div>
+<hr />
+<h2 id="schritt-1-ihre-anwendung-erstellen">Schritt 1: Ihre Anwendung erstellen<a class="headerlink" href="#schritt-1-ihre-anwendung-erstellen" title="Permanent link">&para;</a></h2>
+<p>Gehen Sie zu <strong>IT-Landschaft &gt; Anwendungen</strong> und klicken Sie auf <strong>Neue App / Neuer Dienst</strong>.</p>
+<p>Füllen Sie das Wesentliche aus:</p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Was eingeben</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Name</strong></td>
+<td>Ein klarer, wiedererkennbarer Name</td>
+<td><code>Salesforce CRM</code></td>
+</tr>
+<tr>
+<td><strong>Kategorie</strong></td>
+<td>Der primäre Zweck</td>
+<td><code>Fachbereichsanwendung</code></td>
+</tr>
+<tr>
+<td><strong>Anbieter</strong></td>
+<td>Der Lieferant (aus Ihren Stammdaten)</td>
+<td><code>Salesforce Inc</code></td>
+</tr>
+<tr>
+<td><strong>Kritikalität</strong></td>
+<td>Geschäftliche Bedeutung</td>
+<td><code>Geschäftskritisch</code></td>
+</tr>
+<tr>
+<td><strong>Lebenszyklus</strong></td>
+<td>Aktueller Status</td>
+<td><code>Aktiv</code></td>
+</tr>
+</tbody>
+</table>
+<p>Klicken Sie auf <strong>Speichern</strong>. Ihre Anwendung ist jetzt im Register, und der vollständige Arbeitsbereich öffnet sich mit neun Tabs für die detaillierte Dokumentation.</p>
+<div class="admonition tip">
+<p class="admonition-title">Beginnen Sie mit dem, was Sie wissen</p>
+<p>Beschreibung, Herausgeber, Version, Lizenzierung -- alles nützlich, aber in diesem Stadium optional. Sie können später anreichern. Das Ziel ist, die App ins System zu bekommen.</p>
+</div>
+<hr />
+<h2 id="schritt-2-eine-umgebung-hinzufugen-instanz">Schritt 2: Eine Umgebung hinzufügen (Instanz)<a class="headerlink" href="#schritt-2-eine-umgebung-hinzufugen-instanz" title="Permanent link">&para;</a></h2>
+<p>Jede Anwendung läuft irgendwo. Der <strong>Instanzen</strong>-Tab dokumentiert Ihre Umgebungen.</p>
+<p>Öffnen Sie Ihre Anwendung und gehen Sie zum <strong>Instanzen</strong>-Tab. Klicken Sie auf <strong>Hinzufügen</strong> und wählen Sie den Umgebungstyp (Prod, Pre-prod, QA, Test, Dev oder Sandbox).</p>
+<p>Für jede Instanz können Sie erfassen:</p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Was es bewirkt</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Umgebung</strong></td>
+<td>Der Umgebungstyp</td>
+<td><code>Prod</code></td>
+</tr>
+<tr>
+<td><strong>Basis-URL</strong></td>
+<td>Die Zugriffs-URL</td>
+<td><code>https://mycompany.salesforce.com</code></td>
+</tr>
+<tr>
+<td><strong>Lebenszyklus</strong></td>
+<td>Instanz-spezifischer Status</td>
+<td><code>Aktiv</code></td>
+</tr>
+<tr>
+<td><strong>SSO aktiviert</strong></td>
+<td>Ist Single Sign-On aktiv?</td>
+<td><code>Ja</code></td>
+</tr>
+<tr>
+<td><strong>MFA unterstützt</strong></td>
+<td>Wird Multi-Faktor-Authentifizierung unterstützt?</td>
+<td><code>Ja</code></td>
+</tr>
+<tr>
+<td><strong>Notizen</strong></td>
+<td>Zusätzlicher Kontext</td>
+<td><code>Primäre EU-Instanz</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Von Prod kopieren</p>
+<p>Sobald Ihre Produktionsinstanz eingerichtet ist, verwenden Sie die Schaltfläche <strong>Von Prod kopieren</strong>, um schnell QA-, Dev- und andere Umgebungen mit ähnlichen Einstellungen zu erstellen.</p>
+</div>
+<p>Instanzänderungen werden sofort gespeichert -- kein Klick auf die Hauptspeicher-Schaltfläche nötig.</p>
+<hr />
+<h2 id="schritt-3-verantwortliche-zuweisen">Schritt 3: Verantwortliche zuweisen<a class="headerlink" href="#schritt-3-verantwortliche-zuweisen" title="Permanent link">&para;</a></h2>
+<p>Gehen Sie zum Tab <strong>Eigentümer &amp; Zielgruppe</strong>. Hier dokumentieren Sie, wer verantwortlich ist.</p>
+<h3 id="fachbereichsverantwortliche">Fachbereichsverantwortliche<a class="headerlink" href="#fachbereichsverantwortliche" title="Permanent link">&para;</a></h3>
+<p>Die Fachbereichs-Stakeholder, die für die Anwendung rechenschaftspflichtig sind. Fügen Sie eine oder mehrere Personen hinzu -- deren Berufsbezeichnung erscheint automatisch.</p>
+<h3 id="it-verantwortliche">IT-Verantwortliche<a class="headerlink" href="#it-verantwortliche" title="Permanent link">&para;</a></h3>
+<p>Die IT-Teammitglieder, die für den technischen Betrieb und Support verantwortlich sind. Gleicher Mechanismus -- Personen hinzufügen, Rollen erscheinen.</p>
+<h3 id="zielgruppe-optional">Zielgruppe (Optional)<a class="headerlink" href="#zielgruppe-optional" title="Permanent link">&para;</a></h3>
+<p>Wählen Sie aus, welche <strong>Unternehmen</strong> und <strong>Abteilungen</strong> diese Anwendung nutzen. KANAP berechnet automatisch die Benutzeranzahl basierend auf Ihren Stammdaten.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warum Verantwortliche wichtig sind</p>
+<p>Verantwortlichkeit erleichtert es, <strong>die richtigen Personen zu erreichen</strong>, wenn es darauf ankommt -- geplante Wartung, Dienstunterbrechungen, Upgrade-Entscheidungen, Lizenzverlängerungen. Sie steuert auch die Bereichsfilter <strong>Meine Apps</strong> und <strong>Apps meines Teams</strong> in der Hauptliste. Ohne Verantwortliche ist die App nur in der „Alle Apps"-Ansicht sichtbar -- was bedeutet, dass sich niemand verantwortlich fühlt und niemand benachrichtigt wird.</p>
+</div>
+<hr />
+<h2 id="schritt-4-zugriffsmethoden-festlegen">Schritt 4: Zugriffsmethoden festlegen<a class="headerlink" href="#schritt-4-zugriffsmethoden-festlegen" title="Permanent link">&para;</a></h2>
+<p>Gehen Sie zum Tab <strong>Technik &amp; Support</strong>. Unter <strong>Zugriffsmethoden</strong> wählen Sie, wie Benutzer auf diese Anwendung zugreifen:</p>
+<ul>
+<li><strong>Web</strong> -- browserbasierter Zugriff</li>
+<li><strong>Lokal installierte Anwendung</strong> -- Desktop-Client</li>
+<li><strong>Mobile Anwendung</strong> -- Telefon-/Tablet-App</li>
+<li><strong>VDI / Remote Desktop</strong> -- virtueller Desktop</li>
+<li><strong>Terminal / CLI</strong> -- Kommandozeilenoberfläche</li>
+<li><strong>Proprietäre HMI</strong> -- industrielle Oberfläche</li>
+<li><strong>Kiosk</strong> -- dediziertes Terminal</li>
+</ul>
+<p>Zugriffsmethoden sind in den <a href="../../it-ops-settings/#zugriffsmethoden">IT-Landschaft-Einstellungen</a> konfigurierbar, Ihre Liste kann also zusätzliche Optionen enthalten.</p>
+<p>Setzen Sie außerdem:</p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Was es bedeutet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Extern zugänglich</strong></td>
+<td>Ist diese App aus dem Internet erreichbar?</td>
+</tr>
+<tr>
+<td><strong>Datenintegration / ETL</strong></td>
+<td>Nimmt diese App an Datenpipelines teil?</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="schritt-5-mit-anderen-objekten-verknupfen-verknupfungen">Schritt 5: Mit anderen Objekten verknüpfen (Verknüpfungen)<a class="headerlink" href="#schritt-5-mit-anderen-objekten-verknupfen-verknupfungen" title="Permanent link">&para;</a></h2>
+<p>Gehen Sie zum <strong>Verknüpfungen</strong>-Tab, um Ihre Anwendung mit dem Rest Ihrer IT-Verwaltungsdaten zu verbinden.</p>
+<table>
+<thead>
+<tr>
+<th>Verknüpfungstyp</th>
+<th>Was Sie verbinden</th>
+<th>Warum</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>OPEX-Positionen</strong></td>
+<td>Wiederkehrende Kosten (Lizenzen, SaaS-Gebühren)</td>
+<td>Das vollständige Kostenbild sehen</td>
+</tr>
+<tr>
+<td><strong>CAPEX-Positionen</strong></td>
+<td>Investitionsprojekte</td>
+<td>Investitionen verfolgen</td>
+</tr>
+<tr>
+<td><strong>Verträge</strong></td>
+<td>Lieferantenvereinbarungen</td>
+<td>Wissen, wann Verlängerungen fällig sind</td>
+</tr>
+<tr>
+<td><strong>Projekte</strong></td>
+<td>Portfolio-Projekte</td>
+<td>Verbindung zu Ihrem Projektportfolio</td>
+</tr>
+<tr>
+<td><strong>Relevante Websites</strong></td>
+<td>Dokumentation, Wikis, Runbooks</td>
+<td>Schnellzugriff auf externe Ressourcen</td>
+</tr>
+<tr>
+<td><strong>Anhänge</strong></td>
+<td>Dateien (Drag-and-Drop oder Dateiauswahl)</td>
+<td>Spezifikationen und Dokumente neben der App aufbewahren</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Das können Sie auch später tun</p>
+<p>Verknüpfungen sind mächtig, aber nicht blockierend. Erstellen Sie sie, wenn Sie die Daten haben -- die App ist ohne sie voll funktionsfähig.</p>
+</div>
+<hr />
+<h2 id="schritt-6-compliance-informationen-hinzufugen">Schritt 6: Compliance-Informationen hinzufügen<a class="headerlink" href="#schritt-6-compliance-informationen-hinzufugen" title="Permanent link">&para;</a></h2>
+<p>Gehen Sie zum <strong>Compliance</strong>-Tab. Dies wird zunehmend wichtig für Audits und regulatorische Anforderungen.</p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Was eingeben</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Datenklasse</strong></td>
+<td>Sensibilitätsstufe</td>
+<td><code>Vertraulich</code></td>
+</tr>
+<tr>
+<td><strong>Enthält PII</strong></td>
+<td>Speichert personenbezogene Daten?</td>
+<td><code>Ja</code></td>
+</tr>
+<tr>
+<td><strong>Datenresidenz</strong></td>
+<td>Länder, in denen Daten gespeichert werden</td>
+<td><code>Frankreich, Deutschland</code></td>
+</tr>
+<tr>
+<td><strong>Letzter DR-Test</strong></td>
+<td>Datum des letzten Disaster-Recovery-Tests</td>
+<td><code>2025-11-15</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition info">
+<p class="admonition-title">Datenklassen sind konfigurierbar</p>
+<p>Die Standardklassen (Öffentlich, Intern, Vertraulich, Eingeschränkt) können unter <strong>IT-Landschaft &gt; Einstellungen</strong> an die Datenklassifizierungsrichtlinie Ihrer Organisation angepasst werden.</p>
+</div>
+<hr />
+<h2 id="schritt-7-ihren-server-erstellen-asset">Schritt 7: Ihren Server erstellen (Asset)<a class="headerlink" href="#schritt-7-ihren-server-erstellen-asset" title="Permanent link">&para;</a></h2>
+<p>Gehen Sie zu <strong>IT-Landschaft &gt; Assets</strong> und klicken Sie auf <strong>Asset hinzufügen</strong>.</p>
+<h3 id="ubersichts-tab">Übersichts-Tab<a class="headerlink" href="#ubersichts-tab" title="Permanent link">&para;</a></h3>
+<p>Füllen Sie die Kernfelder aus:</p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Was eingeben</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Name</strong></td>
+<td>Hostname oder Kennung</td>
+<td><code>PROD-WEB-01</code></td>
+</tr>
+<tr>
+<td><strong>Asset-Typ</strong></td>
+<td>Der Servertyp (Dropdown)</td>
+<td><code>Virtuelle Maschine</code></td>
+</tr>
+<tr>
+<td><strong>Ist Cluster</strong></td>
+<td>Umschalter, ob es ein Cluster ist</td>
+<td><code>Nein</code></td>
+</tr>
+<tr>
+<td><strong>Standort</strong></td>
+<td>Wo es gehostet wird (Pflicht)</td>
+<td><code>Paris Rechenzentrum</code></td>
+</tr>
+<tr>
+<td><strong>Lebenszyklus</strong></td>
+<td>Aktueller Status</td>
+<td><code>Aktiv</code></td>
+</tr>
+<tr>
+<td><strong>Inbetriebnahmedatum</strong></td>
+<td>Wann es in Betrieb ging</td>
+<td><code>2025-01-15</code></td>
+</tr>
+<tr>
+<td><strong>End-of-Life-Datum</strong></td>
+<td>Geplante Außerbetriebnahme</td>
+<td>--</td>
+</tr>
+<tr>
+<td><strong>Notizen</strong></td>
+<td>Zusätzlicher Kontext</td>
+<td>--</td>
+</tr>
+</tbody>
+</table>
+<p>Sobald ein Standort ausgewählt ist, werden mehrere <strong>schreibgeschützte Felder</strong> automatisch abgeleitet:</p>
+<ul>
+<li><strong>Hosting-Typ</strong> (On-Premises, Cloud, Colocation usw.)</li>
+<li><strong>Cloud-Anbieter / Betreiberunternehmen</strong> (z. B. AWS, Azure oder das Unternehmen, das die Einrichtung betreibt)</li>
+<li><strong>Land</strong></li>
+<li><strong>Stadt</strong></li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">Der Standort ist der Schlüssel</p>
+<p>Der Standort steuert viele Attribute Ihres Assets automatisch. Standorte werden unter <strong>IT-Landschaft &gt; Standorte</strong> verwaltet -- richten Sie sie einmal ein und jedes zugewiesene Asset erbt Hosting-Typ, Anbieter, Land und Stadt. Sie müssen diese nicht manuell eingeben.</p>
+</div>
+<p>Klicken Sie auf <strong>Speichern</strong>, um den vollständigen Arbeitsbereich freizuschalten. Für physische Asset-Typen werden zusätzliche <strong>Hardware</strong>- und <strong>Support</strong>-Tabs verfügbar, um Seriennummern, Herstellerdetails und Lieferanten-Supportverträge zu erfassen.</p>
+<h3 id="technik-tab">Technik-Tab<a class="headerlink" href="#technik-tab" title="Permanent link">&para;</a></h3>
+<p>Gehen Sie zum <strong>Technik</strong>-Tab, um hinzuzufügen:</p>
+<table>
+<thead>
+<tr>
+<th>Abschnitt</th>
+<th>Felder</th>
+<th>Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Umgebung</strong></td>
+<td>Umgebungs-Dropdown</td>
+<td><code>Produktion</code>, <code>QA</code>, <code>Dev</code> usw.</td>
+</tr>
+<tr>
+<td><strong>Identität</strong></td>
+<td>Hostname, Domain, FQDN, Aliasse, OS</td>
+<td>FQDN wird automatisch aus Hostname + Domain berechnet</td>
+</tr>
+<tr>
+<td><strong>IP-Adressen</strong></td>
+<td>Typ, IP, Subnetz</td>
+<td>Netzwerkzone und VLAN werden aus dem Subnetz abgeleitet</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition info">
+<p class="admonition-title">Mehrere IP-Adressen</p>
+<p>Ein Server kann mehrere IP-Adressen haben -- fügen Sie so viele hinzu wie nötig (z. B. Management-Interface, Produktions-VLAN, Backup-Netzwerk). Jeder Eintrag kann seinen eigenen Typ und sein eigenes Subnetz haben, und Netzwerkzone und VLAN werden automatisch abgeleitet.</p>
+</div>
+<hr />
+<h2 id="schritt-8-den-server-mit-ihrer-anwendung-verknupfen">Schritt 8: Den Server mit Ihrer Anwendung verknüpfen<a class="headerlink" href="#schritt-8-den-server-mit-ihrer-anwendung-verknupfen" title="Permanent link">&para;</a></h2>
+<p>Dies ist die letzte Verbindung -- Ihr Server wird der Anwendungsumgebung zugeordnet, die er unterstützt.</p>
+<p>Es gibt <strong>zwei Wege</strong>, um diese Zuordnung zu erstellen:</p>
+<h3 id="von-der-anwendungsseite">Von der Anwendungsseite<a class="headerlink" href="#von-der-anwendungsseite" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Öffnen Sie Ihre Anwendung</li>
+<li>Gehen Sie zum <strong>Server</strong>-Tab</li>
+<li>Wählen Sie die <strong>Produktions</strong>-Umgebung</li>
+<li>Klicken Sie auf <strong>Zuordnung hinzufügen</strong></li>
+<li>Wählen Sie Ihr Asset (<code>PROD-WEB-01</code>)</li>
+<li>Legen Sie die <strong>Rolle</strong> fest (Web, Datenbank, Anwendung usw.)</li>
+</ol>
+<h3 id="von-der-asset-seite">Von der Asset-Seite<a class="headerlink" href="#von-der-asset-seite" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Öffnen Sie Ihr Asset</li>
+<li>Gehen Sie zum <strong>Zuordnungen</strong>-Tab</li>
+<li>Klicken Sie auf <strong>Zuordnung hinzufügen</strong></li>
+<li>Füllen Sie die Zuordnungsfelder aus:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Was eingeben</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Anwendung</strong></td>
+<td>Die zu verknüpfende Anwendung</td>
+<td><code>Salesforce CRM</code></td>
+</tr>
+<tr>
+<td><strong>Umgebung / Instanz</strong></td>
+<td>Welche Instanz</td>
+<td><code>Produktion</code></td>
+</tr>
+<tr>
+<td><strong>Rolle</strong></td>
+<td>Serverrolle für diese App</td>
+<td><code>Web</code></td>
+</tr>
+<tr>
+<td><strong>Seit-Datum</strong></td>
+<td>Wann die Zuordnung begann</td>
+<td><code>2025-01-15</code></td>
+</tr>
+<tr>
+<td><strong>Notizen</strong></td>
+<td>Kontext</td>
+<td>--</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition success">
+<p class="admonition-title">Die Kette ist komplett</p>
+<p>Sie haben jetzt den vollständigen Pfad dokumentiert:</p>
+<p><strong>Salesforce CRM</strong> → <strong>Produktionsinstanz</strong> → <strong>PROD-WEB-01</strong></p>
+<p>Jeder kann in Sekunden von „Welche App?" zu „Welcher Server?" zu „Wo steht er?" nachverfolgen.</p>
+</div>
+<hr />
+<h2 id="wie-alles-zusammenhangt">Wie alles zusammenhängt<a class="headerlink" href="#wie-alles-zusammenhangt" title="Permanent link">&para;</a></h2>
+<p>Jede Information, die Sie eingeben, fließt in etwas Größeres ein:</p>
+<h3 id="anwendungslandschaft-ansicht">Anwendungslandschaft-Ansicht<a class="headerlink" href="#anwendungslandschaft-ansicht" title="Permanent link">&para;</a></h3>
+<p>Ihre Anwendungsliste wird zu einem Live-Register, das jede Anwendung mit ihren Umgebungen, Kritikalität, Hosting-Typ und Verantwortlichkeit zeigt -- filterbar nach jedem Attribut.</p>
+<h3 id="infrastruktur-mapping">Infrastruktur-Mapping<a class="headerlink" href="#infrastruktur-mapping" title="Permanent link">&para;</a></h3>
+<p>Assets, die mit Anwendungsinstanzen verknüpft sind, ermöglichen es Ihnen, Fragen zu beantworten wie:</p>
+<ul>
+<li>„Welche Server unterstützen diese geschäftskritische App?"</li>
+<li>„Welche Anwendungen sind betroffen, wenn dieser Server ausfällt?"</li>
+<li>„Wie viele Apps werden in diesem Rechenzentrum gehostet?"</li>
+</ul>
+<h3 id="compliance-berichterstattung">Compliance-Berichterstattung<a class="headerlink" href="#compliance-berichterstattung" title="Permanent link">&para;</a></h3>
+<p>Datenklassifizierung, PII-Kennzeichnungen und Datenresidenz fließen in Compliance-Ansichten ein. Wenn der Auditor fragt „Wo werden Kundendaten gespeichert?", haben Sie eine dokumentierte, nachvollziehbare Antwort.</p>
+<h3 id="wissensdatenbank">Wissensdatenbank<a class="headerlink" href="#wissensdatenbank" title="Permanent link">&para;</a></h3>
+<p>Sowohl Anwendungen als auch Assets haben einen <strong>Wissensdatenbank</strong>-Tab, in dem Sie Runbooks, Architekturentscheidungen, Betriebsverfahren und interne Dokumentation verknüpfen können. Diese Referenzen an den richtigen Datensätzen zu haben bedeutet, dass Ihr Team bei Vorfällen findet, was es braucht, ohne Wikis zu durchsuchen.</p>
+<h3 id="verbindungskarte">Verbindungskarte<a class="headerlink" href="#verbindungskarte" title="Permanent link">&para;</a></h3>
+<p>Sobald Assets dokumentiert sind, können Sie <strong>Verbindungen</strong> (Server-zu-Server oder Multi-Server) zwischen ihnen erstellen, um Netzwerkflüsse und Abhängigkeiten zu visualisieren. Die <a href="../../connection-map/">Verbindungskarte</a> rendert diese als interaktiven Graphen mit rollenbasierten vertikalen Ebenen für eine Architektur-Ansicht.</p>
+<h3 id="schnittstellen-schnittstellenkarte">Schnittstellen &amp; Schnittstellenkarte<a class="headerlink" href="#schnittstellen-schnittstellenkarte" title="Permanent link">&para;</a></h3>
+<p>Gehen Sie einen Schritt weiter: Dokumentieren Sie <strong>Schnittstellen</strong> zwischen Anwendungen, um Datenflüsse, Integrationspunkte und Geschäftskontext zu erfassen. Jede Schnittstelle hat sechs Tabs für gründliche Dokumentation -- Übersicht, Eigentümer &amp; Kritikalität, Funktionale Definition, Technische Definition, Bindungen &amp; Verbindungen und Daten &amp; Compliance.</p>
+<p>Verwenden Sie dann die <a href="../../interface-map/">Schnittstellenkarte</a>, um den vollständigen Anwendungsfluss zu visualisieren. In der Standard-Geschäftsansicht sehen Sie saubere Quelle-zu-Ziel-Beziehungen. Wechseln Sie zur technischen Ansicht, um Middleware-Plattformen als rautenförmige Knoten anzuzeigen, die den tatsächlichen Datenpfad zeigen. Der Tiefenfilter zählt nur primäre Anwendungsknoten -- Middleware ist transparent, sodass die Auswahl einer App mit Tiefe 2 Ihnen zwei echte Sprünge zeigt, unabhängig davon, wie viele Middleware-Plattformen dazwischenliegen.</p>
+<hr />
+<h2 id="kurzreferenz">Kurzreferenz<a class="headerlink" href="#kurzreferenz" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Ich möchte...</th>
+<th>Gehe zu...</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Eine Anwendung erstellen</td>
+<td>IT-Landschaft &gt; Anwendungen &gt; Neue App / Neuer Dienst</td>
+</tr>
+<tr>
+<td>Umgebungen hinzufügen</td>
+<td>App öffnen &gt; Instanzen-Tab</td>
+</tr>
+<tr>
+<td>Verantwortliche zuweisen</td>
+<td>App öffnen &gt; Tab Eigentümer &amp; Zielgruppe</td>
+</tr>
+<tr>
+<td>Zugriffsmethoden festlegen</td>
+<td>App öffnen &gt; Tab Technik &amp; Support</td>
+</tr>
+<tr>
+<td>Budgets/Verträge verknüpfen</td>
+<td>App öffnen &gt; Verknüpfungen-Tab</td>
+</tr>
+<tr>
+<td>Wissensdatenbank-Dokumente anhängen</td>
+<td>App öffnen &gt; Wissensdatenbank-Tab</td>
+</tr>
+<tr>
+<td>Compliance-Infos hinzufügen</td>
+<td>App öffnen &gt; Compliance-Tab</td>
+</tr>
+<tr>
+<td>Einen Server erstellen</td>
+<td>IT-Landschaft &gt; Assets &gt; Asset hinzufügen</td>
+</tr>
+<tr>
+<td>Server mit App verknüpfen (von App)</td>
+<td>App öffnen &gt; Server-Tab &gt; Zuordnung hinzufügen</td>
+</tr>
+<tr>
+<td>Server mit App verknüpfen (von Asset)</td>
+<td>Asset öffnen &gt; Zuordnungen-Tab &gt; Zuordnung hinzufügen</td>
+</tr>
+<tr>
+<td>Server-Verbindungen anzeigen</td>
+<td>Asset öffnen &gt; Verbindungen-Tab</td>
+</tr>
+<tr>
+<td>Verbindungskarte anzeigen</td>
+<td>IT-Landschaft &gt; Verbindungskarte</td>
+</tr>
+<tr>
+<td>Schnittstellenkarte anzeigen</td>
+<td>IT-Landschaft &gt; Schnittstellenkarte</td>
+</tr>
+<tr>
+<td>Dropdowns konfigurieren</td>
+<td>IT-Landschaft &gt; Einstellungen</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<div class="admonition success">
+<p class="admonition-title">Sie sind startklar</p>
+<p>Sie wissen jetzt, wie Sie die vollständige Kette von der Anwendung zum Server dokumentieren. Beginnen Sie mit Ihren kritischsten Apps, fügen Sie deren Produktionsumgebungen hinzu, verknüpfen Sie die Server -- und Sie haben in kürzester Zeit eine lebende, abfragbare IT-Landschaft. Für detaillierte Dokumentation zu jeder Funktion erkunden Sie die Referenzbereiche <a href="../../applications/">Anwendungen</a> und <a href="../../assets/">Assets</a>.</p>
+</div>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Zurück zum Seitenanfang
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://kanap.net" target="_blank" rel="noopener" title="KANAP Website" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "In Zwischenablage kopiert", "clipboard.copy": "In Zwischenablage kopieren", "search.result.more.one": "1 weiteres Suchergebnis auf dieser Seite", "search.result.more.other": "# weitere Suchergebnisse auf dieser Seite", "search.result.none": "Keine Suchergebnisse", "search.result.one": "1 Suchergebnis", "search.result.other": "# Suchergebnisse", "search.result.placeholder": "Suchbegriff eingeben", "search.result.term.missing": "Es fehlt", "select.version": "Version ausw\u00e4hlen"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

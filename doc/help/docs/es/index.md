@@ -88,7 +88,7 @@ Si desea el camino más corto hacia la productividad, comience con las guías de
 
 - [Administración y Usuarios](admin.md) - Gestión de usuarios, roles, autenticación y registros de auditoría
 - [Personalización](branding.md) - Personalización del logotipo del espacio de trabajo y colores primarios claro/oscuro
-- [Registro de auditoría](admin.md#registro-de-auditoría) - Revisión del historial de cambios del espacio de trabajo con filtros y vista detallada
+- [Registro de auditoría](admin.md#registro-de-auditoria) - Revisión del historial de cambios del espacio de trabajo con filtros y vista detallada
 - [Administración de datos maestros](master-data-operations.md) - Congelación y copia de datos maestros
 - [Panel de control de operaciones](operations-dashboard.md) - Vista general y acciones rápidas
 
