@@ -368,7 +368,6 @@
                 <a href="portfolio.html">Portfolio Management</a>
                 <a href="knowledge.html">Knowledge</a>
                 <a href="ai.html">AI Assistant</a>
-                <a href="comparison.html" aria-current="page">Why KANAP</a>
               </div>
             </div>
             <a href="comparison.html" aria-current="page">Why KANAP</a>
@@ -385,11 +384,11 @@
         <section class="comparison-hero">
           <div class="container">
             <p class="eyebrow">Why KANAP</p>
-            <h1>One tool. Three capabilities.<br />No more duct tape.</h1>
+            <h1>One platform. Five capabilities.<br />No more duct tape.</h1>
             <p>
               Most IT teams either pay enterprise prices for suites they'll never fully use,
               cobble together tools that don't talk to each other, or live in spreadsheet chaos.
-              <span class="highlight">KANAP gives you portfolio, architecture, and budget in one place &mdash; at a price that makes sense.</span>
+              <span class="highlight">KANAP gives you portfolio, architecture, budget, knowledge, and an AI assistant in one place &mdash; at a price that makes sense.</span>
             </p>
           </div>
         </section>
@@ -436,9 +435,9 @@
               <div class="value-card">
                 <h2>What KANAP offers</h2>
                 <p class="tagline">
-                  Three essential capabilities for IT management, natively integrated in a single platform.
+                  Five essential capabilities for IT management, natively integrated in a single platform.
                 </p>
-                <div class="value-pillars">
+                <div class="value-pillars" style="grid-template-columns: repeat(5, 1fr);">
                   <div class="pillar">
                     <div class="pillar-icon pillar-icon--portfolio">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -447,8 +446,8 @@
                         <path d="M9 21V9"/>
                       </svg>
                     </div>
-                    <h3>Portfolio Management</h3>
-                    <p>Request intake, prioritization scoring, CAB workflows, project tracking, Kanban and timeline views.</p>
+                    <h3>Portfolio</h3>
+                    <p>Request intake, scoring, roadmap generation, project tracking.</p>
                   </div>
                   <div class="pillar">
                     <div class="pillar-icon pillar-icon--architecture">
@@ -463,8 +462,8 @@
                         <path d="M17 10v4"/>
                       </svg>
                     </div>
-                    <h3>Enterprise Architecture</h3>
-                    <p>Application inventory, infrastructure catalog, connections and interfaces, visual dependency mapping.</p>
+                    <h3>Architecture</h3>
+                    <p>Applications, infrastructure, connections, visual mapping.</p>
                   </div>
                   <div class="pillar">
                     <div class="pillar-icon pillar-icon--budget">
@@ -473,8 +472,26 @@
                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                       </svg>
                     </div>
-                    <h3>Budget Management</h3>
-                    <p>Cost tracking by project, application, and department. Internal invoicing, chargeback, multi-company allocation.</p>
+                    <h3>Budget</h3>
+                    <p>Cost tracking, chargebacks, multi-company allocation.</p>
+                  </div>
+                  <div class="pillar">
+                    <div class="pillar-icon" style="background: rgba(230, 81, 0, 0.1); color: var(--knowledge-color);">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/>
+                      </svg>
+                    </div>
+                    <h3>Knowledge</h3>
+                    <p>Markdown docs, governance workflows, version control.</p>
+                  </div>
+                  <div class="pillar">
+                    <div class="pillar-icon" style="background: rgba(25, 118, 210, 0.1); color: var(--primary);">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>
+                      </svg>
+                    </div>
+                    <h3>AI Assistant</h3>
+                    <p>Natural language queries, actions, MCP integration.</p>
                   </div>
                 </div>
                 <div class="integration-highlight">
@@ -482,7 +499,7 @@
                   <p>
                     Projects link to the applications they affect. Applications link to the servers they run on.
                     Servers link to the costs they generate. Costs link back to the departments being charged.
-                    One change updates everything.
+                    And Plaid can query, summarize, and act on all of it through a single conversation.
                   </p>
                 </div>
               </div>
@@ -565,6 +582,14 @@
                 <h3>Enterprise-grade support</h3>
                 <p>When you need help, you get direct access to someone who understands your challenges. Not a ticket queue.</p>
               </div>
+              <div class="diff-card">
+                <h3>Integrated knowledge base</h3>
+                <p>Markdown documentation with governance workflows, version history, and deep links to apps, projects, and assets. No separate wiki or Confluence needed.</p>
+              </div>
+              <div class="diff-card">
+                <h3>AI-powered from day one</h3>
+                <p>Plaid, the built-in AI assistant, queries all your data in natural language, creates documents, manages tasks, and connects to external AI tools via MCP. Free usage included on cloud plans.</p>
+              </div>
             </div>
           </div>
         </section>
@@ -581,19 +606,19 @@
             <div class="diff-grid">
               <div class="diff-card">
                 <h3>vs. Enterprise Architecture Platforms</h3>
-                <p>Tools like LeanIX, MEGA HOPEX, or Ardoq focus exclusively on enterprise architecture. They excel at large-scale EA governance but typically cost €20,000&ndash;€150,000+/yr and don't include budget or portfolio management. KANAP provides practical architecture documentation with native budget and portfolio integration, starting free.</p>
+                <p>Tools like LeanIX, MEGA HOPEX, or Ardoq focus exclusively on enterprise architecture. They typically cost €20,000&ndash;€150,000+/yr and don't include budget, portfolio, knowledge, or AI. KANAP provides practical architecture documentation with native integration across all modules, starting free.</p>
               </div>
               <div class="diff-card">
                 <h3>vs. IT Portfolio Management Suites</h3>
-                <p>Platforms like Planview, Clarity PPM, or ServiceNow SPM offer deep portfolio capabilities for large enterprises. They require significant implementation effort, dedicated admin teams, and budgets to match. KANAP delivers portfolio management with scoring, capacity planning, and lifecycle tracking &mdash; integrated with architecture and budget &mdash; at a fraction of the cost.</p>
+                <p>Platforms like Planview, Clarity PPM, or ServiceNow SPM offer deep portfolio capabilities for large enterprises. They require significant implementation effort and budgets to match. KANAP delivers portfolio management with scoring, roadmap generation, and lifecycle tracking &mdash; plus architecture, budget, knowledge, and AI &mdash; at a fraction of the cost.</p>
               </div>
               <div class="diff-card">
                 <h3>vs. Spreadsheets &amp; General-Purpose Tools</h3>
-                <p>Many IT teams run on Excel, Google Sheets, Jira, and Confluence. These are flexible and familiar, but data lives in silos, version control is manual, and there's no single source of truth. KANAP replaces the patchwork with one integrated platform purpose-built for IT departments.</p>
+                <p>Many IT teams run on Excel, Google Sheets, Jira, and Confluence. These are flexible and familiar, but data lives in silos, there's no single source of truth, and no AI assistant can make sense of it all. KANAP replaces the patchwork with one integrated platform purpose-built for IT departments.</p>
               </div>
               <div class="diff-card">
                 <h3>vs. IT Financial Management Tools</h3>
-                <p>Dedicated ITFM tools like Apptio or ServiceNow ITOM handle IT cost management for large enterprises. KANAP's budget module provides multi-year planning, cost allocation, and chargeback reports natively integrated with your application portfolio and project pipeline &mdash; without enterprise pricing or complexity.</p>
+                <p>Dedicated ITFM tools like Apptio or ServiceNow ITOM handle IT cost management for large enterprises. KANAP's budget module provides multi-year planning, cost allocation, and chargeback reports natively integrated with your application portfolio, project pipeline, knowledge base, and AI assistant &mdash; without enterprise pricing.</p>
               </div>
             </div>
           </div>
