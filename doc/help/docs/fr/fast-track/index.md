@@ -5,373 +5,373 @@ description: Devenez productif avec le module Portefeuille de KANAP en quelques 
 
 # Fast Track Portefeuille : de la demande à la livraison
 
-This guide walks you through the portfolio lifecycle -- from submitting your first request to delivering a finished project. It is designed to get you productive fast, not to cover every option.
+Ce guide vous accompagne tout au long du cycle de vie du portefeuille -- de la soumission de votre première demande à la livraison d'un projet terminé. Il est conçu pour vous rendre productif rapidement, pas pour couvrir chaque option.
 
-!!! tip "Prefer a one-page summary? :material-file-pdf-box:"
-    All the key steps on a single A4 page -- print it, pin it, share it with your team.
+!!! tip "Conseil : Vous préférez un résumé sur une page ? :material-file-pdf-box:"
+    Toutes les étapes clés sur une seule page A4 -- imprimez-la, épinglez-la, partagez-la avec votre équipe.
 
-    [:material-download: Download the cheat sheet (PDF)](downloads/kanap-portfolio-fast-track.pdf){ .md-button .md-button--primary }
+    [:material-download: Télécharger l'aide-mémoire (PDF)](downloads/kanap-portfolio-fast-track.pdf){ .md-button .md-button--primary }
 
-For full details, see the [Portfolio reference docs](../portfolio-requests.md).
-
----
-
-## The Big Picture
-
-![Portfolio Workflow Overview](images/workflow-overview.png)
-
-Every initiative in KANAP follows the same flow:
-
-| Stage | What Happens |
-|-------|-------------|
-| **Request** | Someone submits an idea or need |
-| **Analyze & Score** | A committee reviews feasibility, captures a recommendation, and scores priority |
-| **Approve** | Decision-makers greenlight (or reject) it |
-| **Project** | The approved request becomes a project with a team, timeline, and effort plan |
-| **Deliver** | The team executes, logs time, and tracks progress to completion |
-
-This pipeline ensures every initiative is evaluated fairly, prioritized transparently, and tracked consistently. No more pet projects jumping the queue.
-
-!!! info "Why this matters"
-    The analysis and scoring step is what makes the difference between a wish list and a real portfolio. It gives leadership a defensible, data-driven basis for saying yes -- or no.
+Pour tous les détails, consultez la [documentation de référence du Portefeuille](../portfolio-requests.md).
 
 ---
 
-## Step 1: Submit a Request
+## La vue d'ensemble
 
-Go to **Portefeuille > Demandes** and click **+ New Request**.
+![Vue d'ensemble du workflow Portefeuille](images/workflow-overview.png)
 
-New requests open on **Summary** with the request property sidebar already visible. Start with the structural fields in the sidebar, then capture the narrative in **Purpose**.
+Chaque initiative dans KANAP suit le même flux :
 
-<!-- screenshot: New Request espace de travail with Summary and property sidebar -->
+| Étape | Ce qui se passe |
+|-------|----------------|
+| **Demande** | Quelqu'un soumet une idée ou un besoin |
+| **Analyser et évaluer** | Un comité examine la faisabilité, capture une recommandation et note la priorité |
+| **Approuver** | Les décideurs donnent le feu vert (ou rejettent) |
+| **Projet** | La demande approuvée devient un projet avec une équipe, une chronologie et un plan de charge |
+| **Livrer** | L'équipe exécute, saisit du temps et suit l'avancement jusqu'à l'achèvement |
 
-Fill in the minimum details to get started:
+Ce pipeline garantit que chaque initiative est évaluée équitablement, priorisée de manière transparente et suivie de manière cohérente. Plus de projets favoris qui passent devant la file d'attente.
 
-| Field | What to enter |
-|-------|--------------|
-| **Name** | A clear, concise title for the initiative |
-| **Source** | Where did this come from? (Business unit, regulation, IT strategy...) |
-| **Category** | The type of initiative (e.g., New Application, Infrastructure, Process Improvement) |
-| **Requestor** | Who is asking for this? |
-| **Target Delivery Date** | When is this ideally needed by? |
-
-Then use the **Purpose** document on **Summary** to explain the business need and expected outcome in plain language. If you already have a brief in Word, use the **Import** button on the Purpose editor to pull the `.docx` file in directly -- no copy-paste needed.
-
-Click **Enregistrer**. Your request enters the pipeline with status **Pending Review**.
-
-!!! tip "Keep it lean"
-    You can add deeper analysis, linked knowledge, and supporting evidence later. The goal right now is to get the request into the governed intake flow.
-
-For all available fields and options, see [Requests reference](../portfolio-requests.md).
+!!! info "Information : Pourquoi c'est important"
+    L'étape d'analyse et d'évaluation est ce qui fait la différence entre une liste de souhaits et un vrai portefeuille. Elle donne à la direction une base défendable et fondée sur les données pour dire oui -- ou non.
 
 ---
 
-## Step 2: Analyze and Score
+## Étape 1 : Soumettez une demande
 
-This is the step that turns a backlog of ideas into a defensible portfolio. In the espace de travail de la demande, this work is split between the **Analysis** tab and the **Scoring** tab.
+Allez dans **Portefeuille > Demandes** et cliquez sur **+ Nouvelle demande**.
 
-### Who Should Score?
+Les nouvelles demandes s'ouvrent sur le **Résumé** avec la barre latérale de propriétés déjà visible. Commencez par les champs structurels dans la barre latérale, puis capturez le récit dans l'**Objet**.
 
-!!! warning "Don't score alone"
-    Scoring works best when done by a **committee** with diverse perspectives. Aim to include representatives from:
+<!-- screenshot: Espace de travail Nouvelle demande avec Résumé et barre latérale de propriétés -->
 
-    - **IT Functional** -- understands business processes and application landscape
-    - **IT Technical** -- understands infrastructure, architecture, and technical debt
-    - **Cybersecurity** -- assesses risk, compliance, and security implications
-    - **Business** -- validates strategic alignment and business value
+Remplissez les détails minimaux pour commencer :
 
-    A single person's score is an opinion. A committee's score is a decision framework.
+| Champ | Quoi saisir |
+|-------|------------|
+| **Nom** | Un titre clair et concis pour l'initiative |
+| **Source** | D'où vient-elle ? (Direction métier, réglementation, stratégie IT...) |
+| **Catégorie** | Le type d'initiative (ex. : Nouvelle application, Infrastructure, Amélioration de processus) |
+| **Demandeur** | Qui fait la demande ? |
+| **Date de livraison cible** | Quand est-ce idéalement nécessaire ? |
 
-### Analysis Tab
+Puis utilisez le document **Objet** dans le **Résumé** pour expliquer le besoin métier et le résultat attendu en langage courant. Si vous avez déjà un brief dans Word, utilisez le bouton **Import** sur l'éditeur d'Objet pour importer le fichier `.docx` directement -- sans copier-coller.
 
-Use **Analysis** to understand whether the request is viable enough to move forward.
+Cliquez sur **Enregistrer**. Votre demande entre dans le pipeline avec le statut **En attente de revue**.
 
-<!-- screenshot: Analysis tab with feasibility review and business-process selector -->
+!!! tip "Conseil : Restez léger"
+    Vous pourrez ajouter une analyse plus approfondie, des documents de base de connaissances liés et des preuves de support plus tard. L'objectif maintenant est d'introduire la demande dans le flux d'intake gouverné.
 
-Analysis combines four things:
-
-- **Impacted Business Processes** so reviewers can see which operational areas the request touches
-- **Feasibility Review** across seven dimensions
-- **Risks & Mitigations** as a managed document (with DOCX import and export)
-- **Analysis Recommendation** as the formal committee verdict
-
-### Feasibility Analysis (7 Dimensions)
-
-Beyond value, you need to assess whether this is actually doable. The feasibility analysis covers **seven dimensions**:
-
-<!-- screenshot: Feasibility analysis radar chart or form -->
-
-| Dimension | What you're checking |
-|-----------|----------------------|
-| **Technical Feasibility** | Is the proposed approach technically sound? |
-| **Integration & Compatibility** | Does it fit the existing landscape and interfaces? |
-| **Infrastructure Needs** | Are hosting, platform, or operations changes realistic? |
-| **Security & Compliance** | Are controls, obligations, and risks understood? |
-| **Resource & Skills** | Do you have the people and expertise? |
-| **Delivery Constraints** | Are timing, sequencing, and dependencies manageable? |
-| **Change Management** | Can the organization absorb the change? |
-
-Each dimension is rated from **Not assessed** to **Blocker**. Summary then surfaces the strongest concern level so major issues stay visible even when nobody is parked on the Analysis tab.
-
-### Scoring Tab
-
-Use **Scoring** to rate the request against your tenant's configured portfolio criteria.
-
-<!-- screenshot: Scoring tab with weighted criteria -->
-
-The exact criterion names and weights may vary by tenant, because they come from **Portefeuille > Paramètres**. KANAP calculates the weighted priority automatically, and some tenants also use a mandatory-bypass rule for work that must jump to the top of the queue.
-
-### The Analysis Recommendation
-
-After reviewing feasibility and scoring, write the **Analysis Recommendation**. This is a short narrative summary -- typically 2-4 sentences -- that captures the committee's verdict:
-
-<!-- screenshot: Analysis Recommendation text field -->
-
-!!! example "Good recommendation examples"
-    - *"High strategic value, strong business case. Technical feasibility is moderate due to legacy integration. Recommend approval with a proof-of-concept phase."*
-    - *"Low urgency, limited business impact. Resource constraints make Q2 delivery unlikely. Recommend deferral to H2."*
-
-Submitting the recommendation publishes a formal decision into **Activity**, so the rationale and any linked status change stay attached to the request history.
-
-The combination of **scores + feasibility + recommendation** gives decision-makers everything they need to approve or reject -- without having to sit through a two-hour presentation.
-
-!!! info "Transparency is the point"
-    When stakeholders ask "why was my request rejected?" or "why did that project get priority?", the analysis and scoring record provides the answer. This is what makes the pipeline fair.
-
-For detailed scoring configuration and weight management, see [Settings reference](../portfolio-settings.md).
+Pour tous les champs et options disponibles, consultez la [référence Demandes](../portfolio-requests.md).
 
 ---
 
-## Step 3: Approve and Convert
+## Étape 2 : Analysez et évaluez
 
-Once analysis and scoring are complete, it's decision time.
+C'est l'étape qui transforme un backlog d'idées en un portefeuille défendable. Dans l'espace de travail de la demande, ce travail est réparti entre l'onglet **Analyse** et l'onglet **Évaluation**.
 
-<!-- screenshot: Request with Approve button highlighted -->
+### Qui devrait évaluer ?
 
-1. **Review** the scores, feasibility, and recommendation
-2. **Move the request** through **Candidate**, **On Hold**, or **Rejected** as needed while the review is still in progress
-3. **Set the status** to **Approved** when the request is ready to enter delivery
-4. Click **Convert to Project**
+!!! warning "Avertissement : N'évaluez pas seul"
+    L'évaluation fonctionne mieux lorsqu'elle est faite par un **comité** avec des perspectives diverses. Visez à inclure des représentants de :
 
-!!! tip "Seamless handoff"
-    When you convert a request to a project, KANAP opens a conversion dialog where you can confirm the project name, planned dates, and initial effort. The request purpose is shown for reference, and linked request data carries forward into the project.
+    - **IT Fonctionnel** -- comprend les processus métier et le paysage applicatif
+    - **IT Technique** -- comprend l'infrastructure, l'architecture et la dette technique
+    - **Cybersécurité** -- évalue les risques, la conformité et les implications de sécurité
+    - **Métier** -- valide l'alignement stratégique et la valeur métier
 
-The request status changes to **Converted**, and a new project is created and linked back to the original request.
+    Le score d'une seule personne est une opinion. Le score d'un comité est un cadre de décision.
 
-For requests that are not ready to convert, keep them in **Candidate**, move them to **On Hold**, or set them to **Rejected** with a reason.
+### Onglet Analyse
 
-See [Requests reference](../portfolio-requests.md) for all status transitions.
+Utilisez l'**Analyse** pour comprendre si la demande est suffisamment viable pour avancer.
 
----
+<!-- screenshot: Onglet Analyse avec revue de faisabilité et sélecteur de processus métier -->
 
-## Step 4: Set Up Your Project
+L'analyse combine quatre éléments :
 
-Your new project inherits the request context, but it still needs execution setup.
+- Les **processus métier impactés** pour que les relecteurs voient quels domaines opérationnels la demande touche
+- La **revue de faisabilité** sur sept dimensions
+- Les **Risques et mesures d'atténuation** en tant que document géré (avec import et export DOCX)
+- La **Recommandation d'analyse** comme verdict formel du comité
 
-Go to **Portefeuille > Projets** and open your newly created project. The espace de travail du projet has seven tabs -- **Summary**, **Activity**, **Timeline**, **Progress**, **Tasks**, **Scoring**, and **Base de connaissances** -- with a persistent **Project Properties** sidebar for core fields, team, and relations.
+### Analyse de faisabilité (7 dimensions)
 
-### Sidebar -- Assign Your People and Core Structure
+Au-delà de la valeur, vous devez évaluer si c'est réellement faisable. L'analyse de faisabilité couvre **sept dimensions** :
 
-<!-- screenshot: Project espace de travail with Team section expanded in the sidebar -->
+<!-- screenshot: Graphique radar ou formulaire d'analyse de faisabilité -->
 
-Use the **Project Properties** sidebar to set up the core roles:
+| Dimension | Ce que vous vérifiez |
+|-----------|---------------------|
+| **Faisabilité technique** | L'approche proposée est-elle techniquement solide ? |
+| **Intégration et compatibilité** | S'inscrit-elle dans le paysage et les interfaces existants ? |
+| **Besoins d'infrastructure** | Les changements d'hébergement, plateforme ou opérations sont-ils réalistes ? |
+| **Sécurité et conformité** | Les contrôles, obligations et risques sont-ils compris ? |
+| **Ressources et compétences** | Avez-vous les personnes et l'expertise ? |
+| **Contraintes de livraison** | Le timing, le séquencement et les dépendances sont-ils gérables ? |
+| **Gestion du changement** | L'organisation peut-elle absorber le changement ? |
 
-| Role | Who | Purpose |
-|------|-----|---------|
-| **Business Sponsor** | Senior business leader | Accountable for business outcomes |
-| **IT Sponsor** | Senior IT leader | Removes delivery blockers and backs the initiative |
-| **IT Lead** | Technical project manager | Drives IT delivery |
-| **Business Lead** | Business-side project manager | Drives business readiness and adoption |
-| **IT Contributors / Business Contributors** | Team members doing the work | Feed delivery context, allocations, and scope filters |
+Chaque dimension est notée de **Non évaluée** à **Bloquant**. Le Résumé fait alors remonter le niveau de préoccupation le plus fort pour que les problèmes majeurs restent visibles même lorsque personne n'est sur l'onglet Analyse.
 
-!!! warning "Contributors must be configured first"
-    For capacity planning to work, every contributor **must** be set up in **Portefeuille > Contributeurs** with:
+### Onglet Évaluation
 
-    - Their **team** assignment
-    - **Availability** (days per month)
-    - **Skills**
-    - **Classification defaults** (Source, Category, Stream, Company) so new tasks and requests are pre-filled automatically
+Utilisez l'**Évaluation** pour noter la demande par rapport aux critères de portefeuille configurés pour votre tenant.
 
-    Without team, availability, and skills data, the roadmap generator can't calculate capacity, and your planning will be flying blind. See the [Contributors reference](../portfolio-team-members.md).
+<!-- screenshot: Onglet Évaluation avec critères pondérés -->
 
-The same sidebar also keeps **Core Properties** and **Relations** visible while you work, so you no longer need separate Team or Relations tabs.
+Les noms exacts des critères et les pondérations peuvent varier selon le tenant, car ils proviennent de **Portefeuille > Paramètres**. KANAP calcule la priorité pondérée automatiquement, et certains tenants utilisent aussi une règle de contournement obligatoire pour le travail qui doit passer en tête de file.
 
-### Summary Tab -- Purpose and Project Cockpit
+### La recommandation d'analyse
 
-**Summary** is the project cockpit. It shows the current status, delivery window, effort consumption, team coverage, and latest activity in one pass. The **Purpose** editor is here too -- if your project brief already exists as a Word document, use the **Import** button to pull the `.docx` in directly.
+Après avoir examiné la faisabilité et l'évaluation, rédigez la **Recommandation d'analyse**. C'est un résumé narratif court -- typiquement 2 à 4 phrases -- qui capture le verdict du comité :
 
-### Progress Tab -- Validate Effort and Allocations
+<!-- screenshot: Champ texte Recommandation d'analyse -->
 
-<!-- screenshot: Progress tab showing IT Effort and Business Effort fields -->
+!!! example "Exemples de bonnes recommandations"
+    - *« Forte valeur stratégique, business case solide. Faisabilité technique modérée en raison de l'intégration historique. Recommandation d'approbation avec une phase de preuve de concept. »*
+    - *« Urgence faible, impact métier limité. Les contraintes de ressources rendent une livraison Q2 peu probable. Recommandation de report au S2. »*
 
-Use **Progress** to confirm the effort that will drive delivery planning:
+Soumettre la recommandation publie une décision formelle dans l'**Activité**, de sorte que la justification et tout changement de statut lié restent attachés à l'historique de la demande.
 
-- **IT Effort (MD)** -- Total man-days expected from IT contributors
-- **Business Effort (MD)** -- Total man-days expected from business contributors
+La combinaison **scores + faisabilité + recommandation** donne aux décideurs tout ce dont ils ont besoin pour approuver ou rejeter -- sans avoir à assister à une présentation de deux heures.
 
-!!! info "These numbers feed the roadmap"
-    The roadmap generator uses these effort estimates, combined with contributor availability, to automatically schedule projects on the timeline. More accurate estimates = better roadmaps.
+!!! info "Information : La transparence est l'objectif"
+    Lorsque les parties prenantes demandent « pourquoi ma demande a-t-elle été rejetée ? » ou « pourquoi ce projet a-t-il eu la priorité ? », l'enregistrement d'analyse et d'évaluation fournit la réponse. C'est ce qui rend le pipeline équitable.
 
-### Timeline Tab -- Apply a Phase Template (Optional)
-
-<!-- screenshot: Timeline tab with template selector -->
-
-If your organization has defined phase templates (e.g., "Standard Project", "Agile Sprint Cycle"), you can apply one here to instantly scaffold your project timeline with predefined phases and milestones. The timeline can be viewed as a table or a Gantt chart.
-
-You can also set dates manually or skip this entirely for simpler initiatives.
-
-See [Projects reference](../portfolio-projects.md) for all project configuration options.
+Pour la configuration détaillée de l'évaluation et la gestion des pondérations, consultez la [référence Paramètres](../portfolio-settings.md).
 
 ---
 
-## Step 5: Track Execution
+## Étape 3 : Approuvez et convertissez
 
-Now the real work begins. As the project progresses, keep KANAP updated.
+Une fois l'analyse et l'évaluation terminées, c'est le moment de la décision.
 
-### Update Progress
+<!-- screenshot: Demande avec bouton Approuver mis en évidence -->
 
-<!-- screenshot: Execution Progress slider -->
+1. **Examinez** les scores, la faisabilité et la recommandation
+2. **Faites évoluer la demande** vers **Candidate**, **En attente** ou **Rejetée** selon les besoins pendant que la revue est encore en cours
+3. **Passez le statut** à **Approuvée** lorsque la demande est prête à entrer en livraison
+4. Cliquez sur **Convertir en projet**
 
-Use the **Execution Progress** slider on the Progress tab to reflect how far along the project is. This is a simple percentage (0-100%) that feeds dashboards and reports.
+!!! tip "Conseil : Passage de relais fluide"
+    Lorsque vous convertissez une demande en projet, KANAP ouvre une boîte de dialogue de conversion où vous pouvez confirmer le nom du projet, les dates planifiées et la charge initiale. L'objet de la demande est affiché pour référence, et les données liées de la demande sont reportées dans le projet.
 
-Move the project through statuses as work advances. In practice, most projects move from **Waiting List** or **Planned** into active execution:
+Le statut de la demande passe à **Convertie**, et un nouveau projet est créé et lié à la demande d'origine.
 
-**Waiting List / Planned** --> **In Progress** --> **In Testing** --> **Done**
+Pour les demandes qui ne sont pas prêtes à être converties, gardez-les en **Candidate**, passez-les **En attente** ou définissez-les comme **Rejetée** avec une raison.
 
-### Log Time -- This is Critical
+Consultez la [référence Demandes](../portfolio-requests.md) pour toutes les transitions de statut.
 
-!!! warning "No time logging = no automatic scheduling"
-    Time logging isn't just for reporting -- it directly powers the roadmap generator.
+---
 
-There are two places to log time:
+## Étape 4 : Configurez votre projet
 
-1. **Progress tab** -- Log project-level overhead time (meetings, coordination, management)
-2. **Tasks** -- Log task-specific time against individual work items
+Votre nouveau projet hérite du contexte de la demande, mais il a encore besoin d'une configuration d'exécution.
 
-<!-- screenshot: Time logging dialog -->
+Allez dans **Portefeuille > Projets** et ouvrez votre projet nouvellement créé. L'espace de travail du projet comporte sept onglets -- **Résumé**, **Activité**, **Chronologie**, **Avancement**, **Tâches**, **Évaluation** et **Base de connaissances** -- avec une barre latérale persistante **Propriétés du projet** pour les champs principaux, l'équipe et les relations.
 
-Here's why this matters:
+### Barre latérale -- Assignez vos personnes et la structure principale
+
+<!-- screenshot: Espace de travail du projet avec section Équipe développée dans la barre latérale -->
+
+Utilisez la barre latérale **Propriétés du projet** pour configurer les rôles principaux :
+
+| Rôle | Qui | Objectif |
+|------|-----|----------|
+| **Sponsor métier** | Dirigeant métier senior | Redevable des résultats métier |
+| **Sponsor IT** | Dirigeant IT senior | Lève les blocages de livraison et soutient l'initiative |
+| **Responsable IT** | Chef de projet technique | Pilote la livraison IT |
+| **Responsable métier** | Chef de projet côté métier | Pilote la préparation et l'adoption métier |
+| **Contributeurs IT / Contributeurs métier** | Membres de l'équipe opérationnelle | Alimentent le contexte de livraison, les ventilations et les filtres de périmètre |
+
+!!! warning "Avertissement : Les contributeurs doivent être configurés d'abord"
+    Pour que la planification de capacité fonctionne, chaque contributeur **doit** être configuré dans **Portefeuille > Contributeurs** avec :
+
+    - Son affectation d'**équipe**
+    - Sa **disponibilité** (jours par mois)
+    - Ses **compétences**
+    - Ses **valeurs de classification par défaut** (Source, Catégorie, Flux, Société) pour que les nouvelles tâches et demandes soient pré-remplies automatiquement
+
+    Sans données d'équipe, de disponibilité et de compétences, le générateur de roadmap ne peut pas calculer la capacité, et votre planification naviguera à l'aveugle. Voir la [référence Contributeurs](../portfolio-team-members.md).
+
+La même barre latérale garde aussi les **Propriétés principales** et les **Relations** visibles pendant que vous travaillez, vous n'avez donc plus besoin d'onglets séparés Équipe ou Relations.
+
+### Onglet Résumé -- Objet et tableau de bord du projet
+
+Le **Résumé** est le tableau de bord du projet. Il affiche le statut actuel, la fenêtre de livraison, la consommation de charge, la couverture de l'équipe et la dernière activité en une seule passe. L'éditeur d'**Objet** est ici aussi -- si votre brief projet existe déjà en tant que document Word, utilisez le bouton **Import** pour importer le `.docx` directement.
+
+### Onglet Avancement -- Validez la charge et les ventilations
+
+<!-- screenshot: Onglet Avancement montrant les champs Charge IT et Charge Métier -->
+
+Utilisez l'**Avancement** pour confirmer la charge qui pilotera la planification de livraison :
+
+- **Charge IT (JH)** -- Total de jours-homme attendus des contributeurs IT
+- **Charge Métier (JH)** -- Total de jours-homme attendus des contributeurs métier
+
+!!! info "Information : Ces chiffres alimentent la roadmap"
+    Le générateur de roadmap utilise ces estimations de charge, combinées à la disponibilité des contributeurs, pour planifier automatiquement les projets sur la chronologie. Des estimations plus précises = de meilleures roadmaps.
+
+### Onglet Chronologie -- Appliquez un modèle de phases (optionnel)
+
+<!-- screenshot: Onglet Chronologie avec sélecteur de modèle -->
+
+Si votre organisation a défini des modèles de phases (ex. : « Projet standard », « Cycle Sprint Agile »), vous pouvez en appliquer un ici pour créer instantanément la chronologie de votre projet avec des phases et jalons prédéfinis. La chronologie peut être visualisée en tableau ou en diagramme de Gantt.
+
+Vous pouvez aussi définir les dates manuellement ou sauter cette étape entièrement pour les initiatives plus simples.
+
+Voir la [référence Projets](../portfolio-projects.md) pour toutes les options de configuration de projet.
+
+---
+
+## Étape 5 : Suivez l'exécution
+
+Maintenant le vrai travail commence. Au fur et à mesure que le projet avance, gardez KANAP à jour.
+
+### Mettez à jour l'avancement
+
+<!-- screenshot: Curseur Avancement de l'exécution -->
+
+Utilisez le curseur **Avancement de l'exécution** dans l'onglet Avancement pour refléter la progression du projet. C'est un simple pourcentage (0-100 %) qui alimente les tableaux de bord et les rapports.
+
+Faites évoluer le projet à travers les statuts au fur et à mesure que le travail progresse. En pratique, la plupart des projets passent de **Liste d'attente** ou **Planifié** vers l'exécution active :
+
+**Liste d'attente / Planifié** --> **En cours** --> **En test** --> **Terminé**
+
+### Saisissez du temps -- C'est critique
+
+!!! warning "Avertissement : Pas de saisie de temps = pas de planification automatique"
+    La saisie de temps n'est pas que pour le reporting -- elle alimente directement le générateur de roadmap.
+
+Il y a deux endroits pour saisir du temps :
+
+1. **Onglet Avancement** -- Saisissez le temps d'overhead projet (réunions, coordination, management)
+2. **Tâches** -- Saisissez le temps spécifique aux tâches contre des éléments de travail individuels
+
+<!-- screenshot: Boîte de dialogue de saisie de temps -->
+
+Voici pourquoi c'est important :
 
 ```
-Time logged --> Contributor time statistics --> Historical capacity data
-                                            --> Roadmap generator (historical mode)
-                                            --> Accurate future scheduling
+Temps saisi --> Statistiques de temps du contributeur --> Données de capacité historiques
+                                                     --> Générateur de roadmap (mode historique)
+                                                     --> Planification future précise
 ```
 
-The roadmap generator has a **historical capacity mode** that uses actual logged time to understand how much each contributor really delivers per month (as opposed to their theoretical availability). Without time data, the generator falls back to theoretical estimates -- which are almost always optimistic.
+Le générateur de roadmap a un **mode de capacité historique** qui utilise le temps réellement saisi pour comprendre combien chaque contributeur livre réellement par mois (par opposition à sa disponibilité théorique). Sans données de temps, le générateur se rabat sur des estimations théoriques -- qui sont presque toujours optimistes.
 
-!!! tip "Make it a habit"
-    Encourage team members to log time weekly. Even rough entries are far better than nothing. The data compounds over time and makes each roadmap iteration more accurate.
+!!! tip "Conseil : Faites-en une habitude"
+    Encouragez les membres de l'équipe à saisir du temps chaque semaine. Même des entrées approximatives sont bien meilleures que rien. Les données se composent au fil du temps et rendent chaque itération de roadmap plus précise.
 
-### Statuses
+### Statuts
 
-| Status | Meaning |
-|--------|---------|
-| **Waiting List** | Approved but not scheduled into active work yet |
-| **Planned** | Scheduled and prepared, but execution has not started |
-| **In Progress** | Active work is happening |
-| **In Testing** | Deliverables are being validated |
-| **On Hold** | Temporarily paused (capture the reason) |
-| **Done** | All deliverables accepted, project complete |
-| **Cancelled** | Stopped before completion |
+| Statut | Signification |
+|--------|--------------|
+| **Liste d'attente** | Approuvé mais pas encore planifié dans le travail actif |
+| **Planifié** | Planifié et préparé, mais l'exécution n'a pas commencé |
+| **En cours** | Le travail actif est en cours |
+| **En test** | Les livrables sont en cours de validation |
+| **En attente** | Temporairement suspendu (capturez la raison) |
+| **Terminé** | Tous les livrables acceptés, projet terminé |
+| **Annulé** | Arrêté avant l'achèvement |
 
-See [Projects reference](../portfolio-projects.md) for details on each status.
+Voir la [référence Projets](../portfolio-projects.md) pour les détails de chaque statut.
 
 ---
 
-## Step 6: Structure with Phases and Tasks
+## Étape 6 : Structurez avec des phases et des tâches
 
-For larger projects, you'll want more granular tracking.
+Pour les projets plus importants, vous aurez besoin d'un suivi plus granulaire.
 
 ### Phases
 
-Phases break the project into logical stages (e.g., Analysis, Development, Testing, Deployment).
+Les phases décomposent le projet en étapes logiques (ex. : Analyse, Développement, Test, Déploiement).
 
-<!-- screenshot: Project phases view -->
+<!-- screenshot: Vue des phases du projet -->
 
-- **From template**: Apply a phase template from the Timeline tab to get a predefined structure
-- **Custom**: Add phases manually with names, start/end dates, and owners
+- **À partir d'un modèle** : Appliquez un modèle de phases depuis l'onglet Chronologie pour obtenir une structure prédéfinie
+- **Personnalisé** : Ajoutez des phases manuellement avec noms, dates de début/fin et responsables
 
-Each phase can have its own status, dates, and milestone behavior. The Timeline tab lets you view the phase structure as a table or a Gantt chart.
+Chaque phase peut avoir son propre statut, ses dates et son comportement de jalon. L'onglet Chronologie vous permet de visualiser la structure des phases en tableau ou en diagramme de Gantt.
 
 ### Tâches
 
-Within each phase (or at the project level), create tasks for specific work items. Open the **Tasks** tab in the espace de travail du projet to manage them.
+Au sein de chaque phase (ou au niveau projet), créez des tâches pour des éléments de travail spécifiques. Ouvrez l'onglet **Tâches** dans l'espace de travail du projet pour les gérer.
 
-<!-- screenshot: Task list within a phase -->
+<!-- screenshot: Liste de tâches au sein d'une phase -->
 
-- Assign tasks to contributors
-- Set due dates, priorities, and task types
-- Write detailed descriptions using the markdown editor -- or **import a `.docx` file** directly into the Description field
-- Log time directly against tasks (IT or Business category)
-- Link tasks to phases for structured tracking
-- Attach **Base de connaissances** documents from the task sidebar for reference material
+- Assignez les tâches aux contributeurs
+- Définissez les dates d'échéance, priorités et types de tâches
+- Rédigez des descriptions détaillées avec l'éditeur markdown -- ou **importez un fichier `.docx`** directement dans le champ Description
+- Saisissez du temps directement contre les tâches (catégorie IT ou Métier)
+- Liez les tâches aux phases pour un suivi structuré
+- Attachez des documents de la **base de connaissances** depuis la barre latérale de la tâche pour le matériel de référence
 
-Tasks can also be created directly from a timeline phase using the **[+]** shortcut, which pre-links the task to both the project and the selected phase.
+Les tâches peuvent aussi être créées directement depuis une phase de la chronologie en utilisant le raccourci **[+]**, qui pré-lie la tâche à la fois au projet et à la phase sélectionnée.
 
-!!! tip "Project tasks must log time before closing"
-    You cannot mark a project task as **Done** until at least some time has been logged. This keeps effort tracking honest.
+!!! tip "Conseil : Les tâches projet doivent avoir du temps saisi avant clôture"
+    Vous ne pouvez pas marquer une tâche projet comme **Terminé** tant qu'au moins un peu de temps n'a pas été saisi. Cela maintient le suivi de charge honnête.
 
-### Milestones
+### Jalons
 
-Mark key checkpoints -- go/no-go decisions, deliverable deadlines, or external dependencies.
+Marquez les points de contrôle clés -- décisions go/no-go, échéances de livrables ou dépendances externes.
 
-<!-- screenshot: Milestone on timeline -->
+<!-- screenshot: Jalon sur la chronologie -->
 
-Milestones appear on the project timeline and in reports, giving stakeholders clear visibility into upcoming decision points. They can be created as standalone milestones or by enabling milestone tracking on a phase.
+Les jalons apparaissent sur la chronologie du projet et dans les rapports, donnant aux parties prenantes une visibilité claire sur les points de décision à venir. Ils peuvent être créés comme jalons autonomes ou en activant le suivi de jalon sur une phase.
 
-!!! tip "Start simple, add structure as needed"
-    You don't need phases and tasks for every project. Small initiatives can be tracked with just the progress slider and status. Add structure when the project is complex enough to need it.
+!!! tip "Conseil : Commencez simple, ajoutez de la structure au besoin"
+    Vous n'avez pas besoin de phases et de tâches pour chaque projet. Les petites initiatives peuvent être suivies avec juste le curseur d'avancement et le statut. Ajoutez de la structure lorsque le projet est assez complexe pour en avoir besoin.
 
-For full details on phases, tasks, and milestones, see [Projects reference](../portfolio-projects.md) and [Tasks reference](../tasks.md).
-
----
-
-## How It All Connects
-
-Every piece of data you enter feeds into something bigger. Here's why it's worth the effort:
-
-### Automatic Roadmap Scheduling
-
-The roadmap generator takes your project effort estimates, contributor availability, and historical time data to **automatically schedule projects** across the timeline. No more manual Gantt chart gymnastics.
-
-See [Planning reference](../portfolio-planning.md).
-
-### Capacity Heatmaps
-
-Contributor availability and project assignments combine to show you **who's overloaded and who has bandwidth** -- across teams and time periods. This prevents the classic "everyone is assigned to 5 projects at 100%" problem.
-
-### Bottleneck Analysis
-
-When multiple projects compete for the same contributors or skills, KANAP highlights the bottleneck so you can make trade-offs before they become crises.
-
-### Executive Reporting
-
-Priority scores, project status, progress, budget, and timeline data roll up into **portfolio-level reports** that give leadership a clear picture without manual PowerPoint creation. The reporting hub includes a Status Change Report, Capacity Heatmap, and Weekly Report.
-
-See [Reporting reference](../portfolio-reporting.md).
+Pour tous les détails sur les phases, tâches et jalons, consultez la [référence Projets](../portfolio-projects.md) et la [référence Tâches](../tasks.md).
 
 ---
 
-## Quick Reference
+## Comment tout s'interconnecte
 
-| I want to... | Go to... |
-|------------|--------|
-| Submit a new idea | Portfolio > Requests > + New |
-| Score a request | Open request > Scoring tab |
-| Assess feasibility | Open request > Analysis tab |
-| Set the project team | Open project > Project Properties sidebar > Team |
-| Import a Word document | Open request/project/task > Import button on Purpose or Description |
-| See the project pipeline | Portfolio > Planning |
-| Check team capacity | Portfolio > Planning > Capacity view, or Portfolio > Reporting > Capacity Heatmap |
-| Log time on a project | Open project > Progress tab or Tasks |
-| Generate a roadmap | Portfolio > Planning > Roadmap Generator |
-| View reports | Portfolio > Reporting |
-| Configure scoring weights | Portfolio > Settings > Scoring Criteria |
-| Set up contributors | Portfolio > Contributors |
-| Set classification defaults | Portfolio > Contributors > open profile > Defaults tab |
+Chaque donnée que vous saisissez alimente quelque chose de plus grand. Voici pourquoi l'effort en vaut la peine :
+
+### Planification automatique de roadmap
+
+Le générateur de roadmap prend vos estimations de charge de projet, la disponibilité des contributeurs et les données de temps historiques pour **planifier automatiquement les projets** sur la chronologie. Plus de gymnastique manuelle de diagrammes de Gantt.
+
+Voir la [référence Planification](../portfolio-planning.md).
+
+### Cartes de chaleur de capacité
+
+La disponibilité des contributeurs et les affectations de projets se combinent pour vous montrer **qui est surchargé et qui a de la bande passante** -- à travers les équipes et les périodes. Cela prévient le classique « tout le monde est assigné à 5 projets à 100 % ».
+
+### Analyse des goulots d'étranglement
+
+Lorsque plusieurs projets se disputent les mêmes contributeurs ou compétences, KANAP met en évidence le goulot d'étranglement pour que vous puissiez faire des arbitrages avant qu'ils ne deviennent des crises.
+
+### Reporting exécutif
+
+Les scores de priorité, le statut du projet, l'avancement, le budget et les données de chronologie se consolident dans des **rapports au niveau portefeuille** qui donnent à la direction une image claire sans création manuelle de PowerPoint. Le hub de reporting inclut un rapport de changements de statut, une carte de chaleur de capacité et un rapport hebdomadaire.
+
+Voir la [référence Rapports](../portfolio-reporting.md).
+
+---
+
+## Référence rapide
+
+| Je veux... | Aller à... |
+|------------|-----------|
+| Soumettre une nouvelle idée | Portefeuille > Demandes > + Nouveau |
+| Évaluer une demande | Ouvrir la demande > onglet Évaluation |
+| Évaluer la faisabilité | Ouvrir la demande > onglet Analyse |
+| Définir l'équipe projet | Ouvrir le projet > Barre latérale Propriétés du projet > Équipe |
+| Importer un document Word | Ouvrir demande/projet/tâche > bouton Import sur Objet ou Description |
+| Voir le pipeline de projets | Portefeuille > Planification |
+| Vérifier la capacité de l'équipe | Portefeuille > Planification > Vue capacité, ou Portefeuille > Rapports > Carte de chaleur capacité |
+| Saisir du temps sur un projet | Ouvrir le projet > onglet Avancement ou Tâches |
+| Générer une roadmap | Portefeuille > Planification > Générateur de roadmap |
+| Consulter les rapports | Portefeuille > Rapports |
+| Configurer les pondérations d'évaluation | Portefeuille > Paramètres > Critères d'évaluation |
+| Configurer les contributeurs | Portefeuille > Contributeurs |
+| Définir les valeurs par défaut de classification | Portefeuille > Contributeurs > ouvrir le profil > onglet Valeurs par défaut |
 
 ---
 
 !!! success "Vous êtes prêt"
-    You now know the full lifecycle from request to delivery. Start with a request, score it properly, and let KANAP handle the rest. For detailed documentation on every feature, explore the [Portfolio Management](../portfolio-requests.md) section.
+    Vous connaissez maintenant le cycle de vie complet de la demande à la livraison. Commencez par une demande, évaluez-la correctement, et laissez KANAP gérer le reste. Pour une documentation détaillée sur chaque fonctionnalité, explorez la section [Gestion de portefeuille](../portfolio-requests.md).

@@ -1,310 +1,310 @@
-# Demandes de portefeuille
+# Demandes du portefeuille
 
-Portfolio Requests are the intake layer for proposed work. A request lets you capture the business need, assess feasibility, score priority, collect supporting knowledge, and decide whether the initiative should move forward as a project. In practice, this is where ideas become governed work instead of hallway folklore.
+Les demandes du portefeuille constituent la couche d'intake pour les travaux proposés. Une demande permet de capturer le besoin métier, d'évaluer la faisabilité, de noter la priorité, de rassembler les connaissances de support et de décider si l'initiative doit avancer sous forme de projet. En pratique, c'est là que les idées deviennent du travail gouverné plutôt que du folklore de couloir.
 
-## Où le trouver
+## Où trouver cette page
 
-- Espace de travail : **Portfolio**
-- Path: **Portefeuille > Demandes**
+- Espace de travail : **Portefeuille**
+- Chemin : **Portefeuille > Demandes**
 
 ### Autorisations
 
-| Permission | What it allows |
+| Autorisation | Ce qu'elle permet |
 | --- | --- |
-| `portfolio_requests:reader` | Open the requests list and view espace de travail de la demandes |
-| `portfolio_requests:member` | Edit the managed request documents embedded in l'espace de travail, even without broader request-management rights |
-| `portfolio_requests:manager` | Create requests, update request data, maintain team and relations, add comments and decisions, change status, submit analysis recommendations, and edit scoring |
-| `portfolio_requests:admin` | Delete requests and use CSV import/export |
+| `portfolio_requests:reader` | Ouvrir la liste des demandes et consulter les espaces de travail des demandes |
+| `portfolio_requests:member` | Modifier les documents gérés intégrés dans l'espace de travail, même sans droits plus larges de gestion des demandes |
+| `portfolio_requests:manager` | Créer des demandes, mettre à jour les données, gérer l'équipe et les relations, ajouter des commentaires et des décisions, modifier le statut, soumettre des recommandations d'analyse et modifier l'évaluation |
+| `portfolio_requests:admin` | Supprimer des demandes et utiliser l'import/export CSV |
 
-The **Base de connaissances** tab follows Knowledge permissions for creation and linking actions. A user can be allowed to work on request content without being allowed to create or relink standalone knowledge documents.
+L'onglet **Base de connaissances** suit les autorisations Knowledge pour les actions de création et de liaison. Un utilisateur peut être autorisé à travailler sur le contenu de la demande sans être autorisé à créer ou relier des documents autonomes de la base de connaissances.
 
 ## Travailler avec la liste
 
-The list is designed for triage rather than archival browsing. By default, it sorts requests by priority so the most urgent or most strategically important work rises first.
+La liste est conçue pour le triage plutôt que la consultation d'archives. Par défaut, elle trie les demandes par priorité afin que le travail le plus urgent ou le plus stratégique apparaisse en premier.
 
-### Scope filters
+### Filtres de périmètre
 
-Use the scope selector above the grid to control whose pipeline you are looking at:
+Utilisez le sélecteur de périmètre au-dessus de la grille pour contrôler quel pipeline vous consultez :
 
-- **My requests** shows requests where you are explicitly involved, such as requestor, sponsor, lead, or contributor.
-- **My team's requests** expands that view to requests involving members of your Portfolio team. This option is unavailable if you are not assigned to a team.
-- **All requests** removes the involvement filter and shows the full request pipeline.
+- **Mes demandes** affiche les demandes où vous êtes explicitement impliqué, en tant que demandeur, sponsor, responsable ou contributeur.
+- **Demandes de mon équipe** étend cette vue aux demandes impliquant les membres de votre équipe Portefeuille. Cette option n'est pas disponible si vous n'êtes pas assigné à une équipe.
+- **Toutes les demandes** retire le filtre d'implication et affiche le pipeline complet des demandes.
 
-Your scope choice is remembered. If you open a request from the list and come back later, KANAP keeps the list context so you do not have to rebuild your filter stack every time.
+Votre choix de périmètre est mémorisé. Si vous ouvrez une demande depuis la liste et revenez plus tard, KANAP conserve le contexte de la liste pour que vous n'ayez pas à reconstruire vos filtres à chaque fois.
 
-### Default columns
+### Colonnes par défaut
 
-The standard grid highlights the fields that matter during intake and review:
+La grille standard met en avant les champs importants pendant l'intake et la revue :
 
 - **#**
-- **Request Name**
-- **Priority**
-- **Status**
+- **Nom de la demande**
+- **Priorité**
+- **Statut**
 - **Source**
-- **Category**
-- **Stream**
-- **Company**
-- **Requestor**
-- **Target Date**
-- **Created**
+- **Catégorie**
+- **Flux**
+- **Société**
+- **Demandeur**
+- **Date cible**
+- **Créée**
 
-Additional columns, such as **Last changed**, can be surfaced through grid preferences when needed.
+Des colonnes supplémentaires, comme **Dernière modification**, peuvent être affichées via les préférences de la grille si nécessaire.
 
-### Filtering behavior
+### Comportement des filtres
 
-- Global search works across request content and visible business metadata.
-- Column filters are available for the main classification and ownership fields.
-- Requests with status **Converted** are hidden by default so the list stays focused on active intake. If you need to review historical intake decisions, include **Converted** in the Status filter.
+- La recherche globale fonctionne sur le contenu des demandes et les métadonnées métier visibles.
+- Des filtres de colonnes sont disponibles pour les principaux champs de classification et de responsabilité.
+- Les demandes avec le statut **Convertie** sont masquées par défaut pour que la liste reste focalisée sur l'intake actif. Si vous devez consulter les décisions d'intake historiques, incluez **Convertie** dans le filtre de statut.
 
-### List actions
+### Actions de la liste
 
-- **New Request** is available to request managers.
-- **Importer CSV** and **Exporter CSV** are available to request administrators.
+- **Nouvelle demande** est disponible pour les gestionnaires de demandes.
+- **Import CSV** et **Export CSV** sont disponibles pour les administrateurs de demandes.
 
-## The Request espace de travail
+## L'espace de travail de la demande
 
-The current espace de travail uses a split model:
+L'espace de travail actuel utilise un modèle divisé :
 
-- The main area is for narrative, analysis, scoring, activity, and knowledge.
-- The right-hand property sidebar is for stable request metadata, team assignment, and relations.
+- La zone principale est dédiée au récit, à l'analyse, à l'évaluation, à l'activité et à la base de connaissances.
+- La barre latérale de propriétés à droite est dédiée aux métadonnées stables de la demande, à l'affectation de l'équipe et aux relations.
 
-This matters because not everything is saved the same way:
+Cela est important car tout n'est pas enregistré de la même manière :
 
-- Changes in the **property sidebar** are applied directly to the request.
-- Changes in **Summary**, **Analysis**, and **Scoring** are espace de travail edits and use **Enregistrer** / **Réinitialiser**.
-- The managed documents **Purpose** and **Risks & Mitigations** also use l'espace de travail save flow.
+- Les modifications dans la **barre latérale de propriétés** sont appliquées directement à la demande.
+- Les modifications dans **Résumé**, **Analyse** et **Évaluation** sont des modifications de l'espace de travail et utilisent **Enregistrer** / **Réinitialiser**.
+- Les documents gérés **Objet** et **Risques et mesures d'atténuation** utilisent également le flux d'enregistrement de l'espace de travail.
 
-If you create a new request, KANAP starts on **Summary**. The other tabs become useful after the request exists as a real record rather than a very sincere idea.
+Si vous créez une nouvelle demande, KANAP démarre sur **Résumé**. Les autres onglets deviennent utiles une fois que la demande existe en tant qu'enregistrement réel plutôt que comme une idée très sincère.
 
-L'espace de travail header gives you operational context without leaving the page:
+L'en-tête de l'espace de travail vous donne le contexte opérationnel sans quitter la page :
 
-- a copyable request reference such as `REQ-42`
-- the current status
-- the origin task when the request was created from task work
-- **Envoyer le lien** for sharing
-- previous/next navigation based on the exact list context you came from
+- une référence de demande copiable comme `REQ-42`
+- le statut actuel
+- la tâche d'origine lorsque la demande a été créée à partir d'un travail de tâche
+- **Envoyer un lien** pour le partage
+- navigation précédent/suivant basée sur le contexte exact de la liste d'où vous venez
 
-### Property sidebar mental model
+### Modèle mental de la barre latérale de propriétés
 
-Treat the sidebar as the request's structural backbone.
+Considérez la barre latérale comme l'ossature structurelle de la demande.
 
-#### Core Properties
+#### Propriétés principales
 
-This section holds the identity and classification of the request:
+Cette section contient l'identité et la classification de la demande :
 
-- Request Name
-- Status
-- Source, Category, and Stream
-- Requestor
-- Company and Department
-- Target Delivery Date
+- Nom de la demande
+- Statut
+- Source, Catégorie et Flux
+- Demandeur
+- Société et Département
+- Date de livraison cible
 
-These fields shape how the request is routed, filtered, and reviewed elsewhere in l'espace de travail. For example:
+Ces champs façonnent la manière dont la demande est routée, filtrée et revue ailleurs dans l'espace de travail. Par exemple :
 
-- changing **Status** affects what decisions can follow and whether conversion is available
-- changing **Category** or **Stream** changes the analytical context for feasibility and scoring
-- changing **Company** or **Requestor** changes reporting and ownership visibility across the portfolio
+- modifier le **Statut** affecte les décisions possibles et la disponibilité de la conversion
+- modifier la **Catégorie** ou le **Flux** change le contexte analytique pour la faisabilité et l'évaluation
+- modifier la **Société** ou le **Demandeur** change la visibilité en termes de reporting et de responsabilité dans le portefeuille
 
-#### Team
+#### Équipe
 
-The Team section assigns responsibility rather than just keeping a contact list:
+La section Équipe assigne la responsabilité plutôt que de simplement maintenir une liste de contacts :
 
-- Business Sponsor
-- Business Lead
-- IT Sponsor
-- IT Lead
-- Business Contributors
-- IT Contributors
+- Sponsor métier
+- Responsable métier
+- Sponsor IT
+- Responsable IT
+- Contributeurs métier
+- Contributeurs IT
 
-These assignments drive shared visibility and make it clear who is expected to sponsor, shape, and deliver the request. Summary uses this data to show whether the request has enough named ownership to move forward sensibly.
+Ces affectations entraînent une visibilité partagée et clarifient qui est censé sponsoriser, façonner et livrer la demande. Le Résumé utilise ces données pour montrer si la demande dispose d'une responsabilité nommée suffisante pour avancer raisonnablement.
 
 #### Relations
 
-Relations explain how the request fits into the wider portfolio:
+Les relations expliquent comment la demande s'inscrit dans le portefeuille plus large :
 
-- **Dependencies** identify work that must exist, finish, or remain aligned before this request can succeed.
-- **Resulting Projects** show what was created from the request after conversion.
+- Les **dépendances** identifient le travail qui doit exister, se terminer ou rester aligné avant que cette demande puisse aboutir.
+- Les **projets résultants** montrent ce qui a été créé à partir de la demande après conversion.
 
-This section is important for impact analysis. A request with weak relation data may look harmless until it collides with existing work.
+Cette section est importante pour l'analyse d'impact. Une demande avec des données de relation faibles peut sembler inoffensive jusqu'à ce qu'elle entre en collision avec du travail existant.
 
-Older bookmarks may still point to `overview`, `team`, or `relations`. In the current espace de travail, that content lives in **Summary** and the property sidebar.
+Les anciens favoris peuvent encore pointer vers `overview`, `team` ou `relations`. Dans l'espace de travail actuel, ce contenu se trouve dans **Résumé** et la barre latérale de propriétés.
 
-## Summary
+## Résumé
 
-**Summary** is the request cockpit. It is not a simple overview tab; it is where KANAP compresses the state of the request into an operational snapshot.
+**Résumé** est le tableau de bord de la demande. Ce n'est pas un simple onglet de vue d'ensemble ; c'est là que KANAP compresse l'état de la demande en un instantané opérationnel.
 
-Summary includes:
+Le Résumé inclut :
 
-- **Status Snapshot**, including current status, current priority, linked business processes, and latest activity
-- **Analysis Snapshot**, including the strongest feasibility signal and the latest analysis recommendation
-- **Team and Knowledge**, including role coverage, contributor count, origin task, and linked knowledge counts
-- the managed **Purpose** document
-- a **Recent Activity** feed
+- **Instantané du statut**, incluant le statut actuel, la priorité actuelle, les processus métier liés et la dernière activité
+- **Instantané de l'analyse**, incluant le signal de faisabilité le plus fort et la dernière recommandation d'analyse
+- **Équipe et base de connaissances**, incluant la couverture des rôles, le nombre de contributeurs, la tâche d'origine et le nombre de documents liés
+- le document géré **Objet**
+- un fil d'**Activité récente**
 
-Use Summary when you need to understand whether the request is merely recorded or actually ready to be discussed, scored, and converted.
+Utilisez le Résumé lorsque vous avez besoin de comprendre si la demande est simplement enregistrée ou si elle est réellement prête à être discutée, évaluée et convertie.
 
-### Purpose as a managed document
+### L'Objet en tant que document géré
 
-The **Purpose** section is a managed markdown document embedded directly in the request. It is more than a long description field:
+La section **Objet** est un document markdown géré intégré directement dans la demande. C'est plus qu'un simple champ de description long :
 
-- it gives reviewers a stable statement of intent
-- it is available during request-to-project conversion
-- it can be edited by users with `portfolio_requests:member`, even if they do not manage the rest of the request
-- it supports **DOCX import** so you can bring in existing Word documents directly, and **export** to download the current content
+- il donne aux relecteurs une déclaration d'intention stable
+- il est disponible lors de la conversion demande-vers-projet
+- il peut être modifié par les utilisateurs avec `portfolio_requests:member`, même s'ils ne gèrent pas le reste de la demande
+- il prend en charge l'**import DOCX** pour importer directement des documents Word existants, et l'**export** pour télécharger le contenu actuel
 
-That split is deliberate. It allows subject-matter contributors to improve the request narrative without opening full control over status, scoring, and portfolio structure.
+Cette séparation est délibérée. Elle permet aux contributeurs experts du sujet d'améliorer le récit de la demande sans ouvrir le contrôle total sur le statut, l'évaluation et la structure du portefeuille.
 
-## Activity
+## Activité
 
-**Activity** separates discussion from audit trail:
+**Activité** sépare la discussion de la piste d'audit :
 
-- **Comments** is the collaboration stream
-- **History** is the change log
+- **Commentaires** est le flux de collaboration
+- **Historique** est le journal des modifications
 
-### Comments
+### Commentaires
 
-Comments support normal discussion, but they also support **formal decisions**. A formal decision can capture:
+Les commentaires supportent la discussion normale, mais ils supportent également les **décisions formelles**. Une décision formelle peut capturer :
 
-- the meeting or decision context
-- the decision outcome
-- the rationale
-- an optional status change in the same action
+- le contexte de la réunion ou de la décision
+- le résultat de la décision
+- la justification
+- un changement de statut optionnel dans la même action
 
-That combination is important. It keeps governance traceable: the record of *why* something changed stays attached to the change instead of being reconstructed later from memory and optimism.
+Cette combinaison est importante. Elle maintient la traçabilité de la gouvernance : l'enregistrement du *pourquoi* quelque chose a changé reste attaché au changement au lieu d'être reconstruit plus tard de mémoire et avec optimisme.
 
-Comments support markdown and inline images, which is useful for design notes, evidence, screenshots, and review material.
+Les commentaires supportent le markdown et les images en ligne, ce qui est utile pour les notes de conception, les preuves, les captures d'écran et le matériel de revue.
 
-### History
+### Historique
 
-History is the audit view. Use it when you need to answer questions such as:
+L'Historique est la vue d'audit. Utilisez-le lorsque vous devez répondre à des questions telles que :
 
-- who changed the status
-- when team assignments changed
-- whether a scoring or analysis change happened before or after a decision
+- qui a changé le statut
+- quand les affectations d'équipe ont changé
+- si une modification d'évaluation ou d'analyse s'est produite avant ou après une décision
 
-If you need narrative, use Comments. If you need proof, use History.
+Si vous avez besoin de récit, utilisez les Commentaires. Si vous avez besoin de preuve, utilisez l'Historique.
 
-## Analysis
+## Analyse
 
-**Analysis** is where the request moves from "sounds reasonable" to "understood well enough to decide."
+**Analyse** est l'endroit où la demande passe de « ça semble raisonnable » à « suffisamment compris pour décider ».
 
-It brings together four distinct elements:
+Elle rassemble quatre éléments distincts :
 
-- impacted business processes
-- structured feasibility review
-- managed **Risks & Mitigations**
-- the formal **Analysis Recommendation**
+- les processus métier impactés
+- la revue de faisabilité structurée
+- les **Risques et mesures d'atténuation** gérés
+- la **Recommandation d'analyse** formelle
 
-### Impacted Business Processes
+### Processus métier impactés
 
-Link the business processes touched by the request. This changes the meaning of the request in portfolio terms: a request affecting core operational processes should not be evaluated the same way as a local convenience improvement.
+Liez les processus métier touchés par la demande. Cela change la signification de la demande en termes de portefeuille : une demande affectant des processus opérationnels critiques ne devrait pas être évaluée de la même manière qu'une amélioration de confort locale.
 
-### Feasibility Review
+### Revue de faisabilité
 
-The feasibility review is a structured assessment across seven dimensions. Each dimension can be assessed with a concern level and supporting notes.
+La revue de faisabilité est une évaluation structurée sur sept dimensions. Chaque dimension peut être évaluée avec un niveau de préoccupation et des notes de support.
 
-Use this section to expose delivery friction early:
+Utilisez cette section pour exposer tôt les frictions de livraison :
 
-- not every request fails because the idea is poor
-- many fail because integration, infrastructure, security, timing, or change-management constraints were ignored until too late
+- toutes les demandes n'échouent pas parce que l'idée est mauvaise
+- beaucoup échouent parce que les contraintes d'intégration, d'infrastructure, de sécurité, de timing ou de gestion du changement ont été ignorées jusqu'à ce qu'il soit trop tard
 
-The Summary tab surfaces the strongest concern level from this review so major issues remain visible even when nobody opens Analysis.
+L'onglet Résumé fait remonter le niveau de préoccupation le plus fort de cette revue afin que les problèmes majeurs restent visibles même lorsque personne n'ouvre l'Analyse.
 
-### Risks & Mitigations
+### Risques et mesures d'atténuation
 
-**Risks & Mitigations** is another managed markdown document. Use it to document residual risk, mitigation actions, and ownership. Like Purpose, it can be edited by users with `portfolio_requests:member` and supports **DOCX import** for bringing in existing Word documents as well as **export**.
+**Risques et mesures d'atténuation** est un autre document markdown géré. Utilisez-le pour documenter les risques résiduels, les actions d'atténuation et la responsabilité. Comme l'Objet, il peut être modifié par les utilisateurs avec `portfolio_requests:member` et prend en charge l'**import DOCX** pour importer des documents Word existants ainsi que l'**export**.
 
-This is useful when the people best placed to describe the risks are not the same people who should be changing request status or portfolio structure.
+C'est utile lorsque les personnes les mieux placées pour décrire les risques ne sont pas les mêmes que celles qui devraient modifier le statut de la demande ou la structure du portefeuille.
 
-### Analysis Recommendation
+### Recommandation d'analyse
 
-The recommendation flow publishes a formal decision into Activity with the fixed context **Analysis Recommendation**. It can also change the request status at the same time.
+Le flux de recommandation publie une décision formelle dans l'Activité avec le contexte fixe **Recommandation d'analyse**. Il peut également changer le statut de la demande en même temps.
 
-That means Analysis is not an isolated note-taking area. It is part of the governance trail:
+Cela signifie que l'Analyse n'est pas une zone de prise de notes isolée. Elle fait partie de la piste de gouvernance :
 
-- reviewers can see the latest recommendation directly in Analysis
-- the same recommendation appears in Activity as a decision record
-- optional status changes stay tied to the recommendation that justified them
+- les relecteurs peuvent voir la dernière recommandation directement dans l'Analyse
+- la même recommandation apparaît dans l'Activité comme un enregistrement de décision
+- les changements de statut optionnels restent liés à la recommandation qui les a justifiés
 
-Older requests may also show a **Previous Analysis (Legacy)** section. That content is retained for continuity, but the current request model relies on feasibility review, managed risks, and formal recommendations.
+Les demandes plus anciennes peuvent également afficher une section **Analyse précédente (historique)**. Ce contenu est conservé pour la continuité, mais le modèle actuel de demande s'appuie sur la revue de faisabilité, les risques gérés et les recommandations formelles.
 
-## Scoring
+## Évaluation
 
-**Scoring** evaluates the request against the portfolio scoring model configured for your tenant.
+**Évaluation** évalue la demande par rapport au modèle d'évaluation du portefeuille configuré pour votre tenant.
 
-In practice:
+En pratique :
 
-- each active criterion contributes to the calculated priority
-- the resulting score feeds portfolio comparison and list ordering
-- an override can be used when the calculated score is correct mathematically but wrong operationally
+- chaque critère actif contribue à la priorité calculée
+- le score résultant alimente la comparaison du portefeuille et l'ordre de la liste
+- une dérogation peut être utilisée lorsque le score calculé est mathématiquement correct mais opérationnellement erroné
 
-If priority override is used, it should be treated as an exception, not a lifestyle.
+Si la dérogation de priorité est utilisée, elle devrait être traitée comme une exception, pas comme un mode de vie.
 
-Where enabled by portfolio settings, mandatory bypass rules can force top priority for qualifying requests. This is typically used for work that cannot sensibly compete with discretionary demand.
+Lorsqu'elles sont activées par les paramètres du portefeuille, des règles de contournement obligatoire peuvent forcer la priorité maximale pour les demandes éligibles. Cela est typiquement utilisé pour du travail qui ne peut raisonnablement pas être mis en concurrence avec la demande discrétionnaire.
 
-Once a request is **Converted**, scoring becomes read-only. At that point the request has already done its job as an intake and prioritization record.
+Une fois qu'une demande est **Convertie**, l'évaluation passe en lecture seule. À ce stade, la demande a déjà rempli son rôle en tant qu'enregistrement d'intake et de priorisation.
 
 ## Base de connaissances
 
-The **Base de connaissances** tab connects the request to standalone knowledge documents. It is not just an attachments shelf with better posture.
+L'onglet **Base de connaissances** connecte la demande aux documents autonomes de la base de connaissances. Ce n'est pas simplement une étagère de pièces jointes avec une meilleure posture.
 
-The tab distinguishes between two kinds of knowledge:
+L'onglet distingue deux types de connaissances :
 
-- **Linked documents** are directly attached to the request.
-- **Related documents** are discovered through the request's wider context, such as dependencies, related requests, resulting projects, and other linked objects.
+- Les **documents liés** sont directement attachés à la demande.
+- Les **documents associés** sont découverts via le contexte plus large de la demande, comme les dépendances, les demandes associées, les projets résultants et d'autres objets liés.
 
-This distinction matters:
+Cette distinction est importante :
 
-- direct documents are part of the request's explicit documentation set
-- related documents add context without claiming that the request owns them
+- les documents directs font partie de l'ensemble documentaire explicite de la demande
+- les documents associés ajoutent du contexte sans prétendre que la demande les possède
 
-### What you can do
+### Ce que vous pouvez faire
 
-With sufficient Knowledge permissions, you can:
+Avec des autorisations Knowledge suffisantes, vous pouvez :
 
-- create a new blank knowledge document already linked to the request
-- create a linked document from a template
-- link an existing knowledge document
-- unlink a directly linked document
-- open any linked or related document in the Knowledge espace de travail
+- créer un nouveau document vierge déjà lié à la demande
+- créer un document lié à partir d'un modèle
+- lier un document de la base de connaissances existant
+- détacher un document directement lié
+- ouvrir n'importe quel document lié ou associé dans l'espace de travail Base de connaissances
 
-Without those permissions, the tab still works as a reference view as long as you are allowed to see the underlying knowledge.
+Sans ces autorisations, l'onglet fonctionne toujours comme une vue de référence tant que vous êtes autorisé à voir la base de connaissances sous-jacente.
 
-### Managed documents versus Knowledge documents
+### Documents gérés versus documents de la base de connaissances
 
-The managed documents **Purpose** and **Risks & Mitigations** are part of the request itself. They are not the same thing as Knowledge documents.
+Les documents gérés **Objet** et **Risques et mesures d'atténuation** font partie de la demande elle-même. Ils ne sont pas la même chose que les documents de la base de connaissances.
 
-Use managed documents for core request narrative that should always travel with the request. Use Knowledge for standalone documents that may need their own lifecycle, relations, exports, templates, and reuse beyond a single request.
+Utilisez les documents gérés pour le récit central de la demande qui doit toujours voyager avec elle. Utilisez la base de connaissances pour les documents autonomes qui peuvent nécessiter leur propre cycle de vie, leurs relations, leurs exports, leurs modèles et leur réutilisation au-delà d'une seule demande.
 
-## Converting a request to a project
+## Convertir une demande en projet
 
-Once a request reaches **Approved**, l'espace de travail offers **Convert to Project**.
+Une fois qu'une demande atteint le statut **Approuvée**, l'espace de travail propose **Convertir en projet**.
 
-The conversion flow lets you:
+Le flux de conversion vous permet de :
 
-- confirm or adjust the project name
-- set planned start and end dates
-- review the current Purpose text
-- carry forward estimated IT and Business effort derived from request scoring inputs
+- confirmer ou ajuster le nom du projet
+- définir les dates de début et de fin prévues
+- revoir le texte d'Objet actuel
+- reporter les estimations de charge IT et Métier dérivées des entrées d'évaluation de la demande
 
-After conversion:
+Après la conversion :
 
-- the request becomes a durable intake and decision record
-- the resulting project appears in the request's Relations section
-- scoring is frozen on the request
-- the request can still be opened for audit, context, and knowledge tracing
+- la demande devient un enregistrement durable d'intake et de décision
+- le projet résultant apparaît dans la section Relations de la demande
+- l'évaluation est gelée sur la demande
+- la demande peut toujours être ouverte pour l'audit, le contexte et le traçage de la base de connaissances
 
-In other words, conversion does not erase the request. It promotes it.
+En d'autres termes, la conversion ne supprime pas la demande. Elle la promeut.
 
-## CSV import and export
+## Import et export CSV
 
-CSV import and export are available to `portfolio_requests:admin`.
+L'import et l'export CSV sont disponibles pour `portfolio_requests:admin`.
 
-Use export when you need portfolio reporting or offline enrichment. Use import when you need to create or update requests in bulk. Because import can alter intake records at scale, it is intentionally reserved for administrators.
+Utilisez l'export lorsque vous avez besoin de reporting de portefeuille ou d'enrichissement hors ligne. Utilisez l'import lorsque vous devez créer ou mettre à jour des demandes en masse. Comme l'import peut modifier des enregistrements d'intake à grande échelle, il est intentionnellement réservé aux administrateurs.
 
 ## Conseils
 
-- **Use DOCX import for existing content**: If you already have a purpose statement or risk register in a Word document, use the **Import** button on the Purpose or Risks & Mitigations editor instead of copying and pasting. The import converts the document to markdown and warns you if any content could not be carried over.
-- **Scope filters stick**: KANAP remembers your last scope choice, so you do not need to re-select it every session.
-- **Converted requests are hidden by default**: If you are looking for a request that was already converted to a project, add **Converted** to the Status filter on the list.
-- **Member permission for contributors**: Give subject-matter experts `portfolio_requests:member` so they can edit Purpose and Risks & Mitigations without being able to change status, scoring, or portfolio structure.
+- **Utilisez l'import DOCX pour le contenu existant** : Si vous avez déjà une déclaration d'objet ou un registre des risques dans un document Word, utilisez le bouton **Import** sur l'éditeur d'Objet ou de Risques et mesures d'atténuation au lieu de copier-coller. L'import convertit le document en markdown et vous avertit si du contenu n'a pas pu être repris.
+- **Les filtres de périmètre sont persistants** : KANAP mémorise votre dernier choix de périmètre, vous n'avez pas besoin de le re-sélectionner à chaque session.
+- **Les demandes converties sont masquées par défaut** : Si vous cherchez une demande déjà convertie en projet, ajoutez **Convertie** au filtre de statut de la liste.
+- **Autorisation Member pour les contributeurs** : Donnez aux experts du sujet `portfolio_requests:member` pour qu'ils puissent modifier l'Objet et les Risques et mesures d'atténuation sans pouvoir changer le statut, l'évaluation ou la structure du portefeuille.

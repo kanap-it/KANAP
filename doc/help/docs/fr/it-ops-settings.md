@@ -1,356 +1,356 @@
 # Paramètres de la Cartographie SI
 
-The **IT Landscape Settings** page lets you customize the dropdown values used throughout IT Landscape. These lists control what options appear when users create or edit Applications, Interfaces, Assets, Connections, and Locations. Changes here apply to all users in your espace de travail.
+La page **Paramètres de la Cartographie SI** vous permet de personnaliser les valeurs des menus déroulants utilisés dans toute la Cartographie SI. Ces listes contrôlent les options qui apparaissent lorsque les utilisateurs créent ou modifient des Applications, Interfaces, Actifs, Connexions et Sites. Les modifications ici s'appliquent à tous les utilisateurs de votre espace de travail.
 
-For map readability, **Entities** and **Server Roles** also include a **Graph Tier** field used by the Connection Map's role-based placement.
+Pour la lisibilité des cartes, les **Entités** et les **Rôles de serveur** incluent également un champ **Niveau graphique** utilisé par le placement basé sur les rôles de la Carte des connexions.
 
-## Où le trouver
+## Où trouver cette page
 
-- Espace de travail : **IT Landscape**
-- Path: **Cartographie SI > Paramètres**
-- Permissions:
-  - You need at least `settings:reader` to view the page.
-  - You need `settings:admin` to change values.
+- Espace de travail : **Cartographie SI**
+- Chemin : **Cartographie SI > Paramètres**
+- Autorisations :
+  - Vous avez besoin au minimum de `settings:reader` pour consulter la page.
+  - Vous avez besoin de `settings:admin` pour modifier les valeurs.
 
-If you don't see the **Settings** entry in the IT Landscape drawer, ask your administrator to grant you the appropriate permissions.
+Si vous ne voyez pas l'entrée **Paramètres** dans le tiroir de la Cartographie SI, demandez à votre administrateur de vous accorder les autorisations appropriées.
 
-## How the page is organized
+## Organisation de la page
 
-Settings are grouped into three collapsible sections:
+Les paramètres sont regroupés en trois sections repliables :
 
-1. **Locations** - Lists used when creating or editing Locations.
-2. **Servers & Connections** - Lists for Servers, Connections, and related infrastructure data.
-3. **Apps, Services & Interfaces** - Lists used across Applications, App Instances, Interfaces, and Bindings.
+1. **Sites** - Listes utilisées lors de la création ou modification de Sites.
+2. **Serveurs et connexions** - Listes pour les Serveurs, Connexions et données d'infrastructure associées.
+3. **Apps, services et interfaces** - Listes utilisées pour les Applications, Instances d'applications, Interfaces et Liaisons.
 
-Each list appears as an expandable panel. Click a panel header to expand it and see the values. Only one section loads its content when you first expand it, which keeps the page fast even when you have many lists.
+Chaque liste apparaît comme un panneau extensible. Cliquez sur un en-tête de panneau pour le développer et voir les valeurs. Le contenu de chaque section ne se charge que lorsque vous la développez pour la première fois, ce qui maintient la rapidité de la page même avec de nombreuses listes.
 
-### Editor controls
+### Contrôles de l'éditeur
 
-Each list has its own controls at the top:
+Chaque liste possède ses propres contrôles en haut :
 
-- **Add item** - Inserts a new row at the top of the list, focused and ready to type.
-- **Save changes** - Saves your edits to the server. Enabled when you have unsaved changes.
-- **Réinitialiser** - Reverts the list to the last saved state (not factory defaults).
+- **Ajouter un élément** - Insère une nouvelle ligne en haut de la liste, focalisée et prête à saisir.
+- **Enregistrer les modifications** - Enregistre vos modifications sur le serveur. Activé lorsque vous avez des modifications non enregistrées.
+- **Réinitialiser** - Revient au dernier état enregistré (pas aux valeurs d'usine).
 
-For long lists (more than 25 rows), the table virtualizes rows, showing about 20 at a time with smooth scrolling and sticky headers.
-
----
-
-## Locations
-
-### Cloud Providers
-
-Cloud providers available for Assets and cloud-type Locations (e.g., AWS, Azure, GCP).
-
-**Columns**: Label, Code, Deprecated flag
-
-**Where used**:
-- Assets espace de travail → Overview tab → **Provider** field
-- Locations espace de travail → Overview tab → **Cloud provider** (when hosting type is cloud)
-
-### Hosting Types
-
-Location hosting models (e.g., On-prem, Colocation, Public Cloud, Private Cloud, SaaS).
-
-**Columns**: Label, Code, Category (On-prem/Colocation or Cloud/SaaS), Deprecated flag
-
-**Where used**:
-- Locations espace de travail → Overview tab → **Hosting Type** field
-
-The category determines which fields appear when editing a Location:
-- **On-prem / Colocation** shows Operating Company and Datacenter fields
-- **Cloud / SaaS** shows Cloud Provider, Region, and Additional information fields
+Pour les longues listes (plus de 25 lignes), le tableau virtualise les lignes, affichant environ 20 à la fois avec un défilement fluide et des en-têtes fixes.
 
 ---
 
-## Servers & Connections
+## Sites
 
-### Connection Types
+### Fournisseurs cloud
 
-A two-level catalog of connection protocols organized by category, with typical ports.
+Fournisseurs cloud disponibles pour les Actifs et les Sites de type cloud (ex. : AWS, Azure, GCP).
 
-**Columns**: Category (e.g., Database, Remote Access), Label, Code, Typical ports, Deprecated flag
+**Colonnes** : Libellé, Code, Indicateur Obsolète
 
-**Where used**:
-- Connections espace de travail → **Connection Type** selector
+**Où c'est utilisé** :
+- Espace de travail Actifs > Onglet Vue d'ensemble > Champ **Fournisseur**
+- Espace de travail Sites > Onglet Vue d'ensemble > **Fournisseur cloud** (lorsque le type d'hébergement est cloud)
 
-The **Typical ports** field is free text - you can enter single ports (`443`), lists (`80, 443`), ranges (`9101-9103`), or placeholders like `multiple` or `specify`.
+### Types d'hébergement
 
-Default categories include: Application, Authentication, Backup, Database, Email, File Sharing, File Transfer, Messaging, Monitoring, Network Services, Remote Access, Replication, Storage, VPN / Tunnel, Generic.
+Modèles d'hébergement des sites (ex. : Sur site, Colocation, Cloud public, Cloud privé, SaaS).
 
-### Domains
+**Colonnes** : Libellé, Code, Catégorie (Sur site/Colocation ou Cloud/SaaS), Indicateur Obsolète
 
-Active Directory or DNS domains that assets can belong to. Used to compute the fully qualified domain name (FQDN) for each asset.
+**Où c'est utilisé** :
+- Espace de travail Sites > Onglet Vue d'ensemble > Champ **Type d'hébergement**
 
-**Columns**: Name, Code, DNS Suffix, Deprecated flag
-
-**Where used**:
-- Assets espace de travail → Technical tab → **Domain** selector
-- Assets espace de travail → Technical tab → **FQDN** (auto-computed from hostname + DNS suffix)
-
-**System entries** (cannot be modified or deleted):
-- **Workgroup** - For standalone assets not joined to a domain
-- **N/A** - For asset types where domain membership doesn't apply (e.g., network devices, racks)
-
-**Auto-fill behavior**: When adding a new domain, the Code and DNS Suffix fields auto-fill based on the Name you enter. You can override these values if needed.
-
-**Example**: A domain named "Corporate AD" with DNS suffix `corp.example.com` would produce an FQDN of `hostname.corp.example.com` for an asset with hostname `web-server-01`.
-
-### Entities
-
-Source and target entities for data flows and access patterns (e.g., Internal Users, Internet, Partner Networks, External Systems).
-
-**Columns**: Label, Code, Graph Tier, Deprecated flag
-
-**Where used**:
-- Connections espace de travail → **Source Entity** and **Target Entity** fields
-- Connection Map → entities appear as flow endpoints and use Graph Tier for vertical placement (default entities are Top)
-
-### Graph Tier values
-
-Graph Tier controls the preferred vertical band in Connection Map when **Role-based placement** is enabled:
-
-- **Top**: Most user-facing or external endpoints
-- **Upper**: Upper application/service layer
-- **Center**: Neutral/default middle layer
-- **Lower**: Supporting infrastructure
-- **Bottom**: Data/storage-heavy endpoints
-
-### IP Address Types
-
-Types of IP addresses that can be assigned to assets. Useful for distinguishing between different network interfaces like host IPs, management interfaces, and storage networks.
-
-**Columns**: Label, Code, Deprecated flag
-
-**Default values**: Host, IPMI, Management, iSCSI
-
-**Where used**:
-- Assets espace de travail → Technical tab → **IP Addresses** section → **Type** dropdown
-
-Assets can have multiple IP addresses, each with its own type. For example, a physical server might have:
-- A **Host** IP for application traffic
-- An **IPMI** IP for out-of-band management
-- An **iSCSI** IP for storage network connectivity
-
-### Network Zones
-
-Network zones used to categorize subnets and describe asset connectivity (e.g., LAN, DMZ, Industrial LAN, WiFi, Public Cloud, Guest, Management, Storage, VPN).
-
-**Columns**: Label, Code, Deprecated flag
-
-**Where used**:
-- Subnets list → **Network Zone** selector
-- Assets espace de travail → Technical tab → **Network Zone** (auto-populated when subnet is selected)
-
-### Subnets
-
-Define network subnets with CIDR notation, optional VLAN assignments, and network zone classification. Each subnet belongs to a specific Location.
-
-**Columns**: Location, CIDR, VLAN (1-4094), Network Zone, Description, Deprecated flag
-
-**Where used**:
-- Assets espace de travail → Technical tab → **Subnet** selector
-
-**Validation rules**:
-- CIDR must be valid IPv4 notation (e.g., `192.168.1.0/24`)
-- VLAN numbers must be between 1 and 4094
-- CIDR and VLAN numbers are unique per location (same values can exist at different locations)
-
-**Auto-population**: When you select a subnet on an Asset, the Network Zone is automatically populated from the subnet's configuration.
-
-### Operating Systems
-
-Catalog of operating systems for Assets, including support lifecycle dates.
-
-**Columns**: Name, Code, Standard Support end date, Extended Support end date, Deprecated flag
-
-**Where used**:
-- Assets espace de travail → Technical tab → **Operating System** selector (helper text shows support dates)
-
-Dates are stored as `YYYY-MM-DD` but displayed and edited as `DD/MM/YYYY`.
-
-Default entries include Windows Server versions, Ubuntu LTS, RHEL, Debian, and SLES with appropriate support dates.
-
-### Server Roles
-
-Roles assigned to assets when linking them to application instances (e.g., Web server, Database server, Worker).
-
-**Columns**: Label, Code, Graph Tier, Deprecated flag
-
-**Where used**:
-- Applications espace de travail → Servers tab → **Role** dropdown when linking an asset to an instance
-- Connection Map → role-derived placement band for servers and clusters
-
-Default built-in examples:
-- `web`, `proxy` → **Top**
-- `app`, `cloud-service` → **Upper**
-- `db` → **Bottom**
-
-### Asset Types
-
-Logical types for infrastructure assets (e.g., Physical server, Virtual machine, Container, Serverless, Appliance).
-
-**Columns**: Label, Code, Deprecated flag
-
-**Where used**:
-- Assets espace de travail → Overview tab → **Type** field
+La catégorie détermine quels champs apparaissent lors de la modification d'un Site :
+- **Sur site / Colocation** affiche Société d'exploitation et champs Datacenter
+- **Cloud / SaaS** affiche Fournisseur cloud, Région et champs d'informations complémentaires
 
 ---
 
-## Apps, Services & Interfaces
+## Serveurs et connexions
 
-### Access Methods
+### Types de connexion
 
-Methods by which users access applications (e.g., Web browser, Mobile app, VDI session).
+Un catalogue à deux niveaux de protocoles de connexion organisés par catégorie, avec les ports typiques.
 
-**Columns**: Label, Code, Deprecated flag
+**Colonnes** : Catégorie (ex. : Base de données, Accès distant), Libellé, Code, Ports typiques, Indicateur Obsolète
 
-**Default values**: Web, Locally installed application, Mobile application, Proprietary HMI (industrial interface), Terminal / CLI, VDI / Remote Desktop, Kiosk
+**Où c'est utilisé** :
+- Espace de travail Connexions > Sélecteur **Type de connexion**
 
-**Where used**:
-- Applications espace de travail → Technical & Support tab → **Access Methods** multi-select field
+Le champ **Ports typiques** est en texte libre - vous pouvez saisir des ports uniques (`443`), des listes (`80, 443`), des plages (`9101-9103`), ou des indicateurs comme `multiple` ou `à préciser`.
 
-**Tip**: Customize access methods to match how your organization categorizes application access. For example, add "Citrix" or "Thin Client" if those are common access patterns in your environment.
+Les catégories par défaut incluent : Application, Authentification, Sauvegarde, Base de données, Email, Partage de fichiers, Transfert de fichiers, Messagerie, Supervision, Services réseau, Accès distant, Réplication, Stockage, VPN / Tunnel, Générique.
 
-### Application Categories
+### Domaines
 
-Categories that describe the primary purpose of each application or service.
+Domaines Active Directory ou DNS auxquels les actifs peuvent appartenir. Utilisés pour calculer le nom de domaine complet (FQDN) de chaque actif.
 
-**Columns**: Label, Code, Deprecated flag
+**Colonnes** : Nom, Code, Suffixe DNS, Indicateur Obsolète
 
-**Default values**: Line-of-business, Productivity, Security, Analytics, Development, Integration, Infrastructure
+**Où c'est utilisé** :
+- Espace de travail Actifs > Onglet Technique > Sélecteur **Domaine**
+- Espace de travail Actifs > Onglet Technique > **FQDN** (auto-calculé depuis hostname + suffixe DNS)
 
-**Where used**:
-- Applications espace de travail → Overview tab → **Category** field
-- Applications list → **Category** column and filter
+**Entrées système** (ne peuvent pas être modifiées ni supprimées) :
+- **Workgroup** - Pour les actifs autonomes non joints à un domaine
+- **N/A** - Pour les types d'actifs où l'appartenance au domaine ne s'applique pas (ex. : équipements réseau, baies)
 
-**Tip**: Customize categories to match your organization's terminology. For example, rename "Line-of-business" to "Business Applications" if that's how your team refers to them.
+**Comportement de remplissage automatique** : Lors de l'ajout d'un nouveau domaine, les champs Code et Suffixe DNS se remplissent automatiquement à partir du Nom que vous saisissez. Vous pouvez remplacer ces valeurs si nécessaire.
 
-### Data Classes
+**Exemple** : Un domaine nommé « Corporate AD » avec le suffixe DNS `corp.example.com` produirait un FQDN de `hostname.corp.example.com` pour un actif avec le hostname `web-server-01`.
 
-Data classification levels for Applications and Interfaces.
+### Entités
 
-**Columns**: Label, Code, Deprecated flag
+Entités source et cible pour les flux de données et les schémas d'accès (ex. : Utilisateurs internes, Internet, Réseaux partenaires, Systèmes externes).
 
-**Locked codes**: The built-in levels (Public, Internal, Confidential, Restricted) cannot be deleted or deprecated.
+**Colonnes** : Libellé, Code, Niveau graphique, Indicateur Obsolète
 
-**Where used**:
-- Applications espace de travail → Compliance tab → **Data Class** field
-- Interfaces espace de travail → Overview tab → **Data Class** field
-- Applications list → **Data Class** column
+**Où c'est utilisé** :
+- Espace de travail Connexions > Champs **Entité source** et **Entité cible**
+- Carte des connexions > Les entités apparaissent comme des points de terminaison de flux et utilisent le Niveau graphique pour le placement vertical (les entités par défaut sont Haut)
 
-### Integration Patterns
+### Valeurs du Niveau graphique
 
-Integration patterns for Interface legs (e.g., REST API, File batch, Queue, DB staging).
+Le Niveau graphique contrôle la bande verticale préférée dans la Carte des connexions lorsque le **Placement basé sur les rôles** est activé :
 
-**Columns**: Label, Code, Deprecated flag
+- **Haut** : Points de terminaison les plus exposés aux utilisateurs ou externes
+- **Supérieur** : Couche applicative/service supérieure
+- **Centre** : Couche intermédiaire neutre/par défaut
+- **Inférieur** : Infrastructure de support
+- **Bas** : Points de terminaison orientés données/stockage
 
-**Where used**:
-- Interface legs → **Pattern** field
+### Types d'adresse IP
 
-### Interface Authentication Modes
+Types d'adresses IP pouvant être assignées aux actifs. Utile pour distinguer différentes interfaces réseau comme les IP host, les interfaces de gestion et les réseaux de stockage.
 
-Authentication modes for Interface bindings (e.g., Service account, OAuth2, API key, Certificate).
+**Colonnes** : Libellé, Code, Indicateur Obsolète
 
-**Columns**: Label, Code, Deprecated flag
+**Valeurs par défaut** : Host, IPMI, Management, iSCSI
 
-**Where used**:
-- Interface bindings → **Auth Mode** field
+**Où c'est utilisé** :
+- Espace de travail Actifs > Onglet Technique > Section **Adresses IP** > Menu déroulant **Type**
 
-### Interface Data Categories
+Les actifs peuvent avoir plusieurs adresses IP, chacune avec son propre type. Par exemple, un serveur physique peut avoir :
+- Une IP **Host** pour le trafic applicatif
+- Une IP **IPMI** pour la gestion hors bande
+- Une IP **iSCSI** pour la connectivité réseau de stockage
 
-Business data categories for Interfaces (e.g., Master Data, Transactional, Reporting, Control).
+### Zones réseau
 
-**Columns**: Label, Code, Deprecated flag
+Zones réseau utilisées pour catégoriser les sous-réseaux et décrire la connectivité des actifs (ex. : LAN, DMZ, LAN industriel, WiFi, Cloud public, Invité, Management, Stockage, VPN).
 
-**Where used**:
-- Interfaces espace de travail → **Data Category** field
+**Colonnes** : Libellé, Code, Indicateur Obsolète
 
-### Interface Data Formats
+**Où c'est utilisé** :
+- Liste des sous-réseaux > Sélecteur **Zone réseau**
+- Espace de travail Actifs > Onglet Technique > **Zone réseau** (auto-remplie lorsqu'un sous-réseau est sélectionné)
 
-Payload formats for Interface legs (e.g., CSV, JSON, XML, IDoc, Binary).
+### Sous-réseaux
 
-**Columns**: Label, Code, Deprecated flag
+Définissez les sous-réseaux avec la notation CIDR, des assignations VLAN optionnelles et la classification par zone réseau. Chaque sous-réseau appartient à un Site spécifique.
 
-**Where used**:
-- Interface legs → **Format** field
+**Colonnes** : Site, CIDR, VLAN (1-4094), Zone réseau, Description, Indicateur Obsolète
 
-### Interface Protocols
+**Où c'est utilisé** :
+- Espace de travail Actifs > Onglet Technique > Sélecteur **Sous-réseau**
 
-Technical protocols for Interface bindings (e.g., HTTP/REST, gRPC, SFTP, Kafka, Database).
+**Règles de validation** :
+- Le CIDR doit être une notation IPv4 valide (ex. : `192.168.1.0/24`)
+- Les numéros VLAN doivent être entre 1 et 4094
+- Les numéros CIDR et VLAN sont uniques par site (les mêmes valeurs peuvent exister à des sites différents)
 
-**Columns**: Label, Code, Deprecated flag
+**Auto-remplissage** : Lorsque vous sélectionnez un sous-réseau sur un actif, la zone réseau est automatiquement remplie depuis la configuration du sous-réseau.
 
-**Where used**:
-- Interface bindings → **Protocol** field (legacy bindings)
+### Systèmes d'exploitation
 
-### Interface Trigger Types
+Catalogue de systèmes d'exploitation pour les Actifs, incluant les dates de cycle de vie du support.
 
-Trigger mechanisms for Interface legs (e.g., Event-based, Scheduled, Real-time, Manual).
+**Colonnes** : Nom, Code, Date de fin de support standard, Date de fin de support étendu, Indicateur Obsolète
 
-**Columns**: Label, Code, Deprecated flag
+**Où c'est utilisé** :
+- Espace de travail Actifs > Onglet Technique > Sélecteur **Système d'exploitation** (le texte d'aide affiche les dates de support)
 
-**Where used**:
-- Interface legs → **Trigger** field
+Les dates sont stockées au format `AAAA-MM-JJ` mais affichées et modifiées au format `JJ/MM/AAAA`.
 
-### Lifecycle Statuses
+Les entrées par défaut incluent les versions Windows Server, Ubuntu LTS, RHEL, Debian et SLES avec les dates de support appropriées.
 
-Shared lifecycle states for Applications, App Instances, Interfaces, Interface Bindings, and Assets.
+### Rôles de serveur
 
-**Columns**: Label, Code, Deprecated flag
+Rôles assignés aux actifs lors de leur liaison à des instances d'application (ex. : Serveur web, Serveur de base de données, Worker).
 
-**Locked codes**: The built-in statuses (Proposed, Active, Deprecated, Retired) cannot be deleted or have their codes changed.
+**Colonnes** : Libellé, Code, Niveau graphique, Indicateur Obsolète
 
-**Where used**:
-- Applications, App Instances, Interfaces, Interface Bindings, Assets → **Status** fields
+**Où c'est utilisé** :
+- Espace de travail Applications > Onglet Serveurs > Menu déroulant **Rôle** lors de la liaison d'un actif à une instance
+- Carte des connexions > Bande de placement dérivée des rôles pour les serveurs et clusters
+
+Exemples par défaut intégrés :
+- `web`, `proxy` > **Haut**
+- `app`, `cloud-service` > **Supérieur**
+- `db` > **Bas**
+
+### Types d'actifs
+
+Types logiques pour les actifs d'infrastructure (ex. : Serveur physique, Machine virtuelle, Conteneur, Serverless, Appliance).
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Où c'est utilisé** :
+- Espace de travail Actifs > Onglet Vue d'ensemble > Champ **Type**
 
 ---
 
-## How changes affect existing data
+## Apps, services et interfaces
 
-- **Existing records keep their stored codes** - Changing a label only changes what users see, not the underlying data.
-- **Deprecated values**:
-  - Remain valid for records that already use them.
-  - Are hidden from dropdowns when creating new records.
-  - Still appear during edits if the record already uses that value.
-- **New values** become immediately available in the relevant dropdowns and are validated server-side.
+### Méthodes d'accès
 
-This approach lets you evolve your taxonomy over time without breaking existing records.
+Méthodes par lesquelles les utilisateurs accèdent aux applications (ex. : Navigateur web, Application mobile, Session VDI).
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Valeurs par défaut** : Web, Application installée localement, Application mobile, IHM propriétaire (interface industrielle), Terminal / CLI, VDI / Bureau distant, Borne
+
+**Où c'est utilisé** :
+- Espace de travail Applications > Onglet Technique et support > Champ multi-sélection **Méthodes d'accès**
+
+**Conseil** : Personnalisez les méthodes d'accès pour correspondre à la manière dont votre organisation catégorise l'accès aux applications. Par exemple, ajoutez « Citrix » ou « Client léger » si ce sont des modes d'accès courants dans votre environnement.
+
+### Catégories d'applications
+
+Catégories qui décrivent l'objectif principal de chaque application ou service.
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Valeurs par défaut** : Métier, Productivité, Sécurité, Analytique, Développement, Intégration, Infrastructure
+
+**Où c'est utilisé** :
+- Espace de travail Applications > Onglet Vue d'ensemble > Champ **Catégorie**
+- Liste Applications > Colonne et filtre **Catégorie**
+
+**Conseil** : Personnalisez les catégories pour correspondre à la terminologie de votre organisation. Par exemple, renommez « Métier » en « Applications métier » si c'est ainsi que votre équipe les désigne.
+
+### Classifications de données
+
+Niveaux de classification des données pour les Applications et Interfaces.
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Codes verrouillés** : Les niveaux intégrés (Public, Interne, Confidentiel, Restreint) ne peuvent pas être supprimés ni rendus obsolètes.
+
+**Où c'est utilisé** :
+- Espace de travail Applications > Onglet Conformité > Champ **Classification données**
+- Espace de travail Interfaces > Onglet Vue d'ensemble > Champ **Classification données**
+- Liste Applications > Colonne **Classification données**
+
+### Patterns d'intégration
+
+Patterns d'intégration pour les legs d'interfaces (ex. : API REST, Batch fichier, File d'attente, Staging BDD).
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Où c'est utilisé** :
+- Legs d'interfaces > Champ **Pattern**
+
+### Modes d'authentification d'interface
+
+Modes d'authentification pour les liaisons d'interfaces (ex. : Compte de service, OAuth2, Clé API, Certificat).
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Où c'est utilisé** :
+- Liaisons d'interfaces > Champ **Mode d'authentification**
+
+### Catégories de données d'interface
+
+Catégories de données métier pour les Interfaces (ex. : Master Data, Transactionnel, Reporting, Contrôle).
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Où c'est utilisé** :
+- Espace de travail Interfaces > Champ **Catégorie de données**
+
+### Formats de données d'interface
+
+Formats de payload pour les legs d'interfaces (ex. : CSV, JSON, XML, IDoc, Binaire).
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Où c'est utilisé** :
+- Legs d'interfaces > Champ **Format**
+
+### Protocoles d'interface
+
+Protocoles techniques pour les liaisons d'interfaces (ex. : HTTP/REST, gRPC, SFTP, Kafka, Base de données).
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Où c'est utilisé** :
+- Liaisons d'interfaces > Champ **Protocole** (liaisons historiques)
+
+### Types de déclencheur d'interface
+
+Mécanismes de déclenchement pour les legs d'interfaces (ex. : Événementiel, Planifié, Temps réel, Manuel).
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Où c'est utilisé** :
+- Legs d'interfaces > Champ **Déclencheur**
+
+### Statuts de cycle de vie
+
+États de cycle de vie partagés pour les Applications, Instances d'applications, Interfaces, Liaisons d'interfaces et Actifs.
+
+**Colonnes** : Libellé, Code, Indicateur Obsolète
+
+**Codes verrouillés** : Les statuts intégrés (Proposé, Actif, Obsolète, Retiré) ne peuvent pas être supprimés ni voir leur code modifié.
+
+**Où c'est utilisé** :
+- Applications, Instances d'applications, Interfaces, Liaisons d'interfaces, Actifs > Champs **Statut**
 
 ---
 
-## Quick reference: which list powers which field
+## Impact des modifications sur les données existantes
 
-| List | Where it's used |
-|------|-----------------|
-| **Access Methods** | Applications (Technical & Support tab → Access Methods) |
-| **Application Categories** | Applications (Category) |
-| **Cloud Providers** | Assets (Provider), Locations (Cloud provider) |
-| **Connection Types** | Connections (Connection Type) |
-| **Data Classes** | Applications (Compliance tab), Interfaces (Overview), Applications list |
-| **Domains** | Assets (Technical tab → Domain, FQDN) |
-| **Entities** | Connections (Source/Target Entity), Connection Map (Graph Tier placement) |
-| **Hosting Types** | Locations (Overview) |
-| **Integration Patterns** | Interface legs (Pattern) |
-| **Interface Auth Modes** | Interface bindings (Auth Mode) |
-| **Interface Data Categories** | Interfaces (Data Category) |
-| **Interface Data Formats** | Interface legs (Format) |
-| **Interface Protocols** | Interface bindings (Protocol) |
-| **Interface Trigger Types** | Interface legs (Trigger) |
-| **IP Address Types** | Assets (Technical tab → IP Addresses → Type) |
-| **Lifecycle Statuses** | Applications, App Instances, Interfaces, Bindings, Assets |
-| **Network Zones** | Subnets (Network Zone), Assets (auto-populated from subnet) |
-| **Operating Systems** | Assets (Technical tab) |
-| **Subnets** | Assets (Technical tab → IP Addresses → Subnet selector) |
-| **Server Roles** | Applications → Servers tab (role when linking asset to app), Connection Map (Graph Tier placement) |
-| **Asset Types** | Assets (Overview → Type) |
+- **Les enregistrements existants conservent leurs codes stockés** - Changer un libellé ne modifie que ce que les utilisateurs voient, pas les données sous-jacentes.
+- **Valeurs obsolètes** :
+  - Restent valides pour les enregistrements qui les utilisent déjà.
+  - Sont masquées des menus déroulants lors de la création de nouveaux enregistrements.
+  - Apparaissent toujours lors de la modification si l'enregistrement utilise déjà cette valeur.
+- **Nouvelles valeurs** deviennent immédiatement disponibles dans les menus déroulants concernés et sont validées côté serveur.
+
+Cette approche vous permet de faire évoluer votre taxonomie au fil du temps sans casser les enregistrements existants.
+
+---
+
+## Référence rapide : quelle liste alimente quel champ
+
+| Liste | Où c'est utilisé |
+|-------|------------------|
+| **Méthodes d'accès** | Applications (Onglet Technique et support > Méthodes d'accès) |
+| **Catégories d'applications** | Applications (Catégorie) |
+| **Fournisseurs cloud** | Actifs (Fournisseur), Sites (Fournisseur cloud) |
+| **Types de connexion** | Connexions (Type de connexion) |
+| **Classifications de données** | Applications (Onglet Conformité), Interfaces (Vue d'ensemble), Liste Applications |
+| **Domaines** | Actifs (Onglet Technique > Domaine, FQDN) |
+| **Entités** | Connexions (Entité source/cible), Carte des connexions (Placement Niveau graphique) |
+| **Types d'hébergement** | Sites (Vue d'ensemble) |
+| **Patterns d'intégration** | Legs d'interfaces (Pattern) |
+| **Modes d'auth. d'interface** | Liaisons d'interfaces (Mode d'auth.) |
+| **Catégories de données d'interface** | Interfaces (Catégorie de données) |
+| **Formats de données d'interface** | Legs d'interfaces (Format) |
+| **Protocoles d'interface** | Liaisons d'interfaces (Protocole) |
+| **Types de déclencheur d'interface** | Legs d'interfaces (Déclencheur) |
+| **Types d'adresse IP** | Actifs (Onglet Technique > Adresses IP > Type) |
+| **Statuts de cycle de vie** | Applications, Instances, Interfaces, Liaisons, Actifs |
+| **Zones réseau** | Sous-réseaux (Zone réseau), Actifs (auto-rempli depuis le sous-réseau) |
+| **Systèmes d'exploitation** | Actifs (Onglet Technique) |
+| **Sous-réseaux** | Actifs (Onglet Technique > Adresses IP > Sélecteur de sous-réseau) |
+| **Rôles de serveur** | Applications > Onglet Serveurs (rôle lors de la liaison actif-app), Carte des connexions (Placement Niveau graphique) |
+| **Types d'actifs** | Actifs (Vue d'ensemble > Type) |
 
 ---
 
 ## Conseils
 
-- **Align labels with your terminology** - Review the defaults and rename labels to match how your organization talks about these concepts. Codes stay the same; only the display text changes.
-- **Deprecate gradually** - When transitioning away from a value, mark it deprecated rather than deleting it. This keeps historical data intact while steering users toward new options.
-- **Coordinate Data Classes with security** - Changes to Data Classes should align with your information security policies. Discuss with compliance before adding or renaming classification levels.
-- **Use typical ports as documentation** - The Connection Types "Typical ports" field is informational. Fill it in to help users understand what ports each connection type commonly uses.
-- **Tune map readability with tiers** - Keep Entities and Server Roles Graph Tiers aligned with your architecture layers (edge, app, data) for clearer Connection Map layouts.
+- **Alignez les libellés avec votre terminologie** - Revoyez les valeurs par défaut et renommez les libellés pour correspondre à la manière dont votre organisation parle de ces concepts. Les codes restent les mêmes ; seul le texte d'affichage change.
+- **Rendez obsolète progressivement** - Lors de la transition vers une nouvelle valeur, marquez-la comme obsolète plutôt que de la supprimer. Cela préserve les données historiques tout en orientant les utilisateurs vers les nouvelles options.
+- **Coordonnez les classifications de données avec la sécurité** - Les modifications des classifications de données doivent être alignées avec vos politiques de sécurité de l'information. Consultez la conformité avant d'ajouter ou renommer les niveaux de classification.
+- **Utilisez les ports typiques comme documentation** - Le champ « Ports typiques » des Types de connexion est informatif. Remplissez-le pour aider les utilisateurs à comprendre quels ports chaque type de connexion utilise couramment.
+- **Ajustez la lisibilité des cartes avec les niveaux** - Gardez les niveaux graphiques des Entités et Rôles de serveur alignés avec vos couches d'architecture (edge, app, données) pour des dispositions de Carte des connexions plus claires.

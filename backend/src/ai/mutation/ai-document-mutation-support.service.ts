@@ -29,6 +29,10 @@ export type AiDocumentRelationItem = {
 
 export type AiDocumentRelationState = Record<RelationEntityType, AiDocumentRelationItem[]>;
 export type AiDocumentRelationSet = Partial<Record<RelationEntityType, AiDocumentRelationItem[]>>;
+export type AiDocumentRelationMutationSet = {
+  add?: AiDocumentRelationSet | null;
+  remove?: AiDocumentRelationSet | null;
+};
 
 export type AiDocumentSnapshot = {
   document_id: string;
@@ -690,21 +694,51 @@ export class AiDocumentMutationSupportService {
     nextRelationLabels: AiDocumentRelationSet;
     changedTypes: RelationEntityType[];
   } {
+    return this.buildRelationMutation(currentRelations, {
+      add: additions,
+    });
+  }
+
+  buildRelationMutation(
+    currentRelations: AiDocumentRelationState,
+    mutation: AiDocumentRelationMutationSet,
+  ): {
+    currentRelationSnapshot: AiDocumentRelationSet;
+    nextRelations: Partial<Record<RelationEntityType, string[]>>;
+    nextRelationLabels: AiDocumentRelationSet;
+    changedTypes: RelationEntityType[];
+  } {
     const currentRelationSnapshot: AiDocumentRelationSet = {};
     const nextRelations: Partial<Record<RelationEntityType, string[]>> = {};
     const nextRelationLabels: AiDocumentRelationSet = {};
     const changedTypes: RelationEntityType[] = [];
 
     for (const entityType of AI_DOCUMENT_RELATION_ENTITY_TYPES) {
-      const additionsForType = additions[entityType] || [];
-      if (additionsForType.length === 0) {
+      const additionsForType = mutation.add?.[entityType] || [];
+      const removalsForType = mutation.remove?.[entityType] || [];
+      if (additionsForType.length === 0 && removalsForType.length === 0) {
         continue;
       }
 
       const currentItems = currentRelations[entityType] || [];
-      const nextItems = [...currentItems];
-      const existingIds = new Set(currentItems.map((item) => item.id));
+      const removalIds = new Set(removalsForType.map((item) => item.id));
+      const additionIds = new Set(additionsForType.map((item) => item.id));
+
+      for (const item of removalsForType) {
+        if (additionIds.has(item.id)) {
+          throw new BadRequestException(
+            `Cannot add and remove the same ${getAiDocumentRelationSingular(entityType)} in one preview.`,
+          );
+        }
+      }
+
+      const nextItems = currentItems.filter((item) => !removalIds.has(item.id));
+      const existingIds = new Set(nextItems.map((item) => item.id));
       let changed = false;
+
+      if (nextItems.length !== currentItems.length) {
+        changed = true;
+      }
 
       for (const item of additionsForType) {
         if (existingIds.has(item.id)) {
@@ -742,16 +776,22 @@ export class AiDocumentMutationSupportService {
     const changes: Record<string, { label: string; from: string | null; to: string | null; format: 'markdown' }> = {};
 
     for (const entityType of AI_DOCUMENT_RELATION_ENTITY_TYPES) {
-      const nextItems = nextRelationSet[entityType];
-      if (!nextItems || nextItems.length === 0) {
+      const hasCurrent = Object.prototype.hasOwnProperty.call(currentRelationSet, entityType);
+      const hasNext = Object.prototype.hasOwnProperty.call(nextRelationSet, entityType);
+      if (!hasCurrent && !hasNext) {
         continue;
       }
 
       const currentItems = currentRelationSet[entityType] || [];
+      const nextItems = nextRelationSet[entityType];
+      if (currentItems.length === 0 && (!nextItems || nextItems.length === 0)) {
+        continue;
+      }
+
       changes[`linked_${entityType}`] = {
         label: getAiDocumentRelationLabel(entityType),
         from: this.renderRelationListMarkdown(currentItems),
-        to: this.renderRelationListMarkdown(nextItems),
+        to: this.renderRelationListMarkdown(nextItems || []),
         format: 'markdown',
       };
     }

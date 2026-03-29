@@ -1,210 +1,210 @@
 # Contributeurs
 
-Contributors lets you define skills, team assignments, project availability, and classification defaults for people who work on portfolio projects. This information helps with resource planning and ensures you have the right expertise for upcoming work.
+Les contributeurs vous permettent de définir les compétences, les affectations d'équipe, la disponibilité projet et les valeurs de classification par défaut pour les personnes qui travaillent sur les projets du portefeuille. Ces informations aident à la planification des ressources et garantissent que vous disposez de l'expertise adéquate pour le travail à venir.
 
 ## Premiers pas
 
-Navigate to **Portefeuille > Contributeurs** to see configured contributors grouped by team. Click **Add Contributor** to add someone from your user list.
+Rendez-vous dans **Portefeuille > Contributeurs** pour voir les contributeurs configurés, regroupés par équipe. Cliquez sur **Ajouter un contributeur** pour ajouter quelqu'un depuis votre liste d'utilisateurs.
 
-**To add a contributor**:
-1. Click **Add Contributor**
-2. Search for and select a user from the dropdown
-3. Click **Add** to create their profile
-4. Configure their team, availability, skills, and defaults in l'espace de travail
+**Pour ajouter un contributeur** :
+1. Cliquez sur **Ajouter un contributeur**
+2. Recherchez et sélectionnez un utilisateur depuis le menu déroulant
+3. Cliquez sur **Ajouter** pour créer son profil
+4. Configurez son équipe, sa disponibilité, ses compétences et ses valeurs par défaut dans l'espace de travail
 
-**Tip**: Contributors are separate from user accounts. Adding someone as a contributor doesn't change their login access -- it just lets you track their team membership, skills, availability, and classification defaults for project planning.
+**Conseil** : Les contributeurs sont distincts des comptes utilisateurs. Ajouter quelqu'un comme contributeur ne modifie pas ses droits d'accès -- cela permet simplement de suivre son appartenance à une équipe, ses compétences, sa disponibilité et ses valeurs de classification par défaut pour la planification de projet.
 
 ---
 
-## Où le trouver
+## Où trouver cette page
 
-- Espace de travail : **Portfolio**
-- Path: **Portefeuille > Contributeurs**
-- Self-service path: **Settings > Profile > Contributor Settings** (opens your own contributor profile)
-- Permissions:
-  - View: `portfolio_settings:reader`
-  - Add or edit contributors: `portfolio_settings:member`
-  - Remove contributors: `portfolio_settings:admin`
-  - Edit your own profile: any portfolio-level reader permission (e.g. `tasks:reader`, `portfolio_projects:reader`, `portfolio_settings:reader`)
+- Espace de travail : **Portefeuille**
+- Chemin : **Portefeuille > Contributeurs**
+- Chemin en libre-service : **Paramètres > Profil > Paramètres contributeur** (ouvre votre propre profil contributeur)
+- Autorisations :
+  - Consultation : `portfolio_settings:reader`
+  - Ajouter ou modifier des contributeurs : `portfolio_settings:member`
+  - Supprimer des contributeurs : `portfolio_settings:admin`
+  - Modifier votre propre profil : toute autorisation de niveau reader du portefeuille (ex. : `tasks:reader`, `portfolio_projects:reader`, `portfolio_settings:reader`)
 
-If you don't see Contributors in the menu, ask your administrator to grant you the appropriate permissions.
+Si vous ne voyez pas Contributeurs dans le menu, demandez à votre administrateur de vous accorder les autorisations appropriées.
 
 ---
 
 ## Travailler avec la liste
 
-Contributors are displayed as cards grouped by team.
+Les contributeurs sont affichés sous forme de cartes regroupées par équipe.
 
-**Each contributor card shows**:
-- **Name** (or email if no display name is set)
-- **Skills count**: Number of skills configured (e.g. "3 skills")
-- **Availability**: Days per month available for projects (e.g. "5d/mo")
-- **Avg project effort**: Average monthly project time from logged entries over the last 6 months, when data is available
+**Chaque carte de contributeur affiche** :
+- **Nom** (ou e-mail si aucun nom d'affichage n'est défini)
+- **Nombre de compétences** : Nombre de compétences configurées (ex. : « 3 compétences »)
+- **Disponibilité** : Jours par mois disponibles pour les projets (ex. : « 5j/mois »)
+- **Charge projet moyenne** : Temps projet mensuel moyen calculé à partir des entrées saisies sur les 6 derniers mois, lorsque des données sont disponibles
 
-**Filtering**:
-- Use the **Filter by Team** dropdown to show only contributors from a specific team
-- Select **Unassigned** to see contributors who haven't been assigned to a team yet
-- Select **All Teams** to see everyone
+**Filtrage** :
+- Utilisez le menu déroulant **Filtrer par équipe** pour n'afficher que les contributeurs d'une équipe spécifique
+- Sélectionnez **Non assigné** pour voir les contributeurs qui n'ont pas encore été assignés à une équipe
+- Sélectionnez **Toutes les équipes** pour voir tout le monde
 
-**Team groups**:
-- Each team is displayed as a collapsible card with a member count badge
-- Click the team header to expand or collapse its members
-- Teams are sorted alphabetically; **Unassigned** always appears last
+**Groupes d'équipes** :
+- Chaque équipe est affichée comme une carte repliable avec un badge de nombre de membres
+- Cliquez sur l'en-tête de l'équipe pour développer ou réduire ses membres
+- Les équipes sont triées par ordre alphabétique ; **Non assigné** apparaît toujours en dernier
 
-Click any contributor card to open their espace de travail.
+Cliquez sur n'importe quelle carte de contributeur pour ouvrir son espace de travail.
 
 ---
 
-## The Contributor espace de travail
+## L'espace de travail du contributeur
 
-Click a contributor card to open their espace de travail. It has four tabs: **General**, **Skills**, **Time Logged**, and **Defaults**.
+Cliquez sur une carte de contributeur pour ouvrir son espace de travail. Il comporte quatre onglets : **Général**, **Compétences**, **Temps saisi** et **Valeurs par défaut**.
 
-### General
+### Général
 
-Configure team assignment, availability, view time statistics, and add notes.
+Configurez l'affectation d'équipe, la disponibilité, consultez les statistiques de temps et ajoutez des notes.
 
-**Team**
-Use the dropdown to assign this contributor to a team. Teams are organizational groups configured in Portfolio Settings. This assignment determines how contributors are grouped on the Contributors page. This field is only visible when editing another contributor's profile (not your own).
+**Équipe**
+Utilisez le menu déroulant pour assigner ce contributeur à une équipe. Les équipes sont des groupes organisationnels configurés dans les Paramètres du portefeuille. Cette affectation détermine comment les contributeurs sont regroupés sur la page Contributeurs. Ce champ n'est visible que lors de la modification du profil d'un autre contributeur (pas le vôtre).
 
-**Project Availability (days per month)**
-Use the slider to set how many days per month this person can work on portfolio projects. Range is 0 -- 20 days, with 0.5-day increments. Default is 5 days.
+**Disponibilité projet (jours par mois)**
+Utilisez le curseur pour définir combien de jours par mois cette personne peut travailler sur des projets du portefeuille. La plage va de 0 à 20 jours, par incréments de 0,5 jour. La valeur par défaut est de 5 jours.
 
-**Time Statistics**
-Read-only summary of logged time for this contributor. Requires `portfolio_settings:reader` to see.
+**Statistiques de temps**
+Résumé en lecture seule du temps saisi pour ce contributeur. Nécessite `portfolio_settings:reader` pour être visible.
 
-- **Average monthly project effort (last 6 months)**: Shown in man-days (hours / 8)
-- **Monthly Effort (12 months)**: Line chart showing **Total**, **Project**, and **Other** time
-  - **Project** = project overhead time + time logged to project tasks
-  - **Other** = time logged to non-project tasks
-  - Months with no data display as gaps in the chart
+- **Charge projet mensuelle moyenne (6 derniers mois)** : Affichée en jours-homme (heures / 8)
+- **Charge mensuelle (12 mois)** : Graphique en courbe montrant le temps **Total**, **Projet** et **Autre**
+  - **Projet** = temps d'overhead projet + temps saisi sur les tâches projet
+  - **Autre** = temps saisi sur les tâches hors projet
+  - Les mois sans données apparaissent comme des espaces dans le graphique
 
 **Notes**
-Free-text field for any additional information about this contributor -- certifications, preferences, constraints, or other relevant details.
+Champ de texte libre pour toute information complémentaire sur ce contributeur -- certifications, préférences, contraintes ou autres détails pertinents.
 
 ---
 
-### Skills
+### Compétences
 
-Track what this contributor knows and how proficient they are.
+Suivez ce que ce contributeur connaît et son niveau de maîtrise.
 
-**Adding skills**:
-1. Use the **Add Skill** dropdown to search for a skill
-2. Skills are grouped by category
-3. Select a skill to add it to the contributor's profile
-4. The skill appears with a default proficiency of 2 ("Can execute with support")
+**Ajouter des compétences** :
+1. Utilisez le menu déroulant **Ajouter une compétence** pour rechercher une compétence
+2. Les compétences sont regroupées par catégorie
+3. Sélectionnez une compétence pour l'ajouter au profil du contributeur
+4. La compétence apparaît avec un niveau de maîtrise par défaut de 2 (« Peut exécuter avec support »)
 
-**Proficiency levels**:
-Each skill has a proficiency rating from 0 -- 4:
+**Niveaux de maîtrise** :
+Chaque compétence a un niveau de maîtrise de 0 à 4 :
 
-| Level | Label | Description |
-|-------|-------|-------------|
-| 0 | No knowledge | Not familiar with this skill |
-| 1 | Basic / Theoretical | Understands concepts but hasn't applied them |
-| 2 | Can execute with support | Can do the work with guidance |
-| 3 | Autonomous | Can work independently |
-| 4 | Expert | Deep expertise, can mentor others |
+| Niveau | Libellé | Description |
+|--------|---------|-------------|
+| 0 | Aucune connaissance | Pas familier avec cette compétence |
+| 1 | Base / Théorique | Comprend les concepts mais ne les a pas appliqués |
+| 2 | Peut exécuter avec support | Peut faire le travail avec un accompagnement |
+| 3 | Autonome | Peut travailler de manière indépendante |
+| 4 | Expert | Expertise approfondie, peut former les autres |
 
-Use the slider next to each skill to adjust the proficiency level.
+Utilisez le curseur à côté de chaque compétence pour ajuster le niveau de maîtrise.
 
-**Removing skills**:
-Click the delete icon next to any skill to remove it from the contributor's profile.
+**Supprimer des compétences** :
+Cliquez sur l'icône de suppression à côté d'une compétence pour la retirer du profil du contributeur.
 
-**Skill categories**:
-Skills are organized into collapsible categories. Click a category header to expand or collapse it. Categories that contain selected skills are auto-expanded when you open the tab.
-
----
-
-### Time Logged
-
-View and manage all time entries for this contributor in one place. This tab is only visible if you have `portfolio_settings:reader` or higher.
-
-The table consolidates time logged from both project overhead entries and task time entries, giving you a complete picture of how the contributor spends their time.
-
-**Columns**:
-- **Date**: When the time was logged
-- **Source**: Where the time was logged -- either a task name or project name
-- **Category**: Whether the entry is classified as **IT** or **Business**, shown as a color-coded label
-- **Time**: Duration in hours or days (e.g. "4h", "1d 2h")
-- **Notes**: Any notes attached to the entry
-
-**Editing entries**:
-Click the **edit icon** next to a time entry to open the edit dialog. The dialog depends on the entry type:
-- **Task entries** open the task time-logging dialog, where you can adjust the hours, date, category, and notes
-- **Project entries** open the project time-logging dialog, where you can adjust the hours, category, user, and notes
-
-**Deleting entries**:
-Click the **delete icon** next to a time entry to remove it. You will be asked to confirm before the entry is deleted. Deleting an entry also updates the contributor's time statistics on the **General** tab.
-
-**Permissions for time entry actions**:
-- To see the **Actions** column, you need at least `tasks:member` or `portfolio_projects:contributor`
-- Non-admin users can only edit or delete entries they created or are assigned to
-- Users with `tasks:admin` can edit or delete any standalone task entry
-- Users with `portfolio_projects:admin` can edit or delete any project task entry or project overhead entry
+**Catégories de compétences** :
+Les compétences sont organisées en catégories repliables. Cliquez sur un en-tête de catégorie pour le développer ou le réduire. Les catégories contenant des compétences sélectionnées sont automatiquement développées lorsque vous ouvrez l'onglet.
 
 ---
 
-### Defaults
+### Temps saisi
 
-Set classification defaults that pre-fill new tasks, requests, and projects when classification fields are still empty. This saves time for contributors who consistently work in the same area.
+Consultez et gérez toutes les entrées de temps pour ce contributeur en un seul endroit. Cet onglet n'est visible que si vous avez `portfolio_settings:reader` ou supérieur.
 
-**What you can set**:
-- **Source**: The default source classification
-- **Category**: The default category classification
-- **Stream**: The default stream classification (only available once a **Category** is selected; filtered to streams belonging to that category)
-- **Company**: The default company
+Le tableau consolide le temps saisi provenant à la fois des entrées d'overhead projet et des entrées de temps des tâches, vous donnant une image complète de la manière dont le contributeur utilise son temps.
 
-When a contributor creates a new task, request, or project, these defaults are used to pre-populate the classification fields automatically. Changing the **Category** clears the **Stream** if the current stream does not belong to the newly selected category.
+**Colonnes** :
+- **Date** : Quand le temps a été saisi
+- **Source** : Où le temps a été saisi -- soit un nom de tâche soit un nom de projet
+- **Catégorie** : Si l'entrée est classée **IT** ou **Métier**, affichée sous forme de libellé coloré
+- **Temps** : Durée en heures ou jours (ex. : « 4h », « 1j 2h »)
+- **Notes** : Notes éventuelles attachées à l'entrée
 
-**Tip**: You can also reach your own defaults from **Paramètres > Profil**, which links directly to the **Defaults** tab of your contributor profile.
+**Modifier des entrées** :
+Cliquez sur l'**icône de modification** à côté d'une entrée de temps pour ouvrir la boîte de dialogue de modification. La boîte de dialogue dépend du type d'entrée :
+- Les **entrées de tâche** ouvrent la boîte de dialogue de saisie de temps de la tâche, où vous pouvez ajuster les heures, la date, la catégorie et les notes
+- Les **entrées de projet** ouvrent la boîte de dialogue de saisie de temps du projet, où vous pouvez ajuster les heures, la catégorie, l'utilisateur et les notes
+
+**Supprimer des entrées** :
+Cliquez sur l'**icône de suppression** à côté d'une entrée de temps pour la retirer. Une confirmation vous est demandée avant la suppression. La suppression d'une entrée met également à jour les statistiques de temps du contributeur dans l'onglet **Général**.
+
+**Autorisations pour les actions sur les entrées de temps** :
+- Pour voir la colonne **Actions**, vous avez besoin au minimum de `tasks:member` ou `portfolio_projects:contributor`
+- Les utilisateurs non-administrateurs ne peuvent modifier ou supprimer que les entrées qu'ils ont créées ou auxquelles ils sont assignés
+- Les utilisateurs avec `tasks:admin` peuvent modifier ou supprimer toute entrée de tâche autonome
+- Les utilisateurs avec `portfolio_projects:admin` peuvent modifier ou supprimer toute entrée de tâche projet ou d'overhead projet
+
+---
+
+### Valeurs par défaut
+
+Définissez les valeurs de classification par défaut qui pré-remplissent les nouvelles tâches, demandes et projets lorsque les champs de classification sont encore vides. Cela fait gagner du temps aux contributeurs qui travaillent régulièrement dans le même domaine.
+
+**Ce que vous pouvez définir** :
+- **Source** : La classification source par défaut
+- **Catégorie** : La classification de catégorie par défaut
+- **Flux** : La classification de flux par défaut (disponible uniquement une fois une **Catégorie** sélectionnée ; filtré aux flux appartenant à cette catégorie)
+- **Société** : La société par défaut
+
+Lorsqu'un contributeur crée une nouvelle tâche, demande ou projet, ces valeurs par défaut sont utilisées pour pré-remplir automatiquement les champs de classification. Changer la **Catégorie** efface le **Flux** si le flux actuel n'appartient pas à la catégorie nouvellement sélectionnée.
+
+**Conseil** : Vous pouvez également accéder à vos propres valeurs par défaut depuis **Paramètres > Profil**, qui renvoie directement à l'onglet **Valeurs par défaut** de votre profil contributeur.
 
 ---
 
 ## Actions
 
-From l'espace de travail header:
-- **Enregistrer**: Save changes to team, availability, notes, skills, or defaults
-- **Supprimer**: Remove this contributor configuration (doesn't affect the user account). Only available when editing another contributor's profile with `portfolio_settings:admin`.
-- **Back arrow**: Return to the contributors list, or to **Settings** if you opened your own profile
+Depuis l'en-tête de l'espace de travail :
+- **Enregistrer** : Sauvegarder les modifications d'équipe, de disponibilité, de notes, de compétences ou de valeurs par défaut
+- **Supprimer** : Retirer cette configuration de contributeur (n'affecte pas le compte utilisateur). Disponible uniquement lors de la modification du profil d'un autre contributeur avec `portfolio_settings:admin`.
+- **Flèche retour** : Retourner à la liste des contributeurs, ou aux **Paramètres** si vous avez ouvert votre propre profil
 
 ---
 
-## Your own contributor profile
+## Votre propre profil contributeur
 
-Every user with at least one portfolio-level reader permission can access their own contributor profile at **Portfolio > Contributors > me** or from **Settings > Profile > Contributor Settings**.
+Tout utilisateur disposant d'au moins une autorisation reader au niveau portefeuille peut accéder à son propre profil contributeur dans **Portefeuille > Contributeurs > moi** ou depuis **Paramètres > Profil > Paramètres contributeur**.
 
-When editing your own profile:
-- You can update your **availability**, **skills**, **notes**, and **classification defaults**
-- You cannot change your own **team assignment** (only a portfolio settings member can do that)
-- You cannot delete your own contributor record
+Lors de la modification de votre propre profil :
+- Vous pouvez mettre à jour votre **disponibilité**, vos **compétences**, vos **notes** et vos **valeurs de classification par défaut**
+- Vous ne pouvez pas changer votre propre **affectation d'équipe** (seul un membre des paramètres du portefeuille peut le faire)
+- Vous ne pouvez pas supprimer votre propre profil contributeur
 
-If you don't have a contributor record yet, opening the self-service page creates one automatically.
+Si vous n'avez pas encore de profil contributeur, ouvrir la page en libre-service en crée un automatiquement.
 
 ---
 
-## Teams
+## Équipes
 
-Contributors can be assigned to organizational teams for better organization. Teams are configured in **Portfolio > Settings > Teams**.
+Les contributeurs peuvent être assignés à des équipes organisationnelles pour une meilleure organisation. Les équipes sont configurées dans **Portefeuille > Paramètres > Équipes**.
 
-**Default teams** (can be customized):
+**Équipes par défaut** (personnalisables) :
 - Infrastructure
-- Business Applications
-- Engineering Applications
+- Applications métier
+- Applications d'ingénierie
 - Service Desk
 - Master Data
-- Cybersecurity
+- Cybersécurité
 
-**Managing teams**:
-- Go to **Portefeuille > Paramètres** and click the **Teams** tab
-- Add, edit, or disable teams
-- Use **Seed Defaults** to populate with standard teams
-- Teams with members assigned cannot be deleted
+**Gérer les équipes** :
+- Rendez-vous dans **Portefeuille > Paramètres** et cliquez sur l'onglet **Équipes**
+- Ajoutez, modifiez ou désactivez des équipes
+- Utilisez **Initialiser les valeurs par défaut** pour remplir avec les équipes standard
+- Les équipes avec des membres assignés ne peuvent pas être supprimées
 
 ---
 
 ## Conseils
 
-- **Assign contributors to teams**: This helps organize the Contributors page and makes it easier to find specific people.
-- **Set realistic availability**: Account for meetings, BAU work, and holidays when setting days per month. Most people have less project time than you'd expect.
-- **Use proficiency honestly**: A team full of "experts" isn't useful for planning. Be realistic about skill levels to make better resource decisions.
-- **Keep skills current**: Review contributor skills periodically, especially after training or new project experience.
-- **Set up your classification defaults early**: If you always work on the same category and stream, configuring defaults saves you from selecting them every time you create a task or request.
+- **Assignez les contributeurs à des équipes** : Cela aide à organiser la page Contributeurs et facilite la recherche de personnes spécifiques.
+- **Définissez une disponibilité réaliste** : Tenez compte des réunions, du travail courant et des congés lors de la définition des jours par mois. La plupart des gens ont moins de temps projet que prévu.
+- **Utilisez la maîtrise honnêtement** : Une équipe pleine d'« experts » n'est pas utile pour la planification. Soyez réaliste sur les niveaux de compétences pour prendre de meilleures décisions de ressources.
+- **Maintenez les compétences à jour** : Revoyez les compétences des contributeurs périodiquement, surtout après des formations ou de nouvelles expériences projet.
+- **Configurez vos valeurs de classification par défaut tôt** : Si vous travaillez toujours sur la même catégorie et le même flux, configurer les valeurs par défaut vous évite de les sélectionner à chaque création de tâche ou de demande.

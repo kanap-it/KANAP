@@ -69,6 +69,47 @@ function DocumentList({ items }: { items: any[] }) {
   );
 }
 
+function CommentsList({ result }: { result: any }) {
+  const { t } = useTranslation(['ai']);
+  const items = Array.isArray(result?.items) ? result.items : [];
+  if (!items.length) {
+    return <Typography variant="body2" color="text.secondary">{t('toolResults.noComments', { defaultValue: 'No comments found.' })}</Typography>;
+  }
+  return (
+    <Stack spacing={1}>
+      {result?.entity && (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip label={result.entity.type} size="small" variant="outlined" />
+          {result.entity.ref && <Typography variant="body2" fontWeight={600}>{result.entity.ref}</Typography>}
+          <Typography variant="body2">{result.entity.label}</Typography>
+        </Stack>
+      )}
+      {items.map((item: any, i: number) => (
+        <Stack key={`${item.created_at || 'comment'}-${i}`} spacing={0.25}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="caption" fontWeight={600}>
+              {item.author || t('toolResults.unknownAuthor', { defaultValue: 'Unknown author' })}
+            </Typography>
+            {item.created_at && (
+              <Typography variant="caption" color="text.secondary">
+                {item.created_at}
+              </Typography>
+            )}
+            {item.edited && (
+              <Chip
+                label={t('toolResults.edited', { defaultValue: 'Edited' })}
+                size="small"
+                variant="outlined"
+              />
+            )}
+          </Stack>
+          <Typography variant="body2">{item.content || t('toolResults.emptyComment', { defaultValue: '(empty comment)' })}</Typography>
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
+
 function GenericResult({ result }: { result: unknown }) {
   return (
     <Box
@@ -117,6 +158,8 @@ export default function ToolResultRenderer({ name, result, arguments: args }: To
             ))}
           </Stack>
         );
+      case 'get_entity_comments':
+        return <CommentsList result={data} />;
       case 'search_knowledge':
         return <DocumentList items={data?.items || []} />;
       case 'get_document':

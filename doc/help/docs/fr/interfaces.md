@@ -1,250 +1,250 @@
 # Interfaces
 
-Interfaces document the logical data flows between your applications. Unlike direct code connections, an Interface represents a business integration -- the "why" and "what" of data exchange -- independent of the technical implementation. Each Interface can have multiple environment-specific bindings that define the actual endpoints and configurations.
+Les interfaces documentent les flux de données logiques entre vos applications. Contrairement aux connexions de code directes, une interface représente une intégration métier -- le « pourquoi » et le « quoi » de l'échange de données -- indépendamment de l'implémentation technique. Chaque interface peut avoir plusieurs liaisons spécifiques à un environnement qui définissent les points de terminaison et les configurations réels.
 
 ## Premiers pas
 
-Navigate to **Cartographie SI > Interfaces** to see your integration registry. Click **Add Interface** to create your first entry.
+Rendez-vous dans **Cartographie SI > Interfaces** pour voir votre registre d'intégration. Cliquez sur **Ajouter une interface** pour créer votre première entrée.
 
-**Required fields**:
+**Champs obligatoires** :
 
-- **Interface ID**: A unique identifier (e.g., `INT-CRM-ERP-001`)
-- **Name**: A descriptive name for the integration
-- **Business Purpose**: Why this integration exists
-- **Source Application**: Where data originates
-- **Target Application**: Where data flows to
-- **Data Category**: The type of data being transferred
+- **ID d'interface** : Un identifiant unique (ex. : `INT-CRM-ERP-001`)
+- **Nom** : Un nom descriptif pour l'intégration
+- **Objet métier** : Pourquoi cette intégration existe
+- **Application source** : D'où proviennent les données
+- **Application cible** : Où vont les données
+- **Catégorie de données** : Le type de données transférées
 
-**Strongly recommended**:
+**Fortement recommandé** :
 
-- **Business Process**: Which business process this interface supports
-- **Lifecycle**: Current status (Active, Deprecated, etc.)
+- **Processus métier** : Quel processus métier cette interface supporte
+- **Cycle de vie** : Statut actuel (Actif, Obsolète, etc.)
 
-**Tip**: Start by documenting your production interfaces. Use the Bindings & Connections tab to add environment-specific bindings once the logical interface is defined.
+**Conseil** : Commencez par documenter vos interfaces de production. Utilisez l'onglet Liaisons et connexions pour ajouter des liaisons spécifiques à chaque environnement une fois l'interface logique définie.
 
 ---
 
 ## Travailler avec la liste
 
-The Interfaces grid shows your integration registry at a glance.
+La grille Interfaces affiche votre registre d'intégration en un coup d'oeil.
 
-**Default columns**:
+**Colonnes par défaut** :
 
-- **Interface ID**: The unique identifier (click to open espace de travail)
-- **Name**: Interface name (click to open espace de travail)
-- **Environments**: Colored chips showing which environments have bindings configured (e.g., PROD, QA, DEV)
-- **Source App**: The source application
-- **Target App**: The target application
-- **Lifecycle**: Current status
-- **Criticality**: Business importance
-- **Created**: When the record was created
+- **ID d'interface** : L'identifiant unique (cliquez pour ouvrir l'espace de travail)
+- **Nom** : Nom de l'interface (cliquez pour ouvrir l'espace de travail)
+- **Environnements** : Pastilles colorées montrant quels environnements ont des liaisons configurées (ex. : PROD, QA, DEV)
+- **App source** : L'application source
+- **App cible** : L'application cible
+- **Cycle de vie** : Statut actuel
+- **Criticité** : Importance métier
+- **Créé** : Quand l'enregistrement a été créé
 
-**Additional columns** (via column chooser):
+**Colonnes supplémentaires** (via le sélecteur de colonnes) :
 
-- **Business Process**: Linked business process
-- **Data Category**: Type of data being transferred
-- **Contains PII**: Whether the interface handles personal data
-- **Env Coverage**: Number of environments with bindings
-- **Bindings**: Total number of environment bindings
+- **Processus métier** : Processus métier lié
+- **Catégorie de données** : Type de données transférées
+- **Contient des PII** : Si l'interface traite des données personnelles
+- **Couverture env.** : Nombre d'environnements avec des liaisons
+- **Liaisons** : Nombre total de liaisons d'environnement
 
-**Filtering**:
+**Filtrage** :
 
-- Quick search: Searches across all text columns
-- Column filters: Filter by lifecycle, criticality, data category, business process, contains PII, and more
+- Recherche rapide : Recherche dans toutes les colonnes texte
+- Filtres de colonnes : Filtrer par cycle de vie, criticité, catégorie de données, processus métier, contient des PII, et plus
 
-**Actions**:
+**Actions** :
 
-- **Add Interface**: Create a new interface (requires `applications:manager`)
-- **Duplicate Interface**: Create a copy of a selected interface (requires `applications:manager`). Select exactly one row to enable this action. A dialog lets you choose whether to copy environment bindings -- see [Copying interfaces](#copying-interfaces) below.
-- **Delete Selected**: Remove selected interfaces (requires `applications:admin`). A checkbox option lets you also delete related bindings; if unchecked, interfaces with bindings will not be deleted.
-
----
-
-## The Interfaces espace de travail
-
-Click any row to open l'espace de travail. It has six tabs.
-
-### Overview
-
-The Overview tab captures the interface's identity and business context.
-
-**What you can edit**:
-
-- **Interface ID**: Unique identifier
-- **Name**: Display name
-- **Business Process**: Link to a business process from master data
-- **Business Purpose**: Free-text description of why this integration exists
-- **Source Application** / **Target Application**: The connected apps
-- **Data Category**: The type of data being transferred
-- **Integration Route Type**: Direct or Via Middleware
-- **Middleware Applications**: If the route type is Via Middleware, select the middleware platforms involved (only applications flagged as ETL/middleware appear here)
-- **Lifecycle**: Current status
-- **Overview Notes**: Additional context or summary
-
-**Tip**: Data Category and Integration Route Type shape what's available on later tabs. Set them early.
+- **Ajouter une interface** : Créer une nouvelle interface (nécessite `applications:manager`)
+- **Dupliquer l'interface** : Créer une copie d'une interface sélectionnée (nécessite `applications:manager`). Sélectionnez exactement une ligne pour activer cette action. Une boîte de dialogue vous permet de choisir si vous souhaitez copier les liaisons d'environnement -- voir [Copier des interfaces](#copier-des-interfaces) ci-dessous.
+- **Supprimer la sélection** : Supprimer les interfaces sélectionnées (nécessite `applications:admin`). Une option par case à cocher permet de supprimer aussi les liaisons associées ; si elle n'est pas cochée, les interfaces avec des liaisons ne seront pas supprimées.
 
 ---
 
-### Ownership & Criticality
+## L'espace de travail des interfaces
 
-This tab documents who's responsible for the interface and how important it is.
+Cliquez sur n'importe quelle ligne pour ouvrir l'espace de travail. Il comporte six onglets.
 
-**Business Owners**: Business stakeholders accountable for the integration. Each row shows the user, their last name, first name, and job title (read-only, pulled from the user record). Add or remove rows as needed.
+### Vue d'ensemble
 
-**IT Owners**: Technical team members responsible for maintenance. Same layout as business owners.
+L'onglet Vue d'ensemble capture l'identité et le contexte métier de l'interface.
 
-**Criticality & Impact**:
+**Ce que vous pouvez modifier** :
 
-- **Criticality**: Business critical, High, Medium, or Low
-- **Impact of Failure**: Free-text description of what happens if this interface goes down
+- **ID d'interface** : Identifiant unique
+- **Nom** : Nom d'affichage
+- **Processus métier** : Lien vers un processus métier depuis les données de référence
+- **Objet métier** : Description en texte libre de la raison d'être de cette intégration
+- **Application source** / **Application cible** : Les applications connectées
+- **Catégorie de données** : Le type de données transférées
+- **Type de route d'intégration** : Direct ou Via middleware
+- **Applications middleware** : Si le type de route est Via middleware, sélectionnez les plateformes middleware impliquées (seules les applications marquées comme ETL/middleware apparaissent ici)
+- **Cycle de vie** : Statut actuel
+- **Notes de la vue d'ensemble** : Contexte supplémentaire ou résumé
 
-**Impacted Companies**: Which companies or legal entities are affected by this interface. Select from your master data.
-
----
-
-### Functional Definition
-
-The Functional Definition tab captures the business logic of the integration.
-
-**What you can document**:
-
-- **Business Objects**: What data entities are transferred (free text)
-- **Main Use Cases**: Primary scenarios this interface supports
-- **Functional Rules**: High-level business rules governing the data flow
-- **Key Identifiers**: Source and destination identifier mappings. Each row maps a source identifier to a destination identifier, with optional notes. Use this to document cross-system ID relationships (e.g., SAP Material Number maps to CRM Product ID).
-- **Dependencies**: Upstream and downstream interfaces that this flow depends on. Select other interfaces from your registry.
-- **Functional Documentation Links**: Add URLs to external documentation (Confluence, SharePoint, etc.)
-- **Functional Attachments**: Upload specification documents directly
+**Conseil** : La catégorie de données et le type de route d'intégration façonnent ce qui est disponible dans les onglets suivants. Définissez-les tôt.
 
 ---
 
-### Technical Definition
+### Responsabilité et criticité
 
-The Technical Definition tab defines how the integration works at a technical level.
+Cet onglet documente qui est responsable de l'interface et quelle est son importance.
 
-**Legs template**: A table defining the data flow legs (Extract, Transform, Load, or Direct). Each leg specifies:
+**Responsables métier** : Les parties prenantes métier redevables de l'intégration. Chaque ligne affiche l'utilisateur, son nom, prénom et intitulé de poste (lecture seule, issus du profil utilisateur). Ajoutez ou supprimez des lignes selon les besoins.
 
-- **Leg type**: EXTRACT, TRANSFORM, LOAD, or DIRECT
-- **From / To**: Which role handles each step (Source app, Target app, or Middleware)
-- **Trigger Type**: What initiates this leg (e.g., scheduled, event-driven, manual)
-- **Pattern**: The integration pattern (e.g., batch, real-time, pub/sub)
-- **Format**: The data format (e.g., JSON, XML, CSV, flat file)
-- **Job Name**: An optional job or process name
+**Responsables IT** : Les membres de l'équipe technique responsables de la maintenance. Même disposition que les responsables métier.
 
-Legs are templates shared across all environments. The actual endpoints and credentials go in the Bindings & Connections tab.
+**Criticité et impact** :
 
-**Additional fields**:
+- **Criticité** : Critique métier, Haute, Moyenne ou Basse
+- **Impact d'une défaillance** : Description en texte libre de ce qui se passe si cette interface tombe en panne
 
-- **Core Transformations (summary)**: How data is transformed between source and target
-- **Error Handling (summary)**: How errors are managed and escalated
-
-**Documentation**:
-
-- **Technical Documentation Links**: Add URLs to technical specs
-- **Technical Attachments**: Upload technical documents
-
-**Tip**: If no legs appear, make sure you've selected source and target applications and an integration route type on the Overview tab. Legs are generated automatically from the route type.
+**Sociétés impactées** : Quelles sociétés ou entités juridiques sont affectées par cette interface. Sélectionnez depuis vos données de référence.
 
 ---
 
-### Bindings & Connections
+### Définition fonctionnelle
 
-This tab manages environment-specific bindings. It presents a matrix of environments and legs, letting you configure each combination independently.
+L'onglet Définition fonctionnelle capture la logique métier de l'intégration.
 
-**How it works**:
+**Ce que vous pouvez documenter** :
 
-- Each environment (Prod, Pre-prod, QA, Test, Dev, Sandbox, or custom) can have bindings for each leg
-- Environments are discovered automatically from your application instances, or you can add custom environments
-- Click an empty cell to create a binding, or click an existing one to edit it
-
-**Binding fields**:
-
-- **Source Instance** / **Target Instance**: Which application instances to use in this environment
-- **Status**: Enabled, Disabled, or Testing
-- **Source Endpoint** / **Target Endpoint**: Technical endpoints (URLs, paths, queue names, etc.)
-- **Trigger Details**: Environment-specific trigger configuration
-- **Env Job Name**: Override the template job name for this environment
-- **Authentication Mode**: How the binding authenticates
-- **Monitoring URL**: Link to monitoring or observability for this binding
-- **Integration Tool Application**: If applicable, the integration tool used
-- **Env Notes**: Environment-specific notes
-
-**Connection linking**: Each binding can be linked to infrastructure connections from your connection registry. This lets you trace the full path from logical interface to physical network connections.
+- **Objets métier** : Quelles entités de données sont transférées (texte libre)
+- **Cas d'utilisation principaux** : Scénarios principaux que cette interface supporte
+- **Règles fonctionnelles** : Règles métier de haut niveau régissant le flux de données
+- **Identifiants clés** : Mappings d'identifiants source et destination. Chaque ligne mappe un identifiant source vers un identifiant destination, avec des notes optionnelles. Utilisez cela pour documenter les relations d'ID entre systèmes (ex. : le numéro de matériau SAP correspond à l'ID produit CRM).
+- **Dépendances** : Interfaces amont et aval dont ce flux dépend. Sélectionnez d'autres interfaces depuis votre registre.
+- **Liens de documentation fonctionnelle** : Ajoutez des URL vers de la documentation externe (Confluence, SharePoint, etc.)
+- **Pièces jointes fonctionnelles** : Téléversez directement des documents de spécification
 
 ---
 
-### Data & Compliance
+### Définition technique
 
-The Data & Compliance tab captures data protection and security information.
+L'onglet Définition technique définit comment l'intégration fonctionne au niveau technique.
 
-**What you can edit**:
+**Modèle de legs** : Un tableau définissant les legs du flux de données (Extract, Transform, Load ou Direct). Chaque leg spécifie :
 
-- **Data Classification**: Sensitivity level (Public, Internal, Confidential, Restricted)
-- **Contains PII**: Whether personal data is transferred. When checked, a **PII Description** field appears for you to detail what PII is included.
-- **Typical Data**: Description of a typical data payload
-- **Audit & Logging**: How the interface is audited
-- **Security Controls (summary)**: Security measures in place
-- **Data Residency**: Comma-separated ISO 2-letter country codes where data flows (e.g., FR, DE, US)
+- **Type de leg** : EXTRACT, TRANSFORM, LOAD ou DIRECT
+- **De / Vers** : Quel rôle gère chaque étape (App source, App cible ou Middleware)
+- **Type de déclencheur** : Ce qui initie ce leg (ex. : planifié, événementiel, manuel)
+- **Pattern** : Le pattern d'intégration (ex. : batch, temps réel, pub/sub)
+- **Format** : Le format des données (ex. : JSON, XML, CSV, fichier plat)
+- **Nom du job** : Un nom de job ou de processus optionnel
+
+Les legs sont des modèles partagés entre tous les environnements. Les points de terminaison et identifiants réels vont dans l'onglet Liaisons et connexions.
+
+**Champs supplémentaires** :
+
+- **Transformations principales (résumé)** : Comment les données sont transformées entre la source et la cible
+- **Gestion des erreurs (résumé)** : Comment les erreurs sont gérées et escaladées
+
+**Documentation** :
+
+- **Liens de documentation technique** : Ajoutez des URL vers les spécifications techniques
+- **Pièces jointes techniques** : Téléversez des documents techniques
+
+**Conseil** : Si aucun leg n'apparaît, assurez-vous d'avoir sélectionné les applications source et cible ainsi qu'un type de route d'intégration dans l'onglet Vue d'ensemble. Les legs sont générés automatiquement à partir du type de route.
 
 ---
 
-## Copying interfaces
+### Liaisons et connexions
 
-There are two ways to copy interfaces in KANAP:
+Cet onglet gère les liaisons spécifiques à chaque environnement. Il présente une matrice d'environnements et de legs, vous permettant de configurer chaque combinaison indépendamment.
 
-### Duplicate Interface (from Interfaces page)
+**Comment ça fonctionne** :
 
-Use this when you want to create an independent copy of an interface -- typically to create a similar interface between the same or different applications.
+- Chaque environnement (Prod, Pré-prod, QA, Test, Dev, Sandbox ou personnalisé) peut avoir des liaisons pour chaque leg
+- Les environnements sont découverts automatiquement depuis vos instances d'application, ou vous pouvez ajouter des environnements personnalisés
+- Cliquez sur une cellule vide pour créer une liaison, ou cliquez sur une existante pour la modifier
 
-1. Select an interface in the grid
-2. Click **Duplicate Interface**
-3. Choose whether to copy environment bindings:
-   - **Without bindings**: Creates a clean copy -- just the interface definition, legs, owners, and metadata
-   - **With bindings**: Also copies environment bindings, but clears environment-specific details (endpoints, authentication, job names) so you can configure them fresh
+**Champs de liaison** :
 
-**What gets copied**:
+- **Instance source** / **Instance cible** : Quelles instances d'application utiliser dans cet environnement
+- **Statut** : Activé, Désactivé ou En test
+- **Point de terminaison source** / **Point de terminaison cible** : Points de terminaison techniques (URL, chemins, noms de files, etc.)
+- **Détails du déclencheur** : Configuration de déclencheur spécifique à l'environnement
+- **Nom de job env.** : Remplacement du nom de job du modèle pour cet environnement
+- **Mode d'authentification** : Comment la liaison s'authentifie
+- **URL de supervision** : Lien vers la supervision ou l'observabilité de cette liaison
+- **Application outil d'intégration** : Le cas échéant, l'outil d'intégration utilisé
+- **Notes env.** : Notes spécifiques à l'environnement
 
-| Data | Copied |
-|------|--------|
-| Interface definition (name, apps, route type) | Yes |
-| Legs (extract/transform/load/direct) | Yes |
-| Middleware applications | Yes |
-| Owners (business & IT) | Yes |
-| Impacted companies | Yes |
-| Dependencies | Yes |
-| Key identifiers | Yes |
-| Links (documentation) | Yes |
-| Data residency | Yes |
-| Bindings | Optional |
-| Attachments | No |
+**Liaison aux connexions** : Chaque liaison peut être liée aux connexions d'infrastructure de votre registre de connexions. Cela vous permet de tracer le chemin complet de l'interface logique aux connexions réseau physiques.
 
-**Naming**: The copy gets " - copy" appended to both name and Interface ID.
+---
 
-### Version Migration (from Application versioning)
+### Données et conformité
 
-Use this when upgrading an application to a new version and you need to migrate interfaces to the new version. See [Applications > Version management](applications.md#version-management) for details.
+L'onglet Données et conformité capture les informations de protection des données et de sécurité.
 
-**Key differences from Duplicate**:
+**Ce que vous pouvez modifier** :
 
-| Aspect | Duplicate | Version Migration |
-|--------|-----------|-------------------|
-| Purpose | Create independent copy | Migrate to new app version |
-| App references | Unchanged | Updated to new version |
-| Middleware references | Unchanged | Updated if app is middleware |
-| Dependencies* | Copied | Not copied |
-| Bindings | Optional (instances unchanged) | Optional (instances mapped to new app) |
-| Lifecycle | Preserved | Reset to Proposed |
-| Name suffix | " - copy" | " (new version)" |
+- **Classification des données** : Niveau de sensibilité (Public, Interne, Confidentiel, Restreint)
+- **Contient des PII** : Si des données personnelles sont transférées. Lorsque coché, un champ **Description PII** apparaît pour détailler quelles PII sont incluses.
+- **Données typiques** : Description d'un payload de données typique
+- **Audit et journalisation** : Comment l'interface est auditée
+- **Contrôles de sécurité (résumé)** : Mesures de sécurité en place
+- **Résidence des données** : Codes pays ISO à 2 lettres séparés par des virgules où les données circulent (ex. : FR, DE, US)
 
-*Dependencies are upstream/downstream interface relationships (e.g., "Order Sync must run before Invoice Sync").
+---
+
+## Copier des interfaces
+
+Il existe deux façons de copier des interfaces dans KANAP :
+
+### Dupliquer l'interface (depuis la page Interfaces)
+
+Utilisez cela lorsque vous souhaitez créer une copie indépendante d'une interface -- typiquement pour créer une interface similaire entre les mêmes applications ou des applications différentes.
+
+1. Sélectionnez une interface dans la grille
+2. Cliquez sur **Dupliquer l'interface**
+3. Choisissez si vous souhaitez copier les liaisons d'environnement :
+   - **Sans liaisons** : Crée une copie propre -- juste la définition de l'interface, les legs, les responsables et les métadonnées
+   - **Avec liaisons** : Copie également les liaisons d'environnement, mais efface les détails spécifiques à l'environnement (points de terminaison, authentification, noms de jobs) pour que vous puissiez les configurer de zéro
+
+**Ce qui est copié** :
+
+| Données | Copiées |
+|---------|---------|
+| Définition de l'interface (nom, apps, type de route) | Oui |
+| Legs (extract/transform/load/direct) | Oui |
+| Applications middleware | Oui |
+| Responsables (métier et IT) | Oui |
+| Sociétés impactées | Oui |
+| Dépendances | Oui |
+| Identifiants clés | Oui |
+| Liens (documentation) | Oui |
+| Résidence des données | Oui |
+| Liaisons | Optionnel |
+| Pièces jointes | Non |
+
+**Nommage** : La copie reçoit « - copie » ajouté au nom et à l'ID d'interface.
+
+### Migration de version (depuis le versionnage d'application)
+
+Utilisez cela lors de la mise à niveau d'une application vers une nouvelle version et que vous devez migrer les interfaces vers la nouvelle version. Voir [Applications > Gestion des versions](applications.md#gestion-des-versions) pour les détails.
+
+**Différences clés avec la duplication** :
+
+| Aspect | Duplication | Migration de version |
+|--------|-------------|---------------------|
+| Objectif | Créer une copie indépendante | Migrer vers une nouvelle version d'app |
+| Références app | Inchangées | Mises à jour vers la nouvelle version |
+| Références middleware | Inchangées | Mises à jour si l'app est middleware |
+| Dépendances* | Copiées | Non copiées |
+| Liaisons | Optionnel (instances inchangées) | Optionnel (instances mappées vers la nouvelle app) |
+| Cycle de vie | Préservé | Réinitialisé à Proposé |
+| Suffixe de nom | « - copie » | « (nouvelle version) » |
+
+*Les dépendances sont les relations d'interfaces amont/aval (ex. : « La synchro commandes doit s'exécuter avant la synchro factures »).
 
 ---
 
 ## Conseils
 
-- **Document the "why" first**: Focus on business purpose before technical details. Technical specs can come later.
-- **Use environment bindings**: Don't create separate interfaces for each environment -- use one interface with multiple bindings.
-- **Link to business processes**: Connecting interfaces to business processes helps with impact analysis.
-- **Keep middleware explicit**: If data flows through middleware, model it explicitly with the Via Middleware route type to see the true data path.
-- **Use duplicate for similar interfaces**: When creating a new interface that's similar to an existing one, use **Duplicate Interface** to copy all settings, then modify what's different. Optionally include bindings to get a head start on environment configuration.
-- **Track cross-system IDs**: Use Key Identifiers on the Functional Definition tab to map how records are identified across source and target systems.
+- **Documentez le « pourquoi » d'abord** : Concentrez-vous sur l'objet métier avant les détails techniques. Les spécifications techniques peuvent venir après.
+- **Utilisez les liaisons d'environnement** : Ne créez pas d'interfaces séparées pour chaque environnement -- utilisez une interface avec plusieurs liaisons.
+- **Liez aux processus métier** : Connecter les interfaces aux processus métier aide à l'analyse d'impact.
+- **Rendez le middleware explicite** : Si les données transitent par un middleware, modélisez-le explicitement avec le type de route Via middleware pour voir le vrai chemin des données.
+- **Utilisez la duplication pour les interfaces similaires** : Lorsque vous créez une nouvelle interface similaire à une existante, utilisez **Dupliquer l'interface** pour copier tous les paramètres, puis modifiez ce qui diffère. Incluez optionnellement les liaisons pour prendre de l'avance sur la configuration des environnements.
+- **Suivez les ID inter-systèmes** : Utilisez les identifiants clés dans l'onglet Définition fonctionnelle pour mapper comment les enregistrements sont identifiés entre les systèmes source et cible.

@@ -1,235 +1,235 @@
 # Paramètres de devises
 
-The Currency Settings page (**Données de référence > Devise**) is where you configure how currencies are stored, displayed, and converted across your espace de travail. It controls the tenant-wide reporting currency, default currencies for new items, and optional restrictions on which currencies can be used.
+La page Paramètres de devises (**Données de référence > Devise**) est l'endroit où vous configurez comment les devises sont stockées, affichées et converties dans votre espace de travail. Elle contrôle la devise de reporting au niveau du tenant, les devises par défaut pour les nouveaux éléments et les restrictions optionnelles sur les devises utilisables.
 
-For background on currency concepts and conversion mechanics, see the Currency Management guide.
+Pour des informations de fond sur les concepts de devises et les mécanismes de conversion, consultez le guide de gestion des devises.
 
-## The Currency Settings form
+## Le formulaire des paramètres de devises
 
-### Reporting Currency
-The **tenant-wide currency** used for all reports, totals, and list displays. When you change this currency:
-  - All OPEX and CAPEX yearly columns convert to the new reporting currency
-  - Totals in reports recalculate using the new base
-  - **Your stored item data remains unchanged**—only display and conversion are affected
+### Devise de reporting
+La **devise au niveau du tenant** utilisée pour tous les rapports, totaux et affichages de listes. Lorsque vous changez cette devise :
+  - Toutes les colonnes annuelles OPEX et CAPEX sont converties vers la nouvelle devise de reporting
+  - Les totaux dans les rapports sont recalculés avec la nouvelle base
+  - **Vos données stockées restent inchangées** -- seuls l'affichage et la conversion sont affectés
 
-**Example**: If you switch from EUR to USD, your OPEX list totals will show in USD, but each item's stored currency (EUR, GBP, etc.) stays the same.
+**Exemple** : Si vous passez de EUR à USD, les totaux de votre liste OPEX s'afficheront en USD, mais la devise stockée de chaque poste (EUR, GBP, etc.) reste la même.
 
-**Tip**: Choose a reporting currency that matches your group's financial reporting standard (e.g., EUR for European headquarters, USD for US-based groups).
+**Conseil** : Choisissez une devise de reporting qui correspond à la norme de reporting financier de votre groupe (ex. : EUR pour un siège européen, USD pour un groupe basé aux États-Unis).
 
-### Default OPEX Currency
-The currency that **prefills** when you create a new OPEX (spend) item. This doesn't restrict what currencies you can select—it just saves time by offering a sensible default.
+### Devise OPEX par défaut
+La devise qui **est pré-remplie** lorsque vous créez un nouveau poste OPEX (dépense). Cela ne restreint pas les devises sélectionnables -- cela fait simplement gagner du temps en proposant une valeur par défaut judicieuse.
 
-**Example**: If most of your recurring spend is in EUR, set this to EUR. Users can still manually select GBP, USD, or any other allowed currency.
+**Exemple** : Si la majeure partie de vos dépenses récurrentes est en EUR, définissez EUR. Les utilisateurs peuvent toujours sélectionner manuellement GBP, USD ou toute autre devise autorisée.
 
-### Default CAPEX Currency
-The currency that **prefills** when you create a new CAPEX item. Works the same as Default OPEX Currency, but for capital expenditure.
+### Devise CAPEX par défaut
+La devise qui **est pré-remplie** lorsque vous créez un nouveau poste CAPEX. Fonctionne de la même manière que la devise OPEX par défaut, mais pour les dépenses d'investissement.
 
-**Tip**: If your CAPEX is mostly procured in a different currency than daily OPEX (e.g., USD for hardware purchases), set a different default here.
+**Conseil** : Si vos CAPEX sont principalement approvisionnés dans une devise différente des OPEX quotidiens (ex. : USD pour les achats de matériel), définissez une valeur par défaut différente ici.
 
-### Allowed Currencies (optional)
-A **comma-separated list** of ISO codes that restricts which currencies users can select when creating or editing OPEX and CAPEX items.
+### Devises autorisées (optionnel)
+Une **liste séparée par des virgules** de codes ISO qui restreint les devises que les utilisateurs peuvent sélectionner lors de la création ou modification de postes OPEX et CAPEX.
 
-  - **Empty (default)**: Users can select any valid ISO 3-letter currency code
-  - **Specified list** (e.g., `EUR, USD, GBP`): Only these currencies appear in dropdowns
-  - **Reporting currency is always allowed**: Even if not listed, the reporting currency is always available
-  - **Default currencies are always allowed**: Default OPEX and CAPEX currencies are always available
+  - **Vide (par défaut)** : Les utilisateurs peuvent sélectionner n'importe quel code de devise ISO à 3 lettres valide
+  - **Liste spécifiée** (ex. : `EUR, USD, GBP`) : Seules ces devises apparaissent dans les menus déroulants
+  - **La devise de reporting est toujours autorisée** : Même si elle n'est pas listée, la devise de reporting est toujours disponible
+  - **Les devises par défaut sont toujours autorisées** : Les devises OPEX et CAPEX par défaut sont toujours disponibles
 
-**Why use this?**
-Limiting allowed currencies helps when:
-  - Your FX data source doesn't cover exotic currencies
-  - You want to enforce standardization across teams
-  - You need to prevent errors from mistyped or outdated codes
+**Pourquoi utiliser cela ?**
+Limiter les devises autorisées est utile lorsque :
+  - Votre source de données de taux de change ne couvre pas les devises exotiques
+  - Vous souhaitez imposer une standardisation entre les équipes
+  - Vous devez prévenir les erreurs de saisie de codes périmés ou erronés
 
-**Tip**: Leave this empty unless you have a specific reason to restrict. If you do restrict, include all currencies your teams actively use (e.g., `EUR, USD, GBP, CHF, PLN`).
+**Conseil** : Laissez ce champ vide sauf si vous avez une raison spécifique de restreindre. Si vous restreignez, incluez toutes les devises que vos équipes utilisent activement (ex. : `EUR, USD, GBP, CHF, PLN`).
 
-## Saving changes
+## Enregistrer les modifications
 
-Click **Save Changes** to apply your updates. The system will:
-  1. Validate all currency codes (must be 3-letter ISO codes)
-  2. Update your tenant settings
-  3. Automatically trigger a background FX rate refresh for the current year and any years with budget data
-  4. Show a success message
+Cliquez sur **Enregistrer les modifications** pour appliquer vos mises à jour. Le système va :
+  1. Valider tous les codes de devises (doivent être des codes ISO à 3 lettres)
+  2. Mettre à jour vos paramètres du tenant
+  3. Déclencher automatiquement un rafraîchissement en arrière-plan des taux de change pour l'année en cours et toutes les années avec des données budgétaires
+  4. Afficher un message de succès
 
-Click **Réinitialiser** to discard unsaved changes and revert to the last saved values.
+Cliquez sur **Réinitialiser** pour annuler les modifications non enregistrées et revenir aux dernières valeurs enregistrées.
 
-**Important**: Changing the reporting currency immediately affects how lists and reports display values. Plan this change during a maintenance window if you need consistent reporting periods.
+**Important** : Changer la devise de reporting affecte immédiatement l'affichage des listes et rapports. Planifiez ce changement pendant une fenêtre de maintenance si vous avez besoin de périodes de reporting cohérentes.
 
-## Force FX rates sync
+## Forcer la synchronisation des taux de change
 
-The **Force FX rates sync** button manually triggers a background refresh of exchange rates for all relevant fiscal years (current year plus any years with OPEX or CAPEX data).
+Le bouton **Forcer la synchronisation des taux** déclenche manuellement un rafraîchissement en arrière-plan des taux de change pour toutes les années fiscales concernées (année en cours plus toute année avec des données OPEX ou CAPEX).
 
-**When to use it**:
-  - After adding new allowed currencies
-  - When you need up-to-date spot rates for the current year
-  - If you suspect rates are stale or missing
-  - Before generating reports for stakeholders
+**Quand l'utiliser** :
+  - Après avoir ajouté de nouvelles devises autorisées
+  - Lorsque vous avez besoin de taux spot à jour pour l'année en cours
+  - Si vous suspectez que les taux sont périmés ou manquants
+  - Avant de générer des rapports pour les parties prenantes
 
-**What happens**:
-  - The system queues a background job to fetch FX rates
-  - A success message shows which fiscal years are being refreshed
-  - Rates update within a few seconds
-  - The FX Rate Snapshots table refreshes automatically
+**Ce qui se passe** :
+  - Le système met en file d'attente un job en arrière-plan pour récupérer les taux de change
+  - Un message de succès indique quelles années fiscales sont en cours de rafraîchissement
+  - Les taux se mettent à jour en quelques secondes
+  - Le tableau des instantanés de taux de change se rafraîchit automatiquement
 
-**Automatic refresh**: The system also refreshes rates automatically every 30 days when a user logs in (covers Y-1, Y, Y+1). Manual sync gives you control when you need immediate updates.
+**Rafraîchissement automatique** : Le système rafraîchit aussi les taux automatiquement tous les 30 jours lorsqu'un utilisateur se connecte (couvre A-1, A, A+1). La synchronisation manuelle vous donne le contrôle lorsque vous avez besoin de mises à jour immédiates.
 
-**Tip**: If you add a new currency to Allowed Currencies, run Force FX sync immediately to populate rates before users start creating items in that currency.
+**Conseil** : Si vous ajoutez une nouvelle devise aux devises autorisées, lancez immédiatement la synchronisation des taux pour remplir les taux avant que les utilisateurs ne commencent à créer des postes dans cette devise.
 
-## FX Rate Snapshots table
+## Tableau des instantanés de taux de change
 
-Below the settings form, the **Latest FX Rate Snapshots** table shows the most recent exchange rates captured for each fiscal year.
+Sous le formulaire de paramètres, le tableau **Derniers instantanés de taux de change** affiche les taux de change les plus récents capturés pour chaque année fiscale.
 
-**Columns**:
-  - **Currency**: The ISO 3-letter code
-  - **Fiscal year columns**: One column per year with data (e.g., 2023, 2024, 2025)
-  - **Rate values**: Exchange rate to your reporting currency (6 decimal precision)
-  - **Source label**: Shows the data source for each year:
-      - **Annual avg**: World Bank annual average (historical years)
-      - **Quarterly avg**: World Bank quarterly average (if available)
-      - **Live spot**: Current spot rate from ExchangeRate-API (current year)
-      - **Forward estimate**: Current year's rate reused for future years
+**Colonnes** :
+  - **Devise** : Le code ISO à 3 lettres
+  - **Colonnes d'années fiscales** : Une colonne par année avec des données (ex. : 2023, 2024, 2025)
+  - **Valeurs de taux** : Taux de change vers votre devise de reporting (précision à 6 décimales)
+  - **Libellé de source** : Affiche la source de données pour chaque année :
+      - **Moy. annuelle** : Moyenne annuelle Banque Mondiale (années historiques)
+      - **Moy. trimestrielle** : Moyenne trimestrielle Banque Mondiale (si disponible)
+      - **Spot en temps réel** : Taux spot actuel d'ExchangeRate-API (année en cours)
+      - **Estimation prospective** : Taux de l'année en cours réutilisé pour les années futures
 
-**Example**:
-If your reporting currency is EUR:
+**Exemple** :
+Si votre devise de reporting est EUR :
 
-| Currency | 2024 (Annual avg) | 2025 (Live spot) | 2026 (Forward estimate) |
-|----------|-------------------|------------------|-------------------------|
-| USD      | 0.925820          | 0.931200         | 0.931200                |
-| GBP      | 1.175300          | 1.182000         | 1.182000                |
-| CHF      | 0.962100          | 0.965500         | 0.965500                |
+| Devise | 2024 (Moy. annuelle) | 2025 (Spot en temps réel) | 2026 (Estimation prospective) |
+|--------|----------------------|---------------------------|-------------------------------|
+| USD    | 0,925820             | 0,931200                  | 0,931200                      |
+| GBP    | 1,175300             | 1,182000                  | 1,182000                      |
+| CHF    | 0,962100             | 0,965500                  | 0,965500                      |
 
-**Reading the table**:
-  - Rates show how many units of your reporting currency equal 1 unit of the listed currency
-  - If a rate shows `—`, no data is available (fallback conversion of 1.00 is used)
-  - Rates are captured at the time of sync and remain stable until the next refresh
+**Lire le tableau** :
+  - Les taux indiquent combien d'unités de votre devise de reporting équivalent à 1 unité de la devise listée
+  - Si un taux affiche `—`, aucune donnée n'est disponible (une conversion de repli à 1,00 est utilisée)
+  - Les taux sont capturés au moment de la synchronisation et restent stables jusqu'au prochain rafraîchissement
 
-**Tip**: If you see missing rates (`—`), check that the currency code is valid and commonly published. Consider limiting Allowed Currencies to avoid exotic codes without data.
+**Conseil** : Si vous voyez des taux manquants (`—`), vérifiez que le code devise est valide et couramment publié. Envisagez de limiter les devises autorisées pour éviter les codes exotiques sans données.
 
-## CSV import and export
+## Import et export CSV
 
 ### Export
-OPEX and CAPEX exports include item data and yearly amounts in each item's **own currency**—not the reporting currency. This preserves the original data for reimport or external analysis.
+Les exports OPEX et CAPEX incluent les données des postes et les montants annuels dans la **propre devise de chaque poste** -- pas la devise de reporting. Cela préserve les données originales pour la réimportation ou l'analyse externe.
 
-**Example CSV row** (OPEX):
+**Exemple de ligne CSV** (OPEX) :
 ```
 Item Name;Company;Account;Currency;Y-1;Y;Y+1;Y+2
 SaaS License;Acme UK;6200;GBP;10000;12000;12000;12000
 ```
 
 ### Import
-When importing OPEX or CAPEX items, the `Currency` column must contain **standard ISO 3-letter codes**.
+Lors de l'import de postes OPEX ou CAPEX, la colonne `Currency` doit contenir des **codes ISO standard à 3 lettres**.
 
-**Validation**:
-  - If **Allowed Currencies** are configured, imports using unlisted codes are rejected
-  - The error response includes the `allowedCurrencies` list for clarity
-  - Reporting currency and default currencies are always accepted
+**Validation** :
+  - Si des **devises autorisées** sont configurées, les imports utilisant des codes non listés sont rejetés
+  - La réponse d'erreur inclut la liste `allowedCurrencies` pour clarification
+  - La devise de reporting et les devises par défaut sont toujours acceptées
 
-**Example**:
-If Allowed Currencies = `EUR, USD, GBP` and you import an item with `Currency=CHF`, the import fails with:
+**Exemple** :
+Si Devises autorisées = `EUR, USD, GBP` et vous importez un poste avec `Currency=CHF`, l'import échoue avec :
 ```
 Currency "CHF" is not allowed. Allowed currencies: EUR, USD, GBP
 ```
 
-**Tip**: Export a template, check the allowed currencies list, and ensure your import file uses only those codes.
+**Conseil** : Exportez un modèle, vérifiez la liste des devises autorisées et assurez-vous que votre fichier d'import n'utilise que ces codes.
 
-## Status and historical data
+## Statut et données historiques
 
-When you change settings:
-  - **Reporting currency**: Affects display immediately; historical data remains intact and is converted using the rates that were active when the data was entered
-  - **Default currencies**: Only affect new items; existing items keep their currencies
-  - **Allowed currencies**: Existing items are not validated retroactively—restrictions apply only to new or edited items
+Lorsque vous changez les paramètres :
+  - **Devise de reporting** : Affecte l'affichage immédiatement ; les données historiques restent intactes et sont converties en utilisant les taux qui étaient actifs lors de la saisie des données
+  - **Devises par défaut** : N'affectent que les nouveaux postes ; les postes existants conservent leurs devises
+  - **Devises autorisées** : Les postes existants ne sont pas validés rétroactivement -- les restrictions s'appliquent uniquement aux postes nouveaux ou modifiés
 
-## Conversion mechanics (quick reference)
+## Mécanismes de conversion (référence rapide)
 
-### Past years
-World Bank annual average rates are used. These are stable and don't change once published.
+### Années passées
+Les taux moyens annuels de la Banque Mondiale sont utilisés. Ils sont stables et ne changent pas une fois publiés.
 
-### Current year
-Live spot rate from ExchangeRate-API is used (falls back to latest annual rate if unavailable). Refreshes when you run Force FX sync or during automatic 30-day refresh.
+### Année en cours
+Le taux spot en temps réel d'ExchangeRate-API est utilisé (repli sur le dernier taux annuel si indisponible). Se rafraîchit lorsque vous lancez la synchronisation des taux ou lors du rafraîchissement automatique de 30 jours.
 
-### Future years
-Reuse the current year's rate as a forward estimate. This provides budget planning guidance but should be reviewed as those years approach.
+### Années futures
+Réutilise le taux de l'année en cours comme estimation prospective. Cela fournit des indications pour la planification budgétaire mais devrait être revu à mesure que ces années approchent.
 
-**Fallback**: If no rate is found for a currency, the system uses **1.00** until data becomes available. This prevents errors but may produce inaccurate conversions—run Force FX sync to populate missing rates.
+**Repli** : Si aucun taux n'est trouvé pour une devise, le système utilise **1,00** jusqu'à ce que des données deviennent disponibles. Cela prévient les erreurs mais peut produire des conversions inexactes -- lancez la synchronisation des taux pour remplir les taux manquants.
 
 ## Conseils
 
-  - **Set reporting currency once**: Changing it mid-year affects all reports. If you must change it, do so at year-end.
-  - **Default currencies save time**: Set them to the currencies your teams use most frequently.
-  - **Restrict currencies intentionally**: Only use Allowed Currencies if you have a clear reason (e.g., FX data coverage, compliance, standardization).
-  - **Run Force FX sync proactively**: After adding currencies, before generating reports, or when rates seem stale.
-  - **Check the FX snapshots table**: Use it to verify rates are reasonable and complete before finalizing reports.
-  - **Use consistent ISO codes**: Always use 3-letter codes (EUR, USD, GBP)—never symbols (€, $, £) or numeric codes.
+  - **Définissez la devise de reporting une fois** : La changer en cours d'année affecte tous les rapports. Si vous devez la changer, faites-le en fin d'année.
+  - **Les devises par défaut font gagner du temps** : Définissez-les sur les devises que vos équipes utilisent le plus fréquemment.
+  - **Restreignez les devises intentionnellement** : N'utilisez les devises autorisées que si vous avez une raison claire (ex. : couverture des données de change, conformité, standardisation).
+  - **Lancez la synchronisation des taux proactivement** : Après avoir ajouté des devises, avant de générer des rapports ou lorsque les taux semblent périmés.
+  - **Vérifiez le tableau des instantanés de taux** : Utilisez-le pour vérifier que les taux sont raisonnables et complets avant de finaliser les rapports.
+  - **Utilisez des codes ISO cohérents** : Utilisez toujours des codes à 3 lettres (EUR, USD, GBP) -- jamais de symboles (€, $, £) ni de codes numériques.
 
-## Common scenarios
+## Scénarios courants
 
-### Scenario 1: Changing the reporting currency
-Your group switches from EUR-based to USD-based reporting.
+### Scénario 1 : Changer la devise de reporting
+Votre groupe passe d'un reporting basé EUR à un reporting basé USD.
 
-**Steps**:
-  1. Go to **Données de référence > Devise**
-  2. Change Reporting Currency from `EUR` to `USD`
-  3. Click **Save Changes** (automatically triggers FX refresh)
-  4. Verify the FX Rate Snapshots table shows USD as the base (all rates should now be relative to USD)
-  5. Check OPEX and CAPEX lists—totals and yearly columns now display in USD
+**Étapes** :
+  1. Allez dans **Données de référence > Devise**
+  2. Changez la devise de reporting de `EUR` à `USD`
+  3. Cliquez sur **Enregistrer les modifications** (déclenche automatiquement un rafraîchissement des taux)
+  4. Vérifiez que le tableau des instantanés de taux affiche USD comme base (tous les taux devraient maintenant être relatifs à USD)
+  5. Vérifiez les listes OPEX et CAPEX -- les totaux et colonnes annuelles s'affichent maintenant en USD
 
-**Result**: All reports, dashboards, and lists show USD. Your stored item data (each item's own currency) remains unchanged.
+**Résultat** : Tous les rapports, tableaux de bord et listes affichent USD. Vos données stockées (la propre devise de chaque poste) restent inchangées.
 
-### Scenario 2: Restricting currencies for compliance
-Your finance team requires all spend to be recorded in EUR, USD, or GBP only.
+### Scénario 2 : Restreindre les devises pour la conformité
+Votre équipe financière exige que toutes les dépenses soient enregistrées en EUR, USD ou GBP uniquement.
 
-**Steps**:
-  1. Go to **Données de référence > Devise**
-  2. Set Allowed Currencies to `EUR, USD, GBP`
-  3. Click **Save Changes**
-  4. Run **Force FX sync** to ensure rates are available for all three currencies
+**Étapes** :
+  1. Allez dans **Données de référence > Devise**
+  2. Définissez les devises autorisées sur `EUR, USD, GBP`
+  3. Cliquez sur **Enregistrer les modifications**
+  4. Lancez **Forcer la synchronisation des taux** pour vous assurer que les taux sont disponibles pour les trois devises
 
-**Result**: Users can only select EUR, USD, or GBP when creating or editing items. Attempts to import other currencies will fail with a clear error message.
+**Résultat** : Les utilisateurs ne peuvent sélectionner que EUR, USD ou GBP lors de la création ou modification de postes. Les tentatives d'import d'autres devises échoueront avec un message d'erreur clair.
 
-### Scenario 3: Adding a new currency mid-year
-Your company starts operations in Switzerland and needs to track CHF spend.
+### Scénario 3 : Ajouter une nouvelle devise en cours d'année
+Votre entreprise commence des opérations en Suisse et doit suivre les dépenses en CHF.
 
-**Steps**:
-  1. Go to **Données de référence > Devise**
-  2. Add `CHF` to Allowed Currencies (e.g., `EUR, USD, GBP, CHF`)
-  3. Click **Save Changes**
-  4. Click **Force FX sync** to fetch CHF rates immediately
-  5. Verify CHF appears in the FX Rate Snapshots table with valid rates
+**Étapes** :
+  1. Allez dans **Données de référence > Devise**
+  2. Ajoutez `CHF` aux devises autorisées (ex. : `EUR, USD, GBP, CHF`)
+  3. Cliquez sur **Enregistrer les modifications**
+  4. Cliquez sur **Forcer la synchronisation des taux** pour récupérer les taux CHF immédiatement
+  5. Vérifiez que CHF apparaît dans le tableau des instantanés de taux avec des taux valides
 
-**Result**: Users can now select CHF for new items. The FX rates table includes CHF with current and historical rates for accurate conversions.
+**Résultat** : Les utilisateurs peuvent maintenant sélectionner CHF pour les nouveaux postes. Le tableau des taux inclut CHF avec les taux actuels et historiques pour des conversions précises.
 
-### Scenario 4: Preparing for annual budget cycles
-It's December, and you're preparing for next year's budget planning.
+### Scénario 4 : Préparer les cycles budgétaires annuels
+Nous sommes en décembre, et vous préparez la planification budgétaire de l'année prochaine.
 
-**Steps**:
-  1. Go to **Données de référence > Devise**
-  2. Click **Force FX sync** to refresh rates for the upcoming year
-  3. Check the FX Rate Snapshots table to see the forward estimates for the next year
-  4. Note that future year rates are forward estimates (reusing current year's rate)—review them as the year approaches
+**Étapes** :
+  1. Allez dans **Données de référence > Devise**
+  2. Cliquez sur **Forcer la synchronisation des taux** pour rafraîchir les taux pour l'année à venir
+  3. Vérifiez le tableau des instantanés de taux pour voir les estimations prospectives pour l'année prochaine
+  4. Notez que les taux des années futures sont des estimations prospectives (réutilisant le taux de l'année en cours) -- revoyez-les à mesure que l'année approche
 
-**Result**: Your budget forecasts for the next year use the latest available rates. Teams can plan CAPEX and OPEX with reasonable currency assumptions.
+**Résultat** : Vos prévisions budgétaires pour l'année prochaine utilisent les derniers taux disponibles. Les équipes peuvent planifier les CAPEX et OPEX avec des hypothèses de change raisonnables.
 
-## Frequently asked questions
+## Questions fréquentes
 
-**Q: What happens if I change the reporting currency mid-year?**
-A: All reports and lists immediately convert to the new currency. Historical data remains intact—only the display currency changes. Plan this change carefully to avoid confusion during active reporting periods.
+**Q : Que se passe-t-il si je change la devise de reporting en cours d'année ?**
+R : Tous les rapports et listes sont immédiatement convertis vers la nouvelle devise. Les données historiques restent intactes -- seule la devise d'affichage change. Planifiez ce changement avec soin pour éviter la confusion pendant les périodes de reporting actives.
 
-**Q: Can I set different reporting currencies for different companies?**
-A: No. The reporting currency is tenant-wide. All companies, reports, and totals use the same reporting currency. Individual items store their own currency, but conversions always target the tenant's reporting currency.
+**Q : Puis-je définir des devises de reporting différentes pour différentes sociétés ?**
+R : Non. La devise de reporting est au niveau du tenant. Toutes les sociétés, rapports et totaux utilisent la même devise de reporting. Les postes individuels stockent leur propre devise, mais les conversions ciblent toujours la devise de reporting du tenant.
 
-**Q: Why don't I see rates for a specific currency?**
-A: The data source (World Bank or ExchangeRate-API) may not publish that currency. Check the ISO code is correct and commonly published. If needed, limit Allowed Currencies to codes with reliable data coverage.
+**Q : Pourquoi je ne vois pas de taux pour une devise spécifique ?**
+R : La source de données (Banque Mondiale ou ExchangeRate-API) peut ne pas publier cette devise. Vérifiez que le code ISO est correct et couramment publié. Si nécessaire, limitez les devises autorisées aux codes avec une couverture de données fiable.
 
-**Q: How often do FX rates refresh automatically?**
-A: Every 30 days, when any user logs in, the system refreshes rates for Y-1, Y, and Y+1. You can also manually trigger a refresh anytime using Force FX sync.
+**Q : À quelle fréquence les taux de change se rafraîchissent-ils automatiquement ?**
+R : Tous les 30 jours, lorsqu'un utilisateur se connecte, le système rafraîchit les taux pour A-1, A et A+1. Vous pouvez aussi déclencher manuellement un rafraîchissement à tout moment via Forcer la synchronisation des taux.
 
-**Q: Do FX rate changes affect my stored data?**
-A: No. Exchange rates only affect **conversion and display**. Each OPEX and CAPEX item stores its own currency and amounts, which never change when rates update. Only the displayed converted values in reports and lists change.
+**Q : Les changements de taux affectent-ils mes données stockées ?**
+R : Non. Les taux de change n'affectent que la **conversion et l'affichage**. Chaque poste OPEX et CAPEX stocke sa propre devise et ses montants, qui ne changent jamais lors de la mise à jour des taux. Seules les valeurs converties affichées dans les rapports et les listes changent.
 
-**Q: Can I import historical rates manually?**
-A: No. The system fetches rates automatically from external sources (World Bank, ExchangeRate-API). If you need custom rates, contact support or consider using a currency where you can accept the published rates.
+**Q : Puis-je importer des taux historiques manuellement ?**
+R : Non. Le système récupère les taux automatiquement depuis des sources externes (Banque Mondiale, ExchangeRate-API). Si vous avez besoin de taux personnalisés, contactez le support ou envisagez d'utiliser une devise dont vous pouvez accepter les taux publiés.
 
-**Q: What if I need to use a currency not in the allowed list?**
-A: Either add it to Allowed Currencies or leave the list empty (which allows all currencies). Remember to run Force FX sync after adding new currencies to populate rates.
+**Q : Que faire si j'ai besoin d'une devise qui n'est pas dans la liste autorisée ?**
+R : Soit ajoutez-la aux devises autorisées, soit laissez la liste vide (ce qui autorise toutes les devises). N'oubliez pas de lancer la synchronisation des taux après avoir ajouté de nouvelles devises pour remplir les taux.
 
-**Q: Are forward estimates for future years accurate?**
-A: Forward estimates reuse the current year's rate and should be treated as **planning assumptions**, not forecasts. Review them as future years approach and rates become available from official sources.
+**Q : Les estimations prospectives pour les années futures sont-elles précises ?**
+R : Les estimations prospectives réutilisent le taux de l'année en cours et doivent être traitées comme des **hypothèses de planification**, pas comme des prévisions. Revoyez-les à mesure que les années futures approchent et que les taux deviennent disponibles depuis les sources officielles.

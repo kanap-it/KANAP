@@ -1,263 +1,263 @@
 ---
 title: "Fast Track Types de tâches : Run, Build & Tâches"
-description: Comprendre les différents types d'éléments de travail dans KANAP — incidents, problems, requests, projects, bugs, and tasks — and how to work with tasks day-to-day.
+description: Comprendre les différents types d'éléments de travail dans KANAP -- incidents, problèmes, demandes, projets, bugs et tâches -- et comment travailler avec les tâches au quotidien.
 ---
 
 # Fast Track Types de tâches : Run, Build & Tâches
 
-This guide explains the different types of work items tracked in KANAP and how to tell them apart. It covers the Run (keeping things running), the Build (making things better), and the transversal Task that bridges both. The second half is a practical cheat sheet for working with tasks every day.
+Ce guide explique les différents types d'éléments de travail suivis dans KANAP et comment les distinguer. Il couvre le Run (faire tourner les systèmes), le Build (les améliorer) et la tâche transversale qui relie les deux. La seconde moitié est un aide-mémoire pratique pour travailler avec les tâches au quotidien.
 
-!!! tip "Prefer a one-page summary? :material-file-pdf-box:"
-    All the key definitions on a single A4 page — print it, pin it, share it with your team.
+!!! tip "Conseil : Vous préférez un résumé sur une page ? :material-file-pdf-box:"
+    Toutes les définitions clés sur une seule page A4 -- imprimez-la, épinglez-la, partagez-la avec votre équipe.
 
-    [:material-download: Download the cheat sheet (PDF)](downloads/kanap-task-types-fast-track.pdf){ .md-button .md-button--primary }
-
----
-
-## The Big Picture
-
-Everything your IT department does falls into one of two categories — plus a universal work unit that crosses both:
-
-| Category | Purpose | Work Items |
-|----------|---------|------------|
-| **Run** | Keep existing systems operational and secure | Incident, Problem |
-| **Build** | Evolve and construct the IT landscape | Request, Project, Bug |
-| **Transversal** | Atomic unit of work across Run and Build | Task |
+    [:material-download: Télécharger l'aide-mémoire (PDF)](downloads/kanap-task-types-fast-track.pdf){ .md-button .md-button--primary }
 
 ---
 
-## Run — Keeping the Lights On
+## La vue d'ensemble
 
-Everyone participates in the Run. It ensures **operational continuity** (MCO) and **security maintenance** (MCS) of existing systems.
+Tout ce que votre département IT fait se range dans l'une de deux catégories -- plus une unité de travail universelle qui traverse les deux :
+
+| Catégorie | Objectif | Éléments de travail |
+|-----------|---------|---------------------|
+| **Run** | Maintenir les systèmes existants en fonctionnement et sécurisés | Incident, Problème |
+| **Build** | Faire évoluer et construire le paysage IT | Demande, Projet, Bug |
+| **Transversal** | Unité atomique de travail à travers Run et Build | Tâche |
+
+---
+
+## Run -- Garder les lumières allumées
+
+Tout le monde participe au Run. Il assure le **maintien en conditions opérationnelles** (MCO) et le **maintien en conditions de sécurité** (MCS) des systèmes existants.
 
 ### Incident
 
-An **unplanned interruption or degradation** of a production service.
+Une **interruption ou dégradation non planifiée** d'un service en production.
 
-- Has a significant impact on the functioning of the information system
-- The objective is **service restoration** — get things working again, fast
-- Reactive by nature: something broke, and users are affected
+- A un impact significatif sur le fonctionnement du système d'information
+- L'objectif est la **restauration du service** -- remettre les choses en état de marche, rapidement
+- Réactif par nature : quelque chose est tombé en panne et les utilisateurs sont impactés
 
-!!! example "Examples"
-    - MES system outage
-    - Unexpected VM restart
-    - Company-wide VPN access failure
+!!! example "Exemples"
+    - Panne du système MES
+    - Redémarrage inattendu d'une VM
+    - Défaillance de l'accès VPN à l'échelle de l'entreprise
 
-### Problem
+### Problème
 
-A **root cause investigation** triggered by recurring incidents.
+Une **investigation de cause racine** déclenchée par des incidents récurrents.
 
-- Typically identified by IT after detecting a **pattern of similar incidents**
-- The objective is a **permanent resolution** — fix the underlying cause, not just the symptoms
-- Proactive: IT opens a Problem to prevent future incidents
+- Typiquement identifié par l'IT après avoir détecté un **schéma d'incidents similaires**
+- L'objectif est une **résolution permanente** -- corriger la cause sous-jacente, pas juste les symptômes
+- Proactif : l'IT ouvre un Problème pour prévenir les futurs incidents
 
-!!! example "Examples"
-    - Recurring internet access performance degradation
-    - Repeated errors on a data interface
+!!! example "Exemples"
+    - Dégradation récurrente des performances d'accès Internet
+    - Erreurs répétées sur une interface de données
 
 ---
 
-## Build — Evolving the Landscape
+## Build -- Faire évoluer le paysage
 
-The Build covers all **evolutions and construction** of the information system. Everyone participates.
+Le Build couvre toutes les **évolutions et constructions** du système d'information. Tout le monde participe.
 
-### Request (Change Request)
+### Demande (Demande de changement)
 
-A **planned solicitation to modify** the information system.
+Une **sollicitation planifiée pour modifier** le système d'information.
 
-- Can be technical, functional, originating from the business or from IT
-- Rarely urgent
-- Triggers a **validation workflow** and, if approved, becomes a Task or Project
-- Meets at least one of these criteria:
-    - Significant workload (>3 days)
-    - Involves multiple IT or business teams
-    - Requires significant change management effort
+- Peut être technique, fonctionnelle, provenant du métier ou de l'IT
+- Rarement urgente
+- Déclenche un **workflow de validation** et, si approuvée, devient une Tâche ou un Projet
+- Répond à au moins l'un de ces critères :
+    - Charge de travail significative (>3 jours)
+    - Implique plusieurs équipes IT ou métier
+    - Nécessite un effort significatif de gestion du changement
 
-!!! example "Examples"
-    - New field to synchronize between SAP and PLM
-    - New line-of-business application
-    - Remote site integration
+!!! example "Exemples"
+    - Nouveau champ à synchroniser entre SAP et PLM
+    - Nouvelle application métier
+    - Intégration d'un site distant
 
-### Project
+### Projet
 
-A **coordinated set of tasks** organized around a defined objective, with a scope, timeline, budget, and identified deliverables.
+Un **ensemble coordonné de tâches** organisé autour d'un objectif défini, avec un périmètre, une chronologie, un budget et des livrables identifiés.
 
-- Same criteria as a Request — normally originates from an approved Request
-- **Fast-track**: some projects are imposed without going through the Request stage (executive decision, urgent regulatory change...). They enter directly as a Project.
+- Mêmes critères qu'une Demande -- provient normalement d'une Demande approuvée
+- **Fast-track** : certains projets sont imposés sans passer par l'étape Demande (décision de direction, changement réglementaire urgent...). Ils entrent directement comme Projet.
 
-!!! example "Examples"
-    - S4/HANA upgrade
-    - Firewall migration
+!!! example "Exemples"
+    - Mise à niveau S4/HANA
+    - Migration de pare-feu
 
 ### Bug
 
-A **defect found in a system under development**.
+Un **défaut trouvé dans un système en cours de développement**.
 
-- Too complex to be handled within a simple ticket — requires in-depth analysis
-- Strictly a Build concept: the system is not yet in production (or the defect is in a component still being built)
+- Trop complexe pour être traité dans un simple ticket -- nécessite une analyse approfondie
+- Strictement un concept Build : le système n'est pas encore en production (ou le défaut concerne un composant encore en construction)
 
-!!! example "Examples"
-    - Insufficient access rights on a new SAP tile
-    - Incorrect firewall rule in a new server deployment
+!!! example "Exemples"
+    - Droits d'accès insuffisants sur une nouvelle tuile SAP
+    - Règle de pare-feu incorrecte dans un nouveau déploiement de serveur
 
-!!! warning "Incident vs Bug"
-    This is the most common confusion. The rule is simple:
+!!! warning "Avertissement : Incident vs Bug"
+    C'est la confusion la plus courante. La règle est simple :
 
-    - **It's running in production and it breaks?** → **Incident** (Run)
-    - **It's under construction and it doesn't work?** → **Bug** (Build)
+    - **C'est en production et ça casse ?** > **Incident** (Run)
+    - **C'est en construction et ça ne marche pas ?** > **Bug** (Build)
 
-    The distinction matters because Incidents prioritize **service restoration** while Bugs prioritize **root cause fix within the development cycle**.
-
----
-
-## Transversal — The Task
-
-Tasks are the **atomic unit of work** in KANAP. They cross the Run/Build boundary.
-
-### Task
-
-A **clearly scoped action** with a defined responsible person, status, and deadline.
-
-- Can be **standalone** or linked to a **Project**, **OPEX item**, **Contract**, or **CAPEX item**
-- Carries a concrete effort
-- Impact on users or services is contained and well-understood
-- Does not require coordination across multiple teams — even if it takes a long time, it remains carried by a single person without requiring cross-functional analysis
-
-!!! example "Examples"
-    - Install a new domain controller
-    - Document the new Notilus to S4/HANA interface
-    - Renew the SSL certificate on the intranet portal
-
-!!! info "Task vs Request/Project"
-    If the work meets **any** of these criteria, it's a Request (and potentially a Project), not a Task:
-
-    - Significant workload (>3 days) **AND** involves cross-functional analysis
-    - Requires coordination across multiple teams
-    - Needs significant change management
-
-    A Task can last 10 days if it's carried by one person with no particular cross-functional complexity.
+    La distinction est importante car les Incidents priorisent la **restauration du service** tandis que les Bugs priorisent la **correction de la cause racine dans le cycle de développement**.
 
 ---
 
-## Summary Table
+## Transversal -- La Tâche
 
-| Type | Category | Key Criterion | Example |
-|------|----------|---------------|---------|
-| **Incident** | Run | Unplanned interruption/degradation in production | MES outage |
-| **Problem** | Run | Root cause of recurring incidents | Recurring internet performance issues |
-| **Request** | Build | Planned SI modification (>3d / multi-team / change mgmt) | New SAP to PLM field |
-| **Project** | Build | Coordinated set of tasks with scope, timeline, budget | S4/HANA upgrade |
-| **Bug** | Build | Defect in a system under development | Incorrect firewall rule on new server |
-| **Task** | Transversal | Scoped action, one owner, no multi-team coordination | Renew an SSL certificate |
+Les tâches sont l'**unité atomique de travail** dans KANAP. Elles traversent la frontière Run/Build.
 
----
+### Tâche
 
-## Working with Tasks — Cheat Sheet
+Une **action clairement périmètrée** avec un responsable défini, un statut et une échéance.
 
-The rest of this guide covers the practical essentials. For full detail, see [Tasks](../tasks.md).
+- Peut être **autonome** ou liée à un **Projet**, un **poste OPEX**, un **Contrat** ou un **poste CAPEX**
+- Porte un effort concret
+- L'impact sur les utilisateurs ou les services est contenu et bien compris
+- Ne nécessite pas de coordination entre plusieurs équipes -- même si elle prend longtemps, elle reste portée par une seule personne sans nécessiter d'analyse transversale
 
-### Where tasks live
+!!! example "Exemples"
+    - Installer un nouveau contrôleur de domaine
+    - Documenter la nouvelle interface Notilus vers S4/HANA
+    - Renouveler le certificat SSL sur le portail intranet
 
-| Context | What it means | Where to create |
-|---------|---------------|-----------------|
-| **Standalone** | Independent work, not linked to anything | **Portfolio > Tasks > New** |
-| **Project** | Deliverable within a project | Project espace de travail **Tasks** tab, or **Timeline** phase shortcut |
-| **OPEX** | Action tied to an OPEX item | OPEX espace de travail **Tasks** tab |
-| **Contract** | Action tied to a contract | Contract espace de travail **Tasks** tab |
-| **CAPEX** | Action tied to a CAPEX item | CAPEX espace de travail **Tasks** tab |
+!!! info "Information : Tâche vs Demande/Projet"
+    Si le travail remplit **l'un** de ces critères, c'est une Demande (et potentiellement un Projet), pas une Tâche :
 
-All tasks appear in the central **Portefeuille > Tâches** list regardless of context, so you always have one place to see everything.
+    - Charge de travail significative (>3 jours) **ET** nécessite une analyse transversale
+    - Nécessite une coordination entre plusieurs équipes
+    - Nécessite une gestion du changement significative
 
-### Statuses at a glance
-
-| Status | Color | Meaning |
-|--------|-------|---------|
-| **Open** | Gray | Not started yet |
-| **In Progress** | Orange | Someone is working on it |
-| **Pending** | Blue | Blocked — waiting on input or a decision |
-| **In Testing** | Purple | Implementation done, awaiting validation |
-| **Done** | Green | Completed (requires logged time for project tasks) |
-| **Cancelled** | Red | No longer needed |
-
-### Priority levels
-
-| Priority | When to use |
-|----------|-------------|
-| **Blocker** | Blocking other work — immediate attention |
-| **High** | Important and time-sensitive |
-| **Normal** | Standard priority (default) |
-| **Low** | Can be deferred |
-| **Optional** | Nice-to-have |
-
-### The espace de travail de la tâche — key areas
-
-When you open a task, you get a sidebar on the left and a main content area on the right.
-
-**Sidebar sections**:
-
-- **Context** — what the task is linked to (or Standalone)
-- **Task Details** — type, priority, status
-- **Classification** — Source, Category, Stream, Company (standalone and project tasks only; defaults from organization settings or parent project)
-- **Time** — total time spent and Log Time button (standalone and project tasks only)
-- **People** — requestor, assignee, viewers
-- **Dates** — start and due dates
-- **Base de connaissances** — link knowledge articles to the task
-
-**Main content**:
-
-- **Description** — a markdown editor with support for formatting, lists, code blocks, links, and pasted images
-- **Import / Export** — import a `.docx` file into the description, or export it as PDF, DOCX, or ODT
-- **Attachments** — drag-and-drop file uploads (up to 20 MB per file)
-- **Activity** — Comments, History, and Time Log tabs
-
-### Quick actions worth knowing
-
-| Action | How |
-|--------|-----|
-| **Enregistrer** | Click **Enregistrer** or press **Ctrl+S** (Cmd+S on Mac) |
-| **Convert to Request** | Header toolbar — promotes a task into a formal portfolio request when the scope grows |
-| **Envoyer le lien** | Header toolbar — email a link to colleagues or external contacts |
-| **Log time inline** | In the Comments tab, combine a comment + status change + time entry in one submit |
-| **Copy reference** | Click the reference chip (e.g., T-42) to copy it to your clipboard |
-
-### What varies by context
-
-Not every feature is available in every context. Here is what changes:
-
-| Feature | Standalone | Project | OPEX / Contract / CAPEX |
-|---------|:----------:|:-------:|:-----------------------:|
-| Classification fields | Yes | Yes (defaults from project) | No |
-| Time tracking | Yes | Yes (feeds project actuals) | No |
-| Phase assignment | No | Yes | No |
-| Priority score badge | Fixed by priority | Calculated from project + priority | Fixed by priority |
-| Done requires time logged | No | Yes | No |
-
-### Classification defaults
-
-When you create a **standalone task**, KANAP pre-fills classification fields (Source, Category, Stream, Company) from your organization's default settings — saving you a few clicks. For **project tasks**, classification defaults come from the parent project but can be changed independently on each task.
+    Une Tâche peut durer 10 jours si elle est portée par une seule personne sans complexité transversale particulière.
 
 ---
 
-## Customizing Task Types
+## Tableau récapitulatif
 
-All work item types are **configurable** in **Portefeuille > Paramètres**. You can:
-
-- **Add** new types to match your organization's processes
-- **Disable** existing types you don't need
-- **Rename** types to fit your terminology
-
-The list in this guide is a starting point. Adapt it to how your IT department actually works.
+| Type | Catégorie | Critère clé | Exemple |
+|------|-----------|-------------|---------|
+| **Incident** | Run | Interruption/dégradation non planifiée en production | Panne MES |
+| **Problème** | Run | Cause racine d'incidents récurrents | Problèmes récurrents de performance Internet |
+| **Demande** | Build | Modification planifiée du SI (>3j / multi-équipe / gestion du changement) | Nouveau champ SAP vers PLM |
+| **Projet** | Build | Ensemble coordonné de tâches avec périmètre, chronologie, budget | Mise à niveau S4/HANA |
+| **Bug** | Build | Défaut dans un système en développement | Règle de pare-feu incorrecte sur nouveau serveur |
+| **Tâche** | Transversal | Action périmètrée, un responsable, pas de coordination multi-équipe | Renouveler un certificat SSL |
 
 ---
 
-## Where to Go Next
+## Travailler avec les tâches -- Aide-mémoire
 
-- [Tasks](../tasks.md) — full reference for statuses, CSV import/export, time tracking, and every espace de travail feature
-- [OPEX](../opex.md) — managing OPEX items and their tasks
-- [CAPEX](../capex.md) — managing CAPEX items and their tasks
-- [Contracts](../contracts.md) — managing contracts and their tasks
-- [Portfolio Projects](../portfolio-projects.md) — project delivery, phases, effort tracking, and project-level tasks
-- [Getting Started](getting-started.md) — if you're new to KANAP
+Le reste de ce guide couvre l'essentiel pratique. Pour tous les détails, consultez [Tâches](../tasks.md).
+
+### Où vivent les tâches
+
+| Contexte | Ce que cela signifie | Où créer |
+|----------|---------------------|----------|
+| **Autonome** | Travail indépendant, non lié à quoi que ce soit | **Portefeuille > Tâches > Nouveau** |
+| **Projet** | Livrable au sein d'un projet | Espace de travail Projet onglet **Tâches**, ou raccourci phase **Chronologie** |
+| **OPEX** | Action liée à un poste OPEX | Espace de travail OPEX onglet **Tâches** |
+| **Contrat** | Action liée à un contrat | Espace de travail Contrat onglet **Tâches** |
+| **CAPEX** | Action liée à un poste CAPEX | Espace de travail CAPEX onglet **Tâches** |
+
+Toutes les tâches apparaissent dans la liste centrale **Portefeuille > Tâches** quel que soit le contexte, vous avez donc toujours un endroit unique pour tout voir.
+
+### Statuts en un coup d'oeil
+
+| Statut | Couleur | Signification |
+|--------|---------|--------------|
+| **Ouvert** | Gris | Pas encore commencé |
+| **En cours** | Orange | Quelqu'un travaille dessus |
+| **En attente** | Bleu | Bloqué -- en attente d'un avis ou d'une décision |
+| **En test** | Violet | Implémentation terminée, en attente de validation |
+| **Terminé** | Vert | Achevé (nécessite du temps saisi pour les tâches projet) |
+| **Annulé** | Rouge | N'est plus nécessaire |
+
+### Niveaux de priorité
+
+| Priorité | Quand l'utiliser |
+|----------|-----------------|
+| **Bloquant** | Bloque d'autres travaux -- attention immédiate |
+| **Haute** | Important et urgent |
+| **Normale** | Priorité standard (par défaut) |
+| **Basse** | Peut être reporté |
+| **Optionnelle** | Souhaitable |
+
+### L'espace de travail de la tâche -- zones clés
+
+Lorsque vous ouvrez une tâche, vous obtenez une barre latérale à gauche et une zone de contenu principale à droite.
+
+**Sections de la barre latérale** :
+
+- **Contexte** -- à quoi la tâche est liée (ou Autonome)
+- **Détails de la tâche** -- type, priorité, statut
+- **Classification** -- Source, Catégorie, Flux, Société (tâches autonomes et projet uniquement ; valeurs par défaut depuis les paramètres de l'organisation ou le projet parent)
+- **Temps** -- temps total passé et bouton Saisir du temps (tâches autonomes et projet uniquement)
+- **Personnes** -- demandeur, responsable, observateurs
+- **Dates** -- dates de début et d'échéance
+- **Base de connaissances** -- lier des articles de la base de connaissances à la tâche
+
+**Contenu principal** :
+
+- **Description** -- un éditeur markdown avec support de la mise en forme, listes, blocs de code, liens et images collées
+- **Import / Export** -- importer un fichier `.docx` dans la description, ou l'exporter en PDF, DOCX ou ODT
+- **Pièces jointes** -- téléversement de fichiers par glisser-déposer (max. 20 Mo par fichier)
+- **Activité** -- onglets Commentaires, Historique et Journal de temps
+
+### Actions rapides à connaître
+
+| Action | Comment |
+|--------|---------|
+| **Enregistrer** | Cliquez sur **Enregistrer** ou appuyez sur **Ctrl+S** (Cmd+S sur Mac) |
+| **Convertir en demande** | Barre d'outils de l'en-tête -- promeut une tâche en demande formelle de portefeuille lorsque le périmètre grandit |
+| **Envoyer un lien** | Barre d'outils de l'en-tête -- envoyer un lien par e-mail à des collègues ou contacts externes |
+| **Saisir du temps en ligne** | Dans l'onglet Commentaires, combinez un commentaire + changement de statut + saisie de temps en une seule soumission |
+| **Copier la référence** | Cliquez sur la pastille de référence (ex. : T-42) pour la copier dans votre presse-papiers |
+
+### Ce qui varie selon le contexte
+
+Toutes les fonctionnalités ne sont pas disponibles dans chaque contexte. Voici ce qui change :
+
+| Fonctionnalité | Autonome | Projet | OPEX / Contrat / CAPEX |
+|----------------|:--------:|:------:|:----------------------:|
+| Champs de classification | Oui | Oui (par défaut depuis le projet) | Non |
+| Suivi du temps | Oui | Oui (alimente le réalisé projet) | Non |
+| Affectation de phase | Non | Oui | Non |
+| Badge score de priorité | Fixe par priorité | Calculé depuis projet + priorité | Fixe par priorité |
+| Terminé nécessite du temps saisi | Non | Oui | Non |
+
+### Valeurs de classification par défaut
+
+Lorsque vous créez une **tâche autonome**, KANAP pré-remplit les champs de classification (Source, Catégorie, Flux, Société) depuis les paramètres par défaut de votre organisation -- vous épargnant quelques clics. Pour les **tâches projet**, les valeurs de classification par défaut proviennent du projet parent mais peuvent être modifiées indépendamment sur chaque tâche.
+
+---
+
+## Personnaliser les types de tâches
+
+Tous les types d'éléments de travail sont **configurables** dans **Portefeuille > Paramètres**. Vous pouvez :
+
+- **Ajouter** de nouveaux types pour correspondre aux processus de votre organisation
+- **Désactiver** des types existants dont vous n'avez pas besoin
+- **Renommer** des types pour s'adapter à votre terminologie
+
+La liste de ce guide est un point de départ. Adaptez-la à la façon dont votre département IT fonctionne réellement.
+
+---
+
+## Pour aller plus loin
+
+- [Tâches](../tasks.md) -- référence complète pour les statuts, import/export CSV, suivi du temps et chaque fonctionnalité de l'espace de travail
+- [OPEX](../opex.md) -- gestion des postes OPEX et de leurs tâches
+- [CAPEX](../capex.md) -- gestion des postes CAPEX et de leurs tâches
+- [Contrats](../contracts.md) -- gestion des contrats et de leurs tâches
+- [Projets du portefeuille](../portfolio-projects.md) -- livraison de projet, phases, suivi de charge et tâches au niveau projet
+- [Premiers pas](getting-started.md) -- si vous êtes nouveau dans KANAP
 
 !!! success "Vous êtes prêt"
-    You now understand how KANAP categorizes work and how to use tasks day-to-day. When in doubt about the right work item type, ask yourself: **is it keeping things running (Run), or making things better (Build)?** Then pick the matching type. For everything else, there's a Task.
+    Vous comprenez maintenant comment KANAP catégorise le travail et comment utiliser les tâches au quotidien. En cas de doute sur le bon type d'élément de travail, demandez-vous : **est-ce que ça maintient les choses en fonctionnement (Run), ou est-ce que ça les améliore (Build) ?** Puis choisissez le type correspondant. Pour tout le reste, il y a la Tâche.

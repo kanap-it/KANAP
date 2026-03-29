@@ -1,384 +1,384 @@
-# Projets de portefeuille
+# Projets du portefeuille
 
-Portfolio Projects are the execution espace de travails for approved initiatives. They are where delivery is planned, progress is tracked, workload is measured, tasks are coordinated, and project-specific knowledge is connected back to the rest of KANAP.
+Les projets du portefeuille sont les espaces de travail d'exécution pour les initiatives approuvées. C'est là que la livraison est planifiée, l'avancement est suivi, la charge de travail est mesurée, les tâches sont coordonnées et les connaissances spécifiques au projet sont reliées au reste de KANAP.
 
-Projects usually come from approved requests, but they can also be created directly as **Fast-track** or **Legacy** projects when the request stage is not part of the process.
+Les projets proviennent généralement de demandes approuvées, mais ils peuvent aussi être créés directement en tant que projets **Fast-track** ou **Historiques** lorsque l'étape de demande ne fait pas partie du processus.
 
-For portfolio-wide sequencing and roadmap work, use [Portfolio Planning](portfolio-planning.md). The Projects area is for running the work once a project exists.
+Pour le séquencement et la planification à l'échelle du portefeuille, utilisez [Planification du portefeuille](portfolio-planning.md). La zone Projets est dédiée au pilotage du travail une fois qu'un projet existe.
 
-## Où le trouver
+## Où trouver cette page
 
-- Espace de travail : **Portfolio**
-- Path: **Portefeuille > Projets**
+- Espace de travail : **Portefeuille**
+- Chemin : **Portefeuille > Projets**
 
 ## Autorisations
 
-- `portfolio_projects:reader`: open the list and view espace de travail du projets
-- `portfolio_projects:contributor`: update the managed **Purpose** document and maintain project-overhead time entries
-- `portfolio_projects:manager`: create projects and manage project data, status, team, relations, timeline, progress, tasks, scoring, comments, and decisions
-- `portfolio_projects:admin`: includes manager capabilities and can also import/export CSV and maintain other users' project-overhead time entries
-- Knowledge viewing also requires Knowledge access
-- Creating or linking standalone knowledge also requires a Knowledge creation role
+- `portfolio_projects:reader` : ouvrir la liste et consulter les espaces de travail des projets
+- `portfolio_projects:contributor` : mettre à jour le document géré **Objet** et gérer les entrées de temps d'overhead projet
+- `portfolio_projects:manager` : créer des projets et gérer les données du projet, le statut, l'équipe, les relations, la chronologie, l'avancement, les tâches, l'évaluation, les commentaires et les décisions
+- `portfolio_projects:admin` : inclut les capacités manager et peut également importer/exporter en CSV et gérer les entrées de temps d'overhead projet d'autres utilisateurs
+- La consultation des connaissances nécessite également un accès Knowledge
+- La création ou la liaison de connaissances autonomes nécessite également un rôle de création Knowledge
 
-If Projects does not appear in the navigation, ask an administrator for access.
+Si Projets n'apparaît pas dans la navigation, demandez à un administrateur de vous accorder l'accès.
 
 ## Travailler avec la liste
 
-The project list is designed to answer two questions quickly: "what should I care about?" and "what is moving?"
+La liste des projets est conçue pour répondre rapidement à deux questions : « de quoi devrais-je me préoccuper ? » et « qu'est-ce qui avance ? »
 
-**Scope selector**
+**Sélecteur de périmètre**
 
-- **My projects** shows projects where you are explicitly involved as sponsor, lead, or contributor
-- **My team's projects** expands that view to projects involving members of your portfolio team
-- **All projects** removes that involvement filter
-- If you are not assigned to a portfolio team, the team scope is unavailable
-- Your scope preference is remembered, so the list comes back the way you left it
+- **Mes projets** affiche les projets où vous êtes explicitement impliqué en tant que sponsor, responsable ou contributeur
+- **Projets de mon équipe** étend cette vue aux projets impliquant les membres de votre équipe Portefeuille
+- **Tous les projets** retire ce filtre d'implication
+- Si vous n'êtes pas assigné à une équipe Portefeuille, le périmètre équipe n'est pas disponible
+- Votre préférence de périmètre est mémorisée, la liste revient comme vous l'avez laissée
 
-**Default behavior**
+**Comportement par défaut**
 
-- Projects are sorted by priority score unless you change the sort
-- Projects in **Done** status are hidden by default
-- Search works across text content
-- Status, origin, source, category, stream, and company filters are available directly in the grid
+- Les projets sont triés par score de priorité sauf si vous changez le tri
+- Les projets au statut **Terminé** sont masqués par défaut
+- La recherche fonctionne sur le contenu textuel
+- Les filtres de statut, origine, source, catégorie, flux et société sont disponibles directement dans la grille
 
-**What the grid emphasizes**
+**Ce que la grille met en avant**
 
-- Reference number (`PRJ-...`) and name for quick identification
-- Priority and status for execution posture
-- Origin so you can distinguish request-based work from fast-track or legacy work
-- Progress for delivery visibility
-- Classification fields for reporting and slicing the portfolio
-- Planned dates and creation date for scheduling context
+- Numéro de référence (`PRJ-...`) et nom pour une identification rapide
+- Priorité et statut pour la posture d'exécution
+- Origine pour distinguer le travail issu de demandes du travail fast-track ou historique
+- Avancement pour la visibilité de la livraison
+- Champs de classification pour le reporting et le découpage du portefeuille
+- Dates planifiées et date de création pour le contexte de planification
 
-Opening a project from the list preserves the current list context. That matters because the espace de travail du projet uses the same context for **Précédent** and **Suiv** navigation, so you can review a filtered set without losing your place.
+L'ouverture d'un projet depuis la liste préserve le contexte actuel de la liste. C'est important car l'espace de travail du projet utilise le même contexte pour la navigation **Précédent** et **Suivant**, ce qui vous permet de revoir un ensemble filtré sans perdre votre place.
 
-**Bulk administration**
+**Administration en masse**
 
-- **New Project** is available to managers
-- **Importer CSV** and **Exporter CSV** are available to administrators
+- **Nouveau projet** est disponible pour les gestionnaires
+- **Import CSV** et **Export CSV** sont disponibles pour les administrateurs
 
-## Creating a project
+## Créer un projet
 
-Direct project creation is for work that should enter execution without a separate request record.
+La création directe de projet est destinée au travail qui doit entrer en exécution sans enregistrement de demande séparé.
 
-- New projects open on **Summary** only
-- Until the project is saved the first time, the other tabs are unavailable
-- Directly created projects use an origin of **Fast-track** or **Legacy**
-- Request-origin projects keep their request origin and source linkage
+- Les nouveaux projets s'ouvrent sur **Résumé** uniquement
+- Tant que le projet n'est pas enregistré une première fois, les autres onglets ne sont pas disponibles
+- Les projets créés directement utilisent une origine **Fast-track** ou **Historique**
+- Les projets issus de demandes conservent leur origine et leur lien source
 
-Use **Fast-track** for work that is genuinely being introduced directly into delivery. Use **Legacy** for work that already exists outside the normal intake history. That distinction affects reporting and makes later portfolio analysis much less confusing.
+Utilisez **Fast-track** pour le travail qui est réellement introduit directement en livraison. Utilisez **Historique** pour le travail qui existe déjà en dehors de l'historique d'intake normal. Cette distinction affecte le reporting et rend l'analyse de portefeuille ultérieure beaucoup moins confuse.
 
-## Workspace mental model
+## Modèle mental de l'espace de travail
 
-The espace de travail du projet has two layers:
+L'espace de travail du projet comporte deux couches :
 
-- The **main content area** for operational tabs: **Summary**, **Activity**, **Timeline**, **Progress**, **Tasks**, **Scoring**, and **Base de connaissances**
-- A persistent **Project Properties** sidebar for core properties, team assignment, and relations
+- La **zone de contenu principale** pour les onglets opérationnels : **Résumé**, **Activité**, **Chronologie**, **Avancement**, **Tâches**, **Évaluation** et **Base de connaissances**
+- Une **barre latérale Propriétés du projet** persistante pour les propriétés principales, l'affectation de l'équipe et les relations
 
-This is the most important behavior change from the older documentation: **Team** and **Relations** are no longer standalone tabs. They now live in the sidebar and stay available while you work anywhere else.
+Voici le changement de comportement le plus important par rapport à la documentation antérieure : **Équipe** et **Relations** ne sont plus des onglets autonomes. Ils résident désormais dans la barre latérale et restent disponibles pendant que vous travaillez ailleurs.
 
-For existing projects, the sidebar behaves like a live property panel: changes there are saved immediately. The main tab content follows the usual **Enregistrer** and **Réinitialiser** workflow when that tab contains draft changes. If you switch tabs or move to the previous or next project with unsaved espace de travail changes, KANAP asks whether to save first.
+Pour les projets existants, la barre latérale se comporte comme un panneau de propriétés en direct : les modifications y sont enregistrées immédiatement. Le contenu de l'onglet principal suit le flux habituel **Enregistrer** et **Réinitialiser** lorsque cet onglet contient des modifications en brouillon. Si vous changez d'onglet ou passez au projet précédent ou suivant avec des modifications non enregistrées, KANAP vous demande si vous souhaitez d'abord enregistrer.
 
-## Header and navigation
+## En-tête et navigation
 
-L'espace de travail header is not just decoration; it is the project's control strip.
+L'en-tête de l'espace de travail n'est pas qu'une décoration ; c'est la barre de contrôle du projet.
 
-- The `PRJ-...` chip is the stable human-readable reference and can be copied directly
-- The status chip shows the current execution state
-- The origin chip shows how the project entered the portfolio
-- Request-origin projects expose a direct path back to the source request
-- The progress bar in the header shows current execution progress without leaving the page
-- **Précédent** and **Suiv** move through the current list result set, not through all projects in the system
-- **Envoyer le lien** emails the current project URL with an optional message
+- La pastille `PRJ-...` est la référence stable lisible par l'humain et peut être copiée directement
+- La pastille de statut affiche l'état d'exécution actuel
+- La pastille d'origine indique comment le projet est entré dans le portefeuille
+- Les projets issus de demandes exposent un chemin direct vers la demande source
+- La barre de progression dans l'en-tête affiche l'avancement d'exécution sans quitter la page
+- **Précédent** et **Suivant** parcourent l'ensemble des résultats de la liste actuelle, pas tous les projets du système
+- **Envoyer un lien** envoie par e-mail l'URL du projet actuel avec un message optionnel
 
-Sending a link does not grant access. It only shares the location. Permissions remain exactly as they were before the email was sent, which is how it should be.
+Envoyer un lien ne donne pas accès. Il ne fait que partager l'emplacement. Les autorisations restent exactement les mêmes qu'avant l'envoi de l'e-mail, ce qui est le comportement souhaité.
 
-## Project Properties sidebar
+## Barre latérale Propriétés du projet
 
-Treat the sidebar as the project's persistent identity card.
+Considérez la barre latérale comme la carte d'identité persistante du projet.
 
-### Core Properties
+### Propriétés principales
 
-The core section holds the project fields that define how the project appears elsewhere in KANAP:
+La section principale contient les champs du projet qui définissent comment le projet apparaît ailleurs dans KANAP :
 
-- project name
-- status
-- origin during initial creation only
-- source, category, and stream
-- company and department
-- planned start and planned end
+- nom du projet
+- statut
+- origine (uniquement lors de la création initiale)
+- source, catégorie et flux
+- société et département
+- début prévu et fin prévue
 
-These fields drive reporting, planning, filtering, and default portfolio context. Classification choices are especially important because they affect where the project appears in cross-portfolio analysis.
+Ces champs pilotent le reporting, la planification, le filtrage et le contexte par défaut du portefeuille. Les choix de classification sont particulièrement importants car ils affectent où le projet apparaît dans l'analyse transversale du portefeuille.
 
-Changing status from the sidebar is more than a label update. KANAP opens a status-change dialog so the transition can be recorded properly. That is where you can log the change as a formal decision, capture context, and store the rationale with the transition instead of letting it disappear into hallway memory.
+Changer le statut depuis la barre latérale est plus qu'une mise à jour de libellé. KANAP ouvre une boîte de dialogue de changement de statut pour que la transition puisse être enregistrée correctement. C'est là que vous pouvez consigner le changement comme une décision formelle, capturer le contexte et stocker la justification avec la transition au lieu de la laisser disparaître dans la mémoire de couloir.
 
-The workflow is intentionally controlled:
+Le workflow est intentionnellement contrôlé :
 
-- **Waiting List** can move to **Planned**, **On Hold**, or **Cancelled**
-- **Planned** can move to **In Progress**, **On Hold**, or **Cancelled**
-- **In Progress** can move to **In Testing**, **Done**, **On Hold**, or **Cancelled**
-- **In Testing** can move back to **In Progress**, or forward to **Done**, **On Hold**, or **Cancelled**
-- **On Hold** can return to **Waiting List**, **Planned**, or **In Progress**, or be **Cancelled**
-- **Done** and **Cancelled** are terminal states
+- **Liste d'attente** peut passer à **Planifié**, **En attente** ou **Annulé**
+- **Planifié** peut passer à **En cours**, **En attente** ou **Annulé**
+- **En cours** peut passer à **En test**, **Terminé**, **En attente** ou **Annulé**
+- **En test** peut revenir à **En cours**, ou avancer vers **Terminé**, **En attente** ou **Annulé**
+- **En attente** peut revenir à **Liste d'attente**, **Planifié** ou **En cours**, ou être **Annulé**
+- **Terminé** et **Annulé** sont des états terminaux
 
-### Team
+### Équipe
 
-Team assignment is part of the sidebar so it stays available while you work on schedule, effort, or tasks.
+L'affectation de l'équipe fait partie de la barre latérale pour rester disponible pendant que vous travaillez sur le planning, la charge ou les tâches.
 
-- Business Sponsor / IT Sponsor capture executive accountability
-- Business Lead / IT Lead identify day-to-day leadership
-- Business Contributors / IT Contributors define the wider working team
+- Sponsor métier / Sponsor IT capturent la responsabilité exécutive
+- Responsable métier / Responsable IT identifient le leadership au quotidien
+- Contributeurs métier / Contributeurs IT définissent l'équipe de travail élargie
 
-These assignments do more than fill boxes:
+Ces affectations font plus que remplir des cases :
 
-- they determine what appears in **My projects** and **My team's projects**
-- they feed project context in summary and reporting
-- they define who is available for effort allocation in the **Progress** tab
+- elles déterminent ce qui apparaît dans **Mes projets** et **Projets de mon équipe**
+- elles alimentent le contexte du projet dans le résumé et le reporting
+- elles définissent qui est disponible pour l'allocation de charge dans l'onglet **Avancement**
 
-If leads and contributors are wrong, your effort planning will also be wrong.
+Si les responsables et les contributeurs sont incorrects, votre planification de charge sera également incorrecte.
 
 ### Relations
 
-The relations section brings together the links that explain how the project fits into the rest of the portfolio.
+La section relations rassemble les liens qui expliquent comment le projet s'inscrit dans le reste du portefeuille.
 
-- **Dependencies** track delivery dependencies on other requests or projects
-- **Source Requests** show the request record that produced the project
-- additional relations capture connected business and technical context
+- Les **dépendances** suivent les dépendances de livraison avec d'autres demandes ou projets
+- Les **demandes source** montrent l'enregistrement de demande qui a produit le projet
+- des relations supplémentaires capturent le contexte métier et technique connecté
 
-Dependencies are operational, not cosmetic. They shape how delays and sequencing should be interpreted. Source request links preserve the chain from intake to execution, which is essential when someone later asks, "why are we doing this project at all?"
+Les dépendances sont opérationnelles, pas cosmétiques. Elles façonnent la manière dont les retards et le séquencement doivent être interprétés. Les liens vers les demandes source préservent la chaîne de l'intake à l'exécution, ce qui est essentiel lorsque quelqu'un demande plus tard « pourquoi faisons-nous ce projet ? »
 
-## Summary
+## Résumé
 
-The **Summary** tab is the project cockpit. It is meant to answer the current state of the project in a single pass, not to duplicate every field in the sidebar.
+L'onglet **Résumé** est le tableau de bord du projet. Il est conçu pour répondre à l'état actuel du projet en une seule passe, pas pour dupliquer chaque champ de la barre latérale.
 
-The summary cards cover:
+Les cartes du résumé couvrent :
 
-- current status and priority
-- delivery window and schedule variance
-- effort consumption and task posture
-- team and relation coverage
-- knowledge footprint
-- latest activity
+- statut et priorité actuels
+- fenêtre de livraison et écart de planning
+- consommation de charge et posture des tâches
+- couverture de l'équipe et des relations
+- empreinte base de connaissances
+- dernière activité
 
-This tab is where a manager can understand whether the project is merely alive in the database or actually under control.
+Cet onglet est l'endroit où un gestionnaire peut comprendre si le projet est simplement vivant dans la base de données ou réellement sous contrôle.
 
-### Purpose
+### Objet
 
-The **Purpose** section on Summary is a managed project document, not a disposable note field.
+La section **Objet** du Résumé est un document projet géré, pas un champ de notes jetable.
 
-- use it for the narrative brief of the project: intent, expected outcome, scope boundaries, and any framing that should travel with the project
-- purpose changes follow l'espace de travail **Enregistrer** and **Réinitialiser** flow
-- contributors can update the Purpose even when they cannot manage the rest of the project
+- utilisez-le pour le brief narratif du projet : intention, résultat attendu, périmètre et tout cadrage qui doit voyager avec le projet
+- les modifications de l'objet suivent le flux **Enregistrer** et **Réinitialiser** de l'espace de travail
+- les contributeurs peuvent mettre à jour l'Objet même lorsqu'ils ne peuvent pas gérer le reste du projet
 
-This split is deliberate. It allows narrative ownership to be broader than structural project administration.
+Cette séparation est délibérée. Elle permet à la propriété narrative d'être plus large que l'administration structurelle du projet.
 
-The Purpose editor includes document import and export:
+L'éditeur d'Objet inclut l'import et l'export de documents :
 
-- **Import** accepts a `.docx` file and converts it to the internal markdown format. If the Purpose already has content, KANAP asks for confirmation before replacing it.
-- **Export** lets you download the current Purpose as PDF, DOCX, or ODT.
+- **Import** accepte un fichier `.docx` et le convertit au format markdown interne. Si l'Objet a déjà du contenu, KANAP demande une confirmation avant de le remplacer.
+- **Export** vous permet de télécharger l'Objet actuel en PDF, DOCX ou ODT.
 
-These tools are useful when a project brief originates in Word or when stakeholders need a formatted copy outside KANAP.
+Ces outils sont utiles lorsqu'un brief projet a été rédigé dans Word ou lorsque les parties prenantes ont besoin d'une copie formatée en dehors de KANAP.
 
-The managed Purpose document is different from the **Base de connaissances** tab:
+Le document géré Objet est différent de l'onglet **Base de connaissances** :
 
-- **Purpose** is the embedded, project-owned brief
-- **Base de connaissances** is for standalone documents that may need their own lifecycle, reuse, or relationships
+- **Objet** est le brief intégré, propriété du projet
+- **Base de connaissances** est pour les documents autonomes qui peuvent nécessiter leur propre cycle de vie, réutilisation ou relations
 
-## Activity
+## Activité
 
-The **Activity** tab separates conversation from audit evidence:
+L'onglet **Activité** sépare la conversation de la preuve d'audit :
 
-- **Comments** for discussion, contextual notes, and formal decisions
-- **History** for the audit trail of field and status changes
+- **Commentaires** pour la discussion, les notes contextuelles et les décisions formelles
+- **Historique** pour la piste d'audit des modifications de champs et de statut
 
-Managers can add and edit project comments. Comments can also be recorded as formal decisions, with an outcome and an optional status change. Use that when the discussion itself changes the project's course.
+Les gestionnaires peuvent ajouter et modifier les commentaires du projet. Les commentaires peuvent aussi être enregistrés comme des décisions formelles, avec un résultat et un changement de statut optionnel. Utilisez cela lorsque la discussion elle-même change le cours du projet.
 
-Images can be included in activity comments when visual evidence is useful. That is handy for architecture sketches, screenshots, or review evidence.
+Les images peuvent être incluses dans les commentaires d'activité lorsque la preuve visuelle est utile. C'est pratique pour les schémas d'architecture, les captures d'écran ou les preuves de revue.
 
-Use **History** when you need to know what changed. Use **Comments** when you need to know why.
+Utilisez l'**Historique** lorsque vous devez savoir ce qui a changé. Utilisez les **Commentaires** lorsque vous devez savoir pourquoi.
 
-## Timeline
+## Chronologie
 
-The **Timeline** tab is where the delivery structure becomes explicit.
+L'onglet **Chronologie** est l'endroit où la structure de livraison devient explicite.
 
-### Project dates
+### Dates du projet
 
-Timeline shows both planned and actual dates.
+La Chronologie affiche à la fois les dates prévues et les dates réelles.
 
-- planned dates describe the intended delivery window
-- actual dates are captured by execution events and are read-only in l'espace de travail
+- les dates prévues décrivent la fenêtre de livraison visée
+- les dates réelles sont capturées par les événements d'exécution et sont en lecture seule dans l'espace de travail
 
-Once the project enters execution, KANAP also captures baseline dates so later schedule drift can be measured instead of guessed.
+Une fois que le projet entre en exécution, KANAP capture également les dates de référence pour que la dérive de planning puisse être mesurée plutôt que devinée.
 
 ### Phases
 
-Projects can start with a phase template or a fully custom phase plan.
+Les projets peuvent démarrer avec un modèle de phases ou un plan de phases entièrement personnalisé.
 
-- if no phases exist yet, apply a template to create the initial structure
-- once phases exist, they can be reordered, renamed, dated, and status-managed
-- phases can be marked as milestones
-- each phase includes a shortcut to create a task already linked to that phase and project
-- **Replace with Template** rebuilds the phase structure, so use it only when you really mean "start the phase model over"
+- si aucune phase n'existe encore, appliquez un modèle pour créer la structure initiale
+- une fois les phases créées, elles peuvent être réordonnées, renommées, datées et gérées en statut
+- les phases peuvent être marquées comme jalons
+- chaque phase inclut un raccourci pour créer une tâche déjà liée à cette phase et ce projet
+- **Remplacer par un modèle** reconstruit la structure des phases, ne l'utilisez que lorsque vous voulez réellement « recommencer le modèle de phases »
 
-The phase model affects more than the timeline:
+Le modèle de phases affecte plus que la chronologie :
 
-- the active phase appears back in **Summary**
-- phase-linked tasks inherit delivery context immediately
-- phase milestones provide completion markers without creating a separate tracking scheme
+- la phase active apparaît dans le **Résumé**
+- les tâches liées aux phases héritent immédiatement du contexte de livraison
+- les jalons de phase fournissent des marqueurs d'achèvement sans créer un schéma de suivi séparé
 
-### Milestones
+### Jalons
 
-Milestones can be created in two ways:
+Les jalons peuvent être créés de deux manières :
 
-- by enabling milestone tracking on a phase
-- by adding standalone milestones manually
+- en activant le suivi de jalon sur une phase
+- en ajoutant des jalons autonomes manuellement
 
-Phase-linked milestones follow the phase they are attached to. Standalone milestones are for checkpoints that should exist outside the phase structure.
+Les jalons liés aux phases suivent la phase à laquelle ils sont attachés. Les jalons autonomes sont pour les points de contrôle qui doivent exister en dehors de la structure des phases.
 
-### Table and Gantt views
+### Vues Tableau et Gantt
 
-The timeline can be managed as a table or as a Gantt view.
+La chronologie peut être gérée sous forme de tableau ou de vue Gantt.
 
-- use the table when you are shaping the structure
-- use the Gantt when you need to see overlap, sequencing, and date spread
+- utilisez le tableau lorsque vous façonnez la structure
+- utilisez le Gantt lorsque vous devez voir les chevauchements, le séquencement et la répartition des dates
 
-Only phases with usable start and end dates appear meaningfully on the Gantt. If the dates are vague, the chart will be equally vague.
+Seules les phases avec des dates de début et de fin exploitables apparaissent de manière significative sur le Gantt. Si les dates sont vagues, le diagramme sera également vague.
 
-## Progress
+## Avancement
 
-The **Progress** tab combines execution progress, workload planning, and actual time consumption. That combination matters because a project that reports 80% progress with 20% of the effort consumed is not necessarily efficient; it may simply be badly estimated.
+L'onglet **Avancement** combine l'avancement d'exécution, la planification de la charge et la consommation réelle de temps. Cette combinaison est importante car un projet qui affiche 80 % d'avancement avec 20 % de la charge consommée n'est pas nécessairement efficace ; il peut simplement être mal estimé.
 
-### Progress and workload
+### Avancement et charge
 
-- **Execution Progress** is the overall completion signal for the project
-- **Workload consumption** compares actual effort with planned effort
+- **Avancement d'exécution** est le signal d'achèvement global du projet
+- **Consommation de charge** compare la charge réelle avec la charge planifiée
 
-Keep these two numbers aligned with reality. If progress advances without corresponding effort, or effort accumulates without delivery movement, the mismatch is usually telling you something important about scope, estimation, or reporting discipline.
+Gardez ces deux chiffres alignés avec la réalité. Si l'avancement progresse sans charge correspondante, ou si la charge s'accumule sans mouvement de livraison, le décalage vous dit généralement quelque chose d'important sur le périmètre, l'estimation ou la discipline de reporting.
 
-### Estimated effort and allocations
+### Charge estimée et ventilations
 
-Progress separates estimated effort into:
+L'Avancement sépare la charge estimée en :
 
-- **IT effort**
-- **Business effort**
+- **Charge IT**
+- **Charge Métier**
 
-Each side can be allocated across the relevant lead and contributors. Those allocations depend on the team configured in the sidebar, so team changes have planning consequences here as well.
+Chaque côté peut être ventilé entre le responsable et les contributeurs concernés. Ces ventilations dépendent de l'équipe configurée dans la barre latérale, donc les changements d'équipe ont des conséquences de planification ici aussi.
 
-### Actual effort and time log
+### Charge réelle et journal de temps
 
-Actual effort is calculated from two sources:
+La charge réelle est calculée à partir de deux sources :
 
-- **Project Overhead** time logged directly on the project
-- **Task Time** logged from the project's tasks
+- Le temps d'**Overhead projet** saisi directement sur le projet
+- Le **Temps des tâches** saisi depuis les tâches du projet
 
-The time log merges both into one view and identifies the source for each entry. This is intentional: project effort should be understood as the whole delivery footprint, not as a fight between "project work" and "task work."
+Le journal de temps fusionne les deux dans une seule vue et identifie la source de chaque entrée. C'est intentionnel : la charge du projet doit être comprise comme l'empreinte totale de livraison, pas comme un combat entre « travail projet » et « travail de tâches ».
 
-Important consequences:
+Conséquences importantes :
 
-- task time contributes to project actual effort automatically
-- task time is visible here but must be corrected in the espace de travail de la tâche
-- project-overhead entries are maintained from the Progress tab
-- contributors can maintain their own project-overhead entries
-- administrators can maintain project-overhead entries across users
+- le temps des tâches contribue automatiquement à la charge réelle du projet
+- le temps des tâches est visible ici mais doit être corrigé dans l'espace de travail de la tâche
+- les entrées d'overhead projet sont gérées depuis l'onglet Avancement
+- les contributeurs peuvent gérer leurs propres entrées d'overhead projet
+- les administrateurs peuvent gérer les entrées d'overhead projet de tous les utilisateurs
 
-### Baseline effort
+### Charge de référence
 
-When the project moves to **In Progress**, KANAP captures baseline effort values. Later changes are shown as variance against that baseline, which is useful for distinguishing normal delivery updates from quiet scope creep.
+Lorsque le projet passe à **En cours**, KANAP capture les valeurs de charge de référence. Les modifications ultérieures sont affichées comme un écart par rapport à cette référence, ce qui est utile pour distinguer les mises à jour normales de livraison d'une dérive de périmètre silencieuse.
 
 ## Tâches
 
-The **Tasks** tab is the project's execution queue.
+L'onglet **Tâches** est la file d'exécution du projet.
 
-- tasks created here are automatically linked to the project
-- tasks can also be created directly from a timeline phase, which links them to both the project and the selected phase
-- the tab supports status filtering and phase filtering
-- the default task view focuses on active work by hiding done and cancelled items
+- les tâches créées ici sont automatiquement liées au projet
+- les tâches peuvent aussi être créées directement depuis une phase de la chronologie, ce qui les lie à la fois au projet et à la phase sélectionnée
+- l'onglet supporte le filtrage par statut et par phase
+- la vue par défaut des tâches se concentre sur le travail actif en masquant les éléments terminés et annulés
 
-This tab is for managing project-linked tasks in context, not for replacing the full espace de travail de la tâche. Opening a task takes you to its own espace de travail, where task-specific detail and time logging continue.
+Cet onglet est dédié à la gestion des tâches liées au projet en contexte, pas au remplacement de l'espace de travail complet des tâches. L'ouverture d'une tâche vous amène dans son propre espace de travail, où les détails spécifiques et la saisie de temps continuent.
 
-From a project perspective, the important consequence is this: task status and task time are not isolated. They feed back into **Summary** and **Progress**, so neglected tasks make the whole project picture less trustworthy.
+Du point de vue du projet, la conséquence importante est la suivante : le statut et le temps des tâches ne sont pas isolés. Ils alimentent le **Résumé** et l'**Avancement**, de sorte que les tâches négligées rendent l'ensemble du tableau de bord du projet moins fiable.
 
-## Scoring
+## Évaluation
 
-The **Scoring** tab keeps delivery tied to prioritization.
+L'onglet **Évaluation** maintient le lien entre la livraison et la priorisation.
 
-- for request-origin projects, the source request remains visible as the scoring reference
-- for fast-track and legacy projects, scoring is maintained directly on the project
-- managers can review or update scoring, including priority overrides where portfolio rules allow it
+- pour les projets issus de demandes, la demande source reste visible comme référence d'évaluation
+- pour les projets fast-track et historiques, l'évaluation est gérée directement sur le projet
+- les gestionnaires peuvent revoir ou mettre à jour l'évaluation, y compris les dérogations de priorité lorsque les règles du portefeuille le permettent
 
-The resulting priority score matters outside this tab:
+Le score de priorité résultant est important en dehors de cet onglet :
 
-- it appears in the project header
-- it is visible in the list
-- it affects how projects rank when the list is sorted by priority
+- il apparaît dans l'en-tête du projet
+- il est visible dans la liste
+- il affecte le classement des projets lorsque la liste est triée par priorité
 
-If scoring drifts away from delivery reality, portfolio discussions become harder than they need to be.
+Si l'évaluation s'éloigne de la réalité de livraison, les discussions de portefeuille deviennent plus difficiles qu'elles ne devraient l'être.
 
 ## Base de connaissances
 
-The **Base de connaissances** tab connects the project to standalone Knowledge documents.
+L'onglet **Base de connaissances** connecte le projet aux documents autonomes de la base de connaissances.
 
-It distinguishes between:
+Il distingue entre :
 
-- **linked documents**: documents directly attached to the project
-- **related documents**: documents discovered through other linked entities such as source requests, dependencies, or connected items
+- les **documents liés** : documents directement attachés au projet
+- les **documents associés** : documents découverts via d'autres entités liées telles que les demandes source, les dépendances ou les éléments connectés
 
-This distinction matters:
+Cette distinction est importante :
 
-- direct links represent documentation that the project explicitly owns or uses
-- related links provide context without pretending that everything belongs directly to the project
+- les liens directs représentent la documentation que le projet possède ou utilise explicitement
+- les liens associés fournissent du contexte sans prétendre que tout appartient directement au projet
 
-Depending on your Knowledge permissions, you can:
+Selon vos autorisations Knowledge, vous pouvez :
 
-- create a new blank document already linked to the project
-- create a linked document from a template
-- link an existing document
-- unlink directly linked documents
-- open any linked or related document in Knowledge
+- créer un nouveau document vierge déjà lié au projet
+- créer un document lié à partir d'un modèle
+- lier un document existant
+- détacher des documents directement liés
+- ouvrir n'importe quel document lié ou associé dans la base de connaissances
 
-If you can open the project but do not have Knowledge viewing rights, KANAP will tell you that knowledge exists without exposing the document content. That is expected behavior, not a broken tab.
+Si vous pouvez ouvrir le projet mais n'avez pas les droits de consultation Knowledge, KANAP vous indiquera que des connaissances existent sans exposer le contenu du document. C'est le comportement attendu, pas un onglet défaillant.
 
-Knowledge also surfaces back into **Summary**, where the project shows how much standalone documentation is linked and when that documentation was last updated.
+La base de connaissances remonte également dans le **Résumé**, où le projet affiche le nombre de documents autonomes liés et quand cette documentation a été mise à jour pour la dernière fois.
 
-## CSV import and export
+## Import et export CSV
 
-Project CSV tools are available from the list page to administrators.
+Les outils CSV de projet sont disponibles depuis la page de liste pour les administrateurs.
 
 ### Export
 
-Exports support:
+Les exports supportent :
 
-- **Full Export**
-- **Data Enrichment**
-- **Custom Selection**
+- **Export complet**
+- **Enrichissement de données**
+- **Sélection personnalisée**
 
-Use **Data Enrichment** when you want to export, adjust selected fields externally, and import the result back into KANAP with minimal drama.
+Utilisez l'**Enrichissement de données** lorsque vous souhaitez exporter, ajuster certains champs en externe, puis réimporter le résultat dans KANAP sans difficulté.
 
 ### Import
 
-Imports are designed for controlled bulk changes:
+Les imports sont conçus pour des modifications en masse contrôlées :
 
-- download a template first when you need the correct structure
-- validate before importing
-- use advanced options to choose enrichment vs replacement behavior and insert/update rules
+- téléchargez d'abord un modèle lorsque vous avez besoin de la bonne structure
+- validez avant d'importer
+- utilisez les options avancées pour choisir entre le comportement d'enrichissement ou de remplacement et les règles d'insertion/mise à jour
 
-Bulk import is useful for large portfolio maintenance, but it is not a shortcut around project governance. Phase planning, tasks, knowledge, and ongoing delivery control still belong in l'espace de travail.
+L'import en masse est utile pour la maintenance de grands portefeuilles, mais ce n'est pas un raccourci autour de la gouvernance de projet. La planification des phases, les tâches, la base de connaissances et le contrôle continu de la livraison restent dans l'espace de travail.
 
-## Sending a link
+## Envoyer un lien
 
-Use **Envoyer le lien** from l'espace de travail header to email a direct project link to internal or external recipients.
+Utilisez **Envoyer un lien** depuis l'en-tête de l'espace de travail pour envoyer par e-mail un lien direct vers le projet à des destinataires internes ou externes.
 
-- you can send it to platform users or to any email address
-- you can include an optional message
-- the copied or emailed link points directly to the espace de travail du projet
+- vous pouvez l'envoyer à des utilisateurs de la plateforme ou à n'importe quelle adresse e-mail
+- vous pouvez inclure un message optionnel
+- le lien copié ou envoyé pointe directement vers l'espace de travail du projet
 
-Again, sending a link does not grant access. It only saves people from hunting for the project themselves.
+Encore une fois, envoyer un lien ne donne pas accès. Il évite simplement aux gens de devoir chercher le projet eux-mêmes.
 
-## Practical guidance
+## Conseils pratiques
 
-- Use the sidebar for structural data that should stay visible while you work.
-- Use **Summary** for the project narrative and high-level operating picture.
-- Use **Timeline** to define delivery structure before task volume grows.
-- Use **Progress** regularly, otherwise effort variance arrives as a surprise even though the data was already warning you.
-- Use **Base de connaissances** for reusable or governed documentation, not as a second copy of the Purpose brief.
-- Use **Import** on the Purpose editor when a project brief already exists as a Word document, rather than reformatting it by hand.
+- Utilisez la barre latérale pour les données structurelles qui doivent rester visibles pendant que vous travaillez.
+- Utilisez le **Résumé** pour le récit du projet et la vue d'ensemble opérationnelle.
+- Utilisez la **Chronologie** pour définir la structure de livraison avant que le volume de tâches ne croisse.
+- Utilisez l'**Avancement** régulièrement, sinon l'écart de charge arrive comme une surprise alors que les données vous avertissaient déjà.
+- Utilisez la **Base de connaissances** pour la documentation réutilisable ou gouvernée, pas comme une deuxième copie du brief d'Objet.
+- Utilisez l'**Import** sur l'éditeur d'Objet lorsqu'un brief projet existe déjà en tant que document Word, plutôt que de le reformater à la main.

@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { resolveToUuid } from '../common/resolve-item-id';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import {
+  AiEntityCommentDto,
+  AiEntityCommentsDto,
   AiContextEntityType,
   AiEntityContextDto,
   AiEntityRelationshipGroupDto,
@@ -21,12 +24,39 @@ type SearchRow = {
   updated_at: Date | string | null;
   score?: number;
   total_count?: number | null;
-  metadata?: Record<string, string | number | null> | null;
+  metadata?: Record<string, string | number | boolean | null> | null;
 };
 
 type RankedSearchResult = {
   items: Array<AiEntitySummaryDto & { _score: number }>;
   total: number;
+};
+
+type ContextActivityRow = {
+  type: string | null;
+  content: string | null;
+  context: string | null;
+  decision_outcome: string | null;
+  changed_fields: Record<string, [unknown, unknown]> | null;
+  author_name: string | null;
+  created_at: Date | string | null;
+  updated_at: Date | string | null;
+  total_count?: number | null;
+};
+
+type EntityCommentRow = {
+  author_name: string | null;
+  content: string | null;
+  created_at: Date | string | null;
+  updated_at: Date | string | null;
+};
+
+type EntityCommentTargetType = Extract<AiContextEntityType, 'projects' | 'tasks'>;
+
+type EntityCommentTargetRow = {
+  id: string;
+  item_number: number | null;
+  label: string;
 };
 
 function buildRequestSummarySql(alias: string): string {
@@ -101,6 +131,20 @@ function toNullableNumber(value: unknown): number | null {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function toMetadataScalar(value: unknown): string | number | boolean | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (value instanceof Date) {
+    return toIso(value);
+  }
+  return String(value);
+}
+
 function buildRef(type: AiSearchEntityType | AiContextEntityType, itemNumber?: number | null): string | null {
   if (!itemNumber) return null;
   if (type === 'projects') return `PRJ-${itemNumber}`;
@@ -155,6 +199,150 @@ function toPersonMetadata(row: any): { id: string | null; name: string | null; e
   };
 }
 
+function getIntegratedDocumentSlotLabel(slotKey: string | null | undefined): string | null {
+  switch (slotKey) {
+    case 'purpose':
+      return 'Purpose';
+    case 'risks_mitigations':
+      return 'Risks & Mitigations';
+    default:
+      return slotKey ? slotKey.replace(/_/g, ' ') : null;
+  }
+}
+
+function formatActivityFieldName(field: string): string {
+  return field
+    .replace(/_ids?$/i, '')
+    .replace(/_/g, ' ')
+    .trim();
+}
+
+function summarizeActivityChangedFields(changedFields: unknown): string | null {
+  if (!changedFields || typeof changedFields !== 'object' || Array.isArray(changedFields)) {
+    return null;
+  }
+
+  const record = changedFields as Record<string, unknown>;
+  const statusChange = record.status;
+  if (Array.isArray(statusChange) && statusChange.length >= 2) {
+    const nextStatus = toMetadataScalar(statusChange[1]);
+    if (nextStatus != null) {
+      return `Status changed to ${nextStatus}`;
+    }
+  }
+
+  const fieldNames = Object.keys(record)
+    .map((field) => formatActivityFieldName(field))
+    .filter((field) => field.length > 0);
+  if (fieldNames.length === 0) {
+    return null;
+  }
+
+  const visibleFields = fieldNames.slice(0, 3).join(', ');
+  return fieldNames.length > 3
+    ? `Changed ${visibleFields}, and more`
+    : `Changed ${visibleFields}`;
+}
+
+function buildActivitySummary(row: ContextActivityRow): string | null {
+  if (row.type === 'comment') {
+    return row.content ? 'Comment added' : 'Comment activity';
+  }
+  if (row.type === 'decision') {
+    const outcome = row.decision_outcome ? `Decision: ${String(row.decision_outcome).replace(/_/g, ' ')}` : 'Decision recorded';
+    const changeSummary = summarizeActivityChangedFields(row.changed_fields);
+    return changeSummary ? `${outcome}. ${changeSummary}` : outcome;
+  }
+  return summarizeActivityChangedFields(row.changed_fields);
+}
+
+function toRecentActivityMetadata(row: ContextActivityRow): Record<string, string | number | boolean | null> {
+  return {
+    type: toMetadataScalar(row.type),
+    author: toMetadataScalar(row.author_name),
+    content: toMetadataScalar(row.content),
+    context: toMetadataScalar(row.context),
+    decision_outcome: toMetadataScalar(row.decision_outcome),
+    summary: toMetadataScalar(buildActivitySummary(row)),
+    created_at: toMetadataScalar(toIso(row.created_at)),
+    updated_at: toMetadataScalar(toIso(row.updated_at)),
+  };
+}
+
+function toEntityCommentDto(row: EntityCommentRow): AiEntityCommentDto {
+  const updatedAt = toIso(row.updated_at);
+  const createdAt = toIso(row.created_at);
+  return {
+    author: row.author_name ?? null,
+    content: row.content ?? null,
+    created_at: createdAt,
+    updated_at: updatedAt,
+    edited: updatedAt != null && createdAt !== updatedAt,
+  };
+}
+
+function toProjectPhaseMetadata(row: any): Record<string, string | number | boolean | null> {
+  return {
+    name: toMetadataScalar(row.name),
+    status: toMetadataScalar(row.status),
+    sequence: toNullableNumber(row.sequence),
+    planned_start: toMetadataScalar(toIso(row.planned_start)),
+    planned_end: toMetadataScalar(toIso(row.planned_end)),
+    task_count: toNullableNumber(row.task_count),
+  };
+}
+
+function toTaskPhaseMetadata(row: any): Record<string, string | number | boolean | null> | null {
+  if (!row?.phase_name) {
+    return null;
+  }
+
+  return {
+    name: toMetadataScalar(row.phase_name),
+    status: toMetadataScalar(row.phase_status),
+    sequence: toNullableNumber(row.phase_sequence),
+    planned_start: toMetadataScalar(toIso(row.phase_planned_start)),
+    planned_end: toMetadataScalar(toIso(row.phase_planned_end)),
+  };
+}
+
+function toProjectTaskSummary(row: any): AiEntitySummaryDto {
+  return toSummary('tasks', {
+    id: row.id,
+    item_number: row.item_number,
+    label: row.label,
+    summary: row.summary ?? null,
+    status: row.status ?? null,
+    updated_at: row.updated_at ?? null,
+    metadata: {
+      assignee: toMetadataScalar(row.assignee_name),
+      priority: toMetadataScalar(row.priority_level),
+      phase: toMetadataScalar(row.phase_name),
+    },
+  });
+}
+
+function toIntegratedDocumentSummary(row: any): AiEntitySummaryDto {
+  const slotLabel = getIntegratedDocumentSlotLabel(row.slot_key);
+  return toSummary('documents', {
+    id: row.id,
+    item_number: row.item_number,
+    label: row.label,
+    summary: row.summary ?? null,
+    status: row.status ?? null,
+    updated_at: row.updated_at ?? null,
+    metadata: {
+      integrated: true,
+      special_status: 'integrated_document',
+      slot_key: toMetadataScalar(row.slot_key),
+      slot_label: toMetadataScalar(slotLabel),
+      hidden_from_entity_knowledge: row.hidden_from_entity_knowledge === true,
+      library: toMetadataScalar(row.library_name),
+      type: toMetadataScalar(row.document_type_name),
+    },
+  });
+}
+
 @Injectable()
 export class AiEntityService {
   constructor(
@@ -168,6 +356,79 @@ export class AiEntityService {
     if (!match) return null;
     const value = Number(match[1]);
     return Number.isFinite(value) ? value : null;
+  }
+
+  private async listRecentActivity(
+    manager: AiExecutionContextWithManager['manager'],
+    params: {
+      tenantId: string;
+      projectId?: string;
+      taskId?: string;
+    },
+  ): Promise<{ items: Array<Record<string, string | number | boolean | null>>; total: number }> {
+    const targetColumn = params.projectId ? 'project_id' : 'task_id';
+    const targetId = params.projectId ?? params.taskId;
+    if (!targetId) {
+      return { items: [], total: 0 };
+    }
+
+    const rows = await manager.query<ContextActivityRow[]>(
+      `SELECT a.type,
+              a.content,
+              a.context,
+              a.decision_outcome,
+              a.changed_fields,
+              ${buildUserNameSql('u_author')} AS author_name,
+              a.created_at,
+              a.updated_at,
+              COUNT(*) OVER()::int AS total_count
+       FROM portfolio_activities a
+       LEFT JOIN users u_author ON u_author.id = a.author_id AND u_author.tenant_id = a.tenant_id
+       WHERE a.${targetColumn} = $1
+         AND a.tenant_id = $2
+       ORDER BY a.created_at DESC
+       LIMIT 20`,
+      [targetId, params.tenantId],
+    );
+
+    const total = rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0;
+    return {
+      items: rows.map((row) => toRecentActivityMetadata(row)),
+      total,
+    };
+  }
+
+  private async listIntegratedDocuments(
+    manager: AiExecutionContextWithManager['manager'],
+    params: {
+      tenantId: string;
+      sourceEntityType: 'projects';
+      sourceEntityId: string;
+    },
+  ): Promise<AiEntitySummaryDto[]> {
+    const rows = await manager.query<SearchRow[]>(
+      `SELECT d.id,
+              d.item_number,
+              d.title AS label,
+              d.summary,
+              d.status,
+              d.updated_at,
+              b.slot_key,
+              b.hidden_from_entity_knowledge,
+              dl.name AS library_name,
+              dt.name AS document_type_name
+       FROM integrated_document_bindings b
+       JOIN documents d ON d.id = b.document_id AND d.tenant_id = b.tenant_id
+       LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
+       LEFT JOIN document_types dt ON dt.id = d.document_type_id AND dt.tenant_id = d.tenant_id
+       WHERE b.source_entity_type = $1
+         AND b.source_entity_id = $2
+         AND b.tenant_id = $3
+       ORDER BY b.slot_key ASC, d.updated_at DESC`,
+      [params.sourceEntityType, params.sourceEntityId, params.tenantId],
+    );
+
+    return rows.map((row) => toIntegratedDocumentSummary(row));
   }
 
   private async searchApplications(
@@ -1564,6 +1825,7 @@ export class AiEntityService {
     const requestSummarySql = buildRequestSummarySql('r');
     const projectSummarySql = buildProjectSummarySql('p');
     const { tenantId } = context;
+    const canReadKnowledge = await this.policy.canReadKnowledge(context, manager);
     const projects = await manager.query<any[]>(
       `SELECT p.id,
               p.item_number,
@@ -1594,7 +1856,17 @@ export class AiEntityService {
       throw new NotFoundException('Project not found.');
     }
 
-    const [requestRows, dependencyRows, applicationRows, assetRows, contributorRows] = await Promise.all([
+    const [
+      requestRows,
+      dependencyRows,
+      applicationRows,
+      assetRows,
+      contributorRows,
+      phaseRows,
+      projectTaskRows,
+      integratedDocumentRows,
+      recentActivity,
+    ] = await Promise.all([
       manager.query<SearchRow[]>(
         `SELECT r.id, r.item_number, r.name AS label, ${requestSummarySql} AS summary, r.status, r.updated_at
          FROM portfolio_request_projects rp
@@ -1640,6 +1912,49 @@ export class AiEntityService {
          ORDER BY u.last_name ASC NULLS LAST, u.first_name ASC NULLS LAST, u.email ASC NULLS LAST`,
         [projectId, tenantId],
       ),
+      manager.query<any[]>(
+        `SELECT phase.name,
+                phase.status,
+                phase.sequence,
+                phase.planned_start,
+                phase.planned_end,
+                COUNT(t.id)::int AS task_count
+         FROM portfolio_project_phases phase
+         LEFT JOIN tasks t ON t.phase_id = phase.id AND t.tenant_id = phase.tenant_id
+         WHERE phase.project_id = $1
+           AND phase.tenant_id = $2
+         GROUP BY phase.id, phase.name, phase.status, phase.sequence, phase.planned_start, phase.planned_end
+         ORDER BY phase.sequence ASC, phase.name ASC`,
+        [projectId, tenantId],
+      ),
+      manager.query<any[]>(
+        `SELECT t.id,
+                t.item_number,
+                COALESCE(t.title, 'Untitled task') AS label,
+                t.description AS summary,
+                t.status,
+                t.updated_at,
+                ${buildUserNameSql('u_assign')} AS assignee_name,
+                t.priority_level,
+                phase.name AS phase_name,
+                phase.sequence AS phase_sequence
+         FROM tasks t
+         LEFT JOIN users u_assign ON u_assign.id = t.assignee_user_id AND u_assign.tenant_id = t.tenant_id
+         LEFT JOIN portfolio_project_phases phase ON phase.id = t.phase_id AND phase.tenant_id = t.tenant_id
+         WHERE t.related_object_type = 'project'
+           AND t.related_object_id = $1
+           AND t.tenant_id = $2
+         ORDER BY COALESCE(phase.sequence, 2147483647) ASC, t.updated_at DESC, t.item_number DESC`,
+        [projectId, tenantId],
+      ),
+      canReadKnowledge
+        ? this.listIntegratedDocuments(manager, {
+          tenantId,
+          sourceEntityType: 'projects',
+          sourceEntityId: projectId,
+        })
+        : Promise.resolve([]),
+      this.listRecentActivity(manager, { tenantId, projectId }),
     ]);
 
     return {
@@ -1662,6 +1977,11 @@ export class AiEntityService {
           business_lead: project.business_lead_id ? toPersonMetadata({ id: project.business_lead_id, name: project.business_lead_name }) : null,
           it_lead: project.it_lead_id ? toPersonMetadata({ id: project.it_lead_id, name: project.it_lead_name }) : null,
           contributors: contributorRows.map((row) => toPersonMetadata(row)),
+          phases: phaseRows.map((row) => toProjectPhaseMetadata(row)),
+          recent_activity: recentActivity.items,
+          recent_activity_total: recentActivity.total,
+          recent_activity_returned: recentActivity.items.length,
+          recent_activity_truncated: recentActivity.total > recentActivity.items.length,
         },
       },
       related: [
@@ -1669,6 +1989,8 @@ export class AiEntityService {
         { relation: 'dependencies', label: 'Dependencies', items: dependencyRows.map((row) => toSummary('projects', row)) },
         { relation: 'linked_applications', label: 'Linked Applications', items: applicationRows.map((row) => toSummary('applications', row)) },
         { relation: 'linked_assets', label: 'Linked Assets', items: assetRows.map((row) => toSummary('assets', row)) },
+        { relation: 'project_tasks', label: 'Project Tasks', items: projectTaskRows.map((row) => toProjectTaskSummary(row)) },
+        { relation: 'integrated_documents', label: 'Integrated Documents', items: integratedDocumentRows },
       ].filter((group) => group.items.length > 0),
       knowledge: await this.getKnowledgeContext(context, 'projects', projectId, manager),
     };
@@ -1691,6 +2013,11 @@ export class AiEntityService {
               ${buildUserNameSql('u_creator')} AS creator_name,
               u_creator.email AS creator_email,
               t.priority_level,
+              phase.name AS phase_name,
+              phase.status AS phase_status,
+              phase.planned_start AS phase_planned_start,
+              phase.planned_end AS phase_planned_end,
+              phase.sequence AS phase_sequence,
               tt.name AS task_type_name,
               COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description) AS related_object_name,
               pr.id AS converted_request_id,
@@ -1703,6 +2030,7 @@ export class AiEntityService {
        LEFT JOIN portfolio_task_types tt ON tt.id = t.task_type_id AND tt.tenant_id = $2
        LEFT JOIN users u_assign ON u_assign.id = t.assignee_user_id AND u_assign.tenant_id = t.tenant_id
        LEFT JOIN users u_creator ON u_creator.id = t.creator_id AND u_creator.tenant_id = t.tenant_id
+       LEFT JOIN portfolio_project_phases phase ON phase.id = t.phase_id AND phase.tenant_id = t.tenant_id
        LEFT JOIN portfolio_projects rel_proj ON rel_proj.id = t.related_object_id AND t.related_object_type = 'project' AND rel_proj.tenant_id = $2
        LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $2
        LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $2
@@ -1752,6 +2080,8 @@ export class AiEntityService {
       });
     }
 
+    const recentActivity = await this.listRecentActivity(manager, { tenantId, taskId });
+
     return {
       entity: {
         ...toContextEntityBase('tasks', {
@@ -1769,6 +2099,11 @@ export class AiEntityService {
           assignee: task.assignee_name || null,
           creator: task.creator_id ? toPersonMetadata({ id: task.creator_id, name: task.creator_name, email: task.creator_email }) : null,
           priority_level: task.priority_level ?? null,
+          phase: toTaskPhaseMetadata(task),
+          recent_activity: recentActivity.items,
+          recent_activity_total: recentActivity.total,
+          recent_activity_returned: recentActivity.items.length,
+          recent_activity_truncated: recentActivity.total > recentActivity.items.length,
         },
       },
       related: relatedGroups,
@@ -1802,5 +2137,140 @@ export class AiEntityService {
     }
 
     throw new BadRequestException('Unsupported entity type.');
+  }
+
+  private async resolveCommentTarget(
+    context: AiExecutionContextWithManager,
+    entityType: EntityCommentTargetType,
+    entityIdOrRef: string,
+  ): Promise<AiEntityCommentsDto['entity']> {
+    const resolvedId = await resolveToUuid(
+      entityIdOrRef,
+      entityType === 'projects' ? 'project' : 'task',
+      context.manager,
+    );
+
+    const rows = entityType === 'projects'
+      ? await context.manager.query<EntityCommentTargetRow[]>(
+        `SELECT p.id,
+                p.item_number,
+                p.name AS label
+         FROM portfolio_projects p
+         WHERE p.id = $1
+           AND p.tenant_id = $2
+         LIMIT 1`,
+        [resolvedId, context.tenantId],
+      )
+      : await context.manager.query<EntityCommentTargetRow[]>(
+        `SELECT t.id,
+                t.item_number,
+                COALESCE(t.title, 'Untitled task') AS label
+         FROM tasks t
+         WHERE t.id = $1
+           AND t.tenant_id = $2
+         LIMIT 1`,
+        [resolvedId, context.tenantId],
+      );
+
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundException(entityType === 'projects' ? 'Project not found.' : 'Task not found.');
+    }
+
+    return {
+      type: entityType,
+      id: row.id,
+      ref: buildRef(entityType, row.item_number ?? null),
+      label: row.label,
+    };
+  }
+
+  private async listEntityCommentsPage(
+    context: AiExecutionContextWithManager,
+    target: AiEntityCommentsDto['entity'],
+    offset: number,
+    limit: number,
+  ): Promise<{ items: AiEntityCommentDto[]; total: number }> {
+    const countRows = target.type === 'projects'
+      ? await context.manager.query<Array<{ total: number }>>(
+        `SELECT COUNT(*)::int AS total
+         FROM portfolio_activities a
+         WHERE a.project_id = $1
+           AND a.tenant_id = $2
+           AND a.type = 'comment'`,
+        [target.id, context.tenantId],
+      )
+      : await context.manager.query<Array<{ total: number }>>(
+        `SELECT COUNT(*)::int AS total
+         FROM portfolio_activities a
+         WHERE a.task_id = $1
+           AND a.tenant_id = $2
+           AND a.type = 'comment'`,
+        [target.id, context.tenantId],
+      );
+
+    const rows = target.type === 'projects'
+      ? await context.manager.query<EntityCommentRow[]>(
+        `SELECT ${buildUserNameSql('u_author')} AS author_name,
+                a.content,
+                a.created_at,
+                a.updated_at
+         FROM portfolio_activities a
+         LEFT JOIN users u_author ON u_author.id = a.author_id AND u_author.tenant_id = a.tenant_id
+         WHERE a.project_id = $1
+           AND a.tenant_id = $2
+           AND a.type = 'comment'
+         ORDER BY a.created_at DESC
+         OFFSET $3
+         LIMIT $4`,
+        [target.id, context.tenantId, offset, limit],
+      )
+      : await context.manager.query<EntityCommentRow[]>(
+        `SELECT ${buildUserNameSql('u_author')} AS author_name,
+                a.content,
+                a.created_at,
+                a.updated_at
+         FROM portfolio_activities a
+         LEFT JOIN users u_author ON u_author.id = a.author_id AND u_author.tenant_id = a.tenant_id
+         WHERE a.task_id = $1
+           AND a.tenant_id = $2
+           AND a.type = 'comment'
+         ORDER BY a.created_at DESC
+         OFFSET $3
+         LIMIT $4`,
+        [target.id, context.tenantId, offset, limit],
+      );
+
+    return {
+      items: rows.map((row) => toEntityCommentDto(row)),
+      total: Number(countRows[0]?.total ?? 0),
+    };
+  }
+
+  async getEntityComments(
+    context: AiExecutionContextWithManager,
+    input: {
+      entity_type: EntityCommentTargetType;
+      entity_id: string;
+      offset?: number;
+      limit?: number;
+    },
+  ): Promise<AiEntityCommentsDto> {
+    await this.policy.assertEntityTypeReadAccess(context, input.entity_type, context.manager);
+
+    const offset = Math.max(0, input.offset ?? 0);
+    const limit = Math.max(1, input.limit ?? 20);
+    const target = await this.resolveCommentTarget(context, input.entity_type, input.entity_id);
+    const { items, total } = await this.listEntityCommentsPage(context, target, offset, limit);
+
+    return {
+      entity: target,
+      items,
+      total,
+      offset,
+      limit,
+      returned: items.length,
+      truncated: offset + items.length < total,
+    };
   }
 }

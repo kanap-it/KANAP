@@ -35,6 +35,13 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
         read_only: true,
         surfaces: ['chat'],
       },
+      {
+        name: 'get_entity_comments',
+        description: 'Read paginated project/task comments.',
+        input_summary: {},
+        read_only: true,
+        surfaces: ['chat'],
+      },
     ],
     readableEntityTypes: ['tasks', 'projects', 'documents'],
     currentUser: {
@@ -48,11 +55,13 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
   assert.match(prompt, /\bquery_entities\b/);
   assert.match(prompt, /\baggregate_entities\b/);
   assert.match(prompt, /\bget_filter_values\b/);
+  assert.match(prompt, /\bget_entity_comments\b/);
   assert.match(prompt, /Alex Operator/);
   assert.match(prompt, /scope: "me"/);
   assert.match(prompt, /scope: "my_team"/);
   assert.match(prompt, /tasks for projects in a stream/i);
   assert.match(prompt, /applications linked to a project/i);
+  assert.match(prompt, /Use get_entity_comments for the actual project\/task discussion feed/i);
   assert.match(prompt, /Spend-item reads and spend-item aggregations are summary-backed/i);
   assert.match(prompt, /Prefer completeness over speed/i);
   assert.match(prompt, /`q` on query_entities and aggregate_entities is literal text quick-search only/i);
@@ -185,6 +194,34 @@ async function testPromptBuildsWriteGuidanceFromToolMetadata() {
   assert.match(prompt, /undo_preview/);
 }
 
+async function testPromptIncludesDocumentRelationPivotGuidanceFromToolMetadata() {
+  const service = new AiSystemPromptService();
+
+  const prompt = service.build({
+    ...baseParams,
+    availableTools: [
+      {
+        name: 'update_document_relations',
+        description: 'Update document relations.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'documents',
+          fields: ['linked_projects', 'linked_applications'],
+          reversible: false,
+          prompt_hint: 'For relation-only document changes, use `update_document_relations`. This tool edits document links, not project, request, application, asset, or task records. If the user starts from a project, request, application, asset, or task, first identify the target document ref from entity knowledge or by querying documents with `linked_project`, `linked_request`, `linked_application`, `linked_asset`, or `linked_task`, then call `update_document_relations` on that document. Prefer the canonical nested shape, for example `{"document_id":"DOC-14","remove":{"applications":["Billing App"]}}` or `{"document_id":"DOC-14","add":{"projects":["PRJ-33"]}}`.',
+        },
+      },
+    ],
+  });
+
+  assert.match(prompt, /edits document links, not project, request, application, asset, or task records/i);
+  assert.match(prompt, /first identify the target document ref from entity knowledge/i);
+  assert.match(prompt, /`linked_project`, `linked_request`, `linked_application`, `linked_asset`, or `linked_task`/i);
+  assert.match(prompt, /`{"document_id":"DOC-14","remove":{"applications":\["Billing App"\]}}`/i);
+}
+
 async function run() {
   await testStructuredReadGuidancePrefersQueryLayerTools();
   await testWebSearchGuidanceIncludedWhenToolAvailable();
@@ -192,6 +229,7 @@ async function run() {
   await testPromptIncludesTodaysDate();
   await testPromptRendersUserControlledFieldsAsJson();
   await testPromptBuildsWriteGuidanceFromToolMetadata();
+  await testPromptIncludesDocumentRelationPivotGuidanceFromToolMetadata();
 }
 
 void run();

@@ -257,9 +257,11 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
     }
   }
 
-  if (!shouldSkip('phase_name') && filters.phase_name?.filter) {
-    params.push(`%${filters.phase_name.filter}%`);
-    whereConditions += ` AND phase.name ILIKE $${params.length}`;
+  if (!shouldSkip('phase_name') && filters.phase_name) {
+    if (!applySetFilter(filters.phase_name, 'phase.name') && filters.phase_name?.filter) {
+      params.push(`%${filters.phase_name.filter}%`);
+      whereConditions += ` AND phase.name ILIKE $${params.length}`;
+    }
   }
 
   if (!shouldSkip('source_name') && filters.source_name) {
@@ -407,6 +409,7 @@ const TASK_FILTER_VALUE_FIELDS: Record<string, string> = {
   category_name: 'pc.name',
   stream_name: 'pst.name',
   company_name: 'comp.name',
+  phase_name: 'phase.name',
   labels: 'labels',
   project_stream_name: 'project_pst.name',
   project_category_name: 'project_pc.name',
@@ -432,20 +435,20 @@ export class TasksService {
       FROM tasks t
       LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
       LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
-      LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
-      LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
-      LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
-      LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
-      LEFT JOIN portfolio_requests pr_origin ON pr_origin.origin_task_id = t.id
-      LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
-      LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
+      LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id AND si.tenant_id = t.tenant_id)
+      LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id AND c.tenant_id = t.tenant_id)
+      LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id AND ci.tenant_id = t.tenant_id)
+      LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id AND pp.tenant_id = t.tenant_id)
+      LEFT JOIN portfolio_requests pr_origin ON pr_origin.origin_task_id = t.id AND pr_origin.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id AND phase.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id AND tt.tenant_id = t.tenant_id
       -- Classification JOINs (COALESCE: task value wins, falls back to project)
-      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
-      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
-      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
-      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
-      LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id
-      LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id
+      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id AND ps.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id AND pc.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id AND pst.tenant_id = t.tenant_id
+      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id AND comp.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id AND project_pst.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id AND project_pc.tenant_id = t.tenant_id
       WHERE ${whereConditions}
     `;
     const countResult = await manager.query(countQuery, params);
@@ -552,20 +555,20 @@ export class TasksService {
       FROM tasks t
       LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
       LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
-      LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
-      LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
-      LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
-      LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
-      LEFT JOIN portfolio_requests pr_origin ON pr_origin.origin_task_id = t.id
-      LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
-      LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
+      LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id AND si.tenant_id = t.tenant_id)
+      LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id AND c.tenant_id = t.tenant_id)
+      LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id AND ci.tenant_id = t.tenant_id)
+      LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id AND pp.tenant_id = t.tenant_id)
+      LEFT JOIN portfolio_requests pr_origin ON pr_origin.origin_task_id = t.id AND pr_origin.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id AND phase.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id AND tt.tenant_id = t.tenant_id
       -- Classification JOINs (COALESCE: task value wins, falls back to project)
-      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
-      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
-      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
-      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
-      LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id
-      LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id
+      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id AND ps.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id AND pc.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id AND pst.tenant_id = t.tenant_id
+      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id AND comp.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id AND project_pst.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id AND project_pc.tenant_id = t.tenant_id
       WHERE ${whereConditions}
       ORDER BY ${sortField} ${sort.direction}
       LIMIT ${limit} OFFSET ${skip}
@@ -634,19 +637,19 @@ export class TasksService {
       FROM tasks t
       LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
       LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
-      LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
-      LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
-      LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
-      LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
-      LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
-      LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
+      LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id AND si.tenant_id = t.tenant_id)
+      LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id AND c.tenant_id = t.tenant_id)
+      LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id AND ci.tenant_id = t.tenant_id)
+      LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id AND pp.tenant_id = t.tenant_id)
+      LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id AND phase.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id AND tt.tenant_id = t.tenant_id
       -- Classification JOINs (COALESCE: task value wins, falls back to project)
-      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
-      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
-      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
-      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
-      LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id
-      LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id
+      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id AND ps.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id AND pc.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id AND pst.tenant_id = t.tenant_id
+      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id AND comp.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id AND project_pst.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id AND project_pc.tenant_id = t.tenant_id
       WHERE ${whereConditions}
       ORDER BY ${sortField} ${sort.direction}
       LIMIT 10000
@@ -688,18 +691,18 @@ export class TasksService {
             FROM tasks t
             LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
             LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
-            LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
-            LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
-            LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
-            LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
-            LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
-            LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
-            LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
-            LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
-            LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
-            LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
-            LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id
-            LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id
+            LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id AND si.tenant_id = t.tenant_id)
+            LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id AND c.tenant_id = t.tenant_id)
+            LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id AND ci.tenant_id = t.tenant_id)
+            LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id AND pp.tenant_id = t.tenant_id)
+            LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id AND phase.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id AND tt.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id AND ps.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id AND pc.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id AND pst.tenant_id = t.tenant_id
+            LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id AND comp.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id AND project_pst.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id AND project_pc.tenant_id = t.tenant_id
             CROSS JOIN LATERAL jsonb_array_elements_text(t.labels) AS lbl(value)
             WHERE ${whereConditions}
             ORDER BY value ASC
@@ -716,19 +719,19 @@ export class TasksService {
         FROM tasks t
         LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
         LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
-        LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
-        LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
-        LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
-        LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
-        LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
-        LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
+        LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id AND si.tenant_id = t.tenant_id)
+        LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id AND c.tenant_id = t.tenant_id)
+        LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id AND ci.tenant_id = t.tenant_id)
+        LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id AND pp.tenant_id = t.tenant_id)
+        LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id AND phase.tenant_id = t.tenant_id
+        LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id AND tt.tenant_id = t.tenant_id
         -- Classification JOINs (COALESCE: task value wins, falls back to project)
-        LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
-        LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
-        LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
-        LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
-        LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id
-        LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id
+        LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id AND ps.tenant_id = t.tenant_id
+        LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id AND pc.tenant_id = t.tenant_id
+        LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id AND pst.tenant_id = t.tenant_id
+        LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id AND comp.tenant_id = t.tenant_id
+        LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id AND project_pst.tenant_id = t.tenant_id
+        LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id AND project_pc.tenant_id = t.tenant_id
         WHERE ${whereConditions}
         ORDER BY value ASC
       `;
@@ -812,18 +815,18 @@ export class TasksService {
       FROM tasks t
       LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
       LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
-      LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id)
-      LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id)
-      LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id)
-      LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id)
-      LEFT JOIN portfolio_requests pr_origin ON pr_origin.origin_task_id = t.id
-      LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id
-      LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id
+      LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id AND si.tenant_id = t.tenant_id)
+      LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id AND c.tenant_id = t.tenant_id)
+      LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id AND ci.tenant_id = t.tenant_id)
+      LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id AND pp.tenant_id = t.tenant_id)
+      LEFT JOIN portfolio_requests pr_origin ON pr_origin.origin_task_id = t.id AND pr_origin.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id AND phase.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id AND tt.tenant_id = t.tenant_id
       -- Classification JOINs (COALESCE: task value wins, falls back to project)
-      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id
-      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id
-      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id
-      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id
+      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id AND ps.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id AND pc.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id AND pst.tenant_id = t.tenant_id
+      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id AND comp.tenant_id = t.tenant_id
       WHERE t.id = $1
       LIMIT 1
     `;

@@ -1,0 +1,372 @@
+# Informes
+
+La sección de Informes ofrece informes interactivos predefinidos para analizar datos presupuestarios, asignaciones de costes y tendencias de gasto. Cada informe combina una tabla resumen con un gráfico, y todos soportan exportación a CSV e imágenes.
+
+## Dónde encontrarlos
+
+Navegue a **Informes** desde el menú principal para abrir el centro de informes.
+
+- Ruta: **Informes**
+- Permisos: `reporting:reader` (mínimo)
+
+---
+
+## Centro de informes
+
+La página principal muestra una tarjeta para cada informe disponible con una breve descripción. Haga clic en cualquier tarjeta para abrir el informe.
+
+| Informe | Qué cubre |
+|---------|-----------|
+| **Contracargo global** | Totales de asignación por empresa, KPI y flujos intercompañía |
+| **Contracargo por empresa** | Detalle de una empresa con departamentos, partidas y KPI |
+| **Top OPEX** | Mayores partidas OPEX para un año seleccionado (top N personalizable) |
+| **Top OPEX Aumento/Disminución** | Mayores cambios OPEX año a año (top N personalizable) |
+| **Tendencia presupuestaria (OPEX)** | Comparar métricas OPEX en un rango de años |
+| **Tendencia presupuestaria (CAPEX)** | Comparar métricas CAPEX en un rango de años |
+| **Comparación de columnas presupuestarias** | Seleccione hasta 10 combinaciones de año+columna para OPEX o CAPEX |
+| **Cuentas de consolidación** | Presupuesto agrupado por cuenta de consolidación |
+| **Categorías analíticas** | Presupuesto agrupado por categoría analítica |
+
+---
+
+## Contracargo global
+
+Vea las asignaciones de costes entre todas las empresas con KPI resumen y flujos intercompañía.
+
+### Controles
+
+- **Año**: Ejercicio fiscal anterior, actual o siguiente
+- **Columna**: Presupuesto, Aterrizaje previsto, Seguimiento o Revisión
+- **Totales por empresa** (casilla): Mostrar u ocultar la tabla de totales por empresa y el gráfico de barras
+- **Asignaciones detalladas** (casilla): Mostrar u ocultar el desglose empresa-departamento
+- **Incluir KPI** (casilla): Mostrar u ocultar la tabla de KPI
+- **Flujos intercompañía** (casilla): Mostrar u ocultar los flujos netos pagador/consumidor
+- **Ejecutar**: Actualizar manualmente el informe
+
+### Qué verá
+
+**Tarjeta de total general**: El total global para la métrica y año seleccionados, más conteos de empresas, líneas detalladas y cobertura de KPI.
+
+**Tabla de totales por empresa** (cuando está habilitada):
+
+- Nombre de la empresa
+- Importe para la métrica seleccionada
+- Importe pagado (contabilizado)
+- Neto (consumido menos pagado)
+- Participación en el total
+
+**Gráfico**: Gráfico de barras horizontales de asignaciones por empresa.
+
+**Tabla de asignaciones detalladas** (cuando está habilitada):
+
+- Columnas de empresa y departamento (agrupadas con filas de subtotal en negrita por empresa)
+- Importe, participación en el total, plantilla y coste por usuario
+- Las filas etiquetadas "Costes comunes" representan costes sin asignación de departamento
+
+**Tabla de flujos intercompañía** (cuando está habilitada):
+
+- Flujos netos pagador-consumidor por par de empresas (auto-consumo excluido)
+- Columnas: Pagador, Consumidor, importe
+- Botón separado **Exportar flujos netos CSV**
+
+**Tabla de KPI** (cuando está habilitada):
+
+| Columna | Descripción |
+|---------|-------------|
+| Empresa | Nombre de la empresa |
+| Importe | Total de la métrica seleccionada |
+| Plantilla | Plantilla total |
+| Usuarios IT | Conteo de usuarios IT |
+| Facturación | Facturación anual |
+| Costes IT vs facturación | Ratio porcentual |
+| Costes IT por usuario | Importe dividido por plantilla |
+| Costes IT por usuario IT | Importe dividido por usuarios IT |
+
+Una fila de totales está fijada en la parte inferior.
+
+### Exportar
+
+- **Exportar tabla como CSV** (icono de descarga): Exporta la cuadrícula de asignaciones detalladas
+- **Exportar gráfico como PNG** (icono de imagen): Exporta el gráfico de barras
+- **Imprimir / Guardar como PDF** (icono de impresión)
+
+---
+
+## Contracargo por empresa
+
+Profundice en las asignaciones de contracargo de una empresa entre departamentos, partidas presupuestarias, flujos intercompañía y KPI.
+
+### Controles
+
+- **Empresa**: Seleccione qué empresa analizar
+- **Año**: Ejercicio fiscal anterior, actual o siguiente
+- **Columna**: Presupuesto, Aterrizaje previsto, Seguimiento o Revisión
+- **Totales por departamento** (casilla): Mostrar u ocultar el desglose por departamento
+- **Partidas de contracargo** (casilla): Mostrar u ocultar asignaciones detalladas
+- **KPI de contracargo** (casilla): Mostrar u ocultar la tabla comparativa de KPI
+- **Flujos intercompañía** (casilla): Mostrar u ocultar flujos con empresas asociadas
+- **Ejecutar**: Actualizar manualmente el informe (deshabilitado hasta que se seleccione una empresa)
+
+### Qué verá
+
+**Tarjeta resumen de la empresa**: Nombre de la empresa, importe total, moneda de reporte, plantilla, usuarios IT, coste por usuario, coste por usuario IT y costes IT vs facturación.
+
+**Totales por departamento** (cuando está habilitado):
+
+- Nombre del departamento, importe, participación en el total, plantilla, coste por usuario
+- "Costes comunes" agrega las asignaciones sin un departamento específico
+- Gráfico de barras horizontales junto a la tabla
+
+**Partidas de contracargo** (cuando está habilitado):
+
+- Nombre de la partida, método de asignación, importe, participación en el total
+- Fila de totales fijada en la parte inferior
+
+**Flujos intercompañía** (cuando está habilitado):
+
+- Empresa asociada, cuentas por cobrar, cuentas por pagar, neto
+- Fila de totales fijada
+- Botón separado **Exportar flujos CSV**
+
+**Tabla de KPI** (cuando está habilitada): Mismas columnas que la tabla de KPI del Contracargo global, con una fila de "Totales globales" en la parte inferior para comparación.
+
+### Exportar
+
+- **Exportar tabla como CSV**: Exporta la cuadrícula de totales por departamento
+- **Exportar gráfico como PNG**: Exporta el gráfico de barras por departamento
+- **Imprimir / Guardar como PDF**
+
+---
+
+## Top OPEX
+
+Identifique sus mayores costes OPEX recurrentes para un año dado.
+
+### Controles
+
+- **Año**: Año anterior, actual o siguiente
+- **Métrica**: Presupuesto, Revisión, Seguimiento o Aterrizaje previsto
+- **Cantidad top**: Cuántas partidas mostrar (predeterminado: 10, mínimo: 1)
+- **Tipo de gráfico**: Gráfico circular o gráfico de barras horizontales
+- **Excluir partidas**: Autocompletado de selección múltiple para excluir productos específicos
+- **Excluir cuentas**: Autocompletado de selección múltiple para excluir por categoría de cuenta
+
+### Qué verá
+
+**Gráfico**: Gráfico circular o de barras horizontales de las partidas principales.
+
+**Columnas de la tabla**:
+
+- Nombre del producto
+- Valor para la métrica y año seleccionados
+- Participación en el total (porcentaje)
+
+**Tarjetas de resumen debajo de la tabla**:
+
+- Total top N (con porcentaje de la métrica filtrada)
+- Valor total para la métrica seleccionada en todas las partidas
+
+### Caso de uso
+
+Utilice este informe para detectar rápidamente dónde va la mayor parte de su presupuesto IT e identificar candidatos para optimización de costes.
+
+---
+
+## Top OPEX Aumento / Disminución
+
+Identifique los mayores cambios entre dos columnas presupuestarias (cualquier combinación de año y métrica).
+
+### Controles
+
+- **Año de origen** y **Métrica de origen**: La columna base de comparación
+- **Año de destino** y **Métrica de destino**: La columna objetivo de comparación
+- **Cantidad top**: Cuántas partidas mostrar por dirección (predeterminado: 10)
+- **Tipo de gráfico**: Gráfico circular (solo una dirección) o gráfico de barras horizontales
+- **Excluir partidas**: Autocompletado de selección múltiple para excluir productos específicos
+- **Excluir cuentas**: Autocompletado de selección múltiple para excluir por categoría de cuenta
+- **Conmutador de dirección**: Aumento, Disminución o ambos (botones de alternancia)
+
+Cuando ambas direcciones están seleccionadas, la opción de gráfico circular se deshabilita y el informe cambia automáticamente a barras.
+
+### Qué verá
+
+**Gráfico**: Visualización de los principales cambios.
+
+**Columnas de la tabla**:
+
+- Nombre del producto
+- Valor de origen (anterior)
+- Valor de destino (actual)
+- Delta (cambio absoluto)
+- Porcentaje de aumento
+
+**Tarjetas de resumen debajo de la tabla**:
+
+- Totales de la selección (importes de aumento y/o disminución, con sumas de origen/destino)
+- Cambios brutos en todas las partidas (con porcentaje de cobertura)
+- Aumento o disminución neto en todas las partidas
+
+### Caso de uso
+
+Utilice este informe para identificar sobrecostes, detectar oportunidades de ahorro y explicar la variación año a año en revisiones presupuestarias.
+
+---
+
+## Tendencia presupuestaria (OPEX)
+
+Compare métricas OPEX en múltiples años en un solo gráfico de líneas.
+
+### Controles
+
+- **Año de inicio**: Inicio del rango (año actual menos 2 hasta más 2)
+- **Año de fin**: Fin del rango
+- **Métricas**: Selección múltiple de Presupuesto, Seguimiento, Aterrizaje previsto, Revisión (al menos una requerida)
+
+### Qué verá
+
+**Gráfico**: Gráfico de líneas con una serie por métrica seleccionada, trazada a lo largo del rango de años.
+
+**Tabla**: Una fila por métrica seleccionada, con columnas de año mostrando totales.
+
+### Exportar
+
+- **Exportar tabla como CSV**
+- **Exportar gráfico como PNG**
+- **Imprimir / Guardar como PDF**
+
+---
+
+## Tendencia presupuestaria (CAPEX)
+
+Diseño idéntico al informe de tendencia OPEX, pero extrae datos del presupuesto CAPEX.
+
+### Controles
+
+- **Año de inicio**, **Año de fin**, **Métricas**: Igual que el informe de tendencia OPEX
+
+### Qué verá
+
+- Gráfico de líneas de totales CAPEX por métrica a lo largo de los años
+- Tabla resumen con columnas de año
+
+---
+
+## Comparación de columnas presupuestarias
+
+Compare de forma flexible hasta 10 combinaciones de año+columna para OPEX o CAPEX.
+
+### Controles
+
+- **Tipo de partida**: Conmutador OPEX o CAPEX
+- **Selecciones**: Cada selección tiene un selector de año y un selector de columna (Presupuesto, Revisión, Seguimiento, Aterrizaje previsto). Añada selecciones con el botón **Añadir** y elimine con el icono de borrar. Máximo de 10 selecciones; mínimo de 1.
+- **Agrupación por año** (casilla): Cuando está habilitada y al menos dos años comparten una métrica, cambia a un gráfico de líneas agrupado con una serie por métrica y años en el eje X. Cuando está deshabilitada, muestra un gráfico de líneas plano con cada selección como punto de datos.
+
+### Qué verá
+
+**Gráfico**:
+
+- Modo predeterminado: Gráfico de líneas con cada selección en el eje X y su total en el eje Y
+- Modo agrupación por año: Gráfico de líneas con años en el eje X y una línea por métrica
+
+**Tabla**:
+
+- Modo predeterminado: Etiqueta de selección, año, nombre de columna, total
+- Modo agrupación por año: Columna de año, luego una columna por métrica con totales
+
+### Exportar
+
+- **Exportar tabla como CSV**
+- **Exportar gráfico como PNG**
+- **Imprimir / Guardar como PDF**
+
+---
+
+## Cuentas de consolidación
+
+Vea datos presupuestarios OPEX agrupados por cuenta de consolidación, con el tipo de gráfico adaptándose al rango de años.
+
+### Controles
+
+- **Año de inicio** y **Año de fin**: Año anterior, actual o siguiente
+- **Métrica**: Presupuesto, Seguimiento, Aterrizaje previsto o Revisión
+- **Tipo de gráfico**: Gráfico circular o de barras horizontales (solo disponible cuando se selecciona un solo año)
+- **Excluir cuentas**: Autocompletado de selección múltiple para excluir cuentas específicas
+
+### Qué verá
+
+**Modo un solo año**:
+
+- Gráfico circular o de barras horizontales de totales por cuenta de consolidación
+- Nota al pie con el total para la métrica seleccionada
+
+**Modo varios años**:
+
+- Gráfico de líneas con una serie por cuenta de consolidación, trazada a lo largo de los años
+
+**Tabla**: Una fila por cuenta de consolidación con columnas de año. Una fila de totales fijada en la parte inferior suma todos los grupos.
+
+Las partidas sin cuenta de consolidación aparecen como "Sin asignar".
+
+---
+
+## Categorías analíticas
+
+Vea datos presupuestarios OPEX agrupados por categoría analítica. El diseño es idéntico al informe de Cuentas de consolidación.
+
+### Controles
+
+- **Año de inicio** y **Año de fin**: Año anterior, actual o siguiente
+- **Métrica**: Presupuesto, Seguimiento, Aterrizaje previsto o Revisión
+- **Tipo de gráfico**: Gráfico circular o de barras horizontales (solo un año)
+- **Excluir categorías analíticas**: Autocompletado de selección múltiple para excluir categorías específicas
+
+### Qué verá
+
+**Modo un solo año**:
+
+- Gráfico circular o de barras de totales por categoría analítica
+- Nota al pie con el total de la métrica
+
+**Modo varios años**:
+
+- Gráfico de líneas con una serie por categoría
+
+**Tabla**: Una fila por categoría con columnas de año. Una fila de totales fijada en la parte inferior. Las partidas sin categoría aparecen como "Sin asignar".
+
+---
+
+## Características comunes
+
+Todos los informes comparten estas capacidades a través de la barra de herramientas compartida:
+
+### Opciones de exportación
+
+- **Exportar tabla como CSV** (icono de descarga): Descarga los datos de la tabla principal
+- **Exportar gráfico como PNG** (icono de imagen): Descarga el gráfico como imagen PNG
+- **Imprimir / Guardar como PDF** (icono de impresión): Abre el diálogo de impresión del navegador. También puede añadir `?print=1` a cualquier URL de informe para activar la impresión automáticamente al cargar.
+
+### Métricas disponibles
+
+Todos los informes que ofrecen un selector de métrica usan las mismas cuatro columnas:
+
+| Clave | Etiqueta |
+|-------|----------|
+| `budget` | Presupuesto |
+| `revision` | Revisión |
+| `follow_up` | Seguimiento |
+| `landing` | Aterrizaje previsto |
+
+### Navegación
+
+Cada informe muestra una ruta de migas de pan de vuelta al centro de **Informes**, para que pueda cambiar entre informes rápidamente.
+
+---
+
+## Consejos
+
+- **Empiece con el Contracargo global**: Obtenga una imagen general de las asignaciones antes de profundizar en una empresa.
+- **Use Top OPEX para victorias rápidas**: Las partidas de coste más grandes son sus primeros candidatos para optimización.
+- **Compare Presupuesto vs Aterrizaje previsto**: Utilice el informe de Comparación de columnas para medir la precisión de la previsión entre años.
+- **Alterne secciones en informes de contracargo**: Los controles de casilla le permiten centrarse solo en los datos que necesita -- departamentos, partidas, KPI o flujos -- sin ruido visual.
+- **Agrupación por año en Comparación de columnas**: Al comparar la misma métrica en múltiples años, active la agrupación por año para un gráfico de líneas más limpio.
+- **Exporte para presentaciones**: Los gráficos se exportan como PNG y las tablas como CSV, ambos listos para diapositivas u hojas de cálculo.

@@ -111,6 +111,16 @@ export const tasksRegistry: AiEntityFilterRegistry = {
       sortable: true,
       groupable: false,
     },
+    phase: {
+      ai: 'phase',
+      grid: 'phase_name',
+      type: 'set',
+      description: 'Project phase name for project-related tasks.',
+      dynamic: true,
+      discoverable: true,
+      sortable: true,
+      groupable: true,
+    },
     labels: {
       ai: 'labels',
       grid: 'labels',
@@ -162,6 +172,7 @@ export const tasksRegistry: AiEntityFilterRegistry = {
     related: 'related_object_type',
     source: 'source_name',
     due_date: 'due_date',
+    phase: 'phase_name',
     created_at: 'created_at',
     updated_at: 'updated_at',
   },
@@ -220,6 +231,12 @@ export const tasksRegistry: AiEntityFilterRegistry = {
         joins: [
           `LEFT JOIN portfolio_projects pp ON pp.id = t.related_object_id AND t.related_object_type = 'project' AND pp.tenant_id = t.tenant_id`,
           `LEFT JOIN portfolio_sources ps ON ps.id = COALESCE(t.source_id, pp.source_id) AND ps.tenant_id = t.tenant_id`,
+        ],
+      },
+      phase: {
+        expression: 'phase.name',
+        joins: [
+          `LEFT JOIN portfolio_project_phases phase ON phase.id = t.phase_id AND phase.tenant_id = t.tenant_id`,
         ],
       },
       project_stream: {

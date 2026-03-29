@@ -266,6 +266,7 @@ export class AiQueryExecutor {
         priority: scalar(row.priority_level),
         type: scalar(row.task_type_name),
         due_date: scalar(row.due_date),
+        phase: scalar(row.phase_name),
         labels: scalar(Array.isArray(row.labels) ? row.labels.join(', ') : null),
         related: scalar(row.related_object_type),
         related_label: scalar(row.related_object_name),

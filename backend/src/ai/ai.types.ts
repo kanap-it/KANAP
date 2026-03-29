@@ -17,6 +17,7 @@ export type AiToolName =
   | 'aggregate_entities'
   | 'get_filter_values'
   | 'get_entity_context'
+  | 'get_entity_comments'
   | 'search_knowledge'
   | 'get_document'
   | 'web_search'
@@ -135,6 +136,29 @@ export type AiEntityContextDto = {
   };
   related: AiEntityRelationshipGroupDto[];
   knowledge: AiKnowledgeContextDto | null;
+};
+
+export type AiEntityCommentDto = {
+  author: string | null;
+  content: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  edited: boolean;
+};
+
+export type AiEntityCommentsDto = {
+  entity: {
+    type: Extract<AiContextEntityType, 'projects' | 'tasks'>;
+    id: string;
+    ref: string | null;
+    label: string;
+  };
+  items: AiEntityCommentDto[];
+  total: number;
+  offset: number;
+  limit: number;
+  returned: number;
+  truncated: boolean;
 };
 
 export type AiKnowledgeSearchResultDto = {

@@ -1,372 +1,372 @@
 # Rapports
 
-The Reports section gives you prebuilt, interactive reports for analyzing budget data, cost allocations, and spending trends. Every report pairs a summary table with a chart, and all of them support CSV and image exports.
+La section Rapports vous donne accès à des rapports préconstruits et interactifs pour analyser les données budgétaires, les ventilations de coûts et les tendances de dépenses. Chaque rapport associe un tableau récapitulatif à un graphique, et tous supportent l'export CSV et image.
 
-## Où le trouver
+## Où trouver cette page
 
-Navigate to **Rapports** from the main menu to open the reports hub.
+Rendez-vous dans **Rapports** depuis le menu principal pour ouvrir le hub de rapports.
 
-- Path: **Rapports**
-- Permissions: `reporting:reader` (minimum)
-
----
-
-## Reports hub
-
-The landing page shows a card for each available report with a short description. Click any card to open the report.
-
-| Report | What it covers |
-|--------|----------------|
-| **Global Chargeback** | Company-level allocation totals, KPIs, and intercompany flows |
-| **Company Chargeback** | Single-company drilldown with departments, items, and KPIs |
-| **Top OPEX** | Largest OPEX items for a selected year (custom top N) |
-| **Top OPEX Increase/Decrease** | Biggest year-over-year OPEX changes (custom top N) |
-| **Budget Trend (OPEX)** | Compare OPEX metrics across a year range |
-| **Budget Trend (CAPEX)** | Compare CAPEX metrics across a year range |
-| **Budget Column Comparison** | Pick up to 10 year+column totals for OPEX or CAPEX |
-| **Consolidation Accounts** | Budget grouped by consolidation account |
-| **Analytics Categories** | Budget grouped by analytics category |
+- Chemin : **Rapports**
+- Autorisations : `reporting:reader` (minimum)
 
 ---
 
-## Global Chargeback
+## Hub de rapports
 
-View cost allocations across all companies with summary KPIs and intercompany flows.
+La page d'accueil affiche une carte par rapport disponible avec une courte description. Cliquez sur n'importe quelle carte pour ouvrir le rapport.
 
-### Controls
+| Rapport | Ce qu'il couvre |
+|---------|----------------|
+| **Refacturation globale** | Totaux de ventilation par société, KPI et flux intersociétés |
+| **Refacturation par société** | Vue détaillée d'une société avec départements, postes et KPI |
+| **Top OPEX** | Plus gros postes OPEX pour une année sélectionnée (top N personnalisable) |
+| **Top OPEX Hausse/Baisse** | Plus grandes variations OPEX d'une année sur l'autre (top N personnalisable) |
+| **Tendance budgétaire (OPEX)** | Comparer les métriques OPEX sur une plage d'années |
+| **Tendance budgétaire (CAPEX)** | Comparer les métriques CAPEX sur une plage d'années |
+| **Comparaison de colonnes budgétaires** | Choisir jusqu'à 10 combinaisons année+colonne pour OPEX ou CAPEX |
+| **Comptes de consolidation** | Budget regroupé par compte de consolidation |
+| **Catégories analytiques** | Budget regroupé par catégorie analytique |
 
-- **Year**: Previous, current, or next fiscal year
-- **Column**: Budget, Landing, Follow-up, or Revision
-- **Company totals** (checkbox): Show or hide the company totals table and bar chart
-- **Detailed allocations** (checkbox): Show or hide the company-by-department breakdown
-- **Include KPIs** (checkbox): Show or hide the KPI table
-- **Intercompany flows** (checkbox): Show or hide netted payer/consumer flows
-- **Run** button: Manually refresh the report
+---
 
-### What you'll see
+## Refacturation globale
 
-**Overall total card**: The grand total for the selected metric and year, plus counts of companies, detailed lines, and KPI coverage.
+Consultez les ventilations de coûts à travers toutes les sociétés avec des KPI récapitulatifs et des flux intersociétés.
 
-**Company totals table** (when enabled):
+### Contrôles
 
-- Company name
-- Amount for the selected metric
-- Paid (booked) amount
-- Net (consumed minus paid)
-- Share of total
+- **Année** : Année fiscale précédente, en cours ou suivante
+- **Colonne** : Budget, Atterrissage, Suivi ou Révision
+- **Totaux par société** (case à cocher) : Afficher ou masquer le tableau et le graphique en barres des totaux par société
+- **Ventilations détaillées** (case à cocher) : Afficher ou masquer la ventilation société/département
+- **Inclure les KPI** (case à cocher) : Afficher ou masquer le tableau des KPI
+- **Flux intersociétés** (case à cocher) : Afficher ou masquer les flux nets payeur/consommateur
+- Bouton **Exécuter** : Rafraîchir manuellement le rapport
 
-**Chart**: Horizontal bar chart of allocations by company.
+### Ce que vous verrez
 
-**Detailed allocations table** (when enabled):
+**Carte du total global** : Le total général pour la métrique et l'année sélectionnées, plus les nombres de sociétés, lignes détaillées et couverture KPI.
 
-- Company and department columns (grouped with bold subtotal rows per company)
-- Amount, share of total, headcount, and cost per user
-- Rows labelled "Common Costs" represent costs without a department assignment
+**Tableau des totaux par société** (lorsque activé) :
 
-**Intercompany flows table** (when enabled):
+- Nom de la société
+- Montant pour la métrique sélectionnée
+- Montant payé (comptabilisé)
+- Net (consommé moins payé)
+- Part du total
 
-- Netted payer-to-consumer flows per company pair (self-consumption excluded)
-- Columns: Payer, Consumer, amount
-- Separate **Export netted flows CSV** button
+**Graphique** : Graphique en barres horizontales des ventilations par société.
 
-**KPI table** (when enabled):
+**Tableau des ventilations détaillées** (lorsque activé) :
 
-| Column | Description |
-|--------|-------------|
-| Company | Company name |
-| Amount | Selected metric total |
-| Headcount | Total headcount |
-| IT users | IT user count |
-| Turnover | Annual turnover |
-| IT costs vs turnover | Percentage ratio |
-| IT costs per user | Amount divided by headcount |
-| IT costs per IT user | Amount divided by IT users |
+- Colonnes société et département (regroupées avec des lignes de sous-total en gras par société)
+- Montant, part du total, effectif et coût par utilisateur
+- Les lignes libellées « Coûts communs » représentent les coûts sans affectation de département
 
-A totals row is pinned at the bottom.
+**Tableau des flux intersociétés** (lorsque activé) :
+
+- Flux nets payeur-vers-consommateur par paire de sociétés (auto-consommation exclue)
+- Colonnes : Payeur, Consommateur, montant
+- Bouton séparé **Exporter les flux nets en CSV**
+
+**Tableau des KPI** (lorsque activé) :
+
+| Colonne | Description |
+|---------|-------------|
+| Société | Nom de la société |
+| Montant | Total de la métrique sélectionnée |
+| Effectif | Effectif total |
+| Utilisateurs IT | Nombre d'utilisateurs IT |
+| Chiffre d'affaires | Chiffre d'affaires annuel |
+| Coûts IT vs CA | Ratio en pourcentage |
+| Coûts IT par utilisateur | Montant divisé par l'effectif |
+| Coûts IT par utilisateur IT | Montant divisé par les utilisateurs IT |
+
+Une ligne de totaux est épinglée en bas.
 
 ### Export
 
-- **Export table as CSV** (download icon): Exports the detailed allocations grid
-- **Export chart as PNG** (image icon): Exports the bar chart
-- **Print / Save as PDF** (print icon)
+- **Exporter le tableau en CSV** (icône de téléchargement) : Exporte la grille des ventilations détaillées
+- **Exporter le graphique en PNG** (icône image) : Exporte le graphique en barres
+- **Imprimer / Enregistrer en PDF** (icône imprimante)
 
 ---
 
-## Company Chargeback
+## Refacturation par société
 
-Drill down into a single company's chargeback allocations across departments, budget items, intercompany flows, and KPIs.
+Vue détaillée des ventilations de refacturation d'une société avec départements, postes budgétaires, flux intersociétés et KPI.
 
-### Controls
+### Contrôles
 
-- **Company**: Select which company to analyze
-- **Year**: Previous, current, or next fiscal year
-- **Column**: Budget, Landing, Follow-up, or Revision
-- **Department totals** (checkbox): Show or hide department breakdown
-- **Chargeback items** (checkbox): Show or hide itemised allocations
-- **Chargeback KPIs** (checkbox): Show or hide the KPI comparison table
-- **Intercompany flows** (checkbox): Show or hide partner-company flows
-- **Run** button: Manually refresh the report (disabled until a company is selected)
+- **Société** : Sélectionnez la société à analyser
+- **Année** : Année fiscale précédente, en cours ou suivante
+- **Colonne** : Budget, Atterrissage, Suivi ou Révision
+- **Totaux par département** (case à cocher) : Afficher ou masquer la ventilation par département
+- **Postes de refacturation** (case à cocher) : Afficher ou masquer les ventilations détaillées par poste
+- **KPI de refacturation** (case à cocher) : Afficher ou masquer le tableau comparatif des KPI
+- **Flux intersociétés** (case à cocher) : Afficher ou masquer les flux partenaires
+- Bouton **Exécuter** : Rafraîchir manuellement le rapport (désactivé tant qu'aucune société n'est sélectionnée)
 
-### What you'll see
+### Ce que vous verrez
 
-**Company summary card**: Company name, total amount, reporting currency, headcount, IT users, cost per user, cost per IT user, and IT costs vs turnover.
+**Carte récapitulative de la société** : Nom de la société, montant total, devise de reporting, effectif, utilisateurs IT, coût par utilisateur, coût par utilisateur IT et coûts IT vs chiffre d'affaires.
 
-**Department totals** (when enabled):
+**Totaux par département** (lorsque activé) :
 
-- Department name, amount, share of total, headcount, cost per user
-- "Common Costs" aggregates allocations without a specific department
-- Horizontal bar chart alongside the table
+- Nom du département, montant, part du total, effectif, coût par utilisateur
+- « Coûts communs » agrège les ventilations sans département spécifique
+- Graphique en barres horizontales à côté du tableau
 
-**Chargeback items** (when enabled):
+**Postes de refacturation** (lorsque activé) :
 
-- Item name, allocation method, amount, share of total
-- Pinned totals row at the bottom
+- Nom du poste, méthode de ventilation, montant, part du total
+- Ligne de totaux épinglée en bas
 
-**Intercompany flows** (when enabled):
+**Flux intersociétés** (lorsque activé) :
 
-- Partner company, receivables, payables, net
-- Pinned totals row
-- Separate **Export flows CSV** button
+- Société partenaire, créances, dettes, net
+- Ligne de totaux épinglée
+- Bouton séparé **Exporter les flux en CSV**
 
-**KPI table** (when enabled): Same columns as the Global Chargeback KPI table, with a "Global totals" row at the bottom for comparison.
+**Tableau des KPI** (lorsque activé) : Mêmes colonnes que le tableau KPI de la refacturation globale, avec une ligne « Totaux globaux » en bas pour comparaison.
 
 ### Export
 
-- **Export table as CSV**: Exports the department totals grid
-- **Export chart as PNG**: Exports the department bar chart
-- **Print / Save as PDF**
+- **Exporter le tableau en CSV** : Exporte la grille des totaux par département
+- **Exporter le graphique en PNG** : Exporte le graphique en barres des départements
+- **Imprimer / Enregistrer en PDF**
 
 ---
 
 ## Top OPEX
 
-Identify your largest recurring OPEX costs for a given year.
+Identifiez vos coûts OPEX récurrents les plus importants pour une année donnée.
 
-### Controls
+### Contrôles
 
-- **Year**: Previous, current, or next year
-- **Metric**: Budget, Revision, Follow-up, or Landing
-- **Top count**: How many items to show (default: 10, minimum: 1)
-- **Chart type**: Pie chart or horizontal bar chart
-- **Exclude items**: Multi-select autocomplete to exclude specific products
-- **Exclude accounts**: Multi-select autocomplete to exclude by account category
+- **Année** : Année précédente, en cours ou suivante
+- **Métrique** : Budget, Révision, Suivi ou Atterrissage
+- **Nombre top** : Combien de postes afficher (par défaut : 10, minimum : 1)
+- **Type de graphique** : Graphique en secteurs ou en barres horizontales
+- **Exclure des postes** : Autocomplétion multi-sélection pour exclure des produits spécifiques
+- **Exclure des comptes** : Autocomplétion multi-sélection pour exclure par catégorie de compte
 
-### What you'll see
+### Ce que vous verrez
 
-**Chart**: Pie or horizontal bar chart of the top items.
+**Graphique** : Graphique en secteurs ou en barres horizontales des postes les plus importants.
 
-**Table columns**:
+**Colonnes du tableau** :
 
-- Product name
-- Value for the selected metric and year
-- Share of total (percentage)
+- Nom du produit
+- Valeur pour la métrique et l'année sélectionnées
+- Part du total (pourcentage)
 
-**Summary cards below the table**:
+**Cartes récapitulatives sous le tableau** :
 
-- Top N total (with percentage of filtered metric)
-- Total value for the selected metric across all items
+- Total du Top N (avec pourcentage de la métrique filtrée)
+- Valeur totale pour la métrique sélectionnée à travers tous les postes
 
-### Use case
+### Cas d'usage
 
-Use this report to quickly spot where most of your IT budget goes and identify candidates for cost optimization.
-
----
-
-## Top OPEX Increase / Decrease
-
-Identify the biggest changes between two budget columns (any combination of year and metric).
-
-### Controls
-
-- **Source year** and **Source metric**: The baseline column to compare from
-- **Destination year** and **Destination metric**: The target column to compare to
-- **Top count**: How many items to show per direction (default: 10)
-- **Chart type**: Pie chart (single direction only) or horizontal bar chart
-- **Exclude items**: Multi-select autocomplete to exclude specific products
-- **Exclude accounts**: Multi-select autocomplete to exclude by account category
-- **Direction toggle**: Increase, Decrease, or both (toggle buttons)
-
-When both directions are selected, the pie chart option is disabled and the report automatically switches to bar.
-
-### What you'll see
-
-**Chart**: Visualisation of the top changes.
-
-**Table columns**:
-
-- Product name
-- Source value (previous)
-- Destination value (current)
-- Delta (absolute change)
-- Percentage increase
-
-**Summary cards below the table**:
-
-- Selection totals (increase and/or decrease amounts, with source/destination sums)
-- Gross changes across all items (with coverage percentage)
-- Net increase or decrease across all items
-
-### Use case
-
-Use this report for identifying cost overruns, spotting savings opportunities, and explaining year-over-year variance in budget reviews.
+Utilisez ce rapport pour repérer rapidement où va la majeure partie de votre budget IT et identifier les candidats à l'optimisation des coûts.
 
 ---
 
-## Budget Trend (OPEX)
+## Top OPEX Hausse / Baisse
 
-Compare OPEX metrics across multiple years on a single line chart.
+Identifiez les plus grandes variations entre deux colonnes budgétaires (toute combinaison d'année et de métrique).
 
-### Controls
+### Contrôles
 
-- **Start year**: Beginning of the range (current year minus 2 through plus 2)
-- **End year**: End of the range
-- **Metrics**: Multi-select from Budget, Follow-up, Landing, Revision (at least one required)
+- **Année source** et **Métrique source** : La colonne de référence pour la comparaison
+- **Année destination** et **Métrique destination** : La colonne cible de comparaison
+- **Nombre top** : Combien de postes afficher par direction (par défaut : 10)
+- **Type de graphique** : Graphique en secteurs (une seule direction) ou en barres horizontales
+- **Exclure des postes** : Autocomplétion multi-sélection pour exclure des produits spécifiques
+- **Exclure des comptes** : Autocomplétion multi-sélection pour exclure par catégorie de compte
+- **Bascule de direction** : Hausse, Baisse ou les deux (boutons bascule)
 
-### What you'll see
+Lorsque les deux directions sont sélectionnées, l'option graphique en secteurs est désactivée et le rapport bascule automatiquement en barres.
 
-**Chart**: Line chart with one series per selected metric, plotted across the year range.
+### Ce que vous verrez
 
-**Table**: One row per selected metric, with year columns showing totals.
+**Graphique** : Visualisation des plus grandes variations.
+
+**Colonnes du tableau** :
+
+- Nom du produit
+- Valeur source (précédente)
+- Valeur destination (actuelle)
+- Delta (variation absolue)
+- Pourcentage d'augmentation
+
+**Cartes récapitulatives sous le tableau** :
+
+- Totaux de la sélection (montants de hausse et/ou baisse, avec sommes source/destination)
+- Variations brutes à travers tous les postes (avec pourcentage de couverture)
+- Augmentation ou diminution nette à travers tous les postes
+
+### Cas d'usage
+
+Utilisez ce rapport pour identifier les dépassements de coûts, repérer les opportunités d'économies et expliquer les écarts d'une année sur l'autre lors des revues budgétaires.
+
+---
+
+## Tendance budgétaire (OPEX)
+
+Comparez les métriques OPEX sur plusieurs années sur un seul graphique en courbe.
+
+### Contrôles
+
+- **Année de début** : Début de la plage (année en cours moins 2 à plus 2)
+- **Année de fin** : Fin de la plage
+- **Métriques** : Multi-sélection parmi Budget, Suivi, Atterrissage, Révision (au moins une requise)
+
+### Ce que vous verrez
+
+**Graphique** : Graphique en courbe avec une série par métrique sélectionnée, tracée sur la plage d'années.
+
+**Tableau** : Une ligne par métrique sélectionnée, avec des colonnes d'années affichant les totaux.
 
 ### Export
 
-- **Export table as CSV**
-- **Export chart as PNG**
-- **Print / Save as PDF**
+- **Exporter le tableau en CSV**
+- **Exporter le graphique en PNG**
+- **Imprimer / Enregistrer en PDF**
 
 ---
 
-## Budget Trend (CAPEX)
+## Tendance budgétaire (CAPEX)
 
-Identical layout to the OPEX trend report, but pulls from CAPEX budget data.
+Disposition identique au rapport de tendance OPEX, mais exploitant les données budgétaires CAPEX.
 
-### Controls
+### Contrôles
 
-- **Start year**, **End year**, **Metrics**: Same as the OPEX trend report
+- **Année de début**, **Année de fin**, **Métriques** : Identiques au rapport de tendance OPEX
 
-### What you'll see
+### Ce que vous verrez
 
-- Line chart of CAPEX totals by metric across years
-- Summary table with year columns
+- Graphique en courbe des totaux CAPEX par métrique sur les années
+- Tableau récapitulatif avec colonnes d'années
 
 ---
 
-## Budget Column Comparison
+## Comparaison de colonnes budgétaires
 
-Flexibly compare up to 10 year+column combinations for either OPEX or CAPEX.
+Comparez de manière flexible jusqu'à 10 combinaisons année+colonne pour OPEX ou CAPEX.
 
-### Controls
+### Contrôles
 
-- **Item type**: OPEX or CAPEX toggle
-- **Selections**: Each selection has a year picker and a column picker (Budget, Revision, Follow-up, Landing). Add selections with the **Add** button and remove with the delete icon. Maximum of 10 selections; minimum of 1.
-- **Year grouping** (checkbox): When enabled and at least two years share a metric, switches to a grouped line chart with one series per metric and years on the X axis. When disabled, shows a flat line chart with each selection as a data point.
+- **Type de poste** : Bascule OPEX ou CAPEX
+- **Sélections** : Chaque sélection a un sélecteur d'année et un sélecteur de colonne (Budget, Révision, Suivi, Atterrissage). Ajoutez des sélections avec le bouton **Ajouter** et supprimez avec l'icône de suppression. Maximum 10 sélections ; minimum 1.
+- **Regroupement par année** (case à cocher) : Lorsque activé et qu'au moins deux années partagent une métrique, bascule vers un graphique en courbe groupé avec une série par métrique et les années sur l'axe X. Lorsque désactivé, affiche un graphique en courbe plat avec chaque sélection comme point de données.
 
-### What you'll see
+### Ce que vous verrez
 
-**Chart**:
+**Graphique** :
 
-- Default mode: Line chart with each selection on the X axis and its total on the Y axis
-- Year grouping mode: Line chart with years on the X axis and one line per metric
+- Mode par défaut : Graphique en courbe avec chaque sélection sur l'axe X et son total sur l'axe Y
+- Mode regroupement par année : Graphique en courbe avec les années sur l'axe X et une ligne par métrique
 
-**Table**:
+**Tableau** :
 
-- Default mode: Selection label, year, column name, total
-- Year grouping mode: Year column, then one column per metric with totals
+- Mode par défaut : Libellé de sélection, année, nom de colonne, total
+- Mode regroupement par année : Colonne année, puis une colonne par métrique avec les totaux
 
 ### Export
 
-- **Export table as CSV**
-- **Export chart as PNG**
-- **Print / Save as PDF**
+- **Exporter le tableau en CSV**
+- **Exporter le graphique en PNG**
+- **Imprimer / Enregistrer en PDF**
 
 ---
 
-## Consolidation Accounts
+## Comptes de consolidation
 
-View OPEX budget data grouped by consolidation account, with chart type adapting to the year range.
+Consultez les données budgétaires OPEX regroupées par compte de consolidation, avec un type de graphique qui s'adapte à la plage d'années.
 
-### Controls
+### Contrôles
 
-- **Start year** and **End year**: Previous, current, or next year
-- **Metric**: Budget, Follow-up, Landing, or Revision
-- **Chart type**: Pie chart or horizontal bar chart (only available when a single year is selected)
-- **Exclude accounts**: Multi-select autocomplete to exclude specific accounts
+- **Année de début** et **Année de fin** : Année précédente, en cours ou suivante
+- **Métrique** : Budget, Suivi, Atterrissage ou Révision
+- **Type de graphique** : Graphique en secteurs ou en barres horizontales (disponible uniquement pour une seule année sélectionnée)
+- **Exclure des comptes** : Autocomplétion multi-sélection pour exclure des comptes spécifiques
 
-### What you'll see
+### Ce que vous verrez
 
-**Single-year mode**:
+**Mode année unique** :
 
-- Pie or horizontal bar chart of totals by consolidation account
-- Footnote with the total for the selected metric
+- Graphique en secteurs ou en barres horizontales des totaux par compte de consolidation
+- Note de bas de page avec le total pour la métrique sélectionnée
 
-**Multi-year mode**:
+**Mode multi-années** :
 
-- Line chart with one series per consolidation account, plotted across years
+- Graphique en courbe avec une série par compte de consolidation, tracé sur les années
 
-**Table**: One row per consolidation account with year columns. A pinned totals row at the bottom sums all groups.
+**Tableau** : Une ligne par compte de consolidation avec des colonnes d'années. Une ligne de totaux épinglée en bas additionne tous les groupes.
 
-Items without a consolidation account appear as "Unassigned".
-
----
-
-## Analytics Categories
-
-View OPEX budget data grouped by analytics category. The layout mirrors the Consolidation Accounts report.
-
-### Controls
-
-- **Start year** and **End year**: Previous, current, or next year
-- **Metric**: Budget, Follow-up, Landing, or Revision
-- **Chart type**: Pie chart or horizontal bar chart (single-year only)
-- **Exclude analytics categories**: Multi-select autocomplete to exclude specific categories
-
-### What you'll see
-
-**Single-year mode**:
-
-- Pie or bar chart of totals by analytics category
-- Footnote with the metric total
-
-**Multi-year mode**:
-
-- Line chart with one series per category
-
-**Table**: One row per category with year columns. A pinned totals row at the bottom. Items without a category appear as "Unassigned".
+Les postes sans compte de consolidation apparaissent comme « Non assigné ».
 
 ---
 
-## Common features
+## Catégories analytiques
 
-Every report shares these capabilities through the shared toolbar:
+Consultez les données budgétaires OPEX regroupées par catégorie analytique. La disposition reprend celle du rapport Comptes de consolidation.
 
-### Export options
+### Contrôles
 
-- **Export table as CSV** (download icon): Downloads the primary table data
-- **Export chart as PNG** (image icon): Downloads the chart as a PNG image
-- **Print / Save as PDF** (print icon): Opens the browser print dialog. You can also append `?print=1` to any report URL to trigger printing automatically on load.
+- **Année de début** et **Année de fin** : Année précédente, en cours ou suivante
+- **Métrique** : Budget, Suivi, Atterrissage ou Révision
+- **Type de graphique** : Graphique en secteurs ou en barres horizontales (année unique uniquement)
+- **Exclure des catégories analytiques** : Autocomplétion multi-sélection pour exclure des catégories spécifiques
 
-### Available metrics
+### Ce que vous verrez
 
-All reports that offer a metric selector use the same four columns:
+**Mode année unique** :
 
-| Key | Label |
-|-----|-------|
+- Graphique en secteurs ou en barres des totaux par catégorie analytique
+- Note de bas de page avec le total de la métrique
+
+**Mode multi-années** :
+
+- Graphique en courbe avec une série par catégorie
+
+**Tableau** : Une ligne par catégorie avec des colonnes d'années. Une ligne de totaux épinglée en bas. Les postes sans catégorie apparaissent comme « Non assigné ».
+
+---
+
+## Fonctionnalités communes
+
+Chaque rapport partage ces capacités via la barre d'outils partagée :
+
+### Options d'export
+
+- **Exporter le tableau en CSV** (icône de téléchargement) : Télécharge les données du tableau principal
+- **Exporter le graphique en PNG** (icône image) : Télécharge le graphique en tant qu'image PNG
+- **Imprimer / Enregistrer en PDF** (icône imprimante) : Ouvre la boîte de dialogue d'impression du navigateur. Vous pouvez aussi ajouter `?print=1` à n'importe quelle URL de rapport pour déclencher l'impression automatiquement au chargement.
+
+### Métriques disponibles
+
+Tous les rapports qui proposent un sélecteur de métrique utilisent les mêmes quatre colonnes :
+
+| Clé | Libellé |
+|-----|---------|
 | `budget` | Budget |
-| `revision` | Revision |
-| `follow_up` | Follow-up |
-| `landing` | Landing |
+| `revision` | Révision |
+| `follow_up` | Suivi |
+| `landing` | Atterrissage |
 
 ### Navigation
 
-Every report shows a breadcrumb trail back to the **Rapports** hub, so you can switch reports quickly.
+Chaque rapport affiche un fil d'Ariane vers le hub **Rapports**, vous permettant de changer de rapport rapidement.
 
 ---
 
 ## Conseils
 
-- **Start with Global Chargeback**: Get the big picture of allocations before drilling into a single company.
-- **Use Top OPEX for quick wins**: The largest cost items are your first candidates for optimization.
-- **Compare Budget vs Landing**: Use the Column Comparison report to measure forecast accuracy across years.
-- **Toggle sections on chargeback reports**: The checkbox controls let you focus on just the data you need -- departments, items, KPIs, or flows -- without visual clutter.
-- **Year grouping in Column Comparison**: When comparing the same metric across multiple years, enable year grouping for a cleaner line chart.
-- **Export for presentations**: Charts export as PNG and tables as CSV, both ready for slides or spreadsheets.
+- **Commencez par la refacturation globale** : Obtenez la vue d'ensemble des ventilations avant de plonger dans une société spécifique.
+- **Utilisez le Top OPEX pour des gains rapides** : Les postes les plus importants sont vos premiers candidats à l'optimisation.
+- **Comparez Budget vs Atterrissage** : Utilisez le rapport de comparaison de colonnes pour mesurer la précision des prévisions sur plusieurs années.
+- **Basculez les sections sur les rapports de refacturation** : Les cases à cocher vous permettent de vous concentrer uniquement sur les données dont vous avez besoin -- départements, postes, KPI ou flux -- sans encombrement visuel.
+- **Regroupement par année dans la comparaison de colonnes** : Lorsque vous comparez la même métrique sur plusieurs années, activez le regroupement par année pour un graphique en courbe plus lisible.
+- **Exportez pour les présentations** : Les graphiques s'exportent en PNG et les tableaux en CSV, tous deux prêts pour les diaporamas ou les tableurs.

@@ -61,6 +61,8 @@ type SeededGraph = {
   relatedAssetId: string;
   appInstanceId: string;
   projectId: string;
+  phaseId: string;
+  phaseName: string;
   requestId: string;
   taskId: string;
 };
@@ -96,6 +98,12 @@ type ScopedAiUsers = {
   outsider: SeededPerson;
   teamId: string;
   teamName: string;
+};
+
+type SeededContextEnhancements = {
+  integratedProjectDocumentId: string;
+  projectComment: string;
+  taskComment: string;
 };
 
 async function seedTenant(runner: any, tenantId: string, slug: string, name: string) {
@@ -538,6 +546,8 @@ async function seedApplicationAssetGraph(
     relatedAssetId: randomUUID(),
     appInstanceId: randomUUID(),
     projectId: randomUUID(),
+    phaseId: randomUUID(),
+    phaseName: `Execution ${tag}`,
     requestId: randomUUID(),
     taskId: randomUUID(),
   };
@@ -623,12 +633,20 @@ async function seedApplicationAssetGraph(
   );
 
   await runner.query(
+    `INSERT INTO portfolio_project_phases (
+       id, tenant_id, project_id, name, sequence, planned_start, planned_end, status, created_at, updated_at
+     )
+     VALUES ($1, $2, $3, $4, 0, DATE '2026-01-15', DATE '2026-06-30', 'in_progress', now(), now())`,
+    [ids.phaseId, tenantId, ids.projectId, ids.phaseName],
+  );
+
+  await runner.query(
     `INSERT INTO tasks (
-       id, tenant_id, item_number, title, description, status, related_object_type, related_object_id,
+       id, tenant_id, item_number, title, description, status, related_object_type, related_object_id, phase_id,
        labels, owner_ids, viewer_ids, created_at, updated_at
      )
      VALUES (
-       $1, $2, $3, $4, $5, 'open', 'project', $6,
+       $1, $2, $3, $4, $5, 'open', 'project', $6, $7,
        '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, now(), now()
      )`,
     [
@@ -638,6 +656,7 @@ async function seedApplicationAssetGraph(
       opts?.taskTitle ?? `Shared Boundary Task ${tag}`,
       `Shared boundary task ${tag}`,
       ids.projectId,
+      ids.phaseId,
     ],
   );
 
@@ -835,6 +854,73 @@ async function seedIntegratedKnowledgeDocument(
   return { documentId };
 }
 
+async function seedContextEnhancements(
+  runner: any,
+  tenantId: string,
+  graph: SeededGraph,
+  knowledge: SeededKnowledge,
+  people: SeededAiPeople,
+  tag: string,
+): Promise<SeededContextEnhancements> {
+  await setCurrentTenant(runner, tenantId);
+
+  const integratedProject = await seedIntegratedKnowledgeDocument(
+    runner,
+    tenantId,
+    graph,
+    knowledge,
+    tag,
+    'projects',
+  );
+
+  const projectComment = `Project activity update ${tag}`;
+  const taskComment = `Task activity update ${tag}`;
+
+  await runner.query(
+    `INSERT INTO portfolio_activities (
+       id, tenant_id, project_id, author_id, type, content, changed_fields, created_at, updated_at
+     )
+     VALUES
+       ($1, $2, $3, $4, 'comment', $5, null, now() - interval '2 hour', now() - interval '2 hour'),
+       ($6, $2, $3, $7, 'change', null, $8::jsonb, now() - interval '1 hour', now() - interval '1 hour')`,
+    [
+      randomUUID(),
+      tenantId,
+      graph.projectId,
+      people.projectContributor.id,
+      projectComment,
+      randomUUID(),
+      people.projectBusinessLead.id,
+      JSON.stringify({ status: ['planned', 'in_progress'] }),
+    ],
+  );
+
+  await runner.query(
+    `INSERT INTO portfolio_activities (
+       id, tenant_id, task_id, author_id, type, content, changed_fields, created_at, updated_at
+     )
+     VALUES
+       ($1, $2, $3, $4, 'comment', $5, null, now() - interval '30 minute', now() - interval '30 minute'),
+       ($6, $2, $3, $7, 'change', null, $8::jsonb, now() - interval '10 minute', now() - interval '10 minute')`,
+    [
+      randomUUID(),
+      tenantId,
+      graph.taskId,
+      people.taskCreator.id,
+      taskComment,
+      randomUUID(),
+      people.projectItLead.id,
+      JSON.stringify({ status: ['open', 'in_progress'] }),
+    ],
+  );
+
+  return {
+    integratedProjectDocumentId: integratedProject.documentId,
+    projectComment,
+    taskComment,
+  };
+}
+
 async function insertCrossTenantLeakShapes(
   runner: any,
   tenantA: string,
@@ -961,6 +1047,21 @@ function getPersonNames(value: any): string[] {
   return Array.isArray(value)
     ? value.map((item: any) => getPersonName(item)).filter((item: string | null): item is string => !!item).sort()
     : [];
+}
+
+function getMetadataObjectNames(value: any): string[] {
+  return Array.isArray(value)
+    ? value
+      .map((item: any) => (item && typeof item === 'object' && typeof item.name === 'string' ? item.name : null))
+      .filter((item: string | null): item is string => !!item)
+      .sort()
+    : [];
+}
+
+function getMetadataObjectName(value: any): string | null {
+  return value && typeof value === 'object' && typeof value.name === 'string'
+    ? value.name
+    : null;
 }
 
 async function resolveDocumentId(manager: any, idOrRef: string): Promise<string | null> {
@@ -1513,6 +1614,7 @@ function buildToolIsolationCases(
             assert.equal(getPersonName(result.entity.metadata.business_lead), fixtures.peopleA.projectBusinessLead.name);
             assert.equal(getPersonName(result.entity.metadata.it_lead), fixtures.peopleA.projectItLead.name);
             assert.deepEqual(getPersonNames(result.entity.metadata.contributors), [fixtures.peopleA.projectContributor.name]);
+            assert.equal(getMetadataObjectNames(result.entity.metadata.phases).includes(fixtures.graphA.phaseName), true);
           },
         },
         {
@@ -1536,6 +1638,37 @@ function buildToolIsolationCases(
             assert.deepEqual(getRelatedIdsByRelation(result, 'related_project'), [fixtures.graphA.projectId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'converted_request'), [fixtures.graphA.requestId]);
             assert.equal(getPersonName(result.entity.metadata.creator), fixtures.peopleA.taskCreator.name);
+            assert.equal(getMetadataObjectName(result.entity.metadata.phase), fixtures.graphA.phaseName);
+          },
+        },
+      ];
+
+    case 'get_entity_comments':
+      return [
+        {
+          label: 'projects-comments',
+          input: {
+            entity_type: 'projects',
+            entity_id: fixtures.graphA.projectId,
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.entity.id, fixtures.graphA.projectId);
+            assert.equal(result.entity.ref, 'PRJ-5101');
+            assert.equal(Array.isArray(result.items), true);
+          },
+        },
+        {
+          label: 'tasks-comments',
+          input: {
+            entity_type: 'tasks',
+            entity_id: fixtures.graphA.taskId,
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.entity.id, fixtures.graphA.taskId);
+            assert.equal(result.entity.ref, 'T-5101');
+            assert.equal(Array.isArray(result.items), true);
           },
         },
       ];
@@ -1649,6 +1782,20 @@ function buildToolIsolationCases(
           },
         },
         {
+          label: 'tasks-phase',
+          input: {
+            entity_type: 'tasks',
+            filters: { phase: [fixtures.graphA.phaseName] },
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.filters_applied, ['phase']);
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.taskId]);
+            assert.equal(result.items[0].metadata.phase, fixtures.graphA.phaseName);
+          },
+        },
+        {
           label: 'applications-business-owner',
           input: {
             entity_type: 'applications',
@@ -1693,6 +1840,18 @@ function buildToolIsolationCases(
             assert.deepEqual(result.groups, [{ key: 'open', count: 1 }]);
             assert.deepEqual(result.filters_applied, []);
             assert.deepEqual(result.filters_ignored, []);
+          },
+        },
+        {
+          label: 'tasks-by-phase',
+          input: {
+            entity_type: 'tasks',
+            group_by: 'phase',
+            q: 'Shared Boundary Task',
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.groups, [{ key: fixtures.graphA.phaseName, count: 1 }]);
           },
         },
         {
@@ -1759,10 +1918,11 @@ function buildToolIsolationCases(
           label: 'tasks-creator-values',
           input: {
             entity_type: 'tasks',
-            fields: ['creator'],
+            fields: ['creator', 'phase'],
           },
           assertResult: (result: any) => {
             assert.equal(result.values.creator.includes(fixtures.peopleA.taskCreator.name), true);
+            assert.equal(result.values.phase.includes(fixtures.graphA.phaseName), true);
             assert.deepEqual(result.fields_ignored, []);
           },
         },
@@ -1881,6 +2041,19 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
       projectName: 'Tenant B Project',
     });
 
+    const knowledgeA = await seedKnowledgeGraph(runner, tenantA, graphA, '3101', {
+      documentTitle: 'Tenant A Knowledge',
+      documentSummary: 'Tenant A knowledge summary',
+    });
+    const knowledgeB = await seedKnowledgeGraph(runner, tenantB, graphB, '4101', {
+      documentTitle: 'Tenant B Knowledge',
+      documentSummary: 'Tenant B knowledge summary',
+    });
+    const peopleA = await seedAiPeopleAssignments(runner, tenantA, graphA, '3101');
+    const peopleB = await seedAiPeopleAssignments(runner, tenantB, graphB, '4101');
+    const enhancementsA = await seedContextEnhancements(runner, tenantA, graphA, knowledgeA, peopleA, '3101');
+    const enhancementsB = await seedContextEnhancements(runner, tenantB, graphB, knowledgeB, peopleB, '4101');
+
     await disableRls(runner, [
       'applications',
       'assets',
@@ -1894,9 +2067,38 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
       'asset_projects',
       'portfolio_request_applications',
       'portfolio_request_assets',
+      'tasks',
+      'portfolio_project_phases',
+      'portfolio_activities',
+      'documents',
+      'integrated_document_bindings',
     ]);
 
     await insertCrossTenantLeakShapes(runner, tenantA, tenantB, graphA, graphB);
+
+    await setCurrentTenant(runner, tenantB);
+    await runner.query(
+      `UPDATE integrated_document_bindings
+       SET source_entity_id = $1,
+           updated_at = now()
+       WHERE document_id = $2
+         AND tenant_id = $3`,
+      [graphA.projectId, enhancementsB.integratedProjectDocumentId, tenantB],
+    );
+    await runner.query(
+      `INSERT INTO portfolio_activities (
+         id, tenant_id, project_id, author_id, type, content, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, 'comment', $5, now(), now())`,
+      [randomUUID(), tenantB, graphA.projectId, peopleB.projectContributor.id, `Tenant B project comment 4101`],
+    );
+    await runner.query(
+      `INSERT INTO portfolio_activities (
+         id, tenant_id, task_id, author_id, type, content, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, 'comment', $5, now(), now())`,
+      [randomUUID(), tenantB, graphA.taskId, peopleB.taskCreator.id, `Tenant B task comment 4101`],
+    );
 
     const entityService = new AiEntityService(
       {
@@ -1909,6 +2111,22 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
       } as any,
       {
         listReadableEntityTypes: async (_context: unknown, requested: string[]) => requested,
+        canReadKnowledge: async () => true,
+        assertEntityTypeReadAccess: async () => undefined,
+      } as any,
+    );
+    const entityServiceWithoutKnowledge = new AiEntityService(
+      {
+        search: async () => ({ items: [], total: 0 }),
+        getKnowledgeContextForEntity: async () => ({
+          access: 'granted',
+          total: 0,
+          groups: [],
+        }),
+      } as any,
+      {
+        listReadableEntityTypes: async (_context: unknown, requested: string[]) => requested,
+        canReadKnowledge: async () => false,
         assertEntityTypeReadAccess: async () => undefined,
       } as any,
     );
@@ -1966,6 +2184,51 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
     assert.equal(
       assetContext.related.some((group: any) => group.items.some((item: any) =>
         [graphB.requestId, graphB.projectId, graphB.relatedAssetId, graphB.applicationId].includes(item.id))),
+      false,
+    );
+
+    const projectContext = await entityService.getEntityContext(tenantAContext, {
+      entity_type: 'projects',
+      entity_id: graphA.projectId,
+    });
+    assert.equal(projectContext.entity.id, graphA.projectId);
+    assert.equal(getMetadataObjectNames(projectContext.entity.metadata.phases).includes(graphA.phaseName), true);
+    assert.deepEqual(getRelatedIdsByRelation(projectContext, 'project_tasks'), [graphA.taskId]);
+    assert.deepEqual(getRelatedIdsByRelation(projectContext, 'integrated_documents'), [enhancementsA.integratedProjectDocumentId]);
+    assert.equal(
+      Array.isArray(projectContext.entity.metadata.recent_activity)
+      && projectContext.entity.metadata.recent_activity.some((item: any) => item.content === enhancementsA.projectComment),
+      true,
+    );
+    assert.equal(
+      Array.isArray(projectContext.entity.metadata.recent_activity)
+      && projectContext.entity.metadata.recent_activity.some((item: any) => String(item.author || '').includes('4101')),
+      false,
+    );
+    assert.equal(
+      getRelatedIdsByRelation(projectContext, 'integrated_documents').includes(enhancementsB.integratedProjectDocumentId),
+      false,
+    );
+    const projectContextWithoutKnowledge = await entityServiceWithoutKnowledge.getEntityContext(tenantAContext, {
+      entity_type: 'projects',
+      entity_id: graphA.projectId,
+    });
+    assert.deepEqual(getRelatedIdsByRelation(projectContextWithoutKnowledge, 'integrated_documents'), []);
+
+    const taskContext = await entityService.getEntityContext(tenantAContext, {
+      entity_type: 'tasks',
+      entity_id: graphA.taskId,
+    });
+    assert.equal(taskContext.entity.id, graphA.taskId);
+    assert.equal(getMetadataObjectName(taskContext.entity.metadata.phase), graphA.phaseName);
+    assert.equal(
+      Array.isArray(taskContext.entity.metadata.recent_activity)
+      && taskContext.entity.metadata.recent_activity.some((item: any) => item.content === enhancementsA.taskComment),
+      true,
+    );
+    assert.equal(
+      Array.isArray(taskContext.entity.metadata.recent_activity)
+      && taskContext.entity.metadata.recent_activity.some((item: any) => String(item.author || '').includes('4101')),
       false,
     );
   } finally {
@@ -2066,6 +2329,166 @@ async function testAiToolRegistryIsolationCoverageTracksRegisteredTools() {
         testCase.assertResult(result);
       }
     }
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
+async function testAiEntityCommentsReturnsPaginatedCommentFeedsAndStaysTenantScoped() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  const tenantA = randomUUID();
+  const tenantB = randomUUID();
+
+  try {
+    await seedTenant(runner, tenantA, `ai-comments-a-${tenantA.slice(0, 8)}`, 'AI Comments Tenant A');
+    await seedTenant(runner, tenantB, `ai-comments-b-${tenantB.slice(0, 8)}`, 'AI Comments Tenant B');
+
+    const graphA = await seedApplicationAssetGraph(runner, tenantA, '7101', {
+      applicationName: 'Comments Probe Application',
+      projectName: 'Comments Probe Project',
+      requestName: 'Comments Probe Request',
+      taskTitle: 'Comments Probe Task',
+    });
+    const graphB = await seedApplicationAssetGraph(runner, tenantB, '8101', {
+      applicationName: 'Comments Probe Application',
+      projectName: 'Comments Probe Project',
+      requestName: 'Comments Probe Request',
+      taskTitle: 'Comments Probe Task',
+    });
+    const peopleA = await seedAiPeopleAssignments(runner, tenantA, graphA, '7101');
+    const peopleB = await seedAiPeopleAssignments(runner, tenantB, graphB, '8101');
+
+    const projectComments = [
+      'Newest project comment',
+      'Middle project comment',
+      'Oldest project comment',
+    ];
+    const taskComments = [
+      'Newest task comment',
+      'Older task comment',
+    ];
+
+    await setCurrentTenant(runner, tenantA);
+    await runner.query(
+      `INSERT INTO portfolio_activities (
+         id, tenant_id, project_id, author_id, type, content, changed_fields, created_at, updated_at
+       )
+       VALUES
+         ($1, $2, $3, $4, 'comment', $5, null, now() - interval '5 minute', now() - interval '5 minute'),
+         ($6, $2, $3, $7, 'comment', $8, null, now() - interval '15 minute', now() - interval '15 minute'),
+         ($9, $2, $3, $10, 'comment', $11, null, now() - interval '25 minute', now() - interval '25 minute'),
+         ($12, $2, $3, $13, 'change', null, $14::jsonb, now() - interval '2 minute', now() - interval '2 minute')`,
+      [
+        randomUUID(),
+        tenantA,
+        graphA.projectId,
+        peopleA.projectContributor.id,
+        projectComments[0],
+        randomUUID(),
+        peopleA.projectBusinessLead.id,
+        projectComments[1],
+        randomUUID(),
+        peopleA.projectItLead.id,
+        projectComments[2],
+        randomUUID(),
+        peopleA.projectBusinessLead.id,
+        JSON.stringify({ status: ['planned', 'in_progress'] }),
+      ],
+    );
+    await runner.query(
+      `INSERT INTO portfolio_activities (
+         id, tenant_id, task_id, author_id, type, content, changed_fields, created_at, updated_at
+       )
+       VALUES
+         ($1, $2, $3, $4, 'comment', $5, null, now() - interval '3 minute', now() - interval '3 minute'),
+         ($6, $2, $3, $7, 'comment', $8, null, now() - interval '12 minute', now() - interval '12 minute'),
+         ($9, $2, $3, $10, 'change', null, $11::jsonb, now() - interval '1 minute', now() - interval '1 minute')`,
+      [
+        randomUUID(),
+        tenantA,
+        graphA.taskId,
+        peopleA.taskCreator.id,
+        taskComments[0],
+        randomUUID(),
+        peopleA.projectItLead.id,
+        taskComments[1],
+        randomUUID(),
+        peopleA.projectBusinessLead.id,
+        JSON.stringify({ status: ['open', 'in_progress'] }),
+      ],
+    );
+
+    await setCurrentTenant(runner, tenantB);
+    await runner.query(
+      `INSERT INTO portfolio_activities (
+         id, tenant_id, project_id, author_id, type, content, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, 'comment', $5, now(), now())`,
+      [randomUUID(), tenantB, graphA.projectId, peopleB.projectContributor.id, 'Tenant B leaked project comment 8101'],
+    );
+    await runner.query(
+      `INSERT INTO portfolio_activities (
+         id, tenant_id, task_id, author_id, type, content, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, 'comment', $5, now(), now())`,
+      [randomUUID(), tenantB, graphA.taskId, peopleB.taskCreator.id, 'Tenant B leaked task comment 8101'],
+    );
+
+    const entityService = new AiEntityService(
+      {} as any,
+      {
+        assertEntityTypeReadAccess: async () => undefined,
+      } as any,
+    );
+
+    await setCurrentTenant(runner, tenantA);
+    const tenantAContext = {
+      tenantId: tenantA,
+      userId: 'ai-comments-admin',
+      isPlatformHost: false,
+      surface: 'chat' as const,
+      authMethod: 'jwt' as const,
+      manager: runner.manager,
+    };
+
+    const firstProjectPage = await entityService.getEntityComments(tenantAContext, {
+      entity_type: 'projects',
+      entity_id: 'PRJ-7101',
+      offset: 0,
+      limit: 2,
+    });
+    assert.equal(firstProjectPage.entity.ref, 'PRJ-7101');
+    assert.equal(firstProjectPage.total, 3);
+    assert.equal(firstProjectPage.returned, 2);
+    assert.equal(firstProjectPage.truncated, true);
+    assert.deepEqual(firstProjectPage.items.map((item) => item.content), projectComments.slice(0, 2));
+    assert.equal(firstProjectPage.items.some((item) => String(item.author || '').includes('8101')), false);
+
+    const secondProjectPage = await entityService.getEntityComments(tenantAContext, {
+      entity_type: 'projects',
+      entity_id: graphA.projectId,
+      offset: 2,
+      limit: 2,
+    });
+    assert.equal(secondProjectPage.total, 3);
+    assert.equal(secondProjectPage.returned, 1);
+    assert.equal(secondProjectPage.truncated, false);
+    assert.deepEqual(secondProjectPage.items.map((item) => item.content), [projectComments[2]]);
+
+    const taskFeed = await entityService.getEntityComments(tenantAContext, {
+      entity_type: 'tasks',
+      entity_id: 'T-7101',
+      offset: 0,
+      limit: 10,
+    });
+    assert.equal(taskFeed.entity.ref, 'T-7101');
+    assert.equal(taskFeed.total, 2);
+    assert.deepEqual(taskFeed.items.map((item) => item.content), taskComments);
+    assert.equal(taskFeed.items.some((item) => String(item.author || '').includes('8101')), false);
   } finally {
     await runner.rollbackTransaction();
     await runner.release();
@@ -2243,6 +2666,17 @@ async function testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies
        WHERE tenant_id = $1`,
       [tenantA, taskCompanyA],
     );
+    await runner.query(
+      `INSERT INTO tasks (
+         id, tenant_id, item_number, title, description, status, related_object_type, related_object_id, phase_id,
+         labels, owner_ids, viewer_ids, created_at, updated_at
+       )
+       VALUES (
+         $1, $2, $3, 'Cross Tenant Phase Probe', 'Should not expose tenant B phase names', 'open', 'project', $4, $5,
+         '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, now(), now()
+       )`,
+      [randomUUID(), tenantA, 98201, graphA.projectId, graphB.phaseId],
+    );
     await setCurrentTenant(runner, tenantB);
     await runner.query(
       `UPDATE applications
@@ -2294,6 +2728,7 @@ async function testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies
       'portfolio_projects',
       'portfolio_requests',
       'tasks',
+      'portfolio_project_phases',
       'documents',
     ]);
 
@@ -2362,6 +2797,18 @@ async function testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies
         forbiddenFilterValue: 'Tenant B Task Company',
       },
       {
+        entityType: 'tasks' as const,
+        query: 'Shared Boundary Task',
+        expectedId: graphA.taskId,
+        expectedStatus: graphA.phaseName,
+        forbiddenStatus: graphB.phaseName,
+        filterField: 'phase',
+        expectedFilterValue: graphA.phaseName,
+        forbiddenFilterValue: graphB.phaseName,
+        filters: { phase: [graphA.phaseName] },
+        groupBy: 'phase',
+      },
+      {
         entityType: 'documents' as const,
         query: 'Shared Boundary Knowledge',
         aggregateQuery: '',
@@ -2378,6 +2825,7 @@ async function testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies
       const queryResult = await registry.execute(tenantAContext, 'query_entities', {
         entity_type: testCase.entityType,
         q: testCase.query,
+        filters: testCase.filters,
         limit: 20,
       }) as any;
       assert.equal(queryResult.total, 1, `${testCase.entityType} query should only return tenant A rows`);
@@ -2385,8 +2833,9 @@ async function testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies
 
       const aggregateResult = await registry.execute(tenantAContext, 'aggregate_entities', {
         entity_type: testCase.entityType,
-        group_by: 'status',
+        group_by: testCase.groupBy || 'status',
         q: testCase.aggregateQuery ?? testCase.query,
+        filters: testCase.filters,
       }) as any;
       assert.equal(aggregateResult.total, 1, `${testCase.entityType} aggregate should only count tenant A rows`);
       assert.equal(
@@ -3550,6 +3999,7 @@ async function run() {
   try {
     await testAiPhase1RepairMigrationReassertsCriticalRls();
     await testAiEntityServicePhase1TenantDefenseInDepth();
+    await testAiEntityCommentsReturnsPaginatedCommentFeedsAndStaysTenantScoped();
     await testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScoped();
     await testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies();
     await testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting();

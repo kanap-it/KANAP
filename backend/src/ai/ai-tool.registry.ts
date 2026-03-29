@@ -37,6 +37,13 @@ const GetEntityContextInputSchema = z.object({
   entity_id: z.string().trim().min(1),
 });
 
+const GetEntityCommentsInputSchema = z.object({
+  entity_type: z.enum(['projects', 'tasks']).describe('The entity family: projects or tasks.'),
+  entity_id: z.string().trim().min(1).describe('The project/task UUID or canonical reference such as PRJ-12 or T-42.'),
+  offset: z.number().int().min(0).max(5000).default(0).describe('Zero-based comment offset for pagination.'),
+  limit: z.number().int().min(1).max(100).default(20).describe('Maximum number of comments to return.'),
+});
+
 const SearchKnowledgeInputSchema = z.object({
   query: z.string().trim().min(1),
   offset: z.number().int().min(0).max(5000).default(0),
@@ -220,6 +227,23 @@ export class AiToolRegistry {
           surfaces: ['chat', 'mcp'],
           readOnly: true,
           execute: (context, input) => this.entityTools.getEntityContext(context, input),
+        },
+      ],
+      [
+        'get_entity_comments',
+        {
+          name: 'get_entity_comments',
+          description: 'Return the paginated discussion comments feed for one readable project or task. Use this instead of mixed recent activity when the user asks what people said.',
+          inputSchema: GetEntityCommentsInputSchema,
+          inputSummary: {
+            entity_type: 'One of projects or tasks.',
+            entity_id: 'The project/task UUID or canonical reference such as PRJ-12 or T-42.',
+            offset: 'Zero-based comment offset (default 0). Increase this to page deeper into the discussion history.',
+            limit: 'Maximum number of comments to return (default 20, max 100).',
+          },
+          surfaces: ['chat', 'mcp'],
+          readOnly: true,
+          execute: (context, input) => this.entityTools.getEntityComments(context, input),
         },
       ],
       [
@@ -423,6 +447,8 @@ export class AiToolRegistry {
         return avail.readableEntityTypes.length > 0;
       case 'get_entity_context':
         return avail.readableEntityTypes.some((type) => type !== 'documents');
+      case 'get_entity_comments':
+        return avail.readableEntityTypes.includes('projects') || avail.readableEntityTypes.includes('tasks');
       case 'search_knowledge':
       case 'get_document':
         return avail.canReadKnowledge;

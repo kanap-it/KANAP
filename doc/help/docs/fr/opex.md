@@ -1,415 +1,321 @@
 # OPEX
 
-OPEX (Operating Expenditure) items are your recurring IT costs: software licenses, cloud subscriptions, maintenance contracts, and services. This is where you plan budgets, track actuals, and allocate costs across your organization.
+Les postes OPEX (dépenses opérationnelles) sont vos coûts IT récurrents : licences logicielles, abonnements cloud, contrats de maintenance et services. C'est ici que vous planifiez les budgets, suivez le réalisé et répartissez les coûts à travers votre organisation.
 
-The OPEX espace de travail helps you manage each spend item from initial budgeting through execution and reporting -- all in one place with year-by-year budget columns, flexible allocation methods, and direct links to suppliers, contracts, applications, and projects.
+L'espace de travail OPEX vous aide à gérer chaque poste de dépense de la budgétisation initiale jusqu'à l'exécution et le reporting -- le tout en un seul endroit avec des colonnes budgétaires annuelles, des méthodes de ventilation flexibles et des liens directs vers les fournisseurs, contrats, applications et projets.
 
 ## Premiers pas
 
-Navigate to **Gestion budgétaire > OPEX** to see your list. Click **Nouveau** to create your first item.
+Rendez-vous dans **Gestion budgétaire > OPEX** pour voir votre liste. Cliquez sur **Nouveau** pour créer votre premier poste.
 
-**Required fields**:
-  - **Product Name**: What you are spending on (e.g., "Salesforce Licenses", "AWS Compute")
-  - **Supplier**: Who you are paying. Links to your Suppliers master data
-  - **Currency**: ISO code (e.g., USD, EUR). Defaults to your espace de travail currency; you can override per item
-  - **Paying Company**: Which company is paying the supplier (required for accounting)
-  - **Account**: The general ledger account for this spend. Only accounts from the paying company's Chart of Accounts will appear
-  - **Effective Start**: When this spend begins (DD/MM/YYYY)
+**Champs obligatoires** :
+  - **Nom du produit** : Ce que vous dépensez (ex. : « Licences Salesforce », « Compute AWS »)
+  - **Fournisseur** : À qui vous payez. Lié à vos données de référence Fournisseurs
+  - **Devise** : Code ISO (ex. : USD, EUR). Par défaut la devise de votre espace de travail ; modifiable par poste
+  - **Société payeuse** : Quelle société paie le fournisseur (obligatoire pour la comptabilité)
+  - **Compte** : Le compte du grand livre pour cette dépense. Seuls les comptes du plan comptable de la société payeuse apparaissent
+  - **Date de début effective** : Quand cette dépense commence (JJ/MM/AAAA)
 
-**Optional but useful**:
-  - **Description**: Additional context or notes about the spend
-  - **Effective End**: When this spend stops (leave blank for ongoing items)
-  - **IT Owner** / **Business Owner**: Who is responsible
-  - **Analytics Category**: Custom grouping for reporting (e.g., "Infrastructure", "Business Apps"). New categories can be created on the fly
-  - **Notes**: Free-form internal notes
+**Optionnel mais utile** :
+  - **Description** : Contexte ou notes supplémentaires sur la dépense
+  - **Date de fin effective** : Quand cette dépense s'arrête (laisser vide pour les postes permanents)
+  - **Responsable IT** / **Responsable métier** : Qui est en charge
+  - **Catégorie analytique** : Regroupement personnalisé pour le reporting (ex. : « Infrastructure », « Apps métier »). De nouvelles catégories peuvent être créées à la volée
+  - **Notes** : Notes internes libres
 
-Once you save, l'espace de travail unlocks all tabs: **Overview**, **Budget**, **Allocations**, **Tasks**, and **Relations**.
+Une fois enregistré, l'espace de travail déverrouille tous les onglets : **Vue d'ensemble**, **Budget**, **Ventilations**, **Tâches** et **Relations**.
 
-**Tip**: You can create items quickly and fill in budgets and allocations later. Start with the essentials and iterate.
-
----
-
-## Working with the OPEX list
-
-The OPEX list (at **Gestion budgétaire > OPEX**) is your main view for browsing, filtering, and navigating spend items.
-
-**Default columns**:
-  - **Product Name**: The item name (links to the Overview tab)
-  - **Supplier**: The supplier name
-  - **Paying Company**: Which company pays for this item
-  - **Contract**: The latest linked contract name (links to the Contract espace de travail)
-  - **Account**: The GL account number and name
-  - **Allocation**: The allocation method label for the current year (links to the Allocations tab)
-  - **Y Budget**: Current-year budget amount (links to the Budget tab for this year)
-  - **Y Landing**: Current-year landing amount (links to the Budget tab for this year)
-  - **Task**: The latest task title (links to the Tasks tab)
-
-**Additional columns** (hidden by default, toggle via the column chooser):
-  - **Y-1 Budget / Y-1 Landing**: Prior-year figures
-  - **Y Revision / Y Follow-up**: Current-year revision and follow-up amounts
-  - **Y+1 Budget / Y+1 Revision**: Next-year figures
-  - **Y+2 Budget**: Two-years-out budget
-  - **Enabled**: Item status (enabled or disabled)
-  - **Description**: Item description
-  - **Currency**: ISO currency code
-  - **Effective Start / Effective End**: Start and end dates
-  - **IT Owner / Business Owner**: Responsible users
-  - **Analytics**: Analytics category name
-  - **Project ID**: Linked project identifier
-  - **Notes**: Internal notes
-  - **Created / Updated**: Timestamps
-
-**Filtering**:
-  - **Quick search**: Searches across product name, supplier, description, and other text fields. Filters the list in real-time as you type
-  - **Column filters**: Click the filter icon in any column header. **Paying Company**, **Account**, **Allocation**, **Currency**, **IT Owner**, **Business Owner**, and **Analytics** use checkbox set filters (multi-select). Other columns use text or number filters
-  - **Status scope**: Use the **Show: Enabled / Disabled / All** toggle above the grid (defaults to **Enabled**)
-
-**Sorting**:
-  - Click a column header to sort ascending/descending
-  - Default sort is by **Y Budget** descending
-  - The list remembers your last sort, search, and filters when you return
-
-**Totals row**:
-  - The pinned row at the bottom shows totals for all budget columns
-  - Totals respect your current filters and search
-
-**Deep linking**:
-  - Clicking any cell opens l'espace de travail on the most relevant tab:
-    - **Product Name**, **Supplier**, **Paying Company**, **Account**, and other general columns: Opens the **Overview** tab
-    - **Budget columns** (Y Budget, Y Landing, Y-1 Budget, etc.): Opens the **Budget** tab pre-set to that year
-    - **Allocation**: Opens the **Allocations** tab for the current year
-    - **Task**: Opens the **Tasks** tab
-    - **Contract**: Opens the linked Contract espace de travail directly (not the OPEX espace de travail)
-
-**Actions**:
-  - **Nouveau**: Create a new OPEX item (requires `opex:manager`)
-  - **Importer CSV**: Bulk-load items from CSV (requires `opex:admin`)
-  - **Exporter CSV**: Export items to CSV (requires `opex:admin`)
-  - **Delete Selected**: Bulk-delete selected items (requires `opex:admin`; select rows via checkboxes)
-
-**Prev/Next navigation**:
-  - When you open an item, l'espace de travail shows **Préc** and **Suiv** buttons
-  - These navigate through the list in the current sort order, respecting filters and search
-  - Your list context (sort, filters, search) is preserved when you close l'espace de travail
-
-**Tip**: Use column filters + quick search to build focused views (e.g., "All cloud spend over 10k"), then navigate item-by-item with Prev/Next to review budgets.
+**Conseil** : Vous pouvez créer des postes rapidement et remplir les budgets et ventilations plus tard. Commencez par l'essentiel et itérez.
 
 ---
 
-## The OPEX espace de travail
+## Travailler avec la liste OPEX
 
-Click any row in the list to open l'espace de travail. It has five tabs arranged vertically on the left, each focused on a specific aspect of the spend item.
+La liste OPEX (dans **Gestion budgétaire > OPEX**) est votre vue principale pour parcourir, filtrer et naviguer dans les postes de dépenses.
 
-### Overview
+**Colonnes par défaut** :
+  - **Nom du produit** : Le nom du poste (ouvre l'onglet Vue d'ensemble)
+  - **Fournisseur** : Le nom du fournisseur
+  - **Société payeuse** : Quelle société paie ce poste
+  - **Contrat** : Le nom du dernier contrat lié (ouvre l'espace de travail du Contrat)
+  - **Compte** : Le numéro et nom du compte comptable
+  - **Ventilation** : Le libellé de la méthode de ventilation pour l'année en cours (ouvre l'onglet Ventilations)
+  - **Budget A** : Montant du budget de l'année en cours (ouvre l'onglet Budget pour cette année)
+  - **Atterrissage A** : Montant de l'atterrissage de l'année en cours (ouvre l'onglet Budget pour cette année)
+  - **Tâche** : Le titre de la dernière tâche (ouvre l'onglet Tâches)
 
-This tab shows all the general information about the spend item.
+**Colonnes supplémentaires** (masquées par défaut, activez via le sélecteur de colonnes) :
+  - **Budget A-1 / Atterrissage A-1** : Chiffres de l'année précédente
+  - **Révision A / Suivi A** : Montants de révision et suivi de l'année en cours
+  - **Budget A+1 / Révision A+1** : Chiffres de l'année suivante
+  - **Budget A+2** : Budget à deux ans
+  - **Activé** : Statut du poste (activé ou désactivé)
+  - **Description** : Description du poste
+  - **Devise** : Code devise ISO
+  - **Début effectif / Fin effective** : Dates de début et fin
+  - **Responsable IT / Responsable métier** : Utilisateurs responsables
+  - **Analytique** : Nom de la catégorie analytique
+  - **ID Projet** : Identifiant du projet lié
+  - **Notes** : Notes internes
+  - **Créé / Mis à jour** : Horodatages
 
-**What you can edit**:
-  - **Product Name** (required)
+**Filtrage** :
+  - **Recherche rapide** : Recherche dans nom du produit, fournisseur, description et autres champs texte. Filtre la liste en temps réel
+  - **Filtres de colonnes** : Cliquez sur l'icône de filtre dans n'importe quel en-tête de colonne. **Société payeuse**, **Compte**, **Ventilation**, **Devise**, **Responsable IT**, **Responsable métier** et **Analytique** utilisent des filtres par jeu de cases à cocher (multi-sélection). Les autres colonnes utilisent des filtres texte ou numériques
+  - **Périmètre par statut** : Utilisez la bascule **Afficher : Activé / Désactivé / Tous** au-dessus de la grille (par défaut **Activé**)
+
+**Tri** :
+  - Cliquez sur un en-tête de colonne pour trier croissant/décroissant
+  - Le tri par défaut est par **Budget A** décroissant
+  - La liste mémorise votre dernier tri, recherche et filtres quand vous revenez
+
+**Ligne de totaux** :
+  - La ligne épinglée en bas affiche les totaux pour toutes les colonnes budgétaires
+  - Les totaux respectent vos filtres et recherche actuels
+
+**Liens profonds** :
+  - Cliquer sur n'importe quelle cellule ouvre l'espace de travail sur l'onglet le plus pertinent :
+    - **Nom du produit**, **Fournisseur**, **Société payeuse**, **Compte** et autres colonnes générales : Ouvre l'onglet **Vue d'ensemble**
+    - **Colonnes budgétaires** (Budget A, Atterrissage A, Budget A-1, etc.) : Ouvre l'onglet **Budget** pré-positionné sur cette année
+    - **Ventilation** : Ouvre l'onglet **Ventilations** pour l'année en cours
+    - **Tâche** : Ouvre l'onglet **Tâches**
+    - **Contrat** : Ouvre directement l'espace de travail du Contrat lié (pas l'espace de travail OPEX)
+
+**Actions** :
+  - **Nouveau** : Créer un nouveau poste OPEX (nécessite `opex:manager`)
+  - **Import CSV** : Charger en masse depuis un CSV (nécessite `opex:admin`)
+  - **Export CSV** : Exporter en CSV (nécessite `opex:admin`)
+  - **Supprimer la sélection** : Suppression en masse des postes sélectionnés (nécessite `opex:admin` ; sélectionnez via les cases à cocher)
+
+**Navigation Préc./Suiv.** :
+  - Lorsque vous ouvrez un poste, l'espace de travail affiche les boutons **Préc.** et **Suiv.**
+  - Ceux-ci naviguent dans la liste selon le tri actuel, respectant les filtres et la recherche
+  - Votre contexte de liste (tri, filtres, recherche) est préservé lorsque vous fermez l'espace de travail
+
+**Conseil** : Utilisez les filtres de colonnes + la recherche rapide pour construire des vues focalisées (ex. : « Toutes les dépenses cloud de plus de 10k »), puis naviguez poste par poste avec Préc./Suiv. pour revoir les budgets.
+
+---
+
+## L'espace de travail OPEX
+
+Cliquez sur n'importe quelle ligne de la liste pour ouvrir l'espace de travail. Il comporte cinq onglets disposés verticalement à gauche, chacun focalisé sur un aspect spécifique du poste de dépense.
+
+### Vue d'ensemble
+
+Cet onglet affiche toutes les informations générales sur le poste de dépense.
+
+**Ce que vous pouvez modifier** :
+  - **Nom du produit** (obligatoire)
   - **Description**
-  - **Supplier** (autocomplete from your Suppliers master data; required)
-  - **Currency** (defaults to espace de travail currency; shows only allowed currencies)
-  - **Paying Company** (autocomplete from your Companies; required)
-  - **Account** (filtered by the paying company's Chart of Accounts; required)
-  - **Effective Start** and **Effective End** (date fields)
-  - **IT Owner** and **Business Owner** (autocomplete from enabled users)
-  - **Analytics Category** (autocomplete; creates new categories on the fly)
+  - **Fournisseur** (autocomplétion depuis vos données de référence Fournisseurs ; obligatoire)
+  - **Devise** (par défaut la devise de l'espace de travail ; affiche uniquement les devises autorisées)
+  - **Société payeuse** (autocomplétion depuis vos Sociétés ; obligatoire)
+  - **Compte** (filtré par le plan comptable de la société payeuse ; obligatoire)
+  - **Début effectif** et **Fin effective** (champs de date)
+  - **Responsable IT** et **Responsable métier** (autocomplétion depuis les utilisateurs actifs)
+  - **Catégorie analytique** (autocomplétion ; crée de nouvelles catégories à la volée)
   - **Notes**
 
-**Status and lifecycle**:
-  - Use the **Enabled** toggle or set a **Disabled date** to control when the item appears in reports and selection lists
-  - Disabled items are excluded from reports for years strictly after the disabled date
-  - Historical data remains intact; you will still see disabled items in reports covering years when they were active
+**Statut et cycle de vie** :
+  - Utilisez la bascule **Activé** ou définissez une **Date de désactivation** pour contrôler quand le poste apparaît dans les rapports et listes de sélection
+  - Les postes désactivés sont exclus des rapports pour les années strictement postérieures à la date de désactivation
+  - Les données historiques restent intactes ; vous verrez toujours les postes désactivés dans les rapports couvrant les années où ils étaient actifs
 
-**Save and Reset**:
-  - Changes are **not** saved automatically
-  - Click **Enregistrer** to persist your edits, or **Réinitialiser** to discard them
-  - If you try to navigate away or switch tabs with unsaved changes, you will be prompted to save or discard
+**Enregistrer et Réinitialiser** :
+  - Les modifications ne sont **pas** enregistrées automatiquement
+  - Cliquez sur **Enregistrer** pour persister vos modifications, ou **Réinitialiser** pour les annuler
+  - Si vous tentez de naviguer ou changer d'onglet avec des modifications non enregistrées, vous serez invité à enregistrer ou annuler
 
-**Tip**: If you see an "Obsolete account" warning, it means the selected account does not belong to the paying company's Chart of Accounts. Choose a different account to resolve the warning.
+**Conseil** : Si vous voyez un avertissement « Compte obsolète », cela signifie que le compte sélectionné n'appartient pas au plan comptable de la société payeuse. Choisissez un autre compte pour résoudre l'avertissement.
 
 ---
 
 ### Budget
 
-The Budget tab is where you enter financial data per year. It supports multiple budget columns and two input modes: **Flat** (annual totals) and **Manual** (monthly breakdown).
+L'onglet Budget est l'endroit où vous saisissez les données financières par année. Il supporte plusieurs colonnes budgétaires et deux modes de saisie : **Forfaitaire** (totaux annuels) et **Manuel** (ventilation mensuelle).
 
-**Year selection**:
-  - Use the year tabs at the top to switch between Y-2, Y-1, Y (current year), Y+1, and Y+2
-  - Each year has its own version, mode, and amounts
-  - Switching years with unsaved changes prompts a save/discard dialog
+**Sélection d'année** :
+  - Utilisez les onglets d'année en haut pour basculer entre A-2, A-1, A (année en cours), A+1 et A+2
+  - Chaque année a sa propre version, son mode et ses montants
+  - Changer d'année avec des modifications non enregistrées ouvre une boîte de dialogue enregistrer/annuler
 
-**Budget columns**:
-  - **Budget (planned)**: Initial annual budget approved at the start of the year
-  - **Revision (committed)**: Mid-year budget update (e.g., after a reforecast)
-  - **Follow-up (actual)**: Expected actual spend (your best estimate as the year progresses)
-  - **Landing (expected landing)**: Final actual spend after year-end close
+**Colonnes budgétaires** :
+  - **Budget (planifié)** : Budget annuel initial approuvé en début d'année
+  - **Révision (engagé)** : Mise à jour budgétaire en cours d'année (ex. : après une re-prévision)
+  - **Suivi (réalisé)** : Dépense réelle attendue (votre meilleure estimation au fil de l'année)
+  - **Atterrissage (atterrissage prévu)** : Dépense réelle finale après la clôture de fin d'année
 
-**Flat vs Manual mode**:
-  - **Flat**: Enter one total per column; amounts are spread evenly across 12 months for allocation purposes
-  - **Manual**: Enter amounts per month (Jan-Dec) for each column, plus a **Forecast** column for additional planning
-  - Toggle between modes using the radio buttons at the top of the tab
+**Mode Forfaitaire vs Manuel** :
+  - **Forfaitaire** : Saisissez un total par colonne ; les montants sont répartis uniformément sur 12 mois pour les besoins de ventilation
+  - **Manuel** : Saisissez les montants par mois (Jan-Déc) pour chaque colonne, plus une colonne **Prévision** pour la planification complémentaire
+  - Basculez entre les modes avec les boutons radio en haut de l'onglet
 
-**Freeze behavior**:
-  - If a year's budget columns are frozen (via Budget Administration), the corresponding inputs become read-only
-  - You can still view frozen data; admins can unfreeze via **Budget Management > Budget Administration > Freeze/Unfreeze**
-  - Each column can be frozen independently (Budget, Revision, Follow-up, Landing)
+**Comportement du gel** :
+  - Si les colonnes budgétaires d'une année sont gelées (via l'Administration budgétaire), les champs correspondants passent en lecture seule
+  - Vous pouvez toujours consulter les données gelées ; les administrateurs peuvent dégeler via **Gestion budgétaire > Administration > Geler/Dégeler**
+  - Chaque colonne peut être gelée indépendamment (Budget, Révision, Suivi, Atterrissage)
 
-**Notes field**:
-  - Each year's budget version has a **Notes** field for year-specific comments (e.g., "Includes 10% price increase in Q3")
+**Champ Notes** :
+  - Chaque version budgétaire annuelle a un champ **Notes** pour les commentaires spécifiques à l'année (ex. : « Inclut une hausse de prix de 10 % au T3 »)
 
-**How to use it**:
-  1. Select the year you are planning for
-  2. Choose Flat or Manual mode
-  3. Fill in the relevant columns (Budget for initial planning, Follow-up for tracking, Landing for actuals)
-  4. Click **Enregistrer** to persist your changes
+**Comment l'utiliser** :
+  1. Sélectionnez l'année pour laquelle vous planifiez
+  2. Choisissez le mode Forfaitaire ou Manuel
+  3. Remplissez les colonnes pertinentes (Budget pour la planification initiale, Suivi pour le tracking, Atterrissage pour le réalisé)
+  4. Cliquez sur **Enregistrer** pour persister vos modifications
 
-**Tip**: For most items, Flat mode is faster. Use Manual mode when the spend varies significantly by month (e.g., seasonal licensing, one-time setup fees).
+**Conseil** : Pour la plupart des postes, le mode Forfaitaire est plus rapide. Utilisez le mode Manuel lorsque la dépense varie significativement par mois (ex. : licences saisonnières, frais de mise en place ponctuels).
 
 ---
 
-### Allocations
+### Ventilations
 
-The Allocations tab distributes the spend across your companies and departments. This drives chargeback reports and cost-per-user KPIs.
+L'onglet Ventilations répartit la dépense entre vos sociétés et départements. Cela alimente les rapports de refacturation et les KPI de coût par utilisateur.
 
-**Year selection**:
-  - Works the same as Budget: use year tabs to switch between Y-2, Y-1, Y, Y+1, Y+2
-  - Each year can have a different allocation method
+**Sélection d'année** :
+  - Fonctionne comme le Budget : utilisez les onglets d'année pour basculer entre A-2, A-1, A, A+1, A+2
+  - Chaque année peut avoir une méthode de ventilation différente
 
-**Allocation methods**:
+**Méthodes de ventilation** :
 
-| Method | How it works |
-|---|---|
-| **Headcount (Default)** | Splits spend proportionally by each company's headcount for the selected year. This is the default method. No manual selection required -- percentages are computed automatically from company metrics. |
-| **IT Users** | Splits spend proportionally by each company's IT user count for the selected year. |
-| **Turnover** | Splits spend proportionally by each company's turnover (revenue) for the selected year. |
-| **Manual by Company** | You select which companies receive this spend and choose a driver (Headcount, IT Users, or Turnover) to calculate percentages among the selected companies only. |
-| **Manual by Department** | You select specific company/department pairs. Percentages are calculated from each department's headcount. Useful when a spend item benefits only certain departments (e.g., a CRM used by Sales). |
+| Méthode | Comment ça fonctionne |
+|---------|----------------------|
+| **Effectif (Par défaut)** | Répartit la dépense proportionnellement par effectif de chaque société pour l'année sélectionnée. C'est la méthode par défaut. Aucune sélection manuelle requise -- les pourcentages sont calculés automatiquement depuis les métriques des sociétés. |
+| **Utilisateurs IT** | Répartit la dépense proportionnellement par nombre d'utilisateurs IT de chaque société pour l'année sélectionnée. |
+| **Chiffre d'affaires** | Répartit la dépense proportionnellement par chiffre d'affaires de chaque société pour l'année sélectionnée. |
+| **Manuel par société** | Vous sélectionnez quelles sociétés reçoivent cette dépense et choisissez un driver (Effectif, Utilisateurs IT ou Chiffre d'affaires) pour calculer les pourcentages parmi les sociétés sélectionnées uniquement. |
+| **Manuel par département** | Vous sélectionnez des paires société/département spécifiques. Les pourcentages sont calculés à partir de l'effectif de chaque département. Utile lorsqu'un poste ne bénéficie qu'à certains départements (ex. : un CRM utilisé par les ventes). |
 
-**How percentages work**:
-  - For **automatic methods** (Headcount, IT Users, Turnover): percentages are computed from the latest company metrics on every page load. You do not edit them directly
-  - For **manual methods**: you pick the companies or departments, and the system calculates percentages based on your chosen driver and the current metrics
-  - Percentages reflect live data. If you update a company's headcount, allocations recalculate immediately
-  - The total percentage indicator shows a running total. For auto methods the remainder is auto-distributed; for manual methods the preview uses live metrics
+**Comment fonctionnent les pourcentages** :
+  - Pour les **méthodes automatiques** (Effectif, Utilisateurs IT, Chiffre d'affaires) : les pourcentages sont calculés depuis les dernières métriques des sociétés à chaque chargement de page. Vous ne les modifiez pas directement
+  - Pour les **méthodes manuelles** : vous sélectionnez les sociétés ou départements, et le système calcule les pourcentages basé sur votre driver choisi et les métriques actuelles
+  - Les pourcentages reflètent les données en temps réel. Si vous mettez à jour l'effectif d'une société, les ventilations se recalculent immédiatement
+  - L'indicateur de pourcentage total affiche un total glissant. Pour les méthodes auto, le reste est auto-distribué ; pour les méthodes manuelles, l'aperçu utilise les métriques en temps réel
 
-**How to use it**:
-  1. Select the year
-  2. Choose an allocation method from the dropdown
-  3. If using Manual by Company, pick an allocation driver (Headcount, IT Users, or Turnover) and select companies
-  4. If using Manual by Department, select company/department pairs
-  5. Click **Enregistrer** to persist the method and selection
+**Comment l'utiliser** :
+  1. Sélectionnez l'année
+  2. Choisissez une méthode de ventilation depuis le menu déroulant
+  3. Si vous utilisez Manuel par société, choisissez un driver (Effectif, Utilisateurs IT ou Chiffre d'affaires) et sélectionnez les sociétés
+  4. Si vous utilisez Manuel par département, sélectionnez les paires société/département
+  5. Cliquez sur **Enregistrer** pour persister la méthode et la sélection
 
-**Common issues**:
-  - **"Missing metrics" error**: One or more companies have zero or missing headcount/IT users/turnover for the selected year. Fill in the metrics in **Données de référence > Sociétés** (Details tab)
-  - **"Total is not 100%"**: Usually caused by missing metrics. Fix the company data and reload allocations
+**Problèmes courants** :
+  - **Erreur « Métriques manquantes »** : Une ou plusieurs sociétés ont un effectif/utilisateurs IT/chiffre d'affaires nul ou manquant pour l'année sélectionnée. Remplissez les métriques dans **Données de référence > Sociétés** (onglet Détails)
+  - **« Le total n'est pas 100 % »** : Généralement causé par des métriques manquantes. Corrigez les données des sociétés et rechargez les ventilations
 
-**Tip**: Use Headcount (Default) for most items -- it is the simplest and updates automatically. Reserve manual methods for spend that benefits specific companies or departments only.
+**Conseil** : Utilisez Effectif (Par défaut) pour la plupart des postes -- c'est le plus simple et se met à jour automatiquement. Réservez les méthodes manuelles pour les dépenses qui ne bénéficient qu'à des sociétés ou départements spécifiques.
 
 ---
 
 ### Tâches
 
-The Tasks tab helps you track to-dos and follow-ups related to this OPEX item (e.g., "Renew license by Q3", "Review usage metrics").
+L'onglet Tâches vous aide à suivre les actions et relances liées à ce poste OPEX (ex. : « Renouveler la licence d'ici le T3 », « Revoir les métriques d'utilisation »).
 
-**Task list**:
-  - Shows all tasks linked to this OPEX item
-  - Columns: **Title**, **Status**, **Priority**, **Due Date**, **Actions**
-  - Click a task title to open the full espace de travail de la tâche
-  - Default filter shows active tasks (hides done and cancelled)
+**Liste des tâches** :
+  - Affiche toutes les tâches liées à ce poste OPEX
+  - Colonnes : **Titre**, **Statut**, **Priorité**, **Date d'échéance**, **Actions**
+  - Cliquez sur un titre de tâche pour ouvrir l'espace de travail complet de la tâche
+  - Le filtre par défaut affiche les tâches actives (masque terminées et annulées)
 
-**Filtering**:
-  - Click the filter icon to show/hide filter controls
-  - **Status filter**: All, Active (hides done/cancelled), Open, In Progress, Pending, In Testing, Done, or Cancelled
-  - Click the clear button to reset filters
+**Création d'une tâche** :
+  - Cliquez sur **Ajouter une tâche** pour ouvrir l'espace de travail de création de tâche
+  - La tâche est automatiquement liée à ce poste OPEX
+  - Remplissez le titre, la description, la priorité, le responsable et la date d'échéance dans l'espace de travail de la tâche
 
-**Creating a task**:
-  - Click **Add Task** to open the task creation espace de travail
-  - The task is automatically linked to this OPEX item
-  - Fill in the title, description, priority, assignee, and due date in the espace de travail de la tâche
+**Remarques** :
+  - Les tâches sont des objets indépendants avec leurs propres autorisations (`tasks:member` pour créer/modifier)
+  - Avoir l'accès manager OPEX ne donne pas automatiquement les droits de modification de tâches ; vérifiez avec votre admin si vous ne pouvez pas créer de tâches
+  - Les tâches peuvent aussi être consultées et gérées depuis **Portefeuille > Tâches**, qui affiche toutes les tâches de votre organisation
 
-**Deleting a task**:
-  - Click the delete icon in the Actions column
-  - Confirm the deletion in the dialog
-
-**Notes**:
-  - Tasks are independent objects with their own permissions (`tasks:member` to create/edit)
-  - Having OPEX manager access does not automatically grant task editing rights; check with your admin if you cannot create tasks
-  - Tasks can also be viewed and managed from **Portefeuille > Tâches**, which shows all tasks across your organization
-
-**Tip**: Use tasks to capture action items during budget reviews or contract renewals. Set due dates to track upcoming deadlines.
+**Conseil** : Utilisez les tâches pour capturer les actions identifiées lors des revues budgétaires ou des renouvellements de contrats. Définissez des dates d'échéance pour suivre les délais à venir.
 
 ---
 
 ### Relations
 
-The Relations tab links this OPEX item to related objects: Projects, Applications, Contracts, Contacts, Relevant Websites, and Attachments.
+L'onglet Relations lie ce poste OPEX aux objets associés : Projets, Applications, Contrats, Contacts, Sites web pertinents et Pièces jointes.
 
-**Projects**:
-  - Use the autocomplete to link one or more projects from your Portfolio
-  - This helps group spend by project in reports and enables project accounting
-  - Remove projects by clicking the X on the chip, then save
+**Projets** :
+  - Utilisez l'autocomplétion pour lier un ou plusieurs projets depuis votre Portefeuille
+  - Cela aide à regrouper les dépenses par projet dans les rapports et permet la comptabilité projet
 
-**Applications**:
-  - Use the autocomplete to link one or more applications from your IT catalogue
-  - Linked application names appear as clickable chips that open the Application espace de travail
-  - This helps track which OPEX items fund which applications or services
+**Applications** :
+  - Utilisez l'autocomplétion pour lier une ou plusieurs applications depuis votre catalogue IT
+  - Cela aide à suivre quels postes OPEX financent quelles applications ou services
 
-**Contracts**:
-  - Use the autocomplete to link one or more contracts
-  - When linked, the contract name appears in the OPEX list **Contract** column for quick reference
-  - Contracts can link to multiple OPEX items (many-to-many relationship)
-  - Remove contracts by clicking the X on the chip, then save
+**Contrats** :
+  - Utilisez l'autocomplétion pour lier un ou plusieurs contrats
+  - Lorsqu'ils sont liés, le nom du contrat apparaît dans la colonne **Contrat** de la liste OPEX pour référence rapide
 
-**Contacts**:
-  - Add supplier contacts related to this spend item
-  - Each contact has a **Role** (Commercial, Technical, Support, or Other)
-  - Contacts can come from the supplier's contact list or be added manually
-  - Useful for tracking who to reach out to for renewals, support issues, or negotiations
+**Contacts** :
+  - Ajoutez des contacts fournisseurs liés à ce poste de dépense
+  - Chaque contact a un **Rôle** (Commercial, Technique, Support ou Autre)
 
-**Relevant websites**:
-  - Add URLs related to this spend item (e.g., vendor portals, documentation, admin consoles, internal wikis)
-  - Each link has an optional **Description** field for context
-  - Click **Add URL** to add more links
+**Sites web pertinents** :
+  - Ajoutez des URL liées à ce poste (ex. : portails fournisseurs, documentation, consoles d'administration)
+  - Chaque lien a un champ **Description** optionnel
 
-**Attachments**:
-  - Upload files related to this spend item (e.g., contracts, invoices, quotes, SOWs, technical specs)
-  - Drag and drop files into the attachment area, or click **Select files** to browse
-  - All files are stored securely and can be downloaded by clicking the file name
-  - Delete attachments by clicking the X on the file chip (requires `opex:manager`)
-  - Attachments are saved immediately upon upload (no need to click **Enregistrer**)
+**Pièces jointes** :
+  - Téléversez des fichiers liés à ce poste (ex. : contrats, factures, devis, cahiers des charges)
+  - Glissez-déposez ou cliquez sur **Sélectionner des fichiers**
+  - Les pièces jointes sont enregistrées immédiatement lors du téléversement (pas besoin de cliquer sur **Enregistrer**)
 
-**Save behavior**:
-  - **Projects**, **Applications**, **Contracts**, **Relevant Websites**: Saved when you click **Enregistrer** at the top of l'espace de travail
-  - **Contacts**: Managed inline (add/remove actions save immediately)
-  - **Attachments**: Saved immediately upon upload
-
-**Tip**: Link contracts to track renewals across multiple OPEX items. Add vendor portal URLs for quick access. Upload quotes and invoices as attachments to centralize all spend-related documentation.
+**Conseil** : Liez les contrats pour suivre les renouvellements à travers plusieurs postes OPEX. Ajoutez les URL de portails fournisseurs pour un accès rapide. Téléversez les devis et factures en pièces jointes pour centraliser toute la documentation liée aux dépenses.
 
 ---
 
 ## Import/export CSV
 
-You can bulk-load OPEX items via CSV to speed up initial setup or sync with external systems.
+Vous pouvez charger en masse les postes OPEX via CSV pour accélérer la configuration initiale ou la synchronisation avec des systèmes externes.
 
-**Export**:
-  1. Click **Exporter CSV** in the OPEX list
-  2. Choose:
-     - **Template**: Headers only (use this to create a blank CSV to fill in)
-     - **Data**: All current OPEX items with budgets for Y-1, Y, and Y+1
+**Export** :
+  1. Cliquez sur **Export CSV** dans la liste OPEX
+  2. Choisissez :
+     - **Modèle** : En-têtes uniquement (utilisez-le pour créer un CSV vierge à remplir)
+     - **Données** : Tous les postes OPEX actuels avec les budgets pour A-1, A et A+1
 
-**CSV structure**:
-  - Delimiter: semicolon `;` (not comma)
-  - Encoding: UTF-8 (save as "CSV UTF-8" in Excel)
-  - Headers: `product_name;description;supplier_name;account_number;currency;effective_start;effective_end;disabled_at;status;owner_it_email;owner_business_email;analytics_category;notes;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget`
+**Import** :
+  1. Cliquez sur **Import CSV** dans la liste OPEX
+  2. Téléversez votre fichier CSV (glisser-déposer ou sélecteur de fichiers)
+  3. Cliquez sur **Vérification préalable** pour valider
+  4. Examinez le rapport de vérification
+  5. Si OK, cliquez sur **Charger** pour importer
 
-**Import**:
-  1. Click **Importer CSV** in the OPEX list
-  2. Upload your CSV file (drag-and-drop or file picker)
-  3. Click **Preflight** to validate:
-     - Headers match exactly
-     - Suppliers, accounts, and users exist in your espace de travail
-     - Required fields (product_name, currency, effective_start, paying_company) are present
-     - No duplicate product_name + supplier combinations
-  4. Review the preflight report (shows counts and up to 5 sample errors)
-  5. If OK, click **Load** to import
+**Remarques importantes** :
+  - **Clé unique** : Les postes OPEX sont identifiés par `(product_name, supplier_name)`. Si une combinaison existe déjà, elle est **ignorée** (pas de mise à jour)
+  - **Insertion uniquement** : L'importateur ne crée que de nouveaux postes ; il ne mettra pas à jour les existants. Utilisez l'interface pour modifier les postes existants
+  - **Références** : `supplier_name` doit correspondre à un Fournisseur par nom (insensible à la casse). `account_number` doit correspondre à un Compte. `owner_it_email` et `owner_business_email` doivent correspondre à des utilisateurs actifs par e-mail
 
-**Important notes**:
-  - **Unique key**: OPEX items are identified by `(product_name, supplier_name)`. If a combination already exists, it is **skipped** (no updates)
-  - **Insert-only**: The importer only creates new items; it will not update existing ones. Use the UI to edit existing items
-  - **References**: `supplier_name` must match a Supplier by name (case-insensitive). `account_number` must match an Account. `owner_it_email` and `owner_business_email` must match enabled users by email
-  - **Analytics Category**: If the category does not exist, it is created automatically during import
-  - **Budgets**: Budget columns populate Y-1, Y, and Y+1 versions. Amounts are spread evenly across 12 months (flat mode)
-
-**Common errors**:
-  - **"Supplier not found"**: Create the supplier in **Données de référence > Fournisseurs** first, then re-import
-  - **"Account not found"**: Add the account in **Données de référence > Plans comptables**, then re-import
-  - **"Invalid currency"**: Use 3-letter ISO codes (USD, EUR, GBP) that are allowed in your espace de travail currency settings
-  - **"Header mismatch"**: Download a fresh template; headers must match exactly (including order)
-
-**Tip**: Start with the template export, fill in a few rows, and run a preflight to catch issues early. Fix errors in the CSV and re-upload until preflight passes, then load.
-
----
-
-## Status and Lifecycle
-
-Every OPEX item has a **status** (Enabled or Disabled) and an optional **Disabled date** that controls when it appears in reports and selection lists.
-
-**How it works**:
-  - **Enabled**: The item is active and appears everywhere (lists, reports, allocations)
-  - **Disabled date**: When set, the item is disabled at the end of that day
-  - After the disabled date:
-    - The item no longer appears in selection lists for new contracts or allocations
-    - It is excluded from reports for years strictly after the disabled date
-    - Historical data remains intact; the item still appears in reports covering years when it was active
-
-**Setting status**:
-  - In the **Overview** tab, use the **Enabled** toggle or set a **Disabled date**
-  - You can schedule a future disabled date (useful for planned end-of-contract items)
-
-**Viewing disabled items**:
-  - By default, the OPEX list shows only **Enabled** items
-  - Use the **Show: Disabled** or **Show: All** toggle to see disabled items
-
-**When to disable vs delete**:
-  - **Prefer disabling**: Keeps history intact, ensures reports remain consistent, and supports audit trails
-  - **Delete only if**: The item was created by mistake and has no budgets, allocations, or tasks
-  - Deletion is guarded: you cannot delete an item that is referenced by contracts, tasks, or has budget data
-
-**Tip**: Use the Disabled date to sunset OPEX items when contracts end or services are discontinued. Do not delete unless it is a true mistake.
-
----
-
-## Conseils and Best Practices
-
-1. **Start simple**: Create items with just the essentials (product name, supplier, paying company, account), then add budgets and allocations as you plan.
-
-2. **Use the default allocation method**: For most items, Headcount (Default) is enough. Reserve manual allocations for spend that benefits specific companies or departments only.
-
-3. **Link contracts**: If you manage spend via contracts, link them in the Relations tab. It makes renewals easier to track.
-
-4. **Link applications**: Associate OPEX items with the applications or services they fund. This provides a clear cost-to-application mapping.
-
-5. **Upload documentation**: Use the Attachments feature to store vendor contracts, quotes, invoices, and SOWs.
-
-6. **Add vendor portal links**: Use Relevant Websites to link to vendor admin consoles, support portals, and documentation for quick access.
-
-7. **Track contacts**: Add supplier contacts with roles (Commercial, Technical, Support) so your team knows who to call for each spend item.
-
-8. **Leverage analytics categories**: Tag items with categories (Infrastructure, Business Apps, Security) to group spend in reports.
-
-9. **Keep company metrics up to date**: Allocations depend on company headcount, IT users, and turnover. Outdated metrics cause allocation errors.
-
-10. **Use CSV for bulk setup**: If you are migrating from another system or have hundreds of items, start with CSV import. Export a template, fill it in, and preflight before loading.
-
-11. **Disable, do not delete**: Preserve history by disabling items when they are no longer active. Delete only if it is a mistake.
-
-12. **Review the totals row**: Before finalizing budgets, check the pinned totals row in the list to ensure your spend adds up as expected.
-
-13. **Use deep linking**: Click directly on a budget column in the list to jump to the Budget tab for that year. Click the Task column to jump to Tasks. This saves navigation time.
-
-14. **Freeze budgets after year-end close**: Use Budget Administration to freeze prior-year budgets once actuals are finalized, preventing accidental edits.
+**Conseil** : Commencez par l'export du modèle, remplissez quelques lignes, et lancez une vérification préalable pour attraper les erreurs tôt. Corrigez les erreurs dans le CSV et re-téléversez jusqu'à ce que la vérification passe, puis chargez.
 
 ---
 
 ## Autorisations
 
-OPEX access is controlled by three levels:
+L'accès OPEX est contrôlé par trois niveaux :
 
-- `opex:reader` -- View the OPEX list, open items, see budgets and allocations (read-only), download attachments
-- `opex:manager` -- Create and edit OPEX items, update budgets and allocations, upload and delete attachments, manage relations and links
-- `opex:admin` -- All manager rights plus CSV import/export, budget operations (freeze, copy, reset), and bulk delete
+- `opex:reader` -- Consulter la liste OPEX, ouvrir les postes, voir les budgets et ventilations (lecture seule), télécharger les pièces jointes
+- `opex:manager` -- Créer et modifier les postes OPEX, mettre à jour les budgets et ventilations, téléverser et supprimer les pièces jointes, gérer les relations et liens
+- `opex:admin` -- Tous les droits manager plus import/export CSV, opérations budgétaires (gel, copie, réinitialisation) et suppression en masse
 
-Additionally:
-- Tasks have separate permissions (`tasks:member` to create/edit tasks on OPEX items)
-- Users with `tasks:reader` can view tasks but not create or edit them
+De plus :
+- Les tâches ont des autorisations séparées (`tasks:member` pour créer/modifier des tâches sur les postes OPEX)
+- Les utilisateurs avec `tasks:reader` peuvent consulter les tâches mais ne peuvent pas les créer ou les modifier
 
-If you cannot perform an action (e.g., **Importer CSV** button is missing, cannot upload attachments), check with your espace de travail admin to review your role permissions.
+Si vous ne pouvez pas effectuer une action (ex. : le bouton **Import CSV** est manquant, impossible de téléverser des pièces jointes), vérifiez auprès de l'administrateur de votre espace de travail pour revoir les autorisations de votre rôle.
 
 ---
 
-## Need help?
+## Conseils et bonnes pratiques
 
-- **CSV issues**: Download a fresh template, ensure UTF-8 encoding, and run preflight to see detailed errors
-- **Allocation errors**: Check that all companies have the required metrics (headcount, IT users, turnover) for the selected year
-- **Obsolete account warning**: The account does not belong to the paying company's Chart of Accounts; pick a different account
-- **Missing buttons or tabs**: Your role may not have the required permission level (manager or admin). Contact your espace de travail admin
+1. **Commencez simple** : Créez les postes avec juste l'essentiel (nom du produit, fournisseur, société payeuse, compte), puis ajoutez les budgets et ventilations au fur et à mesure que vous planifiez.
+2. **Utilisez la méthode de ventilation par défaut** : Pour la plupart des postes, Effectif (Par défaut) suffit. Réservez les ventilations manuelles pour les dépenses ne bénéficiant qu'à des sociétés ou départements spécifiques.
+3. **Liez les contrats** : Si vous gérez les dépenses via des contrats, liez-les dans l'onglet Relations. Cela facilite le suivi des renouvellements.
+4. **Liez les applications** : Associez les postes OPEX aux applications ou services qu'ils financent. Cela fournit un mapping clair coût-vers-application.
+5. **Téléversez la documentation** : Utilisez la fonctionnalité Pièces jointes pour stocker les contrats fournisseurs, devis, factures et cahiers des charges.
+6. **Maintenez les métriques des sociétés à jour** : Les ventilations dépendent de l'effectif, des utilisateurs IT et du chiffre d'affaires des sociétés. Des métriques obsolètes causent des erreurs de ventilation.
+7. **Utilisez le CSV pour la configuration en masse** : Si vous migrez depuis un autre système ou avez des centaines de postes, commencez par l'import CSV.
+8. **Désactivez, ne supprimez pas** : Préservez l'historique en désactivant les postes lorsqu'ils ne sont plus actifs. Ne supprimez que s'il s'agit d'une erreur.
+9. **Vérifiez la ligne de totaux** : Avant de finaliser les budgets, vérifiez la ligne de totaux épinglée dans la liste pour vous assurer que vos dépenses s'additionnent comme prévu.
+10. **Utilisez les liens profonds** : Cliquez directement sur une colonne budgétaire dans la liste pour accéder à l'onglet Budget pour cette année. Cliquez sur la colonne Tâche pour accéder aux Tâches. Cela fait gagner du temps de navigation.
+11. **Gelez les budgets après la clôture de fin d'année** : Utilisez l'Administration budgétaire pour geler les budgets de l'année précédente une fois le réalisé finalisé, empêchant les modifications accidentelles.

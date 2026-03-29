@@ -1,319 +1,273 @@
 # Plans comptables et gestion des comptes
 
-Charts of Accounts (CoA) organize your accounting structure by grouping accounts into named sets. Each company can be linked to a CoA, which determines which accounts are available when recording OPEX or CAPEX items.
+Les plans comptables (CoA) organisent votre structure comptable en regroupant les comptes en ensembles nommés. Chaque société peut être liée à un CoA, ce qui détermine quels comptes sont disponibles lors de l'enregistrement de postes OPEX ou CAPEX.
 
-## Why use Charts of Accounts?
+## Pourquoi utiliser les plans comptables ?
 
-Without CoAs, all accounts are available to all companies, making it easy to accidentally use the wrong account or mix accounting standards across entities. Charts of Accounts solve this by:
+Sans CoA, tous les comptes sont disponibles pour toutes les sociétés, ce qui facilite l'utilisation accidentelle du mauvais compte ou le mélange de normes comptables entre entités. Les plans comptables résolvent ce problème en :
 
-  - **Ensuring consistency**: Companies only see accounts from their assigned CoA
-  - **Supporting multiple standards**: Different countries or business units can use different account structures
-  - **Simplifying selection**: Account dropdowns show only relevant accounts, not your entire catalog
-  - **Enabling templates**: Load pre-configured account sets from country-specific templates
+  - **Garantissant la cohérence** : Les sociétés ne voient que les comptes de leur CoA assigné
+  - **Supportant plusieurs normes** : Différents pays ou unités métier peuvent utiliser différentes structures de comptes
+  - **Simplifiant la sélection** : Les menus déroulants de comptes n'affichent que les comptes pertinents, pas tout votre catalogue
+  - **Activant les modèles** : Chargez des ensembles de comptes pré-configurés à partir de modèles spécifiques à chaque pays
 
-**Example**: Your French subsidiary uses the French PCG (Plan Comptable General), while your UK entity uses UK GAAP. Create two CoAs — one for each standard — and assign companies accordingly. When recording spend, users automatically see the correct accounts.
+**Exemple** : Votre filiale française utilise le PCG français (Plan Comptable Général), tandis que votre entité britannique utilise le UK GAAP. Créez deux CoA -- un pour chaque norme -- et assignez les sociétés en conséquence. Lors de l'enregistrement des dépenses, les utilisateurs voient automatiquement les bons comptes.
 
-## The relationship: CoA -> Company -> Accounts
+## La relation : CoA -> Société -> Comptes
 
-The hierarchy works like this:
+La hiérarchie fonctionne ainsi :
 
 ```
-Chart of Accounts (FR-2024)
-  -> assigned to
-Company (Acme France)
-  -> used when recording
-OPEX/CAPEX items -> Account selection (filtered to FR-2024 accounts only)
+Plan comptable (FR-2024)
+  -> assigné à
+Société (Acme France)
+  -> utilisé lors de l'enregistrement
+Postes OPEX/CAPEX -> Sélection de compte (filtré aux comptes FR-2024 uniquement)
 ```
 
-**Key points**:
-  - One CoA can be assigned to multiple companies
-  - Each company has one CoA
-  - Accounts belong to one CoA
-  - When you create/edit spend items, the account dropdown is filtered by the company's CoA
+**Points clés** :
+  - Un CoA peut être assigné à plusieurs sociétés
+  - Chaque société a un CoA
+  - Les comptes appartiennent à un CoA
+  - Lorsque vous créez/modifiez des postes de dépenses, le menu déroulant des comptes est filtré par le CoA de la société
 
-## Où le trouver
+## Où trouver cette page
 
-- Path: **Données de référence > Plans comptables**
-- Permissions:
-  - View: `accounts:reader`
-  - Create/edit accounts and CoAs: `accounts:manager`
-  - Import CSV, Export CSV, Delete: `accounts:admin`
+- Chemin : **Données de référence > Plans comptables**
+- Autorisations :
+  - Consultation : `accounts:reader`
+  - Créer/modifier des comptes et CoA : `accounts:manager`
+  - Import CSV, Export CSV, Suppression : `accounts:admin`
 
 ## Travailler avec la liste
 
-The page has two layers: a **CoA selector** at the top, and an **accounts grid** below it.
+La page comporte deux couches : un **sélecteur de CoA** en haut et une **grille de comptes** en dessous.
 
-### CoA chip bar
+### Barre de pastilles CoA
 
-A horizontal row of chips represents each Chart of Accounts. Click a chip to switch the accounts grid to that CoA.
+Une rangée horizontale de pastilles représente chaque plan comptable. Cliquez sur une pastille pour basculer la grille des comptes vers ce CoA.
 
-- The selected chip is filled; others are outlined.
-- A star badge (**★**) marks the country default for that CoA's country.
-- A circle-plus badge marks the global default.
-- Hover a chip to see the CoA name and account count.
+- La pastille sélectionnée est remplie ; les autres sont en contour.
+- Un badge étoile (**★**) indique le CoA par défaut du pays pour ce CoA.
+- Un badge cercle-plus indique le CoA par défaut global.
+- Survolez une pastille pour voir le nom du CoA et le nombre de comptes.
 
-If you have `accounts:manager` permission, two extra controls appear on the right:
+Si vous avez l'autorisation `accounts:manager`, deux contrôles supplémentaires apparaissent à droite :
 
-- **Nouveau**: Opens the **New Chart of Accounts** dialog.
-- **Manage**: Opens the **Manage Charts of Accounts** modal for administration.
+- **Nouveau** : Ouvre la boîte de dialogue **Nouveau plan comptable**.
+- **Gérer** : Ouvre le modal **Gérer les plans comptables** pour l'administration.
 
-When no CoAs exist, the chip bar shows a prompt to create your first Chart of Accounts.
+Lorsqu'aucun CoA n'existe, la barre de pastilles affiche une invitation à créer votre premier plan comptable.
 
-### CoA summary
+### Résumé du CoA
 
-Below the chip bar, a summary line shows the selected CoA's **code**, **account count**, **name**, and **country** (for country-scoped CoAs).
+Sous la barre de pastilles, une ligne de résumé affiche le **code**, le **nombre de comptes**, le **nom** et le **pays** du CoA sélectionné (pour les CoA à portée pays).
 
-### Accounts grid
+### Grille des comptes
 
-The grid shows accounts for the selected CoA only.
+La grille affiche les comptes uniquement pour le CoA sélectionné.
 
-**Default columns**:
-- **Account #**: The account number. Click to open the account espace de travail.
-- **Name**: The account name. Click to open the account espace de travail.
-- **Consol. Account #**: The consolidation account number.
-- **Consol. Name**: The consolidation account name.
+**Colonnes par défaut** :
+- **N° de compte** : Le numéro de compte. Cliquez pour ouvrir l'espace de travail du compte.
+- **Nom** : Le nom du compte. Cliquez pour ouvrir l'espace de travail du compte.
+- **N° compte consol.** : Le numéro de compte de consolidation.
+- **Nom consol.** : Le nom du compte de consolidation.
 
-**Additional columns** (hidden by default, enable via the column chooser):
-- **Native Name**: The account name in the local language.
-- **Description**: Account description.
-- **Consol. Description**: Consolidation account description.
-- **Status**: Whether the account is enabled or disabled.
-- **Created**: Timestamp when the account was created.
+**Colonnes supplémentaires** (masquées par défaut, activez via le sélecteur de colonnes) :
+- **Nom natif** : Le nom du compte dans la langue locale.
+- **Description** : Description du compte.
+- **Description consol.** : Description du compte de consolidation.
+- **Statut** : Si le compte est activé ou désactivé.
+- **Créé** : Horodatage de création du compte.
 
-**Filtering**:
-- Quick search: Searches across visible text columns.
-- Status scope toggle: Defaults to **Enabled**, showing only active accounts. Switch to **All** to include disabled accounts.
-- Column filters: Use column header filters (e.g., the **Status** column has a set filter).
+**Filtrage** :
+- Recherche rapide : Recherche dans les colonnes texte visibles.
+- Bascule de périmètre par statut : Par défaut **Activé**, affichant uniquement les comptes actifs. Basculez vers **Tous** pour inclure les comptes désactivés.
 
-**Sort**: Defaults to **Account #** ascending.
+**Actions** (dans l'en-tête de la page) :
+- **Nouveau compte** (`accounts:manager`) : Ouvre un espace de travail de nouveau compte pré-lié au CoA sélectionné.
+- **Import CSV** (`accounts:admin`) : Importer des comptes dans le CoA sélectionné.
+- **Export CSV** (`accounts:admin`) : Exporter les comptes du CoA sélectionné.
+- **Supprimer la sélection** (`accounts:admin`) : Supprimer les lignes de comptes sélectionnées.
 
-**Actions** (in the page header):
-- **New Account** (`accounts:manager`): Opens a new account espace de travail pre-linked to the selected CoA.
-- **Importer CSV** (`accounts:admin`): Import accounts into the selected CoA.
-- **Exporter CSV** (`accounts:admin`): Export accounts from the selected CoA.
-- **Delete Selected** (`accounts:admin`): Delete selected account rows. Select rows using the checkbox column (visible to admins).
+## L'espace de travail du compte
 
-All row cells are clickable links to the account espace de travail. You can right-click or Ctrl+click to open in a new tab.
+Cliquez sur n'importe quelle ligne de la grille des comptes pour ouvrir l'espace de travail du compte.
 
-## The account espace de travail
+### Vue d'ensemble
 
-Click any row in the accounts grid to open the account espace de travail.
+L'espace de travail comporte un seul onglet **Vue d'ensemble** avec un formulaire pour consulter et modifier les champs du compte.
 
-### Overview
+**Ce que vous pouvez modifier** :
+- **Plan comptable** : Le CoA auquel ce compte appartient (menu déroulant de tous les CoA de votre espace de travail).
+- **Numéro de compte** (obligatoire) : Le numéro du compte.
+- **Nom du compte** (obligatoire) : Le nom du compte en anglais (ou votre langue principale).
+- **Nom natif (langue locale)** : Le nom du compte dans la langue locale.
+- **Description** : Description en texte libre.
+- **Numéro de compte de consolidation** : Le numéro de compte de consolidation standardisé.
+- **Nom du compte de consolidation** : Le nom de consolidation standardisé.
+- **Description du compte de consolidation** : Détails sur la catégorie de consolidation.
+- **Statut / Date de désactivation** : Utilisez le champ de cycle de vie pour activer ou désactiver le compte. Définissez une **Date de désactivation** pour planifier quand le compte cesse d'apparaître dans les menus déroulants de sélection.
 
-L'espace de travail has a single **Overview** tab with a form to view and edit the account's fields.
+**Navigation** :
+- **Préc. / Suiv.** : Naviguer entre les comptes dans l'ordre actuel de la liste.
+- **Enregistrer** : Sauvegarder les modifications (activé lorsque le formulaire a été modifié et que vous avez `accounts:manager`).
+- **Réinitialiser** : Annuler les modifications non enregistrées.
+- **Fermer** (bouton X) : Retourner à la liste des comptes, en préservant votre sélection de CoA, tri, recherche et filtres.
 
-**What you can edit**:
-- **Chart of Accounts**: The CoA this account belongs to (dropdown of all CoAs in your espace de travail).
-- **Account Number** (required): The account number.
-- **Account Name** (required): The account name in English (or your primary language).
-- **Native Name (local language)**: The account name in the local language.
-- **Description**: Free-text description.
-- **Consolidation Account Number**: The standardized consolidation account number.
-- **Consolidation Account Name**: The standardized consolidation name.
-- **Consolidation Account Description**: Details about the consolidation category.
-- **Status / Disabled date**: Use the lifecycle field to enable or disable the account. Set a **Disabled date** to schedule when the account stops appearing in selection dropdowns.
+**Conseil** : Vous avez besoin de `accounts:manager` pour modifier. Les utilisateurs en lecture seule voient une bannière d'information.
 
-**Navigation**:
-- **Prev / Next**: Navigate between accounts in the current list order.
-- **Enregistrer**: Save changes (enabled when the form is dirty and you have `accounts:manager`).
-- **Réinitialiser**: Discard unsaved changes.
-- **Fermer** (X button): Return to the accounts list, preserving your CoA selection, sort, search, and filters.
+## Configurer les plans comptables
 
-If you navigate away with unsaved changes, the system prompts you to save or discard.
+### Créer un CoA
 
-**Tip**: You need `accounts:manager` to edit. Read-only users see an info banner.
+Vous pouvez créer un CoA de deux manières :
 
-## Setting up Charts of Accounts
+1. **De zéro** : Choisissez une portée puis créez un CoA vide.
+   - **Portée** : `GLOBAL` (pas de pays) ou `PAYS` (nécessite une sélection de pays)
+   - Pour la portée `PAYS`, vous pouvez le marquer comme défaut pour ce pays. Un seul défaut par pays existe à la fois.
+   - Vous pouvez ensuite charger des comptes via CSV.
+2. **À partir d'un modèle** : Chargez un ensemble de comptes pré-configuré maintenu par les administrateurs de la plateforme.
+   - Les modèles globaux créent un CoA de portée `GLOBAL` (pas de champ pays).
+   - Les modèles pays créent un CoA de portée `PAYS` avec le pays du modèle pré-rempli.
 
-### Creating a CoA
+**Champs de la boîte de dialogue de création** :
+- **Mode** : Choisissez **Créer de zéro** ou **Copier depuis un modèle**.
+- **Modèle** (mode modèle uniquement) : Sélectionnez un modèle depuis le menu déroulant. Les modèles globaux apparaissent comme « ALL -- ... » ; les modèles pays affichent leur code à 2 lettres.
+- **Code** (obligatoire) : Un identifiant stable utilisé dans les exports/imports CSV et les liens profonds.
+- **Nom** (obligatoire) : Un nom descriptif pour le CoA.
+- **Portée** : `Pays` ou `Global`.
+- **Pays** (portée pays uniquement) : Sélectionnez un pays depuis la liste.
+- **Définir comme défaut pour ce pays** (portée pays uniquement) : Cochez pour faire de ce CoA le défaut pour le pays sélectionné.
 
-You can create a CoA in two ways:
+En mode modèle, vous pouvez lancer une **Vérification préalable** avant de créer pour voir combien de comptes seront insérés et mis à jour. Puis cliquez sur **Créer** pour finaliser.
 
-1. **From scratch**: Choose a Scope and then create an empty CoA.
-   - **Scope**: `GLOBAL` (no country) or `COUNTRY` (requires a country selection)
-   - For `COUNTRY` scope, you may mark it as the default for that country. Only one default per country exists at a time.
-   - You can later load accounts via CSV.
-2. **From a template**: Load a pre-configured account set maintained by platform admins.
-   - Global templates create a `GLOBAL`-scoped CoA (no country field).
-   - Country templates create a `COUNTRY`-scoped CoA with the template's country prefilled.
+**Valeurs par défaut** :
+  - Par pays : Vous pouvez marquer un CoA comme défaut pour chaque pays. Les nouvelles sociétés de ce pays sont automatiquement assignées à ce CoA (vous pouvez le changer ensuite dans l'onglet Vue d'ensemble de la société).
+  - Repli global : Votre espace de travail peut avoir un CoA par défaut global utilisé pour les pays qui n'ont pas encore de défaut spécifique au pays. Les défauts pays ont la priorité ; le défaut global s'applique partout ailleurs.
 
-**Create dialog fields**:
-- **Mode**: Choose **Create from scratch** or **Copy from template**.
-- **Template** (template mode only): Select a template from the dropdown. Global templates show as "ALL -- ..."; country templates display their 2-letter code.
-- **Code** (required): A stable identifier used in CSV exports/imports and deep links.
-- **Name** (required): A descriptive name for the CoA.
-- **Scope**: `Country` or `Global`.
-- **Country** (country scope only): Select a country from the list.
-- **Set as default for this country** (country scope only): Check to make this the default CoA for the selected country.
+### Charger depuis les modèles
 
-In template mode, you can run **Preflight** before creating to see how many accounts will be inserted and updated. Then click **Create** to finalize.
+Les modèles sont des ensembles de comptes standard gérés par les administrateurs de la plateforme. Ils peuvent être :
+  - Spécifiques à un pays (ex. : PCG français, UK GAAP)
+  - Globaux (disponibles pour tous les pays)
 
-**Defaults**:
-  - Per-country: You can mark one CoA as the default for each country. New companies from that country are automatically assigned to that CoA (you can change it later in the company's Overview tab).
-  - Global fallback: Your espace de travail can have a Global Default CoA used for countries that don't have a country-specific default yet. Country defaults take precedence; the global default applies everywhere else.
+**Ce qui est copié** : Numéros de comptes, noms, noms natifs (langue locale), descriptions, mappings de consolidation et statut. Les comptes deviennent les vôtres à modifier -- les modifications du modèle de la plateforme n'affecteront pas votre CoA sauf si vous le rechargez explicitement.
 
-### Loading from templates
+**Conseil** : Après avoir chargé un modèle, vous pouvez ajouter des comptes spécifiques à la société, renommer des entrées ou désactiver des comptes inutilisés. Les modèles fournissent un point de départ, pas une structure verrouillée.
 
-Templates are standard account sets managed by platform administrators. They can be:
-  - Country-specific (e.g., French PCG, UK GAAP)
-  - Global (available for all countries)
+### Modèles disponibles
 
-**How it works**:
-  - Go to **Données de référence > Plans comptables**
-  - Click **Nouveau** in the chip bar
-  - Select **Copy from template** mode
-  - Select a template; global templates show as "ALL -- ..." (loads a `GLOBAL` CoA); country templates display their 2-letter code
-  - The system shows a preflight report (how many accounts will be inserted/updated)
-  - Confirm to copy accounts into your CoA
+KANAP est livré avec **20 modèles pré-configurés** couvrant 10 normes comptables. Chaque norme existe en deux versions :
 
-**What gets copied**: Account numbers, names, native names (local language), descriptions, consolidation mappings, and status. The accounts become yours to edit — changes to the platform template won't affect your CoA unless you explicitly reload it.
+- **v1.0 (Simple)** : Un ensemble concentré d'environ 20 comptes pertinents pour l'IT -- licences logicielles, hébergement cloud, cybersécurité, télécom, conseil, coûts de personnel, formation, et plus. Idéal pour les organisations qui veulent un point de départ léger.
+- **v2.0 (Détaillé)** : Tout ce qui est dans la v1.0 plus des sous-comptes granulaires supplémentaires (environ 30 comptes). Ajoute des ventilations comme Logiciel acheté vs. développé en interne, Équipement réseau, Licences SaaS vs. perpétuelles, Communications mobiles, Primes IT, Assurance IT, et plus. Idéal pour les organisations qui ont besoin d'un suivi des coûts plus fin.
 
-**Tip**: After loading a template, you can add company-specific accounts, rename entries, or disable unused accounts. Templates provide a starting point, not a locked structure.
+Les deux versions utilisent des **numéros de compte réels de la norme comptable officielle de chaque pays** et incluent les noms natifs dans la langue locale.
 
-### Available templates
-
-KANAP ships with **20 pre-configured templates** covering 10 accounting standards. Each standard comes in two versions:
-
-- **v1.0 (Simple)**: A focused set of ~20 IT-relevant accounts — software licenses, cloud hosting, cybersecurity, telecom, consulting, staff costs, training, and more. Best for organizations that want a lean starting point.
-- **v2.0 (Detailed)**: Everything in v1.0 plus additional granular sub-accounts (~30 accounts). Adds breakdowns like Purchased vs. Internally Developed Software, Network Equipment, SaaS vs. Perpetual Licenses, Mobile Communications, IT Bonuses, IT Insurance, and more. Best for organizations that need finer cost tracking.
-
-Both versions use **real account numbers from each country's official accounting standard** and include native names in the local language.
-
-| Template Code | Country | Standard | Accounts (v1 / v2) |
-|---------------|---------|----------|---------------------|
+| Code modèle | Pays | Norme | Comptes (v1 / v2) |
+|-------------|------|-------|-------------------|
 | **IFRS** | Global | International Financial Reporting Standards | 14 / 30 |
-| **FR-PCG** | France | Plan Comptable General | 20 / 31 |
-| **DE-SKR03** | Germany | Standardkontenrahmen 03 | 20 / 32 |
-| **GB-UKGAAP** | United Kingdom | UK GAAP | 20 / 31 |
-| **ES-PGC** | Spain | Plan General de Contabilidad | 20 / 31 |
-| **IT-PDC** | Italy | Piano dei Conti | 20 / 31 |
-| **NL-RGS** | Netherlands | Rekeningschema (RGS) | 20 / 31 |
-| **BE-PCMN** | Belgium | Plan Comptable Minimum Normalise | 20 / 31 |
-| **CH-KMU** | Switzerland | Kontenrahmen KMU | 20 / 31 |
-| **US-USGAAP** | United States | US GAAP | 20 / 32 |
+| **FR-PCG** | France | Plan Comptable Général | 20 / 31 |
+| **DE-SKR03** | Allemagne | Standardkontenrahmen 03 | 20 / 32 |
+| **GB-UKGAAP** | Royaume-Uni | UK GAAP | 20 / 31 |
+| **ES-PGC** | Espagne | Plan General de Contabilidad | 20 / 31 |
+| **IT-PDC** | Italie | Piano dei Conti | 20 / 31 |
+| **NL-RGS** | Pays-Bas | Rekeningschema (RGS) | 20 / 31 |
+| **BE-PCMN** | Belgique | Plan Comptable Minimum Normalisé | 20 / 31 |
+| **CH-KMU** | Suisse | Kontenrahmen KMU | 20 / 31 |
+| **US-USGAAP** | États-Unis | US GAAP | 20 / 32 |
 
-**Choosing a version**:
+**Choisir une version** :
 
-  - Start with **v1.0** if you want a clean, minimal chart that covers the essential IT cost categories. You can always add accounts later.
-  - Choose **v2.0** if your organization tracks IT spending at a granular level (e.g., distinguishing SaaS subscriptions from perpetual licenses, or splitting IT salaries from bonuses).
+  - Commencez avec la **v1.0** si vous voulez un plan propre et minimal qui couvre les catégories de coûts IT essentielles. Vous pouvez toujours ajouter des comptes plus tard.
+  - Choisissez la **v2.0** si votre organisation suit les dépenses IT à un niveau granulaire (ex. : distinguer les abonnements SaaS des licences perpétuelles, ou séparer les salaires IT des primes).
 
-### IFRS consolidation built in
+### Consolidation IFRS intégrée
 
-All templates — regardless of country — map every account to one of **14 standardized IFRS consolidation accounts**. This means group-level reporting works out of the box, even across different local standards.
+Tous les modèles -- quel que soit le pays -- mappent chaque compte vers l'un des **14 comptes de consolidation IFRS standardisés**. Cela signifie que le reporting au niveau groupe fonctionne sans configuration supplémentaire, même entre différentes normes locales.
 
-| # | Consolidation Account | What it covers |
-|---|-----------------------|----------------|
-| 1000 | Tangible Assets (CAPEX) | Physical IT equipment — servers, workstations, network gear |
-| 1100 | Intangible Assets (CAPEX) | Capitalized software and development costs |
-| 1200 | Depreciation & Amortization | Depreciation of hardware and software |
-| 1300 | Impairments & Write-offs | Asset impairments and write-downs |
-| 2000 | Software Licenses (OPEX) | Perpetual licenses, SaaS subscriptions, open-source support |
-| 2100 | Cloud & Hosting Services | IaaS, PaaS, monitoring, cybersecurity tools |
-| 2200 | Telecommunications & Network | Internet, mobile, WAN/LAN |
-| 2300 | Maintenance & Support | Hardware and software maintenance contracts |
-| 2400 | IT Consulting & External Services | Advisory, systems integration, contractors |
-| 2500 | IT Staff Costs | Salaries, bonuses, social charges, pensions |
-| 2600 | Training & Certification | Training programs, certifications, conferences |
-| 2700 | Workplace IT (Non-capitalized) | End-user devices below capitalization threshold |
-| 2800 | Travel & Mobility (IT Projects) | Project-related travel |
-| 2900 | Other IT Operating Expenses | Miscellaneous IT costs, cyber insurance |
+| # | Compte de consolidation | Ce qu'il couvre |
+|---|-------------------------|-----------------|
+| 1000 | Immobilisations corporelles (CAPEX) | Équipement IT physique -- serveurs, postes de travail, matériel réseau |
+| 1100 | Immobilisations incorporelles (CAPEX) | Logiciels capitalisés et coûts de développement |
+| 1200 | Amortissements | Amortissement du matériel et des logiciels |
+| 1300 | Dépréciations et mises au rebut | Dépréciations et dévalorisations d'actifs |
+| 2000 | Licences logicielles (OPEX) | Licences perpétuelles, abonnements SaaS, support open-source |
+| 2100 | Services cloud et hébergement | IaaS, PaaS, supervision, outils de cybersécurité |
+| 2200 | Télécommunications et réseau | Internet, mobile, WAN/LAN |
+| 2300 | Maintenance et support | Contrats de maintenance matériel et logiciel |
+| 2400 | Conseil IT et services externes | Conseil, intégration de systèmes, prestataires |
+| 2500 | Coûts du personnel IT | Salaires, primes, charges sociales, retraites |
+| 2600 | Formation et certification | Programmes de formation, certifications, conférences |
+| 2700 | IT poste de travail (non capitalisé) | Appareils utilisateurs sous le seuil de capitalisation |
+| 2800 | Déplacements et mobilité (projets IT) | Déplacements liés aux projets |
+| 2900 | Autres charges d'exploitation IT | Coûts IT divers, assurance cyber |
 
-**Example**: Your French subsidiary loads **FR-PCG v1.0** and your German subsidiary loads **DE-SKR03 v1.0**. Both use different local account numbers and native names, but every account maps to the same IFRS consolidation structure. Group-level reports aggregate seamlessly without any manual mapping work.
+**Exemple** : Votre filiale française charge **FR-PCG v1.0** et votre filiale allemande charge **DE-SKR03 v1.0**. Les deux utilisent des numéros de compte locaux et des noms natifs différents, mais chaque compte se mappe vers la même structure de consolidation IFRS. Les rapports de niveau groupe s'agrègent sans aucun travail de mapping manuel.
 
-### Global Default CoA (Provisioning)
+### CoA par défaut global (Provisionnement)
 
-New espace de travails are automatically provisioned with the **IFRS v1.0** template. This creates a `GLOBAL`-scoped CoA containing the 14 IFRS consolidation accounts and sets it as the tenant's Global Default, so companies can use it immediately without any setup. You can edit or delete the preloaded accounts/CoA later as needed (subject to standard guardrails).
+Les nouveaux espaces de travail sont automatiquement provisionnés avec le modèle **IFRS v1.0**. Cela crée un CoA de portée `GLOBAL` contenant les 14 comptes de consolidation IFRS et le définit comme défaut global du tenant, pour que les sociétés puissent l'utiliser immédiatement sans aucune configuration. Vous pouvez modifier ou supprimer les comptes/CoA préchargés plus tard si nécessaire (sous réserve des garde-fous standard).
 
-Global CoAs are shown with scope metadata in the **Manage** modal, with no country value for `GLOBAL` entries. Only `GLOBAL` CoAs can be marked as the Global Default, and only `COUNTRY` CoAs can be set as a per-country default.
+## Gérer les plans comptables
 
-## Managing Charts of Accounts
+### Le modal Gérer
 
-### The Manage modal
+Cliquez sur **Gérer** dans la barre de pastilles pour ouvrir le modal d'administration. Le modal comporte deux panneaux :
 
-Click **Manage** in the chip bar to open the administration modal. The modal has two panels:
+**Panneau gauche** -- Liste des CoA :
+- Affiche tous vos plans comptables avec leurs codes et noms.
+- Badges par défaut : **★** pour le défaut pays, cercle-plus pour le défaut global.
+- Cliquez sur une ligne pour voir ses détails.
 
-**Left panel** — CoA list:
-- Shows all your Charts of Accounts with their codes and names.
-- Default badges: **★** for country default, circle-plus for global default.
-- Click a row to view its details.
+**Panneau droit** -- Détails du CoA :
+- **Code** et **Nom**
+- **Portée** : `GLOBAL` ou `PAYS`
+- **Pays** (pour les CoA à portée pays)
+- **Défaut pays** : Oui/Non
+- **Défaut global** : Oui/Non
+- **Sociétés liées** : Nombre de sociétés assignées à ce CoA
+- **Comptes** : Nombre de comptes dans ce CoA
 
-**Right panel** — CoA details:
-- **Code** and **Name**
-- **Scope**: `GLOBAL` or `COUNTRY`
-- **Country** (for country-scoped CoAs)
-- **Country Default**: Yes/No
-- **Global Default**: Yes/No
-- **Linked Companies**: Number of companies assigned to this CoA
-- **Accounts**: Number of accounts in this CoA
+**Actions** (dans la barre d'outils du modal) :
+- **Nouveau** (`accounts:manager`) : Ouvre la boîte de dialogue Créer un CoA.
+- **Définir comme défaut pays** (`accounts:manager`) : Marquer le CoA à portée pays sélectionné comme défaut pour son pays. Désactivé pour les CoA globaux.
+- **Définir comme défaut global** (`accounts:manager`) : Marquer le CoA à portée globale sélectionné comme défaut global. Désactivé pour les CoA pays.
+- **Supprimer la sélection** (`accounts:admin`) : Supprimer le CoA sélectionné. La suppression est bloquée si des sociétés le référencent ou si des postes OPEX/CAPEX utilisent ses comptes.
 
-**Actions** (in the modal toolbar):
-- **Nouveau** (`accounts:manager`): Opens the Create CoA dialog.
-- **Set Country Default** (`accounts:manager`): Mark the selected country-scoped CoA as the default for its country. Disabled for global CoAs.
-- **Set Global Default** (`accounts:manager`): Mark the selected global-scoped CoA as the global default. Disabled for country CoAs.
-- **Delete Selected** (`accounts:admin`): Delete the selected CoA. Deletion is blocked if any companies reference it or any OPEX/CAPEX items use its accounts.
+## Comptes de consolidation (Reporting de niveau groupe)
 
-## Managing Accounts
+Pour les organisations multi-pays, le travail quotidien se fait en utilisant les plans comptables locaux (PCG français, UK GAAP, HGB allemand, etc.), mais le reporting de niveau groupe nécessite souvent une consolidation vers une norme commune comme **IFRS** ou **US GAAP**.
 
-### Account numbers
+Les **comptes de consolidation** résolvent ce problème en mappant les comptes locaux vers des comptes de consolidation standardisés.
 
-Account numbers are stored as text but typically contain numeric values. When editing accounts:
-  - You can enter numbers (e.g., `6011`) or text (e.g., `6011-TRAVEL`)
-  - The system automatically converts numeric inputs to strings
-  - Within a CoA, account numbers should be unique (enforced after backfill)
+### Comment ça fonctionne
 
-### Native names for multilingual support
+Chaque compte peut avoir trois champs de consolidation :
+  - **Numéro de compte de consolidation** : Le numéro de compte standardisé (ex. : compte IFRS `6200`)
+  - **Nom du compte de consolidation** : Le nom standardisé (ex. : `IT Services and Software`)
+  - **Description du compte de consolidation** : Détails optionnels sur la catégorie de consolidation
 
-Some countries require accounts to be recorded in the local language. Use the **Native Name** field to store the original name while keeping the English name in the main **Account Name** field.
+### Pourquoi c'est important
 
-**Example**: French account
-  - **Account Name**: `Travel expenses` (English, for reporting)
-  - **Native Name**: `Frais de deplacement` (French, for legal compliance)
+**Opérations quotidiennes** : Les utilisateurs travaillent avec leurs comptes locaux familiers
+  - Les utilisateurs français sélectionnent le compte `6061 - Frais postaux`
+  - Les utilisateurs britanniques sélectionnent le compte `5200 - Postage and courier`
+  - Les utilisateurs allemands sélectionnent le compte `4920 - Portokosten`
 
-The native name is available as a hidden column in the accounts grid. Enable it from the column chooser to view both names side by side.
+**Reporting groupe** : Le système peut consolider les coûts par compte de consolidation
+  - Tous les coûts de services IT à travers les pays s'agrègent vers `6200 - IT Services and Software`
+  - La direction voit une vue unifiée indépendamment des différences comptables locales
+  - Le reporting statutaire par pays utilise toujours les comptes locaux
 
-## Consolidation accounts (Group-level reporting)
+### Configurer les mappings de consolidation
 
-For multi-country organizations, daily work is done using local Charts of Accounts (French PCG, UK GAAP, German HGB, etc.), but group-level reporting often requires consolidation to a common standard like **IFRS** or **US GAAP**.
+**Option 1 : Modèles (recommandé)**
+Tous les modèles intégrés incluent les mappings de consolidation IFRS sur chaque compte. Chargez n'importe quel modèle pays et les colonnes de consolidation sont déjà remplies -- aucun mapping manuel nécessaire.
 
-**Consolidation accounts** solve this by mapping local accounts to standardized consolidation accounts.
-
-### How it works
-
-Each account can have three consolidation fields:
-  - **Consolidation Account Number**: The standardized account number (e.g., IFRS account `6200`)
-  - **Consolidation Account Name**: The standardized name (e.g., `IT Services and Software`)
-  - **Consolidation Account Description**: Optional details about the consolidation category
-
-**Example mapping**:
-
-| Country | Local CoA | Local Account | Local Name | -> | Consolidation Account | Consolidation Name |
-|---------|-----------|---------------|------------|---|----------------------|-------------------|
-| France | FR-PCG | 6061 | Frais postaux | -> | 6200 | IT Services and Software |
-| UK | UK-GAAP | 5200 | Postage and courier | -> | 6200 | IT Services and Software |
-| Germany | DE-HGB | 4920 | Portokosten | -> | 6200 | IT Services and Software |
-
-All three local accounts map to the same IFRS consolidation account `6200`, enabling group-level aggregation.
-
-### Why this matters
-
-**Daily operations**: Users work with their familiar local accounts
-  - French users select account `6061 - Frais postaux`
-  - UK users select account `5200 - Postage and courier`
-  - German users select account `4920 - Portokosten`
-
-**Group reporting**: The system can roll up costs by consolidation account
-  - All IT services costs across countries aggregate to `6200 - IT Services and Software`
-  - Management sees a unified view regardless of local accounting differences
-  - Statutory reporting per country still uses local accounts
-
-### Setting up consolidation mappings
-
-**Option 1: Templates (recommended)**
-All built-in templates include IFRS consolidation mappings on every account. Load any country template and the consolidation columns are already filled in — no manual mapping needed. See [Available templates](#available-templates) for the full list.
-
-**Option 2: CSV import**
-When importing accounts, include the consolidation fields in your CSV:
+**Option 2 : Import CSV**
+Lors de l'import de comptes, incluez les champs de consolidation dans votre CSV :
 
 ```
 coa_code;account_number;account_name;consolidation_account_number;consolidation_account_name;consolidation_account_description
@@ -322,232 +276,166 @@ UK-GAAP;5200;Postage and courier;6200;IT Services and Software;
 DE-HGB;4920;Portokosten;6200;IT Services and Software;
 ```
 
-**Option 3: Manual entry**
-Edit accounts individually and fill in the consolidation fields in the account espace de travail.
+**Option 3 : Saisie manuelle**
+Modifiez les comptes individuellement et remplissez les champs de consolidation dans l'espace de travail du compte.
 
-### Best practices
+### Bonnes pratiques
 
-  - **Use a common standard**: IFRS is typical for European groups; US GAAP for American companies. All built-in templates already map to the same 14 IFRS consolidation accounts (see [IFRS consolidation built in](#ifrs-consolidation-built-in))
-  - **Maintain a consolidation chart**: Keep a reference document listing your consolidation accounts and what they represent. If you use the built-in templates, the 14 IFRS accounts serve as this reference
-  - **Map at the right granularity**: Don't consolidate too broadly (loses insight) or too narrowly (too complex)
-  - **Involve finance**: Consolidation account mappings should align with your group's financial reporting requirements
-  - **Update systematically**: When you add local accounts, immediately map them to consolidation accounts
+  - **Utilisez une norme commune** : IFRS est typique pour les groupes européens ; US GAAP pour les sociétés américaines. Tous les modèles intégrés se mappent déjà vers les 14 mêmes comptes de consolidation IFRS
+  - **Maintenez un plan de consolidation** : Gardez un document de référence listant vos comptes de consolidation et ce qu'ils représentent. Si vous utilisez les modèles intégrés, les 14 comptes IFRS servent de cette référence
+  - **Mappez au bon niveau de granularité** : Ne consolidez pas trop largement (perte d'analyse) ni trop finement (trop complexe)
+  - **Impliquez la finance** : Les mappings de comptes de consolidation doivent être alignés avec les exigences de reporting financier de votre groupe
+  - **Mettez à jour systématiquement** : Lorsque vous ajoutez des comptes locaux, mappez-les immédiatement vers les comptes de consolidation
 
-### Reporting with consolidation accounts
+## Comptes historiques (support de migration)
 
-When building reports, you can choose to group by:
-  - **Local accounts**: Shows country-specific detail (for local management)
-  - **Consolidation accounts**: Shows group-level categories (for executive reporting)
+Les **comptes historiques** sont des comptes sans `coa_id` (créés avant l'introduction des plans comptables).
 
-This dual view lets you satisfy both local compliance requirements and group reporting needs without maintaining duplicate data.
+**Comment ils fonctionnent** :
+  - Les sociétés SANS CoA peuvent utiliser les comptes historiques
+  - Les sociétés AVEC un CoA ne peuvent pas utiliser les comptes historiques -- ils sont filtrés automatiquement
+  - Les comptes historiques peuvent toujours être migrés via CSV (`coa_code`) et des workflows de réassignation
 
-## Legacy accounts (migration support)
+**Chemin de migration** :
+  1. Créez ou chargez des plans comptables pour vos sociétés
+  2. Assignez les CoA aux sociétés (dans l'onglet Vue d'ensemble de la société)
+  3. Assignez le `coa_id` à vos comptes historiques (via import CSV avec `coa_code` ou modification en masse)
+  4. Mettez à jour les postes OPEX/CAPEX existants qui affichent des avertissements « compte obsolète »
 
-**Legacy accounts** are accounts without a `coa_id` (created before Charts of Accounts were introduced).
+**Conseil** : Vous n'avez pas à tout migrer en une fois. Les sociétés sans CoA continuent de fonctionner avec les comptes historiques, permettant une adoption progressive.
 
-**How they work**:
-  - Companies WITHOUT a CoA can use legacy accounts
-  - Companies WITH a CoA cannot use legacy accounts — they're filtered out automatically
-  - Legacy accounts can still be migrated via CSV (`coa_code`) and reassignment workflows
+## Avertissements de compte obsolète
 
-**Migration path**:
-  1. Create or load Charts of Accounts for your companies
-  2. Assign CoAs to companies (in Company Overview tab)
-  3. Assign `coa_id` to your legacy accounts (via CSV import with `coa_code` or bulk edit)
-  4. Update existing OPEX/CAPEX items that show "obsolete account" warnings
-
-**Tip**: You don't have to migrate everything at once. Companies without a CoA continue to work with legacy accounts, allowing gradual adoption.
-
-## Obsolete account warnings
-
-When editing OPEX or CAPEX items, you might see:
+Lors de la modification de postes OPEX ou CAPEX, vous pourriez voir :
 
 ```
-Obsolete account detected. The selected account does not belong to
-the company's Chart of Accounts. Please update the account.
+Compte obsolète détecté. Le compte sélectionné n'appartient pas au
+plan comptable de la société. Veuillez mettre à jour le compte.
 ```
 
-**Why this happens**:
-  - The item's account belongs to CoA "A"
-  - The item's company belongs to CoA "B"
-  - Mismatch detected
+**Pourquoi cela se produit** :
+  - Le compte du poste appartient au CoA « A »
+  - La société du poste appartient au CoA « B »
+  - Incohérence détectée
 
-**Common scenarios**:
-  - You migrated a company to a new CoA but haven't updated old spend items yet
-  - An account was manually reassigned to a different CoA
-  - You're viewing historical data from before the CoA migration
+**Comment corriger** : Modifiez le poste et sélectionnez un compte du plan comptable actuel de la société. L'avertissement disparaîtra une fois que le compte correspondra au CoA de la société.
 
-**How to fix it**: Edit the item and select an account from the company's current Chart of Accounts. The warning will disappear once the account matches the company's CoA.
+## Statut et date de désactivation
 
-## Status and Disabled date
+Les comptes utilisent la même gestion de cycle de vie que les autres données de référence :
 
-Accounts use the same lifecycle management as other master data:
-
-  - **Enabled** by default
-  - Set a **Disabled date** to stop using an account from a specific date
-  - After the Disabled date:
-      - The account no longer appears in selection dropdowns for new items
-      - Historical data remains intact; existing items keep their account assignments
-      - Reports for years when the account was active still include it
-  - The accounts grid defaults to showing **Enabled** accounts only. Use the status scope toggle to switch to **All** and include disabled accounts.
-
-## Tenant deletion and CoA
-
-When a espace de travail (tenant) is deleted by a platform administrator, all tenant-owned accounting data is permanently removed as part of the purge process:
-- Charts of Accounts (`chart_of_accounts`)
-- Accounts (`accounts`)
-- Links from companies to a CoA (`companies.coa_id`)
-
-Deletion is immediate and irreversible. The tenant record remains for auditability, and its slug is cleared for reuse.
-
-**Tip**: Prefer disabling over deleting. Deletion is only allowed if no OPEX/CAPEX items reference the account.
+  - **Activé** par défaut
+  - Définissez une **Date de désactivation** pour arrêter d'utiliser un compte à partir d'une date spécifique
+  - Après la date de désactivation :
+      - Le compte n'apparaît plus dans les menus déroulants de sélection pour les nouveaux postes
+      - Les données historiques restent intactes ; les postes existants conservent leurs assignations de comptes
+      - Les rapports pour les années où le compte était actif l'incluent toujours
+  - La grille des comptes affiche par défaut uniquement les comptes **Activés**. Utilisez la bascule de périmètre par statut pour passer à **Tous** et inclure les comptes désactivés.
 
 ## Import/export CSV
 
-### Charts of Accounts
+### Plans comptables
 
-You can export a list of your CoAs (with metadata like code, name, country, default status) but not import CoAs directly via CSV. Create CoAs through the UI or load them from templates.
+Vous pouvez exporter une liste de vos CoA (avec métadonnées comme code, nom, pays, statut par défaut) mais pas importer directement des CoA via CSV. Créez les CoA via l'interface ou chargez-les depuis des modèles.
 
-### Accounts (global endpoint)
+### Comptes (endpoint global)
 
-The global `/accounts` CSV includes a `coa_code` column to identify which CoA each account belongs to.
+Le CSV global `/accounts` inclut une colonne `coa_code` pour identifier à quel CoA chaque compte appartient.
 
   - **Export**
-      - **Template**: headers only (use this to prepare imports)
-      - **Data**: all accounts with their CoA codes, account numbers, names, native names, descriptions, consolidation mappings, and status
+      - **Modèle** : en-têtes uniquement (utilisez-le pour préparer les imports)
+      - **Données** : tous les comptes avec leurs codes CoA, numéros de comptes, noms, noms natifs, descriptions, mappings de consolidation et statut
   - **Import**
-      - Start with **Preflight** (validates structure, encoding, required fields, duplicates)
-      - If Preflight is OK, **Load** applies inserts/updates
-      - **Matching**: by `(coa_code, account_number)` within your espace de travail
-      - **Required fields**: `coa_code`, `account_number`, `account_name`
-      - **Optional fields**: `native_name`, `description`, consolidation fields, `status`
-      - Duplicates in the file (same coa_code + account_number) are deduplicated; first occurrence wins
+      - Commencez par la **Vérification préalable** (valide la structure, l'encodage, les champs obligatoires, les doublons)
+      - Si la vérification est OK, **Charger** applique les insertions/mises à jour
+      - **Correspondance** : par `(coa_code, account_number)` dans votre espace de travail
+      - **Champs obligatoires** : `coa_code`, `account_number`, `account_name`
+      - **Champs optionnels** : `native_name`, `description`, champs de consolidation, `status`
 
-**CSV schema** (semicolon `;` separated, UTF-8):
+**Schéma CSV** (séparateur point-virgule `;`, UTF-8) :
 ```
 coa_code;account_number;account_name;native_name;description;consolidation_account_number;consolidation_account_name;consolidation_account_description;status
 ```
 
-### Accounts (CoA-scoped)
+### Comptes (portée CoA)
 
-From the Charts of Accounts page, **Importer CSV** and **Exporter CSV** are automatically scoped to the currently selected CoA.
+Depuis la page Plans comptables, **Import CSV** et **Export CSV** sont automatiquement limités au CoA actuellement sélectionné.
 
-  - **Export**: accounts from this CoA (no `coa_code` column needed)
-  - **Import**: accounts are inserted/updated into this CoA automatically
+  - **Export** : comptes de ce CoA (pas besoin de colonne `coa_code`)
+  - **Import** : les comptes sont insérés/mis à jour dans ce CoA automatiquement
 
-**CSV schema** (CoA-scoped, semicolon `;` separated, UTF-8):
-```
-account_number;account_name;native_name;description;consolidation_account_number;consolidation_account_name;consolidation_account_description;status
-```
-
-**Notes**:
-  - Use **UTF-8 encoding** and **semicolons** as separators
-  - The `coa_code` must match an existing Chart of Accounts in your espace de travail
-  - Account numbers should be unique within a CoA
-  - Status values: `enabled` or `disabled` (defaults to enabled)
+**Notes** :
+  - Utilisez l'**encodage UTF-8** et des **points-virgules** comme séparateurs
+  - Le `coa_code` doit correspondre à un plan comptable existant dans votre espace de travail
+  - Les numéros de comptes doivent être uniques au sein d'un CoA
+  - Valeurs de statut : `enabled` ou `disabled` (par défaut enabled)
 
 ## Conseils
 
-  - **Start with templates**: KANAP ships with templates for 9 countries plus IFRS. Load one instead of building from scratch — you get proper account numbers, native names, and IFRS consolidation mappings out of the box. Start with v1.0 (Simple) if unsure; upgrade to v2.0 (Detailed) if you need more granularity.
-  - **One default per country**: Set a default CoA for each country so new companies are automatically assigned to the right account structure.
-  - **Native names for compliance**: Use the Native Name field if local regulations require accounts in the local language. Enable the **Native Name** column in the grid to see both names at a glance.
-  - **Migrate gradually**: You don't have to convert everything at once. Companies without CoAs continue to work with legacy accounts.
-  - **Fix obsolete accounts**: When you see warnings, update the account to match the company's current CoA. This keeps your data clean for reporting.
-  - **Disable over delete**: Disabling accounts preserves history. Only delete accounts that were created by mistake and have never been used.
-  - **CSV imports are additive**: Importing accounts adds new ones and updates existing ones (matched by coa_code + account_number). It doesn't delete accounts not in the file.
-  - **Consolidation accounts are key for groups**: If you operate in multiple countries, set up consolidation mappings from day one. This makes group-level reporting effortless and keeps local users working with familiar accounts.
-  - **IFRS as consolidation standard**: Most European groups use IFRS for consolidation. All built-in templates already map to the same 14 IFRS consolidation accounts, so group reporting works across countries with no extra setup.
-  - **Deep linking**: The URL preserves your selected CoA, sort order, search text, and filters. Share or bookmark a link to return to exactly the same view.
+  - **Commencez par les modèles** : KANAP est livré avec des modèles pour 9 pays plus IFRS. Chargez-en un au lieu de construire de zéro -- vous obtenez les bons numéros de comptes, noms natifs et mappings de consolidation IFRS directement. Commencez avec la v1.0 (Simple) si vous hésitez ; passez à la v2.0 (Détaillé) si vous avez besoin de plus de granularité.
+  - **Un défaut par pays** : Définissez un CoA par défaut pour chaque pays pour que les nouvelles sociétés soient automatiquement assignées à la bonne structure de comptes.
+  - **Noms natifs pour la conformité** : Utilisez le champ Nom natif si les réglementations locales exigent les comptes dans la langue locale. Activez la colonne **Nom natif** dans la grille pour voir les deux noms côte à côte.
+  - **Migrez progressivement** : Vous n'avez pas à tout convertir en une fois. Les sociétés sans CoA continuent de fonctionner avec les comptes historiques.
+  - **Corrigez les comptes obsolètes** : Lorsque vous voyez des avertissements, mettez à jour le compte pour correspondre au CoA actuel de la société. Cela maintient vos données propres pour le reporting.
+  - **Désactivez plutôt que supprimer** : Désactiver les comptes préserve l'historique. Ne supprimez que les comptes créés par erreur et jamais utilisés.
+  - **Les imports CSV sont additifs** : Importer des comptes en ajoute de nouveaux et met à jour les existants (correspondance par coa_code + account_number). Cela ne supprime pas les comptes absents du fichier.
+  - **Les comptes de consolidation sont clés pour les groupes** : Si vous opérez dans plusieurs pays, configurez les mappings de consolidation dès le premier jour. Cela rend le reporting de niveau groupe facile et garde les utilisateurs locaux travaillant avec des comptes familiers.
 
-## Common scenarios
+## Scénarios courants
 
-### Scenario 1: Multi-country organization
+### Scénario 1 : Organisation multi-pays
 
-You have subsidiaries in France, UK, and Germany, each following local accounting standards.
+Vous avez des filiales en France, au Royaume-Uni et en Allemagne, chacune suivant des normes comptables locales.
 
-**Setup**:
-  1. Load three templates: **FR-PCG v1.0**, **GB-UKGAAP v1.0**, **DE-SKR03 v1.0** (or v2.0 for more granularity)
-  2. Set each as the default for its country
-  3. Assign companies to their respective CoAs
-  4. New companies automatically get the right CoA; account selection is filtered accordingly
-  5. Consolidation mappings are already in place — group reports work immediately
+**Configuration** :
+  1. Chargez trois modèles : **FR-PCG v1.0**, **GB-UKGAAP v1.0**, **DE-SKR03 v1.0** (ou v2.0 pour plus de granularité)
+  2. Définissez chacun comme défaut pour son pays
+  3. Assignez les sociétés à leurs CoA respectifs
+  4. Les nouvelles sociétés obtiennent automatiquement le bon CoA ; la sélection de comptes est filtrée en conséquence
+  5. Les mappings de consolidation sont déjà en place -- les rapports de groupe fonctionnent immédiatement
 
-### Scenario 2: Migrating from legacy to CoA
+### Scénario 2 : Migration des comptes historiques vers un CoA
 
-You have 50 accounts and 5 companies, all set up before Charts of Accounts existed.
+Vous avez 50 comptes et 5 sociétés, tous configurés avant l'introduction des plans comptables.
 
-**Migration steps**:
-  1. Create a CoA (e.g., `US-GAAP`)
-  2. Export your accounts to CSV
-  3. Add a `coa_code` column (e.g., `US-GAAP`) to all rows
-  4. Import the updated CSV (accounts now belong to the CoA)
-  5. Assign the CoA to your companies
-  6. Edit any OPEX/CAPEX items showing "obsolete account" warnings
+**Étapes de migration** :
+  1. Créez un CoA (ex. : `US-GAAP`)
+  2. Exportez vos comptes en CSV
+  3. Ajoutez une colonne `coa_code` (ex. : `US-GAAP`) à toutes les lignes
+  4. Importez le CSV mis à jour (les comptes appartiennent maintenant au CoA)
+  5. Assignez le CoA à vos sociétés
+  6. Modifiez les postes OPEX/CAPEX affichant des avertissements « compte obsolète »
 
-### Scenario 3: Switching a company to a new CoA
+### Scénario 3 : Changement de CoA d'une société
 
-Your UK subsidiary switches from UK GAAP to IFRS.
+Votre filiale britannique passe du UK GAAP à l'IFRS.
 
-**Steps**:
-  1. Create a new CoA: `UK-IFRS` (or load from template)
-  2. In the company's Overview tab, change Chart of Accounts to `UK-IFRS`
-  3. Going forward, users can only select accounts from `UK-IFRS`
-  4. Existing OPEX/CAPEX items keep their old accounts but show warnings
-  5. Update items as needed (or leave historical data as-is if reporting allows)
+**Étapes** :
+  1. Créez un nouveau CoA : `UK-IFRS` (ou chargez depuis un modèle)
+  2. Dans l'onglet Vue d'ensemble de la société, changez le plan comptable vers `UK-IFRS`
+  3. Dorénavant, les utilisateurs ne peuvent sélectionner que des comptes de `UK-IFRS`
+  4. Les postes OPEX/CAPEX existants conservent leurs anciens comptes mais affichent des avertissements
+  5. Mettez à jour les postes selon les besoins (ou laissez les données historiques telles quelles si le reporting le permet)
 
-### Scenario 4: Setting up group consolidation (multi-country)
+## Questions fréquentes
 
-Your group has subsidiaries in France, UK, and Germany. Each country uses its local accounting standard, but you need consolidated IFRS reporting.
+**Q : Un compte peut-il appartenir à plusieurs CoA ?**
+R : Non. Chaque compte appartient à exactement un CoA (ou aucun pour les comptes historiques). Si vous avez besoin de la même structure de comptes dans plusieurs CoA, chargez le modèle dans chacun ou utilisez l'export/import CSV avec des valeurs de `coa_code` différentes.
 
-**Setup**:
-  1. Load country templates with built-in IFRS consolidation:
-      - **FR-PCG v1.0** — French Plan Comptable General (20 accounts)
-      - **GB-UKGAAP v1.0** — UK GAAP (20 accounts)
-      - **DE-SKR03 v1.0** — Standardkontenrahmen 03 (20 accounts)
+**Q : Que se passe-t-il si je supprime un plan comptable ?**
+R : La suppression est bloquée si des sociétés le référencent ou si des postes OPEX/CAPEX utilisent ses comptes. Réassignez d'abord les sociétés et mettez à jour les postes, puis vous pouvez supprimer le CoA.
 
-  2. Every account in these templates already maps to one of the 14 IFRS consolidation accounts. For example:
-      - FR-PCG `205000` (Logiciels informatiques) -> IFRS `1100` (Intangible Assets)
-      - GB-UKGAAP `510` (Capitalized Software) -> IFRS `1100` (Intangible Assets)
-      - DE-SKR03 `27` (EDV-Software) -> IFRS `1100` (Intangible Assets)
+**Q : Puis-je renommer les numéros de comptes ?**
+R : Oui, dans l'espace de travail du compte. Changer le numéro de compte met à jour toutes les références dans les postes OPEX/CAPEX automatiquement (l'UUID du compte reste le même en interne).
 
-  3. Set each CoA as the default for its country and assign companies
+**Q : Comment voir quelles sociétés utilisent un CoA spécifique ?**
+R : Ouvrez **Gérer** sur la page Plans comptables, sélectionnez le CoA et vérifiez **Sociétés liées** dans le panneau de détails.
 
-**Result**:
-  - French users work with French PCG accounts and native names in their daily tasks
-  - UK users work with UK GAAP accounts
-  - German users work with SKR03 accounts and German native names
-  - Group finance runs reports by consolidation account to see total spend in IFRS categories
-  - No manual mapping work needed — the templates handle it all
-  - Both local statutory reporting and group IFRS reporting work seamlessly from the same data
+**Q : Que faire si mon pays n'a pas de modèle ?**
+R : KANAP inclut des modèles pour 9 pays (FR, DE, GB, ES, IT, NL, BE, CH, US) plus IFRS comme norme globale. Si votre pays n'est pas couvert, créez un CoA de zéro et ajoutez des comptes manuellement ou via import CSV. Vous pouvez toujours utiliser les numéros de comptes de consolidation IFRS (1000-2900) dans vos mappings de consolidation pour rester compatible avec les modèles intégrés.
 
-## Frequently asked questions
+**Q : Les mappings de comptes de consolidation sont-ils obligatoires ?**
+R : Non, ils sont optionnels. Si vous n'opérez que dans un seul pays ou n'avez pas besoin de consolidation de niveau groupe, vous pouvez laisser ces champs vides. Les comptes de consolidation ne sont nécessaires que pour les organisations multi-pays qui font du reporting de niveau groupe avec une norme différente de leur comptabilité locale.
 
-**Q: Can I have accounts that belong to multiple CoAs?**
-A: No. Each account belongs to exactly one CoA (or none for legacy accounts). If you need the same account structure in multiple CoAs, load the template into each one or use CSV export/import with different `coa_code` values.
-
-**Q: What happens if I delete a Chart of Accounts?**
-A: Deletion is blocked if any companies reference it or any OPEX/CAPEX items use its accounts. Reassign companies and update items first, then you can delete the CoA. Deleting a CoA also deletes all accounts within it that aren't referenced elsewhere.
-
-**Q: Can I rename account numbers?**
-A: Yes, in the account's espace de travail. Changing the account number updates all references in OPEX/CAPEX items automatically (the account's UUID remains the same internally).
-
-**Q: How do I see which companies use a specific CoA?**
-A: Open **Manage** on the Charts of Accounts page, select the CoA, and check **Linked Companies** in the details panel. You can also filter the Companies page by CoA.
-
-**Q: What if my country doesn't have a template?**
-A: KANAP includes templates for 9 countries (FR, DE, GB, ES, IT, NL, BE, CH, US) plus IFRS as a global standard. If your country isn't covered, create a CoA from scratch and add accounts manually or via CSV import. You can still use the IFRS consolidation account numbers (1000-2900) in your consolidation mappings to stay compatible with the built-in templates.
-
-**Q: What's the difference between v1.0 and v2.0 templates?**
-A: **v1.0 (Simple)** has ~20 IT-focused accounts covering essential cost categories. **v2.0 (Detailed)** adds ~10 more granular sub-accounts for finer tracking (e.g., splitting SaaS subscriptions from perpetual licenses, or IT salaries from bonuses). Both versions use the same consolidation mappings. Start with v1.0 and switch to v2.0 if you need more detail.
-
-**Q: Can I edit accounts that came from a template?**
-A: Yes. Once you load a template, the accounts are copied into your CoA and become fully editable. Changes to the platform template don't affect your CoA unless you explicitly reload it (which overwrites your changes if you choose "overwrite" mode).
-
-**Q: Are consolidation account mappings required?**
-A: No, they're optional. If you only operate in one country or don't need group-level consolidation, you can leave these fields empty. Consolidation accounts are only needed for multi-country organizations that report at group level using a different standard than their local accounting.
-
-**Q: Can multiple local accounts map to the same consolidation account?**
-A: Yes, that's the whole point! Many local accounts across different CoAs can map to the same consolidation account. This is how you aggregate costs from different countries into a single consolidated category.
-
-**Q: What happens if I change a consolidation mapping?**
-A: Existing OPEX/CAPEX items don't store consolidation data directly — they reference the account, which has the consolidation mapping. When you change a mapping, all historical and future items using that account will report under the new consolidation account. Update mappings carefully if you need to preserve historical reporting categories.
+**Q : Plusieurs comptes locaux peuvent-ils se mapper vers le même compte de consolidation ?**
+R : Oui, c'est tout l'intérêt ! De nombreux comptes locaux à travers différents CoA peuvent se mapper vers le même compte de consolidation. C'est ainsi que vous agrégez les coûts de différents pays dans une seule catégorie consolidée.

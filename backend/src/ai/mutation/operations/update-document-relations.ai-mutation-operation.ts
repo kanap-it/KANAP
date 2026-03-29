@@ -9,10 +9,17 @@ import { KnowledgeService } from '../../../knowledge/knowledge.service';
 import { AiMutationPreview } from '../../ai-mutation-preview.entity';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import {
+  AI_DOCUMENT_RELATION_ENTITY_TYPES,
   AI_DOCUMENT_RELATION_INPUT_SHAPE,
+  AI_DOCUMENT_RELATION_MUTATION_INPUT_SHAPE,
+  AI_DOCUMENT_RELATION_REMOVE_INPUT_SHAPE,
   AI_DOCUMENT_RELATION_WRITE_FIELDS,
   extractAiDocumentRelationInput,
+  extractAiDocumentRelationObjectInput,
+  extractAiDocumentRelationRemoveInput,
+  getAiDocumentRelationRemoveInputSummary,
   getAiDocumentRelationInputSummary,
+  AiDocumentRelationInput,
   hasAiDocumentRelationInput,
 } from '../ai-document-relation-input';
 import { AiDocumentMutationSupportService } from '../ai-document-mutation-support.service';
@@ -24,7 +31,10 @@ import {
 
 type UpdateDocumentRelationsInput = {
   document_id: string;
-  relations: ReturnType<typeof extractAiDocumentRelationInput>;
+  relations: {
+    add: ReturnType<typeof extractAiDocumentRelationInput>;
+    remove: ReturnType<typeof extractAiDocumentRelationRemoveInput>;
+  };
 };
 
 function textOrNull(value: unknown): string | null {
@@ -45,12 +55,60 @@ function buildTarget(preview: AiMutationPreview): AiMutationPreviewPresentation[
   };
 }
 
+function sameRelationValues(left: string[] | undefined, right: string[] | undefined): boolean {
+  const sortedLeft = [...(left || [])].sort();
+  const sortedRight = [...(right || [])].sort();
+  if (sortedLeft.length !== sortedRight.length) {
+    return false;
+  }
+  return sortedLeft.every((value, index) => value === sortedRight[index]);
+}
+
+function mergeRelationInputSources(
+  topLevel: AiDocumentRelationInput,
+  grouped: AiDocumentRelationInput,
+  ctx?: z.RefinementCtx,
+  groupedFieldName?: 'add' | 'remove',
+): AiDocumentRelationInput {
+  const merged: AiDocumentRelationInput = {};
+
+  for (const entityType of AI_DOCUMENT_RELATION_ENTITY_TYPES) {
+    const topLevelValues = topLevel[entityType];
+    const groupedValues = grouped[entityType];
+    const topLevelFieldName = groupedFieldName === 'remove'
+      ? `remove_${entityType}`
+      : entityType;
+
+    if (
+      topLevelValues !== undefined
+      && groupedValues !== undefined
+      && !sameRelationValues(topLevelValues, groupedValues)
+    ) {
+      ctx?.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `\`${groupedFieldName}.${String(entityType)}\` and top-level \`${topLevelFieldName}\` must match when both are provided.`,
+        path: groupedFieldName ? [groupedFieldName, String(entityType)] : [String(entityType)],
+      });
+      continue;
+    }
+
+    const normalized = topLevelValues ?? groupedValues;
+    if (normalized && normalized.length > 0) {
+      merged[entityType] = normalized;
+    }
+  }
+
+  return merged;
+}
+
 const UpdateDocumentRelationsInputSchema = z.object({
   document_id: z.union([z.string().trim().min(1), z.null()]).optional()
     .describe('The document UUID, DOC reference, or document title. Prefer a DOC reference when available.'),
   document: z.union([z.string().trim().min(1), z.null()]).optional()
     .describe('Alias for document_id.'),
   ...AI_DOCUMENT_RELATION_INPUT_SHAPE,
+  ...AI_DOCUMENT_RELATION_REMOVE_INPUT_SHAPE,
+  ...AI_DOCUMENT_RELATION_MUTATION_INPUT_SHAPE,
 }).superRefine((value, ctx) => {
   if (value.document_id == null && value.document == null) {
     ctx.addIssue({
@@ -71,17 +129,41 @@ const UpdateDocumentRelationsInputSchema = z.object({
     });
   }
 
-  const relations = extractAiDocumentRelationInput(value, ctx);
-  if (!hasAiDocumentRelationInput(relations)) {
+  const addRelations = mergeRelationInputSources(
+    extractAiDocumentRelationInput(value, ctx),
+    extractAiDocumentRelationObjectInput(value.add),
+    ctx,
+    'add',
+  );
+  const removeRelations = mergeRelationInputSources(
+    extractAiDocumentRelationRemoveInput(value, ctx),
+    extractAiDocumentRelationObjectInput(value.remove),
+    ctx,
+    'remove',
+  );
+  if (!hasAiDocumentRelationInput(addRelations) && !hasAiDocumentRelationInput(removeRelations)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'At least one linked project, request, task, application, or asset must be provided.',
+      message: 'At least one linked project, request, task, application, or asset to add or remove must be provided.',
       path: ['projects'],
     });
   }
 }).transform((value): UpdateDocumentRelationsInput => ({
   document_id: String(value.document_id ?? value.document ?? ''),
-  relations: extractAiDocumentRelationInput(value),
+  relations: {
+    add: mergeRelationInputSources(
+      extractAiDocumentRelationInput(value),
+      extractAiDocumentRelationObjectInput(value.add),
+      undefined,
+      'add',
+    ),
+    remove: mergeRelationInputSources(
+      extractAiDocumentRelationRemoveInput(value),
+      extractAiDocumentRelationObjectInput(value.remove),
+      undefined,
+      'remove',
+    ),
+  },
 }));
 
 @Injectable()
@@ -89,18 +171,21 @@ export class UpdateDocumentRelationsAiMutationOperation implements AiMutationOpe
   private readonly logger = new Logger(UpdateDocumentRelationsAiMutationOperation.name);
 
   readonly toolName = 'update_document_relations' as const;
-  readonly description = 'Create a preview to add one or more linked projects, requests, tasks, applications, or assets to one knowledge document. This tool is add-only in the current milestone and requires explicit user approval before execution.';
+  readonly description = 'Create a preview to add or remove linked projects, requests, tasks, applications, or assets on one knowledge document. Prefer the canonical nested `add` / `remove` shape. This tool only creates a preview and requires explicit user approval before execution.';
   readonly inputSchema = UpdateDocumentRelationsInputSchema;
   readonly inputSummary = {
     document_id: 'The document UUID, DOC reference, or document title. Prefer a DOC reference when available.',
+    add: 'Canonical grouped relation additions by entity type, for example {"projects":["PRJ-33"]}.',
+    remove: 'Canonical grouped relation removals by entity type, for example {"applications":["Billing App"]}.',
     ...getAiDocumentRelationInputSummary(),
+    ...getAiDocumentRelationRemoveInputSummary(),
   };
   readonly businessResource = 'knowledge';
   readonly writePreview = {
     entity_type: 'documents',
     fields: [...AI_DOCUMENT_RELATION_WRITE_FIELDS],
     reversible: false,
-    prompt_hint: 'For relation-only document changes, use `update_document_relations`. This tool adds linked projects, requests, tasks, applications, or assets to one document. If the document or a relation target is ambiguous, ask the user to confirm before retrying.',
+    prompt_hint: 'For relation-only document changes, use `update_document_relations`. This tool edits document links, not project, request, application, asset, or task records. If the user starts from a project, request, application, asset, or task, first identify the target document ref from entity knowledge or by querying documents with `linked_project`, `linked_request`, `linked_application`, `linked_asset`, or `linked_task`, then call `update_document_relations` on that document. Prefer the canonical nested shape, for example `{"document_id":"DOC-14","remove":{"applications":["Billing App"]}}` or `{"document_id":"DOC-14","add":{"projects":["PRJ-33"]}}`. If the document or a relation target is ambiguous, ask the user to confirm before retrying.',
   };
 
   constructor(
@@ -112,7 +197,15 @@ export class UpdateDocumentRelationsAiMutationOperation implements AiMutationOpe
     context: AiExecutionContextWithManager,
     input: UpdateDocumentRelationsInput,
   ): Promise<AiPreparedMutationPreview> {
-    const requestedRelations = input.relations ?? extractAiDocumentRelationInput(input as unknown as Record<string, unknown>);
+    const rawInput = input as unknown as Record<string, unknown>;
+    const requestedRelationAdds = input.relations?.add ?? mergeRelationInputSources(
+      extractAiDocumentRelationInput(rawInput),
+      extractAiDocumentRelationObjectInput(rawInput.add),
+    );
+    const requestedRelationRemovals = input.relations?.remove ?? mergeRelationInputSources(
+      extractAiDocumentRelationRemoveInput(rawInput),
+      extractAiDocumentRelationObjectInput(rawInput.remove),
+    );
     const documentRef = textOrNull(input.document_id);
     if (!documentRef) {
       throw new BadRequestException('document_id is required.');
@@ -122,10 +215,16 @@ export class UpdateDocumentRelationsAiMutationOperation implements AiMutationOpe
     await this.support.assertUpdatePreviewAllowed(context, document.document_id);
     this.support.assertRelationEditingAllowed(document);
 
-    const resolvedRelations = await this.support.resolveRelationTargets(context, requestedRelations);
-    const relationMutation = this.support.buildRelationAdditionMutation(document.relations, resolvedRelations);
+    const [resolvedRelationAdds, resolvedRelationRemovals] = await Promise.all([
+      this.support.resolveRelationTargets(context, requestedRelationAdds),
+      this.support.resolveRelationTargets(context, requestedRelationRemovals),
+    ]);
+    const relationMutation = this.support.buildRelationMutation(document.relations, {
+      add: resolvedRelationAdds,
+      remove: resolvedRelationRemovals,
+    });
     if (relationMutation.changedTypes.length === 0) {
-      throw new BadRequestException('Document relations already include the requested links.');
+      throw new BadRequestException('Document relations already match the requested changes.');
     }
 
     return {
@@ -152,13 +251,13 @@ export class UpdateDocumentRelationsAiMutationOperation implements AiMutationOpe
     let summary = `Preview ${preview.id} ${preview.status}.`;
     switch (preview.status) {
       case 'pending':
-        summary = `Add links to ${ref}.`;
+        summary = `Update links for ${ref}.`;
         break;
       case 'executed':
         summary = `${ref} links updated.`;
         break;
       case 'rejected':
-        summary = `Link update for ${ref} was rejected.`;
+        summary = `Link changes for ${ref} were rejected.`;
         break;
       case 'expired':
         summary = `Link update preview for ${ref} expired before approval.`;

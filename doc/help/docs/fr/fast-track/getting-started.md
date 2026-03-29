@@ -1,305 +1,305 @@
 ---
 title: "Premiers pas : vos 10 premières minutes dans KANAP"
-description: Un guide d'intégration rapide pour tous les utilisateurs. Dashboard, profile, tasks, notifications, and key concepts to feel at home fast.
+description: Un guide d'intégration rapide pour tous les utilisateurs. Tableau de bord, profil, tâches, notifications et concepts clés pour être à l'aise rapidement.
 ---
 
 # Premiers pas : vos 10 premières minutes dans KANAP
 
-Welcome to KANAP. This guide walks you through everything you need to feel productive on day one — regardless of your role. No admin knowledge required, no module-specific deep dives. Just the essentials to get comfortable.
+Bienvenue dans KANAP. Ce guide vous accompagne dans tout ce dont vous avez besoin pour être productif dès le premier jour -- quel que soit votre rôle. Aucune connaissance d'administration requise, aucune plongée spécifique dans un module. Juste l'essentiel pour vous sentir à l'aise.
 
-!!! tip "Prefer a one-page summary? :material-file-pdf-box:"
-    All the key steps on a single A4 page — print it, pin it, share it with your team.
+!!! tip "Conseil : Vous préférez un résumé sur une page ? :material-file-pdf-box:"
+    Toutes les étapes clés sur une seule page A4 -- imprimez-la, épinglez-la, partagez-la avec votre équipe.
 
-    [:material-download: Download the cheat sheet (PDF)](downloads/kanap-getting-started.pdf){ .md-button .md-button--primary }
+    [:material-download: Télécharger l'aide-mémoire (PDF)](downloads/kanap-getting-started.pdf){ .md-button .md-button--primary }
 
-For role-specific workflows, see the [Portfolio Fast Track](index.md) and [IT Ops Fast Track](apps-and-assets.md).
-
----
-
-## The Big Picture
-
-KANAP is organized around a simple structure. The top bar shows the sections you have access to:
-
-| Area | What it contains |
-|------|-----------------|
-| **Dashboard** | Your personal hub — click the KANAP logo or navigate to `/` |
-| **Portfolio** | Tasks, Requests, Projects, Planning, Reporting, Contributors |
-| **IT Landscape** | Applications, Interfaces, Interface Map, Assets, Connections, Connection Map, Locations |
-| **Base de connaissances** | Documents and templates with review workflows |
-| **Budget Management** | OPEX, CAPEX, Contracts, Reporting, Administration |
-| **Master Data** | Companies, Departments, Suppliers, Contacts, Charts of Accounts, Currency, Business Processes, Analytics Dimensions |
-| **Administration** | Users, Roles, Audit Log, Billing, Authentication, Branding (admin-only) |
-
-You don't need access to everything. Your role determines which sections and actions are available to you. If something is missing from your menu, ask your administrator.
+Pour les flux de travail spécifiques à un rôle, consultez le [Fast Track Portefeuille](index.md) et le [Fast Track Cartographie SI](apps-and-assets.md).
 
 ---
 
-## Step 1: Explore Your Dashboard
+## La vue d'ensemble
 
-After logging in, you land on the **Dashboard**. This is your personal command center.
+KANAP est organisé autour d'une structure simple. La barre supérieure affiche les sections auxquelles vous avez accès :
 
-### What you'll see
+| Zone | Ce qu'elle contient |
+|------|---------------------|
+| **Tableau de bord** | Votre hub personnel -- cliquez sur le logo KANAP ou naviguez vers `/` |
+| **Portefeuille** | Tâches, Demandes, Projets, Planification, Rapports, Contributeurs |
+| **Cartographie SI** | Applications, Interfaces, Carte des interfaces, Actifs, Connexions, Carte des connexions, Sites |
+| **Base de connaissances** | Documents et modèles avec workflows de revue |
+| **Gestion budgétaire** | OPEX, CAPEX, Contrats, Rapports, Administration |
+| **Données de référence** | Sociétés, Départements, Fournisseurs, Contacts, Plans comptables, Devise, Processus métier, Dimensions analytiques |
+| **Administration** | Utilisateurs, Rôles, Journal d'audit, Facturation, Authentification, Personnalisation (admin uniquement) |
 
-A grid of tiles, each showing a different aspect of your work. Here are the most common ones:
-
-| Tile | What it shows |
-|------|--------------|
-| **My Tasks** | Your assigned tasks, grouped by urgency (Overdue, Due This Week, Later) |
-| **Projects I Lead** | Projects where you're IT Lead, Business Lead, or Sponsor |
-| **Projects I Contribute To** | Projects where you're a team member |
-| **My Time Last Week** | Hours logged, breakdown by category, top projects |
-| **Recently Viewed** | Items you recently opened across the app |
-| **New Requests** | Portfolio requests created recently |
-| **Base de connaissances** | Documents awaiting your review, plus your recently accessed docs |
-| **Team Activity** | Recent project activity on projects you're involved with |
-| **Project Status Changes** | Latest project status changes |
-| **Stale Tasks** | Tasks that haven't been updated in a while |
-
-### Quick Actions
-
-At the top of the dashboard, you'll find shortcut buttons for common actions:
-
-- **Create Task** — open a quick dialog to create a task without leaving the dashboard
-- **Log Time** — log hours against a project in seconds
-- **New Document** — start a blank Knowledge document or create one from a template
-
-### Customize it
-
-Click the **Settings** icon (gear) to choose which tiles appear. Only tiles you have permission to view are shown. Start with the defaults for a few days, then adjust to your needs.
-
-!!! tip "Make it yours"
-    The dashboard is designed to answer "what should I focus on today?" at a glance. If a tile isn't useful to you, hide it. If you're missing something, check the gear icon — it might just be disabled.
+Vous n'avez pas besoin d'accéder à tout. Votre rôle détermine quelles sections et actions sont disponibles. Si quelque chose manque dans votre menu, demandez à votre administrateur.
 
 ---
 
-## Step 2: Set Up Your Profile
+## Étape 1 : Explorez votre tableau de bord
 
-Click your **avatar** (top-right) → **My Profile**, or navigate to `/settings/profile`.
+Après la connexion, vous arrivez sur le **Tableau de bord**. C'est votre centre de commande personnel.
 
-### Profile tab
+### Ce que vous verrez
 
-Update your personal information:
+Une grille de tuiles, chacune montrant un aspect différent de votre travail. Voici les plus courantes :
 
-- **First Name** / **Last Name**
-- **Job Title**
-- **Business Phone** / **Mobile Phone**
+| Tuile | Ce qu'elle affiche |
+|-------|-------------------|
+| **Mes tâches** | Vos tâches assignées, regroupées par urgence (En retard, Cette semaine, Plus tard) |
+| **Projets que je pilote** | Projets où vous êtes Responsable IT, Responsable métier ou Sponsor |
+| **Projets auxquels je contribue** | Projets où vous êtes membre de l'équipe |
+| **Mon temps la semaine dernière** | Heures saisies, ventilation par catégorie, principaux projets |
+| **Consultés récemment** | Éléments récemment ouverts dans l'application |
+| **Nouvelles demandes** | Demandes du portefeuille créées récemment |
+| **Base de connaissances** | Documents en attente de votre revue, plus vos documents récemment consultés |
+| **Activité de l'équipe** | Activité récente sur les projets auxquels vous participez |
+| **Changements de statut projet** | Derniers changements de statut de projets |
+| **Tâches en retard** | Tâches qui n'ont pas été mises à jour depuis un moment |
 
-!!! info "SSO users"
-    If your organization uses Microsoft Entra ID (SSO), some fields are synced automatically and can't be edited in KANAP.
+### Actions rapides
 
-### Notifications tab
+En haut du tableau de bord, vous trouverez des boutons raccourcis pour les actions courantes :
 
-Control which email notifications you receive. The master toggle at the top turns all notifications on or off.
+- **Créer une tâche** -- ouvrir un formulaire rapide pour créer une tâche sans quitter le tableau de bord
+- **Saisir du temps** -- saisir des heures sur un projet en quelques secondes
+- **Nouveau document** -- créer un document vierge de la base de connaissances ou en créer un à partir d'un modèle
 
-You can fine-tune notifications by espace de travail:
+### Personnalisez-le
 
-| Workspace | What you can toggle |
-|-----------|-------------------|
-| **Portfolio** | Status changes, team additions, team changes on items you lead, comments |
-| **Tasks** | Assignment notifications (as assignee, requestor, or viewer), status changes, comments |
-| **Budget** | Expiration warnings, status changes, comments |
+Cliquez sur l'icône **Paramètres** (engrenage) pour choisir quelles tuiles apparaissent. Seules les tuiles que vous avez l'autorisation de voir sont affichées. Commencez avec les valeurs par défaut pendant quelques jours, puis ajustez selon vos besoins.
 
-### The Weekly Review Email
-
-This is a periodic summary of your activity and upcoming items — like a personal digest.
-
-Configure it in the Notifications tab:
-
-| Setting | What to set |
-|---------|------------|
-| **Day** | Which day of the week (e.g., Monday) |
-| **Time** | What hour (in your timezone) |
-| **Timezone** | Your local timezone |
-
-Click **Preview email** to send yourself a test and see what it looks like.
-
-!!! tip "Don't skip this"
-    The weekly email is surprisingly useful. It surfaces tasks you might have forgotten, upcoming deadlines, and recent activity. Set it up once and let it work for you.
-
-### Appearance tab
-
-Choose your preferred theme mode:
-
-- **Light** — bright interface
-- **Dark** — reduced glare for low-light environments
-- **System** — follows your operating system preference
-
-You can also toggle the theme quickly from the top bar using the theme icon (sun/moon) next to the help button.
+!!! tip "Conseil : Faites-en le vôtre"
+    Le tableau de bord est conçu pour répondre à « sur quoi devrais-je me concentrer aujourd'hui ? » en un coup d'oeil. Si une tuile ne vous est pas utile, masquez-la. Si quelque chose vous manque, vérifiez l'icône engrenage -- elle est peut-être simplement désactivée.
 
 ---
 
-## Step 3: Understand Scope Filters
+## Étape 2 : Configurez votre profil
 
-This is the single most important concept for new users. Every major list in KANAP (Tasks, Apps, Projects, Requests) has a **scope filter** at the top:
+Cliquez sur votre **avatar** (en haut à droite) > **Mon profil**, ou naviguez vers `/settings/profile`.
 
-| Scope | What it shows |
-|-------|--------------|
-| **My [items]** | Items where you are directly assigned (owner, assignee, lead…) |
-| **My Team's [items]** | Items owned or assigned to anyone on your Portfolio team |
-| **All [items]** | Everything in the organization |
+### Onglet Profil
 
-### Why this matters
+Mettez à jour vos informations personnelles :
 
-If you open the Tasks page and see nothing — don't panic. You're probably viewing "My Tasks" and nothing is assigned to you yet. Switch to "All Tasks" to see the full picture.
+- **Prénom** / **Nom**
+- **Intitulé de poste**
+- **Téléphone professionnel** / **Téléphone mobile**
 
-The scope filter **remembers your last selection** across sessions. So if you switch to "All", it stays on "All" next time you visit.
+!!! info "Information : Utilisateurs SSO"
+    Si votre organisation utilise Microsoft Entra ID (SSO), certains champs sont synchronisés automatiquement et ne peuvent pas être modifiés dans KANAP.
 
-!!! warning "No team = no 'My Team's' filter"
-    The "My Team's" option only works if you've been assigned to a Portfolio team via the Contributors page. If it's grayed out, ask your admin or project manager to set up your Contributor profile.
+### Onglet Notifications
 
-### Where scope filters appear
+Contrôlez quelles notifications par e-mail vous recevez. La bascule principale en haut active ou désactive toutes les notifications.
 
-- **Portfolio → Tasks** — My Tasks / My Team's Tasks / All Tasks
-- **Cartographie SI > Applications** — My Apps / My Team's Apps / All Apps
-- **Portfolio → Projects** — My Projects / My Team's Projects / All Projects
-- **Portfolio → Requests** — My Requests / My Team's Requests / All Requests
+Vous pouvez affiner les notifications par espace de travail :
 
-The logic is always the same: ownership and team assignment determine what you see.
+| Espace de travail | Ce que vous pouvez basculer |
+|-------------------|-----------------------------|
+| **Portefeuille** | Changements de statut, ajouts à une équipe, changements d'équipe sur les éléments que vous pilotez, commentaires |
+| **Tâches** | Notifications d'assignation (comme responsable, demandeur ou observateur), changements de statut, commentaires |
+| **Budget** | Avertissements d'expiration, changements de statut, commentaires |
 
----
+### L'e-mail de revue hebdomadaire
 
-## Step 4: Work With Tasks
+C'est un résumé périodique de votre activité et des éléments à venir -- comme un digest personnel.
 
-Tasks are your daily workhorse. They track action items, deliverables, follow-ups, and anything that needs doing.
+Configurez-le dans l'onglet Notifications :
 
-### Find your tasks
+| Paramètre | Quoi définir |
+|-----------|-------------|
+| **Jour** | Quel jour de la semaine (ex. : lundi) |
+| **Heure** | À quelle heure (dans votre fuseau horaire) |
+| **Fuseau horaire** | Votre fuseau horaire local |
 
-Navigate to **Portfolio → Tasks**. The default view shows **My Tasks** — items assigned to you, sorted by priority score.
+Cliquez sur **Aperçu de l'e-mail** pour vous envoyer un test et voir à quoi il ressemble.
 
-### Create a task
+!!! tip "Conseil : Ne sautez pas cette étape"
+    L'e-mail hebdomadaire est étonnamment utile. Il fait remonter les tâches que vous auriez pu oublier, les échéances à venir et l'activité récente. Configurez-le une fois et laissez-le travailler pour vous.
 
-Two ways:
+### Onglet Apparence
 
-1. **From the Dashboard** — click **Create Task** (quick dialog, minimal fields)
-2. **From the Tasks page** — click **Nouveau** (full espace de travail with all options)
+Choisissez votre mode de thème préféré :
 
-The minimum you need:
+- **Clair** -- interface lumineuse
+- **Sombre** -- éblouissement réduit pour les environnements peu éclairés
+- **Système** -- suit la préférence de votre système d'exploitation
 
-| Field | What to enter |
-|-------|--------------|
-| **Title** | What needs to be done |
-| **Assignee** | Who's responsible (defaults to you) |
-| **Due Date** | When it's needed |
-
-### Link tasks to projects, contracts, or budgets
-
-When creating a task, you can link it to a **Project**, **OPEX item**, **Contract**, or **CAPEX item**. This makes the task appear in both the Tasks list and the parent espace de travail.
-
-!!! tip "Create from context"
-    The fastest way to create a linked task is from within the parent espace de travail. Open a project → Tasks tab → New. The link is pre-filled.
-
-### Track progress
-
-Move tasks through statuses as work advances:
-
-| Status | When to use |
-|--------|------------|
-| **Open** | Not started yet (default) |
-| **In Progress** | Work has begun |
-| **Done** | Completed (requires time logged for project tasks) |
-| **Cancelled** | No longer needed |
-
-### Log time
-
-For project tasks, time logging is essential — it feeds the roadmap generator and capacity planning.
-
-1. Open the task → click **Log Time** in the sidebar
-2. Choose category: **IT** or **Business**
-3. Enter the date, hours, and optional notes
-
-### Share a task
-
-Need to loop someone in? Click **Send Link** in the task header to email a direct link to any colleague — even people outside KANAP. Add a personal message if needed.
-
-!!! info "Send Link works everywhere"
-    This isn't just for tasks. You can send links to projects, requests, contracts, apps — any espace de travail object. It's the fastest way to point someone to the right place.
+Vous pouvez aussi basculer le thème rapidement depuis la barre supérieure en utilisant l'icône de thème (soleil/lune) à côté du bouton d'aide.
 
 ---
 
-## Step 5: Set Up Your Contributor Profile
+## Étape 3 : Comprenez les filtres de périmètre
 
-Your Contributor profile tells KANAP who you are in terms of project planning. It's separate from your user account — it's about **team, availability, and skills**.
+C'est le concept le plus important pour les nouveaux utilisateurs. Chaque liste majeure dans KANAP (Tâches, Applications, Projets, Demandes) a un **filtre de périmètre** en haut :
 
-Navigate to **Portfolio → Contributors** and find your name (or ask your admin to add you).
+| Périmètre | Ce qu'il affiche |
+|-----------|-----------------|
+| **Mes [éléments]** | Les éléments où vous êtes directement assigné (responsable, assigné, pilote...) |
+| **[Éléments] de mon équipe** | Les éléments possédés ou assignés à n'importe qui dans votre équipe Portefeuille |
+| **Tous les [éléments]** | Tout dans l'organisation |
 
-### What to configure
+### Pourquoi c'est important
 
-| Setting | What it does | Example |
-|---------|-------------|---------|
-| **Team** | Your organizational team | Infrastructure, Service Desk… |
-| **Availability** | Days per month for project work (0–20) | 8 days/month |
-| **Skills** | What you know and how well | "Docker — Autonomous" |
+Si vous ouvrez la page Tâches et ne voyez rien -- pas de panique. Vous consultez probablement « Mes tâches » et rien ne vous est encore assigné. Passez à « Toutes les tâches » pour voir l'ensemble.
 
-### Why this matters
+Le filtre de périmètre **mémorise votre dernière sélection** entre les sessions. Donc si vous passez à « Toutes », il reste sur « Toutes » la prochaine fois que vous visitez.
 
-- **Team** → enables the "My Team's" scope filters across the app
-- **Availability** → feeds the roadmap generator and capacity heatmaps
-- **Skills** → helps project managers find the right people for upcoming work
+!!! warning "Avertissement : Pas d'équipe = pas de filtre « Mon équipe »"
+    L'option « Mon équipe » ne fonctionne que si vous avez été assigné à une équipe Portefeuille via la page Contributeurs. Si elle est grisée, demandez à votre admin ou chef de projet de configurer votre profil Contributeur.
 
-!!! tip "Be realistic with availability"
-    Account for meetings, BAU work, and holidays. Most people have less project time than they think. Setting 20 days/month means you have zero non-project time — that's almost never true.
+### Où les filtres de périmètre apparaissent
 
-### Skills proficiency
+- **Portefeuille > Tâches** -- Mes tâches / Tâches de mon équipe / Toutes les tâches
+- **Cartographie SI > Applications** -- Mes apps / Apps de mon équipe / Toutes les apps
+- **Portefeuille > Projets** -- Mes projets / Projets de mon équipe / Tous les projets
+- **Portefeuille > Demandes** -- Mes demandes / Demandes de mon équipe / Toutes les demandes
 
-Each skill has a proficiency level:
-
-| Level | Meaning |
-|-------|---------|
-| 0 | No knowledge |
-| 1 | Basic / Theoretical |
-| 2 | Can execute with support |
-| 3 | Autonomous |
-| 4 | Expert — can mentor others |
-
-Be honest. A realistic skills map is far more useful than one where everyone is an "expert".
+La logique est toujours la même : la propriété et l'affectation d'équipe déterminent ce que vous voyez.
 
 ---
 
-## How It All Connects
+## Étape 4 : Travaillez avec les tâches
 
-Everything you set up in these first 10 minutes feeds into the bigger picture:
+Les tâches sont votre outil quotidien. Elles suivent les actions, les livrables, les relances et tout ce qui doit être fait.
 
-### Your Dashboard
-Tiles pull from your task assignments, project roles, and time logs to give you a personalized overview every morning.
+### Trouvez vos tâches
 
-### Scope Filters
-Your ownership assignments and team membership determine what surfaces in every list — making the app feel personal, not overwhelming.
+Rendez-vous dans **Portefeuille > Tâches**. La vue par défaut affiche **Mes tâches** -- les éléments qui vous sont assignés, triés par score de priorité.
 
-### Capacity Planning
-Your availability and time logs feed into the Portfolio module's roadmap generator and capacity heatmaps. Accurate data here means better planning for everyone.
+### Créez une tâche
+
+Deux façons :
+
+1. **Depuis le tableau de bord** -- cliquez sur **Créer une tâche** (formulaire rapide, champs minimaux)
+2. **Depuis la page Tâches** -- cliquez sur **Nouveau** (espace de travail complet avec toutes les options)
+
+Le minimum nécessaire :
+
+| Champ | Quoi saisir |
+|-------|------------|
+| **Titre** | Ce qui doit être fait |
+| **Responsable** | Qui est en charge (par défaut vous) |
+| **Date d'échéance** | Pour quand c'est nécessaire |
+
+### Liez les tâches à des projets, contrats ou budgets
+
+Lors de la création d'une tâche, vous pouvez la lier à un **Projet**, un **poste OPEX**, un **Contrat** ou un **poste CAPEX**. Cela fait apparaître la tâche à la fois dans la liste des tâches et dans l'espace de travail parent.
+
+!!! tip "Conseil : Créez depuis le contexte"
+    La manière la plus rapide de créer une tâche liée est depuis l'espace de travail parent. Ouvrez un projet > onglet Tâches > Nouveau. Le lien est pré-rempli.
+
+### Suivez l'avancement
+
+Faites évoluer les tâches à travers les statuts au fur et à mesure que le travail progresse :
+
+| Statut | Quand l'utiliser |
+|--------|-----------------|
+| **Ouvert** | Pas encore commencé (par défaut) |
+| **En cours** | Le travail a commencé |
+| **Terminé** | Achevé (nécessite du temps saisi pour les tâches projet) |
+| **Annulé** | N'est plus nécessaire |
+
+### Saisissez du temps
+
+Pour les tâches projet, la saisie de temps est essentielle -- elle alimente le générateur de roadmap et la planification de capacité.
+
+1. Ouvrez la tâche > cliquez sur **Saisir du temps** dans la barre latérale
+2. Choisissez la catégorie : **IT** ou **Métier**
+3. Saisissez la date, les heures et des notes optionnelles
+
+### Partagez une tâche
+
+Besoin d'impliquer quelqu'un ? Cliquez sur **Envoyer un lien** dans l'en-tête de la tâche pour envoyer par e-mail un lien direct à n'importe quel collègue -- même des personnes en dehors de KANAP. Ajoutez un message personnel si nécessaire.
+
+!!! info "Information : Envoyer un lien fonctionne partout"
+    Ce n'est pas réservé aux tâches. Vous pouvez envoyer des liens vers des projets, demandes, contrats, applications -- tout objet d'espace de travail. C'est la manière la plus rapide d'orienter quelqu'un vers le bon endroit.
+
+---
+
+## Étape 5 : Configurez votre profil contributeur
+
+Votre profil Contributeur indique à KANAP qui vous êtes en termes de planification de projet. Il est séparé de votre compte utilisateur -- il concerne **l'équipe, la disponibilité et les compétences**.
+
+Rendez-vous dans **Portefeuille > Contributeurs** et trouvez votre nom (ou demandez à votre admin de vous ajouter).
+
+### Quoi configurer
+
+| Paramètre | Ce qu'il fait | Exemple |
+|-----------|--------------|---------|
+| **Équipe** | Votre équipe organisationnelle | Infrastructure, Service Desk... |
+| **Disponibilité** | Jours par mois pour le travail projet (0-20) | 8 jours/mois |
+| **Compétences** | Ce que vous savez et à quel niveau | « Docker -- Autonome » |
+
+### Pourquoi c'est important
+
+- **Équipe** > active les filtres de périmètre « Mon équipe » dans toute l'application
+- **Disponibilité** > alimente le générateur de roadmap et les cartes de chaleur de capacité
+- **Compétences** > aide les chefs de projet à trouver les bonnes personnes pour le travail à venir
+
+!!! tip "Conseil : Soyez réaliste avec la disponibilité"
+    Tenez compte des réunions, du travail courant et des congés. La plupart des gens ont moins de temps projet qu'ils ne pensent. Définir 20 jours/mois signifie zéro temps hors projet -- c'est presque jamais vrai.
+
+### Maîtrise des compétences
+
+Chaque compétence a un niveau de maîtrise :
+
+| Niveau | Signification |
+|--------|--------------|
+| 0 | Aucune connaissance |
+| 1 | Base / Théorique |
+| 2 | Peut exécuter avec support |
+| 3 | Autonome |
+| 4 | Expert -- peut former les autres |
+
+Soyez honnête. Une carte de compétences réaliste est bien plus utile qu'une carte où tout le monde est « expert ».
+
+---
+
+## Comment tout s'interconnecte
+
+Tout ce que vous configurez dans ces 10 premières minutes alimente un ensemble plus large :
+
+### Votre tableau de bord
+Les tuiles exploitent vos assignations de tâches, rôles de projet et saisies de temps pour vous donner une vue d'ensemble personnalisée chaque matin.
+
+### Filtres de périmètre
+Vos assignations de propriété et votre appartenance à une équipe déterminent ce qui remonte dans chaque liste -- rendant l'application personnelle, pas écrasante.
+
+### Planification de capacité
+Votre disponibilité et vos saisies de temps alimentent le générateur de roadmap et les cartes de chaleur de capacité du module Portefeuille. Des données précises ici signifient une meilleure planification pour tout le monde.
 
 ### Notifications
-The weekly email and real-time notifications keep you in the loop without checking the app constantly.
+L'e-mail hebdomadaire et les notifications en temps réel vous tiennent informé sans vérifier l'application constamment.
 
-### Want to go further?
+### Envie d'aller plus loin ?
 
-| If you work with… | Read the… |
-|-------------------|-----------|
-| Applications, servers, infrastructure | [IT Ops Fast Track](apps-and-assets.md) |
-| Requests, projects, portfolio planning | [Portfolio Fast Track](index.md) |
+| Si vous travaillez avec... | Lisez le... |
+|-----------------------------|-------------|
+| Applications, serveurs, infrastructure | [Fast Track Cartographie SI](apps-and-assets.md) |
+| Demandes, projets, planification de portefeuille | [Fast Track Portefeuille](index.md) |
 
 ---
 
-## Quick Reference
+## Référence rapide
 
-| I want to… | Go to… |
-|------------|--------|
-| See my overview | Dashboard (click KANAP logo) |
-| Create a task quickly | Dashboard → Create Task button |
-| Log time quickly | Dashboard → Log Time button |
-| Start a new document | Dashboard → New Document button |
-| See all my tasks | Portfolio → Tasks (scope: My Tasks) |
-| See everything in the org | Any list → scope filter → "All" |
-| Update my profile | Avatar → My Profile → Profile tab |
-| Set up notifications | Avatar → My Profile → Notifications tab |
-| Configure weekly email | Avatar → My Profile → Notifications tab → Weekly Review |
-| Change theme (light/dark) | Avatar → My Profile → Appearance tab |
-| Set my availability | Portfolio → Contributors → your name |
-| Add my skills | Portfolio → Contributors → your name → Skills tab |
-| Share a link to anything | Open any espace de travail → Send Link |
-| Customize my dashboard | Dashboard → Settings (gear icon) |
+| Je veux... | Aller à... |
+|------------|-----------|
+| Voir ma vue d'ensemble | Tableau de bord (cliquez sur le logo KANAP) |
+| Créer une tâche rapidement | Tableau de bord > bouton Créer une tâche |
+| Saisir du temps rapidement | Tableau de bord > bouton Saisir du temps |
+| Créer un nouveau document | Tableau de bord > bouton Nouveau document |
+| Voir toutes mes tâches | Portefeuille > Tâches (périmètre : Mes tâches) |
+| Voir tout dans l'organisation | N'importe quelle liste > filtre de périmètre > « Tous » |
+| Mettre à jour mon profil | Avatar > Mon profil > onglet Profil |
+| Configurer les notifications | Avatar > Mon profil > onglet Notifications |
+| Configurer l'e-mail hebdomadaire | Avatar > Mon profil > onglet Notifications > Revue hebdomadaire |
+| Changer de thème (clair/sombre) | Avatar > Mon profil > onglet Apparence |
+| Définir ma disponibilité | Portefeuille > Contributeurs > votre nom |
+| Ajouter mes compétences | Portefeuille > Contributeurs > votre nom > onglet Compétences |
+| Partager un lien vers n'importe quoi | Ouvrez n'importe quel espace de travail > Envoyer un lien |
+| Personnaliser mon tableau de bord | Tableau de bord > Paramètres (icône engrenage) |
 
 ---
 
 !!! success "Vous êtes prêt"
-    You now know how to navigate KANAP, manage your tasks, configure your profile and notifications, and set up your contributor profile. Start with your dashboard each morning, keep your tasks updated, and log time regularly — the rest will follow naturally.
+    Vous savez maintenant comment naviguer dans KANAP, gérer vos tâches, configurer votre profil et vos notifications, et paramétrer votre profil contributeur. Commencez par votre tableau de bord chaque matin, gardez vos tâches à jour et saisissez du temps régulièrement -- le reste suivra naturellement.

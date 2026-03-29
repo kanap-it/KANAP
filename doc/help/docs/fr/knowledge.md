@@ -1,313 +1,313 @@
 # Base de connaissances
 
-Knowledge is KANAP's document espace de travail for policies, procedures, technical notes, reference material, and the documentation that needs to stay connected to real work. It combines free-form writing with governance features such as templates, ownership, review, version history, and relations to applications, assets, projects, requests, and tasks.
+La base de connaissances est l'espace de travail documentaire de KANAP pour les politiques, procédures, notes techniques, documents de référence et toute documentation qui doit rester connectée au travail réel. Elle combine l'écriture libre avec des fonctionnalités de gouvernance telles que les modèles, la responsabilité, la revue, l'historique des versions et les relations avec les applications, actifs, projets, demandes et tâches.
 
-Unlike a file share, Knowledge is not just a place to store documents. The important design choice is that every article can be classified, reviewed, versioned, exported, and linked to operational objects across the platform. That makes the article easier to find and gives it context when people open it from another espace de travail.
+Contrairement à un partage de fichiers, la base de connaissances n'est pas qu'un endroit pour stocker des documents. Le choix de conception important est que chaque article peut être classifié, revu, versionné, exporté et lié à des objets opérationnels dans toute la plateforme. Cela rend l'article plus facile à trouver et lui donne du contexte lorsqu'on l'ouvre depuis un autre espace de travail.
 
-## Où le trouver
+## Où trouver cette page
 
 - Espace de travail : **Base de connaissances**
-- Permissions:
-  - `knowledge:reader` lets you open and read documents
-  - `knowledge:member` lets you create, edit, comment, organize folders, and manage document metadata
-  - `knowledge:admin` adds library administration and cross-library moves
+- Autorisations :
+  - `knowledge:reader` permet d'ouvrir et de lire les documents
+  - `knowledge:member` permet de créer, modifier, commenter, organiser les dossiers et gérer les métadonnées des documents
+  - `knowledge:admin` ajoute l'administration des bibliothèques et les déplacements inter-bibliothèques
 
-If you can read a document but cannot edit it, l'espace de travail stays available in read-only mode.
+Si vous pouvez lire un document mais ne pouvez pas le modifier, l'espace de travail reste disponible en mode lecture seule.
 
-## How Knowledge is organized
+## Organisation de la base de connaissances
 
-Knowledge is built around four layers of organization: libraries, folders, document types, and relations.
+La base de connaissances est construite autour de quatre niveaux d'organisation : les bibliothèques, les dossiers, les types de documents et les relations.
 
-### Libraries
+### Bibliothèques
 
-Libraries are the highest-level containers. They separate document populations that should be managed differently.
+Les bibliothèques sont les conteneurs de plus haut niveau. Elles séparent les populations de documents qui doivent être gérées différemment.
 
-Typical patterns:
-- Use a regular library for your team's working knowledge base.
-- Use the **Templates** library for reusable document starters.
-- Use the **Managed Docs** library for documents that originate from another espace de travail and remain partly controlled there.
+Schémas typiques :
+- Utilisez une bibliothèque classique pour la base de connaissances de travail de votre équipe.
+- Utilisez la bibliothèque **Modèles** pour les documents de démarrage réutilisables.
+- Utilisez la bibliothèque **Documents gérés** pour les documents qui proviennent d'un autre espace de travail et restent partiellement contrôlés par celui-ci.
 
-Consequences of the library choice:
-- The active library determines which folder tree you see and where new blank documents are created.
-- In a normal library, documents behave like standard knowledge articles.
-- In **Templates**, published documents become reusable starting points for new articles and are grouped by document type in the template picker.
-- In **Managed Docs**, articles may still be readable and editable, but some metadata is controlled by the source espace de travail rather than from Knowledge itself.
+Conséquences du choix de bibliothèque :
+- La bibliothèque active détermine quelle arborescence de dossiers vous voyez et où les nouveaux documents vierges sont créés.
+- Dans une bibliothèque normale, les documents se comportent comme des articles de base de connaissances standard.
+- Dans **Modèles**, les documents publiés deviennent des points de départ réutilisables pour de nouveaux articles et sont regroupés par type de document dans le sélecteur de modèles.
+- Dans **Documents gérés**, les articles peuvent toujours être lisibles et modifiables, mais certaines métadonnées sont contrôlées par l'espace de travail source plutôt que depuis la base de connaissances elle-même.
 
-Library administration is intentionally stricter than document editing. Creating, renaming, deleting, or reorganizing libraries is an admin responsibility because those changes affect navigation and ownership for everyone.
+L'administration des bibliothèques est intentionnellement plus stricte que la modification des documents. Créer, renommer, supprimer ou réorganiser des bibliothèques est une responsabilité d'administrateur car ces modifications affectent la navigation et la propriété pour tout le monde.
 
-### Folders
+### Dossiers
 
-Folders organize documents inside a library. They are not cosmetic: they shape how users browse the library and how teams maintain a shared structure over time.
+Les dossiers organisent les documents au sein d'une bibliothèque. Ils ne sont pas cosmétiques : ils façonnent la manière dont les utilisateurs parcourent la bibliothèque et comment les équipes maintiennent une structure partagée au fil du temps.
 
-Important behavior:
-- Folders exist inside one library. They are not shared across libraries.
-- In a single-library view, documents can be dragged into folders for quick reorganization.
-- Folders can be nested to create a browsing structure.
-- Deleting a folder does not delete its documents. Documents move back to **Unfiled** instead.
-- A folder with subfolders cannot be deleted until the hierarchy is cleaned up.
+Comportement important :
+- Les dossiers existent au sein d'une bibliothèque. Ils ne sont pas partagés entre bibliothèques.
+- Dans une vue mono-bibliothèque, les documents peuvent être glissés dans des dossiers pour une réorganisation rapide.
+- Les dossiers peuvent être imbriqués pour créer une structure de navigation.
+- Supprimer un dossier ne supprime pas ses documents. Les documents reviennent dans **Non classé**.
+- Un dossier avec des sous-dossiers ne peut pas être supprimé tant que la hiérarchie n'est pas nettoyée.
 
-Use folders for stable subject areas, not for temporary workflow states. Status and workflow already exist for that.
+Utilisez les dossiers pour des domaines stables, pas pour des états de workflow temporaires. Le statut et le workflow existent déjà pour cela.
 
-### Scope filters
+### Filtres de périmètre
 
-The top-level scope filter changes which documents are listed:
+Le filtre de périmètre de premier niveau change quels documents sont listés :
 
-- **My docs** focuses on documents you own.
-- **My team's docs** focuses on documents owned by your team.
-- **All docs** removes the ownership scope and shows the full population you are allowed to see.
+- **Mes documents** se concentre sur les documents que vous possédez.
+- **Documents de mon équipe** se concentre sur les documents possédés par votre équipe.
+- **Tous les documents** retire le périmètre de propriété et affiche la population complète que vous êtes autorisé à voir.
 
-If you are not assigned to a team, the team scope is unavailable. Your last scope choice is remembered, which is convenient when it matches your normal working mode and slightly confusing when you forget you changed it yesterday.
+Si vous n'êtes pas assigné à une équipe, le périmètre équipe n'est pas disponible. Votre dernier choix de périmètre est mémorisé, ce qui est pratique lorsqu'il correspond à votre mode de travail normal et légèrement déroutant lorsque vous avez oublié que vous l'avez changé hier.
 
-### Templates and document types
+### Modèles et types de documents
 
-Templates are ordinary Knowledge documents stored in the **Templates** library and published for reuse. Creating a document from a template copies the template content into a new article and preserves the template reference.
+Les modèles sont des documents ordinaires de la base de connaissances stockés dans la bibliothèque **Modèles** et publiés pour réutilisation. Créer un document à partir d'un modèle copie le contenu du modèle dans un nouvel article et conserve la référence au modèle.
 
-Document types matter because they:
-- classify the article for filtering and reporting
-- group templates in the creation picker
-- help readers understand what kind of document they are opening
+Les types de documents sont importants car ils :
+- classifient l'article pour le filtrage et le reporting
+- regroupent les modèles dans le sélecteur de création
+- aident les lecteurs à comprendre quel type de document ils ouvrent
 
-One subtle but important behavior: if a document was created from a template and you later change its document type to a different type, the template link is cleared. That prevents the article from pretending it still follows a template it no longer matches.
+Un comportement subtil mais important : si un document a été créé à partir d'un modèle et que vous changez ensuite son type de document vers un type différent, le lien avec le modèle est effacé. Cela empêche l'article de prétendre qu'il suit encore un modèle auquel il ne correspond plus.
 
-When browsing the **Templates** library, administrators can open the **Manage Types** panel to create, rename, or deactivate document types.
+Lorsque vous parcourez la bibliothèque **Modèles**, les administrateurs peuvent ouvrir le panneau **Gérer les types** pour créer, renommer ou désactiver des types de documents.
 
-### Managed documents
+### Documents gérés
 
-Some Knowledge articles are created from Requests, Projects, Applications, Assets, or Tasks. These appear as **Integrated** documents.
+Certains articles de la base de connaissances sont créés depuis des Demandes, Projets, Applications, Actifs ou Tâches. Ceux-ci apparaissent comme des documents **Intégrés**.
 
-Managed documents keep the writing experience inside Knowledge, but the source espace de travail continues to control part of their metadata. In practice, that means:
-- status may be controlled by the source object
-- folder placement may be fixed by the source espace de travail
-- document type or template may be fixed
-- direct relations may be read-only in Knowledge
-- the Knowledge review workflow is not available for these documents
-- managed documents cannot be moved out of Knowledge or deleted from the Knowledge list
+Les documents gérés gardent l'expérience d'écriture dans la base de connaissances, mais l'espace de travail source continue de contrôler une partie de leurs métadonnées. En pratique, cela signifie :
+- le statut peut être contrôlé par l'objet source
+- le placement en dossier peut être fixé par l'espace de travail source
+- le type de document ou le modèle peut être fixé
+- les relations directes peuvent être en lecture seule dans la base de connaissances
+- le workflow de revue de la base de connaissances n'est pas disponible pour ces documents
+- les documents gérés ne peuvent pas être déplacés hors de la base de connaissances ni supprimés depuis la liste
 
-This protects the link between the document and the operational record that owns it.
+Cela protège le lien entre le document et l'enregistrement opérationnel qui le possède.
 
-## Working with the Knowledge list
+## Travailler avec la liste de la base de connaissances
 
-The main Knowledge page is a document register with navigation and organization tools around it.
+La page principale de la base de connaissances est un registre de documents avec des outils de navigation et d'organisation autour.
 
-### What the list shows
+### Ce que la liste affiche
 
-The default grid focuses on document identity and governance:
+La grille par défaut se concentre sur l'identité et la gouvernance du document :
 
-- **Ref**: the permanent `DOC-{number}` reference
-- **Title**
-- **Status**
+- **Réf** : la référence permanente `DOC-{numéro}`
+- **Titre**
+- **Statut**
 - **Type**
 - **Version**
-- **Owner**
-- **Folder**
-- **Updated**
+- **Responsable**
+- **Dossier**
+- **Mis à jour**
 
-**Additional columns** (hidden by default, available via column chooser):
-- **Template**: shows the template the document was created from, if any
-- **Library**: appears automatically when **All libraries** is enabled, and can be shown manually otherwise
+**Colonnes supplémentaires** (masquées par défaut, disponibles via le sélecteur de colonnes) :
+- **Modèle** : affiche le modèle à partir duquel le document a été créé, le cas échéant
+- **Bibliothèque** : apparaît automatiquement lorsque **Toutes les bibliothèques** est activé, et peut être affichée manuellement sinon
 
-### Search, filters, and browsing
+### Recherche, filtres et navigation
 
-Knowledge supports two navigation styles:
+La base de connaissances supporte deux styles de navigation :
 
-- Browse one library with its folder tree when you already know the subject area.
-- Search across all libraries when you care more about the article than its storage location.
+- Parcourir une bibliothèque avec son arborescence de dossiers lorsque vous connaissez déjà le domaine.
+- Rechercher dans toutes les bibliothèques lorsque vous vous intéressez plus à l'article qu'à son emplacement de stockage.
 
-The **All libraries** switch changes the experience significantly:
-- the folder tree is no longer the main driver
-- search becomes broader
-- the list can compare content across libraries
-- the Library column becomes part of the result context
+Le commutateur **Toutes les bibliothèques** change significativement l'expérience :
+- l'arborescence des dossiers n'est plus le moteur principal
+- la recherche devient plus large
+- la liste peut comparer le contenu entre bibliothèques
+- la colonne Bibliothèque fait partie du contexte des résultats
 
-Single-library browsing is better for curation. All-library search is better for retrieval.
+La navigation mono-bibliothèque est meilleure pour la curation. La recherche toutes-bibliothèques est meilleure pour la récupération.
 
-**Filtering**:
-- Quick search bar at the top of the grid
-- Column filters on **Status**, **Type**, **Owner**, **Folder**, **Template**, and **Library** using checkbox-set selectors
+**Filtrage** :
+- Barre de recherche rapide en haut de la grille
+- Filtres de colonnes sur **Statut**, **Type**, **Responsable**, **Dossier**, **Modèle** et **Bibliothèque** utilisant des sélecteurs par jeu de cases à cocher
 
-### Moving documents and folders
+### Déplacer des documents et des dossiers
 
-In a single-library view, documents can be dragged into folders. A drag handle appears on each row when dragging is available. This is the fastest way to tidy a library without opening every article.
+Dans une vue mono-bibliothèque, les documents peuvent être glissés dans des dossiers. Une poignée de glissement apparaît sur chaque ligne lorsque le glissement est disponible. C'est la manière la plus rapide de ranger une bibliothèque sans ouvrir chaque article.
 
-Cross-library moves are more controlled:
-- they require higher permission
-- they are not available for managed documents
-- template documents are intentionally restricted because templates are meant to stay in the template system, not wander off into the wild
+Les déplacements inter-bibliothèques sont plus contrôlés :
+- ils nécessitent une autorisation supérieure
+- ils ne sont pas disponibles pour les documents gérés
+- les documents modèles sont intentionnellement restreints car les modèles sont censés rester dans le système de modèles, pas se promener dans la nature
 
-Folders can also be dragged between libraries by dropping them on the target library tab.
+Les dossiers peuvent aussi être glissés entre bibliothèques en les déposant sur l'onglet de la bibliothèque cible.
 
-Folder moves follow the same idea. Reorganizing a folder changes the browsing structure for everyone using that library, so treat it as an information architecture change, not just personal housekeeping.
+Les déplacements de dossiers suivent la même logique. Réorganiser un dossier change la structure de navigation pour tout le monde utilisant cette bibliothèque, traitez cela comme un changement d'architecture de l'information, pas simplement comme du rangement personnel.
 
-### List actions
+### Actions de la liste
 
-- **Nouveau** (split button): creates a blank document in the active library, or opens the template picker to create from a published template
-- **Move**: moves selected documents to a different folder or library
-- **Supprimer**: permanently removes selected documents (admin only; unavailable for managed documents)
+- **Nouveau** (bouton divisé) : crée un document vierge dans la bibliothèque active, ou ouvre le sélecteur de modèles pour créer à partir d'un modèle publié
+- **Déplacer** : déplace les documents sélectionnés vers un autre dossier ou bibliothèque
+- **Supprimer** : supprime définitivement les documents sélectionnés (admin uniquement ; non disponible pour les documents gérés)
 
-## Creating and shaping a document
+## Créer et façonner un document
 
-New articles can start in two ways:
+Les nouveaux articles peuvent démarrer de deux manières :
 
-- **Blank document**: best when you already know the structure you need
-- **From template**: best when the team wants consistent sections, language, or review expectations
+- **Document vierge** : idéal lorsque vous connaissez déjà la structure dont vous avez besoin
+- **À partir d'un modèle** : idéal lorsque l'équipe veut des sections, un langage ou des attentes de revue cohérents
 
-When you create from a template, the template content is copied into the new document. From that point on, the new article is independent. Updating the template later does not rewrite existing documents.
+Lorsque vous créez à partir d'un modèle, le contenu du modèle est copié dans le nouveau document. À partir de ce moment, le nouvel article est indépendant. Mettre à jour le modèle ultérieurement ne réécrit pas les documents existants.
 
-The document espace de travail keeps writing in the center and governance in the sidebar.
+L'espace de travail du document garde l'écriture au centre et la gouvernance dans la barre latérale.
 
-Core properties include:
-- **Title**: the primary label readers will search for and cite
-- **Status**: the lifecycle of the article
-- **Folder**: where the article lives within its library
-- **Type**: what kind of document it is
-- **Based on template**: the template lineage, when relevant
-- **Summary**: a short description for context
+Les propriétés principales incluent :
+- **Titre** : le libellé principal que les lecteurs recherchent et citent
+- **Statut** : le cycle de vie de l'article
+- **Dossier** : où l'article vit au sein de sa bibliothèque
+- **Type** : quel type de document c'est
+- **Basé sur le modèle** : la lignée du modèle, le cas échéant
+- **Résumé** : une courte description pour le contexte
 
-After the first save, the full document governance model becomes available. That is when you can manage contributors, classifications, relations, comments, and version history against a stable document reference.
+Après le premier enregistrement, le modèle complet de gouvernance du document devient disponible. C'est à ce moment que vous pouvez gérer les contributeurs, les classifications, les relations, les commentaires et l'historique des versions contre une référence de document stable.
 
-### Status and what it means
+### Statut et sa signification
 
-Status is not decoration. It tells readers how seriously they should treat the article.
+Le statut n'est pas décoratif. Il indique aux lecteurs avec quel sérieux ils doivent traiter l'article.
 
-| Status | Meaning | Practical consequence |
-|--------|---------|-----------------------|
-| **Draft** | Work in progress | Suitable for authorship and internal iteration |
-| **In Review** | Under formal review | Editing is blocked while the workflow is active |
-| **Published** | Approved for normal use | Best choice for content people should rely on |
-| **Archived** | Kept for record | Usually still useful for history, not for active guidance |
-| **Obsolete** | Superseded or no longer valid | Readers should not follow it as current practice |
+| Statut | Signification | Conséquence pratique |
+|--------|--------------|---------------------|
+| **Brouillon** | Travail en cours | Adapté à la rédaction et à l'itération interne |
+| **En revue** | Sous revue formelle | La modification est bloquée tant que le workflow est actif |
+| **Publié** | Approuvé pour utilisation normale | Meilleur choix pour le contenu sur lequel on doit pouvoir s'appuyer |
+| **Archivé** | Conservé pour mémoire | Généralement encore utile pour l'historique, pas pour la guidance active |
+| **Obsolète** | Remplacé ou plus valide | Les lecteurs ne devraient pas le suivre comme pratique actuelle |
 
-Knowledge allows direct publishing even without a formal review workflow. That is useful for low-risk material, but it also means teams need discipline about when review is optional and when it should be expected.
+La base de connaissances permet la publication directe même sans workflow de revue formelle. C'est utile pour le contenu à faible risque, mais cela signifie aussi que les équipes doivent faire preuve de discipline pour savoir quand la revue est optionnelle et quand elle devrait être attendue.
 
-## Writing, locks, and autosave
+## Écriture, verrous et sauvegarde automatique
 
-Knowledge uses an edit lock so only one person actively edits a document at a time.
+La base de connaissances utilise un verrou d'édition pour qu'une seule personne modifie activement un document à la fois.
 
-How it works:
-- entering edit mode acquires the lock
-- other users can still open and read the article
-- they cannot edit while the lock is held by someone else
-- if the lock expires or is lost, edit mode stops and must be re-entered
+Comment ça fonctionne :
+- entrer en mode édition acquiert le verrou
+- les autres utilisateurs peuvent toujours ouvrir et lire l'article
+- ils ne peuvent pas modifier tant que le verrou est détenu par quelqu'un d'autre
+- si le verrou expire ou est perdu, le mode édition s'arrête et doit être relancé
 
-This avoids silent overwrites, which is excellent for document integrity and less excellent if two people both thought they had "just one quick tweak."
+Cela évite les écrasements silencieux, ce qui est excellent pour l'intégrité documentaire et moins excellent si deux personnes pensaient toutes les deux avoir « juste une petite retouche ».
 
-While you are editing:
-- changes are saved manually with **Enregistrer**
-- unsaved content is also autosaved periodically while your lock is active
-- **Discard** returns to the last saved state
+Pendant que vous éditez :
+- les modifications sont enregistrées manuellement avec **Enregistrer**
+- le contenu non enregistré est aussi sauvegardé automatiquement périodiquement tant que votre verrou est actif
+- **Annuler** revient au dernier état enregistré
 
-L'espace de travail also supports inline image upload inside the markdown content area, so screenshots and diagrams can live with the article rather than in a mysterious folder on somebody's desktop. When you paste or reference an image from an external URL, the image is automatically imported and stored within the document so it remains available even if the original URL goes offline.
+L'espace de travail supporte aussi le téléversement d'images en ligne dans la zone de contenu markdown, les captures d'écran et schémas peuvent donc vivre avec l'article plutôt que dans un dossier mystérieux sur le bureau de quelqu'un. Lorsque vous collez ou référencez une image depuis une URL externe, l'image est automatiquement importée et stockée dans le document pour qu'elle reste disponible même si l'URL originale devient inaccessible.
 
-## Importing a document
+## Importer un document
 
-You can import a Word document (.docx) into an existing Knowledge article. The **Import** button appears in l'espace de travail toolbar once the document has been saved at least once and you are in edit mode.
+Vous pouvez importer un document Word (.docx) dans un article existant de la base de connaissances. Le bouton **Import** apparaît dans la barre d'outils de l'espace de travail une fois que le document a été enregistré au moins une fois et que vous êtes en mode édition.
 
-How it works:
-- Click **Import** and select a `.docx` file from your computer.
-- If the article already has content, a confirmation dialog asks whether you want to replace it. Choosing **Continue** overwrites the current markdown with the imported content.
-- The imported Word content is converted to markdown and loaded into the editor. Images embedded in the Word file are extracted and stored as inline attachments.
-- After import, your changes are unsaved. Use **Enregistrer** to persist the imported content.
+Comment ça fonctionne :
+- Cliquez sur **Import** et sélectionnez un fichier `.docx` depuis votre ordinateur.
+- Si l'article a déjà du contenu, une boîte de dialogue de confirmation demande si vous souhaitez le remplacer. Choisir **Continuer** écrase le markdown actuel avec le contenu importé.
+- Le contenu Word importé est converti en markdown et chargé dans l'éditeur. Les images intégrées dans le fichier Word sont extraites et stockées comme pièces jointes en ligne.
+- Après l'import, vos modifications ne sont pas enregistrées. Utilisez **Enregistrer** pour persister le contenu importé.
 
-If the import encounters a lock conflict (someone else acquired the lock) or an expired lock, editing mode ends and an appropriate message is shown. Re-enter edit mode and try again.
+Si l'import rencontre un conflit de verrou (quelqu'un d'autre a acquis le verrou) ou un verrou expiré, le mode édition se termine et un message approprié s'affiche. Repassez en mode édition et réessayez.
 
-Import warnings, such as unsupported formatting that was simplified during conversion, appear briefly as a notification at the bottom of the screen.
+Les avertissements d'import, comme le formatage non supporté simplifié lors de la conversion, apparaissent brièvement comme une notification en bas de l'écran.
 
-## Export formats
+## Formats d'export
 
-Knowledge articles can be exported as:
+Les articles de la base de connaissances peuvent être exportés en :
 
 - **PDF**
 - **DOCX**
 - **ODT**
 
-Export is available when the article has content. This is useful when:
-- a document needs to circulate outside KANAP
-- a reviewer prefers Word-format markup
-- a stable PDF snapshot is needed for sharing or recordkeeping
+L'export est disponible lorsque l'article a du contenu. C'est utile lorsque :
+- un document doit circuler en dehors de KANAP
+- un relecteur préfère les annotations au format Word
+- un instantané PDF stable est nécessaire pour le partage ou l'archivage
 
-Export does not replace the live article. The Knowledge version remains the governed source, while exported files are distribution formats.
+L'export ne remplace pas l'article en ligne. La version dans la base de connaissances reste la source gouvernée, tandis que les fichiers exportés sont des formats de distribution.
 
-## Contributors and review workflow
+## Contributeurs et workflow de revue
 
-Every document can have a structured contributor model:
+Chaque document peut avoir un modèle de contributeurs structuré :
 
-- **Owner**: the accountable person for the article
-- **Authors**: people who help maintain the content
-- **Reviewers**: stage 1 reviewers
-- **Approvers**: stage 2 approvers
+- **Responsable** : la personne redevable de l'article
+- **Auteurs** : les personnes qui aident à maintenir le contenu
+- **Relecteurs** : relecteurs de l'étape 1
+- **Approbateurs** : approbateurs de l'étape 2
 
-The owner matters operationally. Scope filtering is based on ownership, and a document without a clear owner is much more likely to become "important background material" that nobody updates.
+Le responsable est important opérationnellement. Le filtrage par périmètre est basé sur la propriété, et un document sans responsable clair est beaucoup plus susceptible de devenir du « matériel de référence important » que personne ne met à jour.
 
-### Review workflow
+### Workflow de revue
 
-The review workflow is optional but deliberate:
+Le workflow de revue est optionnel mais délibéré :
 
-- reviewers work first
-- approvers act after the review stage is complete
-- approvers and reviewers can record decision notes
-- requesting changes sends the document back for revision
-- the workflow keeps track of the last approved revision
+- les relecteurs travaillent en premier
+- les approbateurs agissent une fois l'étape de revue terminée
+- les approbateurs et relecteurs peuvent enregistrer des notes de décision
+- demander des modifications renvoie le document en révision
+- le workflow garde trace de la dernière révision approuvée
 
-Important consequences:
-- you cannot request review while there are unsaved changes
-- you need assigned reviewers or approvers before a review can be requested
-- archived and obsolete documents are not candidates for a new review request
-- once review starts, normal editing is disabled until the review is approved, changes are requested, or the review is cancelled
+Conséquences importantes :
+- vous ne pouvez pas demander une revue tant qu'il y a des modifications non enregistrées
+- vous avez besoin de relecteurs ou approbateurs assignés avant de pouvoir demander une revue
+- les documents archivés et obsolètes ne sont pas candidats à une nouvelle demande de revue
+- une fois la revue commencée, la modification normale est désactivée jusqu'à ce que la revue soit approuvée, que des modifications soient demandées ou que la revue soit annulée
 
-This makes review meaningful. If authors could keep editing the content during approval, the approved document would be a moving target, which is a splendid way to create arguments and a poor way to create documentation.
+Cela rend la revue significative. Si les auteurs pouvaient continuer à modifier le contenu pendant l'approbation, le document approuvé serait une cible mouvante, ce qui est un moyen splendide de créer des arguments et un mauvais moyen de créer de la documentation.
 
-## The document espace de travail sidebar
+## La barre latérale de l'espace de travail du document
 
-The sidebar has two tabs: **Properties** and **Comments**.
+La barre latérale a deux onglets : **Propriétés** et **Commentaires**.
 
-### Properties tab
+### Onglet Propriétés
 
-The Properties tab organizes governance data into collapsible sections:
+L'onglet Propriétés organise les données de gouvernance en sections repliables :
 
-- **Status, Folder, Type, Template, and Summary** are always visible at the top.
-- **Contributors**: assign owner, authors, reviewers, and approvers. Each role is saved independently of the main document save.
-- **Review Workflow**: shows the current workflow state when a review is active, including stage progress, participant decisions, and recent workflow activity. When no workflow is active, you can request a review from here.
-- **Classification**: tag the document with categories and streams from your organization's classification scheme. Multiple classification rows can be added.
-- **Relations**: link the document to applications, assets, projects, requests, or tasks. Each relation type has its own search-and-select field.
-- **Versions**: lists saved revisions with timestamps. **Revert** is available only while you hold an active editing lock.
+- **Statut, Dossier, Type, Modèle et Résumé** sont toujours visibles en haut.
+- **Contributeurs** : assigner responsable, auteurs, relecteurs et approbateurs. Chaque rôle est enregistré indépendamment de l'enregistrement principal du document.
+- **Workflow de revue** : affiche l'état actuel du workflow lorsqu'une revue est active, incluant l'avancement des étapes, les décisions des participants et l'activité récente du workflow. Lorsqu'aucun workflow n'est actif, vous pouvez demander une revue depuis ici.
+- **Classification** : taguer le document avec des catégories et des flux de votre schéma de classification organisationnel. Plusieurs lignes de classification peuvent être ajoutées.
+- **Relations** : lier le document à des applications, actifs, projets, demandes ou tâches. Chaque type de relation a son propre champ de recherche et sélection.
+- **Versions** : liste les révisions enregistrées avec horodatage. **Restaurer** n'est disponible que lorsque vous détenez un verrou d'édition actif.
 
-### Comments tab
+### Onglet Commentaires
 
-The Comments tab shows activity around the document: comments, workflow events, and change history. Use comments for review context, editorial clarification, or change rationale that should stay attached to the article.
+L'onglet Commentaires affiche l'activité autour du document : commentaires, événements de workflow et historique des modifications. Utilisez les commentaires pour le contexte de revue, les clarifications éditoriales ou la justification des changements qui doivent rester attachés à l'article.
 
-## Relations and cross-espace de travail context
+## Relations et contexte inter-espaces de travail
 
-Knowledge documents can be related directly to:
+Les documents de la base de connaissances peuvent être liés directement à :
 
-- Applications
-- Assets
-- Projects
-- Requests
-- Tasks
+- Des applications
+- Des actifs
+- Des projets
+- Des demandes
+- Des tâches
 
-Relations are not just tags. They control where the document appears elsewhere in KANAP and how users discover it from operational espace de travails.
+Les relations ne sont pas de simples tags. Elles contrôlent où le document apparaît ailleurs dans KANAP et comment les utilisateurs le découvrent depuis les espaces de travail opérationnels.
 
-Consequences of adding relations:
-- the document becomes easier to find from the linked object
-- readers opening the object get contextual documentation without having to search manually
-- reporting and governance around the object become more complete
+Conséquences de l'ajout de relations :
+- le document devient plus facile à trouver depuis l'objet lié
+- les lecteurs ouvrant l'objet obtiennent une documentation contextuelle sans avoir à chercher manuellement
+- le reporting et la gouvernance autour de l'objet deviennent plus complets
 
-Consequences of poor relations:
-- useful documents stay invisible outside Knowledge
-- users create duplicates because they cannot find the existing article
-- the same subject starts drifting across multiple documents
+Conséquences de relations insuffisantes :
+- des documents utiles restent invisibles en dehors de la base de connaissances
+- les utilisateurs créent des doublons parce qu'ils ne trouvent pas l'article existant
+- le même sujet commence à dériver entre plusieurs documents
 
-In related espace de travails, Knowledge panels distinguish between:
-- **Linked documents**: directly attached to the object
-- **Related documents**: surfaced through context and provenance from connected work
+Dans les espaces de travail liés, les panneaux de la base de connaissances distinguent entre :
+- **Documents liés** : directement attachés à l'objet
+- **Documents associés** : remontés par le contexte et la provenance du travail connecté
 
-That distinction matters. Direct links express an intentional relationship. Related documents express useful context, but not the same level of ownership.
+Cette distinction est importante. Les liens directs expriment une relation intentionnelle. Les documents associés expriment un contexte utile, mais pas le même niveau de propriété.
 
-## Good operating habits
+## Bonnes pratiques opérationnelles
 
-- Use libraries for governance boundaries, folders for navigation, and relations for business context.
-- Keep ownership current. A good article with the wrong owner is usually living on borrowed time.
-- Use templates when consistency matters across teams.
-- Use review for documents that drive decisions, controls, or repeatable processes.
-- Mark outdated content as archived or obsolete instead of leaving readers to guess.
-- Import Word documents when migrating existing content into Knowledge rather than copying and pasting, so that embedded images are preserved automatically.
+- Utilisez les bibliothèques pour les limites de gouvernance, les dossiers pour la navigation et les relations pour le contexte métier.
+- Maintenez la propriété à jour. Un bon article avec le mauvais responsable vit généralement en sursis.
+- Utilisez les modèles lorsque la cohérence compte entre les équipes.
+- Utilisez la revue pour les documents qui guident des décisions, des contrôles ou des processus reproductibles.
+- Marquez le contenu obsolète comme archivé ou obsolète au lieu de laisser les lecteurs deviner.
+- Importez les documents Word lors de la migration de contenu existant vers la base de connaissances plutôt que de copier-coller, afin que les images intégrées soient préservées automatiquement.

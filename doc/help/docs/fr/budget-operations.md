@@ -1,230 +1,230 @@
 # Administration budgétaire
 
-Budget Administration gives you a set of tools for managing and transforming budget data across years and columns. These are the operations you reach for during budget planning cycles -- preparing next year's numbers, locking approved budgets, and managing year-over-year transitions.
+L'administration budgétaire met à votre disposition un ensemble d'outils pour gérer et transformer les données budgétaires entre les années et les colonnes. Ce sont les opérations que vous utilisez pendant les cycles de planification budgétaire -- préparer les chiffres de l'année suivante, verrouiller les budgets approuvés et gérer les transitions d'une année à l'autre.
 
-## Où le trouver
+## Où trouver cette page
 
-- Path: **Gestion budgétaire > Administration**
-- Permissions: Most operations require `budget_ops:admin`
+- Chemin : **Gestion budgétaire > Administration**
+- Autorisations : La plupart des opérations nécessitent `budget_ops:admin`
 
-The landing page shows four cards, each linking to a dedicated tool:
+La page d'accueil affiche quatre cartes, chacune renvoyant à un outil dédié :
 
-| Tool | Purpose |
-|------|---------|
-| **Freeze / Unfreeze Data** | Lock budget columns to prevent changes |
-| **Copy Budget Columns** | Copy data between years and columns with adjustments |
-| **Copy Allocations** | Copy allocation methods from one year to another |
-| **Reset Budget Column** | Clear all data from a specific column |
+| Outil | Objectif |
+|-------|----------|
+| **Geler / Dégeler les données** | Verrouiller les colonnes budgétaires pour empêcher les modifications |
+| **Copier les colonnes budgétaires** | Copier des données entre années et colonnes avec des ajustements |
+| **Copier les ventilations** | Copier les méthodes de ventilation d'une année à l'autre |
+| **Réinitialiser une colonne budgétaire** | Effacer toutes les données d'une colonne spécifique |
 
 ---
 
-## Freeze / Unfreeze Data
+## Geler / Dégeler les données
 
-Lock budget columns so they cannot be edited, imported into, or modified in any way. Freezing protects approved figures from accidental changes.
+Verrouillez les colonnes budgétaires pour qu'elles ne puissent être ni modifiées, ni importées, ni altérées de quelque manière que ce soit. Le gel protège les chiffres approuvés contre les modifications accidentelles.
 
-### When to use it
+### Quand l'utiliser
 
-- After the annual budget is approved
-- When closing a fiscal period
-- To protect actuals from being modified
+- Après l'approbation du budget annuel
+- Lors de la clôture d'une période fiscale
+- Pour protéger le réalisé contre toute modification
 
-### How it works
+### Comment ça fonctionne
 
-1. **Select a year** from the dropdown (range: current year minus one through current year plus four)
-2. **Select scopes**: tick **OPEX**, **CAPEX**, or both
-3. **Select columns** for each scope: Budget, Revision, Actual, Landing (all four are selected by default)
-4. Click **Freeze Data** to lock, or **Unfreeze Data** to unlock
+1. **Sélectionnez une année** dans le menu déroulant (plage : année en cours moins un à année en cours plus quatre)
+2. **Sélectionnez les périmètres** : cochez **OPEX**, **CAPEX** ou les deux
+3. **Sélectionnez les colonnes** pour chaque périmètre : Budget, Révision, Réalisé, Atterrissage (les quatre sont sélectionnées par défaut)
+4. Cliquez sur **Geler les données** pour verrouiller, ou **Dégeler les données** pour déverrouiller
 
-### What freezing does
+### Ce que fait le gel
 
-- Prevents edits to frozen columns in OPEX and CAPEX espace de travails
-- Blocks CSV imports to frozen columns
-- Blocks copy and reset operations targeting frozen columns
-- Does **not** affect read access -- data remains visible
+- Empêche les modifications des colonnes gelées dans les espaces de travail OPEX et CAPEX
+- Bloque les imports CSV vers les colonnes gelées
+- Bloque les opérations de copie et de réinitialisation ciblant les colonnes gelées
+- N'affecte **pas** l'accès en lecture -- les données restent visibles
 
-### Current status
+### Statut actuel
 
-Below the controls, two cards show the real-time freeze state for every column in OPEX and CAPEX. Each column displays either **Frozen** (in red) or **Editable**.
+Sous les contrôles, deux cartes affichent l'état de gel en temps réel pour chaque colonne en OPEX et CAPEX. Chaque colonne affiche soit **Gelé** (en rouge) soit **Modifiable**.
 
 ### Autorisations
 
-Without `budget_ops:admin` you can still view the freeze status, but the controls are disabled. An info banner explains what is needed.
+Sans `budget_ops:admin`, vous pouvez toujours voir le statut de gel, mais les contrôles sont désactivés. Une bannière d'information explique ce qui est nécessaire.
 
 ---
 
-## Copy Budget Columns
+## Copier les colonnes budgétaires
 
-Copy budget data from one year and column to another, with an optional percentage adjustment. This is the primary tool for seeding next year's budget from the current one.
+Copiez les données budgétaires d'une année et colonne vers une autre, avec un ajustement en pourcentage optionnel. C'est l'outil principal pour alimenter le budget de l'année suivante à partir de l'année en cours.
 
-### When to use it
+### Quand l'utiliser
 
-- Preparing next year's budget from the current year
-- Creating a revision from the approved budget
-- Rolling forward projections with an inflation factor
+- Préparer le budget de l'année suivante à partir de l'année en cours
+- Créer une révision à partir du budget approuvé
+- Reporter des projections avec un facteur d'inflation
 
-### Fields
+### Champs
 
-| Field | Description |
+| Champ | Description |
 |-------|-------------|
-| **Source Year** | Year to copy from (range: current year minus one through current year plus five) |
-| **Source Column** | Budget, Revision, Follow-up, or Landing |
-| **Destination Year** | Year to copy to (same range) |
-| **Destination Column** | Budget, Revision, Follow-up, or Landing |
-| **Percentage Increase** | Adjustment applied to copied values (e.g., `3` = +3%). Defaults to 0. Accepts decimals. |
-| **Overwrite existing data** | Toggle. When off, items that already have a value in the destination are skipped. When on, all destination values are replaced. |
+| **Année source** | Année à copier (plage : année en cours moins un à année en cours plus cinq) |
+| **Colonne source** | Budget, Révision, Suivi ou Atterrissage |
+| **Année destination** | Année vers laquelle copier (même plage) |
+| **Colonne destination** | Budget, Révision, Suivi ou Atterrissage |
+| **Augmentation en pourcentage** | Ajustement appliqué aux valeurs copiées (ex. : `3` = +3 %). Par défaut 0. Accepte les décimales. |
+| **Écraser les données existantes** | Bascule. Désactivé : les postes qui ont déjà une valeur dans la destination sont ignorés. Activé : toutes les valeurs destination sont remplacées. |
 
-### Two-step process: Dry Run, then Copy
+### Processus en deux étapes : Simulation, puis Copie
 
-1. Click **Dry Run** to generate a preview without changing any data
-2. Review the preview grid, which shows:
-   - **Product** name (items tagged `[SKIP]` will not be modified)
-   - **Source value** (from the source year/column)
-   - **Current destination value**
-   - **Preview value** (what the destination will become after copy)
-3. When you are satisfied, click **Copy Data** to apply
+1. Cliquez sur **Simulation** pour générer un aperçu sans modifier aucune donnée
+2. Examinez la grille d'aperçu, qui affiche :
+   - Nom du **Produit** (les postes marqués `[IGNORÉ]` ne seront pas modifiés)
+   - **Valeur source** (de l'année/colonne source)
+   - **Valeur destination actuelle**
+   - **Valeur d'aperçu** (ce que la destination deviendra après la copie)
+3. Lorsque vous êtes satisfait, cliquez sur **Copier les données** pour appliquer
 
-The **Copy Data** button is only enabled after a successful dry run.
+Le bouton **Copier les données** n'est activé qu'après une simulation réussie.
 
-### Summary statistics
+### Statistiques récapitulatives
 
-Below the grid, a stats bar shows:
+Sous la grille, une barre de statistiques affiche :
 
-- **Total items** in the dataset
-- **Items to be processed** (non-skipped)
-- **Source total** (sum of source values)
-- **Current destination total**
-- **Preview total** (shown after dry run)
+- **Total des postes** dans le jeu de données
+- **Postes à traiter** (non ignorés)
+- **Total source** (somme des valeurs sources)
+- **Total destination actuel**
+- **Total de l'aperçu** (affiché après la simulation)
 
-### Overwrite behavior
+### Comportement de l'écrasement
 
-| Overwrite | Destination has data | Result |
-|-----------|---------------------|--------|
-| Off | Yes | Skipped |
-| Off | No (zero) | Copied |
-| On | Yes | Replaced |
-| On | No (zero) | Copied |
+| Écraser | La destination a des données | Résultat |
+|---------|------------------------------|----------|
+| Désactivé | Oui | Ignoré |
+| Désactivé | Non (zéro) | Copié |
+| Activé | Oui | Remplacé |
+| Activé | Non (zéro) | Copié |
 
-### Frozen column protection
+### Protection des colonnes gelées
 
-If the destination column is frozen, both **Dry Run** and **Copy Data** are disabled. An error banner tells you to unfreeze first.
+Si la colonne destination est gelée, **Simulation** et **Copier les données** sont tous deux désactivés. Une bannière d'erreur vous invite à dégeler d'abord.
 
 ---
 
-## Copy Allocations
+## Copier les ventilations
 
-Copy allocation methods and percentages from one year to another for all OPEX items. This saves you from re-entering chargeback configurations when setting up a new fiscal year.
+Copiez les méthodes et pourcentages de ventilation d'une année à l'autre pour tous les postes OPEX. Cela vous évite de ressaisir les configurations de refacturation lors de la mise en place d'une nouvelle année fiscale.
 
-### When to use it
+### Quand l'utiliser
 
-- Preparing next year's budget with the same cost allocations
-- Rolling forward chargeback configurations
-- Setting up a new fiscal year
+- Préparer le budget de l'année suivante avec les mêmes ventilations de coûts
+- Reporter les configurations de refacturation
+- Mettre en place une nouvelle année fiscale
 
-### Fields
+### Champs
 
-| Field | Description |
+| Champ | Description |
 |-------|-------------|
-| **Source Year** | Year to copy allocations from (range: current year minus one through current year plus five) |
-| **Destination Year** | Year to copy allocations to (same range). Must differ from Source Year. |
-| **Overwrite existing data** | Toggle. When off, items that already have allocations in the destination are skipped. |
+| **Année source** | Année à partir de laquelle copier les ventilations (plage : année en cours moins un à année en cours plus cinq) |
+| **Année destination** | Année vers laquelle copier les ventilations (même plage). Doit différer de l'année source. |
+| **Écraser les données existantes** | Bascule. Désactivé : les postes qui ont déjà des ventilations dans la destination sont ignorés. |
 
-### Two-step process: Dry Run, then Copy
+### Processus en deux étapes : Simulation, puis Copie
 
-1. Click **Dry Run** to see a preview
-2. The preview grid shows each OPEX item with:
-   - **Product** name
-   - **Action** -- what will happen (Will copy, Skip -- no source year, Skip -- no allocations in source, Skip -- destination has data, Error)
-   - **Source** method and label
-   - **Destination** current method and label
-   - **Result after copy** -- what the destination will look like
-3. Click **Copy Data** to apply
+1. Cliquez sur **Simulation** pour voir un aperçu
+2. La grille d'aperçu affiche chaque poste OPEX avec :
+   - Nom du **Produit**
+   - **Action** -- ce qui va se passer (Sera copié, Ignoré -- pas d'année source, Ignoré -- pas de ventilations dans la source, Ignoré -- la destination a des données, Erreur)
+   - Méthode et libellé **Source**
+   - Méthode et libellé **Destination** actuels
+   - **Résultat après copie** -- ce à quoi ressemblera la destination
+3. Cliquez sur **Copier les données** pour appliquer
 
 ### Validation
 
-- Source and destination years must be different. If they match, a warning banner appears and both buttons are disabled.
-- Changing any filter clears the preview, requiring a fresh dry run.
+- Les années source et destination doivent être différentes. Si elles sont identiques, une bannière d'avertissement apparaît et les deux boutons sont désactivés.
+- Changer un filtre efface l'aperçu, nécessitant une nouvelle simulation.
 
-### Summary
+### Résumé
 
-After a dry run, a banner shows the count of items ready to copy, skipped, and errored. If items were skipped because the destination already has allocations, a separate warning suggests enabling overwrite.
+Après une simulation, une bannière affiche le nombre de postes prêts à être copiés, ignorés et en erreur. Si des postes ont été ignorés parce que la destination a déjà des ventilations, un avertissement séparé suggère d'activer l'écrasement.
 
 ---
 
-## Reset Budget Column
+## Réinitialiser une colonne budgétaire
 
-Clear all data from a specific budget column for a given year. This is a destructive operation -- use it when you need to start fresh.
+Effacez toutes les données d'une colonne budgétaire spécifique pour une année donnée. C'est une opération destructive -- utilisez-la lorsque vous devez repartir de zéro.
 
-### When to use it
+### Quand l'utiliser
 
-- Starting fresh with budget planning
-- Correcting mass data entry errors
-- Clearing test data
+- Repartir de zéro avec la planification budgétaire
+- Corriger des erreurs de saisie en masse
+- Nettoyer des données de test
 
-### Fields
+### Champs
 
-| Field | Description |
+| Champ | Description |
 |-------|-------------|
-| **Year** | The fiscal year to clear (range: current year minus one through current year plus five) |
-| **Budget Column** | Budget, Revision, Follow-up, or Landing |
+| **Année** | L'année fiscale à nettoyer (plage : année en cours moins un à année en cours plus cinq) |
+| **Colonne budgétaire** | Budget, Révision, Suivi ou Atterrissage |
 
-### Preview
+### Aperçu
 
-The page loads a grid showing every OPEX item and its current value in the selected column. Items with data are highlighted in red. Below the grid, three stats appear:
+La page charge une grille montrant chaque poste OPEX et sa valeur actuelle dans la colonne sélectionnée. Les postes avec des données sont surlignés en rouge. Sous la grille, trois statistiques apparaissent :
 
-- **Total items**
-- **Items with data** (will be cleared)
-- **Current total value**
+- **Total des postes**
+- **Postes avec données** (seront effacés)
+- **Valeur totale actuelle**
 
 ### Confirmation
 
-Clicking **Clear Column** opens a confirmation dialog that shows:
+Cliquer sur **Effacer la colonne** ouvre une boîte de dialogue de confirmation qui affiche :
 
-- The column and year being reset
-- The number of items affected
-- The total value being deleted
-- A clear warning that this action cannot be undone
+- La colonne et l'année en cours de réinitialisation
+- Le nombre de postes affectés
+- La valeur totale en cours de suppression
+- Un avertissement clair que cette action ne peut pas être annulée
 
-You must click **Clear Column** in the dialog to proceed, or **Cancel** to abort.
+Vous devez cliquer sur **Effacer la colonne** dans la boîte de dialogue pour continuer, ou **Annuler** pour abandonner.
 
-### Safety features
+### Dispositifs de sécurité
 
-- The **Clear Column** button is disabled when there is no data to clear
-- Frozen columns cannot be reset -- unfreeze first
-- The confirmation dialog requires explicit acknowledgement
+- Le bouton **Effacer la colonne** est désactivé lorsqu'il n'y a pas de données à effacer
+- Les colonnes gelées ne peuvent pas être réinitialisées -- dégélez d'abord
+- La boîte de dialogue de confirmation nécessite un acquittement explicite
 
 ---
 
-## Workflow Example: Annual Budget Cycle
+## Exemple de flux : Cycle budgétaire annuel
 
-Here is a typical sequence using these tools:
+Voici une séquence typique utilisant ces outils :
 
-### 1. End of Year N
+### 1. Fin de l'année N
 
-1. Freeze Year N Actuals (protect historical data)
-2. Copy N Budget to N+1 Budget (with a percentage increase for inflation)
-3. Copy N Allocations to N+1
+1. Geler le réalisé de l'année N (protéger les données historiques)
+2. Copier le Budget N vers le Budget N+1 (avec un pourcentage d'augmentation pour l'inflation)
+3. Copier les ventilations N vers N+1
 
-### 2. During Budget Planning (N+1)
+### 2. Pendant la planification budgétaire (N+1)
 
-1. Teams edit the N+1 Budget column
-2. CFO reviews and approves
+1. Les équipes modifient la colonne Budget N+1
+2. Le directeur financier examine et approuve
 
-### 3. Budget Approval
+### 3. Approbation du budget
 
-1. Freeze N+1 Budget (lock the approved budget)
-2. Copy N+1 Budget to N+1 Revision (starting point for in-year tracking)
+1. Geler le Budget N+1 (verrouiller le budget approuvé)
+2. Copier le Budget N+1 vers la Révision N+1 (point de départ pour le suivi en cours d'année)
 
-### 4. Mid-Year Revision
+### 4. Révision de milieu d'année
 
-1. Teams update N+1 Revision with forecast changes
-2. When finalized, freeze N+1 Revision
+1. Les équipes mettent à jour la Révision N+1 avec les changements de prévisions
+2. Une fois finalisé, geler la Révision N+1
 
 ---
 
 ## Conseils
 
-- **Always dry-run first**: Copy Budget Columns and Copy Allocations both support a dry run. Use it every time to verify the outcome before committing.
-- **Freeze after approval**: Locking columns after approval maintains your audit trail and prevents accidental edits.
-- **Use percentage adjustments**: When copying between years, apply an inflation or growth factor so you do not have to adjust every line manually.
-- **Check freeze status before bulk operations**: Frozen columns block copy and reset operations. If a button is greyed out, check the Freeze page first.
-- **Reset with caution**: Column reset is irreversible. Double-check the year and column before confirming.
+- **Toujours simuler d'abord** : La copie des colonnes budgétaires et la copie des ventilations supportent toutes deux une simulation. Utilisez-la à chaque fois pour vérifier le résultat avant de valider.
+- **Geler après approbation** : Verrouiller les colonnes après approbation maintient votre piste d'audit et prévient les modifications accidentelles.
+- **Utilisez les ajustements en pourcentage** : Lors de la copie entre années, appliquez un facteur d'inflation ou de croissance pour ne pas avoir à ajuster chaque ligne manuellement.
+- **Vérifiez le statut de gel avant les opérations en masse** : Les colonnes gelées bloquent les opérations de copie et de réinitialisation. Si un bouton est grisé, vérifiez d'abord la page de gel.
+- **Réinitialisez avec prudence** : La réinitialisation de colonne est irréversible. Vérifiez bien l'année et la colonne avant de confirmer.

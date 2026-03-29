@@ -48,6 +48,37 @@ describe('ToolResultRenderer', () => {
     expect(screen.getByText('Keep it updated.')).toBeInTheDocument();
   });
 
+  it('renders entity comments payloads', () => {
+    render(
+      <ToolResultRenderer
+        name="get_entity_comments"
+        result={{
+          entity: {
+            type: 'projects',
+            ref: 'PRJ-7',
+            label: 'Migration',
+          },
+          items: [
+            {
+              author: 'Alex Operator',
+              content: 'We need a rollback plan.',
+              created_at: '2026-03-29T10:00:00.000Z',
+              updated_at: '2026-03-29T10:00:00.000Z',
+              edited: false,
+            },
+          ],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('get entity comments'));
+
+    expect(screen.getByText('PRJ-7')).toBeInTheDocument();
+    expect(screen.getByText('Migration')).toBeInTheDocument();
+    expect(screen.getByText('Alex Operator')).toBeInTheDocument();
+    expect(screen.getByText('We need a rollback plan.')).toBeInTheDocument();
+  });
+
   it('falls back to generic JSON rendering for unknown payloads', () => {
     render(
       <ToolResultRenderer

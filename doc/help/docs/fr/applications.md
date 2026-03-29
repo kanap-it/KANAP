@@ -1,580 +1,504 @@
 # Applications
 
-Applications is your central registry for documenting the IT application landscape. It covers business applications, productivity tools, infrastructure services, and everything in between. Use it to track ownership, environments, integrations, and compliance information across your entire portfolio.
+Applications est votre registre central pour documenter le paysage applicatif IT. Il couvre les applications métier, les outils de productivité, les services d'infrastructure et tout ce qui se trouve entre les deux. Utilisez-le pour suivre la responsabilité, les environnements, les intégrations et les informations de conformité sur l'ensemble de votre portefeuille.
 
-## Application categories
+## Catégories d'applications
 
-Every application or service belongs to a **category** that describes its primary purpose. This classification helps different stakeholders filter and focus on what matters to them.
+Chaque application ou service appartient à une **catégorie** qui décrit son objectif principal. Cette classification aide les différentes parties prenantes à filtrer et se concentrer sur ce qui les concerne.
 
-| Category | Description | Examples |
-|----------|-------------|----------|
-| **Line-of-business** | Core business applications that support specific business processes | SAP, Salesforce, Workday, custom ERP |
-| **Productivity** | End-user tools for daily work, including utilities and collaboration | Office 365, Acrobat Reader, Teams, Slack, Chrome |
-| **Security** | Tools for protecting systems, data, and access | CrowdStrike, Okta, SIEM platforms, firewalls |
-| **Analytics** | Reporting, business intelligence, and data warehouse tools | Power BI, Tableau, Snowflake |
-| **Development** | Tools used by developers and DevOps teams | Python, Git, Jenkins, VS Code, Docker |
-| **Integration** | Platforms that connect systems and move data | MuleSoft, Kafka, API gateways, ETL tools |
-| **Infrastructure** | Foundational services that other systems depend on | PostgreSQL, Redis, Kubernetes, storage systems |
+| Catégorie | Description | Exemples |
+|-----------|-------------|----------|
+| **Métier** | Applications métier de base qui supportent des processus métier spécifiques | SAP, Salesforce, Workday, ERP sur mesure |
+| **Productivité** | Outils du quotidien pour les utilisateurs, incluant utilitaires et collaboration | Office 365, Acrobat Reader, Teams, Slack, Chrome |
+| **Sécurité** | Outils de protection des systèmes, données et accès | CrowdStrike, Okta, plateformes SIEM, pare-feux |
+| **Analytique** | Reporting, intelligence métier et outils d'entrepôt de données | Power BI, Tableau, Snowflake |
+| **Développement** | Outils utilisés par les développeurs et équipes DevOps | Python, Git, Jenkins, VS Code, Docker |
+| **Intégration** | Plateformes qui connectent les systèmes et déplacent les données | MuleSoft, Kafka, passerelles API, outils ETL |
+| **Infrastructure** | Services fondamentaux dont dépendent les autres systèmes | PostgreSQL, Redis, Kubernetes, systèmes de stockage |
 
-**Tips for classification**:
-- Choose based on the application's **primary purpose**, not who manages it
-- When in doubt, ask: "What is this tool mainly used for?"
-- Categories can be customized in **Cartographie SI > Paramètres** to match your organization's terminology
+**Conseils de classification** :
+- Choisissez en fonction de l'**objectif principal** de l'application, pas de qui la gère
+- En cas de doute, demandez-vous : « À quoi cet outil sert-il principalement ? »
+- Les catégories peuvent être personnalisées dans **Cartographie SI > Paramètres** pour correspondre à la terminologie de votre organisation
 
-### Filtering by stakeholder
+### Filtrage par partie prenante
 
-Different teams can use categories to focus on their area of responsibility:
+Les différentes équipes peuvent utiliser les catégories pour se concentrer sur leur domaine de responsabilité :
 
-| Stakeholder | Suggested filter |
-|-------------|-----------------|
-| Cybersecurity | Security category, or high criticality across all categories |
-| Service Desk | Productivity + Line-of-business (user-facing applications) |
-| Infrastructure | Infrastructure + Integration |
-| Enterprise Architecture | All categories |
+| Partie prenante | Filtre suggéré |
+|-----------------|---------------|
+| Cybersécurité | Catégorie Sécurité, ou criticité élevée dans toutes les catégories |
+| Service Desk | Productivité + Métier (applications utilisateur) |
+| Infrastructure | Infrastructure + Intégration |
+| Architecture d'entreprise | Toutes les catégories |
 
 ---
 
 ## Premiers pas
 
-Navigate to **Cartographie SI > Applications** to see your list. Click **New App / Service** to create your first entry.
+Rendez-vous dans **Cartographie SI > Applications** pour voir votre liste. Cliquez sur **Nouvelle app / Service** pour créer votre première entrée.
 
-**Required fields**:
-  - **Name**: A recognizable name for the application or service
-  - **Category**: The primary purpose of this application (see categories above)
+**Champs obligatoires** :
+  - **Nom** : Un nom reconnaissable pour l'application ou le service
+  - **Catégorie** : L'objectif principal de cette application (voir les catégories ci-dessus)
 
-**Strongly recommended**:
-  - **Vendor**: The supplier providing the software (links to your Suppliers master data)
-  - **Criticality**: How important this is to your business (Business critical, High, Medium, Low)
-  - **Lifecycle**: Current status (Active, Proposed, Deprecated, Retired)
-  - **Category**: The application's primary purpose (Line-of-business, Productivity, Security, etc.)
+**Fortement recommandé** :
+  - **Fournisseur** : Le fournisseur du logiciel (lié à vos données de référence Fournisseurs)
+  - **Criticité** : Importance pour votre métier (Critique métier, Haute, Moyenne, Basse)
+  - **Cycle de vie** : Statut actuel (Actif, Proposé, Obsolète, Retiré)
+  - **Catégorie** : L'objectif principal de l'application (Métier, Productivité, Sécurité, etc.)
 
-**Optional but useful**:
-  - **Publisher**: The software publisher (e.g., Microsoft, SAP, Oracle)
-  - **Description**: What this application does
-  - **Version**: Current version number (e.g., "4.2.1", "2023", "Q1 2024")
-  - **Go Live Date** / **End of Support** / **Retired Date**: Version lifecycle dates
-  - **Licensing**: License terms and notes
-  - **Notes**: Free-form internal notes
+**Optionnel mais utile** :
+  - **Éditeur** : L'éditeur du logiciel (ex. : Microsoft, SAP, Oracle)
+  - **Description** : Ce que fait cette application
+  - **Version** : Numéro de version actuel (ex. : « 4.2.1 », « 2023 », « Q1 2024 »)
+  - **Date de mise en production** / **Fin de support** / **Date de retrait** : Dates du cycle de vie de la version
+  - **Licences** : Conditions de licence et notes
+  - **Notes** : Notes internes libres
 
-Once you save, l'espace de travail unlocks all tabs for detailed documentation.
+Une fois enregistré, l'espace de travail déverrouille tous les onglets pour une documentation détaillée.
 
-**Tip**: Start by documenting your most critical applications. Use the **Instances** tab to capture which environments exist (Prod, QA, Dev), then link assets and interfaces as you go.
+**Conseil** : Commencez par documenter vos applications les plus critiques. Utilisez l'onglet **Instances** pour capturer les environnements existants (Prod, QA, Dev), puis liez les actifs et les interfaces au fur et à mesure.
 
 ---
 
 ## Travailler avec la liste
 
-The Applications grid provides a comprehensive view of your application portfolio.
+La grille Applications offre une vue complète de votre portefeuille applicatif.
 
-**Top scope filter**:
-  - **My apps** (default): shows apps where you are listed in **Ownership & Audience** as either a **Business Owner** or **IT Owner**. Multi-owner entries are supported.
-  - **My team's apps**: shows apps where any member of your Portfolio team is listed as Business Owner or IT Owner. Your own ownership is also included in this scope.
-  - **All apps**: shows the full Applications grid (with the standard default lifecycle filter behavior).
-  - If you are not assigned to a Portfolio team, **My team's apps** is disabled
-  - Your selection is remembered across sessions -- returning to the page restores your last choice
+**Filtre de périmètre en haut** :
+  - **Mes apps** (par défaut) : affiche les apps où vous êtes listé dans **Responsabilité et audience** comme **Responsable métier** ou **Responsable IT**. Les entrées multi-responsables sont supportées.
+  - **Apps de mon équipe** : affiche les apps où tout membre de votre équipe Portefeuille est listé comme Responsable métier ou Responsable IT. Votre propre responsabilité est aussi incluse dans ce périmètre.
+  - **Toutes les apps** : affiche la grille complète des Applications (avec le comportement de filtre par défaut du cycle de vie).
+  - Si vous n'êtes pas assigné à une équipe Portefeuille, **Apps de mon équipe** est désactivé
+  - Votre sélection est mémorisée entre les sessions -- revenir sur la page restaure votre dernier choix
 
-**Default columns**:
-  - **Name**: Application name with category badge and suite membership
-  - **Category**: The application's primary purpose (Line-of-business, Productivity, etc.)
-  - **Environments**: Chips showing active environments (Prod, Pre-prod, QA, Test, Dev, Sandbox)
-  - **Lifecycle**: Current status
-  - **Criticality**: Business importance level
-  - **Publisher**: Software publisher
-  - **Derived Users (Y)**: Calculated user count for the current year
-  - **Created**: When the record was created
+**Colonnes par défaut** :
+  - **Nom** : Nom de l'application avec badge de catégorie et appartenance à une suite
+  - **Catégorie** : L'objectif principal de l'application (Métier, Productivité, etc.)
+  - **Environnements** : Pastilles montrant les environnements actifs (Prod, Pré-prod, QA, Test, Dev, Sandbox)
+  - **Cycle de vie** : Statut actuel
+  - **Criticité** : Niveau d'importance métier
+  - **Éditeur** : Éditeur du logiciel
+  - **Utilisateurs dérivés (A)** : Nombre d'utilisateurs calculé pour l'année en cours
+  - **Créé** : Quand l'enregistrement a été créé
 
-**Default sort**:
-  - **Name** ascending (A to Z)
+**Tri par défaut** :
+  - **Nom** croissant (A à Z)
 
-**Additional columns** (via column chooser):
-  - **Suites**: Parent suites this application belongs to
-  - **Supplier**: Linked supplier name
-  - **Business Owners** / **IT Owners**: Assigned owners
-  - **Hosting**: Derived from server locations assigned to app instances
-  - **External Facing**: Whether the app is internet-accessible
-  - **SSO Enabled** / **MFA Enabled**: Authentication features
-  - **Data Integration / ETL**: Whether the app participates in data integrations
-  - **OPEX Items** / **CAPEX Items** / **Contracts**: Linked spend and contracts
-  - **Components**: Child applications (if this is a suite)
-  - **Data Class** / **Contains PII** / **Data Residency**: Compliance information
+**Colonnes supplémentaires** (via le sélecteur de colonnes) :
+  - **Suites** : Suites parentes auxquelles cette application appartient
+  - **Fournisseur** : Nom du fournisseur lié
+  - **Responsables métier** / **Responsables IT** : Responsables assignés
+  - **Hébergement** : Dérivé des sites des serveurs assignés aux instances de l'app
+  - **Exposition externe** : Si l'app est accessible depuis Internet
+  - **SSO activé** / **MFA activé** : Fonctionnalités d'authentification
+  - **Intégration de données / ETL** : Si l'app participe à des intégrations de données
+  - **Postes OPEX** / **Postes CAPEX** / **Contrats** : Dépenses et contrats liés
+  - **Composants** : Applications enfants (si c'est une suite)
+  - **Classification données** / **Contient des PII** / **Résidence des données** : Informations de conformité
 
-**Filtering**:
-  - Category, Environments, Lifecycle, Criticality, Hosting, External Facing, SSO Enabled, MFA Enabled, Data Class, and Contains PII use checkbox set filters
-  - Floating filter shows `All`, `None`, or `N selected` with an **x** to clear
-  - Retired applications are hidden by default; use the Lifecycle filter to include Retired
+**Filtrage** :
+  - Catégorie, Environnements, Cycle de vie, Criticité, Hébergement, Exposition externe, SSO activé, MFA activé, Classification données et Contient des PII utilisent des filtres par jeu de cases à cocher
+  - Le filtre flottant affiche `Tous`, `Aucun` ou `N sélectionnés` avec un **x** pour effacer
+  - Les applications retirées sont masquées par défaut ; utilisez le filtre Cycle de vie pour inclure les applications retirées
 
-**Actions**:
-  - **New App / Service**: Create a new entry (requires manager permission)
-  - **Importer CSV**: Bulk import from CSV file (requires admin permission)
-  - **Exporter CSV**: Export the list to CSV (requires admin permission)
-  - **Copy item**: Duplicate a selected application with all its relations (requires manager permission)
-  - **Delete Selected**: Remove selected applications (requires admin permission)
+**Actions** :
+  - **Nouvelle app / Service** : Créer une nouvelle entrée (nécessite l'autorisation manager)
+  - **Import CSV** : Import en masse depuis un fichier CSV (nécessite l'autorisation admin)
+  - **Export CSV** : Exporter la liste en CSV (nécessite l'autorisation admin)
+  - **Copier l'élément** : Dupliquer une application sélectionnée avec toutes ses relations (nécessite l'autorisation manager)
+  - **Supprimer la sélection** : Supprimer les applications sélectionnées (nécessite l'autorisation admin)
 
 ---
 
-## The Applications espace de travail
+## L'espace de travail des applications
 
-Click any row in the list to open l'espace de travail. It has nine tabs:
+Cliquez sur n'importe quelle ligne de la liste pour ouvrir l'espace de travail. Il comporte neuf onglets :
 
-### Overview
+### Vue d'ensemble
 
-The Overview tab captures the core identity of your application.
+L'onglet Vue d'ensemble capture l'identité principale de votre application.
 
-**What you can edit**:
-  - **Name**: The application's display name
-  - **Description**: What this application does
-  - **Category**: The application's primary purpose (configurable in IT Landscape Settings)
-  - **Supplier**: Link to a supplier from your master data
-  - **Publisher**: The software publisher
-  - **Criticality**: Business critical, High, Medium, or Low
-  - **Lifecycle**: Current status (configurable in IT Landscape Settings)
-  - **Can have child apps**: Enable this to use this application as a "suite" that groups other applications
-  - **Licensing**: License terms and notes
-  - **Notes**: Free-form notes
+**Ce que vous pouvez modifier** :
+  - **Nom** : Le nom d'affichage de l'application
+  - **Description** : Ce que fait cette application
+  - **Catégorie** : L'objectif principal de l'application (configurable dans les Paramètres de la Cartographie SI)
+  - **Fournisseur** : Lien vers un fournisseur depuis vos données de référence
+  - **Éditeur** : L'éditeur du logiciel
+  - **Criticité** : Critique métier, Haute, Moyenne ou Basse
+  - **Cycle de vie** : Statut actuel (configurable dans les Paramètres de la Cartographie SI)
+  - **Peut avoir des apps enfants** : Activez cette option pour utiliser cette application comme une « suite » regroupant d'autres applications
+  - **Licences** : Conditions de licence et notes
+  - **Notes** : Notes libres
 
-**Version Information** (displayed in a separate section):
-  - **Version**: Current version identifier (free text, e.g., "4.2.1", "2023")
-  - **Go Live Date**: When this version went or will go live
-  - **End of Support**: When vendor support ends for this version
-  - **Retired Date**: When this version was actually decommissioned
+**Informations de version** (affichées dans une section séparée) :
+  - **Version** : Identifiant de la version actuelle (texte libre, ex. : « 4.2.1 », « 2023 »)
+  - **Date de mise en production** : Quand cette version a été ou sera mise en service
+  - **Fin de support** : Quand le support éditeur prend fin pour cette version
+  - **Date de retrait** : Quand cette version a été effectivement mise hors service
 
-**Version history**: If this application was created from another version (using the **Create New Version** feature), a version timeline appears at the top of the Overview tab. Click any version chip to navigate to that version.
+**Historique des versions** : Si cette application a été créée à partir d'une autre version (via la fonctionnalité **Créer une nouvelle version**), une chronologie des versions apparaît en haut de l'onglet Vue d'ensemble. Cliquez sur n'importe quelle pastille de version pour y naviguer.
 
-**Suite membership**: If an application belongs to a suite, you'll see the suite badge in the list. The "Can have child apps" toggle becomes disabled when an application belongs to a parent suite -- remove the suite relationship first to re-enable it.
+**Appartenance à une suite** : Si une application appartient à une suite, vous verrez le badge de suite dans la liste. La bascule « Peut avoir des apps enfants » est désactivée lorsqu'une application appartient à une suite parente -- retirez d'abord la relation de suite pour la réactiver.
 
 ---
 
 ### Instances
 
-The Instances tab documents where your application runs across different environments.
+L'onglet Instances documente où votre application fonctionne dans les différents environnements.
 
-**Environments** (in order): Production, Pre-prod, QA, Test, Dev, Sandbox
+**Environnements** (par ordre) : Production, Pré-prod, QA, Test, Dev, Sandbox
 
-**For each instance you can capture**:
-  - **Base URL**: The access URL for this environment
-  - **Region** / **Zone**: Geographic deployment information
-  - **Lifecycle**: Instance-specific status (Active, Deprecated, etc.)
-  - **SSO Enabled** / **MFA Supported**: Authentication capabilities
-  - **Status**: Enabled or Disabled
-  - **Notes**: Environment-specific notes
+**Pour chaque instance, vous pouvez capturer** :
+  - **URL de base** : L'URL d'accès pour cet environnement
+  - **Région** / **Zone** : Informations de déploiement géographique
+  - **Cycle de vie** : Statut spécifique à l'instance (Actif, Obsolète, etc.)
+  - **SSO activé** / **MFA supporté** : Capacités d'authentification
+  - **Statut** : Activé ou Désactivé
+  - **Notes** : Notes spécifiques à l'environnement
 
-**Bulk actions**:
-  - **Copy from Prod**: Quickly create instances for other environments based on your Production setup
-  - **Bulk Apply**: Apply changes to multiple environments at once
+**Actions en masse** :
+  - **Copier depuis Prod** : Créer rapidement des instances pour d'autres environnements basées sur votre configuration Production
+  - **Application en masse** : Appliquer des modifications à plusieurs environnements à la fois
 
-**Tip**: Instance changes save immediately -- no need to click the main Save button.
+**Conseil** : Les modifications d'instances sont enregistrées immédiatement -- pas besoin de cliquer sur le bouton Enregistrer principal.
 
 ---
 
-### Servers
+### Serveurs
 
-The Servers tab shows which infrastructure assets support each application instance.
+L'onglet Serveurs affiche quels actifs d'infrastructure supportent chaque instance d'application.
 
-**How it works**:
-  - Select an environment to see its asset assignments
-  - Add assets using the **Add Server** button
-  - Each assignment captures the **Asset**, **Role** (e.g., Web, Database, Application), and optional **Notes**
-  - Click an asset name to navigate to the Asset espace de travail
+**Comment ça fonctionne** :
+  - Sélectionnez un environnement pour voir ses assignations d'actifs
+  - Ajoutez des actifs en utilisant le bouton **Ajouter un serveur**
+  - Chaque assignation capture l'**Actif**, le **Rôle** (ex. : Web, Base de données, Application) et des **Notes** optionnelles
+  - Cliquez sur un nom d'actif pour naviguer vers l'espace de travail de l'actif
 
-**Tip**: Ensure your assets are documented in the Assets page first, then link them here.
+**Conseil** : Assurez-vous que vos actifs sont documentés dans la page Actifs d'abord, puis liez-les ici.
 
 ---
 
 ### Interfaces
 
-The Interfaces tab shows all integrations where this application participates -- either as source, target, or middleware.
+L'onglet Interfaces affiche toutes les intégrations auxquelles cette application participe -- en tant que source, cible ou middleware.
 
-**What you'll see**:
-  - Interfaces grouped by environment (Prod, Pre-prod, QA, etc.)
-  - For each interface: **Name**, **Source Application**, **Target Application**, and **Via Middleware** indicator
-  - Click any interface or application name to navigate to its espace de travail
+**Ce que vous verrez** :
+  - Les interfaces regroupées par environnement (Prod, Pré-prod, QA, etc.)
+  - Pour chaque interface : **Nom**, **Application source**, **Application cible** et indicateur **Via middleware**
+  - Cliquez sur n'importe quel nom d'interface ou d'application pour naviguer vers son espace de travail
 
-**Tip**: Interfaces are managed from the Interfaces page. This tab provides a convenient read-only view of all integrations involving this application.
-
----
-
-### Ownership & Audience
-
-The Ownership & Audience tab documents who's responsible and who uses this application.
-
-**Business Owners**: The business stakeholders accountable for this application
-  - Add multiple owners; each shows their job title
-
-**IT Owners**: The IT team members responsible for technical support
-  - Add multiple owners; each shows their job title
-
-**Audience**: Which parts of your organization use this application
-  - Select a **Company** and optionally a **Department**
-  - The system calculates the number of users based on your master data metrics (IT Users or Headcount)
-  - Add multiple rows to capture all audiences
-
-**Number of Users**: Choose between:
-  - **Derived**: Automatically calculated from the Audience selections
-  - **Manual**: Override with a specific number
+**Conseil** : Les interfaces sont gérées depuis la page Interfaces. Cet onglet fournit une vue pratique en lecture seule de toutes les intégrations impliquant cette application.
 
 ---
 
-### Technical & Support
+### Responsabilité et audience
 
-The Technical & Support tab captures technical details and support contacts.
+L'onglet Responsabilité et audience documente qui est responsable et qui utilise cette application.
 
-**Technical information**:
-  - **Suites**: Parent suites this application belongs to
-  - **Access Methods**: How users access this application (multi-select). Options are configurable in [IT Landscape Settings](it-ops-settings.md#access-methods). Default options include:
+**Responsables métier** : Les parties prenantes métier redevables de cette application
+  - Ajoutez plusieurs responsables ; chacun affiche son intitulé de poste
+
+**Responsables IT** : Les membres de l'équipe IT responsables du support technique
+  - Ajoutez plusieurs responsables ; chacun affiche son intitulé de poste
+
+**Audience** : Quelles parties de votre organisation utilisent cette application
+  - Sélectionnez une **Société** et optionnellement un **Département**
+  - Le système calcule le nombre d'utilisateurs basé sur vos métriques de données de référence (Utilisateurs IT ou Effectif)
+  - Ajoutez plusieurs lignes pour capturer toutes les audiences
+
+**Nombre d'utilisateurs** : Choisissez entre :
+  - **Dérivé** : Calculé automatiquement à partir des sélections d'audience
+  - **Manuel** : Saisie d'un nombre spécifique
+
+---
+
+### Technique et support
+
+L'onglet Technique et support capture les détails techniques et les contacts de support.
+
+**Informations techniques** :
+  - **Suites** : Suites parentes auxquelles cette application appartient
+  - **Méthodes d'accès** : Comment les utilisateurs accèdent à cette application (multi-sélection). Les options sont configurables dans les [Paramètres de la Cartographie SI](it-ops-settings.md#méthodes-daccès). Les options par défaut incluent :
     - Web
-    - Locally installed application
-    - Mobile application
-    - Proprietary HMI (industrial interface)
+    - Application installée localement
+    - Application mobile
+    - IHM propriétaire (interface industrielle)
     - Terminal / CLI
-    - VDI / Remote Desktop
-    - Kiosk
-  - **External Facing**: Whether the application is accessible from the internet
-  - **Data Integration / ETL**: Whether the application participates in data integration pipelines
+    - VDI / Bureau distant
+    - Borne
+  - **Exposition externe** : Si l'application est accessible depuis Internet
+  - **Intégration de données / ETL** : Si l'application participe à des pipelines d'intégration de données
 
-**Support information**:
-  - Add support contacts with their **Role** (e.g., Account Manager, Technical Support)
-  - Contacts are linked from your Contacts master data
-  - Each contact shows their **Email**, **Phone**, and **Mobile**
-  - **Support notes**: Free-form notes about support arrangements
+**Informations de support** :
+  - Ajoutez des contacts de support avec leur **Rôle** (ex. : Responsable commercial, Support technique)
+  - Les contacts sont liés depuis vos données de référence Contacts
+  - Chaque contact affiche son **E-mail**, **Téléphone** et **Mobile**
+  - **Notes de support** : Notes libres sur les arrangements de support
 
 ---
 
 ### Relations
 
-The Relations tab links this application to your financial, contract, and project data.
+L'onglet Relations lie cette application à vos données financières, contractuelles et projet.
 
-**Available links**:
-  - **OPEX Items**: Recurring costs associated with this application
-  - **CAPEX Items**: Capital expenditure projects
-  - **Contracts**: Vendor contracts
-  - **Projects**: Portfolio projects linked to this application
-  - **Relevant websites**: External links and documentation
-  - **Attachments**: Upload files by drag-and-drop or file picker. Downloaded by clicking the file chip.
+**Liens disponibles** :
+  - **Postes OPEX** : Coûts récurrents associés à cette application
+  - **Postes CAPEX** : Projets de dépenses d'investissement
+  - **Contrats** : Contrats fournisseurs
+  - **Projets** : Projets du portefeuille liés à cette application
+  - **Sites web pertinents** : Liens et documentation externes
+  - **Pièces jointes** : Téléversez des fichiers par glisser-déposer ou sélecteur de fichiers. Téléchargez en cliquant sur la pastille du fichier.
 
-**If this is a Suite**:
-  - You'll also see a **Components** section listing child applications
-  - Manage child applications by enabling "Can have child apps" in the Overview tab
+**Si c'est une suite** :
+  - Vous verrez également une section **Composants** listant les applications enfants
+  - Gérez les applications enfants en activant « Peut avoir des apps enfants » dans l'onglet Vue d'ensemble
 
 ---
 
 ### Base de connaissances
 
-The Knowledge tab connects this application to your organization's knowledge base. You can link existing knowledge documents or create new ones directly from l'espace de travail.
+L'onglet Base de connaissances connecte cette application à la base de connaissances de votre organisation. Vous pouvez lier des documents existants ou en créer de nouveaux directement depuis l'espace de travail.
 
-This is useful for attaching runbooks, architecture decisions, operational procedures, or any internal documentation that relates to the application.
+C'est utile pour attacher des runbooks, des décisions d'architecture, des procédures opérationnelles ou toute documentation interne liée à l'application.
 
-**Tip**: Knowledge documents are shared across the organization. Linking one here does not restrict its visibility -- it simply creates a convenient cross-reference.
-
----
-
-### Compliance
-
-The Compliance tab captures data protection and regulatory information.
-
-**What you can edit**:
-  - **Data Class**: Sensitivity level (Public, Internal, Confidential, Restricted)
-  - **Last DR Test**: Date of the most recent disaster recovery test
-  - **Contains PII**: Whether the application stores personally identifiable information
-  - **Data Residency**: Countries where data is stored (multi-select)
-
-**Tip**: Data Classes are configurable in **Cartographie SI > Paramètres**. Customize them to match your organization's data classification policy.
+**Conseil** : Les documents de la base de connaissances sont partagés dans toute l'organisation. En lier un ici ne restreint pas sa visibilité -- cela crée simplement une référence croisée pratique.
 
 ---
 
-## Version management
+### Conformité
 
-KANAP offers **two ways to manage application versions**, depending on how your organization handles upgrades:
+L'onglet Conformité capture les informations de protection des données et de réglementation.
 
-| Approach | Best for | What happens |
-|----------|----------|--------------|
-| **Simple** | Most applications | Update the version fields in place -- same record, new version number |
-| **Sophisticated** | Major migrations | Create a new application record with lineage tracking -- run old and new versions side by side |
+**Ce que vous pouvez modifier** :
+  - **Classification données** : Niveau de sensibilité (Public, Interne, Confidentiel, Restreint)
+  - **Dernier test PRA** : Date du test de reprise d'activité le plus récent
+  - **Contient des PII** : Si l'application stocke des données personnelles identifiables
+  - **Résidence des données** : Pays où les données sont stockées (multi-sélection)
 
-### Simple version tracking (in-place updates)
-
-For most applications -- where you upgrade and the old version simply goes away -- just update the version fields in the **Overview** tab:
-  - **Version**: Enter the current version (e.g., "4.2.1", "2023", "Q1 2024")
-  - **Go Live Date**: When this version went or will go live
-  - **End of Support**: When vendor support ends
-  - **Retired Date**: When you actually decommissioned this version
-
-This approach keeps everything in a single record. When you upgrade, update the version fields and you're done. History is tracked in the audit log.
-
-**Use this when**: upgrades happen in place with no overlap -- one version replaces another.
-
-### Creating a new version (parallel migrations)
-
-For major application upgrades where you need to run old and new versions in parallel across different environments (e.g., SAP S/4HANA 1909 in Prod while 2023 is in QA), use the **Create New Version** feature:
-
-1. Open the application you want to upgrade
-2. Save any pending changes (the button is disabled if you have unsaved edits)
-3. Click **Create New Version** in the header
-4. Complete the three-step wizard:
-   - **Step 1 - Version Details**: Enter the new application name, version, and dates
-   - **Step 2 - Copy Options**: Choose what to copy from the source (owners, companies, departments, etc.)
-   - **Step 3 - Interfaces**: Select which interfaces to migrate to the new version
-5. Click **Create Version**
-
-The new version is created as a separate application with:
-  - A **Proposed** lifecycle (ready to configure before go-live)
-  - A link to the predecessor (shown in the version timeline)
-  - Copied data based on your selections
-  - Duplicated interfaces pointing to the new version
-
-### Version timeline
-
-When an application has version lineage (predecessor or successors), a version timeline appears at the top of the **Overview** tab:
-
-  - Each version shows as a chip with its version number
-  - The current version is highlighted
-  - Retired versions appear with strikethrough styling
-  - Click any chip to navigate to that version
-
-### What gets copied
-
-When creating a new version, you can choose to copy:
-  - **Owners** (Business & IT)
-  - **Companies** (Audience)
-  - **Departments**
-  - **Data Residency**
-  - **Links** (Documentation)
-  - **Support Contacts**
-  - **OPEX/CAPEX Items** - enabled by default
-  - **Contracts** - enabled by default
-  - **Instances** (Environments) - optional, disabled by default
-  - **Bindings** (environment connections) - optional, only available when Instances is selected
-
-**Not copied** (must be set up fresh):
-  - Suite membership
-  - Attachments
-  - Asset assignments
-
-### Interface migration
-
-During version creation, you can select specific interfaces to migrate:
-  - The wizard shows all interfaces where this application is the source or target
-  - Selected interfaces are duplicated with references updated to the new version
-  - The original interfaces remain linked to the old version
-  - Each migrated interface includes all its relations: legs, owners, companies, key identifiers, links, and data residency
-  - The new interface starts with a "Proposed" lifecycle
-
-**Copying bindings**: If you select both "Instances" and "Bindings" in Step 2, interface bindings are also copied:
-  - Bindings are mapped to the new application's instances (same environments)
-  - Environment-specific details (endpoints, authentication, job names) are cleared for fresh configuration
-  - Binding status is reset to "Proposed"
-
-**ETL/Middleware applications**: If the application has "Data Integration / ETL" enabled, the wizard also shows interfaces that *flow through* this application as middleware. These are interfaces where another source sends data to another target via your ETL. Copying these creates new interface definitions for the upgraded ETL, with middleware references properly updated.
-
-**Tip**: Use this when upgrading your ERP or ETL: migrate the critical interfaces and optionally copy bindings to get a head start on environment configuration.
+**Conseil** : Les classifications de données sont configurables dans **Cartographie SI > Paramètres**. Personnalisez-les pour correspondre à la politique de classification des données de votre organisation.
 
 ---
 
-## Copying applications
+## Gestion des versions
 
-There are two ways to copy an application in KANAP:
+KANAP propose **deux approches pour gérer les versions d'applications**, selon la manière dont votre organisation gère les mises à niveau :
 
-### Copy Item (from Applications grid)
+| Approche | Idéale pour | Ce qui se passe |
+|----------|-------------|-----------------|
+| **Simple** | La plupart des applications | Mettez à jour les champs de version en place -- même enregistrement, nouveau numéro de version |
+| **Avancée** | Migrations majeures | Créez un nouvel enregistrement d'application avec suivi de lignée -- exécutez ancienne et nouvelle versions côte à côte |
 
-Use this when you want to create an independent duplicate of an application -- typically to create a similar application entry without version lineage.
+### Suivi de version simple (mise à jour en place)
 
-1. Select an application in the grid
-2. Click **Copy item**
-3. The system creates a copy with " (copy)" appended to the name
-4. You're navigated to the new application to make changes
+Pour la plupart des applications -- où vous mettez à niveau et l'ancienne version disparaît simplement -- mettez à jour les champs de version dans l'onglet **Vue d'ensemble** :
+  - **Version** : Saisissez la version actuelle (ex. : « 4.2.1 », « 2023 », « Q1 2024 »)
+  - **Date de mise en production** : Quand cette version a été ou sera mise en service
+  - **Fin de support** : Quand le support éditeur prend fin
+  - **Date de retrait** : Quand vous avez effectivement mis hors service cette version
 
-**What gets copied**: All core fields (except last DR test date), owners, companies, departments, suites, OPEX/CAPEX items, contracts, links, data residency, and support contacts.
+Cette approche garde tout dans un seul enregistrement. Lors d'une mise à niveau, mettez à jour les champs de version et c'est fait. L'historique est suivi dans le journal d'audit.
 
-**What does NOT get copied**: Instances, interfaces, asset assignments, attachments, version fields (version, go-live date, end of support).
+**À utiliser quand** : les mises à niveau se font en place sans chevauchement -- une version remplace l'autre.
 
-### Comparison: Copy Item vs Create New Version
+### Créer une nouvelle version (migrations parallèles)
 
-| Aspect | Copy Item | Create New Version |
-|--------|-----------|-------------------|
-| **Purpose** | Create independent duplicate | Create version with lineage |
-| **User options** | None (automatic) | Step-by-step wizard |
-| **Lineage** | No predecessor link | Sets predecessor_id |
-| **Lifecycle** | Preserved | Reset to Proposed |
-| **Name** | " (copy)" suffix | User-specified |
+Pour les mises à niveau majeures d'applications où vous devez exécuter les anciennes et nouvelles versions en parallèle dans différents environnements (ex. : SAP S/4HANA 1909 en Prod alors que 2023 est en QA), utilisez la fonctionnalité **Créer une nouvelle version** :
 
-**What gets copied - Relations**:
+1. Ouvrez l'application que vous souhaitez mettre à niveau
+2. Enregistrez les modifications en attente (le bouton est désactivé si vous avez des modifications non enregistrées)
+3. Cliquez sur **Créer une nouvelle version** dans l'en-tête
+4. Complétez l'assistant en trois étapes :
+   - **Étape 1 - Détails de la version** : Saisissez le nouveau nom d'application, la version et les dates
+   - **Étape 2 - Options de copie** : Choisissez ce qui doit être copié depuis la source (responsables, sociétés, départements, etc.)
+   - **Étape 3 - Interfaces** : Sélectionnez les interfaces à migrer vers la nouvelle version
+5. Cliquez sur **Créer la version**
 
-| Relation | Copy Item | Create New Version |
-|----------|-----------|-------------------|
-| Owners (business & IT) | Yes | Optional (default: yes) |
-| Companies (audience) | Yes | Optional (default: yes) |
-| Departments | Yes | Optional (default: yes) |
-| Data Residency | Yes | Optional (default: yes) |
-| Links (documentation) | Yes | Optional (default: yes) |
-| Support Contacts | Yes | Optional (default: yes) |
-| Suites (membership) | Yes | No |
-| OPEX Items | Yes | Optional (default: yes) |
-| CAPEX Items | Yes | Optional (default: yes) |
-| Contracts | Yes | Optional (default: yes) |
-| Instances | No | Optional (default: no) |
-| Bindings | No | Optional (default: no) |
-| Interfaces | No | User-selected |
-| Asset Assignments | No | No |
-| Attachments | No | No |
+La nouvelle version est créée comme une application séparée avec :
+  - Un cycle de vie **Proposé** (prête à être configurée avant la mise en production)
+  - Un lien vers le prédécesseur (affiché dans la chronologie des versions)
+  - Les données copiées selon vos sélections
+  - Les interfaces dupliquées pointant vers la nouvelle version
 
-**What gets copied - Core fields**:
+### Chronologie des versions
 
-| Field | Copy Item | Create New Version |
-|-------|-----------|-------------------|
-| Description | Yes | Yes |
-| ETL enabled | Yes | Yes |
-| Support notes | Yes | Yes |
-| Last DR test | No | No |
-| Version fields | No | User-specified |
-| Users override | Yes | Reset to null |
-| Users year | Yes | Reset to current year |
+Lorsqu'une application a une lignée de versions (prédécesseur ou successeurs), une chronologie des versions apparaît en haut de l'onglet **Vue d'ensemble** :
+
+  - Chaque version apparaît sous forme de pastille avec son numéro de version
+  - La version actuelle est mise en surbrillance
+  - Les versions retirées apparaissent avec un style barré
+  - Cliquez sur n'importe quelle pastille pour naviguer vers cette version
+
+### Ce qui est copié
+
+Lors de la création d'une nouvelle version, vous pouvez choisir de copier :
+  - **Responsables** (Métier et IT)
+  - **Sociétés** (Audience)
+  - **Départements**
+  - **Résidence des données**
+  - **Liens** (Documentation)
+  - **Contacts de support**
+  - **Postes OPEX/CAPEX** - activé par défaut
+  - **Contrats** - activé par défaut
+  - **Instances** (Environnements) - optionnel, désactivé par défaut
+  - **Liaisons** (connexions d'environnement) - optionnel, disponible uniquement lorsque Instances est sélectionné
+
+**Non copié** (à configurer de zéro) :
+  - Appartenance à une suite
+  - Pièces jointes
+  - Assignations d'actifs
+
+### Migration d'interfaces
+
+Pendant la création de version, vous pouvez sélectionner des interfaces spécifiques à migrer :
+  - L'assistant affiche toutes les interfaces où cette application est la source ou la cible
+  - Les interfaces sélectionnées sont dupliquées avec les références mises à jour vers la nouvelle version
+  - Les interfaces originales restent liées à l'ancienne version
+  - Chaque interface migrée inclut toutes ses relations : legs, responsables, sociétés, identifiants clés, liens et résidence des données
+  - La nouvelle interface démarre avec un cycle de vie « Proposé »
+
+**Copie des liaisons** : Si vous sélectionnez à la fois « Instances » et « Liaisons » à l'étape 2, les liaisons d'interfaces sont également copiées :
+  - Les liaisons sont mappées vers les instances de la nouvelle application (mêmes environnements)
+  - Les détails spécifiques à l'environnement (endpoints, authentification, noms de jobs) sont effacés pour une configuration fraîche
+  - Le statut de liaison est réinitialisé à « Proposé »
+
+**Applications ETL/Middleware** : Si l'application a « Intégration de données / ETL » activé, l'assistant affiche également les interfaces qui *transitent par* cette application en tant que middleware. Ce sont des interfaces où une autre source envoie des données vers une autre cible via votre ETL. Copier ces interfaces crée de nouvelles définitions d'interfaces pour l'ETL mis à niveau, avec les références middleware correctement mises à jour.
+
+**Conseil** : Utilisez cela lors de la mise à niveau de votre ERP ou ETL : migrez les interfaces critiques et copiez optionnellement les liaisons pour prendre de l'avance sur la configuration des environnements.
+
+---
+
+## Copier des applications
+
+Il existe deux façons de copier une application dans KANAP :
+
+### Copier l'élément (depuis la grille Applications)
+
+Utilisez cela lorsque vous souhaitez créer un duplicata indépendant d'une application -- typiquement pour créer une entrée d'application similaire sans lignée de version.
+
+1. Sélectionnez une application dans la grille
+2. Cliquez sur **Copier l'élément**
+3. Le système crée une copie avec « (copie) » ajouté au nom
+4. Vous êtes redirigé vers la nouvelle application pour effectuer des modifications
+
+**Ce qui est copié** : Tous les champs principaux (sauf la date du dernier test PRA), responsables, sociétés, départements, suites, postes OPEX/CAPEX, contrats, liens, résidence des données et contacts de support.
+
+**Ce qui N'est PAS copié** : Instances, interfaces, assignations d'actifs, pièces jointes, champs de version (version, date de mise en production, fin de support).
+
+### Comparaison : Copier l'élément vs Créer une nouvelle version
+
+| Aspect | Copier l'élément | Créer une nouvelle version |
+|--------|------------------|---------------------------|
+| **Objectif** | Créer un duplicata indépendant | Créer une version avec lignée |
+| **Options utilisateur** | Aucune (automatique) | Assistant étape par étape |
+| **Lignée** | Pas de lien prédécesseur | Définit predecessor_id |
+| **Cycle de vie** | Préservé | Réinitialisé à Proposé |
+| **Nom** | Suffixe « (copie) » | Spécifié par l'utilisateur |
+
+**Ce qui est copié - Relations** :
+
+| Relation | Copier l'élément | Créer une nouvelle version |
+|----------|------------------|---------------------------|
+| Responsables (métier et IT) | Oui | Optionnel (par défaut : oui) |
+| Sociétés (audience) | Oui | Optionnel (par défaut : oui) |
+| Départements | Oui | Optionnel (par défaut : oui) |
+| Résidence des données | Oui | Optionnel (par défaut : oui) |
+| Liens (documentation) | Oui | Optionnel (par défaut : oui) |
+| Contacts de support | Oui | Optionnel (par défaut : oui) |
+| Suites (appartenance) | Oui | Non |
+| Postes OPEX | Oui | Optionnel (par défaut : oui) |
+| Postes CAPEX | Oui | Optionnel (par défaut : oui) |
+| Contrats | Oui | Optionnel (par défaut : oui) |
+| Instances | Non | Optionnel (par défaut : non) |
+| Liaisons | Non | Optionnel (par défaut : non) |
+| Interfaces | Non | Sélectionné par l'utilisateur |
+| Assignations d'actifs | Non | Non |
+| Pièces jointes | Non | Non |
+
+**Ce qui est copié - Champs principaux** :
+
+| Champ | Copier l'élément | Créer une nouvelle version |
+|-------|------------------|---------------------------|
+| Description | Oui | Oui |
+| ETL activé | Oui | Oui |
+| Notes de support | Oui | Oui |
+| Dernier test PRA | Non | Non |
+| Champs de version | Non | Spécifié par l'utilisateur |
+| Saisie manuelle utilisateurs | Oui | Réinitialisé à null |
+| Année utilisateurs | Oui | Réinitialisé à l'année en cours |
 
 ---
 
 ## Import/export CSV
 
-Maintain your application inventory at scale using CSV import and export. This feature supports bulk operations for initial data loading, periodic updates from external systems, and data extraction for reporting.
+Maintenez votre inventaire applicatif à grande échelle grâce à l'import et l'export CSV. Cette fonctionnalité prend en charge les opérations en masse pour le chargement initial de données, les mises à jour périodiques depuis des systèmes externes et l'extraction de données pour le reporting.
 
-### Accessing CSV features
+### Accéder aux fonctionnalités CSV
 
-From the Applications list:
-  - **Exporter CSV**: Download applications to a CSV file
-  - **Importer CSV**: Upload a CSV file to create or update applications
-  - **Download Template**: Get a blank CSV with correct headers
+Depuis la liste des Applications :
+  - **Export CSV** : Télécharger les applications dans un fichier CSV
+  - **Import CSV** : Téléverser un fichier CSV pour créer ou mettre à jour des applications
+  - **Télécharger le modèle** : Obtenir un CSV vierge avec les en-têtes corrects
 
-**Permissions required**: `applications:admin` for import/export operations.
+**Autorisations requises** : `applications:admin` pour les opérations d'import/export.
 
-### Export options
+### Options d'export
 
-**Presets** (pre-configured field selections):
+**Préréglages** (sélections de champs pré-configurées) :
 
-| Preset | Description |
-|--------|-------------|
-| **Full Export** | All exportable fields including computed/read-only data (timestamps, data residency, user metrics) |
-| **Data Enrichment** | Only importable fields -- ideal for round-trip editing workflows |
-
-**Template export**: Downloads headers only -- useful for preparing import files with the correct structure. The template includes all importable fields.
-
-**Custom selection**: Choose specific fields to include in your export.
-
-### Import workflow
-
-1. **Prepare your file**: Use UTF-8 encoding with semicolon (`;`) separators. Download a template to ensure correct headers.
-
-2. **Choose import settings**:
-   - **Mode**:
-     - `Enrich` (default): Empty cells preserve existing values -- only update what you specify
-     - `Replace`: Empty cells clear existing values -- full replacement of all fields
-   - **Operation**:
-     - `Upsert` (default): Create new applications or update existing ones
-     - `Update only`: Only modify existing applications, skip new ones
-     - `Insert only`: Only create new applications, skip existing ones
-
-3. **Validate first**: Click **Preflight** to validate your file without making changes. Review errors and warnings.
-
-4. **Apply changes**: If validation passes, click **Import** to commit changes.
-
-### Field reference
-
-**Overview fields**:
-
-| CSV Column | Description | Required | Notes |
-|------------|-------------|----------|-------|
-| `id` | Application UUID | No | For updates; leave blank for new applications |
-| `name` | Application name | Yes | Used as unique identifier for matching |
-| `description` | What the application does | No | |
-| `category` | Primary purpose | No | Accepts code or label from Settings |
-| `supplier_name` | Vendor name | No | Must match existing supplier |
-| `editor` | Software publisher | No | Free text (e.g., Microsoft, SAP) |
-| `criticality` | Business importance | No | `business_critical`, `high`, `medium`, `low` |
-| `lifecycle` | Current status | No | Accepts code or label from Settings |
-| `is_suite` | Can have child apps | No | `true` or `false` |
-| `status` | Enabled/disabled | No | `enabled` or `disabled` |
-
-**Version fields**:
-
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `version` | Current version | Free text |
-| `go_live_date` | When version went live | Date format: YYYY-MM-DD |
-| `end_of_support_date` | Vendor support end date | Date format: YYYY-MM-DD |
-| `retired_date` | Decommission date | Date format: YYYY-MM-DD |
-
-**Technical fields**:
-
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `access_methods` | How users access | Comma-separated codes or labels from Settings (e.g., `web,mobile,vdi`) |
-| `external_facing` | Internet accessible | `true` or `false` |
-| `etl_enabled` | Data integration | `true` or `false` |
-| `support_notes` | Support information | Free text |
-| `licensing` | License terms | Free text |
-| `notes` | Internal notes | Free text |
-
-**Compliance fields**:
-
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `data_class` | Data classification | Accepts code or label from Settings |
-| `last_dr_test` | Last DR test date | Date format: YYYY-MM-DD |
-| `contains_pii` | Stores personal data | `true` or `false` |
-| `data_residency` | Data storage countries | Export only (ISO codes) |
-
-**Owner fields**:
-
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `business_owner_email_1` through `_4` | Business owner emails | Must match existing users by email |
-| `it_owner_email_1` through `_4` | IT owner emails | Must match existing users by email |
-
-**Export-only fields** (included in Full Export but not importable):
-
-| CSV Column | Description |
+| Préréglage | Description |
 |------------|-------------|
-| `data_residency` | Data storage countries (ISO codes, comma-separated) |
-| `users_mode` | User count method (`manual`, `it_users`, `headcount`) |
-| `users_year` | Reference year for user calculations |
-| `users_override` | Manual user count override |
-| `created_at` | Record creation timestamp |
-| `updated_at` | Last modification timestamp |
+| **Export complet** | Tous les champs exportables incluant les données calculées/lecture seule (horodatages, résidence des données, métriques utilisateurs) |
+| **Enrichissement de données** | Uniquement les champs importables -- idéal pour les flux d'édition aller-retour |
 
-### Label and code acceptance
+**Export modèle** : Télécharge uniquement les en-têtes -- utile pour préparer des fichiers d'import avec la bonne structure. Le modèle inclut tous les champs importables.
 
-For fields configured in **Cartographie SI > Paramètres**, you can use either the internal code or the display label:
+**Sélection personnalisée** : Choisissez les champs spécifiques à inclure dans votre export.
 
-| Field | Example codes | Example labels |
-|-------|---------------|----------------|
-| Category | `lob`, `productivity`, `security` | `Line-of-business`, `Productivity`, `Security` |
-| Lifecycle | `active`, `proposed`, `deprecated` | `Active`, `Proposed`, `Deprecated` |
-| Data Class | `public`, `internal`, `confidential` | `Public`, `Internal`, `Confidential` |
+### Processus d'import
 
-The system automatically normalizes values during import, so `Line-of-business`, `line-of-business`, and `lob` all resolve to the same category.
+1. **Préparez votre fichier** : Utilisez l'encodage UTF-8 avec des séparateurs point-virgule (`;`). Téléchargez un modèle pour vous assurer des bons en-têtes.
 
-### Matching and updates
+2. **Choisissez les paramètres d'import** :
+   - **Mode** :
+     - `Enrichir` (par défaut) : Les cellules vides conservent les valeurs existantes -- ne mettez à jour que ce que vous spécifiez
+     - `Remplacer` : Les cellules vides effacent les valeurs existantes -- remplacement complet de tous les champs
+   - **Opération** :
+     - `Upsert` (par défaut) : Créer de nouvelles applications ou mettre à jour les existantes
+     - `Mise à jour uniquement` : Ne modifier que les applications existantes, ignorer les nouvelles
+     - `Insertion uniquement` : Ne créer que de nouvelles applications, ignorer les existantes
 
-Applications are matched by **name** (case-insensitive). When a match is found:
-  - With `Enrich` mode: Only non-empty CSV values update the application
-  - With `Replace` mode: All fields are updated, empty values clear existing data
+3. **Validez d'abord** : Cliquez sur **Vérification préalable** pour valider votre fichier sans apporter de modifications. Examinez les erreurs et avertissements.
 
-If you include the `id` column with a valid UUID, matching uses ID first, then falls back to name.
+4. **Appliquez les modifications** : Si la validation réussit, cliquez sur **Importer** pour valider les changements.
+
+### Correspondance et mises à jour
+
+Les applications sont identifiées par **nom** (insensible à la casse). Lorsqu'une correspondance est trouvée :
+  - En mode `Enrichir` : Seules les valeurs CSV non vides mettent à jour l'application
+  - En mode `Remplacer` : Tous les champs sont mis à jour, les valeurs vides effacent les données existantes
+
+Si vous incluez la colonne `id` avec un UUID valide, la correspondance utilise d'abord l'ID, puis se rabat sur le nom.
 
 ### Limitations
 
-  - **Instances not included**: Environment instances (Prod, QA, Dev) require espace de travail configuration
-  - **Asset assignments excluded**: Server bindings must be set up in the Servers tab
-  - **Interfaces excluded**: Integration definitions are not part of CSV import/export
-  - **Maximum 4 owners per type**: Up to 4 business owners and 4 IT owners can be imported/exported
-  - **User metrics are export-only**: Audience and user count fields (`users_mode`, `users_year`, `users_override`) are managed in l'espace de travail
-  - **Data residency is export-only**: Country selections must be managed in the Compliance tab
+  - **Instances non incluses** : Les instances d'environnement (Prod, QA, Dev) nécessitent une configuration dans l'espace de travail
+  - **Assignations d'actifs exclues** : Les liaisons serveur doivent être configurées dans l'onglet Serveurs
+  - **Interfaces exclues** : Les définitions d'intégration ne font pas partie de l'import/export CSV
+  - **Maximum 4 responsables par type** : Jusqu'à 4 responsables métier et 4 responsables IT peuvent être importés/exportés
+  - **Métriques utilisateurs en export uniquement** : Les champs d'audience et de comptage d'utilisateurs (`users_mode`, `users_year`, `users_override`) sont gérés dans l'espace de travail
+  - **Résidence des données en export uniquement** : Les sélections de pays doivent être gérées dans l'onglet Conformité
 
-### Troubleshooting
+### Résolution de problèmes
 
-**"File isn't properly formatted" error**: This usually indicates an encoding issue. Ensure your CSV is saved as **UTF-8**:
+**Erreur « Le fichier n'est pas correctement formaté »** : Cela indique généralement un problème d'encodage. Assurez-vous que votre CSV est enregistré en **UTF-8** :
 
-  - **In LibreOffice**: When opening a CSV, select `UTF-8` in the Character set dropdown (not "Japanese (Macintosh)" or other encodings). When saving, check "Edit filter settings" and choose UTF-8.
-  - **In Excel**: Save As → CSV UTF-8 (Comma delimited), then open in a text editor to change commas to semicolons.
-  - **General tip**: If you see garbled characters (`?¿`, `ï»¿`) at the start of your file, the encoding is incorrect.
+  - **Dans LibreOffice** : Lors de l'ouverture d'un CSV, sélectionnez `UTF-8` dans le menu déroulant Jeu de caractères (pas « Japanese (Macintosh) » ni d'autres encodages). Lors de l'enregistrement, cochez « Modifier les paramètres de filtre » et choisissez UTF-8.
+  - **Dans Excel** : Enregistrer sous > CSV UTF-8 (délimité par des virgules), puis ouvrez dans un éditeur de texte pour remplacer les virgules par des points-virgules.
+  - **Conseil général** : Si vous voyez des caractères illisibles (`?¿`, `ï»¿`) au début de votre fichier, l'encodage est incorrect.
 
-### Example CSV
+### Exemple CSV
 
 ```csv
 name;category;supplier_name;criticality;lifecycle;go_live_date;external_facing
@@ -587,9 +511,9 @@ Custom ERP;lob;;medium;Active;2018-03-20;false
 
 ## Conseils
 
-  - **Start with critical apps**: Document your business-critical applications first, then work down the criticality levels.
-  - **Use Suites for grouping**: Mark an application as a Suite to group related components (e.g., SAP modules under an SAP Suite).
-  - **Link to spend early**: Connect OPEX and CAPEX items in the Relations tab to see the full cost picture.
-  - **Keep environments current**: The Instances tab drives the environment chips in the list -- keep it updated for accurate visibility.
-  - **Leverage category filtering**: Use the Category column filter to focus on specific application types (e.g., show only Line-of-business apps, or exclude Productivity tools).
-  - **Attach knowledge early**: Link runbooks and architecture documents in the Knowledge tab so the team knows where to look during incidents.
+  - **Commencez par les apps critiques** : Documentez d'abord vos applications critiques pour le métier, puis descendez dans les niveaux de criticité.
+  - **Utilisez les suites pour regrouper** : Marquez une application comme suite pour regrouper les composants liés (ex. : modules SAP sous une suite SAP).
+  - **Liez aux dépenses tôt** : Connectez les postes OPEX et CAPEX dans l'onglet Relations pour voir l'image complète des coûts.
+  - **Maintenez les environnements à jour** : L'onglet Instances alimente les pastilles d'environnement dans la liste -- maintenez-le à jour pour une visibilité précise.
+  - **Exploitez le filtrage par catégorie** : Utilisez le filtre de la colonne Catégorie pour vous concentrer sur des types d'applications spécifiques (ex. : afficher uniquement les apps Métier, ou exclure les outils de Productivité).
+  - **Attachez les connaissances tôt** : Liez les runbooks et les documents d'architecture dans l'onglet Base de connaissances pour que l'équipe sache où chercher lors des incidents.

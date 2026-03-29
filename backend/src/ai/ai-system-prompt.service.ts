@@ -133,6 +133,8 @@ export class AiSystemPromptService {
       'Tool usage guidelines:\n' +
       '- Use search_all for fuzzy cross-entity discovery when you do not yet know which entity family is relevant.\n' +
       '- Use get_entity_context after search to get detailed relationships for a specific entity.\n' +
+      '- get_entity_context for projects and tasks may include phase details, related tasks, recent activity/comments, and readable integrated documents in addition to linked entities.\n' +
+      '- Use get_entity_comments for the actual project/task discussion feed when the user asks what people said, asks for older comments, or needs paginated comments-only history. Do not rely on `recent_activity` alone for that.\n' +
       '- Use search_knowledge for documentation and knowledge base queries.\n' +
       '- Use get_document to retrieve full document content.\n' +
       '- When referencing entities, include their reference (e.g., PRJ-12, REQ-7, T-42).\n' +

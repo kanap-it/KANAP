@@ -1,354 +1,354 @@
 # Actifs
 
-Assets document your infrastructure inventory -- physical servers, virtual machines, containers, cloud instances, and network devices. Link assets to applications, locations, connections, and financial records to build a complete picture of your IT infrastructure.
+Les actifs documentent votre inventaire d'infrastructure -- serveurs physiques, machines virtuelles, conteneurs, instances cloud et équipements réseau. Liez les actifs aux applications, sites, connexions et enregistrements financiers pour construire une image complète de votre infrastructure IT.
 
 ## Premiers pas
 
-Navigate to **Cartographie SI > Actifs** to see your asset inventory. Click **Add asset** to create your first entry.
+Rendez-vous dans **Cartographie SI > Actifs** pour voir votre inventaire d'actifs. Cliquez sur **Ajouter un actif** pour créer votre première entrée.
 
-**Required fields**:
-- **Name**: A unique asset name or hostname
-- **Asset Type**: Web server, database, application server, network device, etc.
-- **Location**: Where the asset is hosted (determines provider, hosting type, and country)
+**Champs obligatoires** :
+- **Nom** : Un nom d'actif ou un hostname unique
+- **Type d'actif** : Serveur web, base de données, serveur d'application, équipement réseau, etc.
+- **Site** : Où l'actif est hébergé (détermine le fournisseur, le type d'hébergement et le pays)
 
-**Strongly recommended**:
-- **Lifecycle**: Current status (Active, Deprecated, Retired, etc.)
-- **Environment**: Which environment this asset belongs to (Prod, Pre-prod, QA, etc.)
+**Fortement recommandé** :
+- **Cycle de vie** : Statut actuel (Actif, Obsolète, Retiré, etc.)
+- **Environnement** : À quel environnement cet actif appartient (Prod, Pré-prod, QA, etc.)
 
-**Tip**: Use consistent naming conventions that include environment and role information (e.g., `prod-web-01`, `dev-db-master`). When creating a new asset, the hostname is automatically derived from the name you type.
+**Conseil** : Utilisez des conventions de nommage cohérentes qui incluent l'environnement et le rôle (ex. : `prod-web-01`, `dev-db-master`). Lors de la création d'un nouvel actif, le hostname est automatiquement dérivé du nom que vous saisissez.
 
 ---
 
 ## Travailler avec la liste
 
-The asset list gives you a filterable, sortable overview of every asset in your inventory.
+La liste des actifs vous donne un aperçu filtrable et triable de chaque actif de votre inventaire.
 
-**Default columns**:
+**Colonnes par défaut** :
 
-| Column | What it shows |
-|--------|---------------|
-| **Name** | Asset name (click to open espace de travail) |
-| **Asset Type** | The asset's role (e.g., Virtual Machine, Physical Server) |
-| **Cluster** | Cluster membership, or a "Cluster" badge if this asset is a cluster |
-| **Environment** | Prod, Pre-prod, QA, Test, Dev, Sandbox |
-| **Location** | Where the asset is hosted |
-| **Hosting** | Hosting type (derived from location) |
-| **OS** | Operating system |
-| **Network Zone** | Network segment (derived from subnet) |
-| **Lifecycle** | Current lifecycle status |
-| **Assignments** | Number of application assignments |
-| **Created** | When the record was created |
+| Colonne | Ce qu'elle affiche |
+|---------|-------------------|
+| **Nom** | Nom de l'actif (cliquez pour ouvrir l'espace de travail) |
+| **Type d'actif** | Le rôle de l'actif (ex. : Machine virtuelle, Serveur physique) |
+| **Cluster** | Appartenance à un cluster, ou un badge « Cluster » si cet actif est un cluster |
+| **Environnement** | Prod, Pré-prod, QA, Test, Dev, Sandbox |
+| **Site** | Où l'actif est hébergé |
+| **Hébergement** | Type d'hébergement (dérivé du site) |
+| **OS** | Système d'exploitation |
+| **Zone réseau** | Segment réseau (dérivé du sous-réseau) |
+| **Cycle de vie** | Statut actuel du cycle de vie |
+| **Assignations** | Nombre d'assignations d'applications |
+| **Créé** | Quand l'enregistrement a été créé |
 
-**Additional columns** (hidden by default, available via column chooser):
-- **Sub-location**: Specific area within the location (building, room, rack)
-- **Go-live**: Date the asset went into production
-- **End-of-life**: Planned or actual retirement date
+**Colonnes supplémentaires** (masquées par défaut, disponibles via le sélecteur de colonnes) :
+- **Sous-site** : Zone spécifique au sein du site (bâtiment, salle, baie)
+- **Mise en production** : Date de mise en production de l'actif
+- **Fin de vie** : Date de retrait prévue ou effective
 
-**Filtering**:
+**Filtrage** :
 
-Most columns support checkbox set filters for quick multi-select filtering. Filter options update dynamically based on other active filters and the search query, so you only see values that exist in the current result set.
+La plupart des colonnes supportent des filtres par jeu de cases à cocher pour un filtrage multi-sélection rapide. Les options de filtre se mettent à jour dynamiquement en fonction des autres filtres actifs et de la recherche, vous ne voyez donc que les valeurs existantes dans le jeu de résultats actuel.
 
-| Column | Notes |
-|--------|-------|
-| Asset Type | Filter by one or more asset types |
-| Cluster | Includes "(No cluster)" for standalone assets |
-| Environment | Prod, Pre-prod, QA, Test, Dev, Sandbox |
-| Location | Includes "(No location)" for unassigned assets |
-| Sub-location | Includes "(No sub-location)" for assets without one |
-| Hosting | Filter by hosting type |
-| OS | Filter by operating system |
-| Network Zone | Filter by network segment |
-| Lifecycle | Filter by lifecycle status |
+| Colonne | Notes |
+|---------|-------|
+| Type d'actif | Filtrer par un ou plusieurs types d'actifs |
+| Cluster | Inclut « (Pas de cluster) » pour les actifs autonomes |
+| Environnement | Prod, Pré-prod, QA, Test, Dev, Sandbox |
+| Site | Inclut « (Pas de site) » pour les actifs non assignés |
+| Sous-site | Inclut « (Pas de sous-site) » pour les actifs sans sous-site |
+| Hébergement | Filtrer par type d'hébergement |
+| OS | Filtrer par système d'exploitation |
+| Zone réseau | Filtrer par segment réseau |
+| Cycle de vie | Filtrer par statut de cycle de vie |
 
-**Tip**: Combine filters across columns to narrow results. For example, filter by Environment = "Prod" and Lifecycle = "Active" to see only active production assets.
+**Conseil** : Combinez les filtres sur plusieurs colonnes pour affiner les résultats. Par exemple, filtrez par Environnement = « Prod » et Cycle de vie = « Actif » pour ne voir que les actifs de production actifs.
 
-**Actions**:
-- **Add asset**: Create a new asset (requires `infrastructure:member`)
-- **Importer CSV** / **Exporter CSV**: Bulk operations (requires `infrastructure:admin`)
-- **Delete selected**: Remove selected assets (requires `infrastructure:admin`)
+**Actions** :
+- **Ajouter un actif** : Créer un nouvel actif (nécessite `infrastructure:member`)
+- **Import CSV** / **Export CSV** : Opérations en masse (nécessite `infrastructure:admin`)
+- **Supprimer la sélection** : Supprimer les actifs sélectionnés (nécessite `infrastructure:admin`)
 
 ---
 
 ## Clusters
 
-Assets can be organized into clusters:
+Les actifs peuvent être organisés en clusters :
 
-- **Regular asset**: An individual infrastructure instance
-- **Cluster**: A group of assets acting as a single logical unit
+- **Actif classique** : Une instance d'infrastructure individuelle
+- **Cluster** : Un groupe d'actifs agissant comme une seule unité logique
 
-When creating or editing an asset, toggle **This server represents a cluster** to mark it as a cluster. Cluster assets can be endpoints in connections, but application instances should be assigned to member hosts, not to the cluster itself.
+Lors de la création ou de la modification d'un actif, activez **Ce serveur représente un cluster** pour le marquer comme cluster. Les actifs de type cluster peuvent être des points de terminaison dans les connexions, mais les instances d'application doivent être assignées aux hôtes membres, pas au cluster lui-même.
 
-Cluster members are managed from the **Technical** tab of the cluster's espace de travail.
-
----
-
-## The Assets espace de travail
-
-Click any row to open l'espace de travail. The header shows the asset name, a "Cluster" badge (when applicable), and your position in the list (e.g., "3 of 47"). Use the arrow buttons to navigate to the previous or next asset without returning to the list.
-
-### Overview
-
-The Overview tab captures the asset's identity and location.
-
-**What you can edit**:
-- **Name**: Asset hostname or identifier
-- **Asset Type**: Role (Web Server, Database, Application Server, etc.)
-- **Is Cluster**: Toggle to mark this asset as a cluster
-- **Location**: Link to a Location record (required). Selecting a location automatically populates the read-only fields below.
-- **Sub-location**: When the selected location has sub-locations defined (buildings, rooms, racks), this dropdown appears so you can specify exactly where the asset sits within the location.
-- **Lifecycle**: Current status (Active, Deprecated, Retired, etc.)
-- **Go-live date**: When the asset entered production
-- **End-of-life date**: Planned or actual retirement date
-- **Notes**: Free-form notes about the asset
-
-**Read-only fields** (derived from the selected location):
-- **Hosting type**: On-premises, colocation, cloud, etc.
-- **Cloud provider / Operating company**: For cloud locations, shows the cloud provider; for on-premises, shows the operating company
-- **Country**: Country of the location
-- **City**: City of the location
+Les membres du cluster sont gérés depuis l'onglet **Technique** de l'espace de travail du cluster.
 
 ---
 
-### Technical
+## L'espace de travail des actifs
 
-The Technical tab organizes network identity and configuration into logical sections.
+Cliquez sur n'importe quelle ligne pour ouvrir l'espace de travail. L'en-tête affiche le nom de l'actif, un badge « Cluster » (le cas échéant) et votre position dans la liste (ex. : « 3 sur 47 »). Utilisez les boutons fléchés pour naviguer vers l'actif précédent ou suivant sans revenir à la liste.
 
-**Environment**:
-- **Environment**: Prod, Pre-prod, QA, Test, Dev, or Sandbox
+### Vue d'ensemble
 
-**Cluster sections**:
-- If this asset **is a cluster**: Shows the **Members** table listing all member assets (Name, Environment, Status, Operating System). Click **Edit members** to add or remove members through a search dialog.
-- If this asset **is not a cluster**: Shows **Cluster membership** -- which clusters this asset belongs to, if any.
+L'onglet Vue d'ensemble capture l'identité et la localisation de l'actif.
 
-**Identity**:
-- **Hostname**: The asset's network hostname. Automatically pre-filled from the asset name on creation; you can override it at any time. Required when a domain is selected.
-- **Domain**: The Active Directory or DNS domain the asset belongs to. Choose from domains configured in **Paramètres > Cartographie SI**. System options include "Workgroup" (standalone) and "N/A" (not applicable).
-- **FQDN**: Fully Qualified Domain Name, automatically computed from hostname and domain DNS suffix. Read-only.
-- **Aliases**: Additional DNS names or aliases for this asset. Type and press Enter to add.
-- **Operating System**: OS type and version (e.g., Windows Server 2022, Ubuntu 24.04 LTS). Disabled for clusters -- OS is defined per member. When selected, shows standard and extended support end dates.
+**Ce que vous pouvez modifier** :
+- **Nom** : Hostname ou identifiant de l'actif
+- **Type d'actif** : Rôle (Serveur web, Base de données, Serveur d'application, etc.)
+- **Est un cluster** : Basculer pour marquer cet actif comme un cluster
+- **Site** : Lien vers un enregistrement de site (obligatoire). La sélection d'un site remplit automatiquement les champs en lecture seule ci-dessous.
+- **Sous-site** : Lorsque le site sélectionné a des sous-sites définis (bâtiments, salles, baies), ce menu déroulant apparaît pour que vous puissiez spécifier exactement où l'actif se trouve au sein du site.
+- **Cycle de vie** : Statut actuel (Actif, Obsolète, Retiré, etc.)
+- **Date de mise en production** : Quand l'actif est entré en production
+- **Date de fin de vie** : Date de retrait prévue ou effective
+- **Notes** : Notes libres sur l'actif
 
-**IP Addresses**:
-
-Assets support multiple IP addresses, each with its own network configuration:
-
-- Click **Add IP Address** to add a new entry
-- **Type**: The purpose of the IP address (Host, IPMI, Management, iSCSI, or custom types from Settings)
-- **IP Address**: The address itself
-- **Subnet**: Network subnet from the configured list (filtered to the asset's location)
-- **Network Zone**: Automatically derived from the selected subnet (read-only)
-- **VLAN**: Automatically derived from the selected subnet (read-only)
-
-This lets you document multiple network interfaces per asset -- for example, a physical server with both a host IP and an IPMI management address on different subnets.
+**Champs en lecture seule** (dérivés du site sélectionné) :
+- **Type d'hébergement** : Sur site, colocation, cloud, etc.
+- **Fournisseur cloud / Société d'exploitation** : Pour les sites cloud, affiche le fournisseur cloud ; pour les sites sur site, affiche la société d'exploitation
+- **Pays** : Pays du site
+- **Ville** : Ville du site
 
 ---
 
-### Hardware
+### Technique
 
-*Only visible for physical asset types.*
+L'onglet Technique organise l'identité réseau et la configuration en sections logiques.
 
-Tracks physical hardware details:
-- **Serial number**
-- **Manufacturer**
-- **Model**
-- **Purchase date**
-- **Rack location** (e.g., Row A, Rack 12)
-- **Rack unit** (e.g., U1-U4)
+**Environnement** :
+- **Environnement** : Prod, Pré-prod, QA, Test, Dev ou Sandbox
+
+**Sections cluster** :
+- Si cet actif **est un cluster** : Affiche le tableau **Membres** listant tous les actifs membres (Nom, Environnement, Statut, Système d'exploitation). Cliquez sur **Modifier les membres** pour ajouter ou retirer des membres via une boîte de dialogue de recherche.
+- Si cet actif **n'est pas un cluster** : Affiche l'**Appartenance au cluster** -- à quels clusters cet actif appartient, le cas échéant.
+
+**Identité** :
+- **Hostname** : Le hostname réseau de l'actif. Automatiquement pré-rempli à partir du nom de l'actif lors de la création ; vous pouvez le remplacer à tout moment. Obligatoire lorsqu'un domaine est sélectionné.
+- **Domaine** : Le domaine Active Directory ou DNS auquel l'actif appartient. Choisissez parmi les domaines configurés dans **Paramètres > Cartographie SI**. Les options système incluent « Workgroup » (autonome) et « N/A » (non applicable).
+- **FQDN** : Nom de domaine complet, calculé automatiquement à partir du hostname et du suffixe DNS du domaine. Lecture seule.
+- **Alias** : Noms DNS supplémentaires ou alias pour cet actif. Tapez et appuyez sur Entrée pour ajouter.
+- **Système d'exploitation** : Type et version de l'OS (ex. : Windows Server 2022, Ubuntu 24.04 LTS). Désactivé pour les clusters -- l'OS est défini par membre. Une fois sélectionné, affiche les dates de fin de support standard et étendu.
+
+**Adresses IP** :
+
+Les actifs supportent plusieurs adresses IP, chacune avec sa propre configuration réseau :
+
+- Cliquez sur **Ajouter une adresse IP** pour ajouter une nouvelle entrée
+- **Type** : L'objectif de l'adresse IP (Host, IPMI, Management, iSCSI, ou types personnalisés depuis les Paramètres)
+- **Adresse IP** : L'adresse elle-même
+- **Sous-réseau** : Sous-réseau de la liste configurée (filtré par le site de l'actif)
+- **Zone réseau** : Automatiquement dérivée du sous-réseau sélectionné (lecture seule)
+- **VLAN** : Automatiquement dérivé du sous-réseau sélectionné (lecture seule)
+
+Cela vous permet de documenter plusieurs interfaces réseau par actif -- par exemple, un serveur physique avec à la fois une IP host et une adresse de gestion IPMI sur des sous-réseaux différents.
+
+---
+
+### Matériel
+
+*Visible uniquement pour les types d'actifs physiques.*
+
+Suit les détails du matériel physique :
+- **Numéro de série**
+- **Fabricant**
+- **Modèle**
+- **Date d'achat**
+- **Emplacement baie** (ex. : Rangée A, Baie 12)
+- **Unité de baie** (ex. : U1-U4)
 - **Notes**
 
 ---
 
 ### Support
 
-*Only visible for physical asset types.*
+*Visible uniquement pour les types d'actifs physiques.*
 
-Tracks vendor support and contact information:
-- **Vendor**: Select from the supplier directory
-- **Support contract**: Link to a contract record
-- **Support tier**: Free text (e.g., Gold, Silver, 24x7)
-- **Support expiry**: Expiration date
+Suit les informations de support et de contact fournisseur :
+- **Fournisseur** : Sélectionner depuis le répertoire des fournisseurs
+- **Contrat de support** : Lien vers un enregistrement de contrat
+- **Niveau de support** : Texte libre (ex. : Gold, Silver, 24x7)
+- **Expiration du support** : Date d'expiration
 - **Notes**
 
-**Support contacts**: A table where you can add contacts from the contact directory, each with a role label. The table displays each contact's email, phone, and mobile automatically.
+**Contacts de support** : Un tableau où vous pouvez ajouter des contacts depuis le répertoire des contacts, chacun avec un libellé de rôle. Le tableau affiche automatiquement l'e-mail, le téléphone et le mobile de chaque contact.
 
 ---
 
 ### Relations
 
-The Relations tab lets you define how this asset connects to other records across KANAP.
+L'onglet Relations vous permet de définir comment cet actif se connecte à d'autres enregistrements dans KANAP.
 
-**Asset relations**:
-- **Depends on**: Other assets this one depends on (e.g., a database server)
-- **Contains**: Assets contained within this one (e.g., servers in a rack)
-- **Contained by** / **Depended on by**: Read-only reverse views showing which other assets reference this one
+**Relations entre actifs** :
+- **Dépend de** : Autres actifs dont celui-ci dépend (ex. : un serveur de base de données)
+- **Contient** : Actifs contenus dans celui-ci (ex. : serveurs dans une baie)
+- **Contenu par** / **Requis par** : Vues inverses en lecture seule montrant quels autres actifs référencent celui-ci
 
-**Financials**:
-- **OPEX items**: Link to operational expenditure items
-- **CAPEX items**: Link to capital expenditure items
-- **Contracts**: Link to contract records
+**Finances** :
+- **Postes OPEX** : Lien vers des postes de dépenses opérationnelles
+- **Postes CAPEX** : Lien vers des postes de dépenses d'investissement
+- **Contrats** : Lien vers des enregistrements de contrats
 
-**Projects**: Link to portfolio projects related to this asset.
+**Projets** : Lien vers des projets du portefeuille liés à cet actif.
 
-**Relevant websites**: Add URLs with optional descriptions -- useful for vendor portals, monitoring dashboards, or documentation links.
+**Sites web pertinents** : Ajoutez des URL avec des descriptions optionnelles -- utile pour les portails fournisseurs, les tableaux de bord de supervision ou les liens de documentation.
 
-**Attachments**: Drag and drop files or click **Select files** to upload. Click an attachment chip to download it.
+**Pièces jointes** : Glissez-déposez des fichiers ou cliquez sur **Sélectionner des fichiers** pour téléverser. Cliquez sur une pastille de pièce jointe pour la télécharger.
 
 ---
 
 ### Base de connaissances
 
-Attach knowledge articles to this asset. If you have the `knowledge:member` permission, you can create new articles directly from this tab.
+Attachez des articles de la base de connaissances à cet actif. Si vous avez l'autorisation `knowledge:member`, vous pouvez créer de nouveaux articles directement depuis cet onglet.
 
 ---
 
-### Assignments
+### Assignations
 
-View and manage which applications run on this asset. Each assignment links the asset to an application instance (a specific environment of an application).
+Consultez et gérez quelles applications fonctionnent sur cet actif. Chaque assignation lie l'actif à une instance d'application (un environnement spécifique d'une application).
 
-**To add an assignment**:
-1. Click **Add assignment**
-2. Select an **Application**
-3. Choose an **Environment** (instance)
-4. Select a **Role** (from the server role list in Settings)
-5. Optionally set a **Since date** and **Notes**
+**Pour ajouter une assignation** :
+1. Cliquez sur **Ajouter une assignation**
+2. Sélectionnez une **Application**
+3. Choisissez un **Environnement** (instance)
+4. Sélectionnez un **Rôle** (depuis la liste des rôles de serveur dans les Paramètres)
+5. Optionnellement, définissez une **Date de début** et des **Notes**
 
-Cluster assets cannot host application assignments -- assign member hosts instead.
+Les actifs de type cluster ne peuvent pas héberger d'assignations d'applications -- assignez les hôtes membres à la place.
 
-Each assignment row shows the application name (clickable to navigate to it), environment, role, since date, and notes. You can edit or remove assignments from the actions column.
+Chaque ligne d'assignation affiche le nom de l'application (cliquable pour y naviguer), l'environnement, le rôle, la date de début et les notes. Vous pouvez modifier ou supprimer les assignations depuis la colonne d'actions.
 
 ---
 
-### Connections
+### Connexions
 
-A read-only view of all connections involving this asset. Each row shows:
+Une vue en lecture seule de toutes les connexions impliquant cet actif. Chaque ligne affiche :
 
-| Column | What it shows |
-|--------|---------------|
-| **Connection ID** | Clickable link to the connection espace de travail |
-| **Name** | Connection name |
-| **Topology** | Server to Server or Multi-server |
-| **Protocols** | Protocol chips |
-| **Source** | Source endpoint label |
-| **Destination** | Destination endpoint label |
-| **Lifecycle** | Connection lifecycle status |
+| Colonne | Ce qu'elle affiche |
+|---------|-------------------|
+| **ID de connexion** | Lien cliquable vers l'espace de travail de la connexion |
+| **Nom** | Nom de la connexion |
+| **Topologie** | Serveur à serveur ou Multi-serveur |
+| **Protocoles** | Pastilles de protocoles |
+| **Source** | Libellé du point de terminaison source |
+| **Destination** | Libellé du point de terminaison destination |
+| **Cycle de vie** | Statut du cycle de vie de la connexion |
 
-To manage connections, navigate to **Cartographie SI > Connexions**.
+Pour gérer les connexions, rendez-vous dans **Cartographie SI > Connexions**.
 
 ---
 
 ## Import/export CSV
 
-Maintain your asset inventory at scale using CSV import and export. This feature supports bulk operations for initial data loading, periodic updates from external systems, and data extraction for reporting.
+Maintenez votre inventaire d'actifs à grande échelle grâce à l'import et l'export CSV. Cette fonctionnalité prend en charge les opérations en masse pour le chargement initial de données, les mises à jour périodiques depuis des systèmes externes et l'extraction de données pour le reporting.
 
-### Accessing CSV features
+### Accéder aux fonctionnalités CSV
 
-From the Assets list:
-- **Exporter CSV**: Download assets to a CSV file
-- **Importer CSV**: Upload a CSV file to create or update assets
+Depuis la liste des Actifs :
+- **Export CSV** : Télécharger les actifs dans un fichier CSV
+- **Import CSV** : Téléverser un fichier CSV pour créer ou mettre à jour des actifs
 
-**Permissions required**: `infrastructure:admin` for import/export operations.
+**Autorisations requises** : `infrastructure:admin` pour les opérations d'import/export.
 
-### Export options
+### Options d'export
 
 | Option | Description |
 |--------|-------------|
-| **Full Export** | All exportable fields -- use for reporting and complete data extraction |
-| **Data Enrichment** | All importable fields -- matches the import template format, ideal for round-trip editing (export, modify, re-import) |
-| **Custom Selection** | Choose specific fields to include in your export |
+| **Export complet** | Tous les champs exportables -- à utiliser pour le reporting et l'extraction complète de données |
+| **Enrichissement de données** | Tous les champs importables -- correspond au format du modèle d'import, idéal pour l'édition aller-retour (export, modification, ré-import) |
+| **Sélection personnalisée** | Choisir les champs spécifiques à inclure dans votre export |
 
-**Template download** (from Import dialog): Downloads a blank CSV with all importable field headers -- use this to prepare import files with the correct structure.
+**Téléchargement du modèle** (depuis la boîte de dialogue d'import) : Télécharge un CSV vierge avec tous les en-têtes de champs importables -- utilisez-le pour préparer des fichiers d'import avec la bonne structure.
 
-### Import workflow
+### Processus d'import
 
-1. **Prepare your file**: Use UTF-8 encoding with semicolon (`;`) separators. Download a template to ensure correct headers.
+1. **Préparez votre fichier** : Utilisez l'encodage UTF-8 avec des séparateurs point-virgule (`;`). Téléchargez un modèle pour vous assurer des bons en-têtes.
 
-2. **Choose import settings**:
-   - **Mode**:
-     - `Enrich` (default): Empty cells preserve existing values -- only update what you specify
-     - `Replace`: Empty cells clear existing values -- full replacement of all fields
-   - **Operation**:
-     - `Upsert` (default): Create new assets or update existing ones
-     - `Update only`: Only modify existing assets, skip new ones
-     - `Insert only`: Only create new assets, skip existing ones
+2. **Choisissez les paramètres d'import** :
+   - **Mode** :
+     - `Enrichir` (par défaut) : Les cellules vides conservent les valeurs existantes -- ne mettez à jour que ce que vous spécifiez
+     - `Remplacer` : Les cellules vides effacent les valeurs existantes -- remplacement complet de tous les champs
+   - **Opération** :
+     - `Upsert` (par défaut) : Créer de nouveaux actifs ou mettre à jour les existants
+     - `Mise à jour uniquement` : Ne modifier que les actifs existants, ignorer les nouveaux
+     - `Insertion uniquement` : Ne créer que de nouveaux actifs, ignorer les existants
 
-3. **Validate first**: Click **Preflight** to validate your file without making changes. Review errors and warnings.
+3. **Validez d'abord** : Cliquez sur **Vérification préalable** pour valider votre fichier sans apporter de modifications. Examinez les erreurs et avertissements.
 
-4. **Apply changes**: If validation passes, click **Import** to commit changes.
+4. **Appliquez les modifications** : Si la validation réussit, cliquez sur **Importer** pour valider les changements.
 
-### Field reference
+### Référence des champs
 
-**Core fields**:
+**Champs principaux** :
 
-| CSV Column | Description | Required | Notes |
-|------------|-------------|----------|-------|
-| `id` | Asset UUID | No | For updates; leave blank for new assets |
-| `name` | Asset name | Yes | Used as unique identifier for matching |
-| `location_code` | Location code | Yes | Must match an existing location code |
-| `kind` | Asset type | Yes | Accepts code or label (e.g., `vm` or `Virtual Machine`) |
-| `environment` | Environment | Yes | `prod`, `pre_prod`, `qa`, `test`, `dev`, `sandbox` |
-| `status` | Lifecycle status | No | Accepts code or label (e.g., `active` or `Active`) |
-| `is_cluster` | Is this a cluster | No | `true` or `false` |
-| `hostname` | Network hostname | No | |
-| `domain` | DNS domain | No | Accepts code or label from Settings |
-| `aliases` | DNS aliases | No | Comma-separated list |
-| `operating_system` | OS type | No | Accepts code or label from Settings |
-| `cluster` | Cluster membership | No | Name of parent cluster |
-| `notes` | Free-form notes | No | |
+| Colonne CSV | Description | Obligatoire | Notes |
+|-------------|-------------|-------------|-------|
+| `id` | UUID de l'actif | Non | Pour les mises à jour ; laisser vide pour les nouveaux actifs |
+| `name` | Nom de l'actif | Oui | Utilisé comme identifiant unique pour la correspondance |
+| `location_code` | Code du site | Oui | Doit correspondre à un code de site existant |
+| `kind` | Type d'actif | Oui | Accepte code ou libellé (ex. : `vm` ou `Virtual Machine`) |
+| `environment` | Environnement | Oui | `prod`, `pre_prod`, `qa`, `test`, `dev`, `sandbox` |
+| `status` | Statut du cycle de vie | Non | Accepte code ou libellé (ex. : `active` ou `Active`) |
+| `is_cluster` | Est-ce un cluster | Non | `true` ou `false` |
+| `hostname` | Hostname réseau | Non | |
+| `domain` | Domaine DNS | Non | Accepte code ou libellé depuis les Paramètres |
+| `aliases` | Alias DNS | Non | Liste séparée par des virgules |
+| `operating_system` | Type d'OS | Non | Accepte code ou libellé depuis les Paramètres |
+| `cluster` | Appartenance au cluster | Non | Nom du cluster parent |
+| `notes` | Notes libres | Non | |
 
-**IP Address fields** (up to 4 addresses per asset):
+**Champs d'adresse IP** (jusqu'à 4 adresses par actif) :
 
-| CSV Column | Description | Notes |
-|------------|-------------|-------|
-| `ip_1_type` | IP address type | Accepts code or label (e.g., `host` or `Host IP`) |
-| `ip_1_address` | IP address | |
-| `ip_1_subnet_cidr` | Subnet in CIDR notation | |
-| `ip_2_type` through `ip_4_type` | Additional IP types | Same pattern for slots 2-4 |
-| `ip_2_address` through `ip_4_address` | Additional addresses | |
-| `ip_2_subnet_cidr` through `ip_4_subnet_cidr` | Additional subnets | |
+| Colonne CSV | Description | Notes |
+|-------------|-------------|-------|
+| `ip_1_type` | Type d'adresse IP | Accepte code ou libellé (ex. : `host` ou `Host IP`) |
+| `ip_1_address` | Adresse IP | |
+| `ip_1_subnet_cidr` | Sous-réseau en notation CIDR | |
+| `ip_2_type` à `ip_4_type` | Types IP supplémentaires | Même schéma pour les emplacements 2-4 |
+| `ip_2_address` à `ip_4_address` | Adresses supplémentaires | |
+| `ip_2_subnet_cidr` à `ip_4_subnet_cidr` | Sous-réseaux supplémentaires | |
 
-### Label and code acceptance
+### Acceptation des libellés et codes
 
-For fields configured in **Paramètres > Cartographie SI**, you can use either the internal code or the display label:
+Pour les champs configurés dans **Paramètres > Cartographie SI**, vous pouvez utiliser soit le code interne soit le libellé d'affichage :
 
-| Field | Example codes | Example labels |
-|-------|---------------|----------------|
-| Asset Type (`kind`) | `vm`, `physical`, `container` | `Virtual Machine`, `Physical Server`, `Container` |
-| Lifecycle (`status`) | `active`, `inactive`, `decommissioned` | `Active`, `Inactive`, `Decommissioned` |
-| Operating System | `windows_2022`, `ubuntu_24` | `Windows Server 2022`, `Ubuntu 24.04 LTS` |
-| Domain | `corp`, `dmz` | `Corporate Domain`, `DMZ` |
-| IP Address Type | `host`, `ipmi`, `mgmt` | `Host IP`, `IPMI`, `Management` |
+| Champ | Exemples de codes | Exemples de libellés |
+|-------|-------------------|---------------------|
+| Type d'actif (`kind`) | `vm`, `physical`, `container` | `Virtual Machine`, `Physical Server`, `Container` |
+| Cycle de vie (`status`) | `active`, `inactive`, `decommissioned` | `Active`, `Inactive`, `Decommissioned` |
+| Système d'exploitation | `windows_2022`, `ubuntu_24` | `Windows Server 2022`, `Ubuntu 24.04 LTS` |
+| Domaine | `corp`, `dmz` | `Corporate Domain`, `DMZ` |
+| Type d'adresse IP | `host`, `ipmi`, `mgmt` | `Host IP`, `IPMI`, `Management` |
 
-The system automatically normalizes values during import, so `Virtual Machine`, `virtual machine`, and `vm` all resolve to the same asset type.
+Le système normalise automatiquement les valeurs lors de l'import, donc `Virtual Machine`, `virtual machine` et `vm` se résolvent tous vers le même type d'actif.
 
-### Matching and updates
+### Correspondance et mises à jour
 
-Assets are matched by **name** (case-insensitive). When a match is found:
-- With `Enrich` mode: Only non-empty CSV values update the asset
-- With `Replace` mode: All fields are updated, empty values clear existing data
+Les actifs sont identifiés par **nom** (insensible à la casse). Lorsqu'une correspondance est trouvée :
+- En mode `Enrichir` : Seules les valeurs CSV non vides mettent à jour l'actif
+- En mode `Remplacer` : Tous les champs sont mis à jour, les valeurs vides effacent les données existantes
 
-If you include the `id` column with a valid UUID, matching uses ID first, then falls back to name.
+Si vous incluez la colonne `id` avec un UUID valide, la correspondance utilise d'abord l'ID, puis se rabat sur le nom.
 
-### Derived fields
+### Champs dérivés
 
-Some fields are computed and cannot be imported:
-- **Provider**: Automatically derived from the asset's location
-- **FQDN**: Computed from hostname + domain
+Certains champs sont calculés et ne peuvent pas être importés :
+- **Fournisseur** : Automatiquement dérivé du site de l'actif
+- **FQDN** : Calculé à partir du hostname + domaine
 
 ### Limitations
 
-- **Maximum 4 IP addresses**: Assets support up to 4 IP address entries via CSV
-- **Cluster assignment by name**: Use the cluster name, not ID, in the `cluster` column
-- **Location required**: Every asset must have a valid location code
-- **Relations not included**: Application assignments, connections, financial links, and attachments must be managed in l'espace de travail
+- **Maximum 4 adresses IP** : Les actifs supportent jusqu'à 4 entrées d'adresse IP via CSV
+- **Assignation de cluster par nom** : Utilisez le nom du cluster, pas l'ID, dans la colonne `cluster`
+- **Site obligatoire** : Chaque actif doit avoir un code de site valide
+- **Relations non incluses** : Les assignations d'applications, connexions, liens financiers et pièces jointes doivent être gérés dans l'espace de travail
 
-### Troubleshooting
+### Résolution de problèmes
 
-**"File isn't properly formatted" error**: This usually indicates an encoding issue. Ensure your CSV is saved as **UTF-8**:
+**Erreur « Le fichier n'est pas correctement formaté »** : Cela indique généralement un problème d'encodage. Assurez-vous que votre CSV est enregistré en **UTF-8** :
 
-- **In LibreOffice**: When opening a CSV, select `UTF-8` in the Character set dropdown (not "Japanese (Macintosh)" or other encodings). When saving, check "Edit filter settings" and choose UTF-8.
-- **In Excel**: Save As > CSV UTF-8 (Comma delimited), then open in a text editor to change commas to semicolons.
-- **General tip**: If you see garbled characters at the start of your file, the encoding is incorrect.
+- **Dans LibreOffice** : Lors de l'ouverture d'un CSV, sélectionnez `UTF-8` dans le menu déroulant Jeu de caractères (pas « Japanese (Macintosh) » ni d'autres encodages). Lors de l'enregistrement, cochez « Modifier les paramètres de filtre » et choisissez UTF-8.
+- **Dans Excel** : Enregistrer sous > CSV UTF-8 (délimité par des virgules), puis ouvrez dans un éditeur de texte pour remplacer les virgules par des points-virgules.
+- **Conseil général** : Si vous voyez des caractères illisibles au début de votre fichier, l'encodage est incorrect.
 
-### Example CSV
+### Exemple CSV
 
 ```csv
 name;location_code;kind;environment;status;hostname;domain;ip_1_type;ip_1_address
@@ -360,10 +360,10 @@ PROD-DB-01;NYC-DC1;vm;prod;active;proddb01;corp;host;10.0.1.20
 
 ## Conseils
 
-- **Name consistently**: Include environment, role, and sequence in asset names for easy identification.
-- **Use clusters**: Group related assets (e.g., web cluster, database cluster) to simplify management.
-- **Track lifecycle**: Mark deprecated and retired assets to maintain accurate inventory counts.
-- **Link to locations**: Assign assets to locations for geographic reporting and DR planning.
-- **Assign to applications**: Link assets to application instances to understand what runs where.
-- **Use the Relations tab**: Connect assets to OPEX/CAPEX items, contracts, and projects for financial visibility.
-- **Attach documentation**: Upload configuration files, architecture diagrams, or vendor docs directly to the asset.
+- **Nommez de manière cohérente** : Incluez l'environnement, le rôle et la séquence dans les noms d'actifs pour une identification facile.
+- **Utilisez les clusters** : Regroupez les actifs apparentés (ex. : cluster web, cluster base de données) pour simplifier la gestion.
+- **Suivez le cycle de vie** : Marquez les actifs obsolètes et retirés pour maintenir des comptages d'inventaire précis.
+- **Liez aux sites** : Assignez les actifs à des sites pour le reporting géographique et la planification de reprise d'activité.
+- **Assignez aux applications** : Liez les actifs aux instances d'applications pour comprendre ce qui fonctionne où.
+- **Utilisez l'onglet Relations** : Connectez les actifs aux postes OPEX/CAPEX, contrats et projets pour la visibilité financière.
+- **Joignez la documentation** : Téléversez les fichiers de configuration, schémas d'architecture ou documents fournisseur directement sur l'actif.

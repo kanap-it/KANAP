@@ -1,201 +1,201 @@
 # Sociétés
 
-Companies are the foundation of your master data. They represent the legal entities you allocate IT spend to and report chargebacks for. Every allocation, cost item, and many reports reference a company, so keeping this data accurate is important.
+Les sociétés sont le socle de vos données de référence. Elles représentent les entités juridiques auxquelles vous imputez les dépenses IT et pour lesquelles vous établissez les refacturations. Chaque ventilation, poste de dépense et de nombreux rapports font référence à une société, il est donc important de maintenir ces données à jour.
 
-When your espace de travail is created, it starts with one company named after your organization. Its country is the one you selected during trial signup, and it will auto-assign to the default Chart of Accounts for that country when available. You can rename it or add more.
+Lorsque votre espace de travail est créé, il démarre avec une société portant le nom de votre organisation. Son pays est celui que vous avez sélectionné lors de l'inscription à l'essai, et elle sera automatiquement assignée au plan comptable par défaut pour ce pays lorsqu'il est disponible. Vous pouvez la renommer ou en ajouter d'autres.
 
 ## Premiers pas
 
-Navigate to **Données de référence > Sociétés** to open the list.
+Rendez-vous dans **Données de référence > Sociétés** pour ouvrir la liste.
 
-**Required fields**:
+**Champs obligatoires** :
 
-- **Name**: a unique label your teams recognize
-- **Country**: ISO country code (searchable by name or code)
-- **City**: city where the company is based
-- **Base Currency**: ISO currency code (searchable by name or code)
+- **Nom** : un libellé unique que vos équipes reconnaissent
+- **Pays** : code pays ISO (recherche par nom ou code)
+- **Ville** : ville où la société est basée
+- **Devise de base** : code devise ISO (recherche par nom ou code)
 
-**Tip**: Keep names unique to avoid confusion in imports and selection lists.
+**Conseil** : Gardez des noms uniques pour éviter la confusion dans les imports et les listes de sélection.
 
 ## Travailler avec la liste
 
-The list shows all companies for your espace de travail. Use it to review key information at a glance, find companies quickly, and open espace de travails for editing.
+La liste affiche toutes les sociétés de votre espace de travail. Utilisez-la pour revoir les informations clés en un coup d'oeil, trouver rapidement des sociétés et ouvrir les espaces de travail pour les modifier.
 
-**Default columns**:
+**Colonnes par défaut** :
 
-| Column | What it shows |
-|---|---|
-| **Name** | Company name (click to open l'espace de travail) |
-| **Country** | ISO country code |
-| **Currency** | Base currency code |
-| **Headcount (year)** | Headcount for the selected year (click to open the Details tab) |
-| **IT Users (year)** | IT users for the selected year (click to open the Details tab) |
-| **Turnover (year)** | Turnover for the selected year (click to open the Details tab) |
-| **Status** | Enabled or Disabled |
+| Colonne | Ce qu'elle affiche |
+|---------|-------------------|
+| **Nom** | Nom de la société (cliquez pour ouvrir l'espace de travail) |
+| **Pays** | Code pays ISO |
+| **Devise** | Code de devise de base |
+| **Effectif (année)** | Effectif pour l'année sélectionnée (cliquez pour ouvrir l'onglet Détails) |
+| **Utilisateurs IT (année)** | Utilisateurs IT pour l'année sélectionnée (cliquez pour ouvrir l'onglet Détails) |
+| **Chiffre d'affaires (année)** | Chiffre d'affaires pour l'année sélectionnée (cliquez pour ouvrir l'onglet Détails) |
+| **Statut** | Activé ou Désactivé |
 
-**Additional columns** (hidden by default, add them from the column chooser):
+**Colonnes supplémentaires** (masquées par défaut, ajoutez-les via le sélecteur de colonnes) :
 
-| Column | What it shows |
-|---|---|
-| **City** | City |
-| **Postal Code** | Postal code |
-| **Address 1** | Primary address line |
-| **Address 2** | Secondary address line |
-| **State** | State or province |
-| **Notes** | Free-text notes |
-| **Created** | Date and time the record was created |
+| Colonne | Ce qu'elle affiche |
+|---------|-------------------|
+| **Ville** | Ville |
+| **Code postal** | Code postal |
+| **Adresse 1** | Ligne d'adresse principale |
+| **Adresse 2** | Ligne d'adresse secondaire |
+| **État** | État ou province |
+| **Notes** | Notes en texte libre |
+| **Créé** | Date et heure de création de l'enregistrement |
 
-**Filtering**:
+**Filtrage** :
 
-- **Quick search**: free-text search across all visible columns
-- **Column filters**: click any column header to filter by value; numeric columns (Headcount, IT Users, Turnover) support number filters
-- **Status scope**: toggle between **Enabled**, **Disabled**, and **All** to control which companies appear
+- **Recherche rapide** : recherche en texte libre dans toutes les colonnes visibles
+- **Filtres de colonnes** : cliquez sur n'importe quel en-tête de colonne pour filtrer par valeur ; les colonnes numériques (Effectif, Utilisateurs IT, Chiffre d'affaires) supportent les filtres numériques
+- **Périmètre par statut** : basculez entre **Activé**, **Désactivé** et **Tous** pour contrôler quelles sociétés apparaissent
 
-**Year selector**: use the **Year** field in the toolbar to switch which year's metrics are displayed. The bottom row shows **totals** for Headcount, IT Users, and Turnover across all visible (filtered) companies.
+**Sélecteur d'année** : utilisez le champ **Année** dans la barre d'outils pour changer quelle année de métriques est affichée. La ligne du bas affiche les **totaux** pour Effectif, Utilisateurs IT et Chiffre d'affaires pour toutes les sociétés visibles (filtrées).
 
-**Actions**:
+**Actions** :
 
-- **Nouveau**: create a company (requires `companies:manager`)
-- **Importer CSV**: bulk-import companies from a CSV file (requires `companies:admin`)
-- **Exporter CSV**: export companies and their metrics to CSV (requires `companies:admin`)
-- **Delete Selected**: delete one or more selected companies (requires `companies:admin`; only possible if nothing references the company)
+- **Nouveau** : créer une société (nécessite `companies:manager`)
+- **Import CSV** : import en masse de sociétés depuis un fichier CSV (nécessite `companies:admin`)
+- **Export CSV** : exporter les sociétés et leurs métriques en CSV (nécessite `companies:admin`)
+- **Supprimer la sélection** : supprimer une ou plusieurs sociétés sélectionnées (nécessite `companies:admin` ; possible uniquement si rien ne référence la société)
 
-**Search context**: when you open a company espace de travail from the list, your current search, filters, sort order, and year are preserved. Navigating back to the list restores your previous view.
+**Contexte de recherche** : lorsque vous ouvrez l'espace de travail d'une société depuis la liste, votre recherche, vos filtres, votre tri et votre année sont préservés. Revenir à la liste restaure votre vue précédente.
 
 ## Autorisations
 
-| Action | Required level |
-|---|---|
-| View the list and espace de travails | `companies:reader` |
-| Create or edit companies | `companies:manager` |
-| Import, export, or delete | `companies:admin` |
+| Action | Niveau requis |
+|--------|---------------|
+| Consulter la liste et les espaces de travail | `companies:reader` |
+| Créer ou modifier des sociétés | `companies:manager` |
+| Importer, exporter ou supprimer | `companies:admin` |
 
-## The company espace de travail
+## L'espace de travail de la société
 
-Click a company name in the list to open its espace de travail. L'espace de travail has two tabs arranged vertically on the left: **Overview** and **Details**.
+Cliquez sur un nom de société dans la liste pour ouvrir son espace de travail. L'espace de travail comporte deux onglets disposés verticalement à gauche : **Vue d'ensemble** et **Détails**.
 
-Use **Préc** / **Suiv** to move between companies without returning to the list. Click **Fermer** (X) to return to the list with your search context intact.
+Utilisez **Préc.** / **Suiv.** pour passer d'une société à l'autre sans revenir à la liste. Cliquez sur **Fermer** (X) pour revenir à la liste avec votre contexte de recherche intact.
 
-If you have unsaved changes, the app prompts you to save before switching tabs, navigating to another company, or changing years.
-
----
-
-### Overview
-
-The Overview tab holds general information about the company.
-
-**What you can edit**:
-
-- **Name** (required): the company display name
-- **Country** (required): ISO country code, searchable by name or code
-- **Chart of Accounts**: the CoA linked to this company (see below)
-- **Address 1**, **Address 2**: address lines
-- **Postal Code**: postal / ZIP code
-- **City** (required): city name
-- **State**: state or province
-- **Registration #**: company registration number
-- **VAT #**: VAT identification number
-- **Base Currency** (required): ISO currency code, searchable by name or code
-- **Status / Disabled date**: controls whether the company is active (see below)
-- **Notes**: free-text notes
+Si vous avez des modifications non enregistrées, l'application vous invite à enregistrer avant de changer d'onglet, de naviguer vers une autre société ou de changer d'année.
 
 ---
 
-### Details
+### Vue d'ensemble
 
-The Details tab manages **yearly metrics**. Use the year tabs at the top to switch between years (current year plus two years before and after).
+L'onglet Vue d'ensemble contient les informations générales sur la société.
 
-**What you can edit**:
+**Ce que vous pouvez modifier** :
 
-- **Headcount** (required): total employee count for the year, must be a non-negative integer
-- **IT Users** (optional): number of IT users, must be a non-negative integer
-- **Turnover** (optional): revenue in millions of the company's base currency, up to 3 decimal places
+- **Nom** (obligatoire) : le nom d'affichage de la société
+- **Pays** (obligatoire) : code pays ISO, recherche par nom ou code
+- **Plan comptable** : le plan comptable (CoA) lié à cette société (voir ci-dessous)
+- **Adresse 1**, **Adresse 2** : lignes d'adresse
+- **Code postal** : code postal
+- **Ville** (obligatoire) : nom de la ville
+- **État** : état ou province
+- **N° d'immatriculation** : numéro d'immatriculation de la société
+- **N° TVA** : numéro d'identification TVA
+- **Devise de base** (obligatoire) : code devise ISO, recherche par nom ou code
+- **Statut / Date de désactivation** : contrôle si la société est active (voir ci-dessous)
+- **Notes** : notes en texte libre
 
-**How it works**:
+---
 
-- Each save applies only to the currently selected year
-- If metrics for the year are **frozen**, the fields are read-only; unfreeze them from **Master Data Administration** to make changes
-- You need `companies:manager` to edit metrics
+### Détails
 
-## Chart of Accounts
+L'onglet Détails gère les **métriques annuelles**. Utilisez les onglets d'année en haut pour basculer entre les années (année en cours plus deux ans avant et après).
 
-Each company can be linked to a **Chart of Accounts** (CoA), which defines the set of accounts available when recording OPEX or CAPEX items for that company.
+**Ce que vous pouvez modifier** :
 
-**How it works**:
+- **Effectif** (obligatoire) : nombre total d'employés pour l'année, doit être un entier non négatif
+- **Utilisateurs IT** (optionnel) : nombre d'utilisateurs IT, doit être un entier non négatif
+- **Chiffre d'affaires** (optionnel) : chiffre d'affaires en millions de la devise de base de la société, jusqu'à 3 décimales
 
-- When you create a company, it is automatically assigned to the default CoA for its country (if one exists). If no country default exists, the global default CoA is used.
-- You can change the CoA assignment in the company's **Overview** tab using the **Chart of Accounts** selector. The selector shows CoAs matching the company's country plus any global-scope CoAs.
-- The CoA you select determines which accounts appear in the account dropdown when creating or editing spend items for this company.
+**Comment ça fonctionne** :
 
-**What this means for your workflow**:
+- Chaque enregistrement ne s'applique qu'à l'année actuellement sélectionnée
+- Si les métriques de l'année sont **gelées**, les champs sont en lecture seule ; dégélez-les depuis l'**Administration des données de référence** pour apporter des modifications
+- Vous avez besoin de `companies:manager` pour modifier les métriques
 
-- **Companies with a CoA**: when recording OPEX/CAPEX, you can only select accounts that belong to that company's Chart of Accounts. This ensures accounting consistency.
-- **Companies without a CoA** (legacy): can use accounts that do not belong to any Chart of Accounts. This supports gradual migration to the CoA system.
-- **Changing CoAs**: if you switch a company to a different CoA, existing spend items keep their current accounts (with a warning if they do not match the new CoA), but new items will use accounts from the new CoA.
+## Plan comptable
 
-**Setting up Charts of Accounts**: go to **Données de référence > Plans comptables** to view, create, or manage your CoA sets. You can create CoAs from scratch or load them from platform templates (country-specific standard account sets). Each country can have one default CoA that is automatically assigned to new companies from that country.
+Chaque société peut être liée à un **Plan comptable** (CoA), qui définit l'ensemble des comptes disponibles lors de l'enregistrement de postes OPEX ou CAPEX pour cette société.
 
-**Tip**: if you see an "obsolete account" warning when editing OPEX/CAPEX items, it means the account does not belong to the company's current Chart of Accounts. Update the account to one from the correct CoA to resolve this.
+**Comment ça fonctionne** :
 
-## Status and Disabled date
+- Lorsque vous créez une société, elle est automatiquement assignée au CoA par défaut pour son pays (si un tel CoA existe). S'il n'y a pas de CoA par défaut pour le pays, le CoA par défaut global est utilisé.
+- Vous pouvez changer l'assignation du CoA dans l'onglet **Vue d'ensemble** de la société en utilisant le sélecteur **Plan comptable**. Le sélecteur affiche les CoA correspondant au pays de la société plus les CoA de portée globale.
+- Le CoA que vous sélectionnez détermine quels comptes apparaissent dans le menu déroulant des comptes lors de la création ou modification de postes de dépenses pour cette société.
 
-Use the **Disabled date** to control when a company stops being active.
+**Ce que cela signifie pour votre flux de travail** :
 
-- Companies are **Enabled** by default. You can also schedule a future Disabled date.
-- After the Disabled date:
-    - The company no longer appears in selection lists for new allocations and is excluded from reports for strictly later years.
-    - Historical data remains intact; the company still appears in reports covering years when it was active.
-- **Prefer disabling over deleting.** Deletion is only possible if nothing references the company (no allocations or spend).
+- **Sociétés avec un CoA** : lors de l'enregistrement d'OPEX/CAPEX, vous ne pouvez sélectionner que des comptes appartenant au plan comptable de cette société. Cela garantit la cohérence comptable.
+- **Sociétés sans CoA** (historique) : peuvent utiliser des comptes qui n'appartiennent à aucun plan comptable. Cela supporte la migration progressive vers le système de CoA.
+- **Changer de CoA** : si vous basculez une société vers un autre CoA, les postes de dépenses existants conservent leurs comptes actuels (avec un avertissement s'ils ne correspondent pas au nouveau CoA), mais les nouveaux postes utiliseront les comptes du nouveau CoA.
 
-## Yearly metrics
+**Configurer les plans comptables** : rendez-vous dans **Données de référence > Plans comptables** pour consulter, créer ou gérer vos ensembles de CoA. Vous pouvez créer des CoA de zéro ou les charger depuis des modèles de la plateforme (ensembles de comptes standard par pays). Chaque pays peut avoir un CoA par défaut qui est automatiquement assigné aux nouvelles sociétés de ce pays.
 
-Many parts of the app are year-aware. Companies have metrics per year:
+**Conseil** : Si vous voyez un avertissement « compte obsolète » lors de la modification de postes OPEX/CAPEX, cela signifie que le compte n'appartient pas au plan comptable actuel de la société. Mettez à jour le compte vers un compte du bon CoA pour résoudre cet avertissement.
 
-- **Headcount** (required for the year)
-- **IT Users** (optional)
-- **Turnover** (optional, in millions of the company's base currency)
+## Statut et date de désactivation
 
-**Where it matters**:
+Utilisez la **Date de désactivation** pour contrôler quand une société cesse d'être active.
 
-- Allocations can use Headcount, IT Users, or Turnover to distribute costs across companies for a given year.
-- Reports use these metrics for KPIs and ratios.
-- Only companies active for a year are considered for that year's allocation and reporting.
+- Les sociétés sont **Activées** par défaut. Vous pouvez aussi planifier une date de désactivation future.
+- Après la date de désactivation :
+    - La société n'apparaît plus dans les listes de sélection pour les nouvelles ventilations et est exclue des rapports pour les années strictement postérieures.
+    - Les données historiques restent intactes ; la société apparaît toujours dans les rapports couvrant les années où elle était active.
+- **Préférez la désactivation à la suppression.** La suppression n'est possible que si rien ne référence la société (pas de ventilations ni de dépenses).
 
-**Freeze and copy**:
+## Métriques annuelles
 
-- You can **freeze** a year once finalized to prevent edits.
-- Use **Master Data Administration** to copy metrics from one year to another (choose which metrics to copy). Frozen years cannot be overwritten.
+De nombreuses parties de l'application sont sensibles à l'année. Les sociétés ont des métriques par année :
+
+- **Effectif** (obligatoire pour l'année)
+- **Utilisateurs IT** (optionnel)
+- **Chiffre d'affaires** (optionnel, en millions de la devise de base de la société)
+
+**Où c'est important** :
+
+- Les ventilations peuvent utiliser l'Effectif, les Utilisateurs IT ou le Chiffre d'affaires pour répartir les coûts entre les sociétés pour une année donnée.
+- Les rapports utilisent ces métriques pour les KPI et les ratios.
+- Seules les sociétés actives pour une année sont prises en compte pour la ventilation et le reporting de cette année.
+
+**Gel et copie** :
+
+- Vous pouvez **geler** une année une fois finalisée pour empêcher les modifications.
+- Utilisez l'**Administration des données de référence** pour copier les métriques d'une année à l'autre (choisissez quelles métriques copier). Les années gelées ne peuvent pas être écrasées.
 
 ## Import/export CSV
 
-Keep large sets in sync with your source systems using CSV (semicolon `;` separated).
+Maintenez de grands ensembles synchronisés avec vos systèmes sources en utilisant le CSV (séparateur point-virgule `;`).
 
-**Export**:
+**Export** :
 
-- **Template**: header-only file you can fill in (includes dynamic columns for Y-1, Y, Y+1 based on the selected year)
-- **Data**: current companies plus their metrics for Y-1 / Y / Y+1
+- **Modèle** : fichier d'en-têtes uniquement que vous pouvez remplir (inclut des colonnes dynamiques pour A-1, A, A+1 basées sur l'année sélectionnée)
+- **Données** : sociétés actuelles plus leurs métriques pour A-1 / A / A+1
 
-**Import**:
+**Import** :
 
-- Start with **Preflight** (validates headers, encoding, required fields, duplicates, and metrics)
-- If Preflight is OK, **Load** will apply inserts and updates
-- Matching is by company **name** (within your espace de travail). Duplicates in the file are deduplicated by name (first occurrence wins)
-- **Required fields**: Name, Country (2 letters), Base Currency (3 letters), City
-- **Optional field**: `coa_code` (references a Chart of Accounts; if omitted, the default CoA for the country is used)
-- **Metrics**: if you provide any metrics for a year, Headcount is required for that year; IT Users and Turnover are optional. Turnover accepts up to 3 decimals and must be expressed in millions of the company's base currency
+- Commencez par la **Vérification préalable** (valide les en-têtes, l'encodage, les champs obligatoires, les doublons et les métriques)
+- Si la vérification est OK, **Charger** applique les insertions et mises à jour
+- La correspondance se fait par **nom** de société (dans votre espace de travail). Les doublons dans le fichier sont dédupliqués par nom (la première occurrence l'emporte)
+- **Champs obligatoires** : Nom, Pays (2 lettres), Devise de base (3 lettres), Ville
+- **Champ optionnel** : `coa_code` (référence un plan comptable ; si omis, le CoA par défaut pour le pays est utilisé)
+- **Métriques** : si vous fournissez des métriques pour une année, l'Effectif est obligatoire pour cette année ; Utilisateurs IT et Chiffre d'affaires sont optionnels. Le Chiffre d'affaires accepte jusqu'à 3 décimales et doit être exprimé en millions de la devise de base de la société
 
-**Notes**:
+**Notes** :
 
-- Use **UTF-8 encoding** and **semicolons** as separators
-- The list refreshes automatically after a successful load
-- If importing with `coa_code`, ensure the Chart of Accounts exists in your espace de travail first
+- Utilisez l'**encodage UTF-8** et des **points-virgules** comme séparateurs
+- La liste se rafraîchit automatiquement après un chargement réussi
+- Si vous importez avec `coa_code`, assurez-vous que le plan comptable existe d'abord dans votre espace de travail
 
 ## Conseils
 
-- **Disable over delete**: keep history consistent and reports meaningful.
-- **Chart of Accounts**: assign CoAs to companies to ensure consistent account usage across OPEX/CAPEX items.
-- **Turnover**: enter values in millions of the company's base currency (e.g., 2.5 = 2.5 million in that currency).
-- **Headcount** is the most common allocation driver; keep it up to date for the current year.
-- **Frozen metrics**: you can still review them, but edits are blocked until you unfreeze from Administration.
-- **Column chooser**: use it to show or hide columns like City, Address, State, or Created to suit your workflow.
-- **Metric columns link to Details**: clicking a Headcount, IT Users, or Turnover value opens the Details tab directly for that company.
+- **Désactivez plutôt que supprimer** : gardez l'historique cohérent et les rapports significatifs.
+- **Plan comptable** : assignez des CoA aux sociétés pour garantir une utilisation cohérente des comptes dans les postes OPEX/CAPEX.
+- **Chiffre d'affaires** : saisissez les valeurs en millions de la devise de base de la société (ex. : 2,5 = 2,5 millions dans cette devise).
+- **Effectif** est le driver de ventilation le plus courant ; maintenez-le à jour pour l'année en cours.
+- **Métriques gelées** : vous pouvez toujours les consulter, mais les modifications sont bloquées tant que vous ne dégélez pas depuis l'Administration.
+- **Sélecteur de colonnes** : utilisez-le pour afficher ou masquer les colonnes comme Ville, Adresse, État ou Créé selon votre flux de travail.
+- **Les colonnes de métriques renvoient aux Détails** : cliquer sur une valeur d'Effectif, d'Utilisateurs IT ou de Chiffre d'affaires ouvre directement l'onglet Détails pour cette société.

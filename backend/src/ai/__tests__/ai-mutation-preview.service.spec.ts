@@ -1122,6 +1122,120 @@ async function testUpdateDocumentRelationsPreviewAddsMultipleLinks() {
   });
 }
 
+async function testUpdateDocumentRelationsPreviewAcceptsNestedMutationShape() {
+  const { service, context, saved } = createService({
+    previews: [],
+    sqlResponses: [
+      {
+        pattern: 'FROM portfolio_projects',
+        rows: [{
+          id: 'project-1',
+          name: 'Website Refresh',
+          item_number: 33,
+          updated_at: '2026-03-28T10:00:00.000Z',
+        }],
+      },
+      {
+        pattern: 'FROM applications',
+        rows: [{
+          id: 'app-0',
+          name: 'Core ERP',
+          updated_at: '2026-03-28T10:00:00.000Z',
+        }],
+      },
+    ],
+    documentRows: [{
+      id: '22222222-2222-4222-8222-222222222222',
+      item_ref: 'DOC-14',
+      item_number: 14,
+      title: 'Project Brief',
+      summary: 'Current summary',
+      content_markdown: '# Project Brief',
+      revision: 3,
+      status: 'draft',
+      review_due_at: null,
+      last_reviewed_at: null,
+      is_managed_integrated_document: false,
+      relations: {
+        applications: [{ id: 'app-0', name: 'Core ERP' }],
+        assets: [],
+        projects: [],
+        requests: [],
+        tasks: [],
+      },
+    }],
+  });
+
+  const result = await service.createPreview(context, 'update_document_relations', {
+    document_id: 'DOC-14',
+    add: {
+      projects: 'PRJ-33',
+    },
+    remove: {
+      applications: 'Core ERP',
+    },
+  });
+
+  assert.equal(result.changes.linked_projects.to, '- PRJ-33 - Website Refresh');
+  assert.equal(result.changes.linked_applications.from, '- Core ERP');
+  assert.equal(result.changes.linked_applications.to, null);
+  assert.deepEqual(saved[0].mutation_input.relations, {
+    applications: [],
+    projects: ['project-1'],
+  });
+}
+
+async function testUpdateDocumentRelationsPreviewRemovesLastLinkedApplication() {
+  const { service, context, saved } = createService({
+    previews: [],
+    sqlResponses: [{
+      pattern: 'FROM applications',
+      rows: [{
+        id: 'app-0',
+        name: 'Core ERP',
+        updated_at: '2026-03-28T10:00:00.000Z',
+      }],
+    }],
+    documentRows: [{
+      id: '22222222-2222-4222-8222-222222222222',
+      item_ref: 'DOC-14',
+      item_number: 14,
+      title: 'Project Brief',
+      summary: 'Current summary',
+      content_markdown: '# Project Brief',
+      revision: 3,
+      status: 'draft',
+      review_due_at: null,
+      last_reviewed_at: null,
+      is_managed_integrated_document: false,
+      relations: {
+        applications: [{ id: 'app-0', name: 'Core ERP' }],
+        assets: [],
+        projects: [],
+        requests: [],
+        tasks: [],
+      },
+    }],
+  });
+
+  const result = await service.createPreview(context, 'update_document_relations', {
+    document_id: 'DOC-14',
+    remove_application: 'Core ERP',
+  });
+
+  assert.equal(result.changes.linked_applications.from, '- Core ERP');
+  assert.equal(result.changes.linked_applications.to, null);
+  assert.deepEqual(saved[0].mutation_input.relations, {
+    applications: [],
+  });
+  assert.deepEqual(saved[0].mutation_input.relation_labels, {
+    applications: [],
+  });
+  assert.deepEqual(saved[0].current_values.relation_snapshot, {
+    applications: [{ id: 'app-0', ref: null, label: 'Core ERP' }],
+  });
+}
+
 async function testUpdateDocumentRelationsPreviewRequiresConfirmationForAmbiguousProject() {
   const { service, context } = createService({
     previews: [],
@@ -1474,6 +1588,59 @@ async function testExecuteDocumentRelationsPreviewUsesLockAndAudit() {
   });
 }
 
+async function testExecuteDocumentRelationsPreviewRoutesRemovalThroughKnowledgeService() {
+  const { service, context, documentUpdates } = createService({
+    previews: [createDocumentRelationsPreview({
+      mutation_input: {
+        relations: {
+          applications: [],
+        },
+        relation_labels: {
+          applications: [],
+        },
+      },
+      current_values: {
+        target_ref: 'DOC-14',
+        target_title: 'Project Brief',
+        revision: 3,
+        relation_snapshot: {
+          applications: [{ id: 'app-0', ref: null, label: 'Core ERP' }],
+        },
+      },
+    })],
+    documentRows: [{
+      id: '22222222-2222-4222-8222-222222222222',
+      item_ref: 'DOC-14',
+      item_number: 14,
+      title: 'Project Brief',
+      summary: 'Current summary',
+      content_markdown: '# Project Brief',
+      revision: 3,
+      status: 'draft',
+      review_due_at: null,
+      last_reviewed_at: null,
+      is_managed_integrated_document: false,
+      relations: {
+        applications: [{ id: 'app-0', name: 'Core ERP' }],
+        assets: [],
+        projects: [],
+        requests: [],
+        tasks: [],
+      },
+    }],
+  });
+
+  await service.executePreview(context, 'preview-1');
+
+  assert.deepEqual(documentUpdates[0][1], {
+    relations: {
+      applications: [],
+    },
+    revision: 3,
+    save_mode: 'manual',
+  });
+}
+
 async function testDocumentRevisionDriftFailsExecutionAndReleasesLock() {
   const { service, context, documentUpdates, documentLocksReleased } = createService({
     previews: [createDocumentMetadataPreview()],
@@ -1803,12 +1970,15 @@ async function main() {
   await testUpdateDocumentContentPreviewFailsWhenDocumentLocked();
   await testUpdateDocumentContentPreviewIncludesRelationAdditions();
   await testUpdateDocumentRelationsPreviewAddsMultipleLinks();
+  await testUpdateDocumentRelationsPreviewAcceptsNestedMutationShape();
+  await testUpdateDocumentRelationsPreviewRemovesLastLinkedApplication();
   await testUpdateDocumentRelationsPreviewRequiresConfirmationForAmbiguousProject();
   await testExecuteDocumentMetadataPreviewUsesLockAndAudit();
   await testExecuteDocumentMetadataPreviewRoutesRelationsThroughKnowledgeService();
   await testExecuteDocumentContentPreviewUsesLockAndAudit();
   await testExecuteDocumentContentPreviewRoutesRelationsThroughKnowledgeService();
   await testExecuteDocumentRelationsPreviewUsesLockAndAudit();
+  await testExecuteDocumentRelationsPreviewRoutesRemovalThroughKnowledgeService();
   await testDocumentRevisionDriftFailsExecutionAndReleasesLock();
   await testDocumentContentRevisionDriftFailsExecutionAndReleasesLock();
   await testDocumentRelationDriftFailsExecutionAndReleasesLock();

@@ -44,6 +44,15 @@ function createRegistry(overrides?: {
     {
       searchAll: async () => ({ items: [], total: 0, entity_types: ['applications'] }),
       getEntityContext: async () => ({ entity: { id: 'app-1' }, related: [], knowledge: null }),
+      getEntityComments: async () => ({
+        entity: { type: 'tasks', id: 'task-1', ref: 'T-1', label: 'Test task' },
+        items: [],
+        total: 0,
+        offset: 0,
+        limit: 20,
+        returned: 0,
+        truncated: false,
+      }),
       ...(overrides?.entityTools || {}),
     } as any,
     {
@@ -344,6 +353,17 @@ async function testListAvailableTools() {
   );
 }
 
+async function testTaskReadersSeeEntityCommentsTool() {
+  const registry = createRegistry({
+    policy: {
+      listReadableEntityTypes: async () => ['tasks'],
+    },
+  });
+
+  const tools = await registry.listAvailableTools(createContext());
+  assert.ok(tools.some((tool) => tool.name === 'get_entity_comments'));
+}
+
 async function testListRegisteredToolsExposesRuntimeRegistry() {
   const registry = createRegistry();
 
@@ -355,6 +375,7 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
       'aggregate_entities',
       'get_filter_values',
       'get_entity_context',
+      'get_entity_comments',
       'search_knowledge',
       'get_document',
       'undo_preview',
@@ -517,6 +538,11 @@ async function testUpdateDocumentRelationsToolSchemaExposesRelationFields() {
   assert.ok(schema);
   assert.match(String((schema!.parameters as any).properties?.projects?.description || ''), /PRJ-33/i);
   assert.match(String((schema!.parameters as any).properties?.applications?.description || ''), /Application name/i);
+  assert.match(String((schema!.parameters as any).properties?.add?.description || ''), /Canonical grouped relation additions/i);
+  assert.match(String((schema!.parameters as any).properties?.add?.properties?.projects?.description || ''), /PRJ-33/i);
+  assert.match(String((schema!.parameters as any).properties?.remove?.description || ''), /Canonical grouped relation removals/i);
+  assert.match(String((schema!.parameters as any).properties?.remove?.properties?.applications?.description || ''), /remove multiple linked applications/i);
+  assert.match(String((schema!.parameters as any).properties?.remove_applications?.description || ''), /remove multiple linked applications/i);
 }
 
 async function testSearchAllDelegatesToEntityTools() {
@@ -591,6 +617,43 @@ async function testGetEntityContextDelegatesToEntityTools() {
   assert.deepEqual(calls, [{
     entity_type: 'applications',
     entity_id: 'app-1',
+  }]);
+}
+
+async function testGetEntityCommentsDelegatesToEntityTools() {
+  const calls: unknown[] = [];
+  const registry = createRegistry({
+    entityTools: {
+      getEntityComments: async (_context: unknown, input: unknown) => {
+        calls.push(input);
+        return {
+          entity: { type: 'projects', id: 'project-1', ref: 'PRJ-1', label: 'Migration' },
+          items: [{ author: 'Alex', content: 'Need a rollback plan.', created_at: '2026-03-29T10:00:00.000Z', updated_at: '2026-03-29T10:00:00.000Z', edited: false }],
+          total: 1,
+          offset: 0,
+          limit: 20,
+          returned: 1,
+          truncated: false,
+        };
+      },
+    },
+    policy: {
+      listReadableEntityTypes: async () => ['projects'],
+    },
+  });
+
+  const result = await registry.execute(createContext(), 'get_entity_comments', {
+    entity_type: 'projects',
+    entity_id: 'PRJ-1',
+  }) as any;
+
+  assert.equal(result.entity.ref, 'PRJ-1');
+  assert.equal(result.items[0].content, 'Need a rollback plan.');
+  assert.deepEqual(calls, [{
+    entity_type: 'projects',
+    entity_id: 'PRJ-1',
+    offset: 0,
+    limit: 20,
   }]);
 }
 
@@ -755,6 +818,21 @@ async function testSchemasExposeDefaultLimits() {
   assert.equal(searchKnowledge.parameters.properties.limit.default, 100);
 }
 
+async function testGetEntityCommentsSchemaExposesPaginationDefaults() {
+  const registry = createRegistry({
+    policy: {
+      listReadableEntityTypes: async () => ['projects'],
+    },
+  });
+  const schemas = await registry.getToolJsonSchemas(createContext()) as any[];
+  const getEntityComments = schemas.find((schema) => schema.name === 'get_entity_comments');
+
+  assert.ok(getEntityComments);
+  assert.equal(getEntityComments.parameters.properties.offset.default, 0);
+  assert.equal(getEntityComments.parameters.properties.limit.default, 20);
+  assert.match(String(getEntityComments.parameters.properties.entity_id.description || ''), /PRJ-12|T-42/i);
+}
+
 async function testAggregateEntitiesDelegatesToAggregateExecutor() {
   const calls: unknown[] = [];
   const registry = createRegistry({
@@ -890,6 +968,7 @@ async function testAggregateExecutorRejectsStructuredPredicatesInsideQuickSearch
 
 async function run() {
   await testListAvailableTools();
+  await testTaskReadersSeeEntityCommentsTool();
   await testListRegisteredToolsExposesRuntimeRegistry();
   await testSearchAllDelegatesToEntityTools();
   await testSearchAllAppliesGenerousDefaultLimit();
@@ -905,9 +984,11 @@ async function run() {
   await testAggregateEntitiesSchemaExposesMetricAndFunction();
   await testGetFilterValuesDelegatesToQueryExecutor();
   await testGetEntityContextDelegatesToEntityTools();
+  await testGetEntityCommentsDelegatesToEntityTools();
   await testSearchKnowledgeMapsStableDto();
   await testSearchKnowledgeAppliesDefaultLimit();
   await testSchemasExposeDefaultLimits();
+  await testGetEntityCommentsSchemaExposesPaginationDefaults();
   await testGetDocumentMapsStableDto();
   await testWebSearchRejectsOversizedQueries();
   await testQueryExecutorRejectsStructuredPredicatesInsideQuickSearch();
