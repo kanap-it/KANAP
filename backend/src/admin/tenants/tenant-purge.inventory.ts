@@ -63,6 +63,7 @@ export const TENANT_PURGE_TABLES = [
   'document_folders',
   'document_libraries',
   // AI
+  'ai_mutation_previews',
   'ai_messages',
   'ai_conversations',
   'ai_api_keys',

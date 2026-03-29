@@ -32,7 +32,7 @@ const TABLES_TO_CHECK_RLS = Array.from(new Set([
   'portfolio_request_projects', 'portfolio_request_dependencies', 'portfolio_project_dependencies',
   'application_projects', 'asset_projects',
   'portfolio_request_applications', 'portfolio_request_assets',
-  'ai_settings', 'ai_api_keys', 'ai_conversations', 'ai_messages',
+  'ai_settings', 'ai_api_keys', 'ai_conversations', 'ai_messages', 'ai_mutation_previews',
 ]));
 
 const TABLES_TO_CHECK_POLICY = new Set([
@@ -55,6 +55,7 @@ const TABLES_TO_CHECK_POLICY = new Set([
   'ai_api_keys',
   'ai_conversations',
   'ai_messages',
+  'ai_mutation_previews',
 ]);
 
 const TABLES_TO_CHECK_FORCE = new Set([

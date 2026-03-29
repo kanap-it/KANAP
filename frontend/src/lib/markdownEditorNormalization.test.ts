@@ -57,4 +57,26 @@ describe('markdownEditorNormalization', () => {
 
     expect(normalizeInlineFencedCodeBlocks(markdown)).toBe(markdown);
   });
+
+  it('normalizes quoted fenced SQL blocks started inline after prose', () => {
+    const markdown = [
+      '> **Attention** : Toujours verifier les vrais noms avant creation :```sql',
+      '> SELECT COLUMN_NAME',
+      '> FROM INFORMATION_SCHEMA.COLUMNS',
+      "> WHERE TABLE_NAME = '<TABLE>'",
+      ">   AND COLUMN_NAME LIKE '%<motif>%'",
+      '> ORDER BY COLUMN_NAME;',
+      '> ```',
+    ].join('\n');
+
+    expect(() => fromMarkdown(markdown, {
+      extensions: [mdxJsx()],
+      mdastExtensions: [mdxJsxFromMarkdown()],
+    })).toThrow(/closing tag/i);
+
+    const normalized = normalizeMarkdownForRichTextEditor(markdown);
+
+    expect(normalized).toContain('creation :\n> ```sql');
+    expectMarkdownToParse(normalized);
+  });
 });
