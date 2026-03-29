@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import { normalizeMarkdownForRichTextEditor } from '../lib/markdownEditorNormalization';
 
 interface MarkdownContentProps {
   content: string;
@@ -43,7 +44,7 @@ function sanitizeUrl(url: string, key?: string): string {
 
 export function MarkdownContent({ content, variant = 'default' }: MarkdownContentProps) {
   const isCompact = variant === 'compact';
-  const value = content || '';
+  const value = normalizeMarkdownForRichTextEditor(content || '');
 
   return (
     <Box

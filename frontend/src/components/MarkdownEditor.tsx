@@ -46,6 +46,7 @@ import {
 import '@mdxeditor/editor/style.css';
 import { $getSelection, type LexicalEditor } from 'lexical';
 import { hasPotentiallyUnsafeMdxPaste, sanitizeMarkdownForMdxPaste } from '../lib/mdxPaste';
+import { normalizeMarkdownForRichTextEditor } from '../lib/markdownEditorNormalization';
 import {
   convertRichClipboardToMarkdown,
   extractClipboardImageFiles,
@@ -161,9 +162,11 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   const mdxRef = React.useRef<MDXEditorMethods>(null);
   const lexicalEditorRef = React.useRef<LexicalEditor | null>(null);
   const internalChangeRef = React.useRef(false);
-  const currentMarkdownRef = React.useRef(value || '');
+  const currentMarkdownRef = React.useRef(normalizeMarkdownForRichTextEditor(value || ''));
+  const onChangeRef = React.useRef<MarkdownEditorProps['onChange']>(onChange);
   const imageUploadHandlerRef = React.useRef<MarkdownEditorProps['onImageUpload']>(onImageUpload);
   const imageUrlImportHandlerRef = React.useRef<MarkdownEditorProps['onImageUrlImport']>(onImageUrlImport);
+  onChangeRef.current = onChange;
   imageUploadHandlerRef.current = onImageUpload;
   imageUrlImportHandlerRef.current = onImageUrlImport;
   const [editorInstanceKey, setEditorInstanceKey] = React.useState(0);
@@ -258,11 +261,24 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   const handleChange = React.useCallback(
     (markdown: string, initialMarkdownNormalize: boolean) => {
       if (initialMarkdownNormalize) return;
-      currentMarkdownRef.current = markdown;
+      const normalized = normalizeMarkdownForRichTextEditor(markdown);
+      currentMarkdownRef.current = normalized;
       internalChangeRef.current = true;
-      onChange(markdown);
+      onChangeRef.current(normalized);
     },
-    [onChange],
+    [],
+  );
+
+  const handleError = React.useCallback(
+    ({ source }: { error: string; source: string }) => {
+      if (disabled) return;
+      const normalized = normalizeMarkdownForRichTextEditor(source);
+      if (normalized === currentMarkdownRef.current) return;
+      currentMarkdownRef.current = normalized;
+      internalChangeRef.current = true;
+      onChangeRef.current(normalized);
+    },
+    [disabled],
   );
 
   const insertPlainText = React.useCallback((text: string) => {
@@ -281,28 +297,39 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   }, []);
 
   const insertSanitizedMarkdown = React.useCallback((markdown: string) => {
-    const content = sanitizeMarkdownForMdxPaste(markdown);
+    const content = normalizeMarkdownForRichTextEditor(sanitizeMarkdownForMdxPaste(markdown));
     if (!content.trim()) return false;
     mdxRef.current?.insertMarkdown(content);
     return true;
   }, []);
 
   React.useEffect(() => {
-    const incoming = value || '';
+    const incomingRaw = value || '';
+    const incoming = normalizeMarkdownForRichTextEditor(incomingRaw);
     if (internalChangeRef.current) {
       internalChangeRef.current = false;
       currentMarkdownRef.current = incoming;
+      return;
+    }
+    if (!disabled && incoming !== incomingRaw) {
+      const shouldRemount = incoming !== currentMarkdownRef.current;
+      currentMarkdownRef.current = incoming;
+      if (shouldRemount) {
+        setEditorInstanceKey((prev) => prev + 1);
+      }
+      internalChangeRef.current = true;
+      onChangeRef.current(incoming);
       return;
     }
     if (incoming === currentMarkdownRef.current) return;
     currentMarkdownRef.current = incoming;
     // Remount on true external resets so rich image nodes render immediately.
     setEditorInstanceKey((prev) => prev + 1);
-  }, [value]);
+  }, [disabled, value]);
 
   React.useEffect(() => {
     if (refreshNonce === undefined || refreshNonce < 1) return;
-    const incoming = value || '';
+    const incoming = normalizeMarkdownForRichTextEditor(value || '');
     currentMarkdownRef.current = incoming;
     mdxRef.current?.setMarkdown(incoming);
   }, [refreshNonce, value]);
@@ -678,6 +705,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
           className={mdxRootClassName}
           contentEditableClassName="kanap-mdx-content"
           onChange={handleChange}
+          onError={handleError}
           plugins={plugins}
         />
       </Box>

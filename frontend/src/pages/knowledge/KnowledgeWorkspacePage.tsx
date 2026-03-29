@@ -34,6 +34,7 @@ import FolderTreePanel from './components/FolderTreePanel';
 import ValidatedBadge from './components/ValidatedBadge';
 import { CircularProgress } from '@mui/material';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { normalizeMarkdownForRichTextEditor } from '../../lib/markdownEditorNormalization';
 
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
@@ -720,10 +721,11 @@ export default function KnowledgeWorkspacePage() {
           throw new Error(t('workspace.messages.noDestinationLibrary'));
         }
         const createRelationPayload = buildRelationPayload(relationSelections);
+        const contentMarkdown = normalizeMarkdownForRichTextEditor(contentDraftRef.current);
         const payload = {
           title: form.title,
           summary: form.summary,
-          content_markdown: contentDraftRef.current,
+          content_markdown: contentMarkdown,
           status: form.status,
           folder_id: form.folder_id || null,
           library_id: workspaceLibraryId,
@@ -736,10 +738,11 @@ export default function KnowledgeWorkspacePage() {
         return { mode, data: res.data, created: true };
       }
 
+      const contentMarkdown = normalizeMarkdownForRichTextEditor(contentDraftRef.current);
       const payload = {
         title: form.title,
         summary: form.summary,
-        content_markdown: contentDraftRef.current,
+        content_markdown: contentMarkdown,
         status: form.status,
         folder_id: form.folder_id || null,
         document_type_id: form.document_type_id || null,
@@ -1105,7 +1108,7 @@ export default function KnowledgeWorkspacePage() {
   );
 
   const getCurrentContentMarkdown = React.useCallback(
-    () => contentDraftRef.current,
+    () => normalizeMarkdownForRichTextEditor(contentDraftRef.current),
     [],
   );
 

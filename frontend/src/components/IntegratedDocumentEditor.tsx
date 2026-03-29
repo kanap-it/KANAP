@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 import ExportButton from './ExportButton';
 import ImportButton from './ImportButton';
 import { MarkdownContent } from './MarkdownContent';
+import { normalizeMarkdownForRichTextEditor } from '../lib/markdownEditorNormalization';
 
 const MarkdownEditor = React.lazy(() => import('./MarkdownEditor'));
 
@@ -247,7 +248,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
       const res = await api.patch(
         endpointBase,
         {
-          content_markdown: form.content_markdown,
+          content_markdown: normalizeMarkdownForRichTextEditor(form.content_markdown),
           revision: form.revision,
           save_mode: mode,
         },
@@ -522,7 +523,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
   if (isDraftMode) {
     const draftActions = (
       <ExportButton
-        content={draftValue || ''}
+        content={normalizeMarkdownForRichTextEditor(draftValue || '')}
         title={exportTitle}
         disabled={!String(draftValue || '').trim()}
       />
@@ -612,7 +613,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
         />
       )}
       <ExportButton
-        content={form.content_markdown || ''}
+        content={normalizeMarkdownForRichTextEditor(form.content_markdown || '')}
         title={deepLinkRef || exportTitle}
         disabled={!String(form.content_markdown || '').trim()}
       />
