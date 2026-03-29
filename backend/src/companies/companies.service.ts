@@ -438,7 +438,7 @@ export class CompaniesService {
       .split(',')
       .map((field) => field.trim())
       .filter(Boolean);
-    const allowed = new Set(['country_iso', 'city', 'base_currency']);
+    const allowed = new Set(['country_iso', 'city', 'state', 'base_currency']);
     const fields = rawFields.filter((field) => allowed.has(field));
     if (fields.length === 0) return {};
 

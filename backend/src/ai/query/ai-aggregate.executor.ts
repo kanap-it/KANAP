@@ -13,6 +13,7 @@ import { PortfolioProjectsService } from '../../portfolio/services';
 import { SpendItemsService } from '../../spend/spend-items.service';
 import { TasksService } from '../../spend/tasks.service';
 import { SuppliersService } from '../../suppliers/suppliers.service';
+import { UsersService } from '../../users/users.service';
 import { AiExecutionContextWithManager, AiQueryEntityType, AiQueryScope } from '../ai.types';
 import { adaptFilters } from './ai-filter.adapter';
 import { applyScopeToAiQuery, ResolvedAiScope } from './ai-query-scope.util';
@@ -23,7 +24,9 @@ import {
   AiDateFilterValue,
   AiFilterValue,
 } from './ai-filter.types';
+import { assertPlainTextQuickSearch } from './ai-quick-search-validation.util';
 import { getAiEntityRegistry } from './registries';
+import { getSpendSummaryFieldValue } from '../../spend/spend-summary.builder';
 
 type DocumentSearchState = { term: string; itemNumber: number | null };
 type AiAggregateFunction = 'count' | 'sum' | 'avg' | 'min' | 'max';
@@ -63,6 +66,7 @@ type SupportedAggregateEntityType =
   | 'spend_items'
   | 'suppliers'
   | 'tasks'
+  | 'users'
   | 'documents';
 
 const DOCUMENT_LINKED_ENTITY_FILTERS: Record<DocumentLinkedEntityField, DocumentLinkedEntitySurface[]> = {
@@ -159,15 +163,22 @@ function getDocumentSearchState(input?: string): DocumentSearchState | null {
 
 function buildDocumentSearchSql(
   alias: string,
-  paramOffset: number,
   search: DocumentSearchState,
-): { clause: string; params: Array<string | number> } {
-  const params: Array<string | number> = [search.term];
-  const searchTermIndex = paramOffset + 1;
-  const clauses = [`${alias}.search_vector @@ websearch_to_tsquery('simple', $${searchTermIndex})`];
+): { clause: string; params: Record<string, string | number> } {
+  const params: Record<string, string | number> = {
+    searchTerm: search.term,
+    searchLike: `%${search.term}%`,
+  };
+  const clauses = [
+    `${alias}.search_vector @@ websearch_to_tsquery('simple', :searchTerm)`,
+    `${alias}.title ILIKE :searchLike`,
+    `COALESCE(${alias}.summary, '') ILIKE :searchLike`,
+    `COALESCE(${alias}.content_plain, '') ILIKE :searchLike`,
+    `COALESCE(${alias}.content_markdown, '') ILIKE :searchLike`,
+  ];
   if (search.itemNumber != null) {
-    params.push(search.itemNumber);
-    clauses.unshift(`${alias}.item_number = $${paramOffset + params.length}`);
+    params.searchItemNumber = search.itemNumber;
+    clauses.unshift(`${alias}.item_number = :searchItemNumber`);
   }
   return {
     clause: `(${clauses.join(' OR ')})`,
@@ -379,6 +390,7 @@ export class AiAggregateExecutor {
     private readonly suppliers: SuppliersService,
     private readonly departments: DepartmentsService,
     private readonly knowledge: KnowledgeService,
+    private readonly users: UsersService,
   ) {}
 
   private serializeFiltersForTasks(filters: Record<string, any>): string | undefined {
@@ -562,6 +574,20 @@ export class AiAggregateExecutor {
       return { ids: rows.map((r) => r.id), scope: null };
     }
 
+    if (entityType === 'users') {
+      const result = await this.users.listIdsForAi(
+        {
+          q,
+          filters: adaptedFilters,
+        },
+        {
+          manager: context.manager,
+          tenantId: context.tenantId,
+        },
+      );
+      return { ids: result.ids || [], scope: null };
+    }
+
     throw new BadRequestException('Unsupported entity type.');
   }
 
@@ -627,7 +653,7 @@ export class AiAggregateExecutor {
 
     const search = getDocumentSearchState(q);
     if (search) {
-      const searchFilter = buildDocumentSearchSql('d', 0, search);
+      const searchFilter = buildDocumentSearchSql('d', search);
       qb.andWhere(searchFilter.clause, searchFilter.params);
     }
 
@@ -748,6 +774,122 @@ export class AiAggregateExecutor {
     }));
   }
 
+  private async aggregateSpendSummaryByIds(
+    context: AiExecutionContextWithManager,
+    groupBy: string,
+    ids: string[],
+    fn: AiAggregateFunction,
+    metric: { key: string; def: AiAggregateMetricDef } | null,
+  ): Promise<Array<{ key: string | null; count: number } | { key: string | null; value: number | string | null }>> {
+    const registry = getAiEntityRegistry('spend_items');
+    const groupField = registry.fields[groupBy];
+    if (!groupField) {
+      throw new BadRequestException('Unsupported group_by field.');
+    }
+
+    const rows = await this.spendItems.summaryRowsByIds(
+      ids,
+      {
+        years: [
+          new Date().getFullYear() - 2,
+          new Date().getFullYear() - 1,
+          new Date().getFullYear(),
+          new Date().getFullYear() + 1,
+          new Date().getFullYear() + 2,
+        ],
+      },
+      { manager: context.manager },
+    );
+
+    if (fn === 'count' || !metric) {
+      const counts = new Map<string, { key: string | null; count: number }>();
+      for (const row of rows) {
+        const rawKey = getSpendSummaryFieldValue(row, groupField.grid);
+        const key = rawKey == null || rawKey === '' ? null : String(rawKey);
+        const bucketKey = key ?? '__NULL__';
+        const current = counts.get(bucketKey) ?? { key, count: 0 };
+        current.count += 1;
+        counts.set(bucketKey, current);
+      }
+      return Array.from(counts.values()).sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return (a.key ?? '').localeCompare(b.key ?? '');
+      });
+    }
+
+    const metricField = registry.fields[metric.key];
+    if (!metricField) {
+      throw new BadRequestException('Unsupported metric field.');
+    }
+
+    type AggregateBucket = {
+      key: string | null;
+      sum: number;
+      count: number;
+      min: number | null;
+      max: number | null;
+    };
+    const buckets = new Map<string, AggregateBucket>();
+
+    for (const row of rows) {
+      const rawKey = getSpendSummaryFieldValue(row, groupField.grid);
+      const key = rawKey == null || rawKey === '' ? null : String(rawKey);
+      const rawMetric = getSpendSummaryFieldValue(row, metricField.grid);
+      const value = rawMetric == null || rawMetric === '' ? null : Number(rawMetric);
+      if (value == null || !Number.isFinite(value)) continue;
+
+      const bucketKey = key ?? '__NULL__';
+      const bucket = buckets.get(bucketKey) ?? {
+        key,
+        sum: 0,
+        count: 0,
+        min: null,
+        max: null,
+      };
+      bucket.sum += value;
+      bucket.count += 1;
+      bucket.min = bucket.min == null ? value : Math.min(bucket.min, value);
+      bucket.max = bucket.max == null ? value : Math.max(bucket.max, value);
+      buckets.set(bucketKey, bucket);
+    }
+
+    const values = Array.from(buckets.values()).map((bucket) => {
+      let value: number | null = null;
+      switch (fn) {
+        case 'sum':
+          value = bucket.sum;
+          break;
+        case 'avg':
+          value = bucket.count > 0 ? bucket.sum / bucket.count : null;
+          break;
+        case 'min':
+          value = bucket.min;
+          break;
+        case 'max':
+          value = bucket.max;
+          break;
+        default:
+          value = null;
+      }
+      return {
+        key: bucket.key,
+        value,
+      };
+    });
+
+    return values.sort((a, b) => {
+      const av = a.value;
+      const bv = b.value;
+      if (av == null && bv == null) return (a.key ?? '').localeCompare(b.key ?? '');
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (av !== bv) {
+        return fn === 'min' ? av - bv : bv - av;
+      }
+      return (a.key ?? '').localeCompare(b.key ?? '');
+    });
+  }
+
   async execute(
     context: AiExecutionContextWithManager,
     input: {
@@ -765,6 +907,7 @@ export class AiAggregateExecutor {
     if (!field || field.groupable !== true) {
       throw new BadRequestException('Unsupported group_by field.');
     }
+    assertPlainTextQuickSearch(input.entity_type, input.q);
 
     const fn = normalizeAggregateFunction(input.function);
     const metric = this.resolveMetric(input.entity_type, input.metric?.trim(), fn);
@@ -872,7 +1015,9 @@ export class AiAggregateExecutor {
       };
     }
 
-    const groups = await this.aggregateByIds(context, input.entity_type, input.group_by, ids, fn, metric);
+    const groups = input.entity_type === 'spend_items'
+      ? await this.aggregateSpendSummaryByIds(context, input.group_by, ids, fn, metric)
+      : await this.aggregateByIds(context, input.entity_type, input.group_by, ids, fn, metric);
     return {
       group_by: input.group_by,
       metric: metric?.key ?? null,

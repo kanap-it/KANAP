@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   Box,
   Chip,
   Collapse,
@@ -17,6 +18,19 @@ type ToolResultRendererProps = {
   result: unknown;
   arguments?: Record<string, unknown>;
 };
+
+function getIgnoredFields(result: unknown): string[] {
+  if (!result || typeof result !== 'object') {
+    return [];
+  }
+  const candidate = result as Record<string, unknown>;
+  const values = Array.isArray(candidate.filters_ignored)
+    ? candidate.filters_ignored
+    : Array.isArray(candidate.fields_ignored)
+      ? candidate.fields_ignored
+      : [];
+  return values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+}
 
 function EntityList({ items }: { items: any[] }) {
   const { t } = useTranslation(['ai']);
@@ -79,6 +93,7 @@ export default function ToolResultRenderer({ name, result, arguments: args }: To
   const { t } = useTranslation(['ai']);
   const [expanded, setExpanded] = useState(false);
   const data = result as any;
+  const ignoredFields = getIgnoredFields(result);
 
   const renderContent = () => {
     switch (name) {
@@ -147,6 +162,16 @@ export default function ToolResultRenderer({ name, result, arguments: args }: To
       </Stack>
       <Collapse in={expanded}>
         <Box sx={{ px: 1.5, pb: 1 }}>
+          {ignoredFields.length > 0 && (
+            <Alert severity="warning" sx={{ mb: 1, py: 0 }}>
+              <Typography variant="body2">
+                {t('toolResults.ignoredFields', {
+                  fields: ignoredFields.join(', '),
+                  defaultValue: `Ignored fields: ${ignoredFields.join(', ')}`,
+                })}
+              </Typography>
+            </Alert>
+          )}
           {renderContent()}
         </Box>
       </Collapse>

@@ -65,6 +65,8 @@ interface MarkdownEditorProps {
   refreshNonce?: number;
   onImageUpload?: (file: File) => Promise<string>;
   onImageUrlImport?: (sourceUrl: string) => Promise<string>;
+  /** Show the full toolbar (Sub, Sup, ThematicBreak). Default is compact. */
+  fullToolbar?: boolean;
 }
 
 const EMOJI_OPTIONS = [
@@ -143,12 +145,18 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   refreshNonce,
   onImageUpload,
   onImageUrlImport,
+  fullToolbar = false,
 }: MarkdownEditorProps) {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   const minHeight = minRows * 24;
   const maxHeight = maxRows * 24;
   const contentHeightOffset = disabled ? 0 : 24;
+  const editorContentMinHeight = fillHeight ? 0 : (minHeight - contentHeightOffset);
+  const editorContentMaxHeight = fillHeight ? '100%' : (maxHeight - contentHeightOffset);
+  const fixedSourceEditorHeight = fillHeight
+    ? '100%'
+    : (minRows === maxRows ? (maxHeight - contentHeightOffset) : undefined);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const mdxRef = React.useRef<MDXEditorMethods>(null);
   const lexicalEditorRef = React.useRef<LexicalEditor | null>(null);
@@ -427,7 +435,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
                         <Separator />
                         <BlockTypeSelect />
                         <BoldItalicUnderlineToggles options={['Bold', 'Italic']} />
-                        <StrikeThroughSupSubToggles options={['Strikethrough', 'Sub', 'Sup']} />
+                        <StrikeThroughSupSubToggles options={fullToolbar ? ['Strikethrough', 'Sub', 'Sup'] : ['Strikethrough']} />
                         <HighlightToggle />
                         <CodeToggle />
                         <Separator />
@@ -439,7 +447,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
                         <InsertTable />
                         <InsertCodeBlock />
                         <InsertAdmonition />
-                        <InsertThematicBreak />
+                        {fullToolbar && <InsertThematicBreak />}
                       </>
                     ),
                   },
@@ -452,7 +460,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
     }
 
     return basePlugins;
-  }, [codeBlockLanguages, disabled, onImageUpload]);
+  }, [codeBlockLanguages, disabled, fullToolbar, onImageUpload]);
 
   return (
     <>
@@ -562,6 +570,15 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
             height: fillHeight ? '100%' : 'auto',
             minHeight: 0,
           },
+          '& .kanap-mdx-root .mdxeditor-diff-source-wrapper': {
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            ...(fillHeight ? { flex: 1, height: '100%' } : {}),
+          },
+          '& .kanap-mdx-root .mdxeditor-rich-text-editor': {
+            ...(fillHeight ? { minHeight: 0, height: '100%' } : {}),
+          },
           '& .kanap-mdx-root .mdxeditor-root-contenteditable': {
             ...(fillHeight ? { display: 'flex', flex: 1, minHeight: 0, height: '100%' } : {}),
           },
@@ -570,10 +587,29 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
               ? { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }
               : {}),
           },
+          '& .kanap-mdx-root .mdxeditor-source-editor': {
+            minHeight: editorContentMinHeight,
+            maxHeight: editorContentMaxHeight,
+            ...(fillHeight ? { flex: 1, height: '100%' } : {}),
+            ...(fixedSourceEditorHeight !== undefined ? { height: fixedSourceEditorHeight } : {}),
+            overflow: 'hidden',
+          },
+          '& .kanap-mdx-root .mdxeditor-source-editor > .cm-editor': {
+            minHeight: 'inherit',
+            maxHeight: 'inherit',
+            ...(fixedSourceEditorHeight !== undefined ? { height: '100%' } : {}),
+          },
+          '& .kanap-mdx-root .mdxeditor-source-editor .cm-scroller': {
+            minHeight: 'inherit',
+            maxHeight: 'inherit',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            overscrollBehavior: 'contain',
+          },
           '& .kanap-mdx-content': {
             p: 1.5,
-            minHeight: fillHeight ? 0 : (minHeight - contentHeightOffset),
-            maxHeight: fillHeight ? '100%' : (maxHeight - contentHeightOffset),
+            minHeight: editorContentMinHeight,
+            maxHeight: editorContentMaxHeight,
             ...(fillHeight ? { flex: 1, height: '100%' } : {}),
             overflowY: 'auto',
             overflowX: 'hidden',

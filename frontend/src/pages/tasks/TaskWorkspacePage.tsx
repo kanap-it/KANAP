@@ -287,6 +287,7 @@ export default function TaskWorkspacePage() {
     if (task?.item_number && task?.title) {
       document.title = t('portfolio:workspace.task.browserTitle', {
         ref: `T-${task.item_number}`,
+        title: task.title,
         name: task.title,
       });
     }

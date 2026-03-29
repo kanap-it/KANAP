@@ -11,6 +11,7 @@ import { ChatConversation } from '../../ai/aiTypes';
 import ChatMessageList from '../../ai/components/ChatMessageList';
 import ChatInput, { ChatInputHandle } from '../../ai/components/ChatInput';
 import ChatConversationList from '../../ai/components/ChatConversationList';
+import TokenUsageBar from '../../ai/components/TokenUsageBar';
 
 const SIDEBAR_WIDTH = 260;
 
@@ -148,7 +149,12 @@ export default function AiWorkspacePage() {
               scrollbarWidth: 'thin',
               scrollbarColor: 'auto transparent',
             }}>
-              <ChatMessageList messages={chat.messages} />
+              <ChatMessageList
+                messages={chat.messages}
+                previews={chat.previews}
+                disabled={chat.isStreaming}
+                onSend={handleSend}
+              />
             </Box>
 
             {chat.error && (
@@ -162,6 +168,10 @@ export default function AiWorkspacePage() {
             <Box sx={{ flexShrink: 0 }}>
               <ChatInput ref={inputRef} onSend={handleSend} disabled={chat.isStreaming} />
             </Box>
+
+            {chat.conversationUsage && (
+              <TokenUsageBar usage={chat.conversationUsage} lastRequestUsage={chat.lastRequestUsage} />
+            )}
           </>
         )}
       </Stack>

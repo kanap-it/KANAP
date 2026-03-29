@@ -18,6 +18,7 @@ import { extractInlineImageUrls } from '../common/content-image-urls';
 import { ItemNumberService } from '../common/item-number.service';
 import { DocumentImportService, ImportedDocumentResult } from '../common/document-import.service';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
+import { markdownToSearchText } from '../common/markdown-search-text';
 import { DocumentExportService } from '../common/document-export.service';
 import { BulkDeleteResult } from '../common/delete.types';
 import { ImportExecutionOptions, readUploadedFileBuffer } from '../common/import-connection';
@@ -412,6 +413,11 @@ type WorkflowParticipantView = {
   decision: DocumentWorkflowDecision;
   comment: string | null;
   acted_at: Date | string | null;
+};
+
+type KnowledgeAuditOptions = {
+  source?: string;
+  sourceRef?: string | null;
 };
 
 type WorkflowView = {
@@ -857,15 +863,7 @@ export class KnowledgeService {
   }
 
   private stripMarkdown(value: string): string {
-    const text = String(value || '')
-      .replace(/```[\s\S]*?```/g, ' ')
-      .replace(/`[^`]*`/g, ' ')
-      .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
-      .replace(/\[[^\]]*\]\([^)]*\)/g, ' ')
-      .replace(/[>#*_~|\-]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    return text;
+    return markdownToSearchText(value);
   }
 
   private parseItemNumberQuery(input: string): number | null {
@@ -1007,9 +1005,16 @@ export class KnowledgeService {
     paramOffset: number,
     search: { term: string; itemNumber: number | null },
   ): { clause: string; params: Array<string | number> } {
-    const params: Array<string | number> = [search.term];
+    const params: Array<string | number> = [search.term, `%${search.term}%`];
     const searchTermIndex = paramOffset + 1;
-    const clauses = [`${alias}.search_vector @@ websearch_to_tsquery('simple', $${searchTermIndex})`];
+    const searchLikeIndex = paramOffset + 2;
+    const clauses = [
+      `${alias}.search_vector @@ websearch_to_tsquery('simple', $${searchTermIndex})`,
+      `${alias}.title ILIKE $${searchLikeIndex}`,
+      `COALESCE(${alias}.summary, '') ILIKE $${searchLikeIndex}`,
+      `COALESCE(${alias}.content_plain, '') ILIKE $${searchLikeIndex}`,
+      `COALESCE(${alias}.content_markdown, '') ILIKE $${searchLikeIndex}`,
+    ];
     if (search.itemNumber != null) {
       params.push(search.itemNumber);
       clauses.unshift(`${alias}.item_number = $${paramOffset + params.length}`);
@@ -1248,6 +1253,7 @@ export class KnowledgeService {
     after: unknown,
     userId: string | null,
     manager: EntityManager,
+    audit?: KnowledgeAuditOptions | null,
   ): Promise<void> {
     await this.audit.log(
       {
@@ -1257,6 +1263,8 @@ export class KnowledgeService {
         before,
         after,
         userId,
+        source: audit?.source,
+        sourceRef: audit?.sourceRef ?? null,
       },
       { manager },
     );
@@ -2025,8 +2033,15 @@ export class KnowledgeService {
     if (search) {
       const params: Record<string, string | number> = {
         searchTerm: search.term,
+        searchLike: `%${search.term}%`,
       };
-      const searchClauses = [`d.search_vector @@ websearch_to_tsquery('simple', :searchTerm)`];
+      const searchClauses = [
+        `d.search_vector @@ websearch_to_tsquery('simple', :searchTerm)`,
+        `d.title ILIKE :searchLike`,
+        `COALESCE(d.summary, '') ILIKE :searchLike`,
+        `COALESCE(d.content_plain, '') ILIKE :searchLike`,
+        `COALESCE(d.content_markdown, '') ILIKE :searchLike`,
+      ];
       if (search.itemNumber != null) {
         params.searchItemNumber = search.itemNumber;
         searchClauses.unshift('d.item_number = :searchItemNumber');
@@ -2809,7 +2824,12 @@ export class KnowledgeService {
     };
   }
 
-  async create(body: any, tenantId: string, userId: string | null, opts?: { manager?: EntityManager }) {
+  async create(
+    body: any,
+    tenantId: string,
+    userId: string | null,
+    opts?: { manager?: EntityManager; audit?: KnowledgeAuditOptions },
+  ) {
     const manager = this.getManager(opts);
 
     const title = String(body?.title || '').trim();
@@ -2917,7 +2937,7 @@ export class KnowledgeService {
       manager,
       this.buildDocumentChanges(null, saved, ['title', 'status']),
     );
-    await this.auditDocumentChange('create', saved.id, null, saved, userId, manager);
+    await this.auditDocumentChange('create', saved.id, null, saved, userId, manager, opts?.audit);
 
     return this.get(saved.id, { manager });
   }
@@ -3309,7 +3329,7 @@ export class KnowledgeService {
     body: any,
     userId: string,
     lockToken: string | null | undefined,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; audit?: KnowledgeAuditOptions },
   ) {
     const manager = this.getManager(opts);
     const id = await this.resolveDocumentId(idOrRef, manager);
@@ -3457,7 +3477,7 @@ export class KnowledgeService {
       );
     }
 
-    await this.auditDocumentChange('update', saved.id, before, saved, userId, manager);
+    await this.auditDocumentChange('update', saved.id, before, saved, userId, manager, opts?.audit);
 
     if (body?.content_markdown !== undefined && before.content_markdown !== saved.content_markdown) {
       await this.cleanupOrphanedInlineAttachments(saved.id, before.content_markdown, saved.content_markdown, manager);
@@ -4442,6 +4462,8 @@ export class KnowledgeService {
       `d.search_vector @@ websearch_to_tsquery('simple', $1)`,
       `d.title ILIKE $2`,
       `COALESCE(d.summary, '') ILIKE $2`,
+      `COALESCE(d.content_plain, '') ILIKE $2`,
+      `COALESCE(d.content_markdown, '') ILIKE $2`,
     ];
     if (search.itemNumber != null) {
       params.push(search.itemNumber);

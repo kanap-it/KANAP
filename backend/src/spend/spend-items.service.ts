@@ -379,6 +379,8 @@ export class SpendItemsService {
       'owner_it_name',
       'owner_business_name',
       'analytics_category_name',
+      'project_stream_name',
+      'project_category_name',
     ]);
     const fields = rawFields.filter((field) => allowedFields.has(field));
     if (fields.length === 0) return {};
@@ -481,7 +483,7 @@ export class SpendItemsService {
     const mg = opts?.manager ?? this.repo.manager;
     const now = new Date();
     const Y = now.getFullYear();
-    const years = [Y - 1, Y, Y + 1];
+    const years = [Y - 2, Y - 1, Y, Y + 1, Y + 2];
 
     const { sort, status, q, filters } = parsePagination(query);
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
@@ -542,6 +544,48 @@ export class SpendItemsService {
 
     const ids = data.map((r) => r.id);
     return { ids, total: ids.length };
+  }
+
+  async summaryRowsByIds(
+    itemIds: string[],
+    query?: {
+      years?: number[];
+      includeRecipientDetails?: boolean;
+      includeLatestTask?: boolean;
+    },
+    opts?: { manager?: EntityManager },
+  ) {
+    const mg = opts?.manager ?? this.repo.manager;
+    if (!itemIds.length) return [];
+
+    const now = new Date();
+    const Y = now.getFullYear();
+    const years = query?.years?.length
+      ? Array.from(new Set(query.years))
+      : [Y - 2, Y - 1, Y, Y + 1, Y + 2];
+
+    const items = await mg.getRepository(SpendItem).find({
+      where: { id: In(itemIds) as any } as any,
+      order: { created_at: 'DESC' as any },
+    });
+    if (items.length === 0) return [];
+
+    const tenantId = (items[0] as any)?.tenant_id ?? null;
+    const { rows } = await buildSpendSummaryRows({
+      manager: mg,
+      items,
+      years,
+      currentYear: Y,
+      allocationCalculator: this.allocationCalculator,
+      formatAllocationMethodLabel,
+      includeRecipientDetails: query?.includeRecipientDetails ?? false,
+      includeLatestTask: query?.includeLatestTask ?? false,
+      fxRates: this.fxRates,
+      tenantId,
+    });
+
+    const rowById = new Map(rows.map((row) => [row.id, row]));
+    return itemIds.map((id) => rowById.get(id)).filter((row): row is NonNullable<typeof row> => !!row);
   }
 
 

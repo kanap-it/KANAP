@@ -1,6 +1,13 @@
 import * as assert from 'node:assert/strict';
+import { BadRequestException } from '@nestjs/common';
 import { Features } from '../../config/features';
+import { AiAggregateExecutor } from '../query/ai-aggregate.executor';
+import { AiQueryExecutor } from '../query/ai-query.executor';
 import { AiToolRegistry } from '../ai-tool.registry';
+import { AiDocumentMutationSupportService } from '../mutation/ai-document-mutation-support.service';
+import { CreateDocumentAiMutationOperation } from '../mutation/operations/create-document.ai-mutation-operation';
+import { UpdateDocumentContentAiMutationOperation } from '../mutation/operations/update-document-content.ai-mutation-operation';
+import { UpdateDocumentRelationsAiMutationOperation } from '../mutation/operations/update-document-relations.ai-mutation-operation';
 
 function createContext() {
   return {
@@ -13,6 +20,15 @@ function createContext() {
   };
 }
 
+function createChatContext() {
+  return {
+    ...createContext(),
+    surface: 'chat' as const,
+    authMethod: 'jwt' as const,
+    conversationId: 'conv-1',
+  };
+}
+
 function createRegistry(overrides?: {
   entityTools?: any;
   knowledge?: any;
@@ -21,6 +37,8 @@ function createRegistry(overrides?: {
   aggregateExecutor?: any;
   settingsService?: any;
   braveSearch?: any;
+  previews?: any;
+  mutationOperations?: any;
 }) {
   return new AiToolRegistry(
     {
@@ -58,6 +76,241 @@ function createRegistry(overrides?: {
       search: async () => ([{ title: 'Test', url: 'https://example.com', description: 'Test result' }]),
       ...(overrides?.braveSearch || {}),
     } as any,
+    {
+      createPreview: async () => ({
+        preview_id: 'preview-1',
+        tool_name: 'update_task_status',
+        status: 'pending',
+        target: { entity_type: 'tasks', entity_id: 'task-1', ref: 'T-1', title: 'Test task' },
+        changes: { status: { from: 'open', to: 'done' } },
+        requires_confirmation: true,
+        actions: ['approve', 'reject'],
+        summary: 'Update T-1 status from open to done.',
+        error_message: null,
+        conversation_id: 'conv-1',
+        created_at: '2026-03-24T10:00:00.000Z',
+        expires_at: '2026-03-24T10:10:00.000Z',
+        approved_at: null,
+        rejected_at: null,
+        executed_at: null,
+      }),
+      createReversePreview: async () => ({
+        preview_id: 'preview-2',
+        tool_name: 'update_task_status',
+        status: 'pending',
+        target: { entity_type: 'tasks', entity_id: 'task-1', ref: 'T-1', title: 'Test task' },
+        changes: { status: { from: 'done', to: 'open' } },
+        requires_confirmation: true,
+        actions: ['approve', 'reject'],
+        summary: 'Update T-1 status from done to open.',
+        error_message: null,
+        conversation_id: 'conv-1',
+        created_at: '2026-03-24T10:00:00.000Z',
+        expires_at: '2026-03-24T10:10:00.000Z',
+        approved_at: null,
+        rejected_at: null,
+        executed_at: null,
+      }),
+      hasExecutedUndoablePreviewInConversation: async () => false,
+      ...(overrides?.previews || {}),
+    } as any,
+    {
+      listOperations: () => ([
+        {
+          toolName: 'create_document',
+          description: 'Create a preview to create one draft knowledge document.',
+          inputSchema: {
+            safeParse: (value: any) => ({ success: true, data: value }),
+          },
+          inputSummary: {
+            title: 'Document title.',
+            summary: 'Optional summary.',
+            content_markdown: 'Optional initial markdown content.',
+            template_document: 'Optional template document.',
+          },
+          businessResource: 'knowledge',
+          writePreview: {
+            entity_type: 'documents',
+            fields: ['title', 'summary', 'template_document', 'content_markdown'],
+            reversible: false,
+            prompt_hint: 'For draft document creation, use `create_document`.',
+          },
+        },
+        {
+          toolName: 'update_document_content',
+          description: 'Create a preview to update one document markdown body.',
+          inputSchema: {
+            safeParse: (value: any) => ({ success: true, data: value }),
+          },
+          inputSummary: {
+            document_id: 'The document UUID or DOC-123 reference.',
+            content_markdown: 'The full updated markdown body.',
+          },
+          businessResource: 'knowledge',
+          writePreview: {
+            entity_type: 'documents',
+            fields: ['content_markdown'],
+            reversible: false,
+            prompt_hint: 'For document body edits, use `update_document_content` with the full resulting markdown.',
+          },
+        },
+        {
+          toolName: 'update_document_metadata',
+          description: 'Create a preview to update one document metadata record.',
+          inputSchema: {
+            safeParse: (value: any) => ({ success: true, data: value }),
+          },
+          inputSummary: {
+            document_id: 'The document UUID or DOC-123 reference.',
+            title: 'Optional new title.',
+            summary: 'Optional new summary.',
+            review_due_at: 'Optional review due date.',
+            last_reviewed_at: 'Optional last reviewed date.',
+          },
+          businessResource: 'knowledge',
+          writePreview: {
+            entity_type: 'documents',
+            fields: ['title', 'summary', 'review_due_at', 'last_reviewed_at'],
+            reversible: false,
+            prompt_hint: 'For document metadata changes, use `update_document_metadata` with a DOC-123 reference.',
+          },
+        },
+        {
+          toolName: 'update_document_relations',
+          description: 'Create a preview to add links to one document.',
+          inputSchema: {
+            safeParse: (value: any) => ({ success: true, data: value }),
+          },
+          inputSummary: {
+            document_id: 'The document UUID or DOC-123 reference.',
+            projects: 'Project references or exact names to link.',
+            requests: 'Request references or exact names to link.',
+            tasks: 'Task references or exact titles to link.',
+            applications: 'Application names or UUIDs to link.',
+            assets: 'Asset names or UUIDs to link.',
+          },
+          businessResource: 'knowledge',
+          writePreview: {
+            entity_type: 'documents',
+            fields: ['linked_projects', 'linked_requests', 'linked_tasks', 'linked_applications', 'linked_assets'],
+            reversible: false,
+            prompt_hint: 'For relation-only document changes, use `update_document_relations`.',
+          },
+        },
+        {
+          toolName: 'update_task_status',
+          description: 'Create a preview to update one task status. Requires explicit user approval before execution.',
+          inputSchema: {
+            safeParse: (value: any) => ({ success: true, data: value }),
+          },
+          inputSummary: {
+            ref: 'Task reference such as T-42.',
+            status: 'One of open, in_progress, pending, in_testing, done, or cancelled.',
+          },
+          businessResource: 'tasks',
+          writePreview: {
+            entity_type: 'tasks',
+            fields: ['status'],
+            reversible: true,
+            prompt_hint: 'For task status changes, use `update_task_status` with a canonical task reference such as `T-42`.',
+          },
+        },
+        {
+          toolName: 'update_task_assignee',
+          description: 'Create a preview to change one task assignee. Requires explicit user approval before execution.',
+          inputSchema: {
+            safeParse: (value: any) => ({ success: true, data: value }),
+          },
+          inputSummary: {
+            ref: 'Task reference such as T-42.',
+            assignee_email: 'The assignee email address in the current tenant.',
+          },
+          businessResource: 'tasks',
+          writePreview: {
+            entity_type: 'tasks',
+            fields: ['assignee'],
+            reversible: true,
+            prompt_hint: 'For assignee changes, use `update_task_assignee` with the assignee email.',
+          },
+        },
+        {
+          toolName: 'add_task_comment',
+          description: 'Create a preview to add one comment to a task. Requires explicit user approval before execution.',
+          inputSchema: {
+            safeParse: (value: any) => ({ success: true, data: value }),
+          },
+          inputSummary: {
+            ref: 'Task reference such as T-42.',
+            content: 'Markdown comment content to add to the task.',
+          },
+          businessResource: 'tasks',
+          writePreview: {
+            entity_type: 'tasks',
+            fields: ['comments'],
+            reversible: false,
+            prompt_hint: 'For task comments, use `add_task_comment` with a canonical task reference and the exact comment content.',
+          },
+        },
+      ]),
+      getOperationOrNull: (toolName: string) => {
+        const operation = ({
+          create_document: { toolName: 'create_document' },
+          update_document_content: { toolName: 'update_document_content' },
+          update_document_metadata: { toolName: 'update_document_metadata' },
+          update_document_relations: { toolName: 'update_document_relations' },
+          update_task_status: { toolName: 'update_task_status' },
+          update_task_assignee: { toolName: 'update_task_assignee' },
+          add_task_comment: { toolName: 'add_task_comment' },
+        } as Record<string, any>)[toolName];
+        return operation ?? null;
+      },
+      ...(overrides?.mutationOperations || {}),
+    } as any,
+  );
+}
+
+function createQueryExecutor(overrides?: {
+  tasks?: any;
+}) {
+  return new AiQueryExecutor(
+    {
+      listAllTasks: async () => ({ items: [], total: 0, page: 1, limit: 200 }),
+      ...(overrides?.tasks || {}),
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+}
+
+function createAggregateExecutor(overrides?: {
+  tasks?: any;
+}) {
+  return new AiAggregateExecutor(
+    {
+      listIds: async () => ({ ids: [] }),
+      ...(overrides?.tasks || {}),
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
 }
 
@@ -69,6 +322,26 @@ async function testListAvailableTools() {
     tools.map((tool) => tool.name),
     ['search_all', 'query_entities', 'aggregate_entities', 'get_filter_values', 'get_entity_context', 'search_knowledge', 'get_document'],
   );
+  assert.match(
+    tools.find((tool) => tool.name === 'query_entities')?.description || '',
+    /filters_ignored.*must be repaired before answering/i,
+  );
+  assert.match(
+    tools.find((tool) => tool.name === 'aggregate_entities')?.description || '',
+    /filters_ignored.*must be repaired before answering/i,
+  );
+  assert.match(
+    tools.find((tool) => tool.name === 'get_filter_values')?.description || '',
+    /fields_ignored.*must not be used for filtering/i,
+  );
+  assert.match(
+    tools.find((tool) => tool.name === 'query_entities')?.input_summary.q || '',
+    /plain text only.*never encode filters/i,
+  );
+  assert.match(
+    tools.find((tool) => tool.name === 'aggregate_entities')?.input_summary.q || '',
+    /plain text only.*never encode filters/i,
+  );
 }
 
 async function testListRegisteredToolsExposesRuntimeRegistry() {
@@ -76,8 +349,174 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
 
   assert.deepEqual(
     registry.listRegisteredTools().map((tool) => tool.name),
-    ['search_all', 'query_entities', 'aggregate_entities', 'get_filter_values', 'get_entity_context', 'search_knowledge', 'get_document', 'web_search'],
+    [
+      'search_all',
+      'query_entities',
+      'aggregate_entities',
+      'get_filter_values',
+      'get_entity_context',
+      'search_knowledge',
+      'get_document',
+      'undo_preview',
+      'web_search',
+      'create_document',
+      'update_document_content',
+      'update_document_metadata',
+      'update_document_relations',
+      'update_task_status',
+      'update_task_assignee',
+      'add_task_comment',
+    ],
   );
+}
+
+async function testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed() {
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['applications', 'documents'],
+    },
+    previews: {
+      hasExecutedUndoablePreviewInConversation: async () => true,
+    },
+  });
+
+  const tools = await registry.listAvailableTools(createChatContext());
+  assert.ok(tools.some((tool) => tool.name === 'create_document'));
+  assert.ok(tools.some((tool) => tool.name === 'update_document_content'));
+  assert.ok(tools.some((tool) => tool.name === 'update_document_metadata'));
+  assert.ok(tools.some((tool) => tool.name === 'update_document_relations'));
+  assert.ok(tools.some((tool) => tool.name === 'update_task_status'));
+  assert.ok(tools.some((tool) => tool.name === 'update_task_assignee'));
+  assert.ok(tools.some((tool) => tool.name === 'add_task_comment'));
+  assert.ok(tools.some((tool) => tool.name === 'undo_preview'));
+}
+
+async function testWritePreviewToolsStayHiddenWithoutWriteAccess() {
+  const registry = createRegistry();
+
+  const tools = await registry.listAvailableTools(createChatContext());
+  assert.ok(!tools.some((tool) => tool.name === 'create_document'));
+  assert.ok(!tools.some((tool) => tool.name === 'update_document_content'));
+  assert.ok(!tools.some((tool) => tool.name === 'update_document_metadata'));
+  assert.ok(!tools.some((tool) => tool.name === 'update_document_relations'));
+  assert.ok(!tools.some((tool) => tool.name === 'update_task_status'));
+  assert.ok(!tools.some((tool) => tool.name === 'update_task_assignee'));
+  assert.ok(!tools.some((tool) => tool.name === 'add_task_comment'));
+  assert.ok(!tools.some((tool) => tool.name === 'undo_preview'));
+}
+
+async function testUndoPreviewStaysHiddenWhenOnlyNonReversibleWritesExist() {
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['applications', 'documents'],
+    },
+    previews: {
+      hasExecutedUndoablePreviewInConversation: async () => false,
+    },
+  });
+
+  const tools = await registry.listAvailableTools(createChatContext());
+  assert.ok(tools.some((tool) => tool.name === 'add_task_comment'));
+  assert.ok(!tools.some((tool) => tool.name === 'undo_preview'));
+}
+
+async function testCreateDocumentToolSchemaExposesBodyFields() {
+  const knowledge = {
+    listLibraries: async () => [{ id: 'library-1', name: 'Operations', is_system: false }],
+    listTypes: async () => [{ id: 'type-1', name: 'Document', is_default: true }],
+  };
+  const operation = new CreateDocumentAiMutationOperation(
+    new AiDocumentMutationSupportService(knowledge as any),
+    knowledge as any,
+  );
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['applications', 'documents'],
+    },
+    mutationOperations: {
+      listOperations: () => [operation],
+      getOperationOrNull: (toolName: string) => (toolName === 'create_document' ? operation : null),
+    },
+  });
+
+  const tools = await registry.getToolJsonSchemas(createChatContext());
+  const schema = tools.find((tool) => tool.name === 'create_document');
+
+  assert.ok(schema);
+  assert.match(String((schema!.parameters as any).properties?.content_markdown?.description || ''), /full draft content/i);
+  assert.match(String((schema!.parameters as any).properties?.content?.description || ''), /alias/i);
+  assert.match(String((schema!.parameters as any).properties?.template_document?.description || ''), /template document/i);
+  assert.match(String((schema!.parameters as any).properties?.projects?.description || ''), /Project reference/i);
+}
+
+async function testUpdateDocumentContentToolSchemaExposesDocumentAndBodyFields() {
+  const knowledge = {
+    listLibraries: async () => [{ id: 'library-1', name: 'Operations', is_system: false }],
+    listTypes: async () => [{ id: 'type-1', name: 'Document', is_default: true }],
+    get: async () => null,
+    assertWorkflowAllowsEditing: async () => undefined,
+    assertDocumentUnlockedForUser: async () => undefined,
+    acquireLock: async () => ({ lock_token: 'token' }),
+    releaseLock: async () => ({ ok: true }),
+    update: async () => null,
+  };
+  const operation = new UpdateDocumentContentAiMutationOperation(
+    new AiDocumentMutationSupportService(knowledge as any),
+    knowledge as any,
+  );
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['applications', 'documents'],
+    },
+    mutationOperations: {
+      listOperations: () => [operation],
+      getOperationOrNull: (toolName: string) => (toolName === 'update_document_content' ? operation : null),
+    },
+  });
+
+  const tools = await registry.getToolJsonSchemas(createChatContext());
+  const schema = tools.find((tool) => tool.name === 'update_document_content');
+
+  assert.ok(schema);
+  assert.match(String((schema!.parameters as any).properties?.document_id?.description || ''), /DOC reference/i);
+  assert.match(String((schema!.parameters as any).properties?.content_markdown?.description || ''), /full resulting markdown body/i);
+  assert.match(String((schema!.parameters as any).properties?.applications?.description || ''), /Application name/i);
+}
+
+async function testUpdateDocumentRelationsToolSchemaExposesRelationFields() {
+  const knowledge = {
+    get: async () => null,
+    assertWorkflowAllowsEditing: async () => undefined,
+    assertDocumentUnlockedForUser: async () => undefined,
+    acquireLock: async () => ({ lock_token: 'token' }),
+    releaseLock: async () => ({ ok: true }),
+    update: async () => null,
+  };
+  const operation = new UpdateDocumentRelationsAiMutationOperation(
+    new AiDocumentMutationSupportService(knowledge as any),
+    knowledge as any,
+  );
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['applications', 'documents'],
+    },
+    mutationOperations: {
+      listOperations: () => [operation],
+      getOperationOrNull: (toolName: string) => (toolName === 'update_document_relations' ? operation : null),
+    },
+  });
+
+  const tools = await registry.getToolJsonSchemas(createChatContext());
+  const schema = tools.find((tool) => tool.name === 'update_document_relations');
+
+  assert.ok(schema);
+  assert.match(String((schema!.parameters as any).properties?.projects?.description || ''), /PRJ-33/i);
+  assert.match(String((schema!.parameters as any).properties?.applications?.description || ''), /Application name/i);
 }
 
 async function testSearchAllDelegatesToEntityTools() {
@@ -392,11 +831,74 @@ async function testWebSearchRejectsOversizedQueries() {
   }
 }
 
+async function testQueryExecutorRejectsStructuredPredicatesInsideQuickSearch() {
+  const executor = createQueryExecutor();
+
+  await assert.rejects(
+    () => executor.execute(createContext(), {
+      entity_type: 'tasks',
+      q: 'status:in_progress',
+      limit: 10,
+    }),
+    (error: unknown) => {
+      assert.equal(error instanceof BadRequestException, true);
+      assert.match((error as Error).message, /Quick-search q must be plain text/i);
+      assert.match((error as Error).message, /status:in_progress/i);
+      return true;
+    },
+  );
+}
+
+async function testQueryExecutorAllowsLiteralQuickSearchText() {
+  const calls: unknown[] = [];
+  const executor = createQueryExecutor({
+    tasks: {
+      listAllTasks: async (query: unknown) => {
+        calls.push(query);
+        return { items: [], total: 0, page: 1, limit: 25 };
+      },
+    },
+  });
+
+  await executor.execute(createContext(), {
+    entity_type: 'tasks',
+    q: 'Siemens',
+    limit: 25,
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal((calls[0] as any).q, 'Siemens');
+}
+
+async function testAggregateExecutorRejectsStructuredPredicatesInsideQuickSearch() {
+  const executor = createAggregateExecutor();
+
+  await assert.rejects(
+    () => executor.execute(createContext(), {
+      entity_type: 'tasks',
+      group_by: 'status',
+      q: 'status:in_progress',
+    }),
+    (error: unknown) => {
+      assert.equal(error instanceof BadRequestException, true);
+      assert.match((error as Error).message, /Quick-search q must be plain text/i);
+      assert.match((error as Error).message, /status:in_progress/i);
+      return true;
+    },
+  );
+}
+
 async function run() {
   await testListAvailableTools();
   await testListRegisteredToolsExposesRuntimeRegistry();
   await testSearchAllDelegatesToEntityTools();
   await testSearchAllAppliesGenerousDefaultLimit();
+  await testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed();
+  await testWritePreviewToolsStayHiddenWithoutWriteAccess();
+  await testUndoPreviewStaysHiddenWhenOnlyNonReversibleWritesExist();
+  await testCreateDocumentToolSchemaExposesBodyFields();
+  await testUpdateDocumentContentToolSchemaExposesDocumentAndBodyFields();
+  await testUpdateDocumentRelationsToolSchemaExposesRelationFields();
   await testQueryEntitiesDelegatesToQueryExecutor();
   await testQueryEntitiesAppliesGenerousDefaultLimit();
   await testAggregateEntitiesDelegatesToAggregateExecutor();
@@ -408,6 +910,9 @@ async function run() {
   await testSchemasExposeDefaultLimits();
   await testGetDocumentMapsStableDto();
   await testWebSearchRejectsOversizedQueries();
+  await testQueryExecutorRejectsStructuredPredicatesInsideQuickSearch();
+  await testQueryExecutorAllowsLiteralQuickSearchText();
+  await testAggregateExecutorRejectsStructuredPredicatesInsideQuickSearch();
 }
 
 void run();

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { Features } from '../config/features';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { AiMutationPreviewService } from './ai-mutation-preview.service';
 import { AiEntityService } from './ai-entity.service';
 import { AiPolicyService } from './ai-policy.service';
 import { AiSettingsService } from './ai-settings.service';
@@ -10,6 +11,7 @@ import { AiProviderToolDef } from './providers/ai-provider.types';
 import { BraveSearchService } from './web-search/brave-search.service';
 import { AiAggregateExecutor } from './query/ai-aggregate.executor';
 import { AiQueryExecutor } from './query/ai-query.executor';
+import { AiMutationOperationRegistry } from './mutation/ai-mutation-operation.registry';
 import {
   AiContextEntityTypeSchema,
   AiDocumentDto,
@@ -93,6 +95,10 @@ const WebSearchInputSchema = z.object({
   count: z.number().int().min(1).max(10).optional(),
 });
 
+const UndoPreviewInputSchema = z.object({
+  preview_id: z.string().trim().uuid(),
+});
+
 function toDocumentRelation(type: AiEntitySummaryDto['type'], row: any): AiEntitySummaryDto {
   return {
     type,
@@ -117,6 +123,8 @@ export class AiToolRegistry {
     private readonly aggregateExecutor: AiAggregateExecutor,
     private readonly settingsService: AiSettingsService,
     private readonly braveSearch: BraveSearchService,
+    private readonly previews: AiMutationPreviewService,
+    private readonly mutationOperations: AiMutationOperationRegistry,
   ) {
     this.definitions = new Map<AiToolName, AiToolDefinition<any, any>>([
       [
@@ -139,13 +147,13 @@ export class AiToolRegistry {
         'query_entities',
         {
           name: 'query_entities',
-          description: 'Query one readable entity family with server-side filters, pagination, and exact totals.',
+          description: 'Query one readable entity family with server-side filters, pagination, and exact totals. If `filters_ignored` is non-empty, the query was not fully honored and must be repaired before answering.',
           inputSchema: QueryEntitiesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, or tasks.',
+            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, tasks, or users.',
             scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             filters: 'Optional field filters keyed by AI field name.',
-            q: 'Optional quick-search text.',
+            q: 'Optional literal quick-search text. Use plain text only; never encode filters like status:in_progress or assignee=bob@example.com here.',
             sort: 'Optional sort field and direction.',
             page: 'Page number to fetch (default 1). Use later pages when total is greater than returned.',
             limit: 'Maximum number of items to return per page (default 200). Use the maximum unless you have a reason to limit.',
@@ -162,16 +170,16 @@ export class AiToolRegistry {
         'aggregate_entities',
         {
           name: 'aggregate_entities',
-          description: 'Break down one readable entity family by a supported field with exact server-side counts or metric aggregations.',
+          description: 'Break down one readable entity family by a supported field with exact server-side counts or metric aggregations. If `filters_ignored` is non-empty, the query was not fully honored and must be repaired before answering.',
           inputSchema: AggregateEntitiesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, or tasks.',
+            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, tasks, or users.',
             scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             group_by: 'A supported group-by field from the query layer registry.',
             metric: 'Optional numeric or date field to aggregate when using sum, avg, min, or max.',
             function: 'Optional aggregation function: count, sum, avg, min, or max. Defaults to count.',
             filters: 'Optional field filters keyed by AI field name.',
-            q: 'Optional quick-search text.',
+            q: 'Optional literal quick-search text. Use plain text only; never encode filters like status:in_progress or assignee=bob@example.com here.',
           },
           surfaces: ['chat', 'mcp'],
           readOnly: true,
@@ -185,10 +193,10 @@ export class AiToolRegistry {
         'get_filter_values',
         {
           name: 'get_filter_values',
-          description: 'Discover exact filter values for supported set-like AI query fields.',
+          description: 'Discover exact filter values for supported set-like AI query fields. If `fields_ignored` is non-empty, those field names are unsupported for that entity and must not be used for filtering.',
           inputSchema: GetFilterValuesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, or tasks.',
+            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, tasks, or users.',
             fields: 'AI field names to inspect.',
           },
           surfaces: ['chat', 'mcp'],
@@ -312,6 +320,22 @@ export class AiToolRegistry {
         },
       ],
       [
+        'undo_preview',
+        {
+          name: 'undo_preview',
+          description: 'Create a reversal preview for a previously executed task write. Requires explicit user approval before execution.',
+          inputSchema: UndoPreviewInputSchema,
+          inputSummary: {
+            preview_id: 'The preview ID of a previously executed task write in this conversation.',
+          },
+          surfaces: ['chat'],
+          readOnly: false,
+          execute: async (context, input) => {
+            return this.previews.createReversePreview(context, input.preview_id);
+          },
+        },
+      ],
+      [
         'web_search',
         {
           name: 'web_search',
@@ -330,6 +354,19 @@ export class AiToolRegistry {
         },
       ],
     ]);
+
+    for (const operation of this.mutationOperations.listOperations()) {
+      this.definitions.set(operation.toolName, {
+        name: operation.toolName,
+        description: operation.description,
+        inputSchema: operation.inputSchema,
+        inputSummary: operation.inputSummary,
+        surfaces: ['chat'],
+        readOnly: false,
+        writePreview: operation.writePreview,
+        execute: async (context, input) => this.previews.createPreview(context, operation.toolName, input),
+      });
+    }
   }
 
   private getRegisteredDefinitions(): AiToolDefinition<any, any>[] {
@@ -363,10 +400,20 @@ export class AiToolRegistry {
   private async isToolAvailable(
     toolName: AiToolName,
     context: AiExecutionContextWithManager,
-    availability?: { readableEntityTypes: string[]; canReadKnowledge: boolean; webSearchEnabled: boolean },
+    availability?: {
+      readableEntityTypes: string[];
+      canReadKnowledge: boolean;
+      webSearchEnabled: boolean;
+      writableMutationToolNames: Set<AiToolName>;
+      canUndoPreview: boolean;
+    },
   ): Promise<boolean> {
     // Lazy-load availability context if not pre-computed
     const avail = availability ?? await this.loadAvailabilityContext(context);
+    const mutationOperation = this.mutationOperations.getOperationOrNull(toolName);
+    if (mutationOperation) {
+      return avail.writableMutationToolNames.has(mutationOperation.toolName);
+    }
 
     switch (toolName) {
       case 'search_all':
@@ -379,6 +426,8 @@ export class AiToolRegistry {
       case 'search_knowledge':
       case 'get_document':
         return avail.canReadKnowledge;
+      case 'undo_preview':
+        return avail.writableMutationToolNames.size > 0 && avail.canUndoPreview;
       case 'web_search':
         return Features.AI_WEB_SEARCH_READY && avail.webSearchEnabled;
       default:
@@ -389,13 +438,37 @@ export class AiToolRegistry {
   private async loadAvailabilityContext(context: AiExecutionContextWithManager) {
     const readableEntityTypes = await this.policy.listReadableEntityTypes(
       context,
-      ['applications', 'assets', 'companies', 'contracts', 'departments', 'documents', 'locations', 'projects', 'requests', 'spend_items', 'suppliers', 'tasks'],
+      ['applications', 'assets', 'companies', 'contracts', 'departments', 'documents', 'locations', 'projects', 'requests', 'spend_items', 'suppliers', 'tasks', 'users'],
       context.manager,
     );
     const canReadKnowledge = await this.policy.canReadKnowledge(context, context.manager);
     const settings = await this.settingsService.find(context.tenantId, { manager: context.manager });
     const webSearchEnabled = settings?.web_search_enabled === true;
-    return { readableEntityTypes, canReadKnowledge, webSearchEnabled };
+
+    const writeAccessByResource = new Map<string, boolean>();
+    for (const operation of this.mutationOperations.listOperations()) {
+      if (writeAccessByResource.has(operation.businessResource)) {
+        continue;
+      }
+      try {
+        await this.policy.assertWriteAccess(context, operation.businessResource, context.manager);
+        writeAccessByResource.set(operation.businessResource, true);
+      } catch {
+        writeAccessByResource.set(operation.businessResource, false);
+      }
+    }
+
+    const writableMutationToolNames = new Set<AiToolName>(
+      this.mutationOperations.listOperations()
+        .filter((operation) => writeAccessByResource.get(operation.businessResource) === true)
+        .map((operation) => operation.toolName),
+    );
+
+    const canUndoPreview = writableMutationToolNames.size > 0
+      ? await this.previews.hasExecutedUndoablePreviewInConversation(context, context.conversationId ?? null)
+      : false;
+
+    return { readableEntityTypes, canReadKnowledge, webSearchEnabled, writableMutationToolNames, canUndoPreview };
   }
 
   async listAvailableTools(context: AiExecutionContextWithManager): Promise<AiToolListItemDto[]> {
@@ -413,6 +486,7 @@ export class AiToolRegistry {
         input_summary: definition.inputSummary,
         read_only: definition.readOnly,
         surfaces: definition.surfaces,
+        write_preview: definition.writePreview,
       });
     }
     return results;

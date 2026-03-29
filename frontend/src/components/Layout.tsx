@@ -48,6 +48,7 @@ import { getDocUrl } from '../utils/docUrls';
 import SubscriptionBanner from './SubscriptionBanner';
 import { useAiCapabilities } from '../ai/useAiCapabilities';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../i18n/useLocale';
 
 const drawerWidth = 240;
 
@@ -83,6 +84,7 @@ export default function Layout() {
   const { mode, resolvedMode, setMode } = useThemeMode();
   const aiCapabilities = useAiCapabilities();
   const { t } = useTranslation(['nav', 'settings']);
+  const locale = useLocale();
   const isSingleTenant = config.deploymentMode === 'single-tenant';
 
   const operations: NavEntry[] = [
@@ -331,7 +333,7 @@ export default function Layout() {
                 size="small"
                 title={t('nav:topBar.help')}
                 component="a"
-                href={getDocUrl(location.pathname)}
+                href={getDocUrl(location.pathname, locale)}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={t('nav:topBar.openDocs')}

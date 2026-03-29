@@ -1,0 +1,101 @@
+# Manual de usuario de KANAP
+
+Bienvenido al manual de usuario de KANAP. Esta documentación cubre todas las funcionalidades disponibles para los usuarios de la plataforma KANAP.
+
+## Primeros pasos
+
+KANAP ayuda a los equipos de IT y finanzas a gestionar su panorama tecnológico, presupuestos y operaciones. Utilice el menú de navegación para explorar los diferentes módulos.
+
+Si desea el camino más corto hacia la productividad, comience con las guías de Inicio Rápido antes de consultar las páginas de referencia completas.
+
+## Guías de Inicio Rápido
+
+- [Primeros pasos: Sus primeros 10 minutos en KANAP](fast-track/getting-started.md) - Incorporación del primer día, configuración del perfil, panel de control y conceptos clave
+- [Portafolio - Inicio Rápido: De la solicitud a la entrega](fast-track/index.md) - Enviar, analizar, evaluar, convertir y entregar iniciativas
+- [Panorama IT - Inicio Rápido: De la aplicación al servidor](fast-track/apps-and-assets.md) - Documentar una aplicación, sus entornos y activos de alojamiento
+- [Tipos de tareas - Inicio Rápido: Run, Build y Tareas](fast-track/task-types.md) - Comprender la diferencia entre incidentes, problemas, solicitudes, proyectos, bugs y tareas
+
+## Módulos
+
+### Panel de control
+
+- [Panel de control](my-dashboard.md) - Vista general personal con mosaicos configurables (haga clic en el logotipo de KANAP)
+
+### Gestión de portafolio
+
+- [Tareas](tasks.md) - Seguimiento de elementos de acción y tareas pendientes
+- [Solicitudes](portfolio-requests.md) - Captura y evaluación de iniciativas entrantes
+- [Proyectos](portfolio-projects.md) - Gestión integral de proyectos aprobados
+- [Planificación](portfolio-planning.md) - Creación de escenarios de cronograma y generación de hojas de ruta
+- [Colaboradores](portfolio-team-members.md) - Seguimiento de competencias, equipos y capacidad
+- [Informes](portfolio-reporting.md) - Informes de capacidad y carga de trabajo
+- [Configuración](portfolio-settings.md) - Configuración de criterios, equipos y evaluación
+
+### Panorama IT
+
+**Infraestructura**
+
+- [Ubicaciones](locations.md) - Seguimiento de centros de datos y regiones en la nube
+- [Activos](assets.md) - Gestión del inventario de infraestructura (servidores, VMs, contenedores, instancias en la nube)
+- [Conexiones](connections.md) - Seguimiento de conexiones de red y sistemas
+- [Mapa de conexiones](connection-map.md) - Visualización de la topología de conexiones
+
+**Aplicaciones**
+
+- [Aplicaciones](applications.md) - Documentación de su panorama de aplicaciones
+- [Interfaces](interfaces.md) - Mapeo de flujos de datos entre aplicaciones
+- [Mapa de interfaces](interface-map.md) - Visualización de las relaciones entre interfaces
+
+**Configuración**
+
+- [Configuración del Panorama IT](it-ops-settings.md) - Configuración de valores desplegables y catálogos
+
+### Base de conocimiento
+
+- [Base de conocimiento](knowledge.md) - Crear, gobernar, relacionar, revisar y exportar documentación de trabajo
+
+### Gestión presupuestaria
+
+- [OPEX](opex.md) - Gestión de costes recurrentes de IT y asignaciones
+- [CAPEX](capex.md) - Seguimiento de proyectos de inversión de capital
+- [Contratos](contracts.md) - Gestión de contratos con proveedores y renovaciones
+- [Administración presupuestaria](budget-operations.md) - Congelación, copia y gestión de datos presupuestarios
+- [Informes](reports.md) - Generación de informes presupuestarios y de contracargo
+
+### Datos maestros
+
+**Organización**
+
+- [Empresas](companies.md) - Gestión de entidades empresariales
+- [Departamentos](departments.md) - Organización por estructura departamental
+
+**Partes externas**
+
+- [Proveedores](suppliers.md) - Gestión de relaciones con proveedores
+- [Contactos](contacts.md) - Seguimiento de personas e interesados
+
+**Finanzas**
+
+- [Plan de cuentas](chart-of-accounts.md) - Configuración de cuentas contables
+- [Monedas](currencies.md) - Configuración de divisas
+
+**Clasificación**
+
+- [Procesos de negocio](business-processes.md) - Documentación de la jerarquía de procesos de negocio
+- [Dimensiones analíticas](analytics.md) - Configuración de dimensiones de informes
+
+### Administración
+
+- [Administración y Usuarios](admin.md) - Gestión de usuarios, roles, autenticación y registros de auditoría
+- [Personalización](branding.md) - Personalización del logotipo del espacio de trabajo y colores primarios claro/oscuro
+- [Registro de auditoría](admin.md#registro-de-auditoría) - Revisión del historial de cambios del espacio de trabajo con filtros y vista detallada
+- [Administración de datos maestros](master-data-operations.md) - Congelación y copia de datos maestros
+- [Panel de control de operaciones](operations-dashboard.md) - Vista general y acciones rápidas
+
+### Despliegue y operaciones
+
+- [Despliegue local](on-premise/index.md) - Instalación, configuración, operaciones, configuración de correo SMTP/Resend y SSO con Microsoft Entra para despliegues de un solo inquilino
+
+---
+
+**¿Necesita ayuda?** Contacte con su administrador del sistema o visite [kanap.net](https://kanap.net) para más información.

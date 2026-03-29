@@ -1,6 +1,6 @@
 # User Manual Documentation Inventory
 
-_Generated: 2026-03-15_
+_Generated: 2026-03-28_
 
 This document tracks documentation coverage for the KANAP user manual.
 
@@ -13,12 +13,12 @@ This document tracks documentation coverage for the KANAP user manual.
 | IT Landscape | 8 | 8 | 0 |
 | Knowledge | 1 | 1 | 0 |
 | Master Data | 8 | 8 | 0 |
-| Admin & Settings | 9 | 9 | 0 |
+| Admin & Settings | 12 | 9 | 3 |
 | Reports | 10 | 10 | 0 |
 | Portfolio | 10 | 10 | 0 |
-| **TOTAL** | **56** | **56** | **0** |
+| **TOTAL** | **59** | **56** | **3** |
 
-_Note: Supplemental Fast Track guides are excluded from these route-based counts. Coverage is complete; targeted freshness sweeps may still be needed after major product changes._
+_Note: Supplemental Fast Track guides are excluded from these route-based counts. 3 new pages need documentation._
 
 ---
 
@@ -26,6 +26,9 @@ _Note: Supplemental Fast Track guides are excluded from these route-based counts
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-03-29 | `assets.md` | Refreshed: added sub-location column (list), sub-location field (Overview tab), sub-location filter |
+| 2026-03-29 | `locations.md` | Refreshed: added sub-locations panel, fixed permissions (member not admin), added Additional Info for both hosting types, added Permissions table, sub-location column in Relations |
+| 2026-03-27 | IT Landscape batch | Renamed "IT Operations" → "IT Landscape" across applications, assets, connections, connection-map, interfaces, interface-map, locations, it-ops-settings docs |
 | 2026-03-15 | _27 pages refreshed_ | Full staleness sweep: all stale route manuals regenerated from current code. Key changes: docx import (tasks, knowledge, requests, projects), LinkCellRenderer migration across all list pages, Relations tab expansions (opex, capex, contracts, applications), new tabs documented (assets: 8 tabs, applications: Knowledge tab), permission corrections, terminology fixes (Servers not Assets in maps/connections) |
 | 2026-03-12 | `fast-track/index.md` | Updated for the current request/project workspace model: Summary + Analysis + Scoring flow, sidebar-based team/relations, current statuses, and conversion behavior |
 | 2026-03-10 | `knowledge.md` | New manual for the Knowledge workspace, document lifecycle, review flow, relations, and export behavior |
@@ -192,6 +195,9 @@ _Note: `/knowledge/new`, `/knowledge/:id`, and `/knowledge/:id/:tab` are covered
 | `/master-data/operations` | MasterDataOperationsPage | **DOCUMENTED** | `master-data-operations.md` |
 | `/master-data/operations/freeze` | MasterDataFreezePage | **DOCUMENTED** | (in master-data-operations) |
 | `/master-data/operations/copy` | MasterDataCopyPage | **DOCUMENTED** | (in master-data-operations) |
+| `/admin/ai` | AdminAiPage | **MISSING** | — |
+| `/admin/scheduled-tasks` | ScheduledTasksPage | **MISSING** | — |
+| `/ai` | AiWorkspacePage | **MISSING** | — |
 
 ### Reports
 
@@ -239,10 +245,16 @@ On-premise docs (`on-premise/*.md`) are deployment guides, not route manuals —
 
 ## Remaining Gaps
 
-No route-manual gaps remaining.
+3 route-manual gaps:
 
-All route manuals refreshed 2026-03-15. Remaining refresh candidates:
-- Fast Track guides affected by Knowledge and the request/project workspace overhaul
+| Route | Component | Notes |
+|-------|-----------|-------|
+| `/ai` | AiWorkspacePage | AI assistant chat workspace (new feature) |
+| `/admin/ai` | AdminAiPage | AI configuration (admin) |
+| `/admin/scheduled-tasks` | ScheduledTasksPage | Background task management (admin) |
+
+Staleness candidates:
+- `portfolio-planning.md` — Missing drag-to-pin-start in Roadmap Generator (LOW)
 
 ---
 

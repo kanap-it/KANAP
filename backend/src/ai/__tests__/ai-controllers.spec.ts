@@ -83,7 +83,7 @@ async function testControllersBuildPlatformAwareContexts() {
     aiApiKeyId: null,
   });
 
-  const conversations = new AiConversationsController({} as any, {} as any, {} as any);
+  const conversations = new AiConversationsController({} as any, {} as any, {} as any, {} as any);
   assertBaseContext((conversations as any).buildContext(req), {
     surface: 'chat',
     authMethod: 'jwt',
@@ -344,6 +344,65 @@ async function testAdminOverviewControllerRejectsMissingTenantContext() {
   );
 }
 
+async function testConversationsControllerReturnsMessagesWithConversationUsage() {
+  let capturedContext: any = null;
+  let checkedConversation = false;
+
+  const controller = new AiConversationsController(
+    {
+      runWithContext: async (context: any, fn: Function) => {
+        capturedContext = context;
+        return fn({ ...context, manager: { tag: 'manager' } });
+      },
+    } as any,
+    {
+      assertSurfaceAccess: async () => undefined,
+    } as any,
+    {
+      getConversationForUser: async () => {
+        checkedConversation = true;
+        return { id: 'conv-1' };
+      },
+      listMessagesForConversation: async () => [
+        {
+          id: 'msg-1',
+          role: 'assistant',
+          content: 'Hello',
+          tool_calls: null,
+          usage_json: { input_tokens: 3, output_tokens: 5 },
+          created_at: new Date('2026-03-24T10:00:00.000Z'),
+        },
+      ],
+      getConversationUsage: async () => ({
+        input_tokens: 30,
+        output_tokens: 50,
+      }),
+    } as any,
+    {} as any,
+  );
+
+  const result = await controller.getMessages('conv-1', createRequest({ isPlatformHost: false }) as any);
+
+  assert.equal(capturedContext?.surface, 'chat');
+  assert.equal(checkedConversation, true);
+  assert.deepEqual(result, {
+    messages: [
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Hello',
+        tool_calls: null,
+        usage_json: { input_tokens: 3, output_tokens: 5 },
+        created_at: '2026-03-24T10:00:00.000Z',
+      },
+    ],
+    conversation_usage: {
+      input_tokens: 30,
+      output_tokens: 50,
+    },
+  });
+}
+
 async function run() {
   await testControllersBuildPlatformAwareContexts();
   await testControllersRejectMissingTenantContext();
@@ -354,6 +413,7 @@ async function run() {
   await testChatControllerAbortsOnDisconnect();
   await testAdminOverviewControllerBuildsContextAndCallsService();
   await testAdminOverviewControllerRejectsMissingTenantContext();
+  await testConversationsControllerReturnsMessagesWithConversationUsage();
 }
 
 void run();

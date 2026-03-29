@@ -2,6 +2,7 @@ import { BadRequestException, Controller, Delete, Get, Param, Query, Req, UseGua
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SkipTenantTransaction } from '../common/skip-tenant-transaction.decorator';
 import { AiConversationService } from './ai-conversation.service';
+import { AiMutationPreviewService } from './ai-mutation-preview.service';
 import { AiPolicyService } from './ai-policy.service';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiExecutionContext } from './ai.types';
@@ -14,6 +15,7 @@ export class AiConversationsController {
     private readonly tenantExecutor: AiTenantExecutionService,
     private readonly policy: AiPolicyService,
     private readonly conversations: AiConversationService,
+    private readonly previews: AiMutationPreviewService,
   ) {}
 
   private buildContext(req: any): AiExecutionContext {
@@ -71,17 +73,38 @@ export class AiConversationsController {
     const context = this.buildContext(req);
     return this.tenantExecutor.runWithContext(context, async (ctx) => {
       await this.policy.assertSurfaceAccess(ctx, ctx.manager);
-      const messages = await this.conversations.listMessagesForUser(id, ctx.tenantId, ctx.userId, {
+      await this.conversations.getConversationForUser(id, ctx.tenantId, ctx.userId, {
         manager: ctx.manager,
       });
-      return messages.map((m) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        tool_calls: m.tool_calls,
-        usage_json: m.usage_json,
-        created_at: m.created_at?.toISOString(),
-      }));
+      const messages = await this.conversations.listMessagesForConversation(id, ctx.tenantId, {
+        manager: ctx.manager,
+      });
+      const conversationUsage = await this.conversations.getConversationUsage(id, ctx.tenantId, {
+        manager: ctx.manager,
+      });
+      return {
+        messages: messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          tool_calls: m.tool_calls,
+          usage_json: m.usage_json,
+          created_at: m.created_at?.toISOString(),
+        })),
+        conversation_usage: conversationUsage,
+      };
+    });
+  }
+
+  @Get(':id/previews')
+  async getPreviews(@Param('id') id: string, @Req() req: any) {
+    const context = this.buildContext(req);
+    return this.tenantExecutor.runWithContext(context, async (ctx) => {
+      await this.policy.assertSurfaceAccess(ctx, ctx.manager);
+      await this.conversations.getConversationForUser(id, ctx.tenantId, ctx.userId, {
+        manager: ctx.manager,
+      });
+      return this.previews.listConversationPreviews(ctx, id);
     });
   }
 

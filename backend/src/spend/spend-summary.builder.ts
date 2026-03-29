@@ -15,6 +15,9 @@ import { ACTIVE_TASK_STATUSES } from '../tasks/task.entity';
 export type SpendSummaryRow = SpendItem & {
   analytics_category_id: string | null;
   analytics_category_name: string | null;
+  project_name?: string | null;
+  project_stream_name?: string | null;
+  project_category_name?: string | null;
   latest_contract_id: string | null;
   latest_contract_name: string | '';
   supplier?: { id: string; name: string };
@@ -332,6 +335,7 @@ export async function buildSpendSummaryRows(params: SpendSummaryBuildParams): Pr
   const supplierIds = Array.from(new Set(items.map((i: any) => i.supplier_id).filter(Boolean)));
   const accountIds = Array.from(new Set(items.map((i: any) => i.account_id).filter(Boolean)));
   const ownerIds = Array.from(new Set(items.flatMap((i: any) => [i.owner_it_id, i.owner_business_id]).filter(Boolean)));
+  const projectIds = Array.from(new Set(items.map((i: any) => i.project_id).filter(Boolean)));
 
   const suppliers = supplierIds.length
     ? await manager.getRepository(Supplier).find({ where: { id: In(supplierIds) as any } as any })
@@ -346,6 +350,20 @@ export async function buildSpendSummaryRows(params: SpendSummaryBuildParams): Pr
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const ownerById = new Map(owners.map((u) => [u.id, u]));
+  const projectRows: Array<{ id: string; name: string; stream_name: string | null; category_name: string | null }> = projectIds.length
+    ? await manager.query(
+        `SELECT p.id,
+                p.name,
+                pst.name AS stream_name,
+                pc.name AS category_name
+         FROM portfolio_projects p
+         LEFT JOIN portfolio_streams pst ON pst.id = p.stream_id AND pst.tenant_id = p.tenant_id
+         LEFT JOIN portfolio_categories pc ON pc.id = p.category_id AND pc.tenant_id = p.tenant_id
+         WHERE p.id = ANY($1)`,
+        [projectIds],
+      )
+    : [];
+  const projectById = new Map(projectRows.map((project) => [project.id, project]));
 
   // Paying company lookup
   const payingCompanyIds = Array.from(new Set(items.map((i: any) => i.paying_company_id).filter(Boolean)));
@@ -359,12 +377,16 @@ export async function buildSpendSummaryRows(params: SpendSummaryBuildParams): Pr
     // Mask versions after the item's disabled year: include values through the fiscal
     // year of disabled_at; contribute zero for later years.
     const disabledYear = (item as any)?.disabled_at ? new Date((item as any).disabled_at).getFullYear() : null;
+    const versionMinus2Raw = perYear.get(currentYear - 2);
     const versionMinus1Raw = perYear.get(currentYear - 1);
     const versionCurrRaw = perYear.get(currentYear);
     const versionPlus1Raw = perYear.get(currentYear + 1);
+    const versionPlus2Raw = perYear.get(currentYear + 2);
+    const versionMinus2 = disabledYear != null && (currentYear - 2) > disabledYear ? undefined : versionMinus2Raw;
     const versionMinus1 = disabledYear != null && (currentYear - 1) > disabledYear ? undefined : versionMinus1Raw;
     const versionCurr = disabledYear != null && currentYear > disabledYear ? undefined : versionCurrRaw;
     const versionPlus1 = disabledYear != null && (currentYear + 1) > disabledYear ? undefined : versionPlus1Raw;
+    const versionPlus2 = disabledYear != null && (currentYear + 2) > disabledYear ? undefined : versionPlus2Raw;
 
     const dynamicVersions: Record<string, any> = {};
     for (const year of uniqueYears) {
@@ -413,6 +435,8 @@ export async function buildSpendSummaryRows(params: SpendSummaryBuildParams): Pr
     const account = (item as any).account_id ? accountById.get((item as any).account_id) : undefined;
     const analyticsCategoryId = (item as any).analytics_category_id as string | null;
     const analyticsCategory = analyticsCategoryId ? categoryById.get(analyticsCategoryId) : undefined;
+    const projectId = (item as any).project_id ?? null;
+    const project = projectId ? projectById.get(projectId) : undefined;
 
     const payingCompanyId = (item as any).paying_company_id ?? null;
     const payingCompany = payingCompanyId ? payingCompanyById.get(payingCompanyId) : undefined;
@@ -430,6 +454,9 @@ export async function buildSpendSummaryRows(params: SpendSummaryBuildParams): Pr
     const row: SpendSummaryRow = Object.assign({}, item, {
       analytics_category_id: analyticsCategoryId ?? null,
       analytics_category_name: analyticsCategory ? (analyticsCategory as any).name : null,
+      project_name: project?.name ?? null,
+      project_stream_name: project?.stream_name ?? null,
+      project_category_name: project?.category_name ?? null,
       latest_contract_id: latestContractByItem.get(item.id)?.id || null,
       latest_contract_name: latestContractByItem.get(item.id)?.name || '',
       supplier: supplier ? { id: supplier.id, name: (supplier as any).name } : undefined,
@@ -444,9 +471,11 @@ export async function buildSpendSummaryRows(params: SpendSummaryBuildParams): Pr
       paying_company_name: payingCompany ? ((payingCompany as any).name ?? null) : null,
       main_recipient: mainRecipient,
       versions: {
+        yMinus2: toTotals(versionMinus2, versionTotalsById, versionReportingTotalsById),
         yMinus1: toTotals(versionMinus1, versionTotalsById, versionReportingTotalsById),
         y: toTotals(versionCurr, versionTotalsById, versionReportingTotalsById),
         yPlus1: toTotals(versionPlus1, versionTotalsById, versionReportingTotalsById),
+        yPlus2: toTotals(versionPlus2, versionTotalsById, versionReportingTotalsById),
         ...dynamicVersions,
       },
       latest_task: includeLatestTask ? latestTaskByItem?.get(item.id) || null : undefined,
@@ -470,6 +499,8 @@ type VersionMetricKey = 'budget' | 'follow_up' | 'landing' | 'revision';
 
 function resolveVersionField(field: string): { slotKey: string; metric: VersionMetricKey } | null {
   const staticMap: Record<string, { slotKey: string; metric: VersionMetricKey }> = {
+    yMinus2Budget: { slotKey: 'yMinus2', metric: 'budget' },
+    yMinus2Landing: { slotKey: 'yMinus2', metric: 'landing' },
     yMinus1Budget: { slotKey: 'yMinus1', metric: 'budget' },
     yMinus1Landing: { slotKey: 'yMinus1', metric: 'landing' },
     yBudget: { slotKey: 'y', metric: 'budget' },
@@ -530,6 +561,12 @@ export function getSpendSummaryFieldValue(row: SpendSummaryRow, field: string): 
       return (row as any)?.paying_company_name ?? '';
     case 'account_display':
       return row?.account_display ?? '';
+    case 'project_name':
+      return row?.project_name ?? '';
+    case 'project_stream_name':
+      return row?.project_stream_name ?? '';
+    case 'project_category_name':
+      return row?.project_category_name ?? '';
     case 'account_name':
       return row?.account_name ?? '';
     case 'account_number':
@@ -570,6 +607,16 @@ export function applyAgFiltersInMemory(rows: SpendSummaryRow[], filterModel: any
   const entries = Object.entries(filterModel);
   if (!entries.length) return rows;
 
+  const parseDate = (value: any): number | null => {
+    if (!value) return null;
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? null : Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate());
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  };
+
   return rows.filter((row) => {
     for (const [field, rawModel] of entries) {
       let model: any = rawModel;
@@ -602,11 +649,97 @@ export function applyAgFiltersInMemory(rows: SpendSummaryRow[], filterModel: any
         continue;
       }
 
+      if ((model?.filterType === 'date' || model?.dateFrom || model?.dateTo) && [
+        'equals',
+        'notEqual',
+        'lessThan',
+        'lessThanOrEqual',
+        'greaterThan',
+        'greaterThanOrEqual',
+        'inRange',
+      ].includes(type)) {
+        const rowDate = parseDate(rowVal);
+        if (rowDate == null) return false;
+        const fromDate = parseDate(model?.dateFrom ?? model?.filter ?? model?.value);
+        const toDate = parseDate(model?.dateTo ?? model?.filterTo ?? model?.valueTo);
+        if (type === 'inRange') {
+          if (fromDate == null || toDate == null) return false;
+          if (rowDate < fromDate || rowDate > toDate) return false;
+          continue;
+        }
+        if (fromDate == null) return false;
+        switch (type) {
+          case 'equals':
+            if (rowDate !== fromDate) return false;
+            break;
+          case 'notEqual':
+            if (rowDate === fromDate) return false;
+            break;
+          case 'lessThan':
+            if (!(rowDate < fromDate)) return false;
+            break;
+          case 'lessThanOrEqual':
+            if (!(rowDate <= fromDate)) return false;
+            break;
+          case 'greaterThan':
+            if (!(rowDate > fromDate)) return false;
+            break;
+          case 'greaterThanOrEqual':
+            if (!(rowDate >= fromDate)) return false;
+            break;
+          default:
+            break;
+        }
+        continue;
+      }
+
       const valRaw = model?.filter ?? model?.value ?? (Array.isArray(model?.values) ? model.values[0] : undefined);
       if (valRaw == null || valRaw === '') continue;
       const needle = String(valRaw);
 
       const bothNumeric = typeof rowVal === 'number' && !isNaN(Number(needle));
+
+      if (bothNumeric && [
+        'equals',
+        'notEqual',
+        'lessThan',
+        'lessThanOrEqual',
+        'greaterThan',
+        'greaterThanOrEqual',
+        'inRange',
+      ].includes(type)) {
+        const rowNumber = Number(rowVal);
+        const target = Number(needle);
+        if (type === 'inRange') {
+          const upper = Number(model?.filterTo ?? model?.valueTo);
+          if (!Number.isFinite(upper)) return false;
+          if (rowNumber < target || rowNumber > upper) return false;
+          continue;
+        }
+        switch (type) {
+          case 'equals':
+            if (rowNumber !== target) return false;
+            break;
+          case 'notEqual':
+            if (rowNumber === target) return false;
+            break;
+          case 'lessThan':
+            if (!(rowNumber < target)) return false;
+            break;
+          case 'lessThanOrEqual':
+            if (!(rowNumber <= target)) return false;
+            break;
+          case 'greaterThan':
+            if (!(rowNumber > target)) return false;
+            break;
+          case 'greaterThanOrEqual':
+            if (!(rowNumber >= target)) return false;
+            break;
+          default:
+            break;
+        }
+        continue;
+      }
 
       switch (type) {
         case 'equals':
@@ -651,6 +784,9 @@ export function quickSearchSummaryRows(rows: SpendSummaryRow[], q: string): Spen
     bag.push(take(row.account_display));
     bag.push(take(row.account_name));
     bag.push(take(row.account_number));
+    bag.push(take(row.project_name));
+    bag.push(take(row.project_stream_name));
+    bag.push(take(row.project_category_name));
     bag.push(take(row.latest_contract_name));
     bag.push(take(row.allocation_method_label));
     bag.push(take((row as any).currency));

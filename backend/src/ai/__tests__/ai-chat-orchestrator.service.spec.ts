@@ -13,6 +13,8 @@ function createOrchestrator(options?: {
   historyMessages?: any[];
   providerId?: string;
   model?: string;
+  previewResult?: any;
+  conversationUsage?: { input_tokens: number; output_tokens: number };
 }) {
   const persistedMessages: any[] = [];
   let conversationCreated = false;
@@ -127,6 +129,7 @@ function createOrchestrator(options?: {
       title: 'Test',
     }),
     listMessagesForUser: async () => options?.historyMessages ?? [],
+    getConversationUsage: async () => options?.conversationUsage ?? { input_tokens: 0, output_tokens: 0 },
     appendMessage: async (input: any) => {
       persistedMessages.push(input);
       return { id: `msg-${persistedMessages.length}`, ...input };
@@ -147,6 +150,43 @@ function createOrchestrator(options?: {
     },
   };
 
+  const mockPreviews = {
+    executePreview: async () => options?.previewResult ?? {
+      preview_id: 'preview-1',
+      tool_name: 'update_task_status',
+      status: 'executed',
+      target: { entity_type: 'tasks', entity_id: 'task-1', ref: 'T-1', title: 'Test task' },
+      changes: { status: { from: 'open', to: 'done' } },
+      requires_confirmation: false,
+      actions: [],
+      summary: 'T-1 status updated to done.',
+      error_message: null,
+      conversation_id: 'conv-1',
+      created_at: '2026-03-24T10:00:00.000Z',
+      expires_at: '2026-03-24T10:10:00.000Z',
+      approved_at: '2026-03-24T10:01:00.000Z',
+      rejected_at: null,
+      executed_at: '2026-03-24T10:01:00.000Z',
+    },
+    rejectPreview: async () => options?.previewResult ?? {
+      preview_id: 'preview-1',
+      tool_name: 'update_task_status',
+      status: 'rejected',
+      target: { entity_type: 'tasks', entity_id: 'task-1', ref: 'T-1', title: 'Test task' },
+      changes: { status: { from: 'open', to: 'done' } },
+      requires_confirmation: false,
+      actions: [],
+      summary: 'Status update for T-1 was rejected.',
+      error_message: null,
+      conversation_id: 'conv-1',
+      created_at: '2026-03-24T10:00:00.000Z',
+      expires_at: '2026-03-24T10:10:00.000Z',
+      approved_at: null,
+      rejected_at: '2026-03-24T10:01:00.000Z',
+      executed_at: null,
+    },
+  };
+
   const mockSystemPrompt = {
     build: () => 'You are Plaid.',
   };
@@ -158,6 +198,7 @@ function createOrchestrator(options?: {
     mockCipher as any,
     mockProviderRegistry as any,
     mockConversations as any,
+    mockPreviews as any,
     mockToolRegistry as any,
     mockSystemPrompt as any,
   );
@@ -177,6 +218,7 @@ async function testSimpleTextResponse() {
   const { orchestrator, persistedMessages, recordedRequests } = createOrchestrator({
     providerContextWindow: 1000,
     historyMessages: [{ role: 'user', content: 'Hello' }],
+    conversationUsage: { input_tokens: 100, output_tokens: 50 },
   });
   const events = await collectEvents(
     orchestrator.stream({
@@ -201,6 +243,8 @@ async function testSimpleTextResponse() {
 
   const done = events.find((e) => e.type === 'done') as any;
   assert.deepEqual(done.usage, { input_tokens: 100, output_tokens: 50 });
+  assert.deepEqual(done.last_usage, { input_tokens: 100, output_tokens: 50 });
+  assert.deepEqual(done.conversation_usage, { input_tokens: 100, output_tokens: 50 });
 
   // Should persist user message + assistant message
   assert.ok(persistedMessages.length >= 2, `Expected at least 2 persisted messages, got ${persistedMessages.length}`);
@@ -224,6 +268,7 @@ async function testToolCallFlow() {
       { type: 'done', usage: { input_tokens: 200, output_tokens: 100 } },
     ],
     toolResult: { items: [{ type: 'applications', id: 'app-1', label: 'CRM' }], total: 1 },
+    conversationUsage: { input_tokens: 300, output_tokens: 150 },
   });
 
   const events = await collectEvents(
@@ -250,6 +295,59 @@ async function testToolCallFlow() {
   assert.equal(toolResult.name, 'search_all');
   assert.deepEqual(toolResult.result.items[0].label, 'CRM');
   assert.equal(toolExecuteCount.value, 1);
+
+  const done = events.find((e) => e.type === 'done') as any;
+  assert.deepEqual(done.last_usage, { input_tokens: 200, output_tokens: 100 });
+  assert.deepEqual(done.conversation_usage, { input_tokens: 300, output_tokens: 150 });
+}
+
+async function testApprovalMarkerExecutesPreviewBeforeProviderResponse() {
+  const { orchestrator, persistedMessages, recordedRequests } = createOrchestrator({
+    providerEvents: [
+      { type: 'text_delta', text: 'Done after approval.' },
+      { type: 'done', usage: { input_tokens: 10, output_tokens: 5 } },
+    ],
+    historyMessages: [
+      {
+        role: 'user',
+        content: '[APPROVE:11111111-1111-4111-8111-111111111111]',
+      },
+    ],
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: '[APPROVE:11111111-1111-4111-8111-111111111111]',
+    }),
+  );
+
+  const previewResult = events.find((event) => event.type === 'preview_result') as any;
+  assert.ok(previewResult);
+  assert.equal(previewResult.status, 'executed');
+  assert.equal(persistedMessages[0].role, 'user');
+  assert.equal(persistedMessages[0].content, '[APPROVE:11111111-1111-4111-8111-111111111111]');
+  assert.equal(persistedMessages[1].role, 'assistant');
+  assert.equal(persistedMessages[1].content, 'Done after approval.');
+  assert.equal(
+    recordedRequests[0].messages.some(
+      (message: any) => message.role === 'user' && message.content === 'The user explicitly approved the pending AI preview.',
+    ),
+    true,
+  );
+  assert.equal(
+    recordedRequests[0].messages.some(
+      (message: any) => message.role === 'assistant' && message.content === 'Backend preview result: T-1 status updated to done.',
+    ),
+    true,
+  );
 }
 
 async function testProviderReceivesAbortSignal() {
@@ -292,6 +390,7 @@ async function testRepeatedToolCallsStopWithoutFurtherProgress() {
       { type: 'done', usage: { input_tokens: 100, output_tokens: 20 } },
     ],
     toolResult: { items: [], total: 0 },
+    conversationUsage: { input_tokens: 100, output_tokens: 20 },
   });
 
   const events = await collectEvents(
@@ -309,8 +408,35 @@ async function testRepeatedToolCallsStopWithoutFurtherProgress() {
 
   const errorEvent = events.find((e) => e.type === 'error') as any;
   assert.equal(errorEvent?.message, 'Maximum tool call iterations reached without progress.');
+  assert.deepEqual(errorEvent?.last_usage, { input_tokens: 100, output_tokens: 20 });
+  assert.deepEqual(errorEvent?.conversation_usage, { input_tokens: 100, output_tokens: 20 });
   assert.equal(providerCallCount.value, 2);
   assert.equal(toolExecuteCount.value, 1);
+}
+
+async function testProviderErrorIncludesConversationUsage() {
+  const { orchestrator } = createOrchestrator({
+    providerEvents: [{ type: 'error', message: 'Provider unavailable' }],
+    conversationUsage: { input_tokens: 42, output_tokens: 7 },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Hello',
+    }),
+  );
+
+  const errorEvent = events.find((event) => event.type === 'error') as any;
+  assert.equal(errorEvent?.message, 'Provider unavailable');
+  assert.equal(errorEvent?.last_usage, undefined);
+  assert.deepEqual(errorEvent?.conversation_usage, { input_tokens: 42, output_tokens: 7 });
 }
 
 async function testSystemPromptGuidance() {
@@ -526,6 +652,59 @@ async function testMalformedToolArgumentsReturnSyntheticToolError() {
   assert.equal(toolExecuteCount.value, 0);
 }
 
+async function testStructuredToolResultsCarryBlockingValidationMetadataForIgnoredFilters() {
+  const { orchestrator, recordedRequests } = createOrchestrator({
+    providerEvents: [
+      { type: 'tool_call_start', id: 'tc-1', name: 'query_entities' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"entity_type":"requests","filters":{"assignee":"yann.aubert@lohr.fr"}}' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'done', usage: { input_tokens: 50, output_tokens: 25 } },
+    ],
+    providerToolEvents: [
+      { type: 'text_delta', text: 'I need to repair the query first.' },
+      { type: 'done', usage: { input_tokens: 75, output_tokens: 30 } },
+    ],
+    toolResult: {
+      items: [{ id: 'req-1', type: 'requests', label: 'REQ-1' }],
+      total: 1,
+      filters_applied: [],
+      filters_ignored: ['assignee'],
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Which requests are assigned to Yann Aubert?',
+    }),
+  );
+
+  const toolResult = events.find((event) => event.type === 'tool_result') as any;
+  assert.deepEqual(toolResult.result.filters_ignored, ['assignee']);
+
+  assert.equal(recordedRequests.length, 2);
+  const secondRequestMessages = recordedRequests[1].messages as any[];
+  const toolMessage = secondRequestMessages.find((message) => message.role === 'tool');
+  assert.ok(toolMessage, 'Expected tool result to be forwarded to the provider.');
+
+  const parsedToolMessage = JSON.parse(toolMessage.content);
+  assert.deepEqual(parsedToolMessage.result.filters_ignored, ['assignee']);
+  assert.deepEqual(parsedToolMessage.validation, {
+    status: 'invalid',
+    blocking: true,
+    ignored_fields: ['assignee'],
+    source: 'filters_ignored',
+    guidance:
+      'One or more requested filters were ignored. Do not answer from this result. Repair the query first by choosing valid fields, using get_filter_values, switching entity, or using scope when appropriate.',
+  });
+}
+
 async function testReasoningModelsGetLargerOpenAiTokenBudget() {
   assert.equal(resolveProviderMaxTokens('openai', 'gpt-5.4'), 8192);
   assert.equal(resolveProviderMaxTokens('openai', 'gpt-4o'), 4096);
@@ -535,12 +714,15 @@ async function testReasoningModelsGetLargerOpenAiTokenBudget() {
 async function run() {
   await testSimpleTextResponse();
   await testToolCallFlow();
+  await testApprovalMarkerExecutesPreviewBeforeProviderResponse();
   await testProviderReceivesAbortSignal();
   await testRepeatedToolCallsStopWithoutFurtherProgress();
+  await testProviderErrorIncludesConversationUsage();
   await testSystemPromptGuidance();
   await testContextCompaction();
   await testToolExecutionError();
   await testMalformedToolArgumentsReturnSyntheticToolError();
+  await testStructuredToolResultsCarryBlockingValidationMetadataForIgnoredFilters();
   await testReasoningModelsGetLargerOpenAiTokenBudget();
 }
 

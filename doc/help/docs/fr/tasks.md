@@ -1,0 +1,723 @@
+# Tâches
+
+Tasks help you track action items, deliverables, and work packages across your KANAP entities. They are used for renewal reminders, follow-ups, compliance checks, project deliverables, and any other work that needs tracking.
+
+## Premiers pas
+
+Navigate to **Portefeuille > Tâches** to see all tasks across your organization. Click **Nouveau** to create a task.
+
+### Creating a new task
+
+When you click **Nouveau**, the full espace de travail de la tâche opens. To create a task:
+
+1. **Enter the title** (required):
+   - Type the task title in the text field at the top
+
+2. **Choose context**:
+   - **Standalone task** (default): Keep "Related To" as **Standalone**
+   - **Linked task**: Select **Project**, **OPEX**, **Contract**, or **CAPEX**, then pick the specific item
+
+3. **Fill in optional details**:
+   - **Task Type**: Select a category for the work (e.g., Task, Bug, Problem, Incident). Defaults to "Task" if available
+   - **Description**: Add detailed information using the markdown editor (supports formatting, lists, links, images)
+   - **Phase**: For project tasks, select a phase or leave as "Project-level"
+   - **Classification** (standalone and project tasks): Set Source, Category, Stream, and Company. For project tasks, these default from the parent project. For standalone tasks, your organization's default classification values are pre-filled when available
+   - **Status**: Defaults to "Open"
+   - **Priority**: Defaults to "Normal"
+   - **Dates**: Set start and due dates
+   - **Assignee**: Defaults to you; change if needed
+
+4. Click **Create** when ready (enabled once title is set). You can also press **Ctrl+S** (or **Cmd+S** on Mac)
+
+**Tip**: You can paste images directly into the description. They are automatically uploaded to storage when you create the task.
+
+**Note**: Tasks can also be created from within other espace de travails (OPEX items, Contracts, CAPEX items, Portfolio Projects) where the relation is pre-selected.
+
+**Required fields**:
+  - **Title**: A short description of what needs to be done
+
+**Strongly recommended**:
+  - **Description**: Detailed description of the task
+  - **Assignee**: Who is responsible
+  - **Due Date**: When it needs to be completed
+
+---
+
+## Où le trouver
+
+- Path: **Portefeuille > Tâches**
+- Permissions:
+  - You need at least `tasks:reader` to view tasks
+  - You need `tasks:member` to create tasks and edit tasks in standalone/OPEX/Contract/CAPEX contexts
+  - You need `portfolio_projects:contributor` to save a task when the target context is a project
+  - You need `tasks:admin` for bulk deletion, CSV import, and CSV export
+
+If you don't see Tasks in the menu, ask your administrator to grant you the appropriate permissions.
+
+---
+
+## Travailler avec la liste
+
+The Tasks grid shows all tasks across your organization.
+
+**Top scope filter**:
+  - **My tasks** (default): shows tasks assigned to you
+  - **My team's tasks**: shows tasks assigned to any member of your Portfolio team (including yours)
+  - **All tasks**: shows the full tasks grid
+  - If you are not assigned to a Portfolio team, **My team's tasks** is disabled
+  - Your selection is remembered across sessions -- returning to the page restores your last choice
+
+**Default columns** (visible by default):
+
+| Column | What it shows |
+|--------|---------------|
+| **#** | Item reference (e.g., T-42). Click to open l'espace de travail |
+| **Task Title** | The task name. Click to open l'espace de travail |
+| **Task Type** | The type of work (e.g., Task, Bug, Problem, Incident) |
+| **Context** | The entity type (Project, OPEX, Contract, CAPEX, or "Standalone") |
+| **Status** | Current state as a colored chip |
+| **Score** | Calculated priority score |
+| **Assignee** | Assigned person |
+| **Classification** | Portfolio classification category |
+| **Stream** | Portfolio stream |
+
+**Additional columns** (hidden by default, enable via column menu):
+
+| Column | What it shows |
+|--------|---------------|
+| **Related Entry** | The linked entity name (empty for standalone tasks) |
+| **Phase** | Project phase (for project tasks) |
+| **Priority** | Priority level as a colored chip |
+| **Due Date** | When the task is due |
+| **Created** | When the task was created |
+| **Last changed** | When the task was last updated |
+| **Description** | Task description text |
+| **Source** | Portfolio source classification |
+| **Company** | Company classification |
+
+**Status colors**:
+  - **Open**: Gray
+  - **In Progress**: Orange
+  - **Pending**: Blue
+  - **In Testing**: Purple
+  - **Done**: Green
+  - **Cancelled**: Red
+
+**Priority colors**:
+  - **Blocker**: Red
+  - **High**: Orange
+  - **Normal**: Gray
+  - **Low**: Blue
+  - **Optional**: Green
+
+**Default filter**: Active tasks are shown by default (`Open`, `In Progress`, `Pending`, `In Testing`). Include `Done` and `Cancelled` in the Status filter to see closed tasks.
+
+**Actions**:
+  - **Nouveau**: Create a standalone task (requires `tasks:member`)
+  - **Importer CSV**: Upload a CSV file to create or update tasks (requires `tasks:admin`)
+  - **Exporter CSV**: Download tasks to a CSV file (requires `tasks:admin`)
+  - **Delete Selected**: Remove selected tasks (requires `tasks:admin`)
+
+---
+
+## The Task espace de travail
+
+Click any row to open the espace de travail de la tâche. L'espace de travail uses a sidebar layout with the main content area on the right and collapsible sidebar sections on the left.
+
+### Header toolbar
+
+L'espace de travail header contains:
+  - **Back to Tasks** (or back to the originating espace de travail du projet)
+  - **Position indicator**: Shows your position in the filtered list (e.g., "3 of 12")
+  - **Envoyer le lien**: Email a link to the task
+  - **Convert to Request**: Promote the task to a portfolio request
+  - **Previous / Next** arrows: Navigate between tasks in the current list order
+  - **Supprimer**: Remove the task (requires `tasks:admin`)
+  - **Enregistrer**: Save pending changes (also available via **Ctrl+S**)
+  - **Fermer**: Return to the task list
+
+Below the toolbar, the title area shows:
+  - **Priority Score Badge** (project tasks only): A circular badge displaying the calculated priority score
+  - **Item reference chip**: Click to copy the reference (e.g., T-42) to your clipboard
+  - **Title**: Click to edit inline (requires `tasks:member`)
+  - **Status chip**, **Project chip** (for project tasks, click to open the project), **Priority chip**
+  - **Attach files** button: Toggle the file upload area
+
+### Main content area
+
+**Description**: The markdown editor supports formatting, lists, links, code blocks, and images. You can paste images directly -- they are uploaded automatically. Press **Tab** from the title field to jump into the description editor.
+
+**Import / Export buttons** (next to the description heading):
+  - **Import**: Import a `.docx` file to replace the description content. If the description already has content, you are asked to confirm before replacing. Document import is available after the task has been saved (not during creation)
+  - **Export**: Export the description as PDF, DOCX, or ODT
+
+**Attachments**: When the upload area is visible, drag and drop files or click **Browse files**. Uploaded files appear as chips below the description. Click a chip to download; click the x button to delete (requires edit permission). Maximum 20 MB per file.
+
+**Activity Section**: Toggle between three views:
+  - **Comments**: Unified activity form (comment + optional status change + optional time log in one submit) plus the comment thread
+  - **History**: View all changes to the task with timestamps
+  - **Time Log**: View and manage time entries (available for standalone and project tasks only)
+
+### Sidebar sections
+
+The sidebar is resizable by dragging its right edge. It contains the following collapsible sections:
+
+**Context**:
+  - Related object (Project, OPEX item, Contract, CAPEX item, or "Standalone Task")
+    - During creation: defaults to **Standalone**, or select a type and item
+    - After creation (if you can edit): context remains editable and is applied when you click **Enregistrer**
+  - Phase (for project tasks only; appears after selecting a project)
+
+**Task Details**:
+  - Task Type dropdown (e.g., Task, Bug, Problem, Incident)
+  - Priority level
+  - Status dropdown (cannot change to "Done" for project tasks without logging time first)
+
+**Classification** (for standalone and project tasks only):
+  - **Source**: Where the work originated
+  - **Category**: The portfolio category for the work
+  - **Stream**: The specific stream within the category (filtered by selected category; disabled until a category is selected)
+  - **Company**: The company this work relates to
+  - For OPEX/Contract/CAPEX tasks, this section is hidden unless classification values were previously set
+
+**Time** (hidden during creation and for OPEX/Contract/CAPEX tasks):
+  - Total time spent (displayed as days and hours)
+  - **Log Time** button to add time entries
+
+**People**:
+  - Requestor
+  - Assignee
+  - Viewers (multi-select)
+
+**Dates**:
+  - Start date
+  - Due date
+
+**Base de connaissances** (existing tasks only):
+  - Link knowledge base articles to the task or create new ones directly from the sidebar
+  - Requires `knowledge:member` to create new articles
+
+### Changing task context
+
+When you change a task's context and save, KANAP applies the change in one operation (context + other edited fields together).
+
+- **Project to Standalone**: Phase is cleared, classification is kept
+- **Project to OPEX/Contract/CAPEX**: Phase and classification are cleared
+- **Any to Project**:
+  - Project permission is required (`portfolio_projects:contributor`)
+  - Phase resets to project-level unless you choose a valid phase for that project
+  - Existing classification is kept; missing values are auto-filled from project defaults
+
+---
+
+## Task statuses
+
+| Status | Meaning | When to use |
+|--------|---------|-------------|
+| **Open** | Not yet started | Default for new tasks |
+| **In Progress** | Work has begun | When someone starts working on it |
+| **Pending** | Waiting on someone else | When the assignee is blocked and needs input/decision |
+| **In Testing** | Ready for validation | When implementation is complete and awaiting review/testing |
+| **Done** | Completed successfully | When the work is finished (requires time logged for project tasks) |
+| **Cancelled** | No longer needed | When the task becomes irrelevant |
+
+**Important**: For project tasks, you cannot mark a task as "Done" until you have logged at least some time. This ensures accurate effort tracking.
+
+---
+
+## Priority levels
+
+| Priority | Use case |
+|----------|----------|
+| **Blocker** | Blocking other work; immediate attention required |
+| **High** | Important and time-sensitive |
+| **Normal** | Standard priority (default) |
+| **Low** | Can be deferred if needed |
+| **Optional** | Nice-to-have, address when capacity allows |
+
+---
+
+## Time tracking
+
+Standalone tasks and project tasks support detailed time tracking through the Time Log feature. Time tracking is not available for OPEX, Contract, or CAPEX tasks.
+
+### Logging time
+
+1. Click the **Log Time** button in the sidebar Time section
+2. Select the **Category**: IT or Business (determines how time contributes to project effort)
+3. Enter the date the work was performed
+4. Enter time as days and/or hours
+5. Add optional notes describing the work
+6. Click **Log Time**
+
+**Category**: For project tasks, the category determines whether the time counts toward the project's IT effort or Business effort. This matches the project's own time logging system.
+
+### Viewing time entries
+
+The **Time Log** tab in the activity section shows all time entries for the task:
+  - Date the work was performed
+  - Category (IT or Business)
+  - Person who logged the time
+  - Hours logged
+  - Notes
+
+### Editing or deleting entries
+
+You can edit or delete your own time entries from the Time Log table.
+
+---
+
+## Attachments
+
+Tasks support file attachments for documents, screenshots, and other supporting files.
+
+### Adding attachments
+
+1. Click the **Attach files** button in the task header
+2. The upload area appears below the description
+3. Either:
+   - Drag and drop files onto the upload area, or
+   - Click **Browse files** to select files from your computer
+4. Files appear as chips below the description once uploaded
+
+**File size limit**: Maximum 20 MB per file.
+
+### Managing attachments
+
+- **Download**: Click on an attachment chip to download the file
+- **Supprimer**: Click the x button on the chip to remove the attachment (requires edit permission)
+
+Attachments are visible to anyone who can view the task.
+
+---
+
+## Description import and export
+
+The description field supports importing and exporting documents so you can work with content outside KANAP.
+
+### Importing a document
+
+1. Open an existing espace de travail de la tâche (import is not available during task creation)
+2. Click the **Import** button next to the **Description** heading
+3. Select a `.docx` file from your computer
+4. If the description already has content, confirm that you want to replace it
+5. The document is converted to markdown and loaded into the editor
+6. Review the result and click **Enregistrer** to keep the changes
+
+Images embedded in the document are uploaded to storage automatically. If any content cannot be converted cleanly, a warning appears at the bottom of the screen.
+
+### Exporting the description
+
+1. Click the **Export** button next to the **Description** heading
+2. Choose a format: **PDF**, **DOCX**, or **ODT**
+3. The file downloads automatically
+
+The export button is only enabled when the description has content.
+
+---
+
+## Comments and history
+
+### Adding comments
+
+1. Select the **Comments** tab in the activity section
+2. Type your comment in the text editor
+3. Optionally set a new status in the status dropdown
+4. Optionally log time with the slider (`0` means no time entry)
+5. Click **Submit** (the button label updates based on your selected actions)
+
+### Unified activity form behavior
+
+- You can submit any combination of:
+  - Comment only
+  - Status change only
+  - Time log only
+  - Comment + status + time together
+- For project tasks, setting status to **Done** requires logged time (existing + newly added)
+- The sidebar status dropdown still works independently if you prefer that flow
+
+### Viewing history
+
+The **History** tab shows all changes to the task:
+  - Status changes
+  - Field modifications
+  - Who made each change and when
+
+### Email notifications and quick actions
+
+When task notifications are enabled, status and comment updates can trigger email notifications.
+
+- If a status change and comment are submitted together, recipients may receive a merged email (depending on their notification preferences)
+- Status emails can include quick action buttons:
+  - **Pending**: `Respond & Set In Progress`, `Mark Done`
+  - **In Testing**: `Approve` (sets `Done`), `Set In Progress`
+  - **Done**: `Reopen` (sets `Open`)
+- Clicking an action button opens the task page with the status preselected in the unified activity form
+
+---
+
+## Creating tasks from other espace de travails
+
+Tasks are most commonly created from within other espace de travails:
+
+### From Portfolio Projects
+In the Project espace de travail, use the **Tasks** tab to manage project deliverables:
+- Create tasks for specific work packages
+- Assign tasks to project phases
+- Track time against each task
+
+**Tip**: In the Timeline tab, click the **[+]** button next to a phase to create a task pre-linked to that phase.
+
+### From OPEX items
+In the OPEX espace de travail, use the **Tasks** tab to create tasks like:
+- "Review vendor pricing for 2026"
+- "Negotiate volume discount"
+
+### From Contracts
+In the Contract espace de travail, use the **Tasks** tab for:
+- "Review contract before renewal deadline"
+- "Request updated terms from vendor"
+
+### From CAPEX items
+In the CAPEX espace de travail, tasks track project milestones:
+- "Complete requirements gathering"
+- "Obtain budget approval"
+
+These tasks automatically link to the parent entity and appear in both the task list and the parent espace de travail.
+
+---
+
+## Standalone tasks
+
+Standalone tasks are independent work items not linked to any specific project, contract, or budget item. They are useful for:
+- General IT operations work
+- Ad-hoc requests
+- Cross-cutting initiatives
+- Personal task tracking
+
+### Creating standalone tasks
+
+1. Click **Nouveau** in the Tasks page
+2. Leave the "Related To" dropdowns empty
+3. The sidebar shows "Standalone Task" instead of a linked entity
+4. Fill in the title, description, and other details
+5. Click **Create**
+
+### Classification fields
+
+Standalone tasks and project tasks have editable classification fields that help organize work by portfolio dimensions:
+
+- **Source**: Where the work originated (e.g., Business Request, IT Initiative)
+- **Category**: The portfolio category for the work
+- **Stream**: The specific stream within the category (filtered by selected category)
+- **Company**: The company this work relates to
+
+These fields appear in the **Classification** section of the sidebar and can be edited at any time. When creating a new standalone task, your organization's default classification values are pre-filled automatically if configured.
+
+For **project tasks**, classification defaults from the parent project when the task is created but can be changed independently. This allows, for example, an infrastructure task to exist within a business project, or a compliance task within an IT project. If a task's classification is not explicitly set, it inherits and displays the project's classification.
+
+### Priority scoring
+
+Standalone tasks (and all non-project tasks) use a fixed priority score based on their priority level:
+
+| Priority Level | Score |
+|---------------|-------|
+| Blocker | 110 |
+| High | 90 |
+| Normal | 70 |
+| Low | 50 |
+| Optional | 30 |
+
+Blocker tasks score 110 to ensure they always rank above even the highest-priority project tasks (max 100).
+
+---
+
+## Project tasks
+
+Project tasks have additional features compared to regular tasks:
+
+**Independent classification**: Project tasks have their own Source, Category, Stream, and Company fields. When a task is created within a project, these default from the project's classification for convenience. However, each task's classification can be edited independently -- for example, an infrastructure task can exist within a business project, or a compliance task within an IT project. If a task's classification field is not explicitly set, it inherits and displays the project's value.
+
+**Priority score**: Project tasks display a calculated priority score that combines:
+- The parent project's priority score
+- An adjustment based on the task's priority level (+10 for Blocker, +5 for High, 0 for Normal, -5 for Low, -10 for Optional)
+
+The score is displayed as a circular badge to the left of the task title in l'espace de travail, matching the project's score display style. In the task list, the Score column shows this calculated value.
+
+**Phase assignment**: Tasks can be assigned to specific project phases or marked as "Project-level" for cross-cutting work.
+
+**Time contribution**: Time logged to project tasks contributes to the project's actual effort calculations:
+- IT category time adds to `Actual Effort (IT)`
+- Business category time adds to `Actual Effort (Business)`
+- The project Progress tab shows a breakdown of Project Overhead vs Task Time
+- The unified Time Log displays all time entries from both project overhead and task work
+
+**Status validation**: Project tasks cannot be marked as "Done" without logging time first. This ensures accurate project effort tracking.
+
+**Filtering**: The project Tasks tab includes filters for:
+- Status (All, Active, specific status)
+- Phase (All Phases, Project-level, specific phase)
+
+---
+
+## Import/export CSV
+
+Manage tasks at scale using CSV import and export. This feature supports bulk operations for initial data loading, task migrations, and data extraction for reporting.
+
+### Accessing CSV features
+
+From the Tasks list:
+  - **Exporter CSV**: Download tasks to a CSV file
+  - **Importer CSV**: Upload a CSV file to create or update tasks
+  - **Download Template**: Get a blank CSV with correct headers
+
+**Permissions required**: `tasks:admin` for import/export operations.
+
+### Export options
+
+Three export modes are available:
+
+| Option | Description |
+|--------|-------------|
+| **Full Export** | All exportable fields -- use for reporting and complete data extraction |
+| **Data Enrichment** | All importable fields -- matches the import template format, ideal for round-trip editing (export, modify, re-import) |
+| **Custom Selection** | Choose specific fields to include in your export |
+
+**Template download** (from Import dialog): Downloads a blank CSV with all importable field headers -- use this to prepare import files with the correct structure.
+
+### Import workflow
+
+1. **Prepare your file**: Use UTF-8 encoding with semicolon (`;`) separators. Download a template to ensure correct headers.
+
+2. **Choose import settings**:
+   - **Mode**:
+     - `Enrich` (default): Empty cells preserve existing values -- only update what you specify
+     - `Replace`: Empty cells clear existing values -- full replacement of all fields
+   - **Operation**:
+     - `Upsert` (default): Create new tasks or update existing ones
+     - `Update only`: Only modify existing tasks, skip new ones
+     - `Insert only`: Only create new tasks, skip existing ones
+
+3. **Validate first**: Click **Preflight** to validate your file without making changes. Review errors and warnings.
+
+4. **Apply changes**: If validation passes, click **Import** to commit changes.
+
+### Field reference
+
+**Basic fields**:
+
+| CSV Column | Description | Required | Notes |
+|------------|-------------|----------|-------|
+| `id` | Task UUID | No | For updates; leave blank for new tasks |
+| `title` | Task title | Yes | Part of unique identifier |
+| `description` | Task details | No | Supports plain text |
+
+**Context fields**:
+
+| CSV Column | Description | Required | Notes |
+|------------|-------------|----------|-------|
+| `related_object_type` | Entity type | No | Empty for standalone tasks; accepts code or label |
+| `related_object_id` | Entity UUID | Conditional | Required if linked task and `related_object_name` not provided |
+| `related_object_name` | Entity name | Conditional | Required if linked task and `related_object_id` not provided |
+| `phase_name` | Project phase | No | Must match existing phase name (project tasks only) |
+| `priority_level` | Task priority | No | Accepts code or label |
+| `source_name` | Source | No | Portfolio source (standalone and project tasks) |
+| `category_name` | Category | No | Portfolio category (standalone and project tasks) |
+| `stream_name` | Stream | No | Portfolio stream (standalone and project tasks) |
+| `company_name` | Company | No | Company (standalone and project tasks) |
+
+**Standalone tasks**: Leave `related_object_type`, `related_object_id`, and `related_object_name` empty. You can set classification fields (`source_name`, `category_name`, `stream_name`, `company_name`) for standalone and project tasks. For project tasks, omitted classification fields default from the parent project.
+
+**Tip**: For new linked task imports, use `related_object_name` instead of `related_object_id` -- it is much easier to work with. The system resolves the name to the correct ID based on `related_object_type`. For round-trip imports (export, edit, re-import), both fields are included so matching works correctly.
+
+**Status and dates**:
+
+| CSV Column | Description | Notes |
+|------------|-------------|-------|
+| `status` | Task status | Accepts code or label |
+| `start_date` | Start date | Date format: YYYY-MM-DD |
+| `due_date` | Due date | Date format: YYYY-MM-DD |
+
+**People fields**:
+
+| CSV Column | Description | Notes |
+|------------|-------------|-------|
+| `assignee_email` | Responsible person | Must match existing user email |
+| `creator_email` | Requestor email | Export only (shown as **Requestor Email** in field metadata) |
+| `viewer_email_1` through `_4` | Viewers | Must match existing user emails |
+| `owner_email_1` through `_4` | Owners | Must match existing user emails |
+
+**Other fields**:
+
+| CSV Column | Description | Notes |
+|------------|-------------|-------|
+| `labels` | Task labels | Comma-separated list |
+
+### Label and code acceptance
+
+For **status**, **priority_level**, and **related_object_type** fields, you can use either the internal code or a common label:
+
+**Status values**:
+
+| Code | Accepted labels |
+|------|-----------------|
+| `open` | `Open` |
+| `in_progress` | `In Progress`, `Active`, `Working` |
+| `pending` | `Pending` |
+| `in_testing` | `In Testing`, `Testing` |
+| `done` | `Done`, `Completed`, `Complete`, `Finished`, `Closed` |
+| `cancelled` | `Cancelled`, `Canceled` |
+
+**Priority level values**:
+
+| Code | Accepted labels |
+|------|-----------------|
+| `blocker` | `Blocker`, `Critical`, `Urgent` |
+| `high` | `High` |
+| `normal` | `Normal`, `Medium`, `Default` |
+| `low` | `Low` |
+| `optional` | `Optional`, `Nice to have` |
+
+**Related object type values**:
+
+| Code | Accepted labels |
+|------|-----------------|
+| `project` | `Project` |
+| `spend_item` | `Spend Item`, `Spend` |
+| `contract` | `Contract` |
+| `capex_item` | `CAPEX Item`, `CAPEX` |
+
+The system automatically normalizes values during import.
+
+### Matching and updates
+
+Tasks are matched by **title + related_object_id** (case-insensitive). When a match is found:
+  - With `Enrich` mode: Only non-empty CSV values update the task
+  - With `Replace` mode: All fields are updated, empty values clear existing data
+
+If you include the `id` column with a valid UUID, matching uses ID first, then falls back to title + related object.
+
+**Note**: If you provide `related_object_name` instead of `related_object_id`, the system resolves the name to the ID before matching. This means you can use human-readable names throughout your import file.
+
+### Export-only fields
+
+Some fields appear in exports but cannot be imported. These are system-managed fields that maintain data integrity:
+
+| Field | Why it's export-only |
+|-------|---------------------|
+| `creator_email` (Requestor) | Automatically set to the user who creates the task. Allowing import would compromise audit trail integrity -- you should not be able to falsify who requested/created a task. For new tasks, the system sets this to the importing user; for existing tasks, the original requestor is preserved. |
+
+These fields are included in **Full Export** for reporting purposes but excluded from **Template** and **Data Enrichment** exports since they cannot be modified during import.
+
+### Limitations
+
+  - **Maximum 4 viewers/owners**: Tasks support up to 4 viewer emails and 4 owner emails via CSV
+  - **Classification for standalone and project tasks only**: Source, Category, Stream, and Company can be set on standalone and project tasks (not on OPEX, Contract, or CAPEX tasks)
+  - **Phase requires project**: Phase assignment only works for project tasks
+  - **Comments not included**: Task comments and history must be managed in l'espace de travail
+  - **Time log not included**: Time entries must be logged in l'espace de travail
+  - **Attachments not included**: File attachments require espace de travail management
+
+### Troubleshooting
+
+**"File isn't properly formatted" error**: This usually indicates an encoding issue. Ensure your CSV is saved as **UTF-8**:
+
+  - **In LibreOffice**: When opening a CSV, select `UTF-8` in the Character set dropdown (not "Japanese (Macintosh)" or other encodings). When saving, check "Edit filter settings" and choose UTF-8.
+  - **In Excel**: Save As > CSV UTF-8 (Comma delimited), then open in a text editor to change commas to semicolons.
+  - **General tip**: If you see garbled characters at the start of your file, the encoding is incorrect.
+
+### Example CSV
+
+Using human-readable names (recommended for new imports):
+
+```csv
+title;related_object_type;related_object_name;status;priority_level;due_date;assignee_email;source_name;category_name
+Review contract terms;Contract;Acme Software License;Open;High;2026-02-28;john.doe@example.com;;
+Update documentation;project;Website Redesign;In Progress;Normal;2026-03-15;jane.smith@example.com;;
+Schedule kickoff;spend_item;Cloud Hosting 2026;open;low;2026-04-01;bob.wilson@example.com;;
+Audit IT security;;;open;high;2026-03-01;security@example.com;IT Initiative;Security
+```
+
+The last row is a **standalone task** (no related object) with classification fields set.
+
+Using UUIDs (typically from round-trip exports):
+
+```csv
+title;related_object_type;related_object_id;status;priority_level;due_date;assignee_email
+Review contract terms;Contract;550e8400-e29b-41d4-a716-446655440000;Open;High;2026-02-28;john.doe@example.com
+Update documentation;project;660e8400-e29b-41d4-a716-446655440001;In Progress;Normal;2026-03-15;jane.smith@example.com
+Schedule kickoff;spend_item;770e8400-e29b-41d4-a716-446655440002;open;low;2026-04-01;bob.wilson@example.com
+```
+
+---
+
+## Converting a task to a request
+
+You can promote a task into a portfolio request when the work deserves formal evaluation, prioritization, or eventually its own project. The conversion is available from the espace de travail de la tâche header.
+
+### How to convert
+
+1. Open the espace de travail de la tâche
+2. Click **Convert to Request** in the header toolbar (next to **Envoyer le lien**)
+3. In the dialog:
+   - **Request Name**: Defaults to the task title -- edit if needed
+   - **Purpose Preview**: Shows the task description, which becomes the request's purpose
+   - **Close the original task after conversion**: Check this option if you want the task status set to "Done" automatically
+4. Click **Convert to Request**
+
+After conversion, KANAP navigates you to the newly created espace de travail de la demande.
+
+### What gets carried over
+
+The new request inherits the following from the original task:
+
+| Task field | Request field |
+|------------|--------------|
+| Title | Name |
+| Description | Purpose |
+| Due Date | Target Delivery Date |
+| Source, Category, Stream, Company | Source, Category, Stream, Company |
+| Attachments | Attachments (copied) |
+
+The request is created with a status of **Pending Review** and is linked back to the originating task. A history entry is recorded on both the task ("Converted To Request") and the request ("Created from Task" with a link to the original task).
+
+### Conditions
+
+- **Permissions**: You need both `tasks:member` and `portfolio_requests:member`
+- **One-time conversion**: Each task can only be converted once. After conversion, the **Convert to Request** button is disabled and shows the linked request reference (e.g., "Already converted to REQ-42")
+- **Task remains**: The original task is not deleted. Unless you check the close option, it stays in its current status and can still be updated independently
+
+**Tip**: This feature is useful when a task reveals a larger initiative that needs its own request lifecycle -- criteria scoring, approval workflow, and eventual conversion to a project.
+
+---
+
+## Sending a link
+
+You can quickly email a link to any task to colleagues or external contacts.
+
+1. Open the espace de travail de la tâche
+2. Click **Envoyer le lien** in the header toolbar (to the left of the navigation arrows)
+3. In the dialog:
+   - **Select recipients**: Search for existing platform users by name or email, and/or type any email address and press Enter
+   - **Add a message** (optional): Include a personal note
+   - **Copy link**: Click the copy icon to grab the direct URL
+4. Click **Send**
+
+Recipients receive an email with your name, the task title, a direct link, and your message (if provided). This does not change any permissions -- it simply notifies the recipients.
+
+**Tip**: You can mix platform users and external email addresses in the same send.
+
+---
+
+## Conseils
+
+  - **Use due dates**: Set realistic due dates to track deadlines effectively.
+  - **Assign owners**: Every task should have an assignee for accountability.
+  - **Log time regularly**: Time tracking helps with future project estimation.
+  - **Filter by status**: The default filter shows active statuses only (`Open`, `In Progress`, `Pending`, `In Testing`) -- include `Done` and `Cancelled` when reviewing historical tasks.
+  - **Create from context**: Creating tasks from within espace de travails automatically links them.
+  - **Use priority wisely**: Reserve "Blocker" for genuinely blocking issues.
+  - **Use single-submit updates**: In the Comments tab, combine comment + status + time in one action to keep history and notifications aligned.
+  - **Import documents**: Use the **Import** button to pull in `.docx` files as description content instead of copy-pasting.
+  - **Keyboard shortcut**: Press **Ctrl+S** (or **Cmd+S** on Mac) to save quickly without reaching for the Save button.
+  - **Link knowledge articles**: Use the Knowledge section in the sidebar to connect relevant documentation to your tasks.

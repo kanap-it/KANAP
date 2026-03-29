@@ -11,6 +11,7 @@ import { requestsRegistry } from './requests.registry';
 import { spendItemsRegistry } from './spend-items.registry';
 import { suppliersRegistry } from './suppliers.registry';
 import { tasksRegistry } from './tasks.registry';
+import { usersRegistry } from './users.registry';
 
 export const aiEntityRegistries: Record<AiQueryEntityType, AiEntityFilterRegistry> = {
   applications: applicationsRegistry,
@@ -25,6 +26,7 @@ export const aiEntityRegistries: Record<AiQueryEntityType, AiEntityFilterRegistr
   spend_items: spendItemsRegistry,
   suppliers: suppliersRegistry,
   tasks: tasksRegistry,
+  users: usersRegistry,
 };
 
 export function getAiEntityRegistry(entityType: AiQueryEntityType): AiEntityFilterRegistry {

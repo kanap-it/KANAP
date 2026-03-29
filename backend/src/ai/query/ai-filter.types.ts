@@ -14,6 +14,7 @@ export type AiQueryEntityType =
   | 'spend_items'
   | 'suppliers'
   | 'tasks'
+  | 'users';
 
 export type AiSetFilterValue = Array<string | null>;
 export type AiTextFilterValue = string;

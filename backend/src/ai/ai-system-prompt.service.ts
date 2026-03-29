@@ -31,6 +31,13 @@ export class AiSystemPromptService {
   build(params: SystemPromptParams): string {
     const sections: string[] = [];
     const tenantName = normalizePromptValue(params.tenantName) ?? 'KANAP';
+    const availableToolNames = new Set(params.availableTools.map((tool) => tool.name));
+    const writePreviewTools = params.availableTools.filter(
+      (tool): tool is AiToolListItemDto & { write_preview: NonNullable<AiToolListItemDto['write_preview']> } =>
+        tool.write_preview != null,
+    );
+    const hasWritePreviewTools = writePreviewTools.length > 0;
+    const hasUndoPreviewTool = availableToolNames.has('undo_preview');
 
     sections.push(
       'You are Plaid, the integrated AI assistant of KANAP, serving the workspace on the KANAP IT governance platform.',
@@ -53,10 +60,32 @@ export class AiSystemPromptService {
       '```',
     );
 
-    sections.push(
-      'You can ONLY read data. You cannot create, update, or delete anything. ' +
-      'If the user asks you to perform a write action, politely explain that you are currently limited to read-only operations.',
-    );
+    if (hasWritePreviewTools) {
+      sections.push(
+        'You can read data and prepare limited write previews. ' +
+        'You cannot execute writes directly. ' +
+        'When a user asks for a supported write action, call the appropriate write-preview tool, explain the proposed change, and wait for explicit approval via the approval card. ' +
+        'Do not claim a write succeeded until you receive the execution result from the backend.',
+      );
+      sections.push(
+        'Writable fields currently available:\n' +
+        writePreviewTools
+          .flatMap((tool) => tool.write_preview.fields.map((field) => `- ${tool.write_preview.entity_type}.${field}`))
+          .join('\n'),
+      );
+      if (hasUndoPreviewTool) {
+        sections.push(
+          'Undo guidance:\n' +
+          '- If the user asks to undo a recently executed AI write and `undo_preview` is available, use it to create a reversal preview.\n' +
+          '- Undo still requires explicit approval before execution.',
+        );
+      }
+    } else {
+      sections.push(
+        'You can ONLY read data. You cannot create, update, or delete anything. ' +
+        'If the user asks you to perform a write action, politely explain that you are currently limited to read-only operations.',
+      );
+    }
 
     if (params.availableTools.length > 0) {
       const toolLines = params.availableTools.map(
@@ -91,6 +120,7 @@ export class AiSystemPromptService {
       '- **Suppliers**: vendors, providers, editors\n' +
       '- **Companies**: entities, business units, legal entities\n' +
       '- **Departments**: teams, departments, cost centers\n' +
+      '- **Users**: people, teammates, contributors, collaborators, owners, assignees\n' +
       '- **Streams**: value streams, programmes\n' +
       '- **Categories**: portfolio categories, classification\n' +
       '\n' +
@@ -112,7 +142,18 @@ export class AiSystemPromptService {
       '- When the user says **"me"**, **"my"**, **"mine"**, or **"myself"**, use `scope: "me"` on query_entities or aggregate_entities for tasks, projects, and requests instead of matching names.\n' +
       '- When the user says **"my team"**, use `scope: "my_team"` on query_entities or aggregate_entities for tasks, projects, and requests instead of matching names.\n' +
       '- Explicit third-person references such as "Alice", "Bob", or "John Doe" are NOT the current user scope. Handle them with normal filters, search, or entity lookups.\n' +
+      '- When the user asks to find people, owners, assignees, or contributor candidates, prefer the `users` entity through query_entities or search_all instead of inferring from project, request, task, or application person fields.\n' +
       '- Use get_filter_values to discover exact values for set-like fields before filtering when the user asks about a named status, owner, library, supplier, assignee, and similar fields.\n' +
+      '- `q` on query_entities and aggregate_entities is literal text quick-search only. Never encode pseudo-filters like `status:in_progress` or `assignee=bob@example.com` inside `q`; use `filters` and `scope` instead.\n' +
+      '- Treat `filters_ignored` from query_entities or aggregate_entities, and `fields_ignored` from get_filter_values, as blocking validation failures for that attempt.\n' +
+      '- If a structured query returns ignored filters or ignored fields, do one silent repair attempt before answering: use valid fields, call get_filter_values, switch entity, or use `scope` when the user meant first-person ownership.\n' +
+      '- Only answer silently after a repaired structured query returns with no ignored filters or ignored fields. Otherwise explain which requested filter was invalid and do not present the invalid result as fact.\n' +
+      '- Never base counts, ownership claims, assignee claims, or analytical conclusions on a structured result that contains ignored filters or ignored fields.\n' +
+      '- Cross-entity examples:\n' +
+      '  - tasks for projects in a stream: query `tasks` with `project_stream`\n' +
+      '  - applications linked to a project: query `applications` with `linked_project`\n' +
+      '  - documents linked to a request, task, project, application, or asset: query `documents` with `linked_request`, `linked_task`, `linked_project`, `linked_application`, or `linked_asset`\n' +
+      '  - OPEX totals by stream: query `spend_items` with `project_stream` and aggregate summary-backed metrics such as `y_budget`\n' +
       '- For projects and requests, "top priority" usually means sorting by `priority_score` descending.\n' +
       '- For "current projects", use get_filter_values on project status and exclude terminal statuses such as `done` and `cancelled`.\n' +
       '- get_filter_values is for exact set-like values. Do not use it for date ranges or free-form text questions.\n' +
@@ -121,8 +162,21 @@ export class AiSystemPromptService {
       '- When a search or query result includes `truncated: true`, do not assume you have the full answer yet. Fetch the next page or next offset when needed.\n' +
       '- search_knowledge uses `offset` for pagination. query_entities uses `page` for pagination.\n' +
       '- Do NOT use search_all as a fallback for structured count/filter/list/breakdown questions. If the query-layer tools do not confirm a value, explain that uncertainty instead of switching to fuzzy search.\n' +
-      '- search_all is a fuzzy text search tool with result limits and may be incomplete for counting, filtering, or breakdown questions.',
+      '- search_all is a fuzzy text search tool with result limits and may be incomplete for counting, filtering, or breakdown questions.\n' +
+      '- Spend-item reads and spend-item aggregations are summary-backed and should mirror the OPEX summary view, not the raw spend-item editor.',
     );
+
+    if (hasWritePreviewTools) {
+      sections.push(
+        'Write-preview guidelines:\n' +
+        writePreviewTools
+          .map((tool) => `- ${tool.write_preview.prompt_hint}`)
+          .join('\n') +
+        '\n' +
+        '- A write-preview tool returns a backend-created preview object. Describe the proposed change clearly and wait for explicit approval.\n' +
+        '- Explicit approval is handled outside the model. Never attempt to simulate approval, never claim approval happened implicitly, and never claim execution succeeded without seeing the execution result.',
+      );
+    }
 
     const hasWebSearch = params.availableTools.some((t) => t.name === 'web_search');
     if (hasWebSearch) {

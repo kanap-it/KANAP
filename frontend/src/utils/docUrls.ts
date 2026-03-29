@@ -92,17 +92,29 @@ const routeToDocSlug: [RegExp, string][] = [
 ];
 
 /**
+ * Get the locale prefix for documentation URLs.
+ * English uses root (no prefix), other supported languages get /fr/, /de/, /es/.
+ */
+function getLocalePrefix(locale?: string): string {
+  if (locale && ['fr', 'de', 'es'].includes(locale)) {
+    return `/${locale}`;
+  }
+  return '';
+}
+
+/**
  * Get the documentation URL for a given route path.
  * Returns the specific page URL if a mapping exists, otherwise returns the docs home.
+ * When a supported locale is provided, URLs are prefixed with the locale path.
  */
-export function getDocUrl(pathname: string): string {
+export function getDocUrl(pathname: string, locale?: string): string {
+  const prefix = getLocalePrefix(locale);
   for (const [pattern, slug] of routeToDocSlug) {
     if (pattern.test(pathname)) {
-      return `${DOC_BASE_URL}/${slug}/`;
+      return `${DOC_BASE_URL}${prefix}/${slug}/`;
     }
   }
-  // Fallback to documentation home
-  return `${DOC_BASE_URL}/`;
+  return `${DOC_BASE_URL}${prefix}/`;
 }
 
 /**

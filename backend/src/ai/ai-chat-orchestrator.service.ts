@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { AiConversationService } from './ai-conversation.service';
+import { AiMutationPreviewService } from './ai-mutation-preview.service';
 import { AiPolicyService } from './ai-policy.service';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
 import { AiSettingsService } from './ai-settings.service';
@@ -11,12 +12,20 @@ import { AiProviderRegistry } from './providers/ai-provider-registry.service';
 import { AiProviderMessage, AiProviderToolCall, AiStreamEvent } from './providers/ai-provider.types';
 import { addUsage, cloneUsage, isAbortError, tryParseToolCallArguments } from './providers/streaming.util';
 import { isOpenAiReasoningModel } from './providers/openai-stream.util';
-import { AiExecutionContext, ChatStreamEvent } from './ai.types';
+import {
+  AiExecutionContext,
+  AiExecutionContextWithManager,
+  AiMutationPreviewDto,
+  AiTokenUsage,
+  ChatStreamEvent,
+} from './ai.types';
+import { buildStructuredToolResultValidation } from './ai-tool-result-validation.util';
 
 const MAX_TOOL_ITERATIONS = 20;
 const DEFAULT_MAX_TOKENS = 4096;
 const OPENAI_REASONING_MAX_TOKENS = 8192;
-
+const APPROVE_MARKER_RE = /^\[APPROVE:([0-9a-f-]{36})\]$/i;
+const REJECT_MARKER_RE = /^\[REJECT:([0-9a-f-]{36})\]$/i;
 /** Strip base64 data-URI images from text to avoid blowing up the LLM context. */
 function stripBase64Images(text: string): string {
   // Markdown: ![alt](data:image/...;base64,...)
@@ -45,6 +54,10 @@ type StreamUsage = {
   output_tokens: number;
 };
 
+type ApprovalAction =
+  | { action: 'approve'; previewId: string }
+  | { action: 'reject'; previewId: string };
+
 function buildToolCallSignature(toolCalls: Array<{ name: string; arguments: string }>): string {
   return toolCalls
     .map((toolCall) => `${toolCall.name}\u0000${toolCall.arguments}`)
@@ -69,9 +82,56 @@ export class AiChatOrchestratorService {
     private readonly cipher: AiSecretCipherService,
     private readonly providerRegistry: AiProviderRegistry,
     private readonly conversations: AiConversationService,
+    private readonly previews: AiMutationPreviewService,
     private readonly toolRegistry: AiToolRegistry,
     private readonly systemPrompt: AiSystemPromptService,
   ) {}
+
+  private parseApprovalAction(userMessage: string): ApprovalAction | null {
+    const normalized = String(userMessage || '').trim();
+    const approveMatch = normalized.match(APPROVE_MARKER_RE);
+    if (approveMatch) {
+      return { action: 'approve', previewId: approveMatch[1] };
+    }
+    const rejectMatch = normalized.match(REJECT_MARKER_RE);
+    if (rejectMatch) {
+      return { action: 'reject', previewId: rejectMatch[1] };
+    }
+    return null;
+  }
+
+  private toProviderUserContent(userMessage: string): string {
+    const approvalAction = this.parseApprovalAction(userMessage);
+    if (!approvalAction) {
+      return stripBase64Images(userMessage);
+    }
+    if (approvalAction.action === 'approve') {
+      return 'The user explicitly approved the pending AI preview.';
+    }
+    return 'The user explicitly rejected the pending AI preview.';
+  }
+
+  private isMutationPreviewDto(value: unknown): value is AiMutationPreviewDto {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+    const candidate = value as Record<string, unknown>;
+    return typeof candidate.preview_id === 'string'
+      && typeof candidate.tool_name === 'string'
+      && typeof candidate.status === 'string'
+      && candidate.target != null
+      && candidate.changes != null;
+  }
+
+  private buildPreviewResultContextMessage(preview: AiMutationPreviewDto): AiProviderMessage {
+    const summary = preview.error_message
+      ? `${preview.summary} Error: ${preview.error_message}`
+      : preview.summary;
+    return {
+      role: 'assistant',
+      content: `Backend preview result: ${summary}`,
+    };
+  }
 
   private buildDisplayName(row: {
     first_name?: string | null;
@@ -167,10 +227,15 @@ export class AiChatOrchestratorService {
     );
 
     // Step 2: Load/create conversation, persist user message, build system prompt
-    const { conversationId, title, providerMessages, tools, systemPromptText } =
+    const approvalAction = this.parseApprovalAction(userMessage);
+    const { conversationId, title, providerMessages, tools, systemPromptText, preStreamEvents } =
       await this.tenantExecutor.runWithContext(context, async (ctx) => {
         let convId = params.conversationId;
         let convTitle: string;
+
+        if (approvalAction && !convId) {
+          throw new BadRequestException('Preview approvals require an existing conversation.');
+        }
 
         if (convId) {
           const conv = await this.conversations.getConversationForUser(
@@ -208,6 +273,21 @@ export class AiChatOrchestratorService {
           { manager: ctx.manager },
         );
 
+        const streamEvents: ChatStreamEvent[] = [];
+        let previewContextMessage: AiProviderMessage | null = null;
+
+        if (approvalAction) {
+          const previewResult = approvalAction.action === 'approve'
+            ? await this.previews.executePreview({ ...ctx, conversationId: convId! }, approvalAction.previewId)
+            : await this.previews.rejectPreview({ ...ctx, conversationId: convId! }, approvalAction.previewId);
+          previewContextMessage = this.buildPreviewResultContextMessage(previewResult);
+
+          streamEvents.push({
+            type: 'preview_result',
+            ...previewResult,
+          });
+        }
+
         // Load history
         const history = await this.conversations.listMessagesForUser(
           convId!,
@@ -220,7 +300,7 @@ export class AiChatOrchestratorService {
         const msgs: AiProviderMessage[] = [];
         for (const msg of history) {
           if (msg.role === 'user') {
-            msgs.push({ role: 'user', content: stripBase64Images(msg.content) });
+            msgs.push({ role: 'user', content: this.toProviderUserContent(msg.content) });
           } else if (msg.role === 'assistant') {
             msgs.push({
               role: 'assistant',
@@ -236,10 +316,17 @@ export class AiChatOrchestratorService {
             });
           }
         }
+        if (previewContextMessage) {
+          msgs.push(previewContextMessage);
+        }
 
         // Get tools and system prompt
-        const toolSchemas = await this.toolRegistry.getToolJsonSchemas(ctx);
-        const availableTools = await this.toolRegistry.listAvailableTools(ctx);
+        const toolContext: AiExecutionContextWithManager = {
+          ...ctx,
+          conversationId: convId!,
+        };
+        const toolSchemas = await this.toolRegistry.getToolJsonSchemas(toolContext);
+        const availableTools = await this.toolRegistry.listAvailableTools(toolContext);
         const readableTypes = await this.policy.listReadableEntityTypes(
           ctx,
           ['applications', 'assets', 'projects', 'requests', 'tasks', 'documents'],
@@ -260,16 +347,28 @@ export class AiChatOrchestratorService {
           providerMessages: msgs,
           tools: toolSchemas,
           systemPromptText: sysPrompt,
+          preStreamEvents: streamEvents,
         };
       });
 
     // Emit conversation event
     yield { type: 'conversation', id: conversationId, title };
+    for (const event of preStreamEvents) {
+      yield event;
+    }
 
     // Step 3: Provider streaming loop (NO DB transaction open)
     let messages = [...providerMessages];
     let totalUsage: StreamUsage | undefined;
+    let lastUsage: StreamUsage | undefined;
     let previousToolCallSignature: string | null = null;
+    const loadConversationUsage = async (): Promise<AiTokenUsage> => {
+      return this.tenantExecutor.runWithContext(context, async (ctx) => {
+        return this.conversations.getConversationUsage(conversationId, ctx.tenantId, {
+          manager: ctx.manager,
+        });
+      });
+    };
 
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
       if (abortSignal?.aborted) {
@@ -338,11 +437,19 @@ export class AiChatOrchestratorService {
             case 'done':
               iterationUsage = cloneUsage(event.usage);
               totalUsage = addUsage(totalUsage, iterationUsage);
+              lastUsage = iterationUsage;
               break;
 
-            case 'error':
-              yield { type: 'error', message: event.message };
+            case 'error': {
+              const conversationUsage = await loadConversationUsage();
+              yield {
+                type: 'error',
+                message: event.message,
+                last_usage: iterationUsage,
+                conversation_usage: conversationUsage,
+              };
               return;
+            }
           }
         }
       } catch (error) {
@@ -393,7 +500,13 @@ export class AiChatOrchestratorService {
         });
 
         if (previousToolCallSignature === toolCallSignature) {
-          yield { type: 'error', message: 'Maximum tool call iterations reached without progress.' };
+          const conversationUsage = await loadConversationUsage();
+          yield {
+            type: 'error',
+            message: 'Maximum tool call iterations reached without progress.',
+            last_usage: lastUsage,
+            conversation_usage: conversationUsage,
+          };
           return;
         }
         previousToolCallSignature = toolCallSignature;
@@ -427,7 +540,7 @@ export class AiChatOrchestratorService {
             result = { error: `${parseErrorMessage} Ask the model to retry with valid JSON arguments.` };
           } else {
             try {
-              result = await this.tenantExecutor.runWithContext(context, async (ctx) => {
+              result = await this.tenantExecutor.runWithContext({ ...context, conversationId }, async (ctx) => {
                 return this.toolRegistry.execute(ctx, tc.name, parsedArgs);
               });
             } catch (err: any) {
@@ -442,10 +555,19 @@ export class AiChatOrchestratorService {
             result,
           };
 
+          if (this.isMutationPreviewDto(result)) {
+            yield {
+              type: 'preview',
+              ...result,
+            };
+          }
+
+          const validation = buildStructuredToolResultValidation(tc.name, result);
           const toolContent = JSON.stringify({
             tool_call_id: tc.id,
             tool_name: tc.name,
             result,
+            ...(validation ? { validation } : {}),
           });
 
           messages.push({
@@ -481,7 +603,7 @@ export class AiChatOrchestratorService {
       }
 
       // No tool calls - this is the final assistant response
-      await this.tenantExecutor.runWithContext(context, async (ctx) => {
+      const conversationUsage = await this.tenantExecutor.runWithContext(context, async (ctx) => {
         await this.conversations.appendMessage(
           {
             conversationId,
@@ -494,13 +616,27 @@ export class AiChatOrchestratorService {
           },
           { manager: ctx.manager },
         );
+        return this.conversations.getConversationUsage(conversationId, ctx.tenantId, {
+          manager: ctx.manager,
+        });
       });
 
-      yield { type: 'done', usage: totalUsage };
+      yield {
+        type: 'done',
+        usage: totalUsage,
+        last_usage: lastUsage,
+        conversation_usage: conversationUsage,
+      };
       return;
     }
 
     // Max iterations reached
-    yield { type: 'error', message: 'Maximum tool call iterations reached.' };
+    const conversationUsage = await loadConversationUsage();
+    yield {
+      type: 'error',
+      message: 'Maximum tool call iterations reached.',
+      last_usage: lastUsage,
+      conversation_usage: conversationUsage,
+    };
   }
 }

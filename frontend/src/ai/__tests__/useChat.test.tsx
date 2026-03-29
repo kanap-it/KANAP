@@ -36,6 +36,7 @@ vi.mock('../aiApi', () => ({
   streamChat: vi.fn(),
   aiConversationsApi: {
     getMessages: vi.fn(),
+    getPreviews: vi.fn(),
   },
 }));
 
@@ -52,10 +53,14 @@ describe('useChat', () => {
       await waitForAbort(signal);
       yield { type: 'text_delta', text: 'late text' };
     });
-    vi.mocked(aiConversationsApi.getMessages).mockResolvedValue([
-      { id: 'msg-1', role: 'user', content: 'Loaded user message' },
-      { id: 'msg-2', role: 'assistant', content: 'Loaded assistant reply' },
-    ]);
+    vi.mocked(aiConversationsApi.getMessages).mockResolvedValue({
+      messages: [
+        { id: 'msg-1', role: 'user', content: 'Loaded user message' },
+        { id: 'msg-2', role: 'assistant', content: 'Loaded assistant reply' },
+      ],
+      conversation_usage: { input_tokens: 8, output_tokens: 3 },
+    });
+    vi.mocked(aiConversationsApi.getPreviews).mockResolvedValue([]);
 
     const { result } = renderHook(() => useChat());
 
@@ -78,9 +83,11 @@ describe('useChat', () => {
     await waitFor(() => {
       expect(result.current.conversationId).toBe('conversation-new');
       expect(result.current.isStreaming).toBe(false);
+      expect(result.current.conversationUsage).toEqual({ input_tokens: 8, output_tokens: 3 });
+      expect(result.current.lastRequestUsage).toBeNull();
       expect(result.current.messages).toEqual([
-        { id: 'msg-1', role: 'user', content: 'Loaded user message' },
-        { id: 'msg-2', role: 'assistant', content: 'Loaded assistant reply' },
+        { id: 'msg-1', role: 'user', content: 'Loaded user message', hidden: false },
+        { id: 'msg-2', role: 'assistant', content: 'Loaded assistant reply', usage: undefined },
       ]);
     });
 
@@ -92,37 +99,41 @@ describe('useChat', () => {
   });
 
   it('merges stored assistant tool history into a single assistant message', async () => {
-    vi.mocked(aiConversationsApi.getMessages).mockResolvedValue([
-      { id: 'user-1', role: 'user', content: 'Find the CRM runbook' },
-      {
-        id: 'assistant-1',
-        role: 'assistant',
-        content: '',
-        tool_calls: [
-          {
-            id: 'tool-call-1',
-            name: 'search_knowledge',
-            arguments: { query: 'CRM runbook' },
-          },
-        ],
-        usage_json: { input_tokens: 10, output_tokens: 4 },
-      },
-      {
-        id: 'tool-1',
-        role: 'tool',
-        content: JSON.stringify({
-          tool_call_id: 'tool-call-1',
-          tool_name: 'search_knowledge',
-          result: { items: [{ id: 'doc-1', title: 'CRM runbook' }] },
-        }),
-      },
-      {
-        id: 'assistant-2',
-        role: 'assistant',
-        content: 'Use the CRM runbook before restarting the service.',
-        usage_json: { input_tokens: 12, output_tokens: 18 },
-      },
-    ]);
+    vi.mocked(aiConversationsApi.getMessages).mockResolvedValue({
+      messages: [
+        { id: 'user-1', role: 'user', content: 'Find the CRM runbook' },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: '',
+          tool_calls: [
+            {
+              id: 'tool-call-1',
+              name: 'search_knowledge',
+              arguments: { query: 'CRM runbook' },
+            },
+          ],
+          usage_json: { input_tokens: 10, output_tokens: 4 },
+        },
+        {
+          id: 'tool-1',
+          role: 'tool',
+          content: JSON.stringify({
+            tool_call_id: 'tool-call-1',
+            tool_name: 'search_knowledge',
+            result: { items: [{ id: 'doc-1', title: 'CRM runbook' }] },
+          }),
+        },
+        {
+          id: 'assistant-2',
+          role: 'assistant',
+          content: 'Use the CRM runbook before restarting the service.',
+          usage_json: { input_tokens: 12, output_tokens: 18 },
+        },
+      ],
+      conversation_usage: { input_tokens: 22, output_tokens: 22 },
+    });
+    vi.mocked(aiConversationsApi.getPreviews).mockResolvedValue([]);
 
     const { result } = renderHook(() => useChat());
 
@@ -131,11 +142,14 @@ describe('useChat', () => {
     });
 
     expect(result.current.conversationId).toBe('conversation-1');
+    expect(result.current.conversationUsage).toEqual({ input_tokens: 22, output_tokens: 22 });
+    expect(result.current.lastRequestUsage).toEqual({ input_tokens: 12, output_tokens: 18 });
     expect(result.current.messages).toEqual([
       {
         id: 'user-1',
         role: 'user',
         content: 'Find the CRM runbook',
+        hidden: false,
       },
       {
         id: 'assistant-1',
@@ -163,7 +177,12 @@ describe('useChat', () => {
   it('surfaces streamed error events on the assistant message', async () => {
     vi.mocked(streamChat).mockImplementation(async function* () {
       yield { type: 'conversation', id: 'conversation-1', title: 'Broken stream' };
-      yield { type: 'error', message: 'Provider unavailable' };
+      yield {
+        type: 'error',
+        message: 'Provider unavailable',
+        last_usage: { input_tokens: 6, output_tokens: 2 },
+        conversation_usage: { input_tokens: 9, output_tokens: 4 },
+      };
     });
 
     const { result } = renderHook(() => useChat());
@@ -177,6 +196,8 @@ describe('useChat', () => {
     });
 
     expect(result.current.error).toBe('Provider unavailable');
+    expect(result.current.conversationUsage).toEqual({ input_tokens: 9, output_tokens: 4 });
+    expect(result.current.lastRequestUsage).toEqual({ input_tokens: 6, output_tokens: 2 });
     expect(result.current.messages).toEqual([
       expect.objectContaining({
         role: 'user',
@@ -228,5 +249,56 @@ describe('useChat', () => {
         isStreaming: false,
       }),
     ]);
+  });
+
+  it('tracks preview events and hides approval markers from visible user messages', async () => {
+    vi.mocked(streamChat).mockImplementation(async function* () {
+      yield { type: 'conversation', id: 'conversation-1', title: 'Approval flow' };
+      yield {
+        type: 'preview',
+        preview_id: 'preview-1',
+        tool_name: 'update_task_status',
+        status: 'pending',
+        target: { entity_type: 'tasks', entity_id: 'task-1', ref: 'T-1', title: 'Test task' },
+        changes: { status: { from: 'open', to: 'done' } },
+        requires_confirmation: true,
+        actions: ['approve', 'reject'],
+        summary: 'Update T-1 status from open to done.',
+        error_message: null,
+        conversation_id: 'conversation-1',
+        created_at: '2026-03-24T10:00:00.000Z',
+        expires_at: '2026-03-24T10:10:00.000Z',
+        approved_at: null,
+        rejected_at: null,
+        executed_at: null,
+      };
+      yield {
+        type: 'done',
+        usage: { input_tokens: 1, output_tokens: 1 },
+        last_usage: { input_tokens: 1, output_tokens: 1 },
+        conversation_usage: { input_tokens: 11, output_tokens: 6 },
+      };
+    });
+
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage('[APPROVE:11111111-1111-4111-8111-111111111111]');
+    });
+
+    expect(result.current.messages[0]).toEqual(
+      expect.objectContaining({
+        role: 'user',
+        hidden: true,
+      }),
+    );
+    expect(result.current.previews).toEqual([
+      expect.objectContaining({
+        preview_id: 'preview-1',
+        status: 'pending',
+      }),
+    ]);
+    expect(result.current.conversationUsage).toEqual({ input_tokens: 11, output_tokens: 6 });
+    expect(result.current.lastRequestUsage).toEqual({ input_tokens: 1, output_tokens: 1 });
   });
 });

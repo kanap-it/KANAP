@@ -2,6 +2,7 @@ import * as assert from 'node:assert/strict';
 import { adaptFilters, getAppliedFilterNames } from '../query/ai-filter.adapter';
 import { tasksRegistry } from '../query/registries/tasks.registry';
 import { projectsRegistry } from '../query/registries/projects.registry';
+import { requestsRegistry } from '../query/registries/requests.registry';
 
 function testSetFilterAdaptation() {
   const adapted = adaptFilters(tasksRegistry, {
@@ -41,6 +42,15 @@ function testUnknownFieldsAreIgnored() {
   assert.deepEqual(adapted.ignored, ['made_up']);
 }
 
+function testRequestAssigneeFieldIsIgnored() {
+  const adapted = adaptFilters(requestsRegistry, {
+    assignee: ['yann.aubert@lohr.fr'],
+  } as any);
+  assert.deepEqual(adapted.filters, {});
+  assert.deepEqual(adapted.applied, []);
+  assert.deepEqual(adapted.ignored, ['assignee']);
+}
+
 function testEmptyInput() {
   const adapted = adaptFilters(tasksRegistry, undefined);
   assert.deepEqual(adapted.filters, {});
@@ -52,6 +62,7 @@ function run() {
   testStringToSetFilterAdaptation();
   testDateFilterAdaptation();
   testUnknownFieldsAreIgnored();
+  testRequestAssigneeFieldIsIgnored();
   testEmptyInput();
 }
 

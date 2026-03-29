@@ -1,11 +1,17 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, ILike, Repository } from 'typeorm';
+import { Brackets, EntityManager, ILike, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { Role } from '../roles/role.entity';
 import { RolesService } from '../roles/roles.service';
 import * as argon2 from 'argon2';
 import { buildWhereFromAgFilters, parsePagination } from '../common/pagination';
+import {
+  buildQuickSearchConditions,
+  compileAgFilterCondition,
+  createParamNameGenerator,
+  FilterTargetConfig,
+} from '../common/ag-grid-filtering';
 import { AuditService } from '../audit/audit.service';
 import { BillingService } from '../billing/billing.service';
 // import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
@@ -32,6 +38,22 @@ type UpdateUserActor =
   | null
   | undefined;
 
+type AiUserQueryOpts = {
+  manager?: EntityManager;
+  tenantId?: string;
+};
+
+const buildAiUserDisplayNameSql = (alias: string): string =>
+  `COALESCE(NULLIF(TRIM(CONCAT(${alias}.first_name, ' ', ${alias}.last_name)), ''), ${alias}.email)`;
+
+const buildAiUserExpertiseSql = (configAlias: string): string =>
+  `COALESCE((
+    SELECT string_agg(DISTINCT area.value, ', ' ORDER BY area.value)
+    FROM jsonb_array_elements_text(COALESCE(${configAlias}.areas_of_expertise, '[]'::jsonb)) area(value)
+  ), '')`;
+
+const AI_USER_CONTRIBUTOR_PROFILE_SQL = `CASE WHEN tmc.id IS NULL THEN 'not_configured' ELSE 'configured' END`;
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -50,6 +72,262 @@ export class UsersService {
 
   private getRepo(manager?: EntityManager) {
     return manager ? manager.getRepository(User) : this.repo;
+  }
+
+  private buildAiUserBaseQuery(query: any, opts?: AiUserQueryOpts) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const repo = mg.getRepository(User);
+    const tenantId = String(opts?.tenantId || '').trim();
+    const { page, limit, skip, sort, status, q, filters } = parsePagination(query, {
+      field: 'last_name',
+      direction: 'ASC',
+    });
+    const fm = filters && typeof filters === 'object' ? filters : undefined;
+    const nextParam = createParamNameGenerator('u');
+
+    type Target = FilterTargetConfig;
+    const displayNameSql = buildAiUserDisplayNameSql('u');
+    const expertiseSql = buildAiUserExpertiseSql('tmc');
+    const targets: Record<string, Target> = {
+      email: { expression: 'u.email', dataType: 'string' },
+      first_name: { expression: 'u.first_name', dataType: 'string' },
+      last_name: { expression: 'u.last_name', dataType: 'string' },
+      status: { expression: 'u.status', dataType: 'string' },
+      job_title: { expression: 'u.job_title', dataType: 'string' },
+      locale: { expression: 'u.locale', dataType: 'string' },
+      company_name: {
+        expression: 'u.company_id',
+        textExpression: `COALESCE(c.name, '')`,
+        dataType: 'string',
+      },
+      department_name: {
+        expression: 'u.department_id',
+        textExpression: `COALESCE(d.name, '')`,
+        dataType: 'string',
+      },
+      primary_role_name: {
+        expression: 'u.role_id',
+        textExpression: `COALESCE(r.role_name, '')`,
+        dataType: 'string',
+      },
+      team_name: {
+        expression: 'tmc.team_id',
+        textExpression: `COALESCE(pt.name, '')`,
+        dataType: 'string',
+      },
+      contributor_profile: {
+        expression: AI_USER_CONTRIBUTOR_PROFILE_SQL,
+        textExpression: AI_USER_CONTRIBUTOR_PROFILE_SQL,
+        dataType: 'string',
+      },
+      project_availability: {
+        expression: 'tmc.project_availability',
+        numericExpression: 'tmc.project_availability',
+        dataType: 'number',
+      },
+      areas_of_expertise: {
+        expression: 'u.id',
+        textExpression: expertiseSql,
+        dataType: 'string',
+      },
+    };
+
+    const qb = repo.createQueryBuilder('u')
+      .leftJoin('roles', 'r', 'r.id = u.role_id AND r.tenant_id = u.tenant_id')
+      .leftJoin('companies', 'c', 'c.id = u.company_id AND c.tenant_id = u.tenant_id')
+      .leftJoin('departments', 'd', 'd.id = u.department_id AND d.tenant_id = u.tenant_id')
+      .leftJoin('portfolio_team_member_configs', 'tmc', 'tmc.user_id = u.id AND tmc.tenant_id = u.tenant_id')
+      .leftJoin('portfolio_teams', 'pt', 'pt.id = tmc.team_id AND pt.tenant_id = u.tenant_id');
+
+    if (tenantId) {
+      qb.andWhere('u.tenant_id = :tenantId', { tenantId });
+    }
+
+    if (status) {
+      qb.andWhere('u.status = :status', { status });
+    }
+
+    if (fm) {
+      for (const [field, model] of Object.entries(fm)) {
+        const target = targets[field];
+        if (!target) continue;
+        const condition = compileAgFilterCondition(model, target, nextParam);
+        if (!condition) continue;
+        qb.andWhere(new Brackets((sub) => sub.where(condition.sql, condition.params)));
+      }
+    }
+
+    const quickSearchExpressions = [
+      displayNameSql,
+      'u.email',
+      `COALESCE(u.job_title, '')`,
+      `COALESCE(r.role_name, '')`,
+      `COALESCE(c.name, '')`,
+      `COALESCE(d.name, '')`,
+      `COALESCE(pt.name, '')`,
+      expertiseSql,
+    ];
+    const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
+    if (quickSearch.length > 0) {
+      qb.andWhere(new Brackets((sub) => {
+        quickSearch.forEach((condition, index) => {
+          if (index === 0) sub.where(condition.sql, condition.params);
+          else sub.orWhere(condition.sql, condition.params);
+        });
+      }));
+    }
+
+    return { qb, page, limit, skip, sort };
+  }
+
+  async listForAi(query: any, opts?: AiUserQueryOpts) {
+    const { qb, page, limit, skip, sort } = this.buildAiUserBaseQuery(query, opts);
+    const total = await qb.clone().getCount();
+
+    const displayNameSql = buildAiUserDisplayNameSql('u');
+    const expertiseSql = buildAiUserExpertiseSql('tmc');
+    const sortFieldMap: Record<string, string> = {
+      display_name: displayNameSql,
+      email: 'u.email',
+      first_name: 'u.first_name',
+      last_name: 'u.last_name',
+      status: 'u.status',
+      job_title: 'u.job_title',
+      company_name: 'c.name',
+      department_name: 'd.name',
+      primary_role_name: 'r.role_name',
+      locale: 'u.locale',
+      team_name: 'pt.name',
+      contributor_profile: AI_USER_CONTRIBUTOR_PROFILE_SQL,
+      project_availability: 'tmc.project_availability',
+      created_at: 'u.created_at',
+      updated_at: 'u.updated_at',
+    };
+    const sortField = sortFieldMap[sort.field] ?? 'u.last_name';
+
+    const items = await qb
+      .clone()
+      .select('u.id', 'id')
+      .addSelect('u.first_name', 'first_name')
+      .addSelect('u.last_name', 'last_name')
+      .addSelect('u.email', 'email')
+      .addSelect('u.job_title', 'job_title')
+      .addSelect('u.locale', 'locale')
+      .addSelect('u.status', 'status')
+      .addSelect('u.created_at', 'created_at')
+      .addSelect('u.updated_at', 'updated_at')
+      .addSelect('c.name', 'company_name')
+      .addSelect('d.name', 'department_name')
+      .addSelect('r.role_name', 'primary_role_name')
+      .addSelect('pt.name', 'team_name')
+      .addSelect('tmc.project_availability', 'project_availability')
+      .addSelect(AI_USER_CONTRIBUTOR_PROFILE_SQL, 'contributor_profile')
+      .addSelect(expertiseSql, 'areas_of_expertise')
+      .addSelect(displayNameSql, 'display_name')
+      .orderBy(sortField, sort.direction, 'NULLS LAST')
+      .addOrderBy('u.email', 'ASC')
+      .offset(skip)
+      .limit(limit)
+      .getRawMany();
+
+    return { items, total, page, limit };
+  }
+
+  async listIdsForAi(query: any, opts?: AiUserQueryOpts): Promise<{ ids: string[]; total: number }> {
+    const { qb } = this.buildAiUserBaseQuery(query, opts);
+    const rows = await qb
+      .clone()
+      .select('u.id', 'id')
+      .orderBy('u.id', 'ASC')
+      .getRawMany();
+    const ids = rows.map((row: any) => row.id);
+    return { ids, total: ids.length };
+  }
+
+  async listFilterValuesForAi(query: any, opts?: AiUserQueryOpts): Promise<Record<string, Array<string | null>>> {
+    const mg = opts?.manager ?? this.repo.manager;
+    const tenantId = String(opts?.tenantId || '').trim() || null;
+    const rawFields = String(query?.fields || query?.field || '').split(',').map((field) => field.trim()).filter(Boolean);
+    const result: Record<string, Array<string | null>> = {};
+
+    for (const field of rawFields) {
+      if (field === 'company_name') {
+        const rows = await mg.query(
+          `SELECT DISTINCT c.name AS value
+           FROM users u
+           LEFT JOIN companies c ON c.id = u.company_id AND c.tenant_id = u.tenant_id
+           WHERE u.tenant_id = COALESCE($1, app_current_tenant())
+           ORDER BY value ASC NULLS LAST`,
+          [tenantId],
+        );
+        result[field] = rows.map((row: any) => row.value ?? null);
+        continue;
+      }
+      if (field === 'department_name') {
+        const rows = await mg.query(
+          `SELECT DISTINCT d.name AS value
+           FROM users u
+           LEFT JOIN departments d ON d.id = u.department_id AND d.tenant_id = u.tenant_id
+           WHERE u.tenant_id = COALESCE($1, app_current_tenant())
+           ORDER BY value ASC NULLS LAST`,
+          [tenantId],
+        );
+        result[field] = rows.map((row: any) => row.value ?? null);
+        continue;
+      }
+      if (field === 'primary_role_name') {
+        const rows = await mg.query(
+          `SELECT DISTINCT r.role_name AS value
+           FROM users u
+           LEFT JOIN roles r ON r.id = u.role_id AND r.tenant_id = u.tenant_id
+           WHERE u.tenant_id = COALESCE($1, app_current_tenant())
+           ORDER BY value ASC NULLS LAST`,
+          [tenantId],
+        );
+        result[field] = rows.map((row: any) => row.value ?? null);
+        continue;
+      }
+      if (field === 'locale') {
+        const rows = await mg.query(
+          `SELECT DISTINCT u.locale AS value
+           FROM users u
+           WHERE u.tenant_id = COALESCE($1, app_current_tenant())
+           ORDER BY value ASC NULLS LAST`,
+          [tenantId],
+        );
+        result[field] = rows.map((row: any) => row.value ?? null);
+        continue;
+      }
+      if (field === 'team_name') {
+        const rows = await mg.query(
+          `SELECT DISTINCT pt.name AS value
+           FROM users u
+           LEFT JOIN portfolio_team_member_configs tmc ON tmc.user_id = u.id AND tmc.tenant_id = u.tenant_id
+           LEFT JOIN portfolio_teams pt ON pt.id = tmc.team_id AND pt.tenant_id = u.tenant_id
+           WHERE u.tenant_id = COALESCE($1, app_current_tenant())
+           ORDER BY value ASC NULLS LAST`,
+          [tenantId],
+        );
+        result[field] = rows.map((row: any) => row.value ?? null);
+        continue;
+      }
+      if (field === 'areas_of_expertise') {
+        const rows = await mg.query(
+          `SELECT DISTINCT area.value AS value
+           FROM users u
+           JOIN portfolio_team_member_configs tmc ON tmc.user_id = u.id AND tmc.tenant_id = u.tenant_id
+           CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(tmc.areas_of_expertise, '[]'::jsonb)) area(value)
+           WHERE u.tenant_id = COALESCE($1, app_current_tenant())
+           ORDER BY value ASC NULLS LAST`,
+          [tenantId],
+        );
+        result[field] = rows.map((row: any) => row.value ?? null);
+        continue;
+      }
+      result[field] = [];
+    }
+
+    return result;
   }
 
   async list(query: any, opts?: { manager?: EntityManager }) {

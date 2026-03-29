@@ -22,6 +22,9 @@ let featuresState = {
 
 let chatState = {
   messages: [] as Array<{ id: string; role: 'user' | 'assistant' | 'tool'; content: string }>,
+  previews: [] as any[],
+  conversationUsage: null as { input_tokens: number; output_tokens: number } | null,
+  lastRequestUsage: null as { input_tokens: number; output_tokens: number } | null,
   isStreaming: false,
   error: null as string | null,
   conversationId: null as string | null,
@@ -65,6 +68,14 @@ vi.mock('../../ai/components/ChatInput', () => ({
   )),
 }));
 
+vi.mock('../../ai/components/TokenUsageBar', () => ({
+  default: ({ usage, lastRequestUsage }: any) => (
+    <div data-testid="token-usage-bar">
+      {usage.input_tokens}/{usage.output_tokens}/{lastRequestUsage?.input_tokens ?? 'none'}
+    </div>
+  ),
+}));
+
 vi.mock('../../ai/aiApi', () => ({
   aiConversationsApi: {
     archive: vi.fn(async () => undefined),
@@ -96,6 +107,9 @@ describe('AiWorkspacePage', () => {
     };
     chatState = {
       messages: [],
+      previews: [],
+      conversationUsage: null,
+      lastRequestUsage: null,
       isStreaming: false,
       error: null,
       conversationId: null,
@@ -131,8 +145,8 @@ describe('AiWorkspacePage', () => {
 
     renderPage(client);
 
-    expect(screen.getByText('Plaid')).toBeInTheDocument();
-    expect(screen.getByText('Native AI chat is disabled for this instance.')).toBeInTheDocument();
+    expect(screen.getByText('workspace.title')).toBeInTheDocument();
+    expect(screen.getByText('workspace.messages.disabled')).toBeInTheDocument();
   });
 
   it('forwards conversation selection and sends messages from the page controls', () => {
@@ -150,6 +164,40 @@ describe('AiWorkspacePage', () => {
 
     expect(chatState.loadConversation).toHaveBeenCalledWith('conv-1');
     expect(chatState.sendMessage).toHaveBeenCalledWith('hello from mock');
+  });
+
+  it('renders the token usage bar only when conversation usage exists', () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    chatState.messages = [{ id: 'msg-1', role: 'assistant', content: 'Hello' }];
+    chatState.conversationUsage = { input_tokens: 12, output_tokens: 4 };
+    chatState.lastRequestUsage = { input_tokens: 7, output_tokens: 2 };
+
+    renderPage(client);
+
+    expect(screen.getByTestId('token-usage-bar')).toHaveTextContent('12/4/7');
+  });
+
+  it('hides the token usage bar when no conversation usage is available', () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    chatState.messages = [{ id: 'msg-1', role: 'assistant', content: 'Hello' }];
+    chatState.conversationUsage = null;
+    chatState.lastRequestUsage = null;
+
+    renderPage(client);
+
+    expect(screen.queryByTestId('token-usage-bar')).not.toBeInTheDocument();
   });
 
   it('optimistically archives the active conversation and clears it from the query cache', async () => {

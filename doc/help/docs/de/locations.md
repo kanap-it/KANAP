@@ -1,0 +1,154 @@
+# Standorte
+
+Standorte dokumentieren, wo Ihre IT-Infrastruktur gehostet wird -- Rechenzentren, Cloud-Regionen, Büroserverräume und Colocation-Einrichtungen. Das Zuweisen von Assets und Anwendungen zu Standorten gibt Ihnen geografische Sichtbarkeit, hilft bei der Kapazitätsplanung und hält Einrichtungskontakte griffbereit, wenn Sie sie brauchen.
+
+## Erste Schritte
+
+Navigieren Sie zu **IT-Landschaft > Standorte**, um das Standortverzeichnis zu öffnen. Klicken Sie auf **Standort hinzufügen**, um einen neuen Eintrag zu erstellen.
+
+**Pflichtfelder**:
+- **Code**: Ein eindeutiger Kurzidentifikator (z. B. `DC-EU-WEST`, `AWS-US-EAST-1`)
+- **Name**: Ein beschreibender Anzeigename
+- **Hosting-Typ**: Die Art der Einrichtung -- eigenes Rechenzentrum, Colocation, Cloud-Region usw.
+
+**Dringend empfohlen**:
+- **Land**: Wo sich der Standort geografisch befindet
+- **Anbieter** oder **Betreiberunternehmen**: Wer die Einrichtung betreibt
+
+**Tipp**: Verwenden Sie konsistente Namenskonventionen. Das Voranstellen des Anbieternamens bei Cloud-Standorten (`AWS-`, `AZURE-`, `GCP-`) macht sie in Listen und Berichten leicht erkennbar.
+
+---
+
+## Arbeiten mit der Liste
+
+Die Liste gibt Ihnen einen durchsuchbaren Überblick über jeden registrierten Standort.
+
+**Standardspalten**:
+- **Code**: Standortcode (klicken, um den Arbeitsbereich zu öffnen)
+- **Name**: Anzeigename
+- **Hosting-Typ**: On-prem, Colocation, Public Cloud usw.
+- **Anbieter / Unternehmen**: Cloud-Anbieter für Cloud-Typ-Standorte oder Betreiberunternehmen für On-prem-Standorte
+- **Land**: Ländername und ISO-Code
+- **Stadt**: Stadtname
+- **Assets**: Anzahl der diesem Standort zugewiesenen Assets
+- **Erstellt**: Wann der Datensatz erstellt wurde
+
+**Filterung**:
+- Schnellsuche: Freitextsuche über alle Zeilen
+- Spaltenfilter: Textfilter für Code, Name und Stadt; Set-Filter für Hosting-Typ
+
+**Aktionen**:
+- **Standort hinzufügen**: Einen neuen Standort erstellen (erfordert `locations:member`)
+
+Sie können Spalten auch über die Spaltenauswahl anzeigen, ausblenden und umordnen.
+
+---
+
+## Der Standort-Arbeitsbereich
+
+Klicken Sie auf eine Zeile, um den Arbeitsbereich zu öffnen. Er hat drei Reiter: **Übersicht**, **Kontakte & Support** und **Verknüpfungen**. Die Reiter Kontakte & Support und Verknüpfungen werden nach dem erstmaligen Speichern des Standorts verfügbar.
+
+### Übersicht
+
+Der Reiter Übersicht erfasst Identitäts- und geografische Informationen, aufgeteilt in zwei Abschnitte, plus ein Unter-Standorte-Panel.
+
+**Grundinformationen**:
+- **Code**: Eindeutiger Identifikator (erforderlich)
+- **Name**: Anzeigename (erforderlich)
+- **Hosting-Typ**: Kategorie der Einrichtung (erforderlich). Hosting-Typen sind in **IT-Landschaft > Einstellungen** konfigurierbar.
+
+**Standortdetails** -- die hier angezeigten Felder hängen von der Hosting-Typ-Kategorie ab:
+
+Für **On-Premises**-Hosting-Typen:
+- **Betreiberunternehmen**: Das Unternehmen, das die Einrichtung betreibt. Die Auswahl eines Unternehmens füllt Land und Stadt automatisch aus, wenn diese leer sind.
+
+Für **Cloud**-Hosting-Typen:
+- **Cloud-Anbieter**: Der Cloud-Anbieter (z. B. AWS, Azure, GCP)
+- **Region**: Cloud-Region oder Verfügbarkeitszone
+
+Beide Kategorien zeigen außerdem:
+- **Land**: Ausgewählt aus der ISO-Länderliste
+- **Stadt**: Stadtname
+- **Zusätzliche Informationen**: Freitext-Notizen zum Standort
+
+**So funktioniert es**: Das Wechseln zwischen einem On-prem- und einem Cloud-Hosting-Typ löscht die Felder, die zur anderen Kategorie gehören. Der Editor bittet um Bestätigung, bevor der Wechsel durchgeführt wird.
+
+#### Unter-Standorte
+
+Unterhalb des Hauptformulars ermöglicht das Panel **Unter-Standorte**, einen Standort in kleinere physische Bereiche aufzuteilen -- Gebäude, Räume, Racks, Cages oder jede andere Unterteilung, die für Ihre Infrastruktur sinnvoll ist.
+
+Jeder Unter-Standort hat:
+- **Name**: Eine kurze Bezeichnung (z. B. „Gebäude A - Raum 1 - Rack 5")
+- **Beschreibung**: Optionale zusätzliche Details
+
+Unter-Standorte sind verfügbar, nachdem Sie den Standort zum ersten Mal gespeichert haben. Sie werden zusammen mit dem Übersichtsformular gespeichert, wenn Sie auf **Speichern** klicken.
+
+Assets können einem bestimmten Unter-Standort innerhalb eines Standorts zugewiesen werden, um genau zu verfolgen, wo Hardware steht. Wenn Unter-Standorte existieren, zeigt der Reiter Verknüpfungen, welchem Unter-Standort jedes Asset zugeordnet ist.
+
+---
+
+### Kontakte & Support
+
+Dieser Reiter organisiert die Personen und Referenzen, die mit einem Standort verbunden sind, in drei Abschnitte.
+
+**Interne Kontakte**: Teammitglieder Ihrer Organisation, die mit diesem Standort verknüpft sind. Jede Zeile hat einen **Benutzer**-Picker und ein Freitext-**Rolle**-Feld (z. B. „Ops-Leiter", „Sicherheitsbeauftragter").
+
+**Externe Kontakte**: Drittanbieter-Kontakte aus Ihren Kontakte-Stammdaten. Jede Zeile hat einen **Kontakt**-Picker und ein **Rolle**-Feld (z. B. „Account-Manager", „NOC-Kontakt").
+
+**Relevante Websites**: Nützliche Links wie Anbieterportale, Einrichtungsdokumentation oder Statusseiten. Jede Zeile hat eine **Beschreibung** und eine **URL**.
+
+Klicken Sie auf **Speichern** in der Arbeitsbereich-Kopfzeile, um Änderungen in allen drei Abschnitten gleichzeitig zu speichern.
+
+---
+
+### Verknüpfungen
+
+Der Reiter Verknüpfungen zeigt Entitäten, die mit diesem Standort verknüpft sind. Er ist schreibgeschützt -- Beziehungen werden von den verknüpften Datensätzen selbst verwaltet.
+
+**Assets**: Eine Tabelle der an diesem Standort gehosteten Assets mit Name, Umgebung, Typ, Anbieter, Region/Zone und Status. Wenn der Standort Unter-Standorte hat, erscheint eine zusätzliche Spalte **Unter-Standort**, die zeigt, welchem Unter-Standort jedes Asset zugewiesen ist. Klicken Sie auf einen Asset-Namen, um zu seinem Arbeitsbereich zu springen.
+
+**Anwendungen**: Eine Tabelle der Anwendungen, die Infrastruktur an diesem Standort haben, mit Name und Umgebungen. Klicken Sie auf einen Anwendungsnamen, um zu seinem Arbeitsbereich zu springen.
+
+---
+
+## Einen Standort löschen
+
+Klicken Sie in der Arbeitsbereich-Kopfzeile auf **Löschen**, um einen Standort zu entfernen.
+
+- Erfordert die Berechtigung `locations:member`.
+- Verknüpfte Assets werden nicht gelöscht -- sie werden automatisch entkoppelt (ihre Standortreferenz wird gelöscht).
+- Wenn Sie ungespeicherte Änderungen im Arbeitsbereich haben, gehen diese bei der Löschung verloren.
+
+---
+
+## Hosting-Typen
+
+Hosting-Typen sind in **IT-Landschaft > Einstellungen** konfigurierbar. Jeder Typ gehört zu einer Kategorie, die bestimmt, welche Felder im Arbeitsbereich erscheinen.
+
+| Typ | Kategorie | Beispiel |
+|------|----------|---------|
+| Privates Rechenzentrum | On-prem | Firmeneigene Einrichtung |
+| Colocation | On-prem | Gemieteter Platz in einer gemeinsamen Einrichtung |
+| Public Cloud | Cloud | AWS, Azure, GCP |
+| Private Cloud | Cloud | Firmenbetriebene Cloud-Plattform |
+| Edge | Cloud | Edge-Computing-Standorte |
+
+---
+
+## Berechtigungen
+
+| Aktion | Mindeststufe |
+|--------|---------------|
+| Liste und Arbeitsbereich anzeigen | `locations:reader` |
+| Standort erstellen, bearbeiten oder löschen | `locations:member` |
+| Hosting-Typen und Anbieter konfigurieren | `settings:admin` |
+
+---
+
+## Tipps
+
+- **Seien Sie konsistent mit Codes**: Eine klare Namenskonvention macht Standorte auf einen Blick erkennbar und hält Filter nützlich.
+- **Verwenden Sie Unter-Standorte für Granularität**: Wenn ein Rechenzentrum mehrere Räume oder Racks hat, modellieren Sie diese als Unter-Standorte statt als separate Standorte. Dies hält die Liste sauber und verfolgt dennoch die physische Platzierung.
+- **Verfolgen Sie Cloud-Regionen einzeln**: Erstellen Sie einen Standort pro verwendeter Cloud-Region, nicht nur einen pro Anbieter.
+- **Verknüpfen Sie Assets mit Standorten**: Dies ermöglicht geografische Berichte, DR-Planung und schnelle Auswirkungsanalyse bei Ausfällen.
+- **Dokumentieren Sie Kontakte frühzeitig**: Einrichtungskontakte vor einem Vorfall zu haben, spart wertvolle Zeit, wenn es darauf ankommt.

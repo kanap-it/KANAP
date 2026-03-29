@@ -5,7 +5,7 @@ site_description: User documentation for KANAP - IT portfolio and budget managem
 repo_url: https://github.com/your-org/kanap
 repo_name: kanap
 
-docs_dir: docs/en
+docs_dir: docs
 
 theme:
   name: material
@@ -31,7 +31,6 @@ theme:
         name: Switch to light mode
 
   features:
-    - navigation.instant
     - navigation.tracking
     - navigation.sections
     - navigation.expand
@@ -53,15 +52,6 @@ extra:
     - icon: fontawesome/solid/globe
       link: https://kanap.net
       name: KANAP Website
-
-  # Language selector (when i18n is set up)
-  # alternate:
-  #   - name: English
-  #     link: /en/
-  #     lang: en
-  #   - name: Français
-  #     link: /fr/
-  #     lang: fr
 
 extra_css:
   - stylesheets/extra.css
@@ -86,8 +76,203 @@ markdown_extensions:
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 plugins:
-  - search:
-      lang: en
+  - i18n:
+      docs_structure: folder
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          name: English
+          default: true
+          build: true
+          link: /
+        - locale: fr
+          name: "Français"
+          build: false
+          link: /fr/
+          nav_translations:
+            Home: Accueil
+            Fast Track: Démarrage rapide
+            "Getting Started": Premiers pas
+            "From Request to Delivery": "De la demande à la livraison"
+            "From Application to Server": "De l'application au serveur"
+            "Run, Build & Tasks": "Run, Build & Tâches"
+            Dashboard: Tableau de bord
+            Portfolio Management: Gestion de portefeuille
+            Tasks: Tâches
+            Requests: Demandes
+            Projects: Projets
+            Planning: Planification
+            Contributors: Contributeurs
+            Reporting: Rapports
+            Settings: Paramètres
+            IT Landscape: Cartographie SI
+            Infrastructure: Infrastructure
+            Locations: Sites
+            Assets: Actifs
+            Connections: Connexions
+            Connection Map: Carte des connexions
+            Applications: Applications
+            Interfaces: Interfaces
+            Interface Map: Carte des interfaces
+            Settings: Paramètres
+            Knowledge: Base de connaissances
+            Budget Management: Gestion budgétaire
+            OPEX: OPEX
+            CAPEX: CAPEX
+            Contracts: Contrats
+            Budget Administration: Administration budgétaire
+            Reports: Rapports
+            Master Data: Données de référence
+            Organization: Organisation
+            Companies: Sociétés
+            Departments: Départements
+            External Parties: Parties externes
+            Suppliers: Fournisseurs
+            Contacts: Contacts
+            Finance: Finance
+            Chart of Accounts: Plans comptables
+            Currencies: Devises
+            Classification: Classification
+            Business Processes: Processus métier
+            Analytics Dimensions: Dimensions analytiques
+            Administration: Administration
+            "Admin & Users": "Administration & Utilisateurs"
+            Branding: Personnalisation
+            Master Data Administration: Administration des données de référence
+            Budget Overview: Vue d'ensemble budgétaire
+            On-Premise: On-Premise
+            Overview: Vue d'ensemble
+            Installation: Installation
+            "Installation Example (Ubuntu)": "Exemple d'installation (Ubuntu)"
+            Configuration: Configuration
+            Operations: Opérations
+            Microsoft Entra SSO: Microsoft Entra SSO
+        - locale: de
+          name: Deutsch
+          build: false
+          link: /de/
+          nav_translations:
+            Home: Startseite
+            Fast Track: Schnellstart
+            "Getting Started": Erste Schritte
+            "From Request to Delivery": "Von der Anfrage zur Lieferung"
+            "From Application to Server": "Von der Anwendung zum Server"
+            "Run, Build & Tasks": "Run, Build & Aufgaben"
+            Dashboard: Dashboard
+            Portfolio Management: Portfolioverwaltung
+            Tasks: Aufgaben
+            Requests: Anfragen
+            Projects: Projekte
+            Planning: Planung
+            Contributors: Mitwirkende
+            Reporting: Berichte
+            Settings: Einstellungen
+            IT Landscape: IT-Landschaft
+            Infrastructure: Infrastruktur
+            Locations: Standorte
+            Assets: Assets
+            Connections: Verbindungen
+            Connection Map: Verbindungskarte
+            Applications: Anwendungen
+            Interfaces: Schnittstellen
+            Interface Map: Schnittstellenkarte
+            Settings: Einstellungen
+            Knowledge: Wissensdatenbank
+            Budget Management: Budgetverwaltung
+            OPEX: OPEX
+            CAPEX: CAPEX
+            Contracts: Verträge
+            Budget Administration: Budgetadministration
+            Reports: Berichte
+            Master Data: Stammdaten
+            Organization: Organisation
+            Companies: Unternehmen
+            Departments: Abteilungen
+            External Parties: Externe Parteien
+            Suppliers: Lieferanten
+            Contacts: Kontakte
+            Finance: Finanzen
+            Chart of Accounts: Kontenpläne
+            Currencies: Währungen
+            Classification: Klassifizierung
+            Business Processes: Geschäftsprozesse
+            Analytics Dimensions: Analysedimensionen
+            Administration: Administration
+            "Admin & Users": "Administration & Benutzer"
+            Branding: Branding
+            Master Data Administration: Stammdatenadministration
+            Budget Overview: Budgetübersicht
+            On-Premise: On-Premise
+            Overview: Übersicht
+            Installation: Installation
+            "Installation Example (Ubuntu)": "Installationsbeispiel (Ubuntu)"
+            Configuration: Konfiguration
+            Operations: Betrieb
+            Microsoft Entra SSO: Microsoft Entra SSO
+        - locale: es
+          name: "Español"
+          build: false
+          link: /es/
+          nav_translations:
+            Home: Inicio
+            Fast Track: Inicio rápido
+            "Getting Started": Primeros pasos
+            "From Request to Delivery": "De la solicitud a la entrega"
+            "From Application to Server": "De la aplicación al servidor"
+            "Run, Build & Tasks": "Run, Build & Tareas"
+            Dashboard: Panel de control
+            Portfolio Management: Gestión de portafolio
+            Tasks: Tareas
+            Requests: Solicitudes
+            Projects: Proyectos
+            Planning: Planificación
+            Contributors: Colaboradores
+            Reporting: Informes
+            Settings: Configuración
+            IT Landscape: Panorama IT
+            Infrastructure: Infraestructura
+            Locations: Ubicaciones
+            Assets: Activos
+            Connections: Conexiones
+            Connection Map: Mapa de conexiones
+            Applications: Aplicaciones
+            Interfaces: Interfaces
+            Interface Map: Mapa de interfaces
+            Settings: Configuración
+            Knowledge: Base de conocimiento
+            Budget Management: Gestión presupuestaria
+            OPEX: OPEX
+            CAPEX: CAPEX
+            Contracts: Contratos
+            Budget Administration: Administración presupuestaria
+            Reports: Informes
+            Master Data: Datos maestros
+            Organization: Organización
+            Companies: Empresas
+            Departments: Departamentos
+            External Parties: Partes externas
+            Suppliers: Proveedores
+            Contacts: Contactos
+            Finance: Finanzas
+            Chart of Accounts: Planes de cuentas
+            Currencies: Monedas
+            Classification: Clasificación
+            Business Processes: Procesos de negocio
+            Analytics Dimensions: Dimensiones analíticas
+            Administration: Administración
+            "Admin & Users": "Administración & Usuarios"
+            Branding: Personalización
+            Master Data Administration: Administración de datos maestros
+            Budget Overview: Vista general del presupuesto
+            On-Premise: On-Premise
+            Overview: Vista general
+            Installation: Instalación
+            "Installation Example (Ubuntu)": "Ejemplo de instalación (Ubuntu)"
+            Configuration: Configuración
+            Operations: Operaciones
+            Microsoft Entra SSO: Microsoft Entra SSO
+  - search
 
 nav:
   - Home: index.md

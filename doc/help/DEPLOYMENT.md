@@ -152,12 +152,7 @@ When ready to add French (or other languages):
 3. **Add translated files**:
    - Copy English files to `docs/fr/`
    - Translate content
-   - URLs will be `/en/...` and `/fr/...`
-
-4. **Update _redirects**:
-   ```
-   / /en/ 302
-   ```
+   - English stays at `/`, translations at `/fr/`, `/de/`, `/es/`
 
 ## Troubleshooting
 

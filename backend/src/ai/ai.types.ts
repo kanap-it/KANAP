@@ -3,6 +3,14 @@ import { z } from 'zod';
 
 export type AiSurface = 'chat' | 'mcp';
 export type AiAuthMethod = 'jwt' | 'api_key';
+export type AiMutationWriteToolName =
+  | 'create_document'
+  | 'update_document_content'
+  | 'update_document_metadata'
+  | 'update_document_relations'
+  | 'update_task_status'
+  | 'update_task_assignee'
+  | 'add_task_comment';
 export type AiToolName =
   | 'search_all'
   | 'query_entities'
@@ -11,7 +19,9 @@ export type AiToolName =
   | 'get_entity_context'
   | 'search_knowledge'
   | 'get_document'
-  | 'web_search';
+  | 'web_search'
+  | AiMutationWriteToolName
+  | 'undo_preview';
 
 export const AiSearchEntityTypeSchema = z.enum([
   'applications',
@@ -26,6 +36,7 @@ export const AiSearchEntityTypeSchema = z.enum([
   'spend_items',
   'suppliers',
   'tasks',
+  'users',
 ]);
 
 export const AiQueryEntityTypeSchema = AiSearchEntityTypeSchema;
@@ -50,6 +61,7 @@ export type AiExecutionContext = {
   isPlatformHost: boolean;
   surface: AiSurface;
   authMethod: AiAuthMethod;
+  conversationId?: string | null;
   requestId?: string | null;
   aiApiKeyId?: string | null;
 };
@@ -175,10 +187,18 @@ export type AiToolDefinition<TInput = unknown, TResult = unknown> = {
   inputSummary: Record<string, string>;
   surfaces: AiSurface[];
   readOnly: boolean;
+  writePreview?: AiWritePreviewCapabilityDto;
   execute: (
     context: AiExecutionContextWithManager,
     input: TInput,
   ) => Promise<TResult>;
+};
+
+export type AiWritePreviewCapabilityDto = {
+  entity_type: string;
+  fields: string[];
+  reversible: boolean;
+  prompt_hint: string;
 };
 
 export type AiToolListItemDto = {
@@ -187,6 +207,49 @@ export type AiToolListItemDto = {
   input_summary: Record<string, string>;
   read_only: boolean;
   surfaces: AiSurface[];
+  write_preview?: AiWritePreviewCapabilityDto;
+};
+
+export type AiMutationPreviewStatus =
+  | 'pending'
+  | 'rejected'
+  | 'executed'
+  | 'expired'
+  | 'failed';
+
+export type AiMutationPreviewChangeDto = {
+  label?: string | null;
+  from: string | null;
+  to: string | null;
+  format?: 'text' | 'markdown';
+};
+
+export type AiMutationPreviewDto = {
+  preview_id: string;
+  tool_name: AiMutationWriteToolName;
+  status: AiMutationPreviewStatus;
+  target: {
+    entity_type: string;
+    entity_id: string | null;
+    ref: string | null;
+    title: string | null;
+  };
+  changes: Record<string, AiMutationPreviewChangeDto>;
+  requires_confirmation: boolean;
+  actions: Array<'approve' | 'reject'>;
+  summary: string;
+  error_message: string | null;
+  conversation_id: string | null;
+  created_at: string;
+  expires_at: string | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+  executed_at: string | null;
+};
+
+export type AiTokenUsage = {
+  input_tokens: number;
+  output_tokens: number;
 };
 
 export type ChatStreamEvent =
@@ -194,8 +257,10 @@ export type ChatStreamEvent =
   | { type: 'text_delta'; text: string }
   | { type: 'tool_call'; id: string; name: string; arguments: Record<string, unknown> }
   | { type: 'tool_result'; id: string; name: string; result: unknown }
-  | { type: 'done'; usage?: { input_tokens: number; output_tokens: number } }
-  | { type: 'error'; message: string };
+  | ({ type: 'preview' } & AiMutationPreviewDto)
+  | ({ type: 'preview_result' } & AiMutationPreviewDto)
+  | { type: 'done'; usage?: AiTokenUsage; last_usage?: AiTokenUsage; conversation_usage?: AiTokenUsage }
+  | { type: 'error'; message: string; last_usage?: AiTokenUsage; conversation_usage?: AiTokenUsage };
 
 export type AiSurfaceCapabilityDto = {
   feature_enabled: boolean;

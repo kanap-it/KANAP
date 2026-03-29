@@ -1,6 +1,12 @@
 import { getAccessToken } from '../auth/accessTokenStore';
 import api from '../api';
-import { ChatStreamEvent, AiApiKeyRecord, ChatConversation } from './aiTypes';
+import {
+  ChatStreamEvent,
+  AiApiKeyRecord,
+  AiMutationPreview,
+  ChatConversation,
+  ConversationMessagesResponse,
+} from './aiTypes';
 import i18n from '../i18n';
 
 const MAX_STREAM_BUFFER_CHARS = 1_048_576;
@@ -169,8 +175,13 @@ export const aiConversationsApi = {
     const res = await api.get('/ai/conversations', { params });
     return res.data;
   },
-  async getMessages(id: string) {
+  async getMessages(id: string): Promise<ConversationMessagesResponse> {
     const res = await api.get(`/ai/conversations/${id}/messages`);
+    const { messages, conversation_usage } = res.data;
+    return { messages, conversation_usage };
+  },
+  async getPreviews(id: string): Promise<AiMutationPreview[]> {
+    const res = await api.get(`/ai/conversations/${id}/previews`);
     return res.data;
   },
   async archive(id: string) {

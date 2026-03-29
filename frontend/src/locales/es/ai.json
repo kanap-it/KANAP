@@ -20,7 +20,16 @@
     "toolUseCount_other": "{{count}} herramientas utilizadas",
     "toolUseProgress": "Usando herramientas..."
   },
+  "previewCard": {
+    "after": "Después",
+    "approve": "Aprobar",
+    "before": "Antes",
+    "none": "Ninguno",
+    "preview": "Vista previa",
+    "reject": "Rechazar"
+  },
   "toolResults": {
+    "ignoredFields": "Campos ignorados: {{fields}}",
     "noDocuments": "No se encontraron documentos.",
     "noResults": "Sin resultados.",
     "toolNames": {
@@ -29,6 +38,12 @@
       "search_all": "Buscar todo",
       "search_knowledge": "Buscar en la base de conocimiento"
     }
+  },
+  "tokenUsage": {
+    "total": "Tokens",
+    "input": "Entrada",
+    "output": "Salida",
+    "lastInput": "Ultima entrada"
   },
   "workspace": {
     "empty": {

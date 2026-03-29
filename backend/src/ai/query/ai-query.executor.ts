@@ -11,6 +11,7 @@ import { PortfolioProjectsService } from '../../portfolio/services';
 import { SpendItemsService } from '../../spend/spend-items.service';
 import { TasksService } from '../../spend/tasks.service';
 import { SuppliersService } from '../../suppliers/suppliers.service';
+import { UsersService } from '../../users/users.service';
 import {
   AiEntityMetadata,
   AiEntitySummaryDto,
@@ -25,6 +26,7 @@ import {
   AiFilterValuesResult,
   AiQueryResult,
 } from './ai-filter.types';
+import { assertPlainTextQuickSearch } from './ai-quick-search-validation.util';
 import { getAiEntityRegistry } from './registries';
 
 function toIso(value: Date | string | null | undefined): string | null {
@@ -168,6 +170,7 @@ export class AiQueryExecutor {
     private readonly departments: DepartmentsService,
     private readonly knowledge: KnowledgeService,
     private readonly locations: LocationsService,
+    private readonly users: UsersService,
   ) {}
 
   private resolveSort(
@@ -200,6 +203,7 @@ export class AiQueryExecutor {
     const adapted = adaptFilters(registry, input.filters);
     const page = Math.min(Math.max(Number(input.page) || 1, 1), 100);
     const limit = Math.min(Math.max(Number(input.limit) || 200, 1), 200);
+    assertPlainTextQuickSearch(entityType, input.q);
     const query: Record<string, any> = {
       page,
       limit,
@@ -294,7 +298,7 @@ export class AiQueryExecutor {
         it_lead: scalar(displayName(row.it_lead) ?? row.it_lead_name),
         contributors: scalar(extractContributorNames(row)),
         priority_score: numericScalar(row.priority_score),
-        execution_progress: scalar(row.execution_progress),
+        execution_progress: numericScalar(row.execution_progress),
         planned_start: scalar(row.planned_start),
         planned_end: scalar(row.planned_end),
       },
@@ -367,6 +371,9 @@ export class AiQueryExecutor {
         currency: scalar(row.currency),
         effective_start: scalar(row.effective_start),
         effective_end: scalar(row.effective_end),
+        project_name: scalar(row.project_name),
+        project_stream: scalar(row.project_stream_name),
+        project_category: scalar(row.project_category_name),
         budget_anchor_year: anchorYear,
         y_minus2_budget: getSpendVersionMetric(row, -2, anchorYear, 'budget'),
         y_minus2_review: getSpendVersionMetric(row, -2, anchorYear, 'revision'),
@@ -409,9 +416,13 @@ export class AiQueryExecutor {
         currency: scalar(row.currency),
         billing_frequency: scalar(row.billing_frequency),
         start_date: scalar(row.start_date),
+        duration_months: numericScalar(row.duration_months),
+        auto_renewal: row.auto_renewal == null ? null : Boolean(row.auto_renewal),
+        notice_period_months: numericScalar(row.notice_period_months),
         end_date: scalar(row.end_date),
         cancellation_deadline: scalar(row.cancellation_deadline),
         yearly_amount: numericScalar(row.yearly_amount_at_signature),
+        yearly_amount_at_signature: numericScalar(row.yearly_amount_at_signature),
       },
     });
   }
@@ -425,7 +436,9 @@ export class AiQueryExecutor {
       updated_at: row.updated_at ?? null,
       metadata: {
         country: scalar(row.country_iso),
+        country_iso: scalar(row.country_iso),
         city: scalar(row.city),
+        state: scalar(row.state),
         base_currency: scalar(row.base_currency),
       },
     });
@@ -494,6 +507,34 @@ export class AiQueryExecutor {
         city: scalar(row.city),
         assets: row.servers_count ?? 0,
         sub_locations: subLocations,
+      },
+    });
+  }
+
+  private mapUser(row: any): AiEntitySummaryDto {
+    const label = displayName(row) ?? row.email ?? 'Unknown user';
+    const summary = label === row.email
+      ? ([row.job_title, row.team_name, row.company_name].filter(Boolean).join(' | ') || null)
+      : ([row.email, row.job_title, row.team_name, row.company_name].filter(Boolean).join(' | ') || null);
+    return toEntitySummary('users', {
+      id: row.id,
+      label,
+      status: row.status ?? null,
+      summary,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        email: scalar(row.email),
+        first_name: scalar(row.first_name),
+        last_name: scalar(row.last_name),
+        job_title: scalar(row.job_title),
+        company: scalar(row.company_name),
+        department: scalar(row.department_name),
+        primary_role: scalar(row.primary_role_name),
+        locale: scalar(row.locale),
+        team: scalar(row.team_name),
+        contributor_profile: scalar(row.contributor_profile),
+        project_availability: numericScalar(row.project_availability),
+        areas_of_expertise: scalar(row.areas_of_expertise),
       },
     });
   }
@@ -748,6 +789,24 @@ export class AiQueryExecutor {
       };
     }
 
+    if (input.entity_type === 'users') {
+      const result = await this.users.listForAi(scoped.query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      });
+      return {
+        items: (result.items || []).map((row: any) => this.mapUser(row)),
+        total: result.total ?? 0,
+        page: result.page ?? page,
+        limit: result.limit ?? limit,
+        returned: Array.isArray(result.items) ? result.items.length : 0,
+        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
     throw new BadRequestException('Unsupported entity type.');
   }
 
@@ -761,7 +820,7 @@ export class AiQueryExecutor {
     const registry = getAiEntityRegistry(input.entity_type);
     const values: Record<string, Array<string | boolean | null>> = {};
     const fieldsIgnored = new Set<string>();
-    const dynamicFieldMap = new Map<string, string>();
+    const dynamicFieldMap = new Map<string, string[]>();
 
     for (const fieldName of input.fields) {
       const field = registry.fields[fieldName];
@@ -774,7 +833,9 @@ export class AiQueryExecutor {
         continue;
       }
       if (field.dynamic) {
-        dynamicFieldMap.set(field.grid, fieldName);
+        const mapped = dynamicFieldMap.get(field.grid) ?? [];
+        mapped.push(fieldName);
+        dynamicFieldMap.set(field.grid, mapped);
         continue;
       }
       fieldsIgnored.add(fieldName);
@@ -856,10 +917,18 @@ export class AiQueryExecutor {
       }) as any;
     } else if (input.entity_type === 'locations') {
       raw = await this.locations.listFilterValues(query, { manager: context.manager, tenantId: context.tenantId }) as any;
+    } else if (input.entity_type === 'users') {
+      raw = await this.users.listFilterValuesForAi(query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }) as any;
     }
 
-    for (const [gridField, aiField] of dynamicFieldMap.entries()) {
-      values[aiField] = raw?.[gridField] ?? [];
+    for (const [gridField, aiFields] of dynamicFieldMap.entries()) {
+      const rawValues = raw?.[gridField] ?? [];
+      for (const aiField of aiFields) {
+        values[aiField] = rawValues;
+      }
     }
 
     return {

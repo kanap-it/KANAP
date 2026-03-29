@@ -40,6 +40,7 @@ The asset list gives you a filterable, sortable overview of every asset in your 
 | **Created** | When the record was created |
 
 **Additional columns** (hidden by default, available via column chooser):
+- **Sub-location**: Specific area within the location (building, room, rack)
 - **Go-live**: Date the asset went into production
 - **End-of-life**: Planned or actual retirement date
 
@@ -53,6 +54,7 @@ Most columns support checkbox set filters for quick multi-select filtering. Filt
 | Cluster | Includes "(No cluster)" for standalone assets |
 | Environment | Prod, Pre-prod, QA, Test, Dev, Sandbox |
 | Location | Includes "(No location)" for unassigned assets |
+| Sub-location | Includes "(No sub-location)" for assets without one |
 | Hosting | Filter by hosting type |
 | OS | Filter by operating system |
 | Network Zone | Filter by network segment |
@@ -93,6 +95,7 @@ The Overview tab captures the asset's identity and location.
 - **Asset Type**: Role (Web Server, Database, Application Server, etc.)
 - **Is Cluster**: Toggle to mark this asset as a cluster
 - **Location**: Link to a Location record (required). Selecting a location automatically populates the read-only fields below.
+- **Sub-location**: When the selected location has sub-locations defined (buildings, rooms, racks), this dropdown appears so you can specify exactly where the asset sits within the location.
 - **Lifecycle**: Current status (Active, Deprecated, Retired, etc.)
 - **Go-live date**: When the asset entered production
 - **End-of-life date**: Planned or actual retirement date

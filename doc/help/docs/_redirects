@@ -1,10 +1,8 @@
 # Cloudflare Pages Redirects
 # https://developers.cloudflare.com/pages/configuration/redirects/
 
-# Currently serving English only at root level.
-# When i18n is enabled, add redirects here:
-# / /en/ 302
-# /fr/* /fr/:splat 200
+# English is served at the site root (no /en/ prefix).
+# Translations are served at /fr/, /de/, /es/.
 
 # Old URL compatibility (if migrating from another system)
 # /old-path /new-path 301

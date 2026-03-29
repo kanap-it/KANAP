@@ -5,11 +5,20 @@ import { Application } from '../../applications/application.entity';
 import { ApplicationsListService } from '../../applications/services/applications-list.service';
 import { Asset } from '../../assets/asset.entity';
 import { AssetsListService } from '../../assets/services/assets-list.service';
+import { Company } from '../../companies/company.entity';
+import { CompaniesService } from '../../companies/companies.service';
 import dataSource from '../../data-source';
+import { Department } from '../../departments/department.entity';
+import { DepartmentsService } from '../../departments/departments.service';
+import { ContractAttachment } from '../../contracts/contract-attachment.entity';
+import { ContractLink } from '../../contracts/contract-link.entity';
+import { ContractSpendItem } from '../../contracts/contract-spend-item.entity';
+import { Contract } from '../../contracts/contract.entity';
+import { ContractsService } from '../../contracts/contracts.service';
 import { DocumentActivity } from '../../knowledge/document-activity.entity';
 import { DocumentApplication } from '../../knowledge/document-application.entity';
 import { DocumentAsset } from '../../knowledge/document-asset.entity';
-import { DocumentAttachment } from '../../knowledge/document-attachment.entity';
+import { DocumentAttachment as KnowledgeDocumentAttachment } from '../../knowledge/document-attachment.entity';
 import { DocumentClassification } from '../../knowledge/document-classification.entity';
 import { DocumentContributor } from '../../knowledge/document-contributor.entity';
 import { DocumentEditLock } from '../../knowledge/document-edit-lock.entity';
@@ -29,7 +38,12 @@ import { PortfolioRequest } from '../../portfolio/portfolio-request.entity';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProject } from '../../portfolio/portfolio-project.entity';
 import { PortfolioProjectsListService } from '../../portfolio/services/portfolio-projects-list.service';
+import { applyAgFiltersInMemory } from '../../spend/spend-summary.builder';
 import { TasksService } from '../../spend/tasks.service';
+import { Supplier } from '../../suppliers/supplier.entity';
+import { SuppliersService } from '../../suppliers/suppliers.service';
+import { User } from '../../users/user.entity';
+import { UsersService } from '../../users/users.service';
 import { AiAdminOverviewService } from '../ai-admin-overview.service';
 import { AiEntityService } from '../ai-entity.service';
 import { AiToolRegistry } from '../ai-tool.registry';
@@ -72,6 +86,7 @@ type SeededAiPeople = {
   requestItLead: SeededPerson;
   requestContributor: SeededPerson;
   taskCreator: SeededPerson;
+  applicationBusinessOwner: SeededPerson;
   applicationItOwner: SeededPerson;
 };
 
@@ -104,6 +119,107 @@ async function seedRole(runner: any, tenantId: string, roleName: string) {
   return roleId;
 }
 
+async function seedCompany(
+  runner: any,
+  tenantId: string,
+  name: string,
+) {
+  await setCurrentTenant(runner, tenantId);
+  const companyId = randomUUID();
+  await runner.query(
+    `INSERT INTO companies (
+       id, tenant_id, coa_id, name, country_iso, city, address1, address2, postal_code, reg_number,
+       vat_number, state, base_currency, notes, status, disabled_at, created_at, updated_at
+     )
+     VALUES ($1, $2, null, $3, 'FR', 'Paris', null, null, null, null, null, null, 'EUR', null, 'enabled', null, now(), now())`,
+    [companyId, tenantId, name],
+  );
+  return companyId;
+}
+
+async function seedDepartment(
+  runner: any,
+  tenantId: string,
+  companyId: string,
+  name: string,
+) {
+  await setCurrentTenant(runner, tenantId);
+  const departmentId = randomUUID();
+  await runner.query(
+    `INSERT INTO departments (
+       id, tenant_id, company_id, name, description, status, disabled_at, created_at, updated_at
+     )
+     VALUES ($1, $2, $3, $4, $5, 'enabled', null, now(), now())`,
+    [departmentId, tenantId, companyId, name, `${name} department`],
+  );
+  return departmentId;
+}
+
+async function seedSupplier(
+  runner: any,
+  tenantId: string,
+  name: string,
+  erpSupplierId: string,
+) {
+  await setCurrentTenant(runner, tenantId);
+  const supplierId = randomUUID();
+  await runner.query(
+    `INSERT INTO suppliers (
+       id, tenant_id, name, erp_supplier_id, notes, status, disabled_at, created_at, updated_at
+     )
+     VALUES ($1, $2, $3, $4, $5, 'enabled', null, now(), now())`,
+    [supplierId, tenantId, name, erpSupplierId, `${name} notes`],
+  );
+  return supplierId;
+}
+
+async function seedContract(
+  runner: any,
+  tenantId: string,
+  opts: {
+    companyId: string;
+    supplierId: string;
+    name: string;
+    startDate: string;
+    durationMonths: number;
+    autoRenewal: boolean;
+    noticePeriodMonths: number;
+    yearlyAmount: number;
+    currency?: string;
+    billingFrequency?: string;
+  },
+) {
+  await setCurrentTenant(runner, tenantId);
+  const contractId = randomUUID();
+  await runner.query(
+    `INSERT INTO contracts (
+       id, tenant_id, name, status, disabled_at, company_id, supplier_id, owner_user_id,
+       start_date, duration_months, auto_renewal, notice_period_months, yearly_amount_at_signature,
+       currency, billing_frequency, notes, created_at, updated_at
+     )
+     VALUES (
+       $1, $2, $3, 'enabled', null, $4, $5, null,
+       $6, $7, $8, $9, $10, $11, $12, $13, now(), now()
+     )`,
+    [
+      contractId,
+      tenantId,
+      opts.name,
+      opts.companyId,
+      opts.supplierId,
+      opts.startDate,
+      opts.durationMonths,
+      opts.autoRenewal,
+      opts.noticePeriodMonths,
+      opts.yearlyAmount,
+      opts.currency ?? 'EUR',
+      opts.billingFrequency ?? 'annual',
+      `${opts.name} notes`,
+    ],
+  );
+  return contractId;
+}
+
 async function seedUser(
   runner: any,
   tenantId: string,
@@ -113,15 +229,32 @@ async function seedUser(
   opts?: {
     firstName?: string;
     lastName?: string;
+    companyId?: string | null;
+    departmentId?: string | null;
+    jobTitle?: string | null;
+    locale?: string | null;
+    status?: string | null;
   },
 ) {
   await setCurrentTenant(runner, tenantId);
   await runner.query(
     `INSERT INTO users (
-       id, tenant_id, email, first_name, last_name, role_id, created_at, updated_at
+       id, tenant_id, company_id, department_id, first_name, last_name, email, job_title, locale, role_id, status, created_at, updated_at
      )
-     VALUES ($1, $2, $3, $4, $5, $6, now(), now())`,
-    [userId, tenantId, email, opts?.firstName || null, opts?.lastName || null, roleId],
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), now())`,
+    [
+      userId,
+      tenantId,
+      opts?.companyId ?? null,
+      opts?.departmentId ?? null,
+      opts?.firstName || null,
+      opts?.lastName || null,
+      email,
+      opts?.jobTitle ?? null,
+      opts?.locale ?? null,
+      roleId,
+      opts?.status ?? 'enabled',
+    ],
   );
 }
 
@@ -149,6 +282,7 @@ async function seedAiPeopleAssignments(
     requestItLead: await createPerson('request-it', 'Iris', `RequestIt${tag}`),
     requestContributor: await createPerson('request-contrib', 'Remy', `RequestContrib${tag}`),
     taskCreator: await createPerson('task-creator', 'Taylor', `TaskCreator${tag}`),
+    applicationBusinessOwner: await createPerson('app-biz-owner', 'Bianca', `AppBizOwner${tag}`),
     applicationItOwner: await createPerson('app-owner', 'Aiden', `AppOwner${tag}`),
   };
 
@@ -188,6 +322,12 @@ async function seedAiPeopleAssignments(
      WHERE id = $2
        AND tenant_id = $3`,
     [people.taskCreator.id, graph.taskId, tenantId],
+  );
+
+  await runner.query(
+    `INSERT INTO application_owners (id, tenant_id, application_id, user_id, owner_type, created_at)
+     VALUES ($1, $2, $3, $4, 'business', now())`,
+    [randomUUID(), tenantId, graph.applicationId, people.applicationBusinessOwner.id],
   );
 
   await runner.query(
@@ -1107,6 +1247,15 @@ function createAiQueryHarness(manager: any) {
   const suppliers = {} as any;
   const departments = {} as any;
   const locations = {} as any;
+  const users = new UsersService(
+    manager.getRepository(User),
+    manager.getRepository(Company),
+    manager.getRepository(Department),
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
   const queryExecutor = new AiQueryExecutor(
     tasks as any,
     projects as any,
@@ -1120,6 +1269,7 @@ function createAiQueryHarness(manager: any) {
     departments,
     knowledge as any,
     locations as any,
+    users as any,
   );
   const aggregateExecutor = new AiAggregateExecutor(
     tasks as any,
@@ -1133,6 +1283,7 @@ function createAiQueryHarness(manager: any) {
     suppliers,
     departments,
     knowledge as any,
+    users as any,
   );
 
   return { knowledge, queryExecutor, aggregateExecutor };
@@ -1147,7 +1298,7 @@ function createKnowledgeService(manager: any) {
     manager.getRepository(DocumentType),
     manager.getRepository(DocumentVersion),
     manager.getRepository(DocumentEditLock),
-    manager.getRepository(DocumentAttachment),
+    manager.getRepository(KnowledgeDocumentAttachment),
     manager.getRepository(DocumentActivity),
     manager.getRepository(DocumentContributor),
     manager.getRepository(DocumentClassification),
@@ -1303,6 +1454,19 @@ function buildToolIsolationCases(
           },
         },
         {
+          label: 'applications-business-owner',
+          input: {
+            query: fixtures.peopleA.applicationBusinessOwner.name,
+            entity_types: ['applications'],
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.applicationId]);
+            assert.equal(String(result.items[0].metadata.business_owner).includes(fixtures.peopleA.applicationBusinessOwner.name), true);
+            assert.equal(result.items[0].metadata.version, fixtures.graphA.applicationVersion);
+          },
+        },
+        {
           label: 'applications-it-owner',
           input: {
             query: fixtures.peopleA.applicationItOwner.name,
@@ -1412,6 +1576,23 @@ function buildToolIsolationCases(
           },
         },
         {
+          label: 'projects-execution-progress',
+          input: {
+            entity_type: 'projects',
+            filters: {
+              execution_progress: { op: 'gte', value: 1 },
+            },
+            sort: { field: 'execution_progress', direction: 'desc' },
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.filters_applied, ['execution_progress']);
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.projectId]);
+            assert.equal(result.items[0].metadata.execution_progress, 25);
+          },
+        },
+        {
           label: 'projects-business-lead',
           input: {
             entity_type: 'projects',
@@ -1468,6 +1649,20 @@ function buildToolIsolationCases(
           },
         },
         {
+          label: 'applications-business-owner',
+          input: {
+            entity_type: 'applications',
+            filters: { business_owner: [fixtures.peopleA.applicationBusinessOwner.name] },
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.filters_applied, ['business_owner']);
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.applicationId]);
+            assert.equal(String(result.items[0].metadata.business_owner).includes(fixtures.peopleA.applicationBusinessOwner.name), true);
+          },
+        },
+        {
           label: 'applications-it-owner',
           input: {
             entity_type: 'applications',
@@ -1485,20 +1680,38 @@ function buildToolIsolationCases(
       ];
 
     case 'aggregate_entities':
-      return [{
-        label: 'tasks-by-status',
-        input: {
-          entity_type: 'tasks',
-          group_by: 'status',
-          q: 'Shared Boundary Task',
+      return [
+        {
+          label: 'tasks-by-status',
+          input: {
+            entity_type: 'tasks',
+            group_by: 'status',
+            q: 'Shared Boundary Task',
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.groups, [{ key: 'open', count: 1 }]);
+            assert.deepEqual(result.filters_applied, []);
+            assert.deepEqual(result.filters_ignored, []);
+          },
         },
-        assertResult: (result: any) => {
-          assert.equal(result.total, 1);
-          assert.deepEqual(result.groups, [{ key: 'open', count: 1 }]);
-          assert.deepEqual(result.filters_applied, []);
-          assert.deepEqual(result.filters_ignored, []);
+        {
+          label: 'projects-max-execution-progress',
+          input: {
+            entity_type: 'projects',
+            group_by: 'status',
+            metric: 'execution_progress',
+            function: 'max',
+            q: 'Shared Boundary Project',
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.equal(result.metric, 'execution_progress');
+            assert.equal(result.function, 'max');
+            assert.deepEqual(result.groups, [{ key: 'planned', value: 25 }]);
+          },
         },
-      }];
+      ];
 
     case 'get_filter_values':
       return [
@@ -1506,11 +1719,12 @@ function buildToolIsolationCases(
           label: 'applications-values',
           input: {
             entity_type: 'applications',
-            fields: ['status', 'lifecycle', 'it_owner'],
+            fields: ['status', 'lifecycle', 'business_owner', 'it_owner'],
           },
           assertResult: (result: any) => {
             assert.equal(result.values.status.includes('enabled'), true);
             assert.equal(result.values.lifecycle.includes('active'), true);
+            assert.equal(result.values.business_owner.includes(fixtures.peopleA.applicationBusinessOwner.name), true);
             assert.equal(result.values.it_owner.includes(fixtures.peopleA.applicationItOwner.name), true);
             assert.deepEqual(result.fields_ignored, []);
           },
@@ -1586,6 +1800,16 @@ function buildToolIsolationCases(
       }];
 
     case 'web_search':
+      return [];
+
+    case 'update_task_status':
+    case 'update_task_assignee':
+    case 'add_task_comment':
+    case 'create_document':
+    case 'update_document_content':
+    case 'update_document_metadata':
+    case 'update_document_relations':
+    case 'undo_preview':
       return [];
 
     default: {
@@ -1803,6 +2027,11 @@ async function testAiToolRegistryIsolationCoverageTracksRegisteredTools() {
       {
         search: async () => [],
       } as any,
+      {} as any,
+      {
+        listOperations: () => [],
+        getOperationOrNull: () => null,
+      } as any,
     );
 
     const tenantAContext = {
@@ -1872,6 +2101,11 @@ async function testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScope
       } as any,
       {
         search: async () => [],
+      } as any,
+      {} as any,
+      {
+        listOperations: () => [],
+        getOperationOrNull: () => null,
       } as any,
     );
 
@@ -2079,6 +2313,11 @@ async function testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies
       {
         search: async () => [],
       } as any,
+      {} as any,
+      {
+        listOperations: () => [],
+        getOperationOrNull: () => null,
+      } as any,
     );
 
     const tenantAContext = {
@@ -2230,6 +2469,11 @@ async function testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting() {
       } as any,
       {
         search: async () => [],
+      } as any,
+      {} as any,
+      {
+        listOperations: () => [],
+        getOperationOrNull: () => null,
       } as any,
     );
 
@@ -2516,6 +2760,386 @@ async function testKnowledgeServiceSupportsLinkedDocumentFiltersAcrossLegacyAndI
   }
 }
 
+async function testAiUsersEntitySupportsContributorReadsAndTenantIsolation() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  const tenantA = randomUUID();
+  const tenantB = randomUUID();
+
+  try {
+    await seedTenant(runner, tenantA, `ai-users-a-${tenantA.slice(0, 8)}`, 'AI Users Tenant A');
+    await seedTenant(runner, tenantB, `ai-users-b-${tenantB.slice(0, 8)}`, 'AI Users Tenant B');
+
+    const roleA = await seedRole(runner, tenantA, 'Portfolio Contributor');
+    const roleB = await seedRole(runner, tenantB, 'Portfolio Contributor');
+    const companyA = await seedCompany(runner, tenantA, 'Tenant A Holdings');
+    const companyB = await seedCompany(runner, tenantB, 'Tenant B Holdings');
+    const departmentA = await seedDepartment(runner, tenantA, companyA, 'Portfolio Office');
+    const departmentB = await seedDepartment(runner, tenantB, companyB, 'Security Office');
+
+    const configuredA = randomUUID();
+    const plainA = randomUUID();
+    const configuredB = randomUUID();
+    const teamA = randomUUID();
+    const teamB = randomUUID();
+    const teamAName = 'Strategy Team';
+    const teamBName = 'Leakage Team';
+
+    await seedUser(runner, tenantA, configuredA, 'alex.analyst.a@example.com', roleA, {
+      firstName: 'Alex',
+      lastName: 'Analyst',
+      companyId: companyA,
+      departmentId: departmentA,
+      jobTitle: 'Senior Portfolio Analyst',
+      locale: 'fr',
+    });
+    await seedUser(runner, tenantA, plainA, 'sam.support.a@example.com', roleA, {
+      firstName: 'Sam',
+      lastName: 'Support',
+      companyId: companyA,
+      departmentId: departmentA,
+      jobTitle: 'Support Manager',
+      locale: 'en',
+    });
+    await seedUser(runner, tenantB, configuredB, 'alex.analyst.b@example.com', roleB, {
+      firstName: 'Alex',
+      lastName: 'Analyst',
+      companyId: companyB,
+      departmentId: departmentB,
+      jobTitle: 'Security Analyst',
+      locale: 'de',
+    });
+
+    await setCurrentTenant(runner, tenantA);
+    await runner.query(
+      `INSERT INTO portfolio_teams (
+         id, tenant_id, name, description, is_active, display_order, is_system, parent_id, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, 'Tenant A user team', true, 0, false, null, now(), now())`,
+      [teamA, tenantA, teamAName],
+    );
+    await runner.query(
+      `INSERT INTO portfolio_team_member_configs (
+         id, tenant_id, user_id, areas_of_expertise, skills, project_availability, notes, team_id, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4::jsonb, '[]'::jsonb, 3.5, null, $5, now(), now())`,
+      [randomUUID(), tenantA, configuredA, JSON.stringify(['ERP', 'Finance']), teamA],
+    );
+
+    await setCurrentTenant(runner, tenantB);
+    await runner.query(
+      `INSERT INTO portfolio_teams (
+         id, tenant_id, name, description, is_active, display_order, is_system, parent_id, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, 'Tenant B user team', true, 0, false, null, now(), now())`,
+      [teamB, tenantB, teamBName],
+    );
+    await runner.query(
+      `INSERT INTO portfolio_team_member_configs (
+         id, tenant_id, user_id, areas_of_expertise, skills, project_availability, notes, team_id, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4::jsonb, '[]'::jsonb, 4.5, null, $5, now(), now())`,
+      [randomUUID(), tenantB, configuredB, JSON.stringify(['Leakage']), teamB],
+    );
+
+    await disableRls(runner, [
+      'users',
+      'roles',
+      'companies',
+      'departments',
+      'portfolio_team_member_configs',
+      'portfolio_teams',
+    ]);
+
+    const policy = createPermissivePolicyStub();
+    const { knowledge, queryExecutor, aggregateExecutor } = createAiQueryHarness(runner.manager);
+    const entityService = new AiEntityService(knowledge as any, policy);
+    const registry = new AiToolRegistry(
+      entityService,
+      knowledge as any,
+      policy,
+      queryExecutor,
+      aggregateExecutor,
+      {
+        find: async () => ({ web_search_enabled: false }),
+      } as any,
+      {
+        search: async () => [],
+      } as any,
+      {} as any,
+      {
+        listOperations: () => [],
+        getOperationOrNull: () => null,
+      } as any,
+    );
+
+    await setCurrentTenant(runner, tenantA);
+    const tenantAContext = {
+      tenantId: tenantA,
+      userId: configuredA,
+      isPlatformHost: false,
+      surface: 'chat' as const,
+      authMethod: 'jwt' as const,
+      manager: runner.manager,
+    };
+
+    const searchAllResult = await registry.execute(tenantAContext, 'search_all', {
+      query: 'Alex Analyst',
+      entity_types: ['users'],
+      limit: 10,
+    }) as any;
+    assert.equal(searchAllResult.total, 1);
+    assert.deepEqual(searchAllResult.items.map((item: any) => item.id), [configuredA]);
+    assert.equal(searchAllResult.items[0].metadata.email, 'alex.analyst.a@example.com');
+    assert.equal(searchAllResult.items[0].metadata.team, teamAName);
+    assert.equal(searchAllResult.items[0].metadata.project_availability, 3.5);
+    assert.equal(String(searchAllResult.items[0].metadata.areas_of_expertise).includes('ERP'), true);
+    assert.equal(
+      searchAllResult.items.some((item: any) => item.id === configuredB),
+      false,
+    );
+
+    const queryAllUsers = await registry.execute(tenantAContext, 'query_entities', {
+      entity_type: 'users',
+      q: '@example.com',
+      sort: { field: 'email', direction: 'asc' },
+      limit: 10,
+    }) as any;
+    assert.equal(queryAllUsers.total, 2);
+    assert.deepEqual(
+      queryAllUsers.items.map((item: any) => item.id),
+      [configuredA, plainA],
+    );
+    assert.equal(
+      queryAllUsers.items.some((item: any) => item.id === configuredB),
+      false,
+    );
+
+    const configuredUsers = await registry.execute(tenantAContext, 'query_entities', {
+      entity_type: 'users',
+      filters: {
+        contributor_profile: ['configured'],
+        team: [teamAName],
+        areas_of_expertise: 'ERP',
+      },
+      sort: { field: 'email', direction: 'asc' },
+      limit: 10,
+    }) as any;
+    assert.equal(configuredUsers.total, 1);
+    assert.deepEqual(configuredUsers.filters_applied, ['contributor_profile', 'team', 'areas_of_expertise']);
+    assert.deepEqual(configuredUsers.items.map((item: any) => item.id), [configuredA]);
+    assert.equal(configuredUsers.items[0].metadata.email, 'alex.analyst.a@example.com');
+    assert.equal(configuredUsers.items[0].metadata.company, 'Tenant A Holdings');
+    assert.equal(configuredUsers.items[0].metadata.department, 'Portfolio Office');
+    assert.equal(configuredUsers.items[0].metadata.primary_role, 'Portfolio Contributor');
+    assert.equal(configuredUsers.items[0].metadata.locale, 'fr');
+    assert.equal(configuredUsers.items[0].metadata.team, teamAName);
+    assert.equal(configuredUsers.items[0].metadata.contributor_profile, 'configured');
+    assert.equal(configuredUsers.items[0].metadata.project_availability, 3.5);
+    assert.equal(String(configuredUsers.items[0].metadata.areas_of_expertise).includes('Finance'), true);
+
+    const contributorBreakdown = await registry.execute(tenantAContext, 'aggregate_entities', {
+      entity_type: 'users',
+      group_by: 'contributor_profile',
+      q: '@example.com',
+    }) as any;
+    assert.equal(contributorBreakdown.total, 2);
+    assert.deepEqual(contributorBreakdown.groups, [
+      { key: 'configured', count: 1 },
+      { key: 'not_configured', count: 1 },
+    ]);
+
+    const teamAvailability = await registry.execute(tenantAContext, 'aggregate_entities', {
+      entity_type: 'users',
+      group_by: 'team',
+      metric: 'project_availability',
+      function: 'avg',
+      filters: {
+        contributor_profile: ['configured'],
+      },
+    }) as any;
+    assert.equal(teamAvailability.total, 1);
+    assert.equal(teamAvailability.metric, 'project_availability');
+    assert.equal(teamAvailability.function, 'avg');
+    assert.deepEqual(teamAvailability.groups, [
+      { key: teamAName, value: 3.5 },
+    ]);
+
+    const filterValues = await registry.execute(tenantAContext, 'get_filter_values', {
+      entity_type: 'users',
+      fields: ['company', 'department', 'primary_role', 'team', 'locale', 'areas_of_expertise', 'contributor_profile'],
+    }) as any;
+    assert.deepEqual(filterValues.fields_ignored, []);
+    assert.equal(filterValues.values.company.includes('Tenant A Holdings'), true);
+    assert.equal(filterValues.values.company.includes('Tenant B Holdings'), false);
+    assert.equal(filterValues.values.department.includes('Portfolio Office'), true);
+    assert.equal(filterValues.values.department.includes('Security Office'), false);
+    assert.equal(filterValues.values.primary_role.includes('Portfolio Contributor'), true);
+    assert.equal(filterValues.values.team.includes(teamAName), true);
+    assert.equal(filterValues.values.team.includes(teamBName), false);
+    assert.equal(filterValues.values.locale.includes('fr'), true);
+    assert.equal(filterValues.values.locale.includes('de'), false);
+    assert.equal(filterValues.values.areas_of_expertise.includes('ERP'), true);
+    assert.equal(filterValues.values.areas_of_expertise.includes('Leakage'), false);
+    assert.deepEqual(filterValues.values.contributor_profile, ['configured', 'not_configured']);
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
+async function testAiQueryExecutorClosesRemainingMilestone1aGapFields() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  const tenantId = randomUUID();
+  try {
+    await seedTenant(runner, tenantId, 'ai-gap-fix', 'AI Gap Fix Tenant');
+    const companyId = await seedCompany(runner, tenantId, 'Tenant A Holdings');
+    const otherCompanyId = await seedCompany(runner, tenantId, 'Tenant B Holdings');
+    await runner.query(`UPDATE companies SET state = 'Ile-de-France' WHERE id = $1`, [companyId]);
+    await runner.query(`UPDATE companies SET country_iso = 'DE', city = 'Berlin', state = 'Berlin' WHERE id = $1`, [otherCompanyId]);
+
+    const supplierId = await seedSupplier(runner, tenantId, 'ERP Vendor', 'SUP-001');
+    const otherSupplierId = await seedSupplier(runner, tenantId, 'Legacy Vendor', 'SUP-999');
+
+    const matchingContractId = await seedContract(runner, tenantId, {
+      companyId,
+      supplierId,
+      name: 'ERP Renewal',
+      startDate: '2026-01-01',
+      durationMonths: 6,
+      autoRenewal: true,
+      noticePeriodMonths: 1,
+      yearlyAmount: 1200,
+    });
+    await seedContract(runner, tenantId, {
+      companyId: otherCompanyId,
+      supplierId: otherSupplierId,
+      name: 'Legacy Support',
+      startDate: '2026-08-01',
+      durationMonths: 18,
+      autoRenewal: false,
+      noticePeriodMonths: 3,
+      yearlyAmount: 900,
+    });
+
+    await setCurrentTenant(runner, tenantId);
+
+    const companiesService = new CompaniesService(
+      runner.manager.getRepository(Company),
+      {} as any,
+      {} as any,
+    );
+    const suppliersService = new SuppliersService(
+      runner.manager.getRepository(Supplier),
+      {} as any,
+    );
+    const contractsService = new ContractsService(
+      runner.manager.getRepository(Contract),
+      runner.manager.getRepository(ContractSpendItem),
+      runner.manager.getRepository(ContractLink),
+      runner.manager.getRepository(ContractAttachment),
+      {} as any,
+      {} as any,
+      {} as any,
+      { syncFromSupplier: async () => undefined } as any,
+      { notifyStatusChange: () => undefined } as any,
+    );
+
+    const queryExecutor = new AiQueryExecutor(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      contractsService as any,
+      companiesService as any,
+      suppliersService as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+
+    const context = {
+      tenantId,
+      userId: 'ai-gap-fix-user',
+      isPlatformHost: false,
+      surface: 'chat' as const,
+      authMethod: 'jwt' as const,
+      manager: runner.manager,
+    };
+
+    const companyValues = await queryExecutor.executeFilterValues(context, {
+      entity_type: 'companies',
+      fields: ['country', 'country_iso', 'state'],
+    });
+    assert.equal(companyValues.fields_ignored.length, 0);
+    assert.equal(companyValues.values.country.includes('FR'), true);
+    assert.equal(companyValues.values.country_iso.includes('FR'), true);
+    assert.equal(companyValues.values.state.includes('Ile-de-France'), true);
+
+    const supplierValues = await queryExecutor.executeFilterValues(context, {
+      entity_type: 'suppliers',
+      fields: ['erp_supplier_id'],
+    });
+    assert.equal(supplierValues.fields_ignored.length, 0);
+    assert.equal(supplierValues.values.erp_supplier_id.includes('SUP-001'), true);
+
+    const contractValues = await queryExecutor.executeFilterValues(context, {
+      entity_type: 'contracts',
+      fields: ['supplier', 'company', 'currency'],
+    });
+    assert.equal(contractValues.fields_ignored.length, 0);
+    assert.equal(contractValues.values.supplier.includes('ERP Vendor'), true);
+    assert.equal(contractValues.values.company.includes('Tenant A Holdings'), true);
+    assert.equal(contractValues.values.currency.includes('EUR'), true);
+
+    const contractResult = await queryExecutor.execute(context, {
+      entity_type: 'contracts',
+      filters: {
+        supplier: ['ERP Vendor'],
+        company: ['Tenant A Holdings'],
+        auto_renewal: ['true'],
+        end_date: { op: 'before', value: '2026-07-15' },
+      },
+      sort: { field: 'end_date', direction: 'asc' },
+      limit: 10,
+    });
+    assert.equal(contractResult.total, 1);
+    assert.deepEqual(contractResult.items.map((item: any) => item.id), [matchingContractId]);
+    assert.equal(contractResult.items[0].metadata.supplier, 'ERP Vendor');
+    assert.equal(contractResult.items[0].metadata.company, 'Tenant A Holdings');
+    assert.equal(contractResult.items[0].metadata.auto_renewal, true);
+    assert.equal(contractResult.items[0].metadata.duration_months, 6);
+    assert.equal(contractResult.items[0].metadata.notice_period_months, 1);
+    assert.equal(contractResult.items[0].metadata.yearly_amount_at_signature, 1200);
+    assert.equal(contractResult.items[0].metadata.end_date, '2026-06-30');
+
+    const companyResult = await queryExecutor.execute(context, {
+      entity_type: 'companies',
+      filters: {
+        country_iso: ['FR'],
+        state: ['Ile-de-France'],
+      },
+      sort: { field: 'country_iso', direction: 'asc' },
+      limit: 10,
+    });
+    assert.equal(companyResult.total, 1);
+    assert.deepEqual(companyResult.items.map((item: any) => item.id), [companyId]);
+    assert.equal(companyResult.items[0].metadata.country_iso, 'FR');
+    assert.equal(companyResult.items[0].metadata.state, 'Ile-de-France');
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
   const anchorYear = new Date().getFullYear();
   const summaryCalls: any[] = [];
@@ -2531,6 +3155,9 @@ async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
           updated_at: '2026-03-27T09:00:00.000Z',
           supplier_name: 'Budget Supplier',
           currency: 'EUR',
+          project_name: 'Infrastructure Refresh',
+          project_stream_name: 'Infrastructure',
+          project_category_name: 'Run',
           versions: {
             [`y${anchorYear - 2}`]: { year: anchorYear - 2, reporting: { budget: 10, revision: 9, follow_up: 8, landing: 7 } },
             yMinus1: { year: anchorYear - 1, reporting: { budget: 20, revision: 19, follow_up: 18, landing: 17 } },
@@ -2554,6 +3181,7 @@ async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
     {} as any,
     {} as any,
     spendItems as any,
+    {} as any,
     {} as any,
     {} as any,
     {} as any,
@@ -2584,6 +3212,9 @@ async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
   );
   assert.equal(result.total, 1);
   assert.equal(result.items[0].metadata.budget_anchor_year, anchorYear);
+  assert.equal(result.items[0].metadata.project_name, 'Infrastructure Refresh');
+  assert.equal(result.items[0].metadata.project_stream, 'Infrastructure');
+  assert.equal(result.items[0].metadata.project_category, 'Run');
   assert.equal(result.items[0].metadata.y_minus2_budget, 10);
   assert.equal(result.items[0].metadata.y_minus1_budget, 20);
   assert.equal(result.items[0].metadata.y_budget, 30);
@@ -2596,6 +3227,99 @@ async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
     (result.items[0].metadata.yearly_totals as any[]).map((entry: any) => entry.label),
     ['Y-2', 'Y-1', 'Y', 'Y+1', 'Y+2'],
   );
+}
+
+async function testSpendSummaryFiltersSupportRelativeYearMetricsAndDates() {
+  const rows = [
+    {
+      id: 'spend-1',
+      effective_end: '2026-06-30',
+      project_stream_name: 'Infrastructure',
+      versions: {
+        yMinus2: { reporting: { budget: 10, revision: 0, follow_up: 0, landing: 0 } },
+        yPlus2: { reporting: { budget: 50, revision: 0, follow_up: 0, landing: 0 } },
+      },
+    },
+    {
+      id: 'spend-2',
+      effective_end: '2026-08-15',
+      project_stream_name: 'Security',
+      versions: {
+        yMinus2: { reporting: { budget: 5, revision: 0, follow_up: 0, landing: 0 } },
+        yPlus2: { reporting: { budget: 20, revision: 0, follow_up: 0, landing: 0 } },
+      },
+    },
+  ] as any;
+
+  const filtered = applyAgFiltersInMemory(rows, {
+    project_stream_name: { filterType: 'set', values: ['Infrastructure'] },
+    yMinus2Budget: { filterType: 'number', type: 'greaterThanOrEqual', filter: 10 },
+    yPlus2Budget: { filterType: 'number', type: 'inRange', filter: 40, filterTo: 60 },
+    effective_end: { filterType: 'date', type: 'lessThan', dateFrom: '2026-07-01' },
+  });
+
+  assert.deepEqual(filtered.map((row: any) => row.id), ['spend-1']);
+}
+
+async function testAiAggregateExecutorSpendItemsSupportsSummaryMetricsAndProjectStreams() {
+  const executor = new AiAggregateExecutor(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {
+      summaryIds: async () => ({ ids: ['spend-1', 'spend-2', 'spend-3'], total: 3 }),
+      summaryRowsByIds: async () => ([
+        {
+          id: 'spend-1',
+          project_stream_name: 'Infrastructure',
+          versions: { y: { reporting: { budget: 30, revision: 0, follow_up: 0, landing: 0 } } },
+        },
+        {
+          id: 'spend-2',
+          project_stream_name: 'Infrastructure',
+          versions: { y: { reporting: { budget: 45, revision: 0, follow_up: 0, landing: 0 } } },
+        },
+        {
+          id: 'spend-3',
+          project_stream_name: 'Security',
+          versions: { y: { reporting: { budget: 25, revision: 0, follow_up: 0, landing: 0 } } },
+        },
+      ]),
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const result = await executor.execute(
+    {
+      tenantId: 'tenant-ai',
+      userId: 'user-ai',
+      isPlatformHost: false,
+      surface: 'chat',
+      authMethod: 'jwt',
+      manager: {} as any,
+    },
+    {
+      entity_type: 'spend_items',
+      group_by: 'project_stream',
+      metric: 'y_budget',
+      function: 'sum',
+    },
+  );
+
+  assert.equal(result.total, 3);
+  assert.equal(result.metric, 'y_budget');
+  assert.equal(result.function, 'sum');
+  assert.deepEqual(result.groups, [
+    { key: 'Infrastructure', value: 75 },
+    { key: 'Security', value: 25 },
+  ]);
 }
 
 async function testAiAdminOverviewAggregatesUsageAndIsTenantScoped() {
@@ -2830,7 +3554,11 @@ async function run() {
     await testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies();
     await testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting();
     await testKnowledgeServiceSupportsLinkedDocumentFiltersAcrossLegacyAndIntegratedBindings();
+    await testAiUsersEntitySupportsContributorReadsAndTenantIsolation();
+    await testAiQueryExecutorClosesRemainingMilestone1aGapFields();
     await testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals();
+    await testSpendSummaryFiltersSupportRelativeYearMetricsAndDates();
+    await testAiAggregateExecutorSpendItemsSupportsSummaryMetricsAndProjectStreams();
     await testAiAdminOverviewAggregatesUsageAndIsTenantScoped();
     await testAiConversationRetentionArchivesAndPurgesOldConversations();
     await testAiToolRegistryIsolationCoverageTracksRegisteredTools();

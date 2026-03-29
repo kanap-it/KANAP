@@ -14,6 +14,7 @@ export type ScopedAiEntityType =
   | 'spend_items'
   | 'suppliers'
   | 'tasks'
+  | 'users';
 
 export type ResolvedAiScope = {
   requested: AiQueryScope;

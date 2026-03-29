@@ -117,8 +117,50 @@ export class SuppliersService {
     return { ids, total: ids.length };
   }
 
-  async listFilterValues(_query?: any, _opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {
-    return {};
+  async listFilterValues(query?: any, opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {
+    const rawFields = String(query?.fields || query?.field || '')
+      .split(',')
+      .map((field) => field.trim())
+      .filter(Boolean);
+    const allowed = new Set(['erp_supplier_id']);
+    const fields = rawFields.filter((field) => allowed.has(field));
+    if (fields.length === 0) return {};
+
+    const parseFilters = (value: any): Record<string, any> => {
+      if (!value) return {};
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return {};
+        }
+      }
+      return typeof value === 'object' ? { ...value } : {};
+    };
+
+    const baseFilters = parseFilters(query?.filters);
+    const results: Record<string, Array<string | null>> = {};
+
+    for (const field of fields) {
+      const filtersForField = { ...baseFilters };
+      delete filtersForField[field];
+      const result = await this.list(
+        { ...query, page: 1, limit: 10000, filters: filtersForField, sort: 'name:ASC' },
+        opts,
+      );
+      const values = new Set<string | null>();
+      for (const item of result.items || []) {
+        const rawValue = (item as any)?.[field];
+        values.add(rawValue == null || rawValue === '' ? null : String(rawValue));
+      }
+      results[field] = Array.from(values).sort((a, b) => {
+        if (a == null) return 1;
+        if (b == null) return -1;
+        return a.localeCompare(b);
+      });
+    }
+
+    return results;
   }
 
   async create(body: SupplierUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {

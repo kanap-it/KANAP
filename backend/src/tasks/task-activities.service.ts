@@ -39,6 +39,17 @@ export interface CreateUnifiedActivityDto {
 
 export type ActivityBodyDto = CreateTaskActivityDto | CreateUnifiedActivityDto;
 
+type TaskActivityAuditOptions = {
+  source?: string;
+  sourceRef?: string | null;
+};
+
+type TaskActivityMutationOptions = {
+  manager?: EntityManager;
+  isAdmin?: boolean;
+  audit?: TaskActivityAuditOptions;
+};
+
 @Injectable()
 export class TaskActivitiesService {
   private readonly logger = new Logger(TaskActivitiesService.name);
@@ -63,6 +74,28 @@ export class TaskActivitiesService {
     void this.notifications.notifyUnifiedAction(params).catch((error) => {
       this.logger.error(`Failed to notify unified task activity for task ${params.taskId}: ${error}`);
     });
+  }
+
+  private async logActivityAuditIfNeeded(
+    activity: PortfolioActivity,
+    userId: string | null,
+    opts: TaskActivityMutationOptions | undefined,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (!opts?.audit) {
+      return;
+    }
+
+    await this.audit.log({
+      table: 'portfolio_activities',
+      recordId: activity.id,
+      action: 'create',
+      before: null,
+      after: activity,
+      userId,
+      source: opts.audit.source,
+      sourceRef: opts.audit.sourceRef ?? null,
+    }, { manager });
   }
 
   /**
@@ -118,7 +151,7 @@ export class TaskActivitiesService {
     dto: CreateTaskActivityDto,
     tenantId: string,
     userId: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: TaskActivityMutationOptions,
   ): Promise<PortfolioActivity> {
     const mg = opts?.manager ?? this.activityRepo.manager;
 
@@ -141,6 +174,7 @@ export class TaskActivitiesService {
     });
 
     const saved = await repo.save(activity);
+    await this.logActivityAuditIfNeeded(saved, userId, opts, mg);
 
     // Fire-and-forget notification for comments
     if (dto.type === 'comment' && normalizedContent && userId) {
@@ -171,7 +205,7 @@ export class TaskActivitiesService {
     dto: CreateUnifiedActivityDto,
     tenantId: string,
     userId: string | null,
-    opts?: { manager?: EntityManager; isAdmin?: boolean },
+    opts?: TaskActivityMutationOptions,
   ): Promise<PortfolioActivity> {
     const mg = opts?.manager ?? this.activityRepo.manager;
     const taskRepo = mg.getRepository(Task);
@@ -245,6 +279,7 @@ export class TaskActivitiesService {
           context: null,
         }),
       );
+      await this.logActivityAuditIfNeeded(changeActivity, userId, opts, mg);
     }
 
     if (hasTimeEntry) {
@@ -274,6 +309,7 @@ export class TaskActivitiesService {
           changed_fields: null,
         }),
       );
+      await this.logActivityAuditIfNeeded(commentActivity, userId, opts, mg);
     }
 
     if (tenantId && userId && (hasStatusChange || hasComment)) {
@@ -301,7 +337,7 @@ export class TaskActivitiesService {
     if (changeActivity) return changeActivity;
 
     // Time-only submit: persist a standard change activity for a consistent response shape.
-    return activityRepo.save(
+    const timeActivity = await activityRepo.save(
       activityRepo.create({
         task_id: taskId,
         tenant_id: tenantId,
@@ -312,6 +348,8 @@ export class TaskActivitiesService {
         context: 'unified_time_log',
       }),
     );
+    await this.logActivityAuditIfNeeded(timeActivity, userId, opts, mg);
+    return timeActivity;
   }
 
   /**

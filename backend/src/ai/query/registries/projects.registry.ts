@@ -102,6 +102,15 @@ export const projectsRegistry: AiEntityFilterRegistry = {
       groupable: false,
       aggregable: true,
     },
+    execution_progress: {
+      ai: 'execution_progress',
+      grid: 'execution_progress',
+      type: 'number',
+      description: 'Project execution progress percentage.',
+      sortable: true,
+      groupable: false,
+      aggregable: true,
+    },
     planned_start: {
       ai: 'planned_start',
       grid: 'planned_start',
@@ -126,6 +135,7 @@ export const projectsRegistry: AiEntityFilterRegistry = {
     status: 'status',
     origin: 'origin',
     priority_score: 'priority_score',
+    execution_progress: 'execution_progress',
     planned_start: 'planned_start',
     planned_end: 'planned_end',
     created_at: 'created_at',
@@ -177,6 +187,12 @@ export const projectsRegistry: AiEntityFilterRegistry = {
         ],
       },
       origin: { expression: 'p.origin' },
+    },
+    metricFields: {
+      execution_progress: {
+        expression: 'p.execution_progress',
+        type: 'number',
+      },
     },
   },
 };

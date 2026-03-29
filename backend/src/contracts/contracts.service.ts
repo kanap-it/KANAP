@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, EntityManager, In, Repository, ILike, Raw } from 'typeorm';
+import { Brackets, DeepPartial, EntityManager, In, Repository, Raw } from 'typeorm';
 import { Contract } from './contract.entity';
 import { ContractSpendItem } from './contract-spend-item.entity';
 import { ContractLink } from './contract-link.entity';
 import { ContractAttachment } from './contract-attachment.entity';
 import { AuditService } from '../audit/audit.service';
-import { parsePagination, buildWhereFromAgFilters } from '../common/pagination';
+import { parsePagination } from '../common/pagination';
 import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
 import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
@@ -23,6 +23,13 @@ import { ContractContactsService } from './contract-contacts.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
+import {
+  buildQuickSearchConditions,
+  compileAgFilterCondition,
+  CompiledCondition,
+  createParamNameGenerator,
+  FilterTargetConfig,
+} from '../common/ag-grid-filtering';
 
 type ListItem = Contract & {
   supplier?: { id: string; name: string } | null;
@@ -65,55 +72,142 @@ export class ContractsService {
     return raw;
   }
 
+  private contractFilterTargets(): Record<string, FilterTargetConfig> {
+    return {
+      id: { expression: 'c.id', dataType: 'string' },
+      name: { expression: 'c.name', dataType: 'string' },
+      status: { expression: 'c.status', textExpression: 'CAST(c.status AS TEXT)', dataType: 'string' },
+      company_id: { expression: 'c.company_id', dataType: 'string' },
+      supplier_id: { expression: 'c.supplier_id', dataType: 'string' },
+      owner_user_id: { expression: 'c.owner_user_id', dataType: 'string' },
+      start_date: { expression: 'c.start_date', dataType: 'string' },
+      end_date: {
+        expression: `(c.start_date + COALESCE(c.duration_months, 0) * INTERVAL '1 month' - INTERVAL '1 day')::date`,
+        dataType: 'string',
+      },
+      cancellation_deadline: {
+        expression: `(c.start_date + (COALESCE(c.duration_months, 0) - COALESCE(c.notice_period_months, 0)) * INTERVAL '1 month')::date`,
+        dataType: 'string',
+      },
+      duration_months: {
+        expression: 'c.duration_months',
+        numericExpression: 'c.duration_months',
+        textExpression: 'CAST(c.duration_months AS TEXT)',
+        dataType: 'number',
+      },
+      auto_renewal: { expression: 'c.auto_renewal', dataType: 'boolean' },
+      notice_period_months: {
+        expression: 'c.notice_period_months',
+        numericExpression: 'c.notice_period_months',
+        textExpression: 'CAST(c.notice_period_months AS TEXT)',
+        dataType: 'number',
+      },
+      yearly_amount_at_signature: {
+        expression: 'c.yearly_amount_at_signature',
+        numericExpression: 'c.yearly_amount_at_signature',
+        textExpression: 'CAST(c.yearly_amount_at_signature AS TEXT)',
+        dataType: 'number',
+      },
+      currency: { expression: 'c.currency', dataType: 'string' },
+      billing_frequency: { expression: 'c.billing_frequency', dataType: 'string' },
+      notes: { expression: 'c.notes', dataType: 'string' },
+      created_at: { expression: 'c.created_at', textExpression: 'CAST(c.created_at AS TEXT)', dataType: 'string' },
+      updated_at: { expression: 'c.updated_at', textExpression: 'CAST(c.updated_at AS TEXT)', dataType: 'string' },
+      company_name: { expression: 'comp.name', dataType: 'string' },
+      supplier_name: { expression: 'sup.name', dataType: 'string' },
+    };
+  }
+
   async list(query: any, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(Contract);
     const { page, limit, skip, sort, status, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
-    const allowed = [
-      'id','name','status','company_id','supplier_id','owner_user_id','start_date','duration_months','auto_renewal','notice_period_months','yearly_amount_at_signature','currency','billing_frequency','notes','created_at','updated_at'
-    ];
     const filtersToApply = sanitizedFilters ?? filters;
-    const where: any = {};
-    if (filtersToApply && Object.keys(filtersToApply).length > 0) {
-      Object.assign(where, buildWhereFromAgFilters(filtersToApply, allowed));
-    }
-    // Use status-based gating to avoid depending on disabled_at column availability
-    const lifecycleStatus = status ?? statusFromAg ?? StatusState.ENABLED;
-    where.status = lifecycleStatus;
-    if (q) {
-      // quick search on name
-      where.name = (where.name ?? ILike(`%${q}%`));
-    }
-    let items: Contract[] = [];
-    let total = 0;
-    const sortField = (sort?.field || '').toString();
-    const sortDir = (sort?.direction || 'DESC') as 'ASC'|'DESC';
-    const needsDerivedSort = sortField === 'end_date' || sortField === 'cancellation_deadline';
-    if (needsDerivedSort) {
-      // Use QueryBuilder to order by expressions
-      const qb = repo.createQueryBuilder('c');
-      // Apply simple object where (supports Raw/ILike)
-      qb.where(where);
-      if (q) qb.andWhere('c.name ILIKE :q', { q: `%${q}%` });
-      // end_date ~ start_date + interval '1 month' * duration_months
-      if (sortField === 'end_date') {
-        qb.addOrderBy("(c.start_date + COALESCE(c.duration_months, 0) * INTERVAL '1 month')", sortDir as any);
-      } else {
-        // cancellation_deadline ~ end_date - notice_months
-        qb.addOrderBy(
-          "(c.start_date + (COALESCE(c.duration_months, 0) - COALESCE(c.notice_period_months, 0)) * INTERVAL '1 month')",
-          sortDir as any,
-        );
+    const filterTargets = this.contractFilterTargets();
+    const nextParam = createParamNameGenerator('c');
+    const compiledFilters: CompiledCondition[] = [];
+    if (filtersToApply && typeof filtersToApply === 'object') {
+      for (const [field, model] of Object.entries(filtersToApply)) {
+        const target = filterTargets[field];
+        if (!target) continue;
+        const condition = compileAgFilterCondition(model, target, nextParam);
+        if (condition) compiledFilters.push(condition);
       }
-      qb.skip(skip).take(limit);
-      const [rows, cnt] = await qb.getManyAndCount();
-      items = rows; total = cnt;
-    } else {
-      const safeSortField = allowed.includes(sort.field) ? sort.field : 'created_at';
-      const [rows, cnt] = await repo.findAndCount({ where, order: { [safeSortField]: sort.direction as any }, skip, take: limit });
-      items = rows; total = cnt;
     }
+
+    const quickSearchConditions = q
+      ? buildQuickSearchConditions(q, ['c.name', 'comp.name', 'sup.name', 'c.notes'], nextParam)
+      : [];
+    const includeDisabled =
+      String(query.includeDisabled ?? '').toLowerCase() === '1' ||
+      String(query.includeDisabled ?? '').toLowerCase() === 'true';
+    const lifecycleStatus = status ?? statusFromAg ?? StatusState.ENABLED;
+
+    const applyCompiledFilters = (builder: ReturnType<typeof repo.createQueryBuilder>) => {
+      compiledFilters.forEach((cond) => builder.andWhere(cond.sql, cond.params));
+    };
+    const applyQuickSearch = (builder: ReturnType<typeof repo.createQueryBuilder>) => {
+      if (quickSearchConditions.length === 0) return;
+      builder.andWhere(
+        new Brackets((sub) => {
+          quickSearchConditions.forEach((cond, idx) => {
+            if (idx === 0) sub.where(cond.sql, cond.params);
+            else sub.orWhere(cond.sql, cond.params);
+          });
+        }),
+      );
+    };
+
+    const qbBase = repo
+      .createQueryBuilder('c')
+      .leftJoin('companies', 'comp', 'comp.id = c.company_id AND comp.tenant_id = c.tenant_id')
+      .leftJoin('suppliers', 'sup', 'sup.id = c.supplier_id AND sup.tenant_id = c.tenant_id');
+    if (!includeDisabled) {
+      if (lifecycleStatus === StatusState.DISABLED) {
+        qbBase.andWhere('c.disabled_at IS NOT NULL AND c.disabled_at <= NOW()');
+      } else {
+        qbBase.andWhere('(c.disabled_at IS NULL OR c.disabled_at > NOW())');
+      }
+    } else if (status || statusFromAg) {
+      qbBase.andWhere('c.status = :contractStatus', { contractStatus: lifecycleStatus });
+    }
+    applyCompiledFilters(qbBase);
+    applyQuickSearch(qbBase);
+
+    const total = await qbBase.clone().getCount();
+    const sortExpressions: Record<string, string> = {
+      name: 'c.name',
+      status: 'c.status',
+      company_name: 'comp.name',
+      supplier_name: 'sup.name',
+      start_date: 'c.start_date',
+      end_date: `(c.start_date + COALESCE(c.duration_months, 0) * INTERVAL '1 month' - INTERVAL '1 day')::date`,
+      cancellation_deadline: `(c.start_date + (COALESCE(c.duration_months, 0) - COALESCE(c.notice_period_months, 0)) * INTERVAL '1 month')::date`,
+      duration_months: 'c.duration_months',
+      auto_renewal: 'c.auto_renewal',
+      notice_period_months: 'c.notice_period_months',
+      yearly_amount_at_signature: 'c.yearly_amount_at_signature',
+      currency: 'c.currency',
+      billing_frequency: 'c.billing_frequency',
+      created_at: 'c.created_at',
+      updated_at: 'c.updated_at',
+    };
+    const sortField = sortExpressions[sort.field] ? sort.field : 'created_at';
+    const sortExpr = sortExpressions[sortField];
+    const qb = qbBase.clone();
+    if (sortField === 'end_date') {
+      qb.addSelect(sortExpr, 'sort_end_date');
+      qb.orderBy('sort_end_date', sort.direction as any);
+    } else if (sortField === 'cancellation_deadline') {
+      qb.addSelect(sortExpr, 'sort_cancellation_deadline');
+      qb.orderBy('sort_cancellation_deadline', sort.direction as any);
+    } else {
+      qb.orderBy(sortExpr, sort.direction as any);
+    }
+    if (sortExpr !== 'c.created_at') qb.addOrderBy('c.created_at', 'DESC');
+    qb.skip(skip).take(limit);
+    const items = await qb.getMany();
 
     // augment supplier/company names, linked count, and derived dates
     const supplierIds = Array.from(new Set(items.map(i => i.supplier_id).filter(Boolean))) as string[];
@@ -354,41 +448,86 @@ export class ContractsService {
     const { limit: rawLimit, skip, sort, status, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
     const limit = Math.min(Math.max(rawLimit || 1000, 1), 10000);
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
-    const allowed = [
-      'id','name','status','company_id','supplier_id','owner_user_id','start_date','duration_months','auto_renewal','notice_period_months','yearly_amount_at_signature','currency','billing_frequency','notes','created_at','updated_at'
-    ];
-    const where: any = {};
-    if (sanitizedFilters && Object.keys(sanitizedFilters).length > 0) {
-      Object.assign(where, buildWhereFromAgFilters(sanitizedFilters, allowed));
-    }
-    const lifecycleStatus = status ?? statusFromAg ?? StatusState.ENABLED;
-    if (lifecycleStatus === StatusState.DISABLED) {
-      where.disabled_at = Raw((alias) => `${alias} IS NOT NULL AND ${alias} <= NOW()`);
-    } else {
-      where.disabled_at = Raw((alias) => `${alias} IS NULL OR ${alias} > NOW()`);
-    }
-    const sortField = (sort?.field || '').toString();
-    const sortDir = (sort?.direction || 'DESC') as 'ASC'|'DESC';
-    const needsDerivedSort = sortField === 'end_date' || sortField === 'cancellation_deadline';
-    if (!needsDerivedSort) {
-      const safeSortField = allowed.includes(sort.field) ? sort.field : 'created_at';
-      const [rows, total] = await repo.findAndCount({ where, order: { [safeSortField]: sortDir as any }, skip, take: limit, select: ['id'] as any });
-      return { ids: rows.map(r => (r as any).id as string), total };
-    } else {
-      const qb = repo.createQueryBuilder('c').select(['c.id']).where(where);
-      if (q) qb.andWhere('c.name ILIKE :q', { q: `%${q}%` });
-      if (sortField === 'end_date') {
-        qb.addOrderBy("(c.start_date + COALESCE(c.duration_months, 0) * INTERVAL '1 month')", sortDir as any);
-      } else {
-        qb.addOrderBy(
-          "(c.start_date + (COALESCE(c.duration_months, 0) - COALESCE(c.notice_period_months, 0)) * INTERVAL '1 month')",
-          sortDir as any,
-        );
+    const filtersToApply = sanitizedFilters ?? filters;
+    const filterTargets = this.contractFilterTargets();
+    const nextParam = createParamNameGenerator('c');
+    const compiledFilters: CompiledCondition[] = [];
+    if (filtersToApply && typeof filtersToApply === 'object') {
+      for (const [field, model] of Object.entries(filtersToApply)) {
+        const target = filterTargets[field];
+        if (!target) continue;
+        const condition = compileAgFilterCondition(model, target, nextParam);
+        if (condition) compiledFilters.push(condition);
       }
-      qb.offset(skip).limit(limit);
-      const [rows, total] = await qb.getManyAndCount();
-      return { ids: rows.map(r => (r as any).id as string), total };
     }
+
+    const quickSearchConditions = q
+      ? buildQuickSearchConditions(q, ['c.name', 'comp.name', 'sup.name', 'c.notes'], nextParam)
+      : [];
+    const includeDisabled =
+      String(query.includeDisabled ?? '').toLowerCase() === '1' ||
+      String(query.includeDisabled ?? '').toLowerCase() === 'true';
+    const lifecycleStatus = status ?? statusFromAg ?? StatusState.ENABLED;
+
+    const qb = repo
+      .createQueryBuilder('c')
+      .select(['c.id'])
+      .leftJoin('companies', 'comp', 'comp.id = c.company_id AND comp.tenant_id = c.tenant_id')
+      .leftJoin('suppliers', 'sup', 'sup.id = c.supplier_id AND sup.tenant_id = c.tenant_id');
+    if (!includeDisabled) {
+      if (lifecycleStatus === StatusState.DISABLED) {
+        qb.andWhere('c.disabled_at IS NOT NULL AND c.disabled_at <= NOW()');
+      } else {
+        qb.andWhere('(c.disabled_at IS NULL OR c.disabled_at > NOW())');
+      }
+    } else if (status || statusFromAg) {
+      qb.andWhere('c.status = :contractStatus', { contractStatus: lifecycleStatus });
+    }
+    compiledFilters.forEach((cond) => qb.andWhere(cond.sql, cond.params));
+    if (quickSearchConditions.length > 0) {
+      qb.andWhere(
+        new Brackets((sub) => {
+          quickSearchConditions.forEach((cond, idx) => {
+            if (idx === 0) sub.where(cond.sql, cond.params);
+            else sub.orWhere(cond.sql, cond.params);
+          });
+        }),
+      );
+    }
+
+    const sortExpressions: Record<string, string> = {
+      name: 'c.name',
+      status: 'c.status',
+      company_name: 'comp.name',
+      supplier_name: 'sup.name',
+      start_date: 'c.start_date',
+      end_date: `(c.start_date + COALESCE(c.duration_months, 0) * INTERVAL '1 month' - INTERVAL '1 day')::date`,
+      cancellation_deadline: `(c.start_date + (COALESCE(c.duration_months, 0) - COALESCE(c.notice_period_months, 0)) * INTERVAL '1 month')::date`,
+      duration_months: 'c.duration_months',
+      auto_renewal: 'c.auto_renewal',
+      notice_period_months: 'c.notice_period_months',
+      yearly_amount_at_signature: 'c.yearly_amount_at_signature',
+      currency: 'c.currency',
+      billing_frequency: 'c.billing_frequency',
+      created_at: 'c.created_at',
+      updated_at: 'c.updated_at',
+    };
+    const sortField = sortExpressions[sort.field] ? sort.field : 'created_at';
+    const sortExpr = sortExpressions[sortField];
+    if (sortField === 'end_date') {
+      qb.addSelect(sortExpr, 'sort_end_date');
+      qb.orderBy('sort_end_date', sort.direction as any);
+    } else if (sortField === 'cancellation_deadline') {
+      qb.addSelect(sortExpr, 'sort_cancellation_deadline');
+      qb.orderBy('sort_cancellation_deadline', sort.direction as any);
+    } else {
+      qb.orderBy(sortExpr, sort.direction as any);
+    }
+    if (sortExpr !== 'c.created_at') qb.addOrderBy('c.created_at', 'DESC');
+    qb.offset(skip).limit(limit);
+
+    const [rows, total] = await qb.getManyAndCount();
+    return { ids: rows.map(r => (r as any).id as string), total };
   }
 
   async listFilterValues(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {
@@ -396,7 +535,7 @@ export class ContractsService {
       .split(',')
       .map((field) => field.trim())
       .filter(Boolean);
-    const allowed = new Set(['currency']);
+    const allowed = new Set(['currency', 'company_name', 'supplier_name']);
     const fields = rawFields.filter((field) => allowed.has(field));
     if (fields.length === 0) return {};
 
@@ -424,7 +563,11 @@ export class ContractsService {
       );
       const values = new Set<string | null>();
       for (const item of result.items || []) {
-        const rawValue = (item as any)?.[field];
+        const rawValue = field === 'company_name'
+          ? ((item as any)?.company?.name ?? null)
+          : field === 'supplier_name'
+            ? ((item as any)?.supplier?.name ?? null)
+            : (item as any)?.[field];
         values.add(rawValue == null || rawValue === '' ? null : String(rawValue));
       }
       results[field] = Array.from(values).sort((a, b) => {

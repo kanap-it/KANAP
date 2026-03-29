@@ -1,19 +1,68 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { streamChat, aiConversationsApi } from './aiApi';
-import { ChatMessage, ChatStreamEvent } from './aiTypes';
+import { AiMutationPreview, ChatMessage, StoredChatMessage, TokenUsage } from './aiTypes';
 import i18n from '../i18n';
 
 let msgCounter = 0;
+const CONTROL_MARKER_RE = /^\[(APPROVE|REJECT):[0-9a-f-]{36}\]$/i;
+
 function nextId() {
   return `local-${++msgCounter}-${Date.now()}`;
 }
 
+function isControlMarker(text: string): boolean {
+  return CONTROL_MARKER_RE.test(String(text || '').trim());
+}
+
+function upsertPreview(prev: AiMutationPreview[], next: AiMutationPreview): AiMutationPreview[] {
+  const index = prev.findIndex((item) => item.preview_id === next.preview_id);
+  if (index === -1) {
+    return [...prev, next];
+  }
+  const copy = [...prev];
+  copy[index] = next;
+  return copy;
+}
+
+function normalizeConversationUsage(usage?: TokenUsage | null): TokenUsage | null {
+  if (!usage) {
+    return null;
+  }
+
+  const inputTokens = Number(usage.input_tokens);
+  const outputTokens = Number(usage.output_tokens);
+  const normalized = {
+    input_tokens: Number.isFinite(inputTokens) ? inputTokens : 0,
+    output_tokens: Number.isFinite(outputTokens) ? outputTokens : 0,
+  };
+
+  return normalized.input_tokens + normalized.output_tokens > 0 ? normalized : null;
+}
+
+function findLastUsage(messages: Array<Pick<StoredChatMessage, 'role' | 'usage_json'>>): TokenUsage | null {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index];
+    if (message.role !== 'assistant') {
+      continue;
+    }
+    const usage = normalizeConversationUsage(message.usage_json);
+    if (usage) {
+      return usage;
+    }
+  }
+  return null;
+}
+
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [previews, setPreviews] = useState<AiMutationPreview[]>([]);
+  const [conversationUsage, setConversationUsage] = useState<TokenUsage | null>(null);
+  const [lastRequestUsage, setLastRequestUsage] = useState<TokenUsage | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
   const streamGenerationRef = useRef(0);
 
   const abortActiveStream = useCallback(() => {
@@ -29,6 +78,18 @@ export function useChat() {
     };
   }, [abortActiveStream]);
 
+  const refreshConversationUsage = useCallback(async (id: string) => {
+    try {
+      const response = await aiConversationsApi.getMessages(id);
+      if (conversationIdRef.current === id) {
+        setConversationUsage(normalizeConversationUsage(response.conversation_usage));
+        setLastRequestUsage(findLastUsage(response.messages));
+      }
+    } catch {
+      // Ignore usage refresh failures after a terminal stream event.
+    }
+  }, []);
+
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return;
     setError(null);
@@ -42,6 +103,7 @@ export function useChat() {
       id: nextId(),
       role: 'user',
       content: text,
+      hidden: isControlMarker(text),
     };
     setMessages((prev) => [...prev, userMsg]);
 
@@ -55,6 +117,8 @@ export function useChat() {
       isStreaming: true,
     };
     setMessages((prev) => [...prev, assistantMsg]);
+
+    let activeConversationId = conversationId;
 
     try {
       const stream = streamChat({
@@ -70,6 +134,8 @@ export function useChat() {
 
         switch (event.type) {
           case 'conversation':
+            activeConversationId = event.id;
+            conversationIdRef.current = event.id;
             setConversationId(event.id);
             break;
 
@@ -115,7 +181,18 @@ export function useChat() {
             );
             break;
 
+          case 'preview':
+          case 'preview_result':
+            setPreviews((prev) => upsertPreview(prev, event));
+            break;
+
           case 'done':
+            if (event.conversation_usage !== undefined) {
+              setConversationUsage(normalizeConversationUsage(event.conversation_usage));
+            }
+            if (event.last_usage !== undefined) {
+              setLastRequestUsage(normalizeConversationUsage(event.last_usage));
+            }
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
@@ -126,6 +203,14 @@ export function useChat() {
             break;
 
           case 'error':
+            if (event.conversation_usage !== undefined) {
+              setConversationUsage(normalizeConversationUsage(event.conversation_usage));
+            } else if (activeConversationId) {
+              void refreshConversationUsage(activeConversationId);
+            }
+            if (event.last_usage !== undefined) {
+              setLastRequestUsage(normalizeConversationUsage(event.last_usage));
+            }
             setError(event.message);
             setMessages((prev) =>
               prev.map((m) =>
@@ -152,6 +237,9 @@ export function useChat() {
             m.id === assistantId ? { ...m, isStreaming: false } : m,
           ),
         );
+        if (activeConversationId) {
+          void refreshConversationUsage(activeConversationId);
+        }
       } else {
         setError(err.message || i18n.t('ai:errors.sendFailed'));
         setMessages((prev) =>
@@ -159,6 +247,9 @@ export function useChat() {
             m.id === assistantId ? { ...m, isStreaming: false } : m,
           ),
         );
+        if (activeConversationId) {
+          void refreshConversationUsage(activeConversationId);
+        }
       }
     } finally {
       if (generation === streamGenerationRef.current) {
@@ -166,15 +257,20 @@ export function useChat() {
         setIsStreaming(false);
       }
     }
-  }, [conversationId, isStreaming]);
+  }, [conversationId, isStreaming, refreshConversationUsage]);
 
   const loadConversation = useCallback(async (id: string) => {
     abortActiveStream();
     setError(null);
+    conversationIdRef.current = id;
     setConversationId(id);
     setIsStreaming(false);
 
-    const rawMessages = await aiConversationsApi.getMessages(id);
+    const [loadedConversation, loadedPreviews] = await Promise.all([
+      aiConversationsApi.getMessages(id),
+      aiConversationsApi.getPreviews(id),
+    ]);
+    const { messages: rawMessages, conversation_usage } = loadedConversation;
     const loaded: ChatMessage[] = [];
 
     let i = 0;
@@ -186,6 +282,7 @@ export function useChat() {
           id: msg.id,
           role: 'user',
           content: msg.content,
+          hidden: isControlMarker(msg.content),
         });
         i++;
       } else if (msg.role === 'assistant' && msg.tool_calls?.length) {
@@ -248,17 +345,25 @@ export function useChat() {
     }
 
     setMessages(loaded);
+    setPreviews(loadedPreviews);
+    setConversationUsage(normalizeConversationUsage(conversation_usage));
+    setLastRequestUsage(findLastUsage(rawMessages));
   }, [abortActiveStream]);
 
   const newConversation = useCallback(() => {
     abortActiveStream();
+    conversationIdRef.current = null;
     setMessages([]);
+    setPreviews([]);
+    setConversationUsage(null);
+    setLastRequestUsage(null);
     setConversationId(null);
     setError(null);
     setIsStreaming(false);
   }, [abortActiveStream]);
 
   const cancelStream = useCallback(() => {
+    const activeConversationId = conversationIdRef.current;
     abortActiveStream();
     setMessages((prev) =>
       prev.map((m) =>
@@ -266,10 +371,16 @@ export function useChat() {
       ),
     );
     setIsStreaming(false);
-  }, [abortActiveStream]);
+    if (activeConversationId) {
+      void refreshConversationUsage(activeConversationId);
+    }
+  }, [abortActiveStream, refreshConversationUsage]);
 
   return useMemo(() => ({
     messages,
+    previews,
+    conversationUsage,
+    lastRequestUsage,
     isStreaming,
     error,
     conversationId,
@@ -277,5 +388,17 @@ export function useChat() {
     loadConversation,
     newConversation,
     cancelStream,
-  }), [messages, isStreaming, error, conversationId, sendMessage, loadConversation, newConversation, cancelStream]);
+  }), [
+    messages,
+    previews,
+    conversationUsage,
+    lastRequestUsage,
+    isStreaming,
+    error,
+    conversationId,
+    sendMessage,
+    loadConversation,
+    newConversation,
+    cancelStream,
+  ]);
 }

@@ -100,6 +100,42 @@ export function compileAgFilterCondition(
     return { sql: `${setExpr} IN (:...${param})`, params: { [param]: values } };
   }
 
+  if (filterCategory === 'date') {
+    const fromRaw = model.dateFrom ?? model.filter ?? model.value;
+    const toRaw = model.dateTo ?? model.filterTo ?? model.valueTo;
+    const expr = `CAST(${baseExpr} AS DATE)`;
+    const castParam = (param: string) => `CAST(:${param} AS DATE)`;
+
+    if (type === 'inRange') {
+      if (!fromRaw || !toRaw) return null;
+      const fromParam = nextParam();
+      const toParam = nextParam();
+      return {
+        sql: `${expr} BETWEEN ${castParam(fromParam)} AND ${castParam(toParam)}`,
+        params: { [fromParam]: fromRaw, [toParam]: toRaw },
+      };
+    }
+
+    if (!fromRaw) return null;
+    const param = nextParam();
+    switch (type) {
+      case 'equals':
+        return { sql: `${expr} = ${castParam(param)}`, params: { [param]: fromRaw } };
+      case 'notEqual':
+        return { sql: `${expr} <> ${castParam(param)}`, params: { [param]: fromRaw } };
+      case 'lessThan':
+        return { sql: `${expr} < ${castParam(param)}`, params: { [param]: fromRaw } };
+      case 'lessThanOrEqual':
+        return { sql: `${expr} <= ${castParam(param)}`, params: { [param]: fromRaw } };
+      case 'greaterThan':
+        return { sql: `${expr} > ${castParam(param)}`, params: { [param]: fromRaw } };
+      case 'greaterThanOrEqual':
+        return { sql: `${expr} >= ${castParam(param)}`, params: { [param]: fromRaw } };
+      default:
+        return null;
+    }
+  }
+
   if (type === 'blank') {
     if (dataType === 'number' || dataType === 'boolean') {
       return { sql: `${baseExpr} IS NULL`, params: {} };

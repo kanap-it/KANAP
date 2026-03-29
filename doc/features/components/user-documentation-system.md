@@ -325,15 +325,15 @@ mkdocs build
 # Output in ./site/
 ```
 
-## Multi-Language Support (Future)
+## Multi-Language Support
 
-The structure supports i18n via the `mkdocs-static-i18n` plugin:
+The documentation is translated to French, German, and Spanish via the `mkdocs-static-i18n` plugin:
 
-1. Add translations to `doc/help/docs/fr/`, `doc/help/docs/de/`, etc.
-2. Enable plugin in `mkdocs.yml`
-3. URLs become `/en/applications/`, `/fr/applications/`, etc.
+1. English pages are at the site root: `/applications/`, `/opex/`, etc.
+2. Translations live under locale prefixes: `/fr/applications/`, `/de/applications/`, `/es/applications/`
+3. The plugin generates a Material language switcher automatically.
 
-See `doc/help/DEPLOYMENT.md` for detailed i18n setup instructions.
+See `doc/help/DEPLOYMENT.md` for deployment details.
 
 For supplemental guides such as Fast Track pages, add discovery links in the docs home page and MkDocs nav even if no in-app route mapping is needed.
 

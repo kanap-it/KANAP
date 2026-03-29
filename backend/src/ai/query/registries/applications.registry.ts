@@ -76,22 +76,22 @@ export const applicationsRegistry: AiEntityFilterRegistry = {
     it_owner: {
       ai: 'it_owner',
       grid: 'owners_it',
-      type: 'text',
+      type: 'set',
       description: 'IT owner display names.',
       dynamic: true,
       discoverable: true,
       sortable: false,
-      groupable: false,
+      groupable: true,
     },
     business_owner: {
       ai: 'business_owner',
       grid: 'owners_business',
-      type: 'text',
+      type: 'set',
       description: 'Business owner display names.',
       dynamic: true,
       discoverable: true,
       sortable: false,
-      groupable: false,
+      groupable: true,
     },
     linked_project: {
       ai: 'linked_project',
@@ -132,6 +132,20 @@ export const applicationsRegistry: AiEntityFilterRegistry = {
         expression: 's.name',
         joins: [
           `LEFT JOIN suppliers s ON s.id = a.supplier_id AND s.tenant_id = a.tenant_id`,
+        ],
+      },
+      business_owner: {
+        expression: `COALESCE(NULLIF(TRIM(CONCAT(u_biz.first_name, ' ', u_biz.last_name)), ''), u_biz.email)`,
+        joins: [
+          `LEFT JOIN application_owners ao_biz ON ao_biz.application_id = a.id AND ao_biz.tenant_id = a.tenant_id AND ao_biz.owner_type = 'business'`,
+          `LEFT JOIN users u_biz ON u_biz.id = ao_biz.user_id AND u_biz.tenant_id = a.tenant_id`,
+        ],
+      },
+      it_owner: {
+        expression: `COALESCE(NULLIF(TRIM(CONCAT(u_it.first_name, ' ', u_it.last_name)), ''), u_it.email)`,
+        joins: [
+          `LEFT JOIN application_owners ao_it ON ao_it.application_id = a.id AND ao_it.tenant_id = a.tenant_id AND ao_it.owner_type = 'it'`,
+          `LEFT JOIN users u_it ON u_it.id = ao_it.user_id AND u_it.tenant_id = a.tenant_id`,
         ],
       },
     },

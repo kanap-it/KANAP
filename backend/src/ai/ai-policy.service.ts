@@ -46,6 +46,7 @@ const ENTITY_RESOURCE: Record<AiSearchEntityType | AiContextEntityType, string> 
   spend_items: 'opex',
   suppliers: 'suppliers',
   tasks: 'tasks',
+  users: 'users',
   documents: 'knowledge',
 };
 

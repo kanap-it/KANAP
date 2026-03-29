@@ -38,7 +38,7 @@ The list gives you a searchable overview of every registered location.
 - Column filters: Text filters on Code, Name, and City; set filter on Hosting Type
 
 **Actions**:
-- **Add Location**: Create a new location (requires `locations:manager`)
+- **Add Location**: Create a new location (requires `locations:member`)
 
 You can also show, hide, and reorder columns using the column chooser.
 
@@ -50,7 +50,7 @@ Click any row to open the workspace. It has three tabs: **Overview**, **Contacts
 
 ### Overview
 
-The Overview tab captures identity and geographic information, split into two sections.
+The Overview tab captures identity and geographic information, split into two sections, plus a sub-locations panel.
 
 **Basic information**:
 - **Code**: Unique identifier (required)
@@ -61,18 +61,29 @@ The Overview tab captures identity and geographic information, split into two se
 
 For **on-premises** hosting types:
 - **Operating Company**: The company that runs the facility. Selecting a company auto-fills Country and City if they are blank.
-- **Datacenter**: Specific datacenter name or identifier
 
 For **cloud** hosting types:
 - **Cloud Provider**: The cloud provider (e.g., AWS, Azure, GCP)
 - **Region**: Cloud region or availability zone
-- **Additional Info**: Free-form notes
 
 Both categories also show:
 - **Country**: Selected from the ISO country list
 - **City**: City name
+- **Additional Info**: Free-form notes about the location
 
 **How it works**: Switching between an on-prem and a cloud hosting type clears the fields that belong to the other category. The editor asks for confirmation before making the switch.
+
+#### Sub-locations
+
+Below the main form, the **Sub-locations** panel lets you break a location into smaller physical areas -- buildings, rooms, racks, cages, or any other subdivision that makes sense for your infrastructure.
+
+Each sub-location has:
+- **Name**: A short label (e.g., "Building A - Room 1 - Rack 5")
+- **Description**: Optional additional detail
+
+Sub-locations are available after you save the location for the first time. They are saved together with the Overview form when you click **Save**.
+
+Assets can be assigned to a specific sub-location within a location, which lets you track exactly where hardware sits. When sub-locations exist, the Relations tab shows which sub-location each asset belongs to.
 
 ---
 
@@ -94,7 +105,7 @@ Click **Save** in the workspace header to persist changes across all three secti
 
 The Relations tab shows entities that are linked to this location. It is read-only -- relationships are managed from the related records themselves.
 
-**Assets**: A table of assets hosted at this location, showing Name, Environment, Type, Provider, Region/Zone, and Status. Click an asset name to jump to its workspace.
+**Assets**: A table of assets hosted at this location, showing Name, Environment, Type, Provider, Region/Zone, and Status. When the location has sub-locations, an additional **Sub-location** column appears showing which sub-location each asset is assigned to. Click an asset name to jump to its workspace.
 
 **Applications**: A table of applications that have infrastructure at this location, showing Name and Environments. Click an application name to jump to its workspace.
 
@@ -104,7 +115,7 @@ The Relations tab shows entities that are linked to this location. It is read-on
 
 From the workspace header, click **Delete** to remove a location.
 
-- Requires `locations:admin` permission.
+- Requires `locations:member` permission.
 - Linked assets are not deleted -- they are automatically unassigned (their location reference is cleared).
 - If you have unsaved changes in the workspace, those changes are lost on deletion.
 
@@ -124,9 +135,20 @@ Hosting types are configurable in **IT Landscape -> Settings**. Each type belong
 
 ---
 
+## Permissions
+
+| Action | Minimum level |
+|--------|---------------|
+| View the list and workspace | `locations:reader` |
+| Create, edit, or delete a location | `locations:member` |
+| Configure hosting types and providers | `settings:admin` |
+
+---
+
 ## Tips
 
 - **Be consistent with codes**: A clear naming convention makes locations easy to identify at a glance and keeps filters useful.
+- **Use sub-locations for granularity**: If a data center has multiple rooms or racks, model them as sub-locations rather than separate locations. This keeps the list clean while still tracking physical placement.
 - **Track cloud regions individually**: Create one location per cloud region you use, not just one per provider.
 - **Link assets to locations**: This enables geographic reporting, DR planning, and quick impact analysis during outages.
 - **Document contacts early**: Having facility contacts on file before an incident saves critical time when it matters most.

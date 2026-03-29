@@ -5,5 +5,5 @@ mkdocs-material>=9.5.0
 # Required extensions
 pymdown-extensions>=10.0
 
-# i18n support (for future multi-language)
-# mkdocs-static-i18n>=1.2.0
+# i18n support
+mkdocs-static-i18n>=1.2.0

@@ -64,4 +64,22 @@ describe('ToolResultRenderer', () => {
     expect(screen.getByText(/"ok": true/)).toBeInTheDocument();
     expect(screen.getByText(/"count": 2/)).toBeInTheDocument();
   });
+
+  it('shows a warning when a tool result contains ignored filter fields', () => {
+    render(
+      <ToolResultRenderer
+        name="query_entities"
+        result={{
+          items: [],
+          total: 14,
+          filters_applied: [],
+          filters_ignored: ['assignee'],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('query entities'));
+
+    expect(screen.getByText('Ignored fields: assignee')).toBeInTheDocument();
+  });
 });

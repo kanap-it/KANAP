@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, IsNull, Repository } from 'typeorm';
 import { AiConversation } from './ai-conversation.entity';
 import { AiMessage } from './ai-message.entity';
+import { AiTokenUsage } from './ai.types';
 
 export type CreateAiConversationInput = {
   tenantId: string;
@@ -22,6 +23,24 @@ export type AppendAiMessageInput = {
   toolCalls?: Record<string, unknown>[] | null;
   usage?: Record<string, unknown> | null;
 };
+
+function toUsage(value: unknown): AiTokenUsage {
+  if (!value || typeof value !== 'object') {
+    return {
+      input_tokens: 0,
+      output_tokens: 0,
+    };
+  }
+
+  const row = value as Record<string, unknown>;
+  const inputTokens = Number(row.input_tokens);
+  const outputTokens = Number(row.output_tokens);
+
+  return {
+    input_tokens: Number.isFinite(inputTokens) ? inputTokens : 0,
+    output_tokens: Number.isFinite(outputTokens) ? outputTokens : 0,
+  };
+}
 
 @Injectable()
 export class AiConversationService {
@@ -127,6 +146,28 @@ export class AiConversationService {
   ) {
     await this.getConversationForUser(conversationId, tenantId, userId, opts);
     return this.listMessagesForConversation(conversationId, tenantId, opts);
+  }
+
+  async getConversationUsage(
+    conversationId: string,
+    tenantId: string,
+    opts?: { manager?: EntityManager },
+  ): Promise<AiTokenUsage> {
+    const row = await this.getMessageRepo(opts?.manager)
+      .createQueryBuilder('m')
+      .select(
+        "COALESCE(SUM(COALESCE((m.usage_json->>'input_tokens')::bigint, 0)), 0)::bigint",
+        'input_tokens',
+      )
+      .addSelect(
+        "COALESCE(SUM(COALESCE((m.usage_json->>'output_tokens')::bigint, 0)), 0)::bigint",
+        'output_tokens',
+      )
+      .where('m.conversation_id = :conversationId', { conversationId })
+      .andWhere('m.tenant_id = :tenantId', { tenantId })
+      .getRawOne();
+
+    return toUsage(row);
   }
 
   async archiveConversation(

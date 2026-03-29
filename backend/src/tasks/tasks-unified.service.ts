@@ -23,6 +23,17 @@ type ProjectDefaults = {
   company_id: string | null;
 };
 
+type TaskAuditOptions = {
+  source?: string;
+  sourceRef?: string | null;
+};
+
+type TaskMutationOptions = {
+  manager?: EntityManager;
+  tenantId?: string;
+  audit?: TaskAuditOptions;
+};
+
 @Injectable()
 export class TasksUnifiedService {
   private readonly logger = new Logger(TasksUnifiedService.name);
@@ -214,7 +225,7 @@ export class TasksUnifiedService {
     });
   }
 
-  async createForTarget(target: { type: RelatedType; id: string | null; payload: Partial<Task> }, userId?: string, opts?: { manager?: EntityManager; tenantId?: string }) {
+  async createForTarget(target: { type: RelatedType; id: string | null; payload: Partial<Task> }, userId?: string, opts?: TaskMutationOptions) {
     const manager = opts?.manager ?? this.repo.manager;
     const repo = manager.getRepository(Task);
     const { payload } = target;
@@ -277,7 +288,16 @@ export class TasksUnifiedService {
       entity.item_number = await this.itemNumberService.nextItemNumber('task', opts.tenantId, manager);
     }
     const saved = await repo.save(entity);
-    await this.audit.log({ table: 'tasks', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager });
+    await this.audit.log({
+      table: 'tasks',
+      recordId: saved.id,
+      action: 'create',
+      before: null,
+      after: saved,
+      userId,
+      source: opts?.audit?.source,
+      sourceRef: opts?.audit?.sourceRef ?? null,
+    }, { manager });
 
     if (target.type === 'project' && target.id) {
       if (!opts?.tenantId) throw new BadRequestException('tenantId is required for project task activity logging');
@@ -296,7 +316,7 @@ export class TasksUnifiedService {
     return saved;
   }
 
-  async updateForTarget(target: { type: RelatedType; id: string | null; payload: Partial<Task> & { id: string } }, userId?: string, opts?: { manager?: EntityManager; tenantId?: string }) {
+  async updateForTarget(target: { type: RelatedType; id: string | null; payload: Partial<Task> & { id: string } }, userId?: string, opts?: TaskMutationOptions) {
     const manager = opts?.manager ?? this.repo.manager;
     const tenantId = opts?.tenantId;
     const repo = manager.getRepository(Task);
@@ -350,7 +370,16 @@ export class TasksUnifiedService {
       next.description = normalizedDescription as any;
     }
     const saved = await repo.save(next);
-    await this.audit.log({ table: 'tasks', recordId: saved.id, action: 'update', before: existing, after: saved, userId }, { manager });
+    await this.audit.log({
+      table: 'tasks',
+      recordId: saved.id,
+      action: 'update',
+      before: existing,
+      after: saved,
+      userId,
+      source: opts?.audit?.source,
+      sourceRef: opts?.audit?.sourceRef ?? null,
+    }, { manager });
 
     if (this.hasOwn(payload, 'description') && before.description !== saved.description) {
       await this.taskAttachmentsSvc.cleanupOrphanedImages(saved.id, 'description', before.description, saved.description, {
@@ -393,7 +422,7 @@ export class TasksUnifiedService {
   /**
    * Update a task directly by ID (for standalone tasks or general updates)
    */
-  async updateById(taskId: string, payload: Partial<Task>, userId?: string, opts?: { manager?: EntityManager; tenantId?: string }) {
+  async updateById(taskId: string, payload: Partial<Task>, userId?: string, opts?: TaskMutationOptions) {
     const manager = opts?.manager ?? this.repo.manager;
     const tenantId = opts?.tenantId;
     const repo = manager.getRepository(Task);
@@ -509,7 +538,16 @@ export class TasksUnifiedService {
       related_object_id: resolvedTarget.id,
     } as Task;
     const saved = await repo.save(next);
-    await this.audit.log({ table: 'tasks', recordId: saved.id, action: 'update', before: existing, after: saved, userId }, { manager });
+    await this.audit.log({
+      table: 'tasks',
+      recordId: saved.id,
+      action: 'update',
+      before: existing,
+      after: saved,
+      userId,
+      source: opts?.audit?.source,
+      sourceRef: opts?.audit?.sourceRef ?? null,
+    }, { manager });
 
     const changes = detectChanges(before as unknown as Record<string, unknown>, saved as unknown as Record<string, unknown>, TASK_TRACKED_FIELDS);
     if (relationChanged) {

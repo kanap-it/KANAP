@@ -207,6 +207,81 @@ const compileLinkedProjectTextFilter = (model: any, nextParam: ParamNameFactory)
   };
 };
 
+const compileOwnerNameFilter = (
+  ownerType: 'business' | 'it',
+  model: any,
+  nextParam: ParamNameFactory,
+): CompiledCondition | null => {
+  const setModel = normalizeSetFilterModel(model);
+  const displayExpr = `COALESCE(NULLIF(TRIM(CONCAT(u_owner.first_name, ' ', u_owner.last_name)), ''), u_owner.email)`;
+
+  if (setModel) {
+    const values = setModel.values.filter((value: any) => value !== null && value !== undefined && value !== '');
+    if (values.length === 0) {
+      return { sql: '1=0', params: {} };
+    }
+    const param = nextParam();
+    return {
+      sql: `EXISTS (
+        SELECT 1
+        FROM application_owners ao
+        JOIN users u_owner ON u_owner.id = ao.user_id AND u_owner.tenant_id = a.tenant_id
+        WHERE ao.application_id = a.id
+          AND ao.tenant_id = a.tenant_id
+          AND ao.owner_type = '${ownerType}'
+          AND ${displayExpr} IN (:...${param})
+      )`,
+      params: { [param]: values },
+    };
+  }
+
+  const normalized = normalizeAgFilterModel(model);
+  if (!normalized || typeof normalized !== 'object') return null;
+  const filterText = String(normalized.filter ?? normalized.value ?? '').trim();
+  if (!filterText) return null;
+
+  const param = nextParam();
+  const type = String(normalized.type || 'contains');
+  let predicate = '';
+  let value = filterText;
+
+  switch (type) {
+    case 'equals':
+      predicate = `${displayExpr} = :${param}`;
+      break;
+    case 'startsWith':
+      value = `${filterText}%`;
+      predicate = `${displayExpr} ILIKE :${param}`;
+      break;
+    case 'endsWith':
+      value = `%${filterText}`;
+      predicate = `${displayExpr} ILIKE :${param}`;
+      break;
+    case 'notContains':
+      value = `%${filterText}%`;
+      predicate = `${displayExpr} NOT ILIKE :${param}`;
+      break;
+    case 'contains':
+    default:
+      value = `%${filterText}%`;
+      predicate = `${displayExpr} ILIKE :${param}`;
+      break;
+  }
+
+  return {
+    sql: `EXISTS (
+      SELECT 1
+      FROM application_owners ao
+      JOIN users u_owner ON u_owner.id = ao.user_id AND u_owner.tenant_id = a.tenant_id
+      WHERE ao.application_id = a.id
+        AND ao.tenant_id = a.tenant_id
+        AND ao.owner_type = '${ownerType}'
+        AND ${predicate}
+    )`,
+    params: { [param]: value },
+  };
+};
+
 /**
  * Service for listing and filtering applications.
  */
@@ -317,6 +392,20 @@ export class ApplicationsListService extends ApplicationsBaseService {
         }
         if (field === 'linked_project_name') {
           const custom = compileLinkedProjectTextFilter(model, nextParam);
+          if (custom) {
+            compiledFilters.push(custom);
+            continue;
+          }
+        }
+        if (field === 'owners_business') {
+          const custom = compileOwnerNameFilter('business', model, nextParam);
+          if (custom) {
+            compiledFilters.push(custom);
+            continue;
+          }
+        }
+        if (field === 'owners_it') {
+          const custom = compileOwnerNameFilter('it', model, nextParam);
           if (custom) {
             compiledFilters.push(custom);
             continue;
@@ -537,6 +626,20 @@ export class ApplicationsListService extends ApplicationsBaseService {
             continue;
           }
         }
+        if (field === 'owners_business') {
+          const custom = compileOwnerNameFilter('business', model, nextParam);
+          if (custom) {
+            compiledFilters.push(custom);
+            continue;
+          }
+        }
+        if (field === 'owners_it') {
+          const custom = compileOwnerNameFilter('it', model, nextParam);
+          if (custom) {
+            compiledFilters.push(custom);
+            continue;
+          }
+        }
         const target = targets[field];
         if (!target) continue;
         const cond = compileAgFilterCondition(model, target, nextParam);
@@ -741,6 +844,20 @@ export class ApplicationsListService extends ApplicationsBaseService {
           }
           if (filterField === 'hosting_types') {
             const custom = compileHostingTypesSetFilter(model, nextParam);
+            if (custom) {
+              compiledFilters.push(custom);
+              continue;
+            }
+          }
+          if (filterField === 'owners_business') {
+            const custom = compileOwnerNameFilter('business', model, nextParam);
+            if (custom) {
+              compiledFilters.push(custom);
+              continue;
+            }
+          }
+          if (filterField === 'owners_it') {
+            const custom = compileOwnerNameFilter('it', model, nextParam);
             if (custom) {
               compiledFilters.push(custom);
               continue;

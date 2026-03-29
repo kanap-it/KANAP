@@ -176,6 +176,7 @@ export class AiEntityService {
     limit: number,
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
+    const businessOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'business');
     const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT a.id,
@@ -190,6 +191,7 @@ export class AiEntityService {
               a.data_class,
               a.version,
               s.name AS supplier_name,
+              ${businessOwnerNamesSql} AS business_owner_names,
               ${itOwnerNamesSql} AS it_owner_names,
               COUNT(*) OVER()::int AS total_count,
               CASE
@@ -215,6 +217,7 @@ export class AiEntityService {
            OR COALESCE(a.data_class, '') ILIKE $1
            OR COALESCE(a.hosting_model, '') ILIKE $1
            OR COALESCE(s.name, '') ILIKE $1
+           OR ${businessOwnerNamesSql} ILIKE $1
            OR ${itOwnerNamesSql} ILIKE $1
          )
        ORDER BY score DESC, a.updated_at DESC, a.name ASC
@@ -234,6 +237,7 @@ export class AiEntityService {
             data_class: row.data_class ?? null,
             version: row.version ?? null,
             supplier: row.supplier_name ?? null,
+            business_owner: row.business_owner_names || null,
             it_owner: row.it_owner_names || null,
           },
         }, row.summary),
@@ -852,6 +856,93 @@ export class AiEntityService {
     };
   }
 
+  private async searchUsers(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ): Promise<RankedSearchResult> {
+    const exact = String(query || '').trim();
+    const like = `%${exact}%`;
+    const displayNameSql = buildUserNameSql('u');
+    const expertiseSql = `COALESCE((
+      SELECT string_agg(DISTINCT area.value, ', ' ORDER BY area.value)
+      FROM jsonb_array_elements_text(COALESCE(tmc.areas_of_expertise, '[]'::jsonb)) area(value)
+    ), '')`;
+    const summarySql = `NULLIF(CONCAT_WS(' | ',
+      CASE WHEN ${displayNameSql} <> u.email THEN u.email ELSE NULL END,
+      NULLIF(u.job_title, ''),
+      NULLIF(pt.name, ''),
+      NULLIF(c.name, '')
+    ), '')`;
+    const rows = await context.manager.query<SearchRow[]>(
+      `SELECT u.id,
+              NULL::int AS item_number,
+              ${displayNameSql} AS label,
+              ${summarySql} AS summary,
+              u.status,
+              u.updated_at,
+              u.email,
+              u.job_title,
+              u.locale,
+              r.role_name AS primary_role_name,
+              c.name AS company_name,
+              d.name AS department_name,
+              pt.name AS team_name,
+              CASE WHEN tmc.id IS NULL THEN 'not_configured' ELSE 'configured' END AS contributor_profile,
+              tmc.project_availability,
+              ${expertiseSql} AS areas_of_expertise,
+              COUNT(*) OVER()::int AS total_count,
+              CASE
+                WHEN LOWER(u.email) = LOWER($1) THEN 5
+                WHEN ${displayNameSql} ILIKE $2 THEN 4
+                WHEN u.email ILIKE $2 THEN 3
+                ELSE 1
+              END AS score
+       FROM users u
+       LEFT JOIN roles r ON r.id = u.role_id AND r.tenant_id = u.tenant_id
+       LEFT JOIN companies c ON c.id = u.company_id AND c.tenant_id = u.tenant_id
+       LEFT JOIN departments d ON d.id = u.department_id AND d.tenant_id = u.tenant_id
+       LEFT JOIN portfolio_team_member_configs tmc ON tmc.user_id = u.id AND tmc.tenant_id = u.tenant_id
+       LEFT JOIN portfolio_teams pt ON pt.id = tmc.team_id AND pt.tenant_id = u.tenant_id
+       WHERE u.tenant_id = $3
+         AND (
+           ${displayNameSql} ILIKE $2
+           OR u.email ILIKE $2
+           OR COALESCE(u.job_title, '') ILIKE $2
+           OR COALESCE(r.role_name, '') ILIKE $2
+           OR COALESCE(c.name, '') ILIKE $2
+           OR COALESCE(d.name, '') ILIKE $2
+           OR COALESCE(pt.name, '') ILIKE $2
+           OR ${expertiseSql} ILIKE $2
+         )
+       ORDER BY score DESC, u.last_name ASC NULLS LAST, u.first_name ASC NULLS LAST, u.email ASC
+       LIMIT $4`,
+      [exact, like, context.tenantId, limit],
+    );
+
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('users', {
+          ...row,
+          metadata: {
+            email: row.email ?? null,
+            job_title: row.job_title ?? null,
+            primary_role: row.primary_role_name ?? null,
+            company: row.company_name ?? null,
+            department: row.department_name ?? null,
+            locale: row.locale ?? null,
+            team: row.team_name ?? null,
+            contributor_profile: row.contributor_profile ?? null,
+            project_availability: toNullableNumber(row.project_availability),
+            areas_of_expertise: row.areas_of_expertise || null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
+  }
+
   private async listApplications(context: AiExecutionContextWithManager) {
     const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
     const rows = await context.manager.query<any[]>(
@@ -1005,7 +1096,7 @@ export class AiEntityService {
   ) {
     const requested = input.entity_types && input.entity_types.length > 0
       ? input.entity_types
-      : ['applications', 'assets', 'companies', 'contracts', 'departments', 'documents', 'locations', 'projects', 'requests', 'spend_items', 'suppliers', 'tasks'] as AiSearchEntityType[];
+      : ['applications', 'assets', 'companies', 'contracts', 'departments', 'documents', 'locations', 'projects', 'requests', 'spend_items', 'suppliers', 'tasks', 'users'] as AiSearchEntityType[];
     const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
     if (allowed.length === 0) {
       return { items: [], total: 0, entity_types: [] as AiSearchEntityType[] };
@@ -1027,6 +1118,7 @@ export class AiEntityService {
         if (type === 'spend_items') return this.searchSpendItems(context, input.query, fetchLimit);
         if (type === 'suppliers') return this.searchSuppliers(context, input.query, fetchLimit);
         if (type === 'tasks') return this.searchTasks(context, input.query, fetchLimit);
+        if (type === 'users') return this.searchUsers(context, input.query, fetchLimit);
 
         const search = await this.knowledge.search({ q: input.query, limit: fetchLimit, offset: 0 }, { manager: context.manager });
         return {

@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
-  Chip,
   CircularProgress,
   Collapse,
   IconButton,
@@ -13,12 +12,28 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import BuildIcon from '@mui/icons-material/Build';
 import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../components/MarkdownContent';
-import { ChatMessage } from '../aiTypes';
+import { AiMutationPreview, ChatMessage } from '../aiTypes';
+import PreviewCard from './PreviewCard';
 import ToolResultRenderer from './ToolResultRenderer';
 
 type ChatMessageListProps = {
   messages: ChatMessage[];
+  previews: AiMutationPreview[];
+  disabled?: boolean;
+  onSend: (text: string) => void;
 };
+
+function isMutationPreview(value: unknown): value is AiMutationPreview {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.preview_id === 'string'
+    && typeof candidate.status === 'string'
+    && typeof candidate.tool_name === 'string'
+    && candidate.target != null
+    && candidate.changes != null;
+}
 
 function UserBubble({ message }: { message: ChatMessage }) {
   return (
@@ -45,7 +60,10 @@ function UserBubble({ message }: { message: ChatMessage }) {
 function ToolCallsPanel({ message }: { message: ChatMessage }) {
   const { t } = useTranslation(['ai']);
   const [expanded, setExpanded] = useState(false);
-  const toolCalls = message.toolCalls || [];
+  const toolCalls = (message.toolCalls || []).filter((toolCall) => {
+    const result = (message.toolResults || []).find((item) => item.id === toolCall.id);
+    return !isMutationPreview(result?.result);
+  });
   const toolResults = message.toolResults || [];
   const count = toolCalls.length;
 
@@ -99,7 +117,23 @@ function ToolCallsPanel({ message }: { message: ChatMessage }) {
   );
 }
 
-function AssistantBubble({ message }: { message: ChatMessage }) {
+function AssistantBubble({
+  message,
+  previews,
+  disabled,
+  onSend,
+}: {
+  message: ChatMessage;
+  previews: AiMutationPreview[];
+  disabled?: boolean;
+  onSend: (text: string) => void;
+}) {
+  const previewResults = (message.toolResults || [])
+    .filter((toolResult) => toolResult.name !== 'preview_execution_result')
+    .map((toolResult) => toolResult.result)
+    .filter(isMutationPreview)
+    .map((preview) => previews.find((item) => item.preview_id === preview.preview_id) || preview);
+
   return (
     <Box sx={{ px: 2, maxWidth: '90%' }}>
       <Stack spacing={0.5}>
@@ -111,6 +145,16 @@ function AssistantBubble({ message }: { message: ChatMessage }) {
           </Box>
         )}
 
+        {previewResults.map((preview) => (
+          <PreviewCard
+            key={preview.preview_id}
+            preview={preview}
+            disabled={disabled}
+            onApprove={(previewId) => onSend(`[APPROVE:${previewId}]`)}
+            onReject={(previewId) => onSend(`[REJECT:${previewId}]`)}
+          />
+        ))}
+
         {message.isStreaming && !message.content && !(message.toolCalls?.length) && (
           <Box sx={{ px: 1 }}>
             <CircularProgress size={16} />
@@ -121,11 +165,11 @@ function AssistantBubble({ message }: { message: ChatMessage }) {
   );
 }
 
-export default function ChatMessageList({ messages }: ChatMessageListProps) {
+export default function ChatMessageList({ messages, previews, disabled, onSend }: ChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView?.({ behavior: 'smooth' });
   }, [messages]);
 
   if (!messages.length) return null;
@@ -133,10 +177,16 @@ export default function ChatMessageList({ messages }: ChatMessageListProps) {
   return (
     <Stack spacing={2} sx={{ py: 2, pb: 8 }}>
       {messages.map((msg) =>
-        msg.role === 'user' ? (
+        msg.hidden ? null : msg.role === 'user' ? (
           <UserBubble key={msg.id} message={msg} />
         ) : msg.role === 'assistant' ? (
-          <AssistantBubble key={msg.id} message={msg} />
+          <AssistantBubble
+            key={msg.id}
+            message={msg}
+            previews={previews}
+            disabled={disabled}
+            onSend={onSend}
+          />
         ) : null,
       )}
       <div ref={bottomRef} />

@@ -625,7 +625,7 @@ export default function KnowledgeWorkspacePage() {
     const ownerUserId = assignments.owner_user_id || profile?.id || null;
     return [
       ...(ownerUserId ? [toCacheRow(ownerUserId, 'owner', true)] : []),
-      ...Array.from(new Set(assignments.author_user_ids.filter((entry) => entry && entry !== ownerUserId)))
+      ...Array.from(new Set(assignments.author_user_ids.filter(Boolean)))
         .map((userId) => toCacheRow(userId, 'author', false)),
       ...Array.from(new Set(assignments.reviewer_user_ids.filter(Boolean)))
         .map((userId) => toCacheRow(userId, 'reviewer', false)),
@@ -1248,7 +1248,7 @@ export default function KnowledgeWorkspacePage() {
       }
       const rows = [
         { user_id: ownerUserId, role: 'owner', is_primary: true },
-        ...Array.from(new Set(contributorAssignments.author_user_ids.filter((entry) => entry && entry !== ownerUserId)))
+        ...Array.from(new Set(contributorAssignments.author_user_ids.filter(Boolean)))
           .map((user_id) => ({ user_id, role: 'author', is_primary: false })),
         ...Array.from(new Set(contributorAssignments.reviewer_user_ids.filter(Boolean)))
           .map((user_id) => ({ user_id, role: 'reviewer', is_primary: false })),
@@ -1657,6 +1657,8 @@ export default function KnowledgeWorkspacePage() {
                     onImageUrlImport={!isCreate ? importInlineImageUrl : undefined}
                     minRows={editorRows}
                     maxRows={editorRows}
+                    fillHeight
+                    fullToolbar
                   />
                 </React.Suspense>
               </Box>
