@@ -1,6 +1,7 @@
 export const TENANT_SCOPED_TABLES = [
   'accounts',
   'ai_api_keys',
+  'ai_builtin_usage',
   'ai_conversations',
   'ai_messages',
   'ai_mutation_previews',
