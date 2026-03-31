@@ -92,6 +92,7 @@ export type AiQueryResult = {
   limit: number;
   returned: number;
   truncated: boolean;
+  complete: boolean;
   filters_applied: string[];
   filters_ignored: string[];
   scope: {
@@ -110,6 +111,7 @@ export type AiAggregateResult = {
     | { key: string | null; value: number | string | null }
   >;
   total: number;
+  complete: boolean;
   filters_applied: string[];
   filters_ignored: string[];
   scope: {
@@ -122,4 +124,5 @@ export type AiAggregateResult = {
 export type AiFilterValuesResult = {
   values: Record<string, Array<string | boolean | null>>;
   fields_ignored: string[];
+  complete: boolean;
 };

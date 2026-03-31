@@ -6,6 +6,7 @@ import { AiQueryExecutor } from '../query/ai-query.executor';
 import { AiToolRegistry } from '../ai-tool.registry';
 import { AiDocumentMutationSupportService } from '../mutation/ai-document-mutation-support.service';
 import { CreateDocumentAiMutationOperation } from '../mutation/operations/create-document.ai-mutation-operation';
+import { CreateTaskAiMutationOperation } from '../mutation/operations/create-task.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from '../mutation/operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from '../mutation/operations/update-document-relations.ai-mutation-operation';
 
@@ -42,8 +43,8 @@ function createRegistry(overrides?: {
 }) {
   return new AiToolRegistry(
     {
-      searchAll: async () => ({ items: [], total: 0, entity_types: ['applications'] }),
-      getEntityContext: async () => ({ entity: { id: 'app-1' }, related: [], knowledge: null }),
+      searchAll: async () => ({ items: [], total: 0, complete: false, entity_types: ['applications'] }),
+      getEntityContext: async () => ({ entity: { id: 'app-1', metadata: {} }, related: [], knowledge: null, complete: true }),
       getEntityComments: async () => ({
         entity: { type: 'tasks', id: 'task-1', ref: 'T-1', label: 'Test task' },
         items: [],
@@ -52,6 +53,7 @@ function createRegistry(overrides?: {
         limit: 20,
         returned: 0,
         truncated: false,
+        complete: true,
       }),
       ...(overrides?.entityTools || {}),
     } as any,
@@ -69,12 +71,12 @@ function createRegistry(overrides?: {
       ...(overrides?.policy || {}),
     } as any,
     {
-      execute: async () => ({ items: [], total: 0, filters_applied: [], filters_ignored: [] }),
-      executeFilterValues: async () => ({ values: {}, fields_ignored: [] }),
+      execute: async () => ({ items: [], total: 0, filters_applied: [], filters_ignored: [], complete: true }),
+      executeFilterValues: async () => ({ values: {}, fields_ignored: [], complete: true }),
       ...(overrides?.queryExecutor || {}),
     } as any,
     {
-      execute: async () => ({ group_by: 'status', groups: [], total: 0, filters_applied: [], filters_ignored: [] }),
+      execute: async () => ({ group_by: 'status', groups: [], total: 0, filters_applied: [], filters_ignored: [], complete: true }),
       ...(overrides?.aggregateExecutor || {}),
     } as any,
     {
@@ -143,6 +145,28 @@ function createRegistry(overrides?: {
             fields: ['title', 'summary', 'template_document', 'content_markdown'],
             reversible: false,
             prompt_hint: 'For draft document creation, use `create_document`.',
+          },
+        },
+        {
+          toolName: 'create_task',
+          description: 'Create a preview to create one task.',
+          inputSchema: {
+            safeParse: (value: any) => ({ success: true, data: value }),
+          },
+          inputSummary: {
+            title: 'Task title.',
+            relation_type: 'Optional relation type.',
+            relation_ref: 'Optional relation target reference.',
+            assignee: 'Optional assignee email, full name, or unique user label.',
+            priority_level: 'Optional task priority.',
+            description: 'Optional task description.',
+          },
+          businessResource: 'tasks',
+          writePreview: {
+            entity_type: 'tasks',
+            fields: ['relation', 'title', 'description', 'assignee', 'priority_level', 'start_date', 'due_date', 'task_type', 'phase'],
+            reversible: false,
+            prompt_hint: 'For task creation, use `create_task` with a title and optional relation, assignee, priority, dates, task type, and project phase.',
           },
         },
         {
@@ -264,6 +288,7 @@ function createRegistry(overrides?: {
       getOperationOrNull: (toolName: string) => {
         const operation = ({
           create_document: { toolName: 'create_document' },
+          create_task: { toolName: 'create_task' },
           update_document_content: { toolName: 'update_document_content' },
           update_document_metadata: { toolName: 'update_document_metadata' },
           update_document_relations: { toolName: 'update_document_relations' },
@@ -381,6 +406,7 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
       'undo_preview',
       'web_search',
       'create_document',
+      'create_task',
       'update_document_content',
       'update_document_metadata',
       'update_document_relations',
@@ -389,6 +415,39 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
       'add_task_comment',
     ],
   );
+}
+
+async function testListAvailableToolsIncludesCategories() {
+  const registry = createRegistry();
+  const tools = await registry.listAvailableTools(createContext());
+
+  assert.equal(tools.find((tool) => tool.name === 'search_all')?.category, 'discovery');
+  assert.equal(tools.find((tool) => tool.name === 'query_entities')?.category, 'authoritative');
+  assert.equal(tools.find((tool) => tool.name === 'get_entity_context')?.category, 'inspection');
+}
+
+async function testRegisteredToolCategoriesMatchExpectedAssignments() {
+  const registry = createRegistry();
+  const categories = new Map(
+    registry.listRegisteredTools().map((tool) => [tool.name, tool.category]),
+  );
+
+  for (const category of categories.values()) {
+    assert.ok(['discovery', 'authoritative', 'inspection', 'mutation'].includes(category));
+  }
+
+  assert.equal(categories.get('search_all'), 'discovery');
+  assert.equal(categories.get('query_entities'), 'authoritative');
+  assert.equal(categories.get('aggregate_entities'), 'authoritative');
+  assert.equal(categories.get('get_filter_values'), 'authoritative');
+  assert.equal(categories.get('get_entity_context'), 'inspection');
+  assert.equal(categories.get('get_entity_comments'), 'inspection');
+  assert.equal(categories.get('search_knowledge'), 'discovery');
+  assert.equal(categories.get('get_document'), 'inspection');
+  assert.equal(categories.get('web_search'), 'discovery');
+  assert.equal(categories.get('undo_preview'), 'mutation');
+  assert.equal(categories.get('create_task'), 'mutation');
+  assert.equal(categories.get('update_task_status'), 'mutation');
 }
 
 async function testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed() {
@@ -404,6 +463,7 @@ async function testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed() {
 
   const tools = await registry.listAvailableTools(createChatContext());
   assert.ok(tools.some((tool) => tool.name === 'create_document'));
+  assert.ok(tools.some((tool) => tool.name === 'create_task'));
   assert.ok(tools.some((tool) => tool.name === 'update_document_content'));
   assert.ok(tools.some((tool) => tool.name === 'update_document_metadata'));
   assert.ok(tools.some((tool) => tool.name === 'update_document_relations'));
@@ -418,6 +478,7 @@ async function testWritePreviewToolsStayHiddenWithoutWriteAccess() {
 
   const tools = await registry.listAvailableTools(createChatContext());
   assert.ok(!tools.some((tool) => tool.name === 'create_document'));
+  assert.ok(!tools.some((tool) => tool.name === 'create_task'));
   assert.ok(!tools.some((tool) => tool.name === 'update_document_content'));
   assert.ok(!tools.some((tool) => tool.name === 'update_document_metadata'));
   assert.ok(!tools.some((tool) => tool.name === 'update_document_relations'));
@@ -471,6 +532,34 @@ async function testCreateDocumentToolSchemaExposesBodyFields() {
   assert.match(String((schema!.parameters as any).properties?.content?.description || ''), /alias/i);
   assert.match(String((schema!.parameters as any).properties?.template_document?.description || ''), /template document/i);
   assert.match(String((schema!.parameters as any).properties?.projects?.description || ''), /Project reference/i);
+}
+
+async function testCreateTaskToolSchemaExposesRelationAndAssignmentFields() {
+  const operation = new CreateTaskAiMutationOperation(
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['tasks'],
+    },
+    mutationOperations: {
+      listOperations: () => [operation],
+      getOperationOrNull: (toolName: string) => (toolName === 'create_task' ? operation : null),
+    },
+  });
+
+  const tools = await registry.getToolJsonSchemas(createChatContext());
+  const schema = tools.find((tool) => tool.name === 'create_task');
+
+  assert.ok(schema);
+  assert.match(String((schema!.parameters as any).properties?.relation_type?.description || ''), /relation type/i);
+  assert.match(String((schema!.parameters as any).properties?.relation_ref?.description || ''), /relation target reference/i);
+  assert.match(String((schema!.parameters as any).properties?.assignee?.description || ''), /assignee email, full name/i);
+  assert.match(String((schema!.parameters as any).properties?.priority_level?.description || ''), /task priority/i);
+  assert.match(String((schema!.parameters as any).properties?.phase?.description || ''), /project phase/i);
 }
 
 async function testUpdateDocumentContentToolSchemaExposesDocumentAndBodyFields() {
@@ -551,7 +640,7 @@ async function testSearchAllDelegatesToEntityTools() {
     entityTools: {
       searchAll: async (_context: unknown, input: unknown) => {
         calls.push(input);
-        return { items: [{ id: 'app-1' }], total: 1, entity_types: ['applications'] };
+        return { items: [{ id: 'app-1' }], total: 1, complete: false, entity_types: ['applications'] };
       },
     },
     policy: {
@@ -566,6 +655,7 @@ async function testSearchAllDelegatesToEntityTools() {
   }) as any;
 
   assert.equal(result.total, 1);
+  assert.equal(result.complete, false);
   assert.deepEqual(calls, [{
     query: 'billing',
     entity_types: ['applications'],
@@ -579,7 +669,7 @@ async function testSearchAllAppliesGenerousDefaultLimit() {
     entityTools: {
       searchAll: async (_context: unknown, input: unknown) => {
         calls.push(input);
-        return { items: [], total: 0, entity_types: ['applications'] };
+        return { items: [], total: 0, complete: false, entity_types: ['applications'] };
       },
     },
   });
@@ -600,7 +690,7 @@ async function testGetEntityContextDelegatesToEntityTools() {
     entityTools: {
       getEntityContext: async (_context: unknown, input: unknown) => {
         calls.push(input);
-        return { entity: { id: 'app-1' }, related: [], knowledge: null };
+        return { entity: { id: 'app-1', metadata: {} }, related: [], knowledge: null, complete: true };
       },
     },
     policy: {
@@ -614,6 +704,7 @@ async function testGetEntityContextDelegatesToEntityTools() {
   }) as any;
 
   assert.equal(result.entity.id, 'app-1');
+  assert.equal(result.complete, true);
   assert.deepEqual(calls, [{
     entity_type: 'applications',
     entity_id: 'app-1',
@@ -634,6 +725,7 @@ async function testGetEntityCommentsDelegatesToEntityTools() {
           limit: 20,
           returned: 1,
           truncated: false,
+          complete: true,
         };
       },
     },
@@ -649,6 +741,7 @@ async function testGetEntityCommentsDelegatesToEntityTools() {
 
   assert.equal(result.entity.ref, 'PRJ-1');
   assert.equal(result.items[0].content, 'Need a rollback plan.');
+  assert.equal(result.complete, true);
   assert.deepEqual(calls, [{
     entity_type: 'projects',
     entity_id: 'PRJ-1',
@@ -688,6 +781,7 @@ async function testSearchKnowledgeMapsStableDto() {
   assert.equal(result.total, 1);
   assert.equal(result.items[0].ref, 'DOC-14');
   assert.equal(result.items[0].library.name, 'Operations');
+  assert.equal(result.complete, false);
 }
 
 async function testSearchKnowledgeAppliesDefaultLimit() {
@@ -753,6 +847,7 @@ async function testGetDocumentMapsStableDto() {
   assert.equal(result.ref, 'DOC-7');
   assert.equal(result.relations.applications[0].label, 'Billing App');
   assert.equal(result.contributors[0].name, 'A. User');
+  assert.equal(result.complete, true);
 }
 
 async function testQueryEntitiesDelegatesToQueryExecutor() {
@@ -761,7 +856,7 @@ async function testQueryEntitiesDelegatesToQueryExecutor() {
     queryExecutor: {
       execute: async (_context: unknown, input: unknown) => {
         calls.push(input);
-        return { items: [{ id: 'task-1' }], total: 1, filters_applied: ['status'], filters_ignored: [] };
+        return { items: [{ id: 'task-1' }], total: 1, filters_applied: ['status'], filters_ignored: [], complete: true };
       },
     },
   });
@@ -787,7 +882,7 @@ async function testQueryEntitiesAppliesGenerousDefaultLimit() {
     queryExecutor: {
       execute: async (_context: unknown, input: unknown) => {
         calls.push(input);
-        return { items: [], total: 0, filters_applied: [], filters_ignored: [] };
+        return { items: [], total: 0, filters_applied: [], filters_ignored: [], complete: true };
       },
     },
   });
@@ -839,7 +934,7 @@ async function testAggregateEntitiesDelegatesToAggregateExecutor() {
     aggregateExecutor: {
       execute: async (_context: unknown, input: unknown) => {
         calls.push(input);
-        return { group_by: 'status', metric: 'priority_score', function: 'sum', groups: [{ key: 'open', value: 2 }], total: 2, filters_applied: [], filters_ignored: [] };
+        return { group_by: 'status', metric: 'priority_score', function: 'sum', groups: [{ key: 'open', value: 2 }], total: 2, filters_applied: [], filters_ignored: [], complete: true };
       },
     },
   });
@@ -875,7 +970,7 @@ async function testGetFilterValuesDelegatesToQueryExecutor() {
     queryExecutor: {
       executeFilterValues: async (_context: unknown, input: unknown) => {
         calls.push(input);
-        return { values: { status: ['open', 'done'] }, fields_ignored: [] };
+        return { values: { status: ['open', 'done'] }, fields_ignored: [], complete: true };
       },
     },
   });
@@ -886,6 +981,7 @@ async function testGetFilterValuesDelegatesToQueryExecutor() {
   }) as any;
 
   assert.deepEqual(result.values.status, ['open', 'done']);
+  assert.equal(result.complete, true);
   assert.deepEqual(calls, [{
     entity_type: 'tasks',
     fields: ['status'],
@@ -904,6 +1000,23 @@ async function testWebSearchRejectsOversizedQueries() {
       }),
       () => true,
     );
+  } finally {
+    (Features as any).AI_WEB_SEARCH_READY = original;
+  }
+}
+
+async function testWebSearchReturnsIncompleteResults() {
+  const original = Features.AI_WEB_SEARCH_READY;
+  try {
+    (Features as any).AI_WEB_SEARCH_READY = true;
+    const registry = createRegistry();
+    const result = await registry.execute(createContext(), 'web_search', {
+      query: 'kanap',
+      count: 1,
+    }) as any;
+
+    assert.equal(result.total, 1);
+    assert.equal(result.complete, false);
   } finally {
     (Features as any).AI_WEB_SEARCH_READY = original;
   }
@@ -948,6 +1061,115 @@ async function testQueryExecutorAllowsLiteralQuickSearchText() {
   assert.equal((calls[0] as any).q, 'Siemens');
 }
 
+async function testQueryExecutorMarksFirstPageAsCompleteWhenFull() {
+  const executor = createQueryExecutor({
+    tasks: {
+      listAllTasks: async () => ({
+        items: [{ id: 'task-1' }],
+        total: 1,
+        page: 1,
+        limit: 25,
+      }),
+    },
+  });
+
+  const result = await executor.execute(createContext(), {
+    entity_type: 'tasks',
+    limit: 25,
+  });
+
+  assert.equal(result.complete, true);
+}
+
+async function testQueryExecutorMarksLaterPagesIncompleteEvenWhenNotTruncated() {
+  const executor = createQueryExecutor({
+    tasks: {
+      listAllTasks: async () => ({
+        items: [{ id: 'task-26' }],
+        total: 26,
+        page: 2,
+        limit: 25,
+      }),
+    },
+  });
+
+  const result = await executor.execute(createContext(), {
+    entity_type: 'tasks',
+    page: 2,
+    limit: 25,
+  });
+
+  assert.equal(result.truncated, false);
+  assert.equal(result.complete, false);
+}
+
+async function testQueryExecutorMarksIgnoredFiltersIncomplete() {
+  const executor = createQueryExecutor({
+    tasks: {
+      listAllTasks: async () => ({
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 25,
+      }),
+    },
+  });
+
+  const result = await executor.execute(createContext(), {
+    entity_type: 'tasks',
+    filters: { not_a_real_field: ['open'] } as any,
+    limit: 25,
+  });
+
+  assert.deepEqual(result.filters_ignored, ['not_a_real_field']);
+  assert.equal(result.complete, false);
+}
+
+async function testQueryExecutorMarksUnresolvedScopeIncomplete() {
+  const executor = createQueryExecutor();
+  const context = {
+    ...createContext(),
+    manager: {
+      query: async () => ([]),
+    } as any,
+  };
+
+  const result = await executor.execute(context, {
+    entity_type: 'projects',
+    scope: 'my_team',
+    limit: 25,
+  });
+
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.scope, {
+    requested: 'my_team',
+    resolved: false,
+    team_name: null,
+  });
+}
+
+async function testFilterValuesMarksSupportedFieldsComplete() {
+  const executor = createQueryExecutor();
+  const result = await executor.executeFilterValues(createContext(), {
+    entity_type: 'tasks',
+    fields: ['status'],
+  });
+
+  assert.deepEqual(result.fields_ignored, []);
+  assert.equal(result.complete, true);
+}
+
+async function testFilterValuesMarksIgnoredFieldsIncomplete() {
+  const executor = createQueryExecutor();
+  const result = await executor.executeFilterValues(createContext(), {
+    entity_type: 'tasks',
+    fields: ['status', 'missing_field'],
+  });
+
+  assert.deepEqual(result.fields_ignored, ['missing_field']);
+  assert.equal(result.complete, false);
+}
+
 async function testAggregateExecutorRejectsStructuredPredicatesInsideQuickSearch() {
   const executor = createAggregateExecutor();
 
@@ -966,16 +1188,64 @@ async function testAggregateExecutorRejectsStructuredPredicatesInsideQuickSearch
   );
 }
 
+async function testAggregateExecutorMarksCompleteWhenNoIgnoredFilters() {
+  const executor = createAggregateExecutor();
+  const result = await executor.execute(createContext(), {
+    entity_type: 'tasks',
+    group_by: 'status',
+  });
+
+  assert.equal(result.complete, true);
+}
+
+async function testAggregateExecutorMarksIgnoredFiltersIncomplete() {
+  const executor = createAggregateExecutor();
+  const result = await executor.execute(createContext(), {
+    entity_type: 'tasks',
+    group_by: 'status',
+    filters: { not_a_real_field: ['open'] } as any,
+  });
+
+  assert.deepEqual(result.filters_ignored, ['not_a_real_field']);
+  assert.equal(result.complete, false);
+}
+
+async function testAggregateExecutorMarksUnresolvedScopeIncomplete() {
+  const executor = createAggregateExecutor();
+  const context = {
+    ...createContext(),
+    manager: {
+      query: async () => ([]),
+    } as any,
+  };
+
+  const result = await executor.execute(context, {
+    entity_type: 'projects',
+    group_by: 'status',
+    scope: 'my_team',
+  });
+
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.scope, {
+    requested: 'my_team',
+    resolved: false,
+    team_name: null,
+  });
+}
+
 async function run() {
   await testListAvailableTools();
   await testTaskReadersSeeEntityCommentsTool();
   await testListRegisteredToolsExposesRuntimeRegistry();
+  await testListAvailableToolsIncludesCategories();
+  await testRegisteredToolCategoriesMatchExpectedAssignments();
   await testSearchAllDelegatesToEntityTools();
   await testSearchAllAppliesGenerousDefaultLimit();
   await testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed();
   await testWritePreviewToolsStayHiddenWithoutWriteAccess();
   await testUndoPreviewStaysHiddenWhenOnlyNonReversibleWritesExist();
   await testCreateDocumentToolSchemaExposesBodyFields();
+  await testCreateTaskToolSchemaExposesRelationAndAssignmentFields();
   await testUpdateDocumentContentToolSchemaExposesDocumentAndBodyFields();
   await testUpdateDocumentRelationsToolSchemaExposesRelationFields();
   await testQueryEntitiesDelegatesToQueryExecutor();
@@ -991,9 +1261,19 @@ async function run() {
   await testGetEntityCommentsSchemaExposesPaginationDefaults();
   await testGetDocumentMapsStableDto();
   await testWebSearchRejectsOversizedQueries();
+  await testWebSearchReturnsIncompleteResults();
   await testQueryExecutorRejectsStructuredPredicatesInsideQuickSearch();
   await testQueryExecutorAllowsLiteralQuickSearchText();
+  await testQueryExecutorMarksFirstPageAsCompleteWhenFull();
+  await testQueryExecutorMarksLaterPagesIncompleteEvenWhenNotTruncated();
+  await testQueryExecutorMarksIgnoredFiltersIncomplete();
+  await testQueryExecutorMarksUnresolvedScopeIncomplete();
+  await testFilterValuesMarksSupportedFieldsComplete();
+  await testFilterValuesMarksIgnoredFieldsIncomplete();
   await testAggregateExecutorRejectsStructuredPredicatesInsideQuickSearch();
+  await testAggregateExecutorMarksCompleteWhenNoIgnoredFilters();
+  await testAggregateExecutorMarksIgnoredFiltersIncomplete();
+  await testAggregateExecutorMarksUnresolvedScopeIncomplete();
 }
 
 void run();

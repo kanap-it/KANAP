@@ -6,6 +6,7 @@ import { AiDocumentMutationSupportService } from '../mutation/ai-document-mutati
 import { AiTaskMutationSupportService } from '../mutation/ai-task-mutation-support.service';
 import { AddTaskCommentAiMutationOperation } from '../mutation/operations/add-task-comment.ai-mutation-operation';
 import { CreateDocumentAiMutationOperation } from '../mutation/operations/create-document.ai-mutation-operation';
+import { CreateTaskAiMutationOperation } from '../mutation/operations/create-task.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from '../mutation/operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentMetadataAiMutationOperation } from '../mutation/operations/update-document-metadata.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from '../mutation/operations/update-document-relations.ai-mutation-operation';
@@ -123,7 +124,9 @@ function createService(options?: {
   previews?: any[];
   taskRow?: any;
   liveTask?: any;
+  currentUserRow?: any;
   assigneeRow?: any;
+  assigneeRows?: any[];
   documentRows?: any[];
   documentSearchRows?: any[];
   sqlResponses?: Array<{ pattern: string; rows: any[] | ((sql: string, params?: any[]) => any[]) }>;
@@ -135,16 +138,19 @@ function createService(options?: {
   acquireLockError?: Error;
   releaseLockError?: Error;
   updateError?: Error;
+  taskCreateResult?: any;
   contextUserId?: string;
 }) {
   const previews = [...(options?.previews || [createStatusPreview()])];
   const saved: any[] = [];
+  const taskCreates: any[] = [];
   const taskUpdates: any[] = [];
   const activityCreates: any[] = [];
   const documentCreates: any[] = [];
   const documentUpdates: any[] = [];
   const documentLocksAcquired: any[] = [];
   const documentLocksReleased: any[] = [];
+  const businessPermissionChecks: any[] = [];
 
   const previewRepo = {
     findOne: async ({ where }: any) =>
@@ -246,7 +252,21 @@ function createService(options?: {
         }];
       }
       if (sql.includes('FROM users u')) {
-        return [options?.assigneeRow ?? {
+        if (sql.includes('AND u.id = $2')) {
+          return [options?.currentUserRow ?? {
+            id: options?.contextUserId ?? 'user-1',
+            email: 'requestor@example.com',
+            label: 'Requestor User',
+          }];
+        }
+        if (sql.includes('LOWER(u.email) = LOWER($2)')) {
+          return [options?.assigneeRow ?? {
+            id: 'user-2',
+            email: 'new@example.com',
+            label: 'New User',
+          }];
+        }
+        return options?.assigneeRows ?? [options?.assigneeRow ?? {
           id: 'user-2',
           email: 'new@example.com',
           label: 'New User',
@@ -260,6 +280,25 @@ function createService(options?: {
   };
 
   const support = new AiTaskMutationSupportService();
+  const tasks = {
+    createForTarget: async (...args: any[]) => {
+      taskCreates.push(args);
+      return options?.taskCreateResult ?? {
+        id: '44444444-4444-4444-8444-444444444444',
+        item_number: 44,
+        title: args[0]?.payload?.title ?? 'New task',
+      };
+    },
+    updateById: async (...args: any[]) => {
+      taskUpdates.push(args);
+    },
+  };
+  const policy = {
+    assertWriteAccess: async () => undefined,
+    assertBusinessPermission: async (...args: any[]) => {
+      businessPermissionChecks.push(args);
+    },
+  };
   const defaultDocumentRow = {
     id: '22222222-2222-4222-8222-222222222222',
     item_ref: 'DOC-14',
@@ -351,6 +390,11 @@ function createService(options?: {
       documentSupport,
       knowledge as any,
     ),
+    new CreateTaskAiMutationOperation(
+      support,
+      tasks as any,
+      policy as any,
+    ),
     new UpdateDocumentContentAiMutationOperation(
       documentSupport,
       knowledge as any,
@@ -365,19 +409,11 @@ function createService(options?: {
     ),
     new UpdateTaskStatusAiMutationOperation(
       support,
-      {
-        updateById: async (...args: any[]) => {
-          taskUpdates.push(args);
-        },
-      } as any,
+      tasks as any,
     ),
     new UpdateTaskAssigneeAiMutationOperation(
       support,
-      {
-        updateById: async (...args: any[]) => {
-          taskUpdates.push(args);
-        },
-      } as any,
+      tasks as any,
     ),
     new AddTaskCommentAiMutationOperation(
       support,
@@ -391,21 +427,21 @@ function createService(options?: {
 
   const service = new AiMutationPreviewService(
     { manager } as any,
-    {
-      assertWriteAccess: async () => undefined,
-    } as any,
+    policy as any,
     operations,
   );
 
   return {
     service,
     saved,
+    taskCreates,
     taskUpdates,
     activityCreates,
     documentCreates,
     documentUpdates,
     documentLocksAcquired,
     documentLocksReleased,
+    businessPermissionChecks,
     context: {
       tenantId: 'tenant-1',
       userId: options?.contextUserId ?? 'user-1',
@@ -461,6 +497,234 @@ async function testCreateCommentPreviewPersistsMarkdownPayload() {
   assert.match(result.changes.comment.to || '', /\*\*investigate\*\*/);
   assert.equal(saved[0].tool_name, 'add_task_comment');
   assert.equal(saved[0].mutation_input.content, 'Please **investigate** the rollback path.');
+}
+
+async function testCreateTaskPreviewPersistsResolvedStandaloneFields() {
+  const { service, context, saved } = createService({
+    previews: [],
+    sqlResponses: [{
+      pattern: 'FROM users u',
+      rows: (sql: string) => {
+        if (sql.includes('AND u.id = $2')) {
+          return [{
+            id: 'user-1',
+            email: 'requestor@example.com',
+            label: 'Requestor User',
+          }];
+        }
+        if (sql.includes('LOWER(u.email) = LOWER($2)')) {
+          return [];
+        }
+        return [{
+          id: 'user-2',
+          email: 'michael@example.com',
+          label: 'Michael Dupont',
+        }];
+      },
+    }],
+  });
+
+  const result = await service.createPreview(context, 'create_task', {
+    title: 'Install server X',
+    description: 'Install with the standard SQL Server procedure.',
+    assignee: 'Michael Dupont',
+    priority_level: 'high',
+  });
+
+  assert.equal(result.tool_name, 'create_task');
+  assert.equal(result.status, 'pending');
+  assert.equal(result.target.entity_id, null);
+  assert.equal(result.target.title, 'Install server X');
+  assert.equal(result.changes.relation.to, 'Standalone');
+  assert.equal(result.changes.requestor.to, 'Requestor User');
+  assert.equal(result.changes.assignee.to, 'Michael Dupont');
+  assert.equal(result.changes.priority.to, 'High');
+  assert.equal(result.changes.status.to, 'Open');
+  assert.equal(saved[0].mutation_input.relation_type, 'standalone');
+  assert.equal(saved[0].mutation_input.requestor_user_id, 'user-1');
+  assert.equal(saved[0].mutation_input.assignee_user_id, 'user-2');
+  assert.equal(saved[0].mutation_input.priority_level, 'high');
+}
+
+async function testCreateTaskPreviewPersistsResolvedProjectFields() {
+  const {
+    service,
+    context,
+    saved,
+    businessPermissionChecks,
+  } = createService({
+    previews: [],
+    sqlResponses: [
+      {
+        pattern: 'FROM users u',
+        rows: (sql: string) => (sql.includes('AND u.id = $2')
+          ? [{
+              id: 'user-1',
+              email: 'requestor@example.com',
+              label: 'Requestor User',
+            }]
+          : []),
+      },
+      {
+        pattern: 'FROM portfolio_projects',
+        rows: [{
+          id: 'project-1',
+          name: 'SQL Refresh',
+          item_number: 33,
+          updated_at: '2026-03-28T10:00:00.000Z',
+        }],
+      },
+      {
+        pattern: 'FROM portfolio_task_types',
+        rows: [{
+          id: 'task-type-1',
+          name: 'Implementation',
+          updated_at: '2026-03-28T10:00:00.000Z',
+        }],
+      },
+      {
+        pattern: 'FROM portfolio_project_phases',
+        rows: [{
+          id: 'phase-1',
+          name: 'Execution',
+        }],
+      },
+    ],
+  });
+
+  const result = await service.createPreview(context, 'create_task', {
+    title: 'Install server X',
+    relation_type: 'project',
+    relation_ref: 'PRJ-33',
+    task_type: 'Implementation',
+    phase: 'Execution',
+  });
+
+  assert.equal(result.changes.relation.to, 'PRJ-33 - SQL Refresh');
+  assert.equal(result.changes.task_type.to, 'Implementation');
+  assert.equal(result.changes.phase.to, 'Execution');
+  assert.equal(saved[0].mutation_input.relation_id, 'project-1');
+  assert.equal(saved[0].mutation_input.task_type_id, 'task-type-1');
+  assert.equal(saved[0].mutation_input.phase_id, 'phase-1');
+  assert.equal(businessPermissionChecks.length, 1);
+  assert.equal(businessPermissionChecks[0][1], 'portfolio_projects');
+  assert.equal(businessPermissionChecks[0][2], 'contributor');
+}
+
+async function testCreateTaskPreviewResolvesSpendItemRelation() {
+  const { service, context, saved, businessPermissionChecks } = createService({
+    previews: [],
+    sqlResponses: [
+      {
+        pattern: 'FROM users u',
+        rows: (sql: string) => (sql.includes('AND u.id = $2')
+          ? [{
+              id: 'user-1',
+              email: 'requestor@example.com',
+              label: 'Requestor User',
+            }]
+          : []),
+      },
+      {
+        pattern: 'FROM spend_items',
+        rows: [{
+          id: 'spend-1',
+          name: 'SQL Server License',
+          item_number: null,
+          updated_at: '2026-03-28T10:00:00.000Z',
+        }],
+      },
+    ],
+  });
+
+  const result = await service.createPreview(context, 'create_task', {
+    title: 'Renew SQL Server License',
+    relation_type: 'spend_item',
+    relation_ref: 'SQL Server License',
+  });
+
+  assert.equal(result.changes.relation.to, 'OPEX - SQL Server License');
+  assert.equal(saved[0].mutation_input.relation_id, 'spend-1');
+  assert.equal(businessPermissionChecks.length, 0);
+}
+
+async function testCreateTaskPreviewResolvesCapexRelation() {
+  const { service, context, saved } = createService({
+    previews: [],
+    sqlResponses: [
+      {
+        pattern: 'FROM users u',
+        rows: (sql: string) => (sql.includes('AND u.id = $2')
+          ? [{
+              id: 'user-1',
+              email: 'requestor@example.com',
+              label: 'Requestor User',
+            }]
+          : []),
+      },
+      {
+        pattern: 'FROM capex_items',
+        rows: [{
+          id: 'capex-1',
+          name: 'New SAN',
+          item_number: null,
+          updated_at: '2026-03-28T10:00:00.000Z',
+        }],
+      },
+    ],
+  });
+
+  const result = await service.createPreview(context, 'create_task', {
+    title: 'Rack the SAN',
+    relation_type: 'capex_item',
+    relation_ref: 'New SAN',
+  });
+
+  assert.equal(result.changes.relation.to, 'CAPEX - New SAN');
+  assert.equal(saved[0].mutation_input.relation_id, 'capex-1');
+}
+
+async function testCreateTaskPreviewRequiresConfirmationForAmbiguousAssignee() {
+  const { service, context } = createService({
+    previews: [],
+    sqlResponses: [{
+      pattern: 'FROM users u',
+      rows: (sql: string) => {
+        if (sql.includes('AND u.id = $2')) {
+          return [{
+            id: 'user-1',
+            email: 'requestor@example.com',
+            label: 'Requestor User',
+          }];
+        }
+        if (sql.includes('LOWER(u.email) = LOWER($2)')) {
+          return [];
+        }
+        return [
+          {
+            id: 'user-2',
+            email: 'michael.dupont@example.com',
+            label: 'Michael Dupont',
+          },
+          {
+            id: 'user-3',
+            email: 'michael.doe@example.com',
+            label: 'Michael Doe',
+          },
+        ];
+      },
+    }],
+  });
+
+  await assert.rejects(
+    () => service.createPreview(context, 'create_task', {
+      title: 'Install server X',
+      assignee: 'Michael',
+    }),
+    (error: any) => error instanceof BadRequestException
+      && /ambiguous/i.test(error.message)
+      && /confirm which user/i.test(error.message),
+  );
 }
 
 async function testCreateDocumentPreviewPersistsResolvedDefaults() {
@@ -806,6 +1070,75 @@ async function testExecuteCreateDocumentRoutesRelationsThroughKnowledgeService()
       projects: ['project-1'],
     },
     status: 'draft',
+  });
+}
+
+async function testExecuteCreateTaskRoutesThroughTasksService() {
+  const { service, context, taskCreates } = createService({
+    previews: [],
+    sqlResponses: [{
+      pattern: 'FROM users u',
+      rows: (sql: string) => {
+        if (sql.includes('AND u.id = $2')) {
+          return [{
+            id: 'user-1',
+            email: 'requestor@example.com',
+            label: 'Requestor User',
+          }];
+        }
+        if (sql.includes('LOWER(u.email) = LOWER($2)')) {
+          return [];
+        }
+        return [{
+          id: 'user-2',
+          email: 'michael@example.com',
+          label: 'Michael Dupont',
+        }];
+      },
+    }],
+    taskCreateResult: {
+      id: 'created-task-1',
+      item_number: 77,
+      title: 'Install server X',
+    },
+  });
+
+  await service.createPreview(context, 'create_task', {
+    title: 'Install server X',
+    description: 'Install following the SQL Server standard.',
+    assignee: 'Michael Dupont',
+    priority_level: 'high',
+    start_date: '2026-04-02',
+    due_date: '2026-04-07',
+  });
+
+  const result = await service.executePreview(context, 'preview-1');
+
+  assert.equal(result.status, 'executed');
+  assert.equal(result.target.entity_id, 'created-task-1');
+  assert.equal(result.target.ref, 'T-77');
+  assert.equal(result.summary, 'Created T-77.');
+  assert.equal(taskCreates.length, 1);
+  assert.deepEqual(taskCreates[0][0], {
+    type: null,
+    id: null,
+    payload: {
+      title: 'Install server X',
+      description: 'Install following the SQL Server standard.',
+      status: 'open',
+      assignee_user_id: 'user-2',
+      priority_level: 'high',
+      start_date: '2026-04-02',
+      due_date: '2026-04-07',
+      task_type_id: null,
+      phase_id: null,
+      creator_id: 'user-1',
+    },
+  });
+  assert.equal(taskCreates[0][1], 'user-1');
+  assert.deepEqual(taskCreates[0][2]?.audit, {
+    source: 'ai_chat',
+    sourceRef: 'conv-1',
   });
 }
 
@@ -1950,6 +2283,11 @@ async function testListConversationPreviewsReturnsLatestWindowInChronologicalOrd
 async function main() {
   await testCreatePreviewPersistsCorrectData();
   await testCreateCommentPreviewPersistsMarkdownPayload();
+  await testCreateTaskPreviewPersistsResolvedStandaloneFields();
+  await testCreateTaskPreviewPersistsResolvedProjectFields();
+  await testCreateTaskPreviewResolvesSpendItemRelation();
+  await testCreateTaskPreviewResolvesCapexRelation();
+  await testCreateTaskPreviewRequiresConfirmationForAmbiguousAssignee();
   await testCreateDocumentPreviewPersistsResolvedDefaults();
   await testCreateDocumentPreviewUsesTemplateContentAndType();
   await testCreateDocumentPreviewIncludesResolvedRelations();
@@ -1960,6 +2298,7 @@ async function main() {
   await testExecuteCreateDocumentRoutesThroughKnowledgeService();
   await testExecuteCreateDocumentRoutesTemplateThroughKnowledgeService();
   await testExecuteCreateDocumentRoutesRelationsThroughKnowledgeService();
+  await testExecuteCreateTaskRoutesThroughTasksService();
   await testUpdateDocumentMetadataPreviewFailsWhenWorkflowBlocksEditing();
   await testUpdateDocumentMetadataPreviewFailsWhenDocumentLocked();
   await testUpdateDocumentMetadataPreviewRejectsManagedIntegratedTitleChange();

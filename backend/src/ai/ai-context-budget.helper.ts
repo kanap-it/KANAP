@@ -67,6 +67,10 @@ function summarizeToolResult(result: unknown): string {
     summaryParts.push(`truncated=${typedResult.truncated}`);
   }
 
+  if (typeof typedResult.complete === 'boolean') {
+    summaryParts.push(`complete=${typedResult.complete}`);
+  }
+
   return summaryParts.join(' ');
 }
 

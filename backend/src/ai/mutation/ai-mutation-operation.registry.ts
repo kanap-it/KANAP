@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { AiMutationWriteToolName } from '../ai.types';
 import { AddTaskCommentAiMutationOperation } from './operations/add-task-comment.ai-mutation-operation';
 import { CreateDocumentAiMutationOperation } from './operations/create-document.ai-mutation-operation';
+import { CreateTaskAiMutationOperation } from './operations/create-task.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from './operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentMetadataAiMutationOperation } from './operations/update-document-metadata.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from './operations/update-document-relations.ai-mutation-operation';
@@ -15,6 +16,7 @@ export class AiMutationOperationRegistry {
 
   constructor(
     createDocument: CreateDocumentAiMutationOperation,
+    createTask: CreateTaskAiMutationOperation,
     updateDocumentContent: UpdateDocumentContentAiMutationOperation,
     updateDocumentMetadata: UpdateDocumentMetadataAiMutationOperation,
     updateDocumentRelations: UpdateDocumentRelationsAiMutationOperation,
@@ -24,6 +26,7 @@ export class AiMutationOperationRegistry {
   ) {
     for (const operation of [
       createDocument,
+      createTask,
       updateDocumentContent,
       updateDocumentMetadata,
       updateDocumentRelations,

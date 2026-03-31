@@ -582,24 +582,36 @@ export class AiQueryExecutor {
         limit,
         returned: 0,
         truncated: false,
+        complete: false,
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
       };
     }
 
+    const isCompleteQueryResult = (resultPage: number, truncated: boolean): boolean =>
+      resultPage === 1
+      && !truncated
+      && filtersIgnored.length === 0
+      && (scoped.scope?.resolved !== false);
+
     if (input.entity_type === 'tasks') {
       const result = await this.tasks.listAllTasks(this.serializeFiltersForTasks(scoped.query), {
         manager: context.manager,
         tenantId: context.tenantId,
       });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapTask(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -611,13 +623,18 @@ export class AiQueryExecutor {
         manager: context.manager,
         tenantId: context.tenantId,
       });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapProject(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -629,13 +646,18 @@ export class AiQueryExecutor {
         manager: context.manager,
         tenantId: context.tenantId,
       });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapRequest(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -647,13 +669,18 @@ export class AiQueryExecutor {
         manager: context.manager,
         tenantId: context.tenantId,
       });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapApplication(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -669,13 +696,18 @@ export class AiQueryExecutor {
         },
         { manager: context.manager },
       );
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapSpendItem(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: null,
@@ -684,13 +716,18 @@ export class AiQueryExecutor {
 
     if (input.entity_type === 'contracts') {
       const result = await this.contracts.list(scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapContract(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: null,
@@ -699,13 +736,18 @@ export class AiQueryExecutor {
 
     if (input.entity_type === 'companies') {
       const result = await this.companies.list(scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapCompany(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: null,
@@ -714,13 +756,18 @@ export class AiQueryExecutor {
 
     if (input.entity_type === 'suppliers') {
       const result = await this.suppliers.list(scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapSupplier(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: null,
@@ -729,13 +776,18 @@ export class AiQueryExecutor {
 
     if (input.entity_type === 'departments') {
       const result = await this.departments.list(scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapDepartment(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: null,
@@ -744,13 +796,18 @@ export class AiQueryExecutor {
 
     if (input.entity_type === 'assets') {
       const result = await this.assets.list(scoped.query, { manager: context.manager, tenantId: context.tenantId });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapAsset(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -762,13 +819,18 @@ export class AiQueryExecutor {
         manager: context.manager,
         tenantId: context.tenantId,
       });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapDocument(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: scoped.scope,
@@ -777,13 +839,18 @@ export class AiQueryExecutor {
 
     if (input.entity_type === 'locations') {
       const result = await this.locations.list(scoped.query, { manager: context.manager, tenantId: context.tenantId });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapLocation(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: null,
@@ -795,13 +862,18 @@ export class AiQueryExecutor {
         manager: context.manager,
         tenantId: context.tenantId,
       });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapUser(row)),
         total: result.total ?? 0,
-        page: result.page ?? page,
-        limit: result.limit ?? limit,
-        returned: Array.isArray(result.items) ? result.items.length : 0,
-        truncated: (result.total ?? 0) > (((result.page ?? page) - 1) * (result.limit ?? limit) + (Array.isArray(result.items) ? result.items.length : 0)),
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
         filters_applied: filtersApplied,
         filters_ignored: filtersIgnored,
         scope: null,
@@ -843,9 +915,11 @@ export class AiQueryExecutor {
     }
 
     if (dynamicFieldMap.size === 0) {
+      const ignoredFields = Array.from(fieldsIgnored);
       return {
         values,
-        fields_ignored: Array.from(fieldsIgnored),
+        fields_ignored: ignoredFields,
+        complete: ignoredFields.length === 0,
       };
     }
 
@@ -932,9 +1006,11 @@ export class AiQueryExecutor {
       }
     }
 
+    const ignoredFields = Array.from(fieldsIgnored);
     return {
       values,
-      fields_ignored: Array.from(fieldsIgnored),
+      fields_ignored: ignoredFields,
+      complete: ignoredFields.length === 0,
     };
   }
 }

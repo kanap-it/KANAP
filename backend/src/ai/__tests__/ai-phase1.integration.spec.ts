@@ -1468,6 +1468,7 @@ function buildToolIsolationCases(
             limit: 20,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, false);
             assert.equal(
               result.items.some((item: any) => item.id === fixtures.graphA.applicationId),
               true,
@@ -1588,6 +1589,7 @@ function buildToolIsolationCases(
           label: 'applications',
           input: { entity_type: 'applications', entity_id: fixtures.graphA.applicationId },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.applicationId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_requests'), [fixtures.graphA.requestId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_projects'), [fixtures.graphA.projectId]);
@@ -1599,6 +1601,7 @@ function buildToolIsolationCases(
           label: 'assets',
           input: { entity_type: 'assets', entity_id: fixtures.graphA.assetId },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.assetId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_applications'), [fixtures.graphA.applicationId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_projects'), [fixtures.graphA.projectId]);
@@ -1608,6 +1611,7 @@ function buildToolIsolationCases(
           label: 'projects',
           input: { entity_type: 'projects', entity_id: fixtures.graphA.projectId },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.projectId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_applications'), [fixtures.graphA.applicationId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_assets'), [fixtures.graphA.assetId]);
@@ -1621,6 +1625,7 @@ function buildToolIsolationCases(
           label: 'requests',
           input: { entity_type: 'requests', entity_id: fixtures.graphA.requestId },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.requestId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_applications'), [fixtures.graphA.applicationId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_assets'), [fixtures.graphA.assetId]);
@@ -1634,6 +1639,7 @@ function buildToolIsolationCases(
           label: 'tasks',
           input: { entity_type: 'tasks', entity_id: fixtures.graphA.taskId },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.taskId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'related_project'), [fixtures.graphA.projectId]);
             assert.deepEqual(getRelatedIdsByRelation(result, 'converted_request'), [fixtures.graphA.requestId]);
@@ -1653,6 +1659,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.projectId);
             assert.equal(result.entity.ref, 'PRJ-5101');
             assert.equal(Array.isArray(result.items), true);
@@ -1666,6 +1673,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.taskId);
             assert.equal(result.entity.ref, 'T-5101');
             assert.equal(Array.isArray(result.items), true);
@@ -1684,6 +1692,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.filters_applied, ['status']);
             assert.deepEqual(result.filters_ignored, []);
@@ -1700,6 +1709,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.filters_applied, ['planned_end']);
             assert.equal(
@@ -1719,6 +1729,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.filters_applied, ['execution_progress']);
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.projectId]);
@@ -1733,6 +1744,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.filters_applied, ['business_lead']);
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.projectId]);
@@ -1747,6 +1759,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.filters_applied, ['business_lead']);
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.requestId]);
@@ -1761,6 +1774,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.filters_applied, ['contributors']);
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.requestId]);
@@ -1775,6 +1789,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.filters_applied, ['creator']);
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.taskId]);
@@ -1789,6 +1804,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.filters_applied, ['phase']);
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.taskId]);
@@ -1803,6 +1819,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.filters_applied, ['business_owner']);
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.applicationId]);
@@ -1817,6 +1834,7 @@ function buildToolIsolationCases(
             limit: 10,
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.filters_applied, ['it_owner']);
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.applicationId]);
@@ -1836,6 +1854,7 @@ function buildToolIsolationCases(
             q: 'Shared Boundary Task',
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.groups, [{ key: 'open', count: 1 }]);
             assert.deepEqual(result.filters_applied, []);
@@ -1850,6 +1869,7 @@ function buildToolIsolationCases(
             q: 'Shared Boundary Task',
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.deepEqual(result.groups, [{ key: fixtures.graphA.phaseName, count: 1 }]);
           },
@@ -1864,6 +1884,7 @@ function buildToolIsolationCases(
             q: 'Shared Boundary Project',
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.total, 1);
             assert.equal(result.metric, 'execution_progress');
             assert.equal(result.function, 'max');
@@ -1881,6 +1902,7 @@ function buildToolIsolationCases(
             fields: ['status', 'lifecycle', 'business_owner', 'it_owner'],
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.values.status.includes('enabled'), true);
             assert.equal(result.values.lifecycle.includes('active'), true);
             assert.equal(result.values.business_owner.includes(fixtures.peopleA.applicationBusinessOwner.name), true);
@@ -1895,6 +1917,7 @@ function buildToolIsolationCases(
             fields: ['business_lead', 'it_lead', 'contributors'],
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.values.business_lead.includes(fixtures.peopleA.projectBusinessLead.name), true);
             assert.equal(result.values.it_lead.includes(fixtures.peopleA.projectItLead.name), true);
             assert.equal(result.values.contributors.includes(fixtures.peopleA.projectContributor.name), true);
@@ -1908,6 +1931,7 @@ function buildToolIsolationCases(
             fields: ['business_lead', 'it_lead', 'contributors'],
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.values.business_lead.includes(fixtures.peopleA.requestBusinessLead.name), true);
             assert.equal(result.values.it_lead.includes(fixtures.peopleA.requestItLead.name), true);
             assert.equal(result.values.contributors.includes(fixtures.peopleA.requestContributor.name), true);
@@ -1921,6 +1945,7 @@ function buildToolIsolationCases(
             fields: ['creator', 'phase'],
           },
           assertResult: (result: any) => {
+            assert.equal(result.complete, true);
             assert.equal(result.values.creator.includes(fixtures.peopleA.taskCreator.name), true);
             assert.equal(result.values.phase.includes(fixtures.graphA.phaseName), true);
             assert.deepEqual(result.fields_ignored, []);
@@ -1936,6 +1961,7 @@ function buildToolIsolationCases(
           limit: 10,
         },
         assertResult: (result: any) => {
+          assert.equal(result.complete, false);
           assert.deepEqual(
             result.items.map((item: any) => item.id),
             [fixtures.knowledgeA.documentId],
@@ -1950,6 +1976,7 @@ function buildToolIsolationCases(
           document_id: 'DOC-5101',
         },
         assertResult: (result: any) => {
+          assert.equal(result.complete, true);
           assert.equal(result.id, fixtures.knowledgeA.documentId);
           assert.deepEqual(result.relations.applications.map((item: any) => item.id), [fixtures.graphA.applicationId]);
           assert.deepEqual(result.relations.assets.map((item: any) => item.id), [fixtures.graphA.assetId]);
@@ -1962,6 +1989,7 @@ function buildToolIsolationCases(
     case 'web_search':
       return [];
 
+    case 'create_task':
     case 'update_task_status':
     case 'update_task_assignee':
     case 'add_task_comment':
@@ -2466,6 +2494,7 @@ async function testAiEntityCommentsReturnsPaginatedCommentFeedsAndStaysTenantSco
     assert.equal(firstProjectPage.total, 3);
     assert.equal(firstProjectPage.returned, 2);
     assert.equal(firstProjectPage.truncated, true);
+    assert.equal(firstProjectPage.complete, false);
     assert.deepEqual(firstProjectPage.items.map((item) => item.content), projectComments.slice(0, 2));
     assert.equal(firstProjectPage.items.some((item) => String(item.author || '').includes('8101')), false);
 
@@ -2478,6 +2507,7 @@ async function testAiEntityCommentsReturnsPaginatedCommentFeedsAndStaysTenantSco
     assert.equal(secondProjectPage.total, 3);
     assert.equal(secondProjectPage.returned, 1);
     assert.equal(secondProjectPage.truncated, false);
+    assert.equal(secondProjectPage.complete, false);
     assert.deepEqual(secondProjectPage.items.map((item) => item.content), [projectComments[2]]);
 
     const taskFeed = await entityService.getEntityComments(tenantAContext, {
@@ -2488,6 +2518,7 @@ async function testAiEntityCommentsReturnsPaginatedCommentFeedsAndStaysTenantSco
     });
     assert.equal(taskFeed.entity.ref, 'T-7101');
     assert.equal(taskFeed.total, 2);
+    assert.equal(taskFeed.complete, true);
     assert.deepEqual(taskFeed.items.map((item) => item.content), taskComments);
     assert.equal(taskFeed.items.some((item) => String(item.author || '').includes('8101')), false);
   } finally {
@@ -3064,6 +3095,7 @@ async function testAiQueryLayerSupportsFirstPersonScopesAndPrioritySorting() {
       limit: 10,
     }) as any;
     assert.equal(unresolvedTeamScope.total, 0);
+    assert.equal(unresolvedTeamScope.complete, false);
     assert.deepEqual(unresolvedTeamScope.scope, {
       requested: 'my_team',
       resolved: false,

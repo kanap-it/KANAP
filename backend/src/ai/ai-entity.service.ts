@@ -6,6 +6,7 @@ import {
   AiEntityCommentsDto,
   AiContextEntityType,
   AiEntityContextDto,
+  AiEntityContextPayloadDto,
   AiEntityRelationshipGroupDto,
   AiEntitySummaryDto,
   AiExecutionContext,
@@ -1360,7 +1361,7 @@ export class AiEntityService {
       : ['applications', 'assets', 'companies', 'contracts', 'departments', 'documents', 'locations', 'projects', 'requests', 'spend_items', 'suppliers', 'tasks', 'users'] as AiSearchEntityType[];
     const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
     if (allowed.length === 0) {
-      return { items: [], total: 0, entity_types: [] as AiSearchEntityType[] };
+      return { items: [], total: 0, complete: false, entity_types: [] as AiSearchEntityType[] };
     }
 
     const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 100);
@@ -1420,6 +1421,7 @@ export class AiEntityService {
       limit,
       returned: items.length,
       truncated: offset + items.length < total,
+      complete: false,
       entity_types: allowed,
     };
   }
@@ -1475,7 +1477,7 @@ export class AiEntityService {
     return output;
   }
 
-  private async buildApplicationContext(context: AiExecutionContext, applicationId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextDto> {
+  private async buildApplicationContext(context: AiExecutionContext, applicationId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
     const requestSummarySql = buildRequestSummarySql('r');
     const projectSummarySql = buildProjectSummarySql('p');
     const { tenantId } = context;
@@ -1580,7 +1582,7 @@ export class AiEntityService {
     };
   }
 
-  private async buildAssetContext(context: AiExecutionContext, assetId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextDto> {
+  private async buildAssetContext(context: AiExecutionContext, assetId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
     const requestSummarySql = buildRequestSummarySql('r');
     const projectSummarySql = buildProjectSummarySql('p');
     const { tenantId } = context;
@@ -1670,7 +1672,7 @@ export class AiEntityService {
     };
   }
 
-  private async buildRequestContext(context: AiExecutionContext, requestId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextDto> {
+  private async buildRequestContext(context: AiExecutionContext, requestId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
     const requestSummarySql = buildRequestSummarySql('r');
     const projectSummarySql = buildProjectSummarySql('p');
     const { tenantId } = context;
@@ -1821,7 +1823,7 @@ export class AiEntityService {
     };
   }
 
-  private async buildProjectContext(context: AiExecutionContext, projectId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextDto> {
+  private async buildProjectContext(context: AiExecutionContext, projectId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
     const requestSummarySql = buildRequestSummarySql('r');
     const projectSummarySql = buildProjectSummarySql('p');
     const { tenantId } = context;
@@ -1996,7 +1998,7 @@ export class AiEntityService {
     };
   }
 
-  private async buildTaskContext(context: AiExecutionContext, taskId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextDto> {
+  private async buildTaskContext(context: AiExecutionContext, taskId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
     const { tenantId } = context;
     const tasks = await manager.query<any[]>(
       `SELECT t.id,
@@ -2120,23 +2122,25 @@ export class AiEntityService {
   ): Promise<AiEntityContextDto> {
     await this.policy.assertEntityTypeReadAccess(context, input.entity_type, context.manager);
 
+    let result: AiEntityContextPayloadDto;
     if (input.entity_type === 'applications') {
-      return this.buildApplicationContext(context, input.entity_id, context.manager);
-    }
-    if (input.entity_type === 'assets') {
-      return this.buildAssetContext(context, input.entity_id, context.manager);
-    }
-    if (input.entity_type === 'requests') {
-      return this.buildRequestContext(context, input.entity_id, context.manager);
-    }
-    if (input.entity_type === 'projects') {
-      return this.buildProjectContext(context, input.entity_id, context.manager);
-    }
-    if (input.entity_type === 'tasks') {
-      return this.buildTaskContext(context, input.entity_id, context.manager);
+      result = await this.buildApplicationContext(context, input.entity_id, context.manager);
+    } else if (input.entity_type === 'assets') {
+      result = await this.buildAssetContext(context, input.entity_id, context.manager);
+    } else if (input.entity_type === 'requests') {
+      result = await this.buildRequestContext(context, input.entity_id, context.manager);
+    } else if (input.entity_type === 'projects') {
+      result = await this.buildProjectContext(context, input.entity_id, context.manager);
+    } else if (input.entity_type === 'tasks') {
+      result = await this.buildTaskContext(context, input.entity_id, context.manager);
+    } else {
+      throw new BadRequestException('Unsupported entity type.');
     }
 
-    throw new BadRequestException('Unsupported entity type.');
+    return {
+      ...result,
+      complete: result.entity.metadata?.recent_activity_truncated !== true,
+    };
   }
 
   private async resolveCommentTarget(
@@ -2263,6 +2267,7 @@ export class AiEntityService {
     const target = await this.resolveCommentTarget(context, input.entity_type, input.entity_id);
     const { items, total } = await this.listEntityCommentsPage(context, target, offset, limit);
 
+    const truncated = offset + items.length < total;
     return {
       entity: target,
       items,
@@ -2270,7 +2275,8 @@ export class AiEntityService {
       offset,
       limit,
       returned: items.length,
-      truncated: offset + items.length < total,
+      truncated,
+      complete: offset === 0 && !truncated,
     };
   }
 }

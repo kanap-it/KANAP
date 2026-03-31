@@ -52,6 +52,7 @@ import { AiMutationOperationRegistry } from './mutation/ai-mutation-operation.re
 import { AiTaskMutationSupportService } from './mutation/ai-task-mutation-support.service';
 import { AddTaskCommentAiMutationOperation } from './mutation/operations/add-task-comment.ai-mutation-operation';
 import { CreateDocumentAiMutationOperation } from './mutation/operations/create-document.ai-mutation-operation';
+import { CreateTaskAiMutationOperation } from './mutation/operations/create-task.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from './mutation/operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentMetadataAiMutationOperation } from './mutation/operations/update-document-metadata.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from './mutation/operations/update-document-relations.ai-mutation-operation';
@@ -112,6 +113,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiDocumentMutationSupportService,
     AiTaskMutationSupportService,
     CreateDocumentAiMutationOperation,
+    CreateTaskAiMutationOperation,
     UpdateDocumentContentAiMutationOperation,
     UpdateDocumentMetadataAiMutationOperation,
     UpdateDocumentRelationsAiMutationOperation,

@@ -143,7 +143,7 @@ function createOrchestrator(options?: {
       { name: 'search_all', description: 'Search', parameters: { type: 'object' } },
     ],
     listAvailableTools: async () => [
-      { name: 'search_all', description: 'Search', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
+      { name: 'search_all', category: 'discovery', description: 'Search', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
     ],
     execute: async (_ctx: any, toolName: string, _input: any) => {
       toolExecuteCount.value++;
@@ -470,6 +470,7 @@ async function testSystemPromptGuidance() {
     availableTools: [
       {
         name: 'query_entities',
+        category: 'authoritative',
         description: 'Query one readable entity family with server-side filters, pagination, and exact totals.',
         input_summary: {},
         read_only: true,
@@ -477,6 +478,7 @@ async function testSystemPromptGuidance() {
       },
       {
         name: 'aggregate_entities',
+        category: 'authoritative',
         description: 'Break down one readable entity family by a supported field with exact server-side counts.',
         input_summary: {},
         read_only: true,
@@ -484,6 +486,7 @@ async function testSystemPromptGuidance() {
       },
       {
         name: 'get_filter_values',
+        category: 'authoritative',
         description: 'Discover exact filter values for supported set-like AI query fields.',
         input_summary: {},
         read_only: true,
@@ -521,6 +524,7 @@ function buildLargeToolMessage(index: number) {
           label: `${'x'.repeat(40)}-${itemIndex}`,
         })),
         total: 240 + index,
+        complete: false,
       },
     }),
   };
@@ -582,6 +586,7 @@ async function testContextCompaction() {
     const requestMessages = recordedRequests[0].messages as any[];
     assert.equal(recordedRequests[0].systemPrompt, 'You are Plaid.');
     assert.match(requestMessages[0].content, /^\[tool result truncated: query_entities/);
+    assert.match(requestMessages[0].content, /complete=false/);
     assert.match(requestMessages[1].content, /^\[assistant message truncated:/);
     assert.deepEqual(
       requestMessages.slice(-8).map((message) => message.content),

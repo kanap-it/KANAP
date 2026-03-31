@@ -89,10 +89,17 @@ export class AiSystemPromptService {
 
     if (params.availableTools.length > 0) {
       const toolLines = params.availableTools.map(
-        (t) => `- **${t.name}**: ${t.description}`,
+        (t) => `- **${t.name}** [${t.category}]: ${t.description}`,
       );
       sections.push(
         'Available tools:\n' + toolLines.join('\n'),
+      );
+      sections.push(
+        'Tool result categories and the `complete` field:\n' +
+        '- **authoritative** tools return exact, server-verified results. When `complete: true`, the tool covered the full matching set. For list tools, that means every matching record is present. For aggregate tools, that means the counts or metrics cover the whole matching set. When `complete: false`, check `truncated`, `filters_ignored`, or `scope.resolved`, then page further or clearly state what is missing.\n' +
+        '- **discovery** tools return ranked, potentially incomplete results. `complete` is always false. Never derive exact counts or totals from discovery results. Say "I found N relevant matches" rather than "there are N items."\n' +
+        '- **inspection** tools return detailed views of specific entities. `complete: true` means the full snapshot is included. `complete: false` means some sub-collection such as activity history was truncated, even though the core entity data is still present.\n' +
+        '- Never present a discovery result as an exhaustive answer. If the user needs a complete count or list, use an authoritative tool.',
       );
     }
 
@@ -164,7 +171,6 @@ export class AiSystemPromptService {
       '- When a search or query result includes `truncated: true`, do not assume you have the full answer yet. Fetch the next page or next offset when needed.\n' +
       '- search_knowledge uses `offset` for pagination. query_entities uses `page` for pagination.\n' +
       '- Do NOT use search_all as a fallback for structured count/filter/list/breakdown questions. If the query-layer tools do not confirm a value, explain that uncertainty instead of switching to fuzzy search.\n' +
-      '- search_all is a fuzzy text search tool with result limits and may be incomplete for counting, filtering, or breakdown questions.\n' +
       '- Spend-item reads and spend-item aggregations are summary-backed and should mirror the OPEX summary view, not the raw spend-item editor.',
     );
 

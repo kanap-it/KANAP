@@ -4,6 +4,7 @@ import { z } from 'zod';
 export type AiSurface = 'chat' | 'mcp';
 export type AiAuthMethod = 'jwt' | 'api_key';
 export type AiMutationWriteToolName =
+  | 'create_task'
   | 'create_document'
   | 'update_document_content'
   | 'update_document_metadata'
@@ -11,6 +12,7 @@ export type AiMutationWriteToolName =
   | 'update_task_status'
   | 'update_task_assignee'
   | 'add_task_comment';
+export type AiToolCategory = 'discovery' | 'authoritative' | 'inspection' | 'mutation';
 export type AiToolName =
   | 'search_all'
   | 'query_entities'
@@ -130,12 +132,16 @@ export type AiKnowledgeContextDto = {
   groups: AiKnowledgeContextGroupDto[];
 };
 
-export type AiEntityContextDto = {
+export type AiEntityContextPayloadDto = {
   entity: Omit<AiEntitySummaryDto, 'metadata'> & {
     metadata: AiEntityMetadata;
   };
   related: AiEntityRelationshipGroupDto[];
   knowledge: AiKnowledgeContextDto | null;
+};
+
+export type AiEntityContextDto = AiEntityContextPayloadDto & {
+  complete: boolean;
 };
 
 export type AiEntityCommentDto = {
@@ -159,6 +165,7 @@ export type AiEntityCommentsDto = {
   limit: number;
   returned: number;
   truncated: boolean;
+  complete: boolean;
 };
 
 export type AiKnowledgeSearchResultDto = {
@@ -202,10 +209,12 @@ export type AiDocumentDto = {
     role: string;
     is_primary: boolean;
   }>;
+  complete: boolean;
 };
 
 export type AiToolDefinition<TInput = unknown, TResult = unknown> = {
   name: AiToolName;
+  category: AiToolCategory;
   description: string;
   inputSchema: z.ZodType<TInput>;
   inputSummary: Record<string, string>;
@@ -227,6 +236,7 @@ export type AiWritePreviewCapabilityDto = {
 
 export type AiToolListItemDto = {
   name: AiToolName;
+  category: AiToolCategory;
   description: string;
   input_summary: Record<string, string>;
   read_only: boolean;

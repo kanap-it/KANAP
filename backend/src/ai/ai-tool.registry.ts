@@ -18,6 +18,7 @@ import {
   AiEntitySummaryDto,
   AiExecutionContextWithManager,
   AiKnowledgeSearchResultDto,
+  AiToolCategory,
   AiQueryEntityTypeSchema,
   AiQueryScopeSchema,
   AiSearchEntityTypeSchema,
@@ -138,6 +139,7 @@ export class AiToolRegistry {
         'search_all',
         {
           name: 'search_all',
+          category: 'discovery',
           description: 'Search across readable KANAP entity families using stable AI DTOs.',
           inputSchema: SearchAllInputSchema,
           inputSummary: {
@@ -154,6 +156,7 @@ export class AiToolRegistry {
         'query_entities',
         {
           name: 'query_entities',
+          category: 'authoritative',
           description: 'Query one readable entity family with server-side filters, pagination, and exact totals. If `filters_ignored` is non-empty, the query was not fully honored and must be repaired before answering.',
           inputSchema: QueryEntitiesInputSchema,
           inputSummary: {
@@ -177,6 +180,7 @@ export class AiToolRegistry {
         'aggregate_entities',
         {
           name: 'aggregate_entities',
+          category: 'authoritative',
           description: 'Break down one readable entity family by a supported field with exact server-side counts or metric aggregations. If `filters_ignored` is non-empty, the query was not fully honored and must be repaired before answering.',
           inputSchema: AggregateEntitiesInputSchema,
           inputSummary: {
@@ -200,6 +204,7 @@ export class AiToolRegistry {
         'get_filter_values',
         {
           name: 'get_filter_values',
+          category: 'authoritative',
           description: 'Discover exact filter values for supported set-like AI query fields. If `fields_ignored` is non-empty, those field names are unsupported for that entity and must not be used for filtering.',
           inputSchema: GetFilterValuesInputSchema,
           inputSummary: {
@@ -218,6 +223,7 @@ export class AiToolRegistry {
         'get_entity_context',
         {
           name: 'get_entity_context',
+          category: 'inspection',
           description: 'Return a stable relationship-focused context payload for one known entity.',
           inputSchema: GetEntityContextInputSchema,
           inputSummary: {
@@ -233,6 +239,7 @@ export class AiToolRegistry {
         'get_entity_comments',
         {
           name: 'get_entity_comments',
+          category: 'inspection',
           description: 'Return the paginated discussion comments feed for one readable project or task. Use this instead of mixed recent activity when the user asks what people said.',
           inputSchema: GetEntityCommentsInputSchema,
           inputSummary: {
@@ -250,6 +257,7 @@ export class AiToolRegistry {
         'search_knowledge',
         {
           name: 'search_knowledge',
+          category: 'discovery',
           description: 'Search the knowledge base with existing PostgreSQL full-text retrieval.',
           inputSchema: SearchKnowledgeInputSchema,
           inputSummary: {
@@ -284,6 +292,7 @@ export class AiToolRegistry {
               limit: result.limit ?? input.limit,
               returned: Array.isArray(result.items) ? result.items.length : 0,
               truncated: result.truncated === true,
+              complete: false,
             };
           },
         },
@@ -292,6 +301,7 @@ export class AiToolRegistry {
         'get_document',
         {
           name: 'get_document',
+          category: 'inspection',
           description: 'Return one knowledge document using a stable AI-oriented DTO.',
           inputSchema: GetDocumentInputSchema,
           inputSummary: {
@@ -338,6 +348,7 @@ export class AiToolRegistry {
                 role: row.role,
                 is_primary: row.is_primary === true,
               })),
+              complete: true,
             };
             return result;
           },
@@ -347,6 +358,7 @@ export class AiToolRegistry {
         'undo_preview',
         {
           name: 'undo_preview',
+          category: 'mutation',
           description: 'Create a reversal preview for a previously executed task write. Requires explicit user approval before execution.',
           inputSchema: UndoPreviewInputSchema,
           inputSummary: {
@@ -363,6 +375,7 @@ export class AiToolRegistry {
         'web_search',
         {
           name: 'web_search',
+          category: 'discovery',
           description: 'Search the web for current information. Use when you need up-to-date facts, EOL dates, product details, or any information not available in the KANAP database.',
           inputSchema: WebSearchInputSchema,
           inputSummary: {
@@ -373,7 +386,7 @@ export class AiToolRegistry {
           readOnly: true,
           execute: async (_context, input) => {
             const results = await this.braveSearch.search(input.query, { count: input.count });
-            return { items: results, total: results.length };
+            return { items: results, total: results.length, complete: false };
           },
         },
       ],
@@ -382,6 +395,7 @@ export class AiToolRegistry {
     for (const operation of this.mutationOperations.listOperations()) {
       this.definitions.set(operation.toolName, {
         name: operation.toolName,
+        category: 'mutation',
         description: operation.description,
         inputSchema: operation.inputSchema,
         inputSummary: operation.inputSummary,
@@ -407,6 +421,7 @@ export class AiToolRegistry {
 
   listRegisteredTools(): Array<{
     name: AiToolName;
+    category: AiToolCategory;
     description: string;
     inputSummary: Record<string, string>;
     surfaces: string[];
@@ -414,6 +429,7 @@ export class AiToolRegistry {
   }> {
     return this.getRegisteredDefinitions().map((definition) => ({
       name: definition.name,
+      category: definition.category,
       description: definition.description,
       inputSummary: definition.inputSummary,
       surfaces: [...definition.surfaces],
@@ -508,6 +524,7 @@ export class AiToolRegistry {
       if (!await this.isToolAvailable(definition.name, context, availability)) continue;
       results.push({
         name: definition.name,
+        category: definition.category,
         description: definition.description,
         input_summary: definition.inputSummary,
         read_only: definition.readOnly,

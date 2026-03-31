@@ -9,6 +9,7 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
     availableTools: [
       {
         name: 'query_entities',
+        category: 'authoritative',
         description: 'Query structured entity data.',
         input_summary: {},
         read_only: true,
@@ -16,6 +17,7 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
       },
       {
         name: 'aggregate_entities',
+        category: 'authoritative',
         description: 'Aggregate structured entity data.',
         input_summary: {},
         read_only: true,
@@ -23,6 +25,7 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
       },
       {
         name: 'get_filter_values',
+        category: 'authoritative',
         description: 'Discover exact filter values.',
         input_summary: {},
         read_only: true,
@@ -30,6 +33,7 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
       },
       {
         name: 'search_all',
+        category: 'discovery',
         description: 'Fuzzy cross-entity search.',
         input_summary: {},
         read_only: true,
@@ -37,6 +41,7 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
       },
       {
         name: 'get_entity_comments',
+        category: 'inspection',
         description: 'Read paginated project/task comments.',
         input_summary: {},
         read_only: true,
@@ -56,6 +61,11 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
   assert.match(prompt, /\baggregate_entities\b/);
   assert.match(prompt, /\bget_filter_values\b/);
   assert.match(prompt, /\bget_entity_comments\b/);
+  assert.match(prompt, /\*\*query_entities\*\* \[authoritative\]/);
+  assert.match(prompt, /\*\*search_all\*\* \[discovery\]/);
+  assert.match(prompt, /\*\*get_entity_comments\*\* \[inspection\]/);
+  assert.match(prompt, /Tool result categories and the `complete` field/i);
+  assert.match(prompt, /For aggregate tools, that means the counts or metrics cover the whole matching set/i);
   assert.match(prompt, /Alex Operator/);
   assert.match(prompt, /scope: "me"/);
   assert.match(prompt, /scope: "my_team"/);
@@ -89,7 +99,7 @@ async function testWebSearchGuidanceIncludedWhenToolAvailable() {
   const prompt = service.build({
     ...baseParams,
     availableTools: [
-      { name: 'web_search', description: 'Web search.', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      { name: 'web_search', category: 'discovery', description: 'Web search.', input_summary: {}, read_only: true, surfaces: ['chat'] },
     ],
   });
 
@@ -104,7 +114,7 @@ async function testWebSearchGuidanceAbsentWhenToolNotAvailable() {
   const prompt = service.build({
     ...baseParams,
     availableTools: [
-      { name: 'search_all', description: 'Search.', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      { name: 'search_all', category: 'discovery', description: 'Search.', input_summary: {}, read_only: true, surfaces: ['chat'] },
     ],
   });
 
@@ -152,7 +162,22 @@ async function testPromptBuildsWriteGuidanceFromToolMetadata() {
     ...baseParams,
     availableTools: [
       {
+        name: 'create_task',
+        category: 'mutation',
+        description: 'Create task.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['relation', 'title', 'description', 'assignee', 'priority_level', 'start_date', 'due_date', 'task_type', 'phase'],
+          reversible: false,
+          prompt_hint: 'For task creation, use `create_task` with a title and optional relation, assignee, priority, dates, task type, and phase.',
+        },
+      },
+      {
         name: 'update_task_status',
+        category: 'mutation',
         description: 'Update task status.',
         input_summary: {},
         read_only: false,
@@ -166,6 +191,7 @@ async function testPromptBuildsWriteGuidanceFromToolMetadata() {
       },
       {
         name: 'add_task_comment',
+        category: 'mutation',
         description: 'Add task comment.',
         input_summary: {},
         read_only: false,
@@ -179,6 +205,7 @@ async function testPromptBuildsWriteGuidanceFromToolMetadata() {
       },
       {
         name: 'undo_preview',
+        category: 'mutation',
         description: 'Undo preview.',
         input_summary: {},
         read_only: false,
@@ -188,7 +215,10 @@ async function testPromptBuildsWriteGuidanceFromToolMetadata() {
   });
 
   assert.match(prompt, /Writable fields currently available:/);
+  assert.match(prompt, /tasks\.relation/);
+  assert.match(prompt, /tasks\.phase/);
   assert.match(prompt, /tasks\.status/);
+  assert.match(prompt, /create_task/);
   assert.match(prompt, /tasks\.comments/);
   assert.match(prompt, /add_task_comment/);
   assert.match(prompt, /undo_preview/);
@@ -202,6 +232,7 @@ async function testPromptIncludesDocumentRelationPivotGuidanceFromToolMetadata()
     availableTools: [
       {
         name: 'update_document_relations',
+        category: 'mutation',
         description: 'Update document relations.',
         input_summary: {},
         read_only: false,

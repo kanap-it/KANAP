@@ -912,6 +912,8 @@ export class AiAggregateExecutor {
     const fn = normalizeAggregateFunction(input.function);
     const metric = this.resolveMetric(input.entity_type, input.metric?.trim(), fn);
     const adapted = adaptFilters(registry, input.filters);
+    const isCompleteAggregateResult = (scope: ResolvedAiScope | null): boolean =>
+      adapted.ignored.length === 0 && (scope?.resolved !== false);
     if (input.entity_type === 'documents') {
       const scoped = await applyScopeToAiQuery(
         context,
@@ -926,6 +928,7 @@ export class AiAggregateExecutor {
           function: fn,
           groups: [],
           total: 0,
+          complete: isCompleteAggregateResult(scoped.scope),
           filters_applied: adapted.applied,
           filters_ignored: adapted.ignored,
           scope: scoped.scope,
@@ -946,6 +949,7 @@ export class AiAggregateExecutor {
           function: fn,
           groups: [],
           total: 0,
+          complete: isCompleteAggregateResult(scoped.scope),
           filters_applied: adapted.applied,
           filters_ignored: adapted.ignored,
           scope: scoped.scope,
@@ -988,6 +992,7 @@ export class AiAggregateExecutor {
         function: fn,
         groups: rows,
         total,
+        complete: isCompleteAggregateResult(scoped.scope),
         filters_applied: adapted.applied,
         filters_ignored: adapted.ignored,
         scope: scoped.scope,
@@ -1009,6 +1014,7 @@ export class AiAggregateExecutor {
         function: fn,
         groups: [],
         total: 0,
+        complete: isCompleteAggregateResult(scoped.scope),
         filters_applied: adapted.applied,
         filters_ignored: adapted.ignored,
         scope: scoped.scope,
@@ -1024,6 +1030,7 @@ export class AiAggregateExecutor {
       function: fn,
       groups,
       total: ids.length,
+      complete: isCompleteAggregateResult(scoped.scope),
       filters_applied: adapted.applied,
       filters_ignored: adapted.ignored,
       scope: scoped.scope,
