@@ -64,7 +64,7 @@ export default function ProfileTab() {
     setSaveSucceeded(false);
 
     try {
-      await api.patch(`/users/${profile.id}`, {
+      await api.patch('/users/me', {
         first_name: firstName.trim() || null,
         last_name: lastName.trim() || null,
         job_title: jobTitle.trim() || null,

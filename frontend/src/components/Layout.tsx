@@ -155,6 +155,7 @@ export default function Layout() {
     { to: '/admin/coa-templates', label: t('nav:sidebar.platform.coaTemplates'), icon: <StorageIcon /> },
     { to: '/admin/standard-accounts', label: t('nav:sidebar.platform.standardAccounts'), icon: <AccountBalanceIcon /> },
     { divider: '' },
+    { to: '/admin/platform-ai', label: t('nav:sidebar.platform.platformAi'), icon: <AutoAwesomeIcon /> },
     { to: '/admin/ops-dashboard', label: t('nav:sidebar.platform.opsDashboard'), icon: <MonitorHeartIcon /> },
     { to: '/admin/scheduled-tasks', label: t('nav:sidebar.platform.scheduledTasks'), icon: <ScheduleIcon /> },
   ];

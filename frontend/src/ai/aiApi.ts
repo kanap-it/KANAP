@@ -4,6 +4,7 @@ import {
   ChatStreamEvent,
   AiApiKeyRecord,
   AiMutationPreview,
+  BuiltinUsage,
   ChatConversation,
   ConversationMessagesResponse,
 } from './aiTypes';
@@ -34,6 +35,7 @@ export type AiSettingsPayload = {
   settings: {
     chat_enabled: boolean;
     mcp_enabled: boolean;
+    provider_source: 'builtin' | 'custom';
     llm_provider: string | null;
     llm_endpoint_url: string | null;
     llm_model: string | null;
@@ -88,6 +90,27 @@ export type AiAdminOverview = {
   }>;
 };
 
+export class ChatStreamRequestError extends Error {
+  status: number;
+  code: string | null;
+  builtin_usage?: BuiltinUsage;
+
+  constructor(
+    message: string,
+    opts: {
+      status: number;
+      code?: string | null;
+      builtin_usage?: BuiltinUsage;
+    },
+  ) {
+    super(message);
+    this.name = 'ChatStreamRequestError';
+    this.status = opts.status;
+    this.code = opts.code ?? null;
+    this.builtin_usage = opts.builtin_usage;
+  }
+}
+
 function getBaseURL(): string {
   const env = import.meta.env.VITE_API_URL as string | undefined;
   if (!env) return 'http://localhost:8080';
@@ -115,8 +138,21 @@ export async function* streamChat(params: {
   });
 
   if (!response.ok) {
-    const text = await response.text().catch(() => i18n.t('ai:errors.streamRequestFailed'));
-    throw new Error(text);
+    const raw = await response.text().catch(() => '');
+    let payload: any = null;
+    try {
+      payload = raw ? JSON.parse(raw) : null;
+    } catch {
+      payload = null;
+    }
+    throw new ChatStreamRequestError(
+      payload?.message || raw || i18n.t('ai:errors.streamRequestFailed'),
+      {
+        status: response.status,
+        code: payload?.code ?? null,
+        builtin_usage: payload?.builtin_usage,
+      },
+    );
   }
 
   const reader = response.body?.getReader();
@@ -209,6 +245,10 @@ export const aiAdminApi = {
   },
   async getOverview(): Promise<AiAdminOverview> {
     const res = await api.get('/ai/admin/overview');
+    return res.data;
+  },
+  async getBuiltinUsage(): Promise<BuiltinUsage> {
+    const res = await api.get('/ai/settings/builtin-usage');
     return res.data;
   },
 };

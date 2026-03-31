@@ -98,6 +98,7 @@ import KnowledgePage from './pages/knowledge/KnowledgePage';
 import KnowledgeWorkspacePage from './pages/knowledge/KnowledgeWorkspacePage';
 import AiWorkspacePage from './pages/ai/AiWorkspacePage';
 import AdminAiPage from './pages/admin/AdminAiPage';
+import AdminPlatformAiPage from './pages/admin/AdminPlatformAiPage';
 import ScheduledTasksPage from './pages/admin/ScheduledTasksPage';
 import { useAiCapabilities } from './ai/useAiCapabilities';
 
@@ -246,6 +247,7 @@ function AppRoutes() {
           {config.features.billing && <Route path="/admin/choose-plan" element={<Navigate to="/admin/billing" replace />} />}
           {config.features.sso && <Route path="/admin/auth" element={<AdminAuthPage />} />}
           <Route path="/admin/ai" element={<AdminAiPage />} />
+          {!isSingleTenant && <Route path="/admin/platform-ai" element={<AdminPlatformAiPage />} />}
           <Route path="/admin/branding" element={<AdminBrandingPage />} />
           <Route path="/admin/scheduled-tasks" element={<ScheduledTasksPage />} />
           {!isSingleTenant && <Route path="/admin/ops-dashboard" element={<OpsDashboardPage />} />}

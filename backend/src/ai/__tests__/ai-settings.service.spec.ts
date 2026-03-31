@@ -9,6 +9,7 @@ function createMockSettings(overrides?: Partial<AiSettings>): AiSettings {
     tenant_id: 'tenant-1',
     chat_enabled: false,
     mcp_enabled: false,
+    provider_source: 'custom',
     llm_provider: null,
     llm_api_key_encrypted: null,
     llm_endpoint_url: null,
@@ -50,7 +51,11 @@ function createService(settings: AiSettings) {
     canEncrypt: () => true,
   };
 
-  return new AiSettingsService(repo as any, providerRegistry as any, cipher as any);
+  const platformAiConfig = {
+    isConfigured: async () => true,
+  };
+
+  return new AiSettingsService(repo as any, providerRegistry as any, cipher as any, platformAiConfig as any);
 }
 
 async function testRejectsWebSearchWhenEnvVarAbsent() {

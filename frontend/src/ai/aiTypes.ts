@@ -47,6 +47,13 @@ export type TokenUsage = {
   output_tokens: number;
 };
 
+export type BuiltinUsage = {
+  count: number;
+  limit: number;
+  year_month: string;
+  reset_date: string;
+};
+
 export type ChatStreamEvent =
   | { type: 'conversation'; id: string; title: string }
   | { type: 'text_delta'; text: string }
@@ -54,8 +61,8 @@ export type ChatStreamEvent =
   | { type: 'tool_result'; id: string; name: string; result: unknown }
   | ({ type: 'preview' } & AiMutationPreview)
   | ({ type: 'preview_result' } & AiMutationPreview)
-  | { type: 'done'; usage?: TokenUsage; last_usage?: TokenUsage; conversation_usage?: TokenUsage }
-  | { type: 'error'; message: string; last_usage?: TokenUsage; conversation_usage?: TokenUsage };
+  | { type: 'done'; usage?: TokenUsage; last_usage?: TokenUsage; conversation_usage?: TokenUsage; builtin_usage?: BuiltinUsage }
+  | { type: 'error'; message: string; last_usage?: TokenUsage; conversation_usage?: TokenUsage; builtin_usage?: BuiltinUsage };
 
 export type StoredChatMessage = {
   id: string;

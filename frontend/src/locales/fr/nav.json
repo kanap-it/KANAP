@@ -85,6 +85,7 @@
       "tenants": "Tenants",
       "coaTemplates": "Modèles CoA",
       "standardAccounts": "Comptes standards",
+      "platformAi": "Platform AI",
       "opsDashboard": "Tableau de bord Ops",
       "scheduledTasks": "Tâches planifiées"
     }

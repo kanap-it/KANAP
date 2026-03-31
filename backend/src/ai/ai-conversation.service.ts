@@ -11,6 +11,7 @@ export type CreateAiConversationInput = {
   title?: string | null;
   provider?: string | null;
   model?: string | null;
+  providerSource?: 'builtin' | 'custom' | null;
 };
 
 export type AppendAiMessageInput = {
@@ -67,6 +68,7 @@ export class AiConversationService {
       title: input.title?.trim() || null,
       provider: input.provider ?? null,
       model: input.model ?? null,
+      provider_source: input.providerSource ?? null,
     }));
   }
 

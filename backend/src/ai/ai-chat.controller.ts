@@ -3,9 +3,10 @@ import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SkipTenantTransaction } from '../common/skip-tenant-transaction.decorator';
 import { AiChatOrchestratorService } from './ai-chat-orchestrator.service';
-import { AiPolicyService } from './ai-policy.service';
 import { AiExecutionContext } from './ai.types';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
+import { AiBuiltinRateLimiter } from './platform/ai-builtin-rate-limiter';
+import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
 import { isAbortError } from './providers/streaming.util';
 
 @Controller('ai/chat')
@@ -17,7 +18,8 @@ export class AiChatController {
   constructor(
     private readonly orchestrator: AiChatOrchestratorService,
     private readonly tenantExecutor: AiTenantExecutionService,
-    private readonly policy: AiPolicyService,
+    private readonly builtinUsage: AiBuiltinUsageService,
+    private readonly builtinRateLimiter: AiBuiltinRateLimiter,
   ) {}
 
   private buildContext(req: any): AiExecutionContext {
@@ -40,10 +42,20 @@ export class AiChatController {
   ) {
     const context = this.buildContext(req);
     const abortController = new AbortController();
-
-    await this.tenantExecutor.runWithContext(context, async (ctx) => {
-      await this.policy.assertSurfaceAccess(ctx, ctx.manager);
+    const prepared = await this.orchestrator.prepareRequest({
+      context,
+      conversationId: body.conversation_id,
+      userMessage: body.message,
+      signal: abortController.signal,
     });
+
+    if (prepared.providerSource === 'builtin' && prepared.builtinRateLimits) {
+      this.builtinRateLimiter.assertAllowed(context.tenantId, context.userId, prepared.builtinRateLimits);
+      await this.tenantExecutor.runWithContext(context, async (ctx) => {
+        const limit = await this.builtinUsage.getMonthlyLimitForTenant(ctx.tenantId, ctx.manager);
+        await this.builtinUsage.reserveMessage(ctx.tenantId, limit, ctx.manager);
+      });
+    }
 
     res.setHeader('Content-Type', 'application/x-ndjson');
     res.setHeader('Cache-Control', 'no-cache');
@@ -59,12 +71,7 @@ export class AiChatController {
     req.on('aborted', handleDisconnect);
 
     try {
-      for await (const event of this.orchestrator.stream({
-        context,
-        conversationId: body.conversation_id,
-        userMessage: body.message,
-        signal: abortController.signal,
-      })) {
+      for await (const event of this.orchestrator.streamPrepared(prepared, { signal: abortController.signal })) {
         if (!clientDisconnected) {
           res.write(JSON.stringify(event) + '\n');
         }

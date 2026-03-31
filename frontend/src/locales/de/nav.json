@@ -85,6 +85,7 @@
       "tenants": "Mandanten",
       "coaTemplates": "CoA-Vorlagen",
       "standardAccounts": "Standardkonten",
+      "platformAi": "Platform AI",
       "opsDashboard": "Ops-Dashboard",
       "scheduledTasks": "Geplante Aufgaben"
     }

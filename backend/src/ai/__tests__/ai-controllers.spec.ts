@@ -69,7 +69,7 @@ function assertBaseContext(context: any, expected: { surface: 'chat' | 'mcp'; au
 async function testControllersBuildPlatformAwareContexts() {
   const req = createRequest();
 
-  const chat = new AiChatController({} as any, {} as any, {} as any);
+  const chat = new AiChatController({} as any, {} as any, {} as any, {} as any);
   assertBaseContext((chat as any).buildContext(req), {
     surface: 'chat',
     authMethod: 'jwt',
@@ -97,14 +97,14 @@ async function testControllersBuildPlatformAwareContexts() {
     aiApiKeyId: null,
   });
 
-  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   assertBaseContext((settings as any).buildContext(req), {
     surface: 'chat',
     authMethod: 'jwt',
     aiApiKeyId: null,
   });
 
-  const mcp = new AiMcpController({} as any, {} as any);
+  const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   assertBaseContext((mcp as any).buildContext(req), {
     surface: 'mcp',
     authMethod: 'api_key',
@@ -114,8 +114,8 @@ async function testControllersBuildPlatformAwareContexts() {
 
 async function testControllersRejectMissingTenantContext() {
   const req = createRequest({ tenant: undefined });
-  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
-  const mcp = new AiMcpController({} as any, {} as any);
+  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+  const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
 
   assert.throws(
     () => (settings as any).buildContext(req),
@@ -129,9 +129,9 @@ async function testControllersRejectMissingTenantContext() {
 
 async function testControllersRejectInvalidTenantContext() {
   const req = createRequest({ tenant: { id: 'tenant-1' } });
-  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   const overview = new AiAdminOverviewController({} as any, {} as any, {} as any);
-  const mcp = new AiMcpController({} as any, {} as any);
+  const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
 
   assert.throws(
     () => (settings as any).buildContext(req),
@@ -174,6 +174,7 @@ async function testSettingsControllerDelegatesProviderTest() {
     } as any,
     {} as any,
     {} as any,
+    {} as any,
   );
 
   const result = await controller.testProvider(
@@ -195,23 +196,17 @@ async function testChatControllerRejectsPlatformHostBeforeStreaming() {
   let capturedContext: any = null;
   const controller = new AiChatController(
     {
-      stream: async function* () {
-        yield { type: 'done' };
-      },
-    } as any,
-    {
-      runWithContext: async (context: any, fn: Function) => {
-        capturedContext = context;
-        return fn({ ...context, manager: { tag: 'manager' } });
-      },
-    } as any,
-    {
-      assertSurfaceAccess: async (context: any) => {
-        if (context.isPlatformHost) {
+      prepareRequest: async (params: any) => {
+        capturedContext = params.context;
+        if (params.context.isPlatformHost) {
           throw new ForbiddenException('AI is not available on the platform host.');
         }
+        return { providerSource: 'custom' };
       },
     } as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
   const { response, state } = createResponseRecorder();
 
@@ -234,20 +229,18 @@ async function testChatControllerStreamsForTenantHost() {
   let capturedContext: any = null;
   const controller = new AiChatController(
     {
-      stream: async function* () {
+      prepareRequest: async (params: any) => {
+        capturedContext = params.context;
+        return { providerSource: 'custom' };
+      },
+      streamPrepared: async function* () {
         yield { type: 'conversation', id: 'conv-1', title: 'Hello' };
         yield { type: 'done' };
       },
     } as any,
-    {
-      runWithContext: async (context: any, fn: Function) => {
-        capturedContext = context;
-        return fn({ ...context, manager: { tag: 'manager' } });
-      },
-    } as any,
-    {
-      assertSurfaceAccess: async () => undefined,
-    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
   const { response, state } = createResponseRecorder();
   const req = Object.assign(new EventEmitter(), createRequest({ isPlatformHost: false }));
@@ -268,20 +261,18 @@ async function testChatControllerAbortsOnDisconnect() {
   let capturedSignal: AbortSignal | null = null;
   const controller = new AiChatController(
     {
-      stream: async function* (params: any) {
-        capturedSignal = params.signal ?? null;
+      prepareRequest: async () => ({ providerSource: 'custom' }),
+      streamPrepared: async function* (_prepared: any, opts: any) {
+        capturedSignal = opts.signal ?? null;
         yield { type: 'text_delta', text: 'chunk-1' };
-        while (!(params.signal?.aborted)) {
+        while (!(opts.signal?.aborted)) {
           await new Promise((resolve) => setTimeout(resolve, 1));
         }
       },
     } as any,
-    {
-      runWithContext: async (context: any, fn: Function) => fn({ ...context, manager: { tag: 'manager' } }),
-    } as any,
-    {
-      assertSurfaceAccess: async () => undefined,
-    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
   const { response, state } = createResponseRecorder();
   const req = Object.assign(new EventEmitter(), createRequest({ isPlatformHost: false }));

@@ -1,6 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
 import { Features } from './features';
-
 const SUPPORTED_LOCALES = ['en', 'fr', 'de', 'es'] as const;
 
 @Controller('config')
@@ -19,6 +18,7 @@ export class ConfigController {
         aiMcp: Features.AI_MCP_ENABLED,
         aiSettings: Features.AI_SETTINGS_ENABLED,
         aiWebSearch: Features.AI_WEB_SEARCH_READY,
+        builtinAiProvider: !Features.SINGLE_TENANT,
       },
       version,
       supportedLocales: [...SUPPORTED_LOCALES],

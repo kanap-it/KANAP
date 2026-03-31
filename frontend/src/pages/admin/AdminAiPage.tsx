@@ -17,7 +17,10 @@ import {
   FormControlLabel,
   IconButton,
   InputLabel,
+  LinearProgress,
   MenuItem,
+  Radio,
+  RadioGroup,
   Select,
   Stack,
   Switch,
@@ -53,6 +56,7 @@ import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 type AiSettingsForm = {
   chat_enabled: boolean;
   mcp_enabled: boolean;
+  provider_source: 'builtin' | 'custom';
   llm_provider: string;
   llm_model: string;
   llm_endpoint_url: string;
@@ -66,6 +70,7 @@ type AiSettingsForm = {
 const EMPTY_FORM: AiSettingsForm = {
   chat_enabled: false,
   mcp_enabled: false,
+  provider_source: 'custom',
   llm_provider: '',
   llm_model: '',
   llm_endpoint_url: '',
@@ -98,6 +103,7 @@ function buildSettingsForm(settings: AiSettingsPayload['settings']): AiSettingsF
   return {
     chat_enabled: settings.chat_enabled,
     mcp_enabled: settings.mcp_enabled,
+    provider_source: settings.provider_source,
     llm_provider: settings.llm_provider || '',
     llm_model: settings.llm_model || '',
     llm_endpoint_url: settings.llm_endpoint_url || '',
@@ -117,6 +123,7 @@ function buildSettingsUpdatePayload(
 
   if (form.chat_enabled !== settings.chat_enabled) payload.chat_enabled = form.chat_enabled;
   if (form.mcp_enabled !== settings.mcp_enabled) payload.mcp_enabled = form.mcp_enabled;
+  if (form.provider_source !== settings.provider_source) payload.provider_source = form.provider_source;
 
   const provider = normalizeNullableString(form.llm_provider);
   if (provider !== settings.llm_provider) payload.llm_provider = provider;
@@ -168,6 +175,13 @@ function providerInfoText(
     default:
       return null;
   }
+}
+
+function getBuiltinUsageRatio(usage?: { count: number; limit: number } | null): number {
+  if (!usage || usage.limit <= 0) {
+    return 0;
+  }
+  return Math.min(1, usage.count / usage.limit);
 }
 
 function providerModelPlaceholder(
@@ -357,6 +371,12 @@ export default function AdminAiPage() {
     enabled: config.features.aiSettings,
   });
 
+  const builtinUsageQuery = useQuery({
+    queryKey: ['admin-ai-builtin-usage'],
+    queryFn: () => aiAdminApi.getBuiltinUsage(),
+    enabled: config.features.aiSettings && config.features.builtinAiProvider,
+  });
+
   const keysQuery = useQuery<AiApiKeyRecord[]>({
     queryKey: ['admin-ai-keys'],
     queryFn: () => aiKeysApi.adminList(),
@@ -389,6 +409,7 @@ export default function AdminAiPage() {
       setProviderTestResult(null);
       setForm((prev) => ({ ...prev, llm_api_key: '' }));
       await queryClient.invalidateQueries({ queryKey: ['admin-ai-settings'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-ai-builtin-usage'] });
       setTimeout(() => setSaveSuccess(false), 3000);
     },
     onError: (error: any) => {
@@ -465,6 +486,8 @@ export default function AdminAiPage() {
 
   const selectedProvider = settingsQuery.data?.available_providers.find((provider) => provider.id === form.llm_provider);
   const currentSettings = settingsQuery.data?.settings;
+  const builtinUsageRatio = getBuiltinUsageRatio(builtinUsageQuery.data);
+  const builtinUsageColor = builtinUsageRatio >= 0.9 ? 'error' : builtinUsageRatio >= 0.75 ? 'warning' : 'success';
 
   return (
     <>
@@ -539,73 +562,148 @@ export default function AdminAiPage() {
                       </Alert>
                     ) : null}
 
-                    <FormControl size="small" fullWidth>
-                      <InputLabel>{t('aiAdmin.provider.fields.provider')}</InputLabel>
-                      <Select
-                        value={form.llm_provider}
-                        label={t('aiAdmin.provider.fields.provider')}
-                        onChange={(event) => {
-                          const nextProvider = settingsQuery.data?.available_providers.find((provider) => provider.id === event.target.value);
-                          const shouldClearEndpoint = nextProvider && nextProvider.id !== 'ollama' && nextProvider.id !== 'custom';
-                          setForm((prev) => ({
-                            ...prev,
-                            llm_provider: String(event.target.value),
-                            ...(shouldClearEndpoint ? { llm_endpoint_url: '' } : {}),
-                          }));
-                        }}
-                      >
-                        <MenuItem value="">{t('aiAdmin.shared.none')}</MenuItem>
-                        {settingsQuery.data.available_providers.map((provider) => (
-                          <MenuItem key={provider.id} value={provider.id}>
-                            {provider.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    {providerInfoText(selectedProvider, t) ? (
-                      <Alert severity="info" variant="outlined">
-                        {providerInfoText(selectedProvider, t)}
-                      </Alert>
+                    {config.features.builtinAiProvider ? (
+                      <FormControl>
+                        <RadioGroup
+                          row
+                          value={form.provider_source}
+                          onChange={(event) => {
+                            setProviderTestResult(null);
+                            setForm((prev) => ({
+                              ...prev,
+                              provider_source: event.target.value as 'builtin' | 'custom',
+                            }));
+                          }}
+                        >
+                          <FormControlLabel
+                            value="builtin"
+                            control={<Radio />}
+                            label={t('aiAdmin.provider.sources.builtin')}
+                          />
+                          <FormControlLabel
+                            value="custom"
+                            control={<Radio />}
+                            label={t('aiAdmin.provider.sources.custom')}
+                          />
+                        </RadioGroup>
+                      </FormControl>
                     ) : null}
 
-                    <TextField
-                      size="small"
-                      label={t('aiAdmin.provider.fields.model')}
-                      value={form.llm_model}
-                      onChange={(event) => setForm((prev) => ({ ...prev, llm_model: event.target.value }))}
-                      placeholder={providerModelPlaceholder(selectedProvider, t)}
-                    />
+                    {form.provider_source === 'builtin' ? (
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Stack spacing={1.5}>
+                            <Typography variant="subtitle2">
+                              {t('aiAdmin.provider.builtinUsage.title')}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {t('aiAdmin.provider.builtinUsage.description')}
+                            </Typography>
+                            {builtinUsageQuery.isLoading ? (
+                              <Box display="flex" justifyContent="center" py={2}>
+                                <CircularProgress size={24} />
+                              </Box>
+                            ) : builtinUsageQuery.isError ? (
+                              <Alert severity="error">
+                                {getApiErrorMessage(builtinUsageQuery.error, t, t('aiAdmin.provider.builtinUsage.loadFailed'))}
+                              </Alert>
+                            ) : builtinUsageQuery.data ? (
+                              <>
+                                <Typography variant="body2">
+                                  {t('aiAdmin.provider.builtinUsage.summary', {
+                                    count: builtinUsageQuery.data.count,
+                                    limit: builtinUsageQuery.data.limit,
+                                  })}
+                                </Typography>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={Math.round(builtinUsageRatio * 100)}
+                                  color={builtinUsageColor}
+                                />
+                                <Typography variant="caption" color="text.secondary">
+                                  {t('aiAdmin.provider.builtinUsage.reset', {
+                                    date: new Date(builtinUsageQuery.data.reset_date).toLocaleDateString(locale),
+                                  })}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {t('aiAdmin.provider.builtinUsage.cta')}
+                                </Typography>
+                              </>
+                            ) : null}
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <>
+                        <FormControl size="small" fullWidth>
+                          <InputLabel>{t('aiAdmin.provider.fields.provider')}</InputLabel>
+                          <Select
+                            value={form.llm_provider}
+                            label={t('aiAdmin.provider.fields.provider')}
+                            onChange={(event) => {
+                              const nextProvider = settingsQuery.data?.available_providers.find((provider) => provider.id === event.target.value);
+                              const shouldClearEndpoint = nextProvider && nextProvider.id !== 'ollama' && nextProvider.id !== 'custom';
+                              setForm((prev) => ({
+                                ...prev,
+                                llm_provider: String(event.target.value),
+                                ...(shouldClearEndpoint ? { llm_endpoint_url: '' } : {}),
+                              }));
+                            }}
+                          >
+                            <MenuItem value="">{t('aiAdmin.shared.none')}</MenuItem>
+                            {settingsQuery.data.available_providers.map((provider) => (
+                              <MenuItem key={provider.id} value={provider.id}>
+                                {provider.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
 
-                    {(selectedProvider?.id === 'ollama' || selectedProvider?.id === 'custom') ? (
-                      <TextField
-                        size="small"
-                        label={t('aiAdmin.provider.fields.endpointUrl')}
-                        value={form.llm_endpoint_url}
-                        onChange={(event) => setForm((prev) => ({ ...prev, llm_endpoint_url: event.target.value }))}
-                        placeholder={
-                          selectedProvider?.id === 'ollama'
-                            ? t('aiAdmin.provider.placeholders.ollamaEndpoint')
-                            : t('aiAdmin.provider.placeholders.customEndpoint')
-                        }
-                      />
-                    ) : null}
+                        {providerInfoText(selectedProvider, t) ? (
+                          <Alert severity="info" variant="outlined">
+                            {providerInfoText(selectedProvider, t)}
+                          </Alert>
+                        ) : null}
 
-                    {selectedProvider?.capabilities.requiresApiKey ? (
-                      <TextField
-                        size="small"
-                        label={t('aiAdmin.provider.fields.apiKey')}
-                        type="password"
-                        value={form.llm_api_key}
-                        onChange={(event) => setForm((prev) => ({ ...prev, llm_api_key: event.target.value }))}
-                        placeholder={
-                          currentSettings?.has_llm_api_key
-                            ? t('aiAdmin.provider.placeholders.apiKeyConfigured')
-                            : t('aiAdmin.provider.placeholders.enterApiKey')
-                        }
-                        helperText={providerApiKeyHelperText(currentSettings, t)}
-                      />
-                    ) : null}
+                        <TextField
+                          size="small"
+                          label={t('aiAdmin.provider.fields.model')}
+                          value={form.llm_model}
+                          onChange={(event) => setForm((prev) => ({ ...prev, llm_model: event.target.value }))}
+                          placeholder={providerModelPlaceholder(selectedProvider, t)}
+                        />
+
+                        {(selectedProvider?.id === 'ollama' || selectedProvider?.id === 'custom') ? (
+                          <TextField
+                            size="small"
+                            label={t('aiAdmin.provider.fields.endpointUrl')}
+                            value={form.llm_endpoint_url}
+                            onChange={(event) => setForm((prev) => ({ ...prev, llm_endpoint_url: event.target.value }))}
+                            placeholder={
+                              selectedProvider?.id === 'ollama'
+                                ? t('aiAdmin.provider.placeholders.ollamaEndpoint')
+                                : t('aiAdmin.provider.placeholders.customEndpoint')
+                            }
+                          />
+                        ) : null}
+
+                        {selectedProvider?.capabilities.requiresApiKey ? (
+                          <TextField
+                            size="small"
+                            label={t('aiAdmin.provider.fields.apiKey')}
+                            type="password"
+                            value={form.llm_api_key}
+                            onChange={(event) => setForm((prev) => ({ ...prev, llm_api_key: event.target.value }))}
+                            placeholder={
+                              currentSettings?.has_llm_api_key
+                                ? t('aiAdmin.provider.placeholders.apiKeyConfigured')
+                                : t('aiAdmin.provider.placeholders.enterApiKey')
+                            }
+                            helperText={providerApiKeyHelperText(currentSettings, t)}
+                          />
+                        ) : null}
+                      </>
+                    )}
 
                     <Divider />
 
@@ -703,13 +801,15 @@ export default function AdminAiPage() {
                       >
                         {saveMutation.isPending ? t('common:status.saving') : t('aiAdmin.actions.saveSettings')}
                       </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => testProviderMutation.mutate(form)}
-                        disabled={testProviderMutation.isPending}
-                      >
-                        {testProviderMutation.isPending ? t('aiAdmin.actions.testing') : t('aiAdmin.actions.testConnection')}
-                      </Button>
+                      {form.provider_source === 'custom' ? (
+                        <Button
+                          variant="outlined"
+                          onClick={() => testProviderMutation.mutate(form)}
+                          disabled={testProviderMutation.isPending}
+                        >
+                          {testProviderMutation.isPending ? t('aiAdmin.actions.testing') : t('aiAdmin.actions.testConnection')}
+                        </Button>
+                      ) : null}
                     </Stack>
                   </Stack>
                 ) : null}

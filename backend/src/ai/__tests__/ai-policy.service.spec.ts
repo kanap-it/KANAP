@@ -9,6 +9,7 @@ type TestSettings = {
   tenant_id: string;
   chat_enabled: boolean;
   mcp_enabled: boolean;
+  provider_source: 'builtin' | 'custom';
   llm_provider: string | null;
   llm_model: string | null;
   llm_endpoint_url: string | null;
@@ -60,6 +61,7 @@ function createPolicy(options?: {
     tenant_id: 'tenant-1',
     chat_enabled: true,
     mcp_enabled: true,
+    provider_source: 'custom',
     llm_provider: 'openai',
     llm_model: 'gpt-4o-mini',
     llm_endpoint_url: null,
@@ -89,6 +91,7 @@ function createPolicy(options?: {
     {
       get: async () => settings,
       find: async () => settings,
+      getEffectiveProviderSource: (value: any) => value.provider_source === 'custom' ? 'custom' : 'builtin',
       toProviderSnapshot: (value: any) => ({
         llm_provider: value.llm_provider,
         llm_model: value.llm_model,
@@ -98,6 +101,9 @@ function createPolicy(options?: {
     } as any,
     {
       validate: () => options?.providerErrors ?? [],
+    } as any,
+    {
+      isConfigured: async () => true,
     } as any,
     {
       isConfigured: () => options?.stripeConfigured === true,

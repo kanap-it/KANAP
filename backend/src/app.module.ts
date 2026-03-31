@@ -51,6 +51,7 @@ import { TurnstileService } from './public/turnstile.service';
 import { ConfigController } from './config/config.controller';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { AiModule } from './ai/ai.module';
+import { PlatformAiModule } from './ai/platform/platform-ai.module';
 import { ScheduledTasksModule } from './admin/scheduled-tasks/scheduled-tasks.module';
 import { CleanupModule } from './cleanup/cleanup.module';
 
@@ -129,6 +130,7 @@ import { CleanupModule } from './cleanup/cleanup.module';
     DashboardModule,
     NotificationsModule,
     KnowledgeModule,
+    PlatformAiModule,
     AiModule,
     ScheduledTasksModule,
     CleanupModule,

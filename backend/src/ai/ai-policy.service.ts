@@ -11,6 +11,7 @@ import { Tenant, TenantStatus } from '../tenants/tenant.entity';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user-role.entity';
 import { AiSettingsService } from './ai-settings.service';
+import { PlatformAiConfigService } from './platform/platform-ai-config.service';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
 import {
   AiCapabilitiesDto,
@@ -67,6 +68,7 @@ export class AiPolicyService {
     private readonly permissions: PermissionsService,
     private readonly aiSettings: AiSettingsService,
     private readonly providerRegistry: AiProviderRegistry,
+    private readonly platformAiConfig: PlatformAiConfigService,
     private readonly stripeConfig: StripeConfigService,
   ) {}
 
@@ -205,12 +207,16 @@ export class AiPolicyService {
     });
     const tenantActive = !!tenant && tenant.status === TenantStatus.ACTIVE;
     const settings = tenant ? await this.aiSettings.find(context.tenantId, { manager }) : null;
-    const providerErrors = this.providerRegistry.validate({
-      llm_provider: settings?.llm_provider ?? null,
-      llm_model: settings?.llm_model ?? null,
-      llm_endpoint_url: settings?.llm_endpoint_url ?? null,
-      has_llm_api_key: !!settings?.llm_api_key_encrypted,
-    });
+    const providerReady = settings
+      ? (this.aiSettings.getEffectiveProviderSource(settings) === 'builtin'
+        ? await this.platformAiConfig.isConfigured()
+        : this.providerRegistry.validate({
+          llm_provider: settings.llm_provider ?? null,
+          llm_model: settings.llm_model ?? null,
+          llm_endpoint_url: settings.llm_endpoint_url ?? null,
+          has_llm_api_key: !!settings.llm_api_key_encrypted,
+        }).length === 0)
+      : false;
 
     const buildSurfaceCapability = (
       surface: AiSurface,
@@ -271,11 +277,12 @@ export class AiPolicyService {
         chat: buildSurfaceCapability('chat', {
           tenantEnabled: settings?.chat_enabled === true,
           permissionGranted: this.hasPermission(state, 'ai_chat', 'reader'),
-          providerReady: providerErrors.length === 0,
+          providerReady,
         }),
         mcp: buildSurfaceCapability('mcp', {
           tenantEnabled: settings?.mcp_enabled === true,
           permissionGranted: this.hasPermission(state, 'ai_mcp', 'reader'),
+          providerReady,
         }),
         settings: buildSettingsCapability(
           this.hasPermission(state, 'ai_settings', 'admin'),
@@ -294,17 +301,24 @@ export class AiPolicyService {
     await this.assertTenantAvailable(context.tenantId, manager);
 
     const settings = await this.aiSettings.get(context.tenantId, { manager });
+    const providerReady = this.aiSettings.getEffectiveProviderSource(settings) === 'builtin'
+      ? await this.platformAiConfig.isConfigured()
+      : this.providerRegistry.validate(this.aiSettings.toProviderSnapshot(settings)).length === 0;
     if (context.surface === 'chat') {
       if (!settings.chat_enabled) {
         throw new ForbiddenException('AI chat is disabled for this tenant.');
       }
-      const providerErrors = this.providerRegistry.validate(this.aiSettings.toProviderSnapshot(settings));
-      if (providerErrors.length > 0) {
+      if (!providerReady) {
         throw new ForbiddenException('AI chat is not fully configured for this tenant.');
       }
     }
-    if (context.surface === 'mcp' && !settings.mcp_enabled) {
-      throw new ForbiddenException('AI MCP access is disabled for this tenant.');
+    if (context.surface === 'mcp') {
+      if (!settings.mcp_enabled) {
+        throw new ForbiddenException('AI MCP access is disabled for this tenant.');
+      }
+      if (!providerReady) {
+        throw new ForbiddenException('AI MCP is not fully configured for this tenant.');
+      }
     }
 
     await this.assertUserPermission(context.userId, SURFACE_RESOURCE[context.surface], 'reader', manager);

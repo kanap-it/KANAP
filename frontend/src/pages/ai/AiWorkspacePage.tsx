@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Alert, Box, Divider, IconButton, Stack, Typography } from '@mui/material';
+import { Alert, Box, Divider, IconButton, Link, Stack, Typography } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import { useTranslation } from 'react-i18next';
+import { Link as RouterLink } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import { useFeatures } from '../../config/FeaturesContext';
 import { useChat } from '../../ai/useChat';
 import { aiConversationsApi } from '../../ai/aiApi';
 import { ChatConversation } from '../../ai/aiTypes';
+import BuiltinUsageIndicator from '../../ai/components/BuiltinUsageIndicator';
 import ChatMessageList from '../../ai/components/ChatMessageList';
 import ChatInput, { ChatInputHandle } from '../../ai/components/ChatInput';
 import ChatConversationList from '../../ai/components/ChatConversationList';
@@ -22,6 +24,8 @@ export default function AiWorkspacePage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const chat = useChat();
   const inputRef = useRef<ChatInputHandle>(null);
+  const builtinLimitReached = (chat.builtinUsage?.limit ?? 0) > 0
+    && (chat.builtinUsage?.count ?? 0) >= (chat.builtinUsage?.limit ?? 0);
 
   const isEmpty = chat.messages.length === 0;
 
@@ -131,7 +135,25 @@ export default function AiWorkspacePage() {
               {t('workspace.empty.subtitle')}
             </Typography>
             <Box sx={{ width: '100%', maxWidth: 640 }}>
-              <ChatInput ref={inputRef} onSend={handleSend} disabled={chat.isStreaming} autoFocus />
+              <Stack spacing={1}>
+                <BuiltinUsageIndicator usage={chat.builtinUsage} />
+                <ChatInput
+                  ref={inputRef}
+                  onSend={handleSend}
+                  disabled={chat.isStreaming || builtinLimitReached}
+                  autoFocus
+                  helperText={builtinLimitReached ? (
+                    <Typography variant="body2" color="error.main">
+                      {t('usageIndicator.limitReachedCta')}{' '}
+                      {config.features.aiSettings ? (
+                        <Link component={RouterLink} to="/admin/ai" underline="hover">
+                          {t('usageIndicator.openSettings')}
+                        </Link>
+                      ) : null}
+                    </Typography>
+                  ) : null}
+                />
+              </Stack>
             </Box>
           </Box>
         ) : (
@@ -166,7 +188,26 @@ export default function AiWorkspacePage() {
             <Divider sx={{ flexShrink: 0 }} />
 
             <Box sx={{ flexShrink: 0 }}>
-              <ChatInput ref={inputRef} onSend={handleSend} disabled={chat.isStreaming} />
+              <Stack spacing={1}>
+                <Box sx={{ px: 2, pt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                  <BuiltinUsageIndicator usage={chat.builtinUsage} />
+                </Box>
+                <ChatInput
+                  ref={inputRef}
+                  onSend={handleSend}
+                  disabled={chat.isStreaming || builtinLimitReached}
+                  helperText={builtinLimitReached ? (
+                    <Typography variant="body2" color="error.main">
+                      {t('usageIndicator.limitReachedCta')}{' '}
+                      {config.features.aiSettings ? (
+                        <Link component={RouterLink} to="/admin/ai" underline="hover">
+                          {t('usageIndicator.openSettings')}
+                        </Link>
+                      ) : null}
+                    </Typography>
+                  ) : null}
+                />
+              </Stack>
             </Box>
 
             {chat.conversationUsage && (

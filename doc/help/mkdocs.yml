@@ -98,7 +98,7 @@ plugins:
             "From Application to Server": "De l'application au serveur"
             "Run, Build & Tasks": "Run, Build & Tâches"
             Dashboard: Tableau de bord
-            Portfolio Management: Gestion de portefeuille
+            Portfolio Management: Portefeuille
             Tasks: Tâches
             Requests: Demandes
             Projects: Projets
@@ -121,7 +121,7 @@ plugins:
             OPEX: OPEX
             CAPEX: CAPEX
             Contracts: Contrats
-            Budget Administration: Administration budgétaire
+            Budget Administration: Administration
             Reports: Rapports
             Master Data: Données de référence
             Organization: Organisation
@@ -132,15 +132,15 @@ plugins:
             Contacts: Contacts
             Finance: Finance
             Chart of Accounts: Plans comptables
-            Currencies: Devises
+            Currencies: Devise
             Classification: Classification
             Business Processes: Processus métier
             Analytics Dimensions: Dimensions analytiques
             Administration: Administration
-            "Admin & Users": "Administration & Utilisateurs"
+            "Admin & Users": Utilisateurs
             Branding: Personnalisation
             Master Data Administration: Administration des données de référence
-            Budget Overview: Vue d'ensemble budgétaire
+            Budget Overview: Vue d'ensemble
             On-Premise: On-Premise
             Overview: Vue d'ensemble
             Installation: Installation
@@ -160,7 +160,7 @@ plugins:
             "From Application to Server": "Von der Anwendung zum Server"
             "Run, Build & Tasks": "Run, Build & Aufgaben"
             Dashboard: Dashboard
-            Portfolio Management: Portfolioverwaltung
+            Portfolio Management: Portfolio
             Tasks: Aufgaben
             Requests: Anfragen
             Projects: Projekte
@@ -183,7 +183,7 @@ plugins:
             OPEX: OPEX
             CAPEX: CAPEX
             Contracts: Verträge
-            Budget Administration: Budgetadministration
+            Budget Administration: Administration
             Reports: Berichte
             Master Data: Stammdaten
             Organization: Organisation
@@ -194,15 +194,15 @@ plugins:
             Contacts: Kontakte
             Finance: Finanzen
             Chart of Accounts: Kontenpläne
-            Currencies: Währungen
+            Currencies: Währung
             Classification: Klassifizierung
             Business Processes: Geschäftsprozesse
             Analytics Dimensions: Analysedimensionen
             Administration: Administration
-            "Admin & Users": "Administration & Benutzer"
+            "Admin & Users": Benutzer
             Branding: Branding
             Master Data Administration: Stammdatenadministration
-            Budget Overview: Budgetübersicht
+            Budget Overview: Übersicht
             On-Premise: On-Premise
             Overview: Übersicht
             Installation: Installation
@@ -222,7 +222,7 @@ plugins:
             "From Application to Server": "De la aplicación al servidor"
             "Run, Build & Tasks": "Run, Build & Tareas"
             Dashboard: Panel de control
-            Portfolio Management: Gestión de portafolio
+            Portfolio Management: Portafolio
             Tasks: Tareas
             Requests: Solicitudes
             Projects: Proyectos
@@ -245,7 +245,7 @@ plugins:
             OPEX: OPEX
             CAPEX: CAPEX
             Contracts: Contratos
-            Budget Administration: Administración presupuestaria
+            Budget Administration: Administración
             Reports: Informes
             Master Data: Datos maestros
             Organization: Organización
@@ -256,15 +256,15 @@ plugins:
             Contacts: Contactos
             Finance: Finanzas
             Chart of Accounts: Planes de cuentas
-            Currencies: Monedas
+            Currencies: Moneda
             Classification: Clasificación
             Business Processes: Procesos de negocio
             Analytics Dimensions: Dimensiones analíticas
             Administration: Administración
-            "Admin & Users": "Administración & Usuarios"
+            "Admin & Users": Usuarios
             Branding: Personalización
             Master Data Administration: Administración de datos maestros
-            Budget Overview: Vista general del presupuesto
+            Budget Overview: Vista general
             On-Premise: On-Premise
             Overview: Vista general
             Installation: Instalación

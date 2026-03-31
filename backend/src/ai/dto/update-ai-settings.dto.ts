@@ -13,6 +13,10 @@ export class UpdateAiSettingsDto {
   @IsIn(['anthropic', 'openai', 'ollama', 'custom'])
   llm_provider?: 'anthropic' | 'openai' | 'ollama' | 'custom' | null;
 
+  @ValidateIf((_, value) => value !== undefined)
+  @IsIn(['builtin', 'custom'])
+  provider_source?: 'builtin' | 'custom';
+
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsString()
   @MaxLength(4096)

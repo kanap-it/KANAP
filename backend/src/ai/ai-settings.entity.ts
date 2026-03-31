@@ -27,6 +27,9 @@ export class AiSettings {
   @Column('varchar', { length: 100, nullable: true })
   llm_model!: string | null;
 
+  @Column('varchar', { length: 10, default: 'builtin' })
+  provider_source!: 'builtin' | 'custom';
+
   @Column('integer', { nullable: true })
   mcp_key_max_lifetime_days!: number | null;
 

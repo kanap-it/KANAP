@@ -65,12 +65,14 @@ function createOrchestrator(options?: {
 
   const mockSettings = {
     get: async () => ({
+      provider_source: 'custom',
       llm_provider: options?.providerId ?? 'openai',
       llm_model: options?.model ?? 'gpt-4o',
       llm_api_key_encrypted: 'encrypted-key',
       llm_endpoint_url: null,
       chat_enabled: true,
     }),
+    getEffectiveProviderSource: () => 'custom',
   };
 
   const mockCipher = {
@@ -191,12 +193,34 @@ function createOrchestrator(options?: {
     build: () => 'You are Plaid.',
   };
 
+  const mockPlatformAiConfig = {
+    getRuntimeConfig: async () => ({
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      apiKey: 'platform-key',
+      endpoint_url: null,
+      rate_limit_tenant_per_minute: 30,
+      rate_limit_user_per_hour: 60,
+    }),
+  };
+
+  const mockBuiltinUsage = {
+    getCurrentUsage: async () => ({
+      count: 1,
+      limit: 100,
+      year_month: '2026-03',
+      reset_date: '2026-04-01T00:00:00.000Z',
+    }),
+  };
+
   const orchestrator = new AiChatOrchestratorService(
     mockTenantExecutor as any,
     mockPolicy as any,
     mockSettings as any,
     mockCipher as any,
     mockProviderRegistry as any,
+    mockPlatformAiConfig as any,
+    mockBuiltinUsage as any,
     mockConversations as any,
     mockPreviews as any,
     mockToolRegistry as any,

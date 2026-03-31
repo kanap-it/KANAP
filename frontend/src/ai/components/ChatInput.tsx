@@ -7,6 +7,7 @@ type ChatInputProps = {
   onSend: (text: string) => void;
   disabled?: boolean;
   autoFocus?: boolean;
+  helperText?: React.ReactNode;
 };
 
 export type ChatInputHandle = {
@@ -14,7 +15,7 @@ export type ChatInputHandle = {
 };
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
-  function ChatInput({ onSend, disabled, autoFocus }, ref) {
+  function ChatInput({ onSend, disabled, autoFocus, helperText }, ref) {
     const { t } = useTranslation(['ai']);
     const [value, setValue] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
@@ -38,31 +39,34 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     };
 
     return (
-      <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ p: 2 }}>
-        <TextField
-          fullWidth
-          multiline
-          maxRows={6}
-          placeholder={t('input.placeholder')}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          size="small"
-          inputRef={inputRef}
-          autoFocus={autoFocus}
-          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-        />
-        <IconButton
-          color="primary"
-          onClick={handleSend}
-          disabled={disabled || !value.trim()}
-          aria-label={t('input.send')}
-          title={t('input.send')}
-          sx={{ mb: 0.5 }}
-        >
-          <SendIcon />
-        </IconButton>
+      <Stack spacing={1} sx={{ p: 2 }}>
+        <Stack direction="row" spacing={1} alignItems="flex-end">
+          <TextField
+            fullWidth
+            multiline
+            maxRows={6}
+            placeholder={t('input.placeholder')}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            size="small"
+            inputRef={inputRef}
+            autoFocus={autoFocus}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+          />
+          <IconButton
+            color="primary"
+            onClick={handleSend}
+            disabled={disabled || !value.trim()}
+            aria-label={t('input.send')}
+            title={t('input.send')}
+            sx={{ mb: 0.5 }}
+          >
+            <SendIcon />
+          </IconButton>
+        </Stack>
+        {helperText}
       </Stack>
     );
   },

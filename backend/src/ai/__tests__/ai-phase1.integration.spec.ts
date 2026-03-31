@@ -3773,6 +3773,9 @@ async function testAiAggregateExecutorSpendItemsSupportsSummaryMetricsAndProject
 }
 
 async function testAiAdminOverviewAggregatesUsageAndIsTenantScoped() {
+  const now = new Date();
+  const previousMonthUsageAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 0, 0, 0, 0));
+  const previousMonthUsageIncludedInLast30Days = previousMonthUsageAt.getTime() >= now.getTime() - (30 * 24 * 60 * 60 * 1000);
   const runner = dataSource.createQueryRunner();
   await runner.connect();
   await runner.startTransaction();
@@ -3851,10 +3854,10 @@ async function testAiAdminOverviewAggregatesUsageAndIsTenantScoped() {
     assert.equal(overview.usage.current_month.output_tokens, 20);
     assert.equal(overview.usage.current_month.total_tokens, 30);
     assert.equal(overview.usage.current_month.message_count, 2);
-    assert.equal(overview.usage.last_30_days.input_tokens, 14);
-    assert.equal(overview.usage.last_30_days.output_tokens, 26);
-    assert.equal(overview.usage.last_30_days.total_tokens, 40);
-    assert.equal(overview.usage.last_30_days.message_count, 3);
+    assert.equal(overview.usage.last_30_days.input_tokens, previousMonthUsageIncludedInLast30Days ? 14 : 10);
+    assert.equal(overview.usage.last_30_days.output_tokens, previousMonthUsageIncludedInLast30Days ? 26 : 20);
+    assert.equal(overview.usage.last_30_days.total_tokens, previousMonthUsageIncludedInLast30Days ? 40 : 30);
+    assert.equal(overview.usage.last_30_days.message_count, previousMonthUsageIncludedInLast30Days ? 3 : 2);
     assert.equal(overview.recent_activity.length, 3);
     assert.equal(overview.recent_activity[0].conversation_id, tenantAConversation1);
     assert.equal(

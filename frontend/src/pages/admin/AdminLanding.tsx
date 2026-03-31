@@ -36,6 +36,7 @@ export default function AdminLanding() {
     ? [
         { title: t('landing.cards.tenants.title'), description: t('landing.cards.tenants.description'), to: '/admin/tenants', requirePlatformAdmin: true },
         { title: t('landing.cards.opsDashboard.title'), description: t('landing.cards.opsDashboard.description'), to: '/admin/ops-dashboard', requirePlatformAdmin: true },
+        { title: t('landing.cards.platformAi.title'), description: t('landing.cards.platformAi.description'), to: '/admin/platform-ai', requirePlatformAdmin: true },
       ]
     : baseCards;
 

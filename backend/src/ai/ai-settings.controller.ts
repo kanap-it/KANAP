@@ -8,6 +8,7 @@ import { AiProviderTestService } from './ai-provider-test.service';
 import { AiSettingsService } from './ai-settings.service';
 import { UpdateAiSettingsDto } from './dto/update-ai-settings.dto';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
+import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
 import { BraveSearchService } from './web-search/brave-search.service';
 import { AiExecutionContext } from './ai.types';
@@ -30,6 +31,7 @@ export class AiSettingsController {
     private readonly providerTest: AiProviderTestService,
     private readonly providerRegistry: AiProviderRegistry,
     private readonly braveSearch: BraveSearchService,
+    private readonly builtinUsage: AiBuiltinUsageService,
   ) {}
 
   private requireTenantId(req: AiSettingsRequest): string {
@@ -67,7 +69,7 @@ export class AiSettingsController {
             ai_settings: Features.AI_SETTINGS_ENABLED,
             ai_web_search: Features.AI_WEB_SEARCH_READY,
           },
-          settings: this.settingsService.toView(settings),
+          settings: await this.settingsService.toView(settings, { manager }),
           available_providers: this.providerRegistry.list(),
         };
       },
@@ -90,10 +92,23 @@ export class AiSettingsController {
           sourceRef: context.requestId ?? null,
         });
         return {
-          settings: this.settingsService.toView(settings),
+          settings: await this.settingsService.toView(settings, { manager }),
         };
       },
       { transaction: true },
+    );
+  }
+
+  @Get('builtin-usage')
+  async getBuiltinUsage(@Req() req: AiSettingsRequest) {
+    const context = this.buildContext(req);
+    return this.tenantExecutor.run(
+      context.tenantId,
+      async (manager) => {
+        await this.policy.assertSettingsAccess(context, manager);
+        return this.builtinUsage.getCurrentUsage(context.tenantId, manager);
+      },
+      { transaction: false },
     );
   }
 

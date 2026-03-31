@@ -19,6 +19,7 @@ import { TenantsModule } from '../tenants/tenants.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { UserRole } from '../users/user-role.entity';
 import { UsersModule } from '../users/users.module';
+import { AiProviderSupportModule } from './ai-provider-support.module';
 import { AiApiKey } from './ai-api-key.entity';
 import { AiApiKeysController } from './ai-api-keys.controller';
 import { AiApiKeysService } from './ai-api-keys.service';
@@ -56,13 +57,9 @@ import { UpdateDocumentMetadataAiMutationOperation } from './mutation/operations
 import { UpdateDocumentRelationsAiMutationOperation } from './mutation/operations/update-document-relations.ai-mutation-operation';
 import { UpdateTaskAssigneeAiMutationOperation } from './mutation/operations/update-task-assignee.ai-mutation-operation';
 import { UpdateTaskStatusAiMutationOperation } from './mutation/operations/update-task-status.ai-mutation-operation';
-import { AiProviderRegistry } from './providers/ai-provider-registry.service';
-import { AnthropicAiProviderAdapter } from './providers/anthropic-ai-provider.adapter';
-import { CustomAiProviderAdapter } from './providers/custom-ai-provider.adapter';
-import { OllamaAiProviderAdapter } from './providers/ollama-ai-provider.adapter';
-import { OpenAiProviderAdapter } from './providers/openai-ai-provider.adapter';
 import { AiAggregateExecutor } from './query/ai-aggregate.executor';
 import { AiQueryExecutor } from './query/ai-query.executor';
+import { PlatformAiModule } from './platform/platform-ai.module';
 import { BraveSearchService } from './web-search/brave-search.service';
 
 @Module({
@@ -86,6 +83,8 @@ import { BraveSearchService } from './web-search/brave-search.service';
     DepartmentsModule,
     KnowledgeModule,
     LocationsModule,
+    AiProviderSupportModule,
+    PlatformAiModule,
     PermissionsModule,
     PortfolioModule,
     SpendModule,
@@ -105,13 +104,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
   ],
   providers: [
     AiTenantExecutionService,
-    AiSecretCipherService,
     McpApiKeyHashService,
-    AnthropicAiProviderAdapter,
-    OpenAiProviderAdapter,
-    OllamaAiProviderAdapter,
-    CustomAiProviderAdapter,
-    AiProviderRegistry,
     AiSettingsService,
     AiAdminOverviewService,
     AiApiKeysService,
@@ -140,7 +133,6 @@ import { BraveSearchService } from './web-search/brave-search.service';
   ],
   exports: [
     AiTenantExecutionService,
-    AiProviderRegistry,
     AiSettingsService,
     AiAdminOverviewService,
     AiApiKeysService,
@@ -155,6 +147,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     McpApiKeyAuthGuard,
     AiChatOrchestratorService,
     AiSystemPromptService,
+    AiProviderSupportModule,
   ],
 })
 export class AiModule {}

@@ -276,6 +276,13 @@ export type AiTokenUsage = {
   output_tokens: number;
 };
 
+export type AiBuiltinUsageDto = {
+  count: number;
+  limit: number;
+  year_month: string;
+  reset_date: string;
+};
+
 export type ChatStreamEvent =
   | { type: 'conversation'; id: string; title: string }
   | { type: 'text_delta'; text: string }
@@ -283,8 +290,8 @@ export type ChatStreamEvent =
   | { type: 'tool_result'; id: string; name: string; result: unknown }
   | ({ type: 'preview' } & AiMutationPreviewDto)
   | ({ type: 'preview_result' } & AiMutationPreviewDto)
-  | { type: 'done'; usage?: AiTokenUsage; last_usage?: AiTokenUsage; conversation_usage?: AiTokenUsage }
-  | { type: 'error'; message: string; last_usage?: AiTokenUsage; conversation_usage?: AiTokenUsage };
+  | { type: 'done'; usage?: AiTokenUsage; last_usage?: AiTokenUsage; conversation_usage?: AiTokenUsage; builtin_usage?: AiBuiltinUsageDto }
+  | { type: 'error'; message: string; last_usage?: AiTokenUsage; conversation_usage?: AiTokenUsage; builtin_usage?: AiBuiltinUsageDto };
 
 export type AiSurfaceCapabilityDto = {
   feature_enabled: boolean;

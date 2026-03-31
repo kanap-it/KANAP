@@ -9,10 +9,11 @@ import { AiToolRegistry } from './ai-tool.registry';
 import { prepareAiProviderMessages } from './ai-context-budget.helper';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
-import { AiProviderMessage, AiProviderToolCall, AiStreamEvent } from './providers/ai-provider.types';
+import { AiProviderAdapter, AiProviderMessage, AiProviderToolCall, AiStreamEvent } from './providers/ai-provider.types';
 import { addUsage, cloneUsage, isAbortError, tryParseToolCallArguments } from './providers/streaming.util';
 import { isOpenAiReasoningModel } from './providers/openai-stream.util';
 import {
+  AiBuiltinUsageDto,
   AiExecutionContext,
   AiExecutionContextWithManager,
   AiMutationPreviewDto,
@@ -20,6 +21,8 @@ import {
   ChatStreamEvent,
 } from './ai.types';
 import { buildStructuredToolResultValidation } from './ai-tool-result-validation.util';
+import { PlatformAiConfigService } from './platform/platform-ai-config.service';
+import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
 
 const MAX_TOOL_ITERATIONS = 20;
 const DEFAULT_MAX_TOKENS = 4096;
@@ -58,6 +61,23 @@ type ApprovalAction =
   | { action: 'approve'; previewId: string }
   | { action: 'reject'; previewId: string };
 
+type PreparedChatRequest = {
+  context: AiExecutionContext;
+  inputConversationId?: string | null;
+  userMessage: string;
+  approvalAction: ApprovalAction | null;
+  providerSource: 'builtin' | 'custom';
+  provider: AiProviderAdapter;
+  model: string;
+  apiKey: string | null;
+  endpointUrl: string | null;
+  tenantName: string;
+  builtinRateLimits?: {
+    tenantPerMinute: number;
+    userPerHour: number;
+  };
+};
+
 function buildToolCallSignature(toolCalls: Array<{ name: string; arguments: string }>): string {
   return toolCalls
     .map((toolCall) => `${toolCall.name}\u0000${toolCall.arguments}`)
@@ -81,6 +101,8 @@ export class AiChatOrchestratorService {
     private readonly settings: AiSettingsService,
     private readonly cipher: AiSecretCipherService,
     private readonly providerRegistry: AiProviderRegistry,
+    private readonly platformAiConfig: PlatformAiConfigService,
+    private readonly builtinUsage: AiBuiltinUsageService,
     private readonly conversations: AiConversationService,
     private readonly previews: AiMutationPreviewService,
     private readonly toolRegistry: AiToolRegistry,
@@ -142,6 +164,85 @@ export class AiChatOrchestratorService {
     return name || row.email || 'Current user';
   }
 
+  async prepareRequest(params: ChatStreamParams): Promise<PreparedChatRequest> {
+    const approvalAction = this.parseApprovalAction(params.userMessage);
+    return this.tenantExecutor.runWithContext(params.context, async (ctx) => {
+      await this.policy.assertSurfaceAccess(ctx, ctx.manager);
+
+      if (approvalAction && !params.conversationId) {
+        throw new BadRequestException('Preview approvals require an existing conversation.');
+      }
+
+      if (params.conversationId) {
+        await this.conversations.getConversationForUser(
+          params.conversationId,
+          ctx.tenantId,
+          ctx.userId,
+          { manager: ctx.manager },
+        );
+      }
+
+      const tenant = await ctx.manager.query(
+        `SELECT name FROM tenants WHERE id = $1`,
+        [ctx.tenantId],
+      );
+      const tenantName = tenant?.[0]?.name || 'KANAP';
+      const settings = await this.settings.get(ctx.tenantId, { manager: ctx.manager });
+      const providerSource = this.settings.getEffectiveProviderSource(settings);
+
+      if (providerSource === 'builtin') {
+        const runtime = await this.platformAiConfig.getRuntimeConfig();
+        const adapter = this.providerRegistry.get(runtime.provider);
+        if (!adapter) {
+          throw new Error('Provider not configured.');
+        }
+        return {
+          context: params.context,
+          inputConversationId: params.conversationId ?? null,
+          userMessage: params.userMessage,
+          approvalAction,
+          providerSource,
+          provider: adapter,
+          model: runtime.model,
+          apiKey: runtime.apiKey,
+          endpointUrl: runtime.endpoint_url,
+          tenantName,
+          builtinRateLimits: {
+            tenantPerMinute: runtime.rate_limit_tenant_per_minute,
+            userPerHour: runtime.rate_limit_user_per_hour,
+          },
+        };
+      }
+
+      const adapter = this.providerRegistry.get(settings.llm_provider);
+      if (!adapter) {
+        throw new Error('Provider not configured.');
+      }
+
+      return {
+        context: params.context,
+        inputConversationId: params.conversationId ?? null,
+        userMessage: params.userMessage,
+        approvalAction,
+        providerSource,
+        provider: adapter,
+        model: settings.llm_model!,
+        apiKey: settings.llm_api_key_encrypted ? this.cipher.decrypt(settings.llm_api_key_encrypted) : null,
+        endpointUrl: settings.llm_endpoint_url,
+        tenantName,
+      };
+    });
+  }
+
+  private async loadBuiltinUsage(prepared: PreparedChatRequest): Promise<AiBuiltinUsageDto | undefined> {
+    if (prepared.providerSource !== 'builtin') {
+      return undefined;
+    }
+    return this.tenantExecutor.runWithContext(prepared.context, async (ctx) => {
+      return this.builtinUsage.getCurrentUsage(ctx.tenantId, ctx.manager);
+    });
+  }
+
   private async loadCurrentUserPromptContext(ctx: AiExecutionContext & { manager: any }): Promise<CurrentUserPromptContext> {
     const userRows = await ctx.manager.query(
       `SELECT u.email,
@@ -195,47 +296,27 @@ export class AiChatOrchestratorService {
   }
 
   async *stream(params: ChatStreamParams): AsyncGenerator<ChatStreamEvent> {
-    const { context, userMessage } = params;
-    const abortSignal = params.signal ?? null;
+    const prepared = await this.prepareRequest(params);
+    yield* this.streamPrepared(prepared, { signal: params.signal ?? null });
+  }
+
+  async *streamPrepared(
+    prepared: PreparedChatRequest,
+    opts?: { signal?: AbortSignal | null },
+  ): AsyncGenerator<ChatStreamEvent> {
+    const { context, userMessage, provider, model, apiKey, endpointUrl, tenantName, providerSource } = prepared;
+    const abortSignal = opts?.signal ?? null;
 
     if (abortSignal?.aborted) {
       return;
     }
 
-    // Step 1: Validate access, load settings, decrypt API key
-    const { provider, model, apiKey, endpointUrl, tenantName } = await this.tenantExecutor.runWithContext(
-      context,
-      async (ctx) => {
-        await this.policy.assertSurfaceAccess(ctx, ctx.manager);
-        const s = await this.settings.get(ctx.tenantId, { manager: ctx.manager });
-        const adapter = this.providerRegistry.get(s.llm_provider);
-        if (!adapter) throw new Error('Provider not configured.');
-
-        const tenant = await ctx.manager.query(
-          `SELECT name FROM tenants WHERE id = $1`,
-          [ctx.tenantId],
-        );
-
-        return {
-          provider: adapter,
-          model: s.llm_model!,
-          apiKey: s.llm_api_key_encrypted ? this.cipher.decrypt(s.llm_api_key_encrypted) : null,
-          endpointUrl: s.llm_endpoint_url,
-          tenantName: tenant?.[0]?.name || 'KANAP',
-        };
-      },
-    );
-
     // Step 2: Load/create conversation, persist user message, build system prompt
-    const approvalAction = this.parseApprovalAction(userMessage);
+    const approvalAction = prepared.approvalAction;
     const { conversationId, title, providerMessages, tools, systemPromptText, preStreamEvents } =
       await this.tenantExecutor.runWithContext(context, async (ctx) => {
-        let convId = params.conversationId;
+        let convId = prepared.inputConversationId;
         let convTitle: string;
-
-        if (approvalAction && !convId) {
-          throw new BadRequestException('Preview approvals require an existing conversation.');
-        }
 
         if (convId) {
           const conv = await this.conversations.getConversationForUser(
@@ -254,6 +335,7 @@ export class AiChatOrchestratorService {
               title: convTitle,
               provider: provider.descriptor.id,
               model,
+              providerSource,
             },
             { manager: ctx.manager },
           );
@@ -447,6 +529,7 @@ export class AiChatOrchestratorService {
                 message: event.message,
                 last_usage: iterationUsage,
                 conversation_usage: conversationUsage,
+                builtin_usage: await this.loadBuiltinUsage(prepared),
               };
               return;
             }
@@ -456,7 +539,15 @@ export class AiChatOrchestratorService {
         if (abortSignal?.aborted || isAbortError(error)) {
           return;
         }
-        throw error;
+        const conversationUsage = await loadConversationUsage();
+        yield {
+          type: 'error',
+          message: error instanceof Error && error.message.trim() ? error.message : 'Stream failed.',
+          last_usage: iterationUsage,
+          conversation_usage: conversationUsage,
+          builtin_usage: await this.loadBuiltinUsage(prepared),
+        };
+        return;
       }
 
       if (abortSignal?.aborted) {
@@ -506,6 +597,7 @@ export class AiChatOrchestratorService {
             message: 'Maximum tool call iterations reached without progress.',
             last_usage: lastUsage,
             conversation_usage: conversationUsage,
+            builtin_usage: await this.loadBuiltinUsage(prepared),
           };
           return;
         }
@@ -626,6 +718,7 @@ export class AiChatOrchestratorService {
         usage: totalUsage,
         last_usage: lastUsage,
         conversation_usage: conversationUsage,
+        builtin_usage: await this.loadBuiltinUsage(prepared),
       };
       return;
     }
@@ -637,6 +730,7 @@ export class AiChatOrchestratorService {
       message: 'Maximum tool call iterations reached.',
       last_usage: lastUsage,
       conversation_usage: conversationUsage,
+      builtin_usage: await this.loadBuiltinUsage(prepared),
     };
   }
 }

@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
 import { AiSettingsService } from './ai-settings.service';
+import {
+  PROVIDER_TEST_MAX_RETRIES,
+  PROVIDER_TEST_MAX_TOKENS,
+  PROVIDER_TEST_TIMEOUT_MS,
+} from './provider-test.constants';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
 import {
   AiProviderSettingsSnapshot,
@@ -15,9 +20,6 @@ export type AiProviderTestInput = {
   llm_endpoint_url?: string | null;
   llm_api_key?: string | null;
 };
-
-const TEST_TIMEOUT_MS = 5_000;
-const TEST_MAX_TOKENS = 16;
 
 function normalizeNullableString(value: unknown): string | null {
   if (value == null) return null;
@@ -98,9 +100,9 @@ export class AiProviderTestService {
         systemPrompt: 'Respond with a single word: ok.',
         messages: [{ role: 'user', content: 'Reply with ok.' }],
         tools: [],
-        maxTokens: TEST_MAX_TOKENS,
-        timeoutMs: TEST_TIMEOUT_MS,
-        maxRetries: 0,
+        maxTokens: PROVIDER_TEST_MAX_TOKENS,
+        timeoutMs: PROVIDER_TEST_TIMEOUT_MS,
+        maxRetries: PROVIDER_TEST_MAX_RETRIES,
       });
 
       const iterator = stream[Symbol.asyncIterator]();

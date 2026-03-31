@@ -262,7 +262,8 @@ Fail fast with a clear error if missing.
 
 | File | Line | What | Behavior |
 |------|------|------|----------|
-| `backend/src/config/config.controller.ts` | 10 | `GET /config/public` feature payload | Exposes `aiChat`, `aiMcp`, `aiSettings`, and `aiWebSearch` to the frontend |
+| `backend/src/config/config.controller.ts` | 10 | `GET /config/public` feature payload | Exposes `aiChat`, `aiMcp`, `aiSettings`, `aiWebSearch`, and `builtinAiProvider` to the frontend |
+| `backend/src/config/config.controller.ts` | 24 | `builtinAiProvider` gate | Returns `true` for cloud deployments and `false` in single-tenant mode |
 | `backend/src/ai/ai-capabilities.controller.ts` | 1 | `GET /ai/capabilities` | Returns per-surface AI availability derived from feature flags, tenant settings, permissions, and provider readiness |
 | `backend/src/ai/ai-policy.service.ts` | 1 | Surface and permission checks | `assertSurfaceAccess()`, `assertSettingsAccess()`, `assertKeyManagementAccess()`, and readable-entity/knowledge probes enforce AI gates |
 | `backend/src/ai/ai-chat.controller.ts` | 1 | `POST /ai/chat/stream` | Chat surface is unavailable when native AI chat is disabled by feature flag or tenant settings |

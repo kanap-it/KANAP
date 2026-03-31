@@ -10,6 +10,7 @@ export type FeaturesConfig = {
     aiMcp: boolean;
     aiSettings: boolean;
     aiWebSearch: boolean;
+    builtinAiProvider: boolean;
   };
   version: string;
   tenantSlug?: string;
@@ -29,6 +30,7 @@ const CLOUD_DEFAULTS: FeaturesConfig = {
     aiMcp: false,
     aiSettings: false,
     aiWebSearch: false,
+    builtinAiProvider: false,
   },
   version: 'unknown',
 };

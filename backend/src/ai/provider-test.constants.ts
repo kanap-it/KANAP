@@ -1,0 +1,3 @@
+export const PROVIDER_TEST_TIMEOUT_MS = 20_000;
+export const PROVIDER_TEST_MAX_TOKENS = 16;
+export const PROVIDER_TEST_MAX_RETRIES = 0;

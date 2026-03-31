@@ -68,6 +68,17 @@ export class UsersController {
   @RequireLevel('users', 'member')
   create(@Body() body: any, @Req() req: any) { return this.svc.createUser(body, { manager: req?.queryRunner?.manager }); }
 
+  @Patch('me')
+  updateMe(@Body() body: any, @Req() req: any) {
+    const userId = req.user?.sub;
+    return this.svc.updateUser(
+      userId,
+      body,
+      { actorUserId: userId, canManageUsers: false },
+      { manager: req?.queryRunner?.manager },
+    );
+  }
+
   @Patch(':id')
   @UseGuards(PermissionGuard)
   @RequireLevel('users', 'member')

@@ -85,6 +85,7 @@
       "tenants": "Tenants",
       "coaTemplates": "CoA Templates",
       "standardAccounts": "Standard Accounts",
+      "platformAi": "Platform AI",
       "opsDashboard": "Ops Dashboard",
       "scheduledTasks": "Scheduled Tasks"
     }

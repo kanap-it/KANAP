@@ -85,6 +85,7 @@
       "tenants": "Espacios de trabajo",
       "coaTemplates": "Plantillas CoA",
       "standardAccounts": "Cuentas estándar",
+      "platformAi": "Platform AI",
       "opsDashboard": "Panel de control Ops",
       "scheduledTasks": "Tareas programadas"
     }

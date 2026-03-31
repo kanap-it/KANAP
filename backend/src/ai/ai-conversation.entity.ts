@@ -22,6 +22,9 @@ export class AiConversation {
   @Column('varchar', { length: 100, nullable: true })
   model!: string | null;
 
+  @Column('varchar', { length: 10, nullable: true })
+  provider_source!: 'builtin' | 'custom' | null;
+
   @Column('timestamptz', { default: () => 'now()' })
   created_at!: Date;
 

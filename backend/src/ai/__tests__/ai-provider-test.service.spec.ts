@@ -1,5 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { AiProviderTestService } from '../ai-provider-test.service';
+import { PROVIDER_TEST_MAX_RETRIES, PROVIDER_TEST_TIMEOUT_MS } from '../provider-test.constants';
 import { AiProviderAdapter } from '../providers/ai-provider.types';
 
 function createService(options?: {
@@ -75,8 +76,8 @@ async function testUsesPersistedSecretWhenApiKeyIsOmitted() {
   assert.equal(result.validation_errors.length, 0);
   assert.equal(typeof result.latency_ms, 'number');
   assert.equal(capturedParams.apiKey, 'saved-secret');
-  assert.equal(capturedParams.timeoutMs, 5_000);
-  assert.equal(capturedParams.maxRetries, 0);
+  assert.equal(capturedParams.timeoutMs, PROVIDER_TEST_TIMEOUT_MS);
+  assert.equal(capturedParams.maxRetries, PROVIDER_TEST_MAX_RETRIES);
   assert.equal(capturedParams.messages.length, 1);
 }
 

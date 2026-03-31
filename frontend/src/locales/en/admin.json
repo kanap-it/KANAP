@@ -99,6 +99,14 @@
         "model": "Model",
         "provider": "Provider"
       },
+      "builtinUsage": {
+        "cta": "Use your own API keys for unlimited usage.",
+        "description": "Built-in usage is shared across chat and MCP requests for this tenant.",
+        "loadFailed": "Failed to load built-in usage.",
+        "reset": "Resets on {{date}}.",
+        "summary": "{{count}} / {{limit}} messages used this month",
+        "title": "Built-in usage"
+      },
       "info": {
         "ollama": "In Docker, use http://host.docker.internal:<port>/v1 instead of localhost."
       },
@@ -111,6 +119,10 @@
         "ollamaEndpoint": "e.g., http://host.docker.internal:1234/v1",
         "ollamaModel": "e.g., llama3, mistral",
         "openaiModel": "e.g., gpt-4o"
+      },
+      "sources": {
+        "builtin": "Plaid AI - Built-in",
+        "custom": "Your own provider"
       },
       "testLabel": "Provider test",
       "title": "Provider",
@@ -425,6 +437,10 @@
         "description": "View platform operations metrics.",
         "title": "Ops Dashboard"
       },
+      "platformAi": {
+        "description": "Manage the platform-wide built-in AI provider.",
+        "title": "Platform AI"
+      },
       "roles": {
         "description": "Manage roles and permissions.",
         "title": "Roles"
@@ -457,6 +473,52 @@
     },
     "subtitle": "Run platform-wide master data operations.",
     "title": "Master Data Operations"
+  },
+  "platformAi": {
+    "actions": {
+      "save": "Save",
+      "savePlanLimits": "Save plan limits",
+      "test": "Test connection",
+      "testing": "Testing..."
+    },
+    "cards": {
+      "planLimits": "Plan message limits",
+      "provider": "Built-in AI Provider",
+      "usage": "Current month usage"
+    },
+    "fields": {
+      "apiKey": "API Key",
+      "endpointUrl": "Endpoint URL",
+      "model": "Model",
+      "provider": "Provider",
+      "tenantRateLimit": "Tenant rate limit / minute",
+      "userRateLimit": "User rate limit / hour"
+    },
+    "messages": {
+      "loadFailed": "Failed to load platform AI settings.",
+      "planSaveFailed": "Failed to save plan limits.",
+      "planSaved": "Plan limits saved.",
+      "saveFailed": "Failed to save platform AI settings.",
+      "saved": "Platform AI settings saved.",
+      "testFailed": "Connection test failed."
+    },
+    "placeholders": {
+      "enterKey": "Enter API key",
+      "keepKey": "Key configured (leave blank to keep)"
+    },
+    "planLimits": {
+      "monthlyLimit": "Monthly message limit",
+      "plan": "Plan"
+    },
+    "title": "Platform AI",
+    "usage": {
+      "empty": "No tenant usage recorded yet.",
+      "limit": "Limit",
+      "percent": "Usage",
+      "plan": "Plan",
+      "tenant": "Tenant",
+      "used": "Used"
+    }
   },
   "opsDashboard": {
     "cards": {

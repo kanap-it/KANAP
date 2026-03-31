@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { streamChat, aiConversationsApi } from './aiApi';
-import { AiMutationPreview, ChatMessage, StoredChatMessage, TokenUsage } from './aiTypes';
+import { ChatStreamRequestError, streamChat, aiConversationsApi } from './aiApi';
+import { AiMutationPreview, BuiltinUsage, ChatMessage, StoredChatMessage, TokenUsage } from './aiTypes';
 import i18n from '../i18n';
 
 let msgCounter = 0;
@@ -53,11 +53,28 @@ function findLastUsage(messages: Array<Pick<StoredChatMessage, 'role' | 'usage_j
   return null;
 }
 
+function normalizeBuiltinUsage(usage?: BuiltinUsage | null): BuiltinUsage | null {
+  if (!usage) {
+    return null;
+  }
+
+  const count = Number(usage.count);
+  const limit = Number(usage.limit);
+
+  return {
+    count: Number.isFinite(count) ? count : 0,
+    limit: Number.isFinite(limit) ? limit : 0,
+    year_month: String(usage.year_month || ''),
+    reset_date: String(usage.reset_date || ''),
+  };
+}
+
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [previews, setPreviews] = useState<AiMutationPreview[]>([]);
   const [conversationUsage, setConversationUsage] = useState<TokenUsage | null>(null);
   const [lastRequestUsage, setLastRequestUsage] = useState<TokenUsage | null>(null);
+  const [builtinUsage, setBuiltinUsage] = useState<BuiltinUsage | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -193,6 +210,9 @@ export function useChat() {
             if (event.last_usage !== undefined) {
               setLastRequestUsage(normalizeConversationUsage(event.last_usage));
             }
+            if (event.builtin_usage !== undefined) {
+              setBuiltinUsage(normalizeBuiltinUsage(event.builtin_usage));
+            }
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
@@ -210,6 +230,9 @@ export function useChat() {
             }
             if (event.last_usage !== undefined) {
               setLastRequestUsage(normalizeConversationUsage(event.last_usage));
+            }
+            if (event.builtin_usage !== undefined) {
+              setBuiltinUsage(normalizeBuiltinUsage(event.builtin_usage));
             }
             setError(event.message);
             setMessages((prev) =>
@@ -242,6 +265,9 @@ export function useChat() {
         }
       } else {
         setError(err.message || i18n.t('ai:errors.sendFailed'));
+        if (err instanceof ChatStreamRequestError && err.builtin_usage !== undefined) {
+          setBuiltinUsage(normalizeBuiltinUsage(err.builtin_usage));
+        }
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId ? { ...m, isStreaming: false } : m,
@@ -381,6 +407,7 @@ export function useChat() {
     previews,
     conversationUsage,
     lastRequestUsage,
+    builtinUsage,
     isStreaming,
     error,
     conversationId,
@@ -393,6 +420,7 @@ export function useChat() {
     previews,
     conversationUsage,
     lastRequestUsage,
+    builtinUsage,
     isStreaming,
     error,
     conversationId,
