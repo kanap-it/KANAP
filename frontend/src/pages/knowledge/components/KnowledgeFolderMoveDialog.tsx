@@ -22,6 +22,7 @@ type DocumentLibrary = {
   slug: string;
   is_system: boolean;
   display_order: number;
+  can_write?: boolean;
 };
 
 type FolderNode = {
@@ -104,11 +105,17 @@ export default function KnowledgeFolderMoveDialog({
   const sourceLibraryName = folder?.library_name || t('shared.unknown');
   const folderInTemplates = !!templateLibraryId && sourceLibraryId === templateLibraryId;
   const selectableLibraries = React.useMemo(() => {
-    if (!folder) return libraries.filter((library) => library.id !== templateLibraryId);
+    if (!folder) {
+      return libraries.filter((library) => library.id !== templateLibraryId && library.can_write !== false);
+    }
     if (folderInTemplates) {
       return libraries.filter((library) => library.id === sourceLibraryId);
     }
-    return libraries.filter((library) => library.id === sourceLibraryId || library.id !== templateLibraryId);
+    return libraries.filter((library) => {
+      if (library.id === sourceLibraryId) return true;
+      if (library.id === templateLibraryId) return false;
+      return library.can_write !== false;
+    });
   }, [folder, folderInTemplates, libraries, sourceLibraryId, templateLibraryId]);
   const defaultLibraryId = React.useMemo(() => {
     if (initialTargetLibraryId && selectableLibraries.some((library) => library.id === initialTargetLibraryId)) {

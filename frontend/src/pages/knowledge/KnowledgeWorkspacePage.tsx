@@ -118,6 +118,9 @@ type DocumentLibrary = {
   slug: string;
   is_system: boolean;
   display_order: number;
+  can_write?: boolean;
+  can_manage?: boolean;
+  is_restricted?: boolean;
 };
 
 const EMPTY_RELATION_OPTIONS: RelationOption[] = [];
@@ -229,7 +232,7 @@ export default function KnowledgeWorkspacePage() {
   const [contributorsDirty, setContributorsDirty] = React.useState(false);
   const [contributorsError, setContributorsError] = React.useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
-  const canManageDocument = hasLevel('knowledge', 'member');
+  const canManageDocumentGlobal = hasLevel('knowledge', 'member');
   const [contentFocusNonce, setContentFocusNonce] = React.useState(0);
   const [contentResetNonce, setContentResetNonce] = React.useState(0);
   const [contentHasText, setContentHasText] = React.useState(false);
@@ -414,14 +417,14 @@ export default function KnowledgeWorkspacePage() {
   const { data: classificationData } = useQuery({
     queryKey: ['knowledge-classification-options'],
     queryFn: async () => (await api.get('/knowledge/classification-options')).data as ClassificationResponse,
-    enabled: !isCreate && sidebarOpen && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocumentGlobal,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: contributorOptions = EMPTY_CONTRIBUTOR_OPTIONS } = useQuery({
     queryKey: ['knowledge-contributor-options'],
     queryFn: async () => (await api.get('/knowledge/contributor-options')).data as KnowledgeContributorOption[],
-    enabled: !isCreate && sidebarOpen && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocumentGlobal,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -434,7 +437,7 @@ export default function KnowledgeWorkspacePage() {
       });
       return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
     },
-    enabled: !isCreate && sidebarOpen && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocumentGlobal,
     staleTime: 60_000,
   });
 
@@ -446,7 +449,7 @@ export default function KnowledgeWorkspacePage() {
       });
       return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
     },
-    enabled: !isCreate && sidebarOpen && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocumentGlobal,
     staleTime: 60_000,
   });
 
@@ -458,7 +461,7 @@ export default function KnowledgeWorkspacePage() {
       });
       return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
     },
-    enabled: !isCreate && sidebarOpen && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocumentGlobal,
     staleTime: 60_000,
   });
 
@@ -470,7 +473,7 @@ export default function KnowledgeWorkspacePage() {
       });
       return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
     },
-    enabled: !isCreate && sidebarOpen && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocumentGlobal,
     staleTime: 60_000,
   });
 
@@ -482,7 +485,7 @@ export default function KnowledgeWorkspacePage() {
       });
       return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
     },
-    enabled: !isCreate && sidebarOpen && canManageDocument,
+    enabled: !isCreate && sidebarOpen && canManageDocumentGlobal,
     staleTime: 60_000,
   });
 
@@ -717,7 +720,7 @@ export default function KnowledgeWorkspacePage() {
   const saveMutation = useMutation({
     mutationFn: async (mode: 'manual' | 'autosave') => {
       if (isCreate) {
-        if (!workspaceLibraryId) {
+        if (!workspaceLibraryId || !activeCreateLibrary?.can_write) {
           throw new Error(t('workspace.messages.noDestinationLibrary'));
         }
         const createRelationPayload = buildRelationPayload(relationSelections);
@@ -1418,10 +1421,12 @@ export default function KnowledgeWorkspacePage() {
   const showTitleMeta = (!isCreate && !!doc?.item_number) || isManagedIntegratedDocument;
   const hasWorkflowAssignments = contributorAssignments.reviewer_user_ids.length > 0 || contributorAssignments.approver_user_ids.length > 0;
   const hasPendingWorkflowChanges = dirty || relationsDirty || classificationsDirty || contributorsDirty;
+  const canWriteLibrary = isCreate ? !!activeCreateLibrary?.can_write : !!doc?.can_write;
+  const canManageDocument = canManageDocumentGlobal && canWriteLibrary;
   const isLockedByAnotherUser = !!activeLockInfo?.holder_user_id && activeLockInfo.holder_user_id !== profile?.id;
-  const workspaceReadOnly = !isCreate && isLockedByAnotherUser;
-  const canEditContent = isCreate || (!workflowActive && editMode && !!lockToken);
-  const canManageDocumentState = isCreate || (canManageDocument && !workflowActive && editMode && !!lockToken);
+  const workspaceReadOnly = !isCreate && (isLockedByAnotherUser || !canWriteLibrary);
+  const canEditContent = canManageDocument && (isCreate || (!workflowActive && editMode && !!lockToken));
+  const canManageDocumentState = canManageDocument && (isCreate || (!workflowActive && editMode && !!lockToken));
   const lockHolderLabel = activeLockInfo?.holder_name || t('workspace.values.anotherUser');
   const currentWorkflowStage = workflow?.current_stage || null;
   const currentWorkflowParticipant = Array.isArray(workflow?.participants)
@@ -1442,6 +1447,7 @@ export default function KnowledgeWorkspacePage() {
     if (Number.isNaN(dt.getTime())) return null;
     return dt.toLocaleString(locale);
   })();
+  const showReadOnlyAccessNotice = (!isCreate && !canManageDocument) || (isCreate && !!activeCreateLibrary && !canManageDocument);
 
   return (
     <>
@@ -1524,7 +1530,7 @@ export default function KnowledgeWorkspacePage() {
 
       {!!error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {!canManageDocument && (
+      {showReadOnlyAccessNotice && (
         <Alert severity="info" sx={{ mb: 2 }}>
           {t('workspace.messages.readOnlyAccess')}
         </Alert>

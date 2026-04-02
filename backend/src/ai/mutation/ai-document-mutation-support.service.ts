@@ -434,7 +434,7 @@ export class AiDocumentMutationSupportService {
     idOrRef: string,
     opts?: { templatesOnly?: boolean; entityLabel?: 'document' | 'template' },
   ): Promise<AiDocumentSnapshot> {
-    const document = await this.knowledge.get(idOrRef, { manager: context.manager });
+    const document = await this.knowledge.get(idOrRef, { manager: context.manager, userId: context.userId });
     const snapshot = this.toDocumentSnapshot(document);
 
     if (opts?.templatesOnly && snapshot.library_slug !== TEMPLATE_LIBRARY_SLUG) {
@@ -455,7 +455,24 @@ export class AiDocumentMutationSupportService {
     const limit = Math.min(Math.max(Number(opts?.limit) || 5, 1), 10);
     const like = `%${normalized}%`;
     const prefix = `${normalized}%`;
-    const params: unknown[] = [context.tenantId, like, normalized, prefix, limit];
+    const accessibleLibraries = await this.knowledge.listLibraries({
+      manager: context.manager,
+      userId: context.userId,
+    });
+    const accessibleLibraryIds = accessibleLibraries.map((library) => String(library.id));
+    if (accessibleLibraryIds.length === 0) {
+      return [];
+    }
+
+    const params: unknown[] = [context.tenantId, like, normalized, prefix];
+    let templateClause = '';
+    if (opts?.templatesOnly) {
+      params.push(TEMPLATE_LIBRARY_SLUG);
+      templateClause = `AND dl.slug = $${params.length}`;
+    }
+    params.push(accessibleLibraryIds);
+    const libraryAccessClause = `AND d.library_id = ANY($${params.length}::uuid[])`;
+    params.push(limit);
 
     const rows = await context.manager.query(
       `SELECT d.id,
@@ -469,7 +486,8 @@ export class AiDocumentMutationSupportService {
        LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
        LEFT JOIN document_types dt ON dt.id = d.document_type_id AND dt.tenant_id = d.tenant_id
        WHERE d.tenant_id = $1
-         ${opts?.templatesOnly ? `AND dl.slug = '${TEMPLATE_LIBRARY_SLUG}'` : ''}
+         ${templateClause}
+         ${libraryAccessClause}
          AND (
            d.title ILIKE $2
            OR COALESCE(d.summary, '') ILIKE $2
@@ -483,7 +501,7 @@ export class AiDocumentMutationSupportService {
          END ASC,
          d.updated_at DESC,
          d.item_number DESC
-       LIMIT $5`,
+       LIMIT $${params.length}`,
       params,
     );
 
@@ -588,8 +606,9 @@ export class AiDocumentMutationSupportService {
   async resolveCreateDefaults(
     context: AiExecutionContextWithManager,
   ): Promise<AiDocumentCreateDefaults> {
-    const libraries = await this.knowledge.listLibraries({ manager: context.manager });
-    const library = libraries.find((entry: any) => entry.is_system !== true) ?? libraries[0];
+    const libraries = await this.knowledge.listLibraries({ manager: context.manager, userId: context.userId });
+    const writableLibraries = libraries.filter((entry: any) => entry.can_write);
+    const library = writableLibraries.find((entry: any) => entry.is_system !== true) ?? writableLibraries[0];
     if (!library) {
       throw new BadRequestException('No document library is available for this tenant.');
     }

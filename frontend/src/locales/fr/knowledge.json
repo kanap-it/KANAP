@@ -18,7 +18,8 @@
   },
   "confirmations": {
     "deleteLibrary": "Supprimer cette bibliothèque ? Les documents et dossiers seront déplacés vers la bibliothèque par défaut.",
-    "discardChanges": "Abandonner les modifications non enregistrées et revenir à la dernière version sauvegardée ?"
+    "discardChanges": "Abandonner les modifications non enregistrées et revenir à la dernière version sauvegardée ?",
+    "resetLibraryAccess": "Repasser cette bibliothèque en accès ouvert et effacer les listes personnalisées de lecteurs et rédacteurs ?"
   },
   "dialogs": {
     "createLibrary": {
@@ -32,13 +33,26 @@
     },
     "editLibrary": {
       "fields": {
-        "libraryName": "Nom de la bibliothèque"
+        "accessMode": "Mode d'accès",
+        "libraryName": "Nom de la bibliothèque",
+        "owner": "Propriétaire",
+        "readers": "Lecteurs",
+        "writers": "Rédacteurs"
       },
       "messages": {
-        "failed": "Impossible de mettre à jour la bibliothèque."
+        "failed": "Impossible de mettre à jour la bibliothèque.",
+        "restrictedEmpty": "Si vous n'ajoutez aucun lecteur ni rédacteur, seuls le propriétaire et les administrateurs de la connaissance pourront accéder à cette bibliothèque."
+      },
+      "sections": {
+        "access": "Contrôle d'accès",
+        "general": "Général"
       },
       "slugWarning": "Renommer cette bibliothèque modifie également son URL.",
-      "title": "Modifier la bibliothèque"
+      "title": "Paramètres de la bibliothèque",
+      "values": {
+        "accessModeDefault": "Ouverte à tous",
+        "accessModeRestricted": "Restreinte"
+      }
     },
     "manageTypes": {
       "title": "Gérer les types de document"
@@ -120,6 +134,7 @@
     "moveFolderFailed": "Impossible de déplacer le dossier.",
     "moveTemplatesSeparately": "Déplacez les documents modèles séparément des autres bibliothèques.",
     "noPermissionMoveDocuments": "Vous n'avez pas l'autorisation de déplacer des documents.",
+    "noPermissionMoveSelectedDocuments": "Vous n'avez pas un accès en écriture sur tous les documents sélectionnés.",
     "selectAtLeastOneDocument": "Sélectionnez au moins un document.",
     "selectSingleLibraryToMove": "Sélectionnez des documents d'une seule bibliothèque pour les déplacer."
   },

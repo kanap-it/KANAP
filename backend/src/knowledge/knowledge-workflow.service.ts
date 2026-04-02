@@ -171,6 +171,7 @@ export class KnowledgeWorkflowService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.knowledge.resolveDocumentId(idOrRef, manager);
+    await this.knowledge.assertDocumentWritable(documentId, manager, userId);
     const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
     if (!document) throw new NotFoundException('Document not found');
     await this.knowledge.assertIntegratedDocumentWorkflowRequestAllowed(documentId, manager);
@@ -265,7 +266,7 @@ export class KnowledgeWorkflowService {
       locale,
     }));
 
-    return this.knowledge.get(documentId, { manager });
+    return this.knowledge.get(documentId, { manager, userId });
   }
 
   async approveWorkflow(
@@ -277,6 +278,7 @@ export class KnowledgeWorkflowService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.knowledge.resolveDocumentId(idOrRef, manager);
+    await this.knowledge.assertDocumentReadable(documentId, manager, userId);
     const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
     if (!document) throw new NotFoundException('Document not found');
 
@@ -319,7 +321,7 @@ export class KnowledgeWorkflowService {
     );
     const pendingCount = Number(pendingRows[0]?.count || 0);
     if (pendingCount > 0) {
-      return this.knowledge.get(documentId, { manager });
+      return this.knowledge.get(documentId, { manager, userId });
     }
 
     if (currentStage === 'reviewer') {
@@ -353,12 +355,12 @@ export class KnowledgeWorkflowService {
           stage: 'approval',
           locale,
         }));
-        return this.knowledge.get(documentId, { manager });
+        return this.knowledge.get(documentId, { manager, userId });
       }
     }
 
     await this.finalizeWorkflowApproved(document, workflow, userId, appBaseUrl, manager);
-    return this.knowledge.get(documentId, { manager });
+    return this.knowledge.get(documentId, { manager, userId });
   }
 
   async requestWorkflowChanges(
@@ -370,6 +372,7 @@ export class KnowledgeWorkflowService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.knowledge.resolveDocumentId(idOrRef, manager);
+    await this.knowledge.assertDocumentReadable(documentId, manager, userId);
     const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
     if (!document) throw new NotFoundException('Document not found');
 
@@ -432,7 +435,7 @@ export class KnowledgeWorkflowService {
       locale,
     }));
 
-    return this.knowledge.get(documentId, { manager });
+    return this.knowledge.get(documentId, { manager, userId });
   }
 
   async cancelWorkflowReview(
@@ -443,6 +446,7 @@ export class KnowledgeWorkflowService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.knowledge.resolveDocumentId(idOrRef, manager);
+    await this.knowledge.assertDocumentReadable(documentId, manager, userId);
     const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
     if (!document) throw new NotFoundException('Document not found');
 
@@ -511,6 +515,6 @@ export class KnowledgeWorkflowService {
       locale,
     }));
 
-    return this.knowledge.get(documentId, { manager });
+    return this.knowledge.get(documentId, { manager, userId });
   }
 }

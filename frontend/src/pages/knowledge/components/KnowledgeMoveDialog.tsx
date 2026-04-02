@@ -22,6 +22,7 @@ type DocumentLibrary = {
   slug: string;
   is_system: boolean;
   display_order: number;
+  can_write?: boolean;
 };
 
 type DocumentSelectionRow = {
@@ -108,7 +109,11 @@ export default function KnowledgeMoveDialog({
   const selectionIncludesTemplateLibrary = !!templateLibraryId && selectedLibraryIds.includes(templateLibraryId);
   const commonLibraryId = selectedLibraryIds.length === 1 ? selectedLibraryIds[0] : null;
   const selectableLibraries = React.useMemo(
-    () => libraries.filter((library) => library.id === commonLibraryId || library.id !== templateLibraryId),
+    () => libraries.filter((library) => {
+      if (library.id === commonLibraryId) return true;
+      if (library.id === templateLibraryId) return false;
+      return library.can_write !== false;
+    }),
     [commonLibraryId, libraries, templateLibraryId],
   );
   const defaultLibraryId = React.useMemo(() => {

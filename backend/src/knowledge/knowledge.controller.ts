@@ -58,28 +58,28 @@ export class KnowledgeController {
   @RequireLevel('knowledge', 'reader')
   @Get()
   list(@Query() query: any, @Tenant() ctx: TenantRequest) {
-    return this.docs.list(query, { manager: ctx.manager });
+    return this.docs.list(query, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('knowledge', 'reader')
   @Get('ids')
   listIds(@Query() query: any, @Tenant() ctx: TenantRequest) {
-    return this.docs.listIds(query, { manager: ctx.manager });
+    return this.docs.listIds(query, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('knowledge', 'reader')
   @Get('filter-values')
   listFilterValues(@Query() query: any, @Tenant() ctx: TenantRequest) {
-    return this.docs.listFilterValues(query, { manager: ctx.manager });
+    return this.docs.listFilterValues(query, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('knowledge', 'reader')
   @Get('search')
   search(@Query() query: any, @Tenant() ctx: TenantRequest) {
-    return this.docs.search(query, { manager: ctx.manager });
+    return this.docs.search(query, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
@@ -101,7 +101,7 @@ export class KnowledgeController {
   }
 
   @UseGuards(PermissionGuard)
-  @RequireLevel('knowledge', 'member')
+  @RequireLevel('knowledge', 'reader')
   @Get('contributor-options')
   listContributorOptions(@Tenant() ctx: TenantRequest) {
     return this.docs.listContributorOptions({ manager: ctx.manager });
@@ -115,7 +115,7 @@ export class KnowledgeController {
     @Res() res: Response,
     @Tenant() ctx: TenantRequest,
   ) {
-    const meta = await this.docs.getAttachmentMeta(attachmentId, { manager: ctx.manager });
+    const meta = await this.docs.getAttachmentMeta(attachmentId, { manager: ctx.manager, userId: ctx.userId || null });
     const obj = await this.storage.getObjectStream(meta.storage_path);
     res.setHeader('Content-Type', obj.contentType || meta.mime_type || 'application/octet-stream');
     res.setHeader('Content-Disposition', contentDisposition(meta.original_filename));
@@ -182,7 +182,7 @@ export class KnowledgeController {
   @RequireLevel('knowledge', 'reader')
   @Get(':idOrRef')
   get(@Param('idOrRef') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    return this.docs.get(idOrRef, { manager: ctx.manager });
+    return this.docs.get(idOrRef, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
@@ -244,14 +244,14 @@ export class KnowledgeController {
   @RequireLevel('knowledge', 'admin')
   @Post(':idOrRef/locks/force-release')
   forceReleaseLock(@Param('idOrRef') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    return this.docs.forceReleaseLock(idOrRef, { manager: ctx.manager });
+    return this.docs.forceReleaseLock(idOrRef, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('knowledge', 'reader')
   @Get(':idOrRef/versions')
   listVersions(@Param('idOrRef') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    return this.docs.listVersions(idOrRef, { manager: ctx.manager });
+    return this.docs.listVersions(idOrRef, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
@@ -263,7 +263,7 @@ export class KnowledgeController {
     @Query('to') to: string,
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.docs.compareVersions(idOrRef, Number(from), Number(to), { manager: ctx.manager });
+    return this.docs.compareVersions(idOrRef, Number(from), Number(to), { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
@@ -274,7 +274,7 @@ export class KnowledgeController {
     @Param('versionNumber') versionNumber: string,
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.docs.getVersion(idOrRef, Number(versionNumber), { manager: ctx.manager });
+    return this.docs.getVersion(idOrRef, Number(versionNumber), { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
@@ -463,7 +463,7 @@ export class KnowledgeController {
   @RequireLevel('knowledge', 'reader')
   @Get(':idOrRef/references/incoming')
   listIncomingReferences(@Param('idOrRef') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    return this.docs.listIncomingReferences(idOrRef, { manager: ctx.manager });
+    return this.docs.listIncomingReferences(idOrRef, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
@@ -521,7 +521,7 @@ export class KnowledgeController {
   @RequireLevel('knowledge', 'reader')
   @Get(':idOrRef/attachments')
   listAttachments(@Param('idOrRef') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    return this.docs.listAttachments(idOrRef, { manager: ctx.manager });
+    return this.docs.listAttachments(idOrRef, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
@@ -581,7 +581,7 @@ export class KnowledgeController {
   @RequireLevel('knowledge', 'reader')
   @Get(':idOrRef/activities')
   listActivities(@Param('idOrRef') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    return this.docs.listActivities(idOrRef, { manager: ctx.manager });
+    return this.docs.listActivities(idOrRef, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
@@ -617,6 +617,7 @@ export class KnowledgeController {
     const output = await this.docs.exportDocument(idOrRef, format, {
       manager: ctx.manager,
       imageFetchCookie: req?.headers?.cookie,
+      userId: ctx.userId || null,
     });
 
     res.setHeader('Content-Type', output.mimeType);

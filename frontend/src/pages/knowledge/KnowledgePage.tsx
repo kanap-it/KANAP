@@ -2,10 +2,13 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   ButtonGroup,
+  CircularProgress,
   Chip,
+  Divider,
   Dialog,
   DialogActions,
   DialogContent,
@@ -30,6 +33,7 @@ import AddIcon from '@mui/icons-material/Add';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import EditIcon from '@mui/icons-material/Edit';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import type { ICellRendererParams } from 'ag-grid-community';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -90,6 +94,7 @@ type DocumentRow = {
   validated_at: string | null;
   is_validated_current_revision: boolean;
   is_managed_integrated_document?: boolean;
+  can_write?: boolean;
   updated_at: string | null;
 };
 
@@ -99,6 +104,27 @@ type DocumentLibrary = {
   slug: string;
   is_system: boolean;
   display_order: number;
+  access_mode?: 'default' | 'restricted';
+  owner_user_id?: string | null;
+  is_restricted?: boolean;
+  effective_access_level?: 'reader' | 'writer' | 'admin' | null;
+  can_manage?: boolean;
+  can_write?: boolean;
+  can_delete?: boolean;
+};
+
+type KnowledgeContributorOption = {
+  id: string;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  label: string;
+};
+
+type KnowledgeLibraryDetail = DocumentLibrary & {
+  owner: KnowledgeContributorOption | null;
+  readers: KnowledgeContributorOption[];
+  writers: KnowledgeContributorOption[];
 };
 
 type TemplateListItem = {
@@ -156,8 +182,9 @@ export default function KnowledgePage() {
   const location = useLocation();
 
   const canManageDocuments = hasLevel('knowledge', 'member');
-  const canManageLibraries = hasLevel('knowledge', 'admin');
-  const canMoveAcrossLibraries = canManageLibraries;
+  const canCreateLibraries = hasLevel('knowledge', 'member');
+  const canAdminLibraries = hasLevel('knowledge', 'admin');
+  const canMoveAcrossLibraries = canAdminLibraries;
 
   const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const urlScope = useMemo(() => {
@@ -182,9 +209,31 @@ export default function KnowledgePage() {
     navigate({ pathname: location.pathname, search: next ? `?${next}` : '' }, { replace });
   }, [location.pathname, location.search, navigate]);
 
+  const [createLibraryOpen, setCreateLibraryOpen] = useState(false);
+  const [newLibraryName, setNewLibraryName] = useState('');
+  const [editingLibrary, setEditingLibrary] = useState<DocumentLibrary | null>(null);
+  const [librarySettingsName, setLibrarySettingsName] = useState('');
+  const [librarySettingsOwnerId, setLibrarySettingsOwnerId] = useState<string | null>(null);
+  const [librarySettingsAccessMode, setLibrarySettingsAccessMode] = useState<'default' | 'restricted'>('default');
+  const [librarySettingsReaderIds, setLibrarySettingsReaderIds] = useState<string[]>([]);
+  const [librarySettingsWriterIds, setLibrarySettingsWriterIds] = useState<string[]>([]);
+
   const { data: libraries = [] } = useQuery({
     queryKey: ['knowledge-libraries'],
     queryFn: async () => (await api.get('/knowledge-libraries')).data as DocumentLibrary[],
+  });
+
+  const { data: editingLibraryDetail, isLoading: editingLibraryLoading, error: editingLibraryError } = useQuery({
+    queryKey: ['knowledge-library', editingLibrary?.id],
+    queryFn: async () => (await api.get(`/knowledge-libraries/${editingLibrary?.id}`)).data as KnowledgeLibraryDetail,
+    enabled: !!editingLibrary?.id,
+  });
+
+  const { data: knowledgeContributorOptions = [] } = useQuery({
+    queryKey: ['knowledge-contributor-options'],
+    queryFn: async () => (await api.get('/knowledge/contributor-options')).data as KnowledgeContributorOption[],
+    enabled: !!editingLibrary,
+    staleTime: 5 * 60 * 1000,
   });
 
   const sortedLibraries = useMemo(() => {
@@ -319,7 +368,7 @@ export default function KnowledgePage() {
     setFolderMoveDialogTargetLibraryId(null);
   }, []);
 
-  const dragToFolderEnabled = canManageDocuments && !searchAllLibraries && !!activeLibrary?.id;
+  const dragToFolderEnabled = canManageDocuments && !searchAllLibraries && !!activeLibrary?.id && !!activeLibrary?.can_write;
 
   const getDocFilterValues = useCallback((field: string, opts?: { labelMap?: Record<string, string>; order?: Array<string | null>; emptyLabel?: string }) => {
     const labelMap = opts?.labelMap;
@@ -378,10 +427,13 @@ export default function KnowledgePage() {
     const row = params.data;
     const disabled = !dragToFolderEnabled
       || !row?.id
+      || row?.can_write === false
       || !!row?.is_managed_integrated_document
       || moveDocumentsMutation.isPending;
     const disabledReason = row?.is_managed_integrated_document
       ? t('messages.managedDocsCannotMove')
+      : row?.can_write === false
+        ? t('messages.noPermissionMoveSelectedDocuments')
       : t('messages.dragSingleLibraryOnly');
     return (
       <Tooltip title={disabled ? disabledReason : t('messages.dragToFolderOrLibrary')}>
@@ -536,11 +588,6 @@ export default function KnowledgePage() {
     return nextColumns;
   }, [ClickableCell, DragHandleCell, dragToFolderEnabled, getDocFilterValues, searchAllLibraries, t]);
 
-  const [createLibraryOpen, setCreateLibraryOpen] = useState(false);
-  const [newLibraryName, setNewLibraryName] = useState('');
-  const [editingLibrary, setEditingLibrary] = useState<DocumentLibrary | null>(null);
-  const [renamedLibrary, setRenamedLibrary] = useState('');
-
   const createLibraryMutation = useMutation({
     mutationFn: async () => {
       return (await api.post('/knowledge-libraries', { name: newLibraryName.trim() })).data as DocumentLibrary;
@@ -553,16 +600,27 @@ export default function KnowledgePage() {
     },
   });
 
-  const renameLibraryMutation = useMutation({
+  const saveLibraryMutation = useMutation({
     mutationFn: async () => {
       if (!editingLibrary) return null;
-      return (await api.patch(`/knowledge-libraries/${editingLibrary.id}`, { name: renamedLibrary.trim() })).data as DocumentLibrary;
+      return (await api.patch(`/knowledge-libraries/${editingLibrary.id}`, {
+        name: librarySettingsName.trim(),
+        owner_user_id: librarySettingsOwnerId,
+        access_mode: librarySettingsAccessMode,
+        reader_user_ids: librarySettingsAccessMode === 'restricted' ? librarySettingsReaderIds : [],
+        writer_user_ids: librarySettingsAccessMode === 'restricted' ? librarySettingsWriterIds : [],
+      })).data as DocumentLibrary;
     },
     onSuccess: async (updated) => {
       if (!updated) return;
       setEditingLibrary(null);
-      setRenamedLibrary('');
+      setLibrarySettingsName('');
+      setLibrarySettingsOwnerId(null);
+      setLibrarySettingsAccessMode('default');
+      setLibrarySettingsReaderIds([]);
+      setLibrarySettingsWriterIds([]);
       await qc.invalidateQueries({ queryKey: ['knowledge-libraries'] });
+      await qc.invalidateQueries({ queryKey: ['knowledge-library', updated.id] });
       if (activeLibrary?.id === updated.id) {
         updateQuery({ library: updated.slug });
       }
@@ -576,7 +634,11 @@ export default function KnowledgePage() {
     },
     onSuccess: async () => {
       setEditingLibrary(null);
-      setRenamedLibrary('');
+      setLibrarySettingsName('');
+      setLibrarySettingsOwnerId(null);
+      setLibrarySettingsAccessMode('default');
+      setLibrarySettingsReaderIds([]);
+      setLibrarySettingsWriterIds([]);
       await qc.invalidateQueries({ queryKey: ['knowledge-libraries'] });
       updateQuery({ folder_id: null, allLibraries: '0' });
     },
@@ -584,8 +646,105 @@ export default function KnowledgePage() {
 
   const openLibraryEdit = (library: DocumentLibrary) => {
     setEditingLibrary(library);
-    setRenamedLibrary(library.name);
+    setLibrarySettingsName(library.name);
+    setLibrarySettingsOwnerId(library.owner_user_id || null);
+    setLibrarySettingsAccessMode(library.is_restricted ? 'restricted' : 'default');
+    setLibrarySettingsReaderIds([]);
+    setLibrarySettingsWriterIds([]);
   };
+
+  React.useEffect(() => {
+    if (!editingLibraryDetail) return;
+    setLibrarySettingsName(editingLibraryDetail.name || '');
+    setLibrarySettingsOwnerId(editingLibraryDetail.owner?.id || editingLibraryDetail.owner_user_id || null);
+    setLibrarySettingsAccessMode(editingLibraryDetail.is_restricted ? 'restricted' : 'default');
+    setLibrarySettingsReaderIds(editingLibraryDetail.readers.map((user) => user.id));
+    setLibrarySettingsWriterIds(editingLibraryDetail.writers.map((user) => user.id));
+  }, [editingLibraryDetail]);
+
+  const librarySelectableUsers = useMemo(() => {
+    const byId = new Map<string, KnowledgeContributorOption>();
+    [...knowledgeContributorOptions, ...(editingLibraryDetail?.readers || []), ...(editingLibraryDetail?.writers || []), ...(editingLibraryDetail?.owner ? [editingLibraryDetail.owner] : [])]
+      .forEach((user) => {
+        if (user?.id) byId.set(user.id, user);
+      });
+    const users = Array.from(byId.values());
+    users.sort((left, right) => {
+      const leftLabel = (left.label || left.email || left.id).trim().toLocaleLowerCase();
+      const rightLabel = (right.label || right.email || right.id).trim().toLocaleLowerCase();
+      return leftLabel.localeCompare(rightLabel, undefined, { sensitivity: 'base' });
+    });
+    if (profile?.id) {
+      const myIndex = users.findIndex((user) => user.id === profile.id);
+      if (myIndex > 0) users.unshift(...users.splice(myIndex, 1));
+    }
+    return users;
+  }, [editingLibraryDetail?.owner, editingLibraryDetail?.readers, editingLibraryDetail?.writers, knowledgeContributorOptions, profile?.id]);
+
+  const userOptionById = useMemo(() => {
+    const byId = new Map<string, KnowledgeContributorOption>();
+    librarySelectableUsers.forEach((user) => byId.set(user.id, user));
+    return byId;
+  }, [librarySelectableUsers]);
+
+  const selectedLibraryOwner = librarySettingsOwnerId ? (userOptionById.get(librarySettingsOwnerId) || null) : null;
+  const selectedLibraryReaders = librarySettingsReaderIds
+    .map((userId) => userOptionById.get(userId))
+    .filter((user): user is KnowledgeContributorOption => !!user);
+  const selectedLibraryWriters = librarySettingsWriterIds
+    .map((userId) => userOptionById.get(userId))
+    .filter((user): user is KnowledgeContributorOption => !!user);
+  const libraryHasRestrictedMembers = librarySettingsReaderIds.length > 0 || librarySettingsWriterIds.length > 0;
+
+  const getLibrarySelectableUserLabel = useCallback((user: KnowledgeContributorOption) => {
+    const baseLabel = user.label || user.email || user.id;
+    return user.id === profile?.id ? `${baseLabel} ${t('common:selects.meSuffix')}` : baseLabel;
+  }, [profile?.id, t]);
+
+  const renderLibrarySelectableUserOption = useCallback((
+    props: React.HTMLAttributes<HTMLLIElement>,
+    option: KnowledgeContributorOption,
+  ) => (
+    <React.Fragment key={option.id}>
+      <li {...props}>
+        <div style={{ fontWeight: 500 }}>
+          {getLibrarySelectableUserLabel(option)}
+        </div>
+      </li>
+      {option.id === profile?.id && <Divider />}
+    </React.Fragment>
+  ), [getLibrarySelectableUserLabel, profile?.id]);
+
+  const handleLibraryOwnerChange = useCallback((nextOwner: KnowledgeContributorOption | null) => {
+    const nextOwnerId = nextOwner?.id || null;
+    setLibrarySettingsOwnerId(nextOwnerId);
+    if (!nextOwnerId) return;
+    setLibrarySettingsReaderIds((current) => current.filter((userId) => userId !== nextOwnerId));
+    setLibrarySettingsWriterIds((current) => current.filter((userId) => userId !== nextOwnerId));
+  }, []);
+
+  const handleLibraryReadersChange = useCallback((nextUsers: KnowledgeContributorOption[]) => {
+    const nextIds = Array.from(new Set(nextUsers.map((user) => user.id)))
+      .filter((userId) => userId !== librarySettingsOwnerId && !librarySettingsWriterIds.includes(userId));
+    setLibrarySettingsReaderIds(nextIds);
+  }, [librarySettingsOwnerId, librarySettingsWriterIds]);
+
+  const handleLibraryWritersChange = useCallback((nextUsers: KnowledgeContributorOption[]) => {
+    const nextIds = Array.from(new Set(nextUsers.map((user) => user.id)))
+      .filter((userId) => userId !== librarySettingsOwnerId);
+    setLibrarySettingsWriterIds(nextIds);
+    setLibrarySettingsReaderIds((current) => current.filter((userId) => userId !== librarySettingsOwnerId && !nextIds.includes(userId)));
+  }, [librarySettingsOwnerId]);
+
+  const handleLibraryAccessModeChange = useCallback((nextMode: 'default' | 'restricted') => {
+    if (nextMode === 'default' && librarySettingsAccessMode === 'restricted' && libraryHasRestrictedMembers) {
+      const confirmed = window.confirm(t('confirmations.resetLibraryAccess'));
+      if (!confirmed) return;
+      setLibrarySettingsReaderIds([]);
+      setLibrarySettingsWriterIds([]);
+    }
+    setLibrarySettingsAccessMode(nextMode);
+  }, [libraryHasRestrictedMembers, librarySettingsAccessMode, t]);
 
   const [newDocAnchorEl, setNewDocAnchorEl] = useState<null | HTMLElement>(null);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
@@ -665,7 +824,7 @@ export default function KnowledgePage() {
   }, [templatesData?.items]);
 
   const goToBlankDocument = () => {
-    if (!activeLibrary) return;
+    if (!activeLibrary?.can_write) return;
     navigate(`/knowledge/new?library=${encodeURIComponent(activeLibrary.slug)}`);
   };
 
@@ -681,10 +840,15 @@ export default function KnowledgePage() {
     () => selectedRows.some((row) => !!row.is_managed_integrated_document),
     [selectedRows],
   );
+  const selectionIncludesReadOnlyDocuments = useMemo(
+    () => selectedRows.some((row) => row.can_write === false),
+    [selectedRows],
+  );
 
   const moveDisabledReason = useMemo(() => {
     if (selectedRows.length === 0) return t('messages.selectAtLeastOneDocument');
     if (!canManageDocuments) return t('messages.noPermissionMoveDocuments');
+    if (selectionIncludesReadOnlyDocuments) return t('messages.noPermissionMoveSelectedDocuments');
     if (selectionIncludesManagedIntegratedDocs) return t('messages.managedDocsCannotMove');
     if (selectionIncludesTemplateLibrary && selectionLibraryIds.length > 1) {
       return t('messages.moveTemplatesSeparately');
@@ -697,6 +861,7 @@ export default function KnowledgePage() {
     canManageDocuments,
     canMoveAcrossLibraries,
     selectedRows.length,
+    selectionIncludesReadOnlyDocuments,
     selectionIncludesManagedIntegratedDocs,
     selectionIncludesTemplateLibrary,
     selectionLibraryIds.length,
@@ -797,14 +962,14 @@ export default function KnowledgePage() {
   });
 
   const handleDocumentDragStart = useCallback((event: React.DragEvent<HTMLSpanElement>, row: DocumentRow | undefined) => {
-    if (!dragToFolderEnabled || !row?.id || !activeLibrary?.id || moveDocumentsMutation.isPending) {
+    if (!dragToFolderEnabled || !row?.id || row.can_write === false || !activeLibrary?.id || moveDocumentsMutation.isPending) {
       event.preventDefault();
       return;
     }
 
     const selectedIds = new Set(selectedRows.map((selectedRow) => selectedRow.id));
     const dragRows = selectedIds.has(row.id) && selectedRows.length > 0 ? selectedRows : [row];
-    if (dragRows.some((dragRow) => !!dragRow.is_managed_integrated_document)) {
+    if (dragRows.some((dragRow) => !!dragRow.is_managed_integrated_document || dragRow.can_write === false)) {
       event.preventDefault();
       return;
     }
@@ -879,6 +1044,7 @@ export default function KnowledgePage() {
   const canDropDraggedDocumentsOnLibrary = useCallback((library: DocumentLibrary) => {
     if (!draggedDocuments || !canMoveAcrossLibraries || moveDocumentsMutation.isPending) return false;
     if (!library.id || library.id === draggedDocuments.libraryId) return false;
+    if (!library.can_write) return false;
     if (draggedDocuments.librarySlug === TEMPLATE_LIBRARY_SLUG) return false;
     if (draggedDocuments.rows.some((row) => !!row.is_managed_integrated_document)) return false;
     if (library.slug === TEMPLATE_LIBRARY_SLUG) return false;
@@ -888,6 +1054,7 @@ export default function KnowledgePage() {
   const canDropDraggedFolderOnLibrary = useCallback((library: DocumentLibrary) => {
     if (!draggedFolder || !canMoveAcrossLibraries || moveFolderMutation.isPending) return false;
     if (!library.id || library.id === draggedFolder.libraryId) return false;
+    if (!library.can_write) return false;
     if (draggedFolder.librarySlug === TEMPLATE_LIBRARY_SLUG) return false;
     if (library.slug === TEMPLATE_LIBRARY_SLUG) return false;
     return true;
@@ -981,7 +1148,7 @@ export default function KnowledgePage() {
       </Stack>
 
       <Stack direction="row" spacing={1} alignItems="center">
-        {activeLibrary?.slug === 'templates' && canManageLibraries && (
+        {activeLibrary?.slug === 'templates' && canAdminLibraries && (
           <Button
             variant="outlined"
             size="small"
@@ -991,12 +1158,12 @@ export default function KnowledgePage() {
           </Button>
         )}
         <ButtonGroup variant="contained" size="small">
-          <Button startIcon={<AddIcon />} onClick={goToBlankDocument} disabled={!canManageDocuments || !activeLibrary}>
+          <Button startIcon={<AddIcon />} onClick={goToBlankDocument} disabled={!canManageDocuments || !activeLibrary?.can_write}>
             {t('actions.new')}
           </Button>
           <Button
             onClick={(e) => setNewDocAnchorEl(e.currentTarget)}
-            disabled={!canManageDocuments || !activeLibrary}
+            disabled={!canManageDocuments || !activeLibrary?.can_write}
             sx={{ px: 0.5, minWidth: 'auto' }}
           >
             <ArrowDropDownIcon />
@@ -1017,7 +1184,7 @@ export default function KnowledgePage() {
             </Button>
           </span>
         </Tooltip>
-        {canManageLibraries && (
+        {canAdminLibraries && (
           <Tooltip title={deleteDisabledReason}>
             <span>
               <DeleteSelectedButton<DocumentRow>
@@ -1068,7 +1235,10 @@ export default function KnowledgePage() {
                 label={(
                   <Box sx={{ display: 'inline-flex', alignItems: 'center', '&:hover .lib-edit': { opacity: 1 } }}>
                     <span>{library.name}</span>
-                    {!library.is_system && canManageLibraries && (
+                    {library.is_restricted && (
+                      <LockOutlinedIcon sx={{ ml: 0.5, fontSize: 14, color: 'text.secondary' }} />
+                    )}
+                    {!library.is_system && library.can_manage && (
                       <Box
                         component="span"
                         className="lib-edit"
@@ -1093,7 +1263,7 @@ export default function KnowledgePage() {
               />
             ))}
           </Tabs>
-          {canManageLibraries && (
+          {canCreateLibraries && (
             <IconButton size="small" onClick={() => setCreateLibraryOpen(true)} sx={{ ml: 1 }}>
               <AddIcon fontSize="small" />
             </IconButton>
@@ -1109,7 +1279,7 @@ export default function KnowledgePage() {
             onSelectFolder={(folderId) => {
               updateQuery({ folder_id: folderId || null, allLibraries: '0' });
             }}
-            canManage={canManageDocuments}
+            canManage={canManageDocuments && !!activeLibrary?.can_write}
             folderExternalDragAndDrop={{
               onDragStart: handleFolderExternalDragStart,
               onDragEnd: handleFolderExternalDragEnd,
@@ -1186,22 +1356,124 @@ export default function KnowledgePage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={!!editingLibrary} onClose={() => setEditingLibrary(null)} fullWidth maxWidth="xs">
+      <Dialog
+        open={!!editingLibrary}
+        onClose={() => setEditingLibrary(null)}
+        fullWidth
+        maxWidth="md"
+      >
         <DialogTitle>{t('dialogs.editLibrary.title')}</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label={t('dialogs.editLibrary.fields.libraryName')}
-            fullWidth
-            value={renamedLibrary}
-            onChange={(e) => setRenamedLibrary(e.target.value)}
-          />
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {t('dialogs.editLibrary.slugWarning')}
-          </Typography>
-          {(renameLibraryMutation.isError || deleteLibraryMutation.isError) && (
-            <Alert severity="error" sx={{ mt: 2 }}>{t('dialogs.editLibrary.messages.failed')}</Alert>
+          {editingLibraryLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : (
+            <Stack spacing={2.5} sx={{ mt: 0.5 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t('dialogs.editLibrary.sections.general')}
+                </Typography>
+                <Stack spacing={2}>
+                  <TextField
+                    autoFocus
+                    label={t('dialogs.editLibrary.fields.libraryName')}
+                    fullWidth
+                    value={librarySettingsName}
+                    onChange={(e) => setLibrarySettingsName(e.target.value)}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {t('dialogs.editLibrary.slugWarning')}
+                  </Typography>
+                  <Autocomplete
+                    options={librarySelectableUsers}
+                    value={selectedLibraryOwner}
+                    onChange={(_event, value) => handleLibraryOwnerChange(value)}
+                    getOptionLabel={(option) => option.label || option.email || option.id}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    renderOption={renderLibrarySelectableUserOption}
+                    noOptionsText={t('common:selects.noUsersFound')}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label={t('dialogs.editLibrary.fields.owner')}
+                      />
+                    )}
+                  />
+                </Stack>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t('dialogs.editLibrary.sections.access')}
+                </Typography>
+                <Stack spacing={2}>
+                  <TextField
+                    select
+                    label={t('dialogs.editLibrary.fields.accessMode')}
+                    value={librarySettingsAccessMode}
+                    onChange={(event) => handleLibraryAccessModeChange(event.target.value as 'default' | 'restricted')}
+                  >
+                    <MenuItem value="default">{t('dialogs.editLibrary.values.accessModeDefault')}</MenuItem>
+                    <MenuItem value="restricted">{t('dialogs.editLibrary.values.accessModeRestricted')}</MenuItem>
+                  </TextField>
+
+                  {librarySettingsAccessMode === 'restricted' && (
+                    <>
+                      <Autocomplete
+                        multiple
+                        options={librarySelectableUsers}
+                        value={selectedLibraryReaders}
+                        onChange={(_event, value) => handleLibraryReadersChange(value)}
+                        getOptionLabel={(option) => option.label || option.email || option.id}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        filterSelectedOptions
+                        renderOption={renderLibrarySelectableUserOption}
+                        noOptionsText={t('common:selects.noUsersFound')}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label={t('dialogs.editLibrary.fields.readers')}
+                          />
+                        )}
+                      />
+                      <Autocomplete
+                        multiple
+                        options={librarySelectableUsers}
+                        value={selectedLibraryWriters}
+                        onChange={(_event, value) => handleLibraryWritersChange(value)}
+                        getOptionLabel={(option) => option.label || option.email || option.id}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        filterSelectedOptions
+                        renderOption={renderLibrarySelectableUserOption}
+                        noOptionsText={t('common:selects.noUsersFound')}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label={t('dialogs.editLibrary.fields.writers')}
+                          />
+                        )}
+                      />
+                      {!libraryHasRestrictedMembers && (
+                        <Alert severity="info">
+                          {t('dialogs.editLibrary.messages.restrictedEmpty')}
+                        </Alert>
+                      )}
+                    </>
+                  )}
+                </Stack>
+              </Box>
+
+              {(saveLibraryMutation.isError || deleteLibraryMutation.isError || editingLibraryError) && (
+                <Alert severity="error">
+                  {getApiErrorMessage(
+                    saveLibraryMutation.error || deleteLibraryMutation.error || editingLibraryError,
+                    t,
+                    t('dialogs.editLibrary.messages.failed'),
+                  )}
+                </Alert>
+              )}
+            </Stack>
           )}
         </DialogContent>
         <DialogActions>
@@ -1210,18 +1482,18 @@ export default function KnowledgePage() {
             color="error"
             onClick={() => {
               if (!editingLibrary) return;
-              const confirmed = confirm(t('confirmations.deleteLibrary'));
+              const confirmed = window.confirm(t('confirmations.deleteLibrary'));
               if (!confirmed) return;
               deleteLibraryMutation.mutate();
             }}
-            disabled={!editingLibrary || deleteLibraryMutation.isPending}
+            disabled={!editingLibrary || deleteLibraryMutation.isPending || editingLibraryLoading}
           >
             {t('common:buttons.delete')}
           </Button>
           <Button
             variant="contained"
-            onClick={() => renameLibraryMutation.mutate()}
-            disabled={!renamedLibrary.trim() || renameLibraryMutation.isPending}
+            onClick={() => saveLibraryMutation.mutate()}
+            disabled={!librarySettingsName.trim() || !librarySettingsOwnerId || saveLibraryMutation.isPending || editingLibraryLoading}
           >
             {t('common:buttons.save')}
           </Button>

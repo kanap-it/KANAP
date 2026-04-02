@@ -271,7 +271,7 @@ export class AiToolRegistry {
             await this.policy.assertKnowledgeReadAccess(context, context.manager);
             const result = await this.knowledge.search(
               { q: input.query, offset: input.offset, limit: input.limit },
-              { manager: context.manager },
+              { manager: context.manager, userId: context.userId },
             );
             return {
               items: (result.items || []).map((item: any): AiKnowledgeSearchResultDto => ({
@@ -311,7 +311,7 @@ export class AiToolRegistry {
           readOnly: true,
           execute: async (context, input) => {
             await this.policy.assertKnowledgeReadAccess(context, context.manager);
-            const document = await this.knowledge.get(input.document_id, { manager: context.manager });
+            const document = await this.knowledge.get(input.document_id, { manager: context.manager, userId: context.userId });
             if (!document) {
               throw new NotFoundException('Document not found.');
             }

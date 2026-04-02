@@ -3,6 +3,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 @Entity('document_libraries')
 @Index(['tenant_id', 'slug'], { unique: true })
 @Index(['tenant_id', 'display_order'])
+@Index(['tenant_id', 'owner_user_id'])
 export class DocumentLibrary {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -18,6 +19,12 @@ export class DocumentLibrary {
 
   @Column('boolean', { default: false })
   is_system!: boolean;
+
+  @Column('text', { default: 'default' })
+  access_mode!: 'default' | 'restricted';
+
+  @Column('uuid', { nullable: true })
+  owner_user_id!: string | null;
 
   @Column('int', { default: 0 })
   display_order!: number;

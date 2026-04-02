@@ -100,6 +100,7 @@ export default function QuickLogTimeModal({
       if (target === 'project') {
         await api.post(`/portfolio/projects/${projectId}/time-entries`, {
           category,
+          user_id: profile?.id,
           hours: hoursNum,
           notes: notes || undefined,
         });

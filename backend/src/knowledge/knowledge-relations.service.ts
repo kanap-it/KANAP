@@ -24,6 +24,7 @@ export class KnowledgeRelationsService {
   ): Promise<{ manager: EntityManager; documentId: string }> {
     const manager = this.getManager(opts);
     const documentId = await this.knowledge.resolveDocumentId(idOrRef, manager);
+    await this.knowledge.assertDocumentWritable(documentId, manager, opts?.userId || null);
 
     if (opts?.guardAgainstActiveLock) {
       await this.knowledge.assertWorkflowAllowsEditing(documentId, manager);

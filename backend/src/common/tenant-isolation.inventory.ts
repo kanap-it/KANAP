@@ -72,6 +72,7 @@ export const TENANT_SCOPED_TABLES = [
   'document_edit_locks',
   'document_folders',
   'document_libraries',
+  'document_library_members',
   'document_projects',
   'document_references',
   'document_requests',

@@ -1382,7 +1382,10 @@ export class AiEntityService {
         if (type === 'tasks') return this.searchTasks(context, input.query, fetchLimit);
         if (type === 'users') return this.searchUsers(context, input.query, fetchLimit);
 
-        const search = await this.knowledge.search({ q: input.query, limit: fetchLimit, offset: 0 }, { manager: context.manager });
+        const search = await this.knowledge.search(
+          { q: input.query, limit: fetchLimit, offset: 0 },
+          { manager: context.manager, userId: context.userId },
+        );
         return {
           items: (search.items || []).map((item: any, index: number) => ({
             ...toSummary('documents', {

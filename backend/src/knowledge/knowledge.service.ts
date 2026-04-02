@@ -47,6 +47,7 @@ import { DocumentEditLock } from './document-edit-lock.entity';
 import { DocumentFolder } from './document-folder.entity';
 import { IntegratedDocumentBinding } from './integrated-document-binding.entity';
 import { DocumentLibrary } from './document-library.entity';
+import { DocumentLibraryMember } from './document-library-member.entity';
 import { DocumentProject } from './document-project.entity';
 import { DocumentReference } from './document-reference.entity';
 import { DocumentRequest } from './document-request.entity';
@@ -104,11 +105,35 @@ export type EntityKnowledgeContextResponse = {
   groups: EntityKnowledgeContextGroup[];
 };
 
+type KnowledgeLibraryAccessMode = 'default' | 'restricted';
+type KnowledgeLibraryMemberLevel = 'reader' | 'writer';
+type KnowledgeLibraryEffectiveAccessLevel = 'reader' | 'writer' | 'admin';
+type KnowledgeLibraryView = DocumentLibrary & {
+  is_restricted: boolean;
+  effective_access_level: KnowledgeLibraryEffectiveAccessLevel | null;
+  can_manage: boolean;
+  can_write: boolean;
+  can_delete: boolean;
+};
+type KnowledgeLibraryMemberView = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  label: string;
+};
+type KnowledgeLibraryDetailView = KnowledgeLibraryView & {
+  owner: KnowledgeLibraryMemberView | null;
+  readers: KnowledgeLibraryMemberView[];
+  writers: KnowledgeLibraryMemberView[];
+};
+
 const LOCK_TTL_SECONDS = 5 * 60;
 const DEFAULT_DOCUMENT_TYPE_NAME = 'Document';
 const TEMPLATE_LIBRARY_SLUG = 'templates';
 const DOCUMENT_CONTRIBUTOR_ROLES = new Set(['owner', 'author', 'reviewer', 'validator']);
 const RBAC_LEVEL_RANK: Record<string, number> = { reader: 1, contributor: 2, member: 3, admin: 4 };
+const LIBRARY_ACCESS_RANK: Record<KnowledgeLibraryEffectiveAccessLevel, number> = { reader: 1, writer: 2, admin: 3 };
 const ACTIVE_WORKFLOW_STATUSES = new Set(['pending_review', 'pending_approval']);
 const INLINE_ATTACHMENT_SOURCE_RESOURCE: Record<'requests' | 'projects', 'portfolio_requests' | 'portfolio_projects'> = {
   requests: 'portfolio_requests',
@@ -597,6 +622,250 @@ export class KnowledgeService {
     return opts?.manager ?? this.documentsRepo.manager;
   }
 
+  private normalizeLibraryAccessMode(input: unknown, fallback: KnowledgeLibraryAccessMode = 'default'): KnowledgeLibraryAccessMode {
+    const value = String(input || '').trim().toLowerCase();
+    return value === 'restricted' ? 'restricted' : fallback;
+  }
+
+  private normalizeLibraryMemberIds(input: unknown): string[] {
+    if (!Array.isArray(input)) return [];
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const value of input) {
+      const normalized = String(value || '').trim();
+      if (!normalized || seen.has(normalized)) continue;
+      seen.add(normalized);
+      out.push(normalized);
+    }
+    return out;
+  }
+
+  private normalizeLibraryMemberLevel(input: unknown): KnowledgeLibraryMemberLevel {
+    return String(input || '').trim().toLowerCase() === 'writer' ? 'writer' : 'reader';
+  }
+
+  private hasLibraryAccessLevel(
+    current: KnowledgeLibraryEffectiveAccessLevel | null | undefined,
+    required: KnowledgeLibraryEffectiveAccessLevel,
+  ): boolean {
+    if (!current) return false;
+    return (LIBRARY_ACCESS_RANK[current] ?? 0) >= (LIBRARY_ACCESS_RANK[required] ?? Number.MAX_SAFE_INTEGER);
+  }
+
+  private resolveEffectiveLibraryAccessLevel(
+    library: Pick<DocumentLibrary, 'access_mode' | 'owner_user_id'>,
+    knowledgeLevel: 'reader' | 'member' | 'admin' | null,
+    membershipLevel: KnowledgeLibraryMemberLevel | null,
+    userId: string | null | undefined,
+  ): KnowledgeLibraryEffectiveAccessLevel | null {
+    const normalizedUserId = String(userId || '').trim();
+    const isOwner = !!normalizedUserId && !!library.owner_user_id && String(library.owner_user_id) === normalizedUserId;
+    if (this.hasPermissionLevel(knowledgeLevel || undefined, 'admin') || isOwner) {
+      return 'admin';
+    }
+
+    if (this.normalizeLibraryAccessMode(library.access_mode) !== 'restricted') {
+      if (this.hasPermissionLevel(knowledgeLevel || undefined, 'member')) return 'writer';
+      if (this.hasPermissionLevel(knowledgeLevel || undefined, 'reader')) return 'reader';
+      return null;
+    }
+
+    if (membershipLevel === 'writer') {
+      if (this.hasPermissionLevel(knowledgeLevel || undefined, 'member')) return 'writer';
+      if (this.hasPermissionLevel(knowledgeLevel || undefined, 'reader')) return 'reader';
+      return null;
+    }
+
+    if (membershipLevel === 'reader' && this.hasPermissionLevel(knowledgeLevel || undefined, 'reader')) {
+      return 'reader';
+    }
+
+    return null;
+  }
+
+  private toKnowledgeLibraryView(
+    library: DocumentLibrary,
+    effectiveAccessLevel: KnowledgeLibraryEffectiveAccessLevel | null,
+    userId: string | null | undefined,
+  ): KnowledgeLibraryView {
+    const normalizedUserId = String(userId || '').trim();
+    const canManage = this.hasLibraryAccessLevel(effectiveAccessLevel, 'admin')
+      || (!!normalizedUserId && !!library.owner_user_id && String(library.owner_user_id) === normalizedUserId);
+
+    return {
+      ...library,
+      is_restricted: this.normalizeLibraryAccessMode(library.access_mode) === 'restricted',
+      effective_access_level: effectiveAccessLevel,
+      can_manage: canManage,
+      can_write: this.hasLibraryAccessLevel(effectiveAccessLevel, 'writer'),
+      can_delete: this.hasPermissionLevel(effectiveAccessLevel || undefined, 'admin'),
+    };
+  }
+
+  private async listLibrariesWithAccess(
+    manager: EntityManager,
+    userId: string | null | undefined,
+  ): Promise<KnowledgeLibraryView[]> {
+    const libraries = await manager
+      .getRepository(DocumentLibrary)
+      .createQueryBuilder('l')
+      .orderBy('l.display_order', 'ASC')
+      .addOrderBy('lower(l.name)', 'ASC')
+      .getMany();
+
+    const normalizedUserId = String(userId || '').trim();
+    if (!normalizedUserId) {
+      return libraries.map((library) => this.toKnowledgeLibraryView(library, null, null));
+    }
+
+    const knowledgeLevel = await this.getKnowledgeLevelForUser(manager, normalizedUserId);
+    const membershipRows = await manager.query<Array<{ library_id: string; access_level: string }>>(
+      `SELECT library_id, access_level
+       FROM document_library_members
+       WHERE user_id = $1`,
+      [normalizedUserId],
+    );
+    const membershipByLibraryId = new Map<string, KnowledgeLibraryMemberLevel>();
+    for (const row of membershipRows) {
+      const libraryId = String(row.library_id || '').trim();
+      if (!libraryId) continue;
+      const nextLevel = this.normalizeLibraryMemberLevel(row.access_level);
+      const currentLevel = membershipByLibraryId.get(libraryId);
+      if (!currentLevel || nextLevel === 'writer') {
+        membershipByLibraryId.set(libraryId, nextLevel);
+      }
+    }
+
+    return libraries
+      .map((library) => this.toKnowledgeLibraryView(
+        library,
+        this.resolveEffectiveLibraryAccessLevel(
+          library,
+          knowledgeLevel,
+          membershipByLibraryId.get(library.id) ?? null,
+          normalizedUserId,
+        ),
+        normalizedUserId,
+      ))
+      .filter((library) => library.effective_access_level != null);
+  }
+
+  private async getLibraryWithAccessOrThrow(
+    manager: EntityManager,
+    libraryId: string,
+    userId: string | null | undefined,
+  ): Promise<KnowledgeLibraryView> {
+    const repo = manager.getRepository(DocumentLibrary);
+    const existing = await repo.findOne({ where: { id: libraryId } as any });
+    if (!existing) {
+      throw new NotFoundException('Library not found');
+    }
+
+    const normalizedUserId = String(userId || '').trim();
+    if (!normalizedUserId) {
+      return this.toKnowledgeLibraryView(existing, null, null);
+    }
+
+    const knowledgeLevel = await this.getKnowledgeLevelForUser(manager, normalizedUserId);
+    const membership = await manager.getRepository(DocumentLibraryMember).findOne({
+      where: { library_id: libraryId, user_id: normalizedUserId } as any,
+    });
+    const effectiveAccessLevel = this.resolveEffectiveLibraryAccessLevel(
+      existing,
+      knowledgeLevel,
+      membership ? this.normalizeLibraryMemberLevel(membership.access_level) : null,
+      normalizedUserId,
+    );
+    const view = this.toKnowledgeLibraryView(existing, effectiveAccessLevel, normalizedUserId);
+    if (!view.effective_access_level) {
+      throw new NotFoundException('Library not found');
+    }
+    return view;
+  }
+
+  private async listAccessibleLibraryIds(
+    manager: EntityManager,
+    userId: string | null | undefined,
+    required: KnowledgeLibraryEffectiveAccessLevel = 'reader',
+  ): Promise<string[] | null> {
+    const normalizedUserId = String(userId || '').trim();
+    if (!normalizedUserId) {
+      return null;
+    }
+    const libraries = await this.listLibrariesWithAccess(manager, normalizedUserId);
+    return libraries
+      .filter((library) => this.hasLibraryAccessLevel(library.effective_access_level, required))
+      .map((library) => library.id);
+  }
+
+  async assertLibraryReadable(
+    libraryId: string,
+    manager: EntityManager,
+    userId: string | null | undefined,
+  ): Promise<KnowledgeLibraryView> {
+    return this.getLibraryWithAccessOrThrow(manager, libraryId, userId);
+  }
+
+  async assertLibraryWritable(
+    libraryId: string,
+    manager: EntityManager,
+    userId: string | null | undefined,
+  ): Promise<KnowledgeLibraryView> {
+    const view = await this.getLibraryWithAccessOrThrow(manager, libraryId, userId);
+    if (!view.can_write) {
+      throw new NotFoundException('Library not found');
+    }
+    return view;
+  }
+
+  async assertLibraryManageable(
+    libraryId: string,
+    manager: EntityManager,
+    userId: string | null | undefined,
+  ): Promise<KnowledgeLibraryView> {
+    const view = await this.getLibraryWithAccessOrThrow(manager, libraryId, userId);
+    if (!view.can_manage) {
+      throw new ForbiddenException('You are not allowed to manage this library');
+    }
+    return view;
+  }
+
+  private async getDocumentLibraryId(
+    documentId: string,
+    manager: EntityManager,
+  ): Promise<string> {
+    const rows = await manager.query<Array<{ library_id: string | null }>>(
+      `SELECT library_id
+       FROM documents
+       WHERE id = $1
+       LIMIT 1`,
+      [documentId],
+    );
+    const libraryId = String(rows[0]?.library_id || '').trim();
+    if (!libraryId) {
+      throw new NotFoundException('Document not found');
+    }
+    return libraryId;
+  }
+
+  async assertDocumentReadable(
+    documentId: string,
+    manager: EntityManager,
+    userId: string | null | undefined,
+  ): Promise<KnowledgeLibraryView> {
+    const libraryId = await this.getDocumentLibraryId(documentId, manager);
+    return this.assertLibraryReadable(libraryId, manager, userId);
+  }
+
+  async assertDocumentWritable(
+    documentId: string,
+    manager: EntityManager,
+    userId: string | null | undefined,
+  ): Promise<KnowledgeLibraryView> {
+    const libraryId = await this.getDocumentLibraryId(documentId, manager);
+    return this.assertLibraryWritable(libraryId, manager, userId);
+  }
+
   async getIntegratedBinding(
     documentId: string,
     manager: EntityManager,
@@ -742,7 +1011,12 @@ export class KnowledgeService {
     templateDocumentId: string,
     manager: EntityManager,
     tenantId?: string | null,
+    userId?: string | null,
   ): Promise<TemplateDocumentSummary> {
+    const normalizedUserId = String(userId || '').trim();
+    if (normalizedUserId) {
+      await this.assertDocumentReadable(templateDocumentId, manager, normalizedUserId);
+    }
     const tenantClause = tenantId ? 'AND d.tenant_id = $2' : 'AND d.tenant_id = app_current_tenant()';
     const params = tenantId ? [templateDocumentId, tenantId] : [templateDocumentId];
     const rows = await manager.query(
@@ -1717,8 +1991,10 @@ export class KnowledgeService {
     const existing = await repo.findOne({ where: { id } });
     if (!existing) throw new NotFoundException('Document not found');
 
+    await this.assertDocumentWritable(existing.id, manager, userId);
     await this.assertDocumentMoveDeleteAllowed(existing.id, manager);
     await this.assertWorkflowAllowsEditing(existing.id, manager);
+    await this.assertLibraryWritable(target.libraryId, manager, userId);
 
     const crossLibraryMove = existing.library_id !== target.libraryId;
     const effectiveLevel = knowledgeLevel ?? await this.getKnowledgeLevelForUser(manager, userId);
@@ -1797,14 +2073,65 @@ export class KnowledgeService {
     return candidate;
   }
 
-  async listLibraries(opts?: { manager?: EntityManager }) {
+  async listLibraries(opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
-    return manager
-      .getRepository(DocumentLibrary)
-      .createQueryBuilder('l')
-      .orderBy('l.display_order', 'ASC')
-      .addOrderBy('lower(l.name)', 'ASC')
-      .getMany();
+    const normalizedUserId = String(opts?.userId || '').trim();
+    if (!normalizedUserId) {
+      return manager
+        .getRepository(DocumentLibrary)
+        .createQueryBuilder('l')
+        .orderBy('l.display_order', 'ASC')
+        .addOrderBy('lower(l.name)', 'ASC')
+        .getMany();
+    }
+    return this.listLibrariesWithAccess(manager, normalizedUserId);
+  }
+
+  async getLibrary(id: string, opts?: { manager?: EntityManager; userId?: string | null }): Promise<KnowledgeLibraryDetailView> {
+    const manager = this.getManager(opts);
+    const library = await this.assertLibraryManageable(id, manager, opts?.userId || null);
+
+    const ownerRows = library.owner_user_id
+      ? await manager.query<Array<KnowledgeLibraryMemberView>>(
+          `SELECT u.id,
+                  u.email,
+                  u.first_name,
+                  u.last_name,
+                  COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, u.id::text) AS label
+           FROM users u
+           WHERE u.id = $1
+             AND u.tenant_id = app_current_tenant()
+           LIMIT 1`,
+          [library.owner_user_id],
+        )
+      : [];
+
+    const memberRows = await manager.query<Array<KnowledgeLibraryMemberView & { access_level: string }>>(
+      `SELECT u.id,
+              u.email,
+              u.first_name,
+              u.last_name,
+              COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, u.id::text) AS label,
+              m.access_level
+       FROM document_library_members m
+       JOIN users u
+         ON u.id = m.user_id
+        AND u.tenant_id = m.tenant_id
+       WHERE m.library_id = $1
+       ORDER BY lower(COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email, u.id::text)) ASC`,
+      [library.id],
+    );
+
+    return {
+      ...library,
+      owner: ownerRows[0] ?? null,
+      readers: memberRows
+        .filter((row) => row.access_level === 'reader')
+        .map(({ access_level, ...row }) => row),
+      writers: memberRows
+        .filter((row) => row.access_level === 'writer')
+        .map(({ access_level, ...row }) => row),
+    };
   }
 
   async createLibrary(body: any, userId: string | null, opts?: { manager?: EntityManager }) {
@@ -1822,8 +2149,10 @@ export class KnowledgeService {
     const entity = manager.getRepository(DocumentLibrary).create({
       name,
       slug,
+      access_mode: 'default',
       is_system: false,
       display_order: displayOrder,
+      owner_user_id: userId,
       created_by: userId,
     });
 
@@ -1857,41 +2186,98 @@ export class KnowledgeService {
     return this.listLibraries({ manager });
   }
 
-  async updateLibrary(id: string, body: any, _userId: string | null, opts?: { manager?: EntityManager }) {
+  async updateLibrary(id: string, body: any, userId: string | null, opts?: { manager?: EntityManager }) {
     const manager = this.getManager(opts);
-    const repo = manager.getRepository(DocumentLibrary);
-    const existing = await repo.findOne({ where: { id } as any });
-    if (!existing) throw new NotFoundException('Library not found');
-    if (existing.is_system) throw new BadRequestException('System libraries cannot be renamed');
+    const run = async (tx: EntityManager) => {
+      const repo = tx.getRepository(DocumentLibrary);
+      const existing = await repo.findOne({ where: { id } as any });
+      if (!existing) throw new NotFoundException('Library not found');
+      if (existing.is_system) throw new BadRequestException('System libraries cannot be modified');
 
-    const name = String(body?.name || '').trim();
-    if (!name) throw new BadRequestException('name is required');
+      await this.assertLibraryManageable(existing.id, tx, userId);
 
-    existing.name = name;
-    existing.slug = await this.generateUniqueLibrarySlug(name, manager, existing.id);
-    existing.updated_at = new Date();
-    return repo.save(existing);
+      if (body?.name !== undefined) {
+        const name = String(body?.name || '').trim();
+        if (!name) throw new BadRequestException('name is required');
+        existing.name = name;
+        existing.slug = await this.generateUniqueLibrarySlug(name, tx, existing.id);
+      }
+
+      if (body?.owner_user_id !== undefined) {
+        const ownerUserId = String(body?.owner_user_id || '').trim();
+        if (!ownerUserId) throw new BadRequestException('owner_user_id is required');
+        await this.assertTenantScopedIdsExist(tx, 'users', [ownerUserId], 'library owner');
+        existing.owner_user_id = ownerUserId;
+      }
+
+      const hasAccessMode = Object.prototype.hasOwnProperty.call(body ?? {}, 'access_mode');
+      const hasReaders = Object.prototype.hasOwnProperty.call(body ?? {}, 'reader_user_ids');
+      const hasWriters = Object.prototype.hasOwnProperty.call(body ?? {}, 'writer_user_ids');
+      const nextAccessMode = hasAccessMode
+        ? this.normalizeLibraryAccessMode(body?.access_mode)
+        : this.normalizeLibraryAccessMode(existing.access_mode);
+
+      if (hasAccessMode || hasReaders || hasWriters) {
+        existing.access_mode = nextAccessMode;
+
+        const writerUserIds = this.normalizeLibraryMemberIds(body?.writer_user_ids);
+        const readerUserIds = this.normalizeLibraryMemberIds(body?.reader_user_ids)
+          .filter((candidate) => !writerUserIds.includes(candidate));
+        const ownerUserId = String(existing.owner_user_id || '').trim();
+        const allMemberIds = [...readerUserIds, ...writerUserIds]
+          .filter((candidate) => candidate && candidate !== ownerUserId);
+
+        if (allMemberIds.length > 0) {
+          await this.assertTenantScopedIdsExist(tx, 'users', allMemberIds, 'library members');
+        }
+
+        await tx.getRepository(DocumentLibraryMember).delete({ library_id: existing.id } as any);
+
+        if (existing.access_mode === 'restricted') {
+          const membershipRepo = tx.getRepository(DocumentLibraryMember);
+          for (const userIdToSave of readerUserIds) {
+            await membershipRepo.save(membershipRepo.create({
+              library_id: existing.id,
+              user_id: userIdToSave,
+              access_level: 'reader',
+            }));
+          }
+          for (const userIdToSave of writerUserIds) {
+            await membershipRepo.save(membershipRepo.create({
+              library_id: existing.id,
+              user_id: userIdToSave,
+              access_level: 'writer',
+            }));
+          }
+        }
+      }
+
+      existing.updated_at = new Date();
+      await repo.save(existing);
+      return this.getLibrary(existing.id, { manager: tx, userId });
+    };
+
+    if (manager.queryRunner?.isTransactionActive) {
+      return run(manager);
+    }
+    return manager.transaction(run);
   }
 
-  async deleteLibrary(id: string, opts?: { manager?: EntityManager }) {
+  async deleteLibrary(id: string, userId: string | null, opts?: { manager?: EntityManager }) {
     const manager = this.getManager(opts);
     const run = async (tx: EntityManager) => {
       const repo = tx.getRepository(DocumentLibrary);
       const existing = await repo.findOne({ where: { id } as any });
       if (!existing) throw new NotFoundException('Library not found');
       if (existing.is_system) throw new BadRequestException('System libraries cannot be deleted');
+      await this.assertLibraryManageable(existing.id, tx, userId);
 
-      const fallback = await repo
-        .createQueryBuilder('l')
-        .where('l.is_system = false')
-        .andWhere('l.id <> :id', { id })
-        .orderBy('l.display_order', 'ASC')
-        .addOrderBy('lower(l.name)', 'ASC')
-        .limit(1)
-        .getOne();
+      const accessibleFallbacks = (await this.listLibrariesWithAccess(tx, userId))
+        .filter((library) => library.id !== existing.id && !library.is_system);
+      const fallback = accessibleFallbacks[0] ?? null;
 
       if (!fallback) {
-        throw new BadRequestException('Cannot delete the last non-system library');
+        throw new BadRequestException('Cannot delete the last accessible non-system library');
       }
 
       const folders = await tx
@@ -1938,7 +2324,7 @@ export class KnowledgeService {
     return manager.transaction(run);
   }
 
-  async list(query: any, opts?: { manager?: EntityManager; tenantId?: string }) {
+  async list(query: any, opts?: { manager?: EntityManager; tenantId?: string; userId?: string | null }) {
     const manager = this.getManager(opts);
     const tenantId = String(opts?.tenantId || '').trim();
     const { page, limit, skip, sort, q, filters } = parsePagination(query, { field: 'updated_at', direction: 'DESC' });
@@ -1946,6 +2332,18 @@ export class KnowledgeService {
     const nextReviewDueDateParam = () => `reviewDueDate${reviewDueDateParamIndex++}`;
     let linkedEntityParamIndex = 0;
     const nextLinkedEntityParam = () => `linkedEntity${linkedEntityParamIndex++}`;
+    const accessibleLibraryViews = opts?.userId
+      ? await this.listLibrariesWithAccess(manager, opts.userId || null)
+      : null;
+    const accessibleLibraries = accessibleLibraryViews
+      ? accessibleLibraryViews.map((library) => library.id)
+      : null;
+    const writableLibraryIds = accessibleLibraryViews
+      ? new Set(accessibleLibraryViews.filter((library) => library.can_write).map((library) => library.id))
+      : null;
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return { items: [], total: 0, page, limit };
+    }
 
     const allowedSort = new Set([
       'updated_at',
@@ -2027,6 +2425,9 @@ export class KnowledgeService {
       ]);
     if (tenantId) {
       qb.andWhere('d.tenant_id = :tenantId', { tenantId });
+    }
+    if (accessibleLibraries) {
+      qb.andWhere('d.library_id IN (:...accessibleLibraryIds)', { accessibleLibraryIds: accessibleLibraries });
     }
 
     const search = this.getDocumentSearchState(q);
@@ -2243,6 +2644,7 @@ export class KnowledgeService {
     const items = rows.map((row: any) => ({
       ...row,
       item_ref: `DOC-${row.item_number}`,
+      can_write: writableLibraryIds ? writableLibraryIds.has(String(row.library_id || '')) : false,
       validated_revision: row.validated_revision != null ? Number(row.validated_revision) : null,
       validated_at: row.validated_at || null,
       is_validated_current_revision:
@@ -2254,7 +2656,7 @@ export class KnowledgeService {
     return { items, total, page, limit };
   }
 
-  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string; userId?: string | null }): Promise<{ ids: string[]; total: number }> {
     const manager = this.getManager(opts);
     const tenantId = String(opts?.tenantId || '').trim();
     const parsed = parsePagination({ ...query, page: 1, limit: query?.limit ?? 10000 }, { field: 'updated_at', direction: 'DESC' });
@@ -2262,6 +2664,10 @@ export class KnowledgeService {
     const filters = parsed.filters as Record<string, any> | undefined;
     let linkedEntityParamIndex = 0;
     const nextLinkedEntityParam = () => `linkedEntity${linkedEntityParamIndex++}`;
+    const accessibleLibraries = await this.listAccessibleLibraryIds(manager, opts?.userId || null, 'reader');
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return { ids: [], total: 0 };
+    }
 
     const qb = manager
       .getRepository(Document)
@@ -2270,6 +2676,9 @@ export class KnowledgeService {
       .select('d.id', 'id');
     if (tenantId) {
       qb.andWhere('d.tenant_id = :tenantId', { tenantId });
+    }
+    if (accessibleLibraries) {
+      qb.andWhere('d.library_id IN (:...accessibleLibraryIds)', { accessibleLibraryIds: accessibleLibraries });
     }
 
     if (search) {
@@ -2305,11 +2714,15 @@ export class KnowledgeService {
     return { ids, total: ids.length };
   }
 
-  async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<Record<string, any[]>> {
+  async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string; userId?: string | null }): Promise<Record<string, any[]>> {
     const manager = this.getManager(opts);
     const tenantId = String(opts?.tenantId || '').trim();
     const fields = query?.fields ? String(query.fields).split(',') : null;
     const shouldReturn = (field: string) => !fields || fields.includes(field);
+    const accessibleLibraries = await this.listAccessibleLibraryIds(manager, opts?.userId || null, 'reader');
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return {};
+    }
 
     // Build a base scope subquery for cross-filtering
     const scopeConditions: string[] = ['1=1'];
@@ -2333,6 +2746,10 @@ export class KnowledgeService {
     if (libraryId) {
       scopeConditions.push(`d.library_id = $${scopeParams.length + 1}`);
       scopeParams.push(String(libraryId));
+    }
+    if (accessibleLibraries) {
+      scopeConditions.push(`d.library_id = ANY($${scopeParams.length + 1}::uuid[])`);
+      scopeParams.push(accessibleLibraries);
     }
 
     // Apply cross-filter from other active filters
@@ -2692,7 +3109,7 @@ export class KnowledgeService {
     }));
   }
 
-  async get(idOrRef: string, opts?: { manager?: EntityManager }) {
+  async get(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const id = await this.resolveDocumentId(idOrRef, manager);
 
@@ -2722,6 +3139,7 @@ export class KnowledgeService {
     }
 
     const document = rows[0];
+    const libraryAccess = await this.assertLibraryReadable(document.library_id, manager, opts?.userId || null);
 
     const [
       contributors,
@@ -2820,6 +3238,10 @@ export class KnowledgeService {
       latest_approved_workflow: latestApprovedWorkflow,
       integrated_binding: integratedBinding,
       is_managed_integrated_document: !!integratedBinding,
+      effective_library_access_level: libraryAccess.effective_access_level,
+      can_manage_library: libraryAccess.can_manage,
+      can_write: libraryAccess.can_write,
+      is_restricted_library: libraryAccess.is_restricted,
       ...validationInfo,
     };
   }
@@ -2844,6 +3266,7 @@ export class KnowledgeService {
     const library = requestedLibraryId
       ? await this.ensureLibraryExists(requestedLibraryId, manager)
       : await this.resolveDefaultLibrary(manager);
+    await this.assertLibraryWritable(library.id, manager, userId);
 
     const folderId = body?.folder_id ? String(body.folder_id) : null;
     if (folderId) {
@@ -2854,7 +3277,7 @@ export class KnowledgeService {
     let templateClassifications: Array<{ category_id: string; stream_id: string | null }> = [];
     const hasExplicitDocumentTypeId = Object.prototype.hasOwnProperty.call(body ?? {}, 'document_type_id');
     const templateDocument = templateDocumentId
-      ? await this.getTemplateDocumentSummary(templateDocumentId, manager, tenantId)
+      ? await this.getTemplateDocumentSummary(templateDocumentId, manager, tenantId, userId)
       : null;
 
     let contentMarkdown = normalizeMarkdownRichText(body?.content_markdown, { fieldName: 'content_markdown' }) || '';
@@ -2939,7 +3362,7 @@ export class KnowledgeService {
     );
     await this.auditDocumentChange('create', saved.id, null, saved, userId, manager, opts?.audit);
 
-    return this.get(saved.id, { manager });
+    return this.get(saved.id, { manager, userId });
   }
 
   async createManagedDocument(
@@ -2972,6 +3395,7 @@ export class KnowledgeService {
     },
   ): Promise<Document> {
     const manager = this.getManager(opts);
+    const normalizedUserId = String(userId || '').trim() || null;
 
     const title = String(body?.title || '').trim();
     if (!title) {
@@ -2986,6 +3410,9 @@ export class KnowledgeService {
 
     await this.ensureFolderInLibrary(String(body.folder_id), String(body.library_id), manager);
     await this.ensureDocumentTypeExists(String(body.document_type_id), manager);
+    if (normalizedUserId) {
+      await this.assertLibraryWritable(String(body.library_id), manager, normalizedUserId);
+    }
 
     const itemNumber = await this.itemNumbers.nextItemNumber('document', body.tenantId, manager);
     const repo = manager.getRepository(Document);
@@ -3092,11 +3519,15 @@ export class KnowledgeService {
   ): Promise<Document> {
     const manager = this.getManager(opts);
     const id = await this.resolveDocumentId(idOrRef, manager);
+    const normalizedUserId = String(userId || '').trim() || null;
 
     const repo = manager.getRepository(Document);
     const existing = await repo.findOne({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Document not found');
+    }
+    if (normalizedUserId) {
+      await this.assertDocumentWritable(existing.id, manager, normalizedUserId);
     }
 
     await this.assertWorkflowAllowsEditing(existing.id, manager);
@@ -3298,6 +3729,10 @@ export class KnowledgeService {
     if (!existing) {
       return;
     }
+    const normalizedUserId = String(userId || '').trim() || null;
+    if (normalizedUserId) {
+      await this.assertDocumentWritable(existing.id, manager, normalizedUserId);
+    }
 
     const attachments = await manager.getRepository(DocumentAttachment).find({
       where: { document_id: id } as any,
@@ -3339,6 +3774,7 @@ export class KnowledgeService {
     if (!existing) {
       throw new NotFoundException('Document not found');
     }
+    await this.assertDocumentWritable(existing.id, manager, userId);
 
     const saveMode = body?.save_mode === 'autosave' ? 'autosave' : 'manual';
 
@@ -3409,7 +3845,7 @@ export class KnowledgeService {
       ? (body?.template_document_id ? String(body.template_document_id) : null)
       : (existing.template_document_id ? String(existing.template_document_id) : null);
     const nextTemplateDocument = nextTemplateId
-      ? await this.getTemplateDocumentSummary(nextTemplateId, manager)
+      ? await this.getTemplateDocumentSummary(nextTemplateId, manager, null, userId)
       : null;
 
     existing.document_type_id = await this.resolveDocumentTypeId(manager, {
@@ -3483,7 +3919,7 @@ export class KnowledgeService {
       await this.cleanupOrphanedInlineAttachments(saved.id, before.content_markdown, saved.content_markdown, manager);
     }
 
-    return this.get(saved.id, { manager });
+    return this.get(saved.id, { manager, userId });
   }
 
   async remove(idOrRef: string, userId: string | null, opts?: { manager?: EntityManager }) {
@@ -3494,6 +3930,7 @@ export class KnowledgeService {
     const existing = await repo.findOne({ where: { id } });
     if (!existing) throw new NotFoundException('Document not found');
 
+    await this.assertDocumentWritable(existing.id, manager, userId);
     await this.assertDocumentMoveDeleteAllowed(existing.id, manager);
 
     await repo.delete({ id } as any);
@@ -3735,15 +4172,25 @@ export class KnowledgeService {
     return { ok: true };
   }
 
-  async listFolderTree(opts?: { manager?: EntityManager; libraryId?: string }) {
+  async listFolderTree(opts?: { manager?: EntityManager; libraryId?: string; userId?: string | null }) {
     const manager = this.getManager(opts);
+    const normalizedUserId = String(opts?.userId || '').trim();
     const qb = manager
       .getRepository(DocumentFolder)
       .createQueryBuilder('f')
       .orderBy('f.display_order', 'ASC')
       .addOrderBy('lower(f.name)', 'ASC');
     if (opts?.libraryId) {
+      if (normalizedUserId) {
+        await this.assertLibraryReadable(opts.libraryId, manager, normalizedUserId);
+      }
       qb.where('f.library_id = :libraryId', { libraryId: opts.libraryId });
+    } else if (normalizedUserId) {
+      const accessibleLibraries = await this.listAccessibleLibraryIds(manager, normalizedUserId, 'reader');
+      if (!accessibleLibraries || accessibleLibraries.length === 0) {
+        return { items: [] };
+      }
+      qb.where('f.library_id IN (:...accessibleLibraryIds)', { accessibleLibraryIds: accessibleLibraries });
     }
     const rows = await qb.getMany();
 
@@ -3773,6 +4220,7 @@ export class KnowledgeService {
     const libraryId = String(body?.library_id || '').trim();
     if (!libraryId) throw new BadRequestException('library_id is required');
     await this.ensureLibraryExists(libraryId, manager);
+    await this.assertLibraryWritable(libraryId, manager, userId);
 
     const parentId = body?.parent_id ? String(body.parent_id) : null;
     if (parentId) {
@@ -3791,12 +4239,13 @@ export class KnowledgeService {
     return manager.getRepository(DocumentFolder).save(entity);
   }
 
-  async updateFolder(id: string, body: any, opts?: { manager?: EntityManager }) {
+  async updateFolder(id: string, body: any, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const repo = manager.getRepository(DocumentFolder);
     const existing = await repo.findOne({ where: { id } });
     if (!existing) throw new NotFoundException('Folder not found');
     this.assertManagedFolderWritable(existing);
+    await this.assertLibraryWritable(existing.library_id, manager, opts?.userId || null);
 
     if (body?.name !== undefined) {
       const name = String(body.name || '').trim();
@@ -3822,9 +4271,11 @@ export class KnowledgeService {
       const existing = await repo.findOne({ where: { id } });
       if (!existing) throw new NotFoundException('Folder not found');
       this.assertManagedFolderWritable(existing);
+      await this.assertLibraryWritable(existing.library_id, tx, userId);
 
       const target = this.parseFolderMoveBody(body, existing.library_id);
       const targetLibrary = await this.ensureLibraryExists(target.libraryId, tx);
+      await this.assertLibraryWritable(target.libraryId, tx, userId);
       const nextParentId = target.parentId;
       const crossLibraryMove = existing.library_id !== target.libraryId;
       const knowledgeLevel = crossLibraryMove ? await this.getKnowledgeLevelForUser(tx, userId) : null;
@@ -3933,12 +4384,13 @@ export class KnowledgeService {
     });
   }
 
-  async deleteFolder(id: string, opts?: { manager?: EntityManager }) {
+  async deleteFolder(id: string, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const repo = manager.getRepository(DocumentFolder);
     const existing = await repo.findOne({ where: { id } });
     if (!existing) throw new NotFoundException('Folder not found');
     this.assertManagedFolderWritable(existing);
+    await this.assertLibraryWritable(existing.library_id, manager, opts?.userId || null);
 
     const [children, docs] = await Promise.all([
       repo.count({ where: { parent_id: id } as any }),
@@ -3960,13 +4412,14 @@ export class KnowledgeService {
     return { ok: true, moved_documents_to_unfiled: docs };
   }
 
-  async listFolderDocuments(folderId: string, query: any, opts?: { manager?: EntityManager }) {
+  async listFolderDocuments(folderId: string, query: any, opts?: { manager?: EntityManager; userId?: string | null }) {
     return this.list({ ...query, folder_id: folderId }, opts);
   }
 
   async acquireLock(idOrRef: string, userId: string, opts?: { manager?: EntityManager }) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentWritable(documentId, manager, userId);
     await this.assertWorkflowAllowsEditing(documentId, manager);
 
     const repo = manager.getRepository(DocumentEditLock);
@@ -4034,6 +4487,7 @@ export class KnowledgeService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentWritable(documentId, manager, userId);
     const repo = manager.getRepository(DocumentEditLock);
 
     const lock = await this.ensureValidLock(documentId, userId, lockToken, manager);
@@ -4053,21 +4507,24 @@ export class KnowledgeService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentWritable(documentId, manager, userId);
     const lock = await this.ensureValidLock(documentId, userId, lockToken, manager);
     await manager.getRepository(DocumentEditLock).delete({ id: lock.id } as any);
     return { ok: true };
   }
 
-  async forceReleaseLock(idOrRef: string, opts?: { manager?: EntityManager }) {
+  async forceReleaseLock(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
     await manager.getRepository(DocumentEditLock).delete({ document_id: documentId } as any);
     return { ok: true };
   }
 
-  async listVersions(idOrRef: string, opts?: { manager?: EntityManager }) {
+  async listVersions(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
     return manager
       .getRepository(DocumentVersion)
       .createQueryBuilder('v')
@@ -4076,9 +4533,10 @@ export class KnowledgeService {
       .getMany();
   }
 
-  async getVersion(idOrRef: string, versionNumber: number, opts?: { manager?: EntityManager }) {
+  async getVersion(idOrRef: string, versionNumber: number, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
     const version = await manager
       .getRepository(DocumentVersion)
       .findOne({ where: { document_id: documentId, version_number: versionNumber } as any });
@@ -4086,11 +4544,11 @@ export class KnowledgeService {
     return version;
   }
 
-  async compareVersions(idOrRef: string, fromVersion: number, toVersion: number, opts?: { manager?: EntityManager }) {
+  async compareVersions(idOrRef: string, fromVersion: number, toVersion: number, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const [from, to] = await Promise.all([
-      this.getVersion(idOrRef, fromVersion, { manager }),
-      this.getVersion(idOrRef, toVersion, { manager }),
+      this.getVersion(idOrRef, fromVersion, { manager, userId: opts?.userId || null }),
+      this.getVersion(idOrRef, toVersion, { manager, userId: opts?.userId || null }),
     ]);
 
     return {
@@ -4113,6 +4571,7 @@ export class KnowledgeService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentWritable(documentId, manager, userId);
     await this.assertWorkflowAllowsEditing(documentId, manager);
 
     const doc = await manager.getRepository(Document).findOne({ where: { id: documentId } });
@@ -4150,7 +4609,7 @@ export class KnowledgeService {
       }),
     );
 
-    return this.get(saved.id, { manager });
+    return this.get(saved.id, { manager, userId });
   }
 
   async bulkReplaceContributors(
@@ -4160,6 +4619,10 @@ export class KnowledgeService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    const normalizedUserId = opts?.userId === undefined ? undefined : (opts.userId || null);
+    if (normalizedUserId !== undefined) {
+      await this.assertDocumentWritable(documentId, manager, normalizedUserId);
+    }
     if (opts?.guardAgainstActiveLock) {
       await this.assertWorkflowAllowsEditing(documentId, manager);
       await this.assertDocumentUnlockedForUser(documentId, opts.userId || null, manager);
@@ -4234,6 +4697,10 @@ export class KnowledgeService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    const normalizedUserId = opts?.userId === undefined ? undefined : (opts.userId || null);
+    if (normalizedUserId !== undefined) {
+      await this.assertDocumentWritable(documentId, manager, normalizedUserId);
+    }
     if (opts?.guardAgainstActiveLock) {
       await this.assertWorkflowAllowsEditing(documentId, manager);
       await this.assertDocumentUnlockedForUser(documentId, opts.userId || null, manager);
@@ -4372,9 +4839,10 @@ export class KnowledgeService {
     return { ok: true };
   }
 
-  async listIncomingReferences(idOrRef: string, opts?: { manager?: EntityManager }) {
+  async listIncomingReferences(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
 
     return manager.query(
       `SELECT r.id,
@@ -4391,9 +4859,10 @@ export class KnowledgeService {
     );
   }
 
-  async listActivities(idOrRef: string, opts?: { manager?: EntityManager }) {
+  async listActivities(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
 
     return manager.query(
       `SELECT a.*,
@@ -4409,6 +4878,7 @@ export class KnowledgeService {
   async createActivity(idOrRef: string, body: any, userId: string | null, opts?: { manager?: EntityManager }) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentWritable(documentId, manager, userId);
 
     const type = String(body?.type || 'comment').trim().toLowerCase();
     if (type !== 'comment') {
@@ -4431,6 +4901,7 @@ export class KnowledgeService {
   async updateActivity(idOrRef: string, activityId: string, body: any, userId: string, opts?: { manager?: EntityManager }) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentWritable(documentId, manager, userId);
 
     const repo = manager.getRepository(DocumentActivity);
     const existing = await repo.findOne({ where: { id: activityId, document_id: documentId } as any });
@@ -4448,7 +4919,7 @@ export class KnowledgeService {
     return repo.save(existing);
   }
 
-  async search(query: any, opts?: { manager?: EntityManager }) {
+  async search(query: any, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const search = this.getDocumentSearchState(query?.q);
     if (!search) throw new BadRequestException('q is required');
@@ -4456,8 +4927,12 @@ export class KnowledgeService {
     const limit = Math.min(Math.max(Number(query?.limit) || 20, 1), 200);
     const offset = Math.min(Math.max(Number(query?.offset) || 0, 0), 5000);
     const libraryId = query?.library_id ? String(query.library_id) : null;
+    const accessibleLibraries = await this.listAccessibleLibraryIds(manager, opts?.userId || null, 'reader');
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return { items: [], total: 0, offset, limit, truncated: false };
+    }
 
-    const params: Array<string | number> = [search.term, `%${search.term}%`];
+    const params: Array<string | number | string[]> = [search.term, `%${search.term}%`];
     const searchClauses = [
       `d.search_vector @@ websearch_to_tsquery('simple', $1)`,
       `d.title ILIKE $2`,
@@ -4473,6 +4948,10 @@ export class KnowledgeService {
     if (libraryId) {
       params.push(libraryId);
       whereClauses.push(`d.library_id = $${params.length}`);
+    }
+    if (accessibleLibraries) {
+      params.push(accessibleLibraries);
+      whereClauses.push(`d.library_id = ANY($${params.length}::uuid[])`);
     }
     params.push(limit);
     params.push(offset);
@@ -4516,9 +4995,10 @@ export class KnowledgeService {
     };
   }
 
-  async listAttachments(idOrRef: string, opts?: { manager?: EntityManager }) {
+  async listAttachments(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
     return manager
       .getRepository(DocumentAttachment)
       .createQueryBuilder('a')
@@ -4536,6 +5016,7 @@ export class KnowledgeService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentWritable(documentId, manager, userId);
     await this.assertWorkflowAllowsEditing(documentId, manager);
     await this.assertDocumentUnlockedForUser(documentId, userId, manager);
     if (!file) throw new BadRequestException('No file uploaded');
@@ -4619,10 +5100,11 @@ export class KnowledgeService {
     return this.uploadAttachment(documentId, file, userId || null, opts);
   }
 
-  async getAttachmentMeta(attachmentId: string, opts?: { manager?: EntityManager }) {
+  async getAttachmentMeta(attachmentId: string, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const found = await manager.getRepository(DocumentAttachment).findOne({ where: { id: attachmentId } });
     if (!found) throw new NotFoundException('Attachment not found');
+    await this.assertDocumentReadable(found.document_id, manager, opts?.userId || null);
     return found;
   }
 
@@ -4634,6 +5116,7 @@ export class KnowledgeService {
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentWritable(documentId, manager, userId);
     await this.assertWorkflowAllowsEditing(documentId, manager);
     await this.assertDocumentUnlockedForUser(documentId, userId, manager);
 
@@ -4674,6 +5157,7 @@ export class KnowledgeService {
     let manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
 
+    await this.assertDocumentWritable(documentId, manager, userId);
     await this.assertWorkflowAllowsEditing(documentId, manager);
     await this.ensureValidLock(documentId, String(userId || ''), lockToken, manager);
 
@@ -4705,6 +5189,7 @@ export class KnowledgeService {
   ): Promise<{ markdown: string; warnings: string[] }> {
     const manager = this.getManager(opts);
 
+    await this.assertDocumentWritable(documentId, manager, userId);
     await this.assertWorkflowAllowsEditing(documentId, manager);
     await this.ensureValidLock(documentId, String(userId || ''), lockToken, manager);
 
@@ -4876,10 +5361,10 @@ export class KnowledgeService {
   async exportDocument(
     idOrRef: string,
     format: 'pdf' | 'docx' | 'odt',
-    opts?: { manager?: EntityManager; imageFetchCookie?: string | null },
+    opts?: { manager?: EntityManager; imageFetchCookie?: string | null; userId?: string | null },
   ) {
     const manager = this.getManager(opts);
-    const document = await this.get(idOrRef, { manager });
+    const document = await this.get(idOrRef, { manager, userId: opts?.userId || null });
 
     return this.exportService.exportMarkdown(
       String(document.content_markdown || ''),
@@ -4918,12 +5403,24 @@ export class KnowledgeService {
     entity: RelationEntityType,
     entityIds: string[],
     manager: EntityManager,
+    userId?: string | null,
   ): Promise<EntityDocumentListItemRow[]> {
     const ids = dedupeStrings(entityIds);
     if (ids.length === 0) return [];
 
     const map = RELATION_TABLE_MAP[entity];
     if (!map) throw new BadRequestException('Unsupported relation entity');
+    const accessibleLibraries = await this.listAccessibleLibraryIds(manager, userId || null, 'reader');
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return [];
+    }
+
+    const params: unknown[] = [ids, entity];
+    let libraryClause = '';
+    if (accessibleLibraries) {
+      params.push(accessibleLibraries);
+      libraryClause = ` AND d.library_id = ANY($${params.length}::uuid[])`;
+    }
 
     return manager.query(
       `SELECT rel.${map.idColumn} AS entity_id,
@@ -4943,14 +5440,16 @@ export class KnowledgeService {
         AND b.source_entity_id = rel.${map.idColumn}
        WHERE rel.${map.idColumn} = ANY($1::uuid[])
          AND (b.document_id IS NULL OR b.hidden_from_entity_knowledge = false)
+         ${libraryClause}
        ORDER BY rel.${map.idColumn} ASC, d.updated_at DESC`,
-      [ids, entity],
+      params,
     );
   }
 
   private async listDocumentRowsForKnowledgeSources(
     sources: EntityKnowledgeContextSource[],
     manager: EntityManager,
+    userId?: string | null,
   ): Promise<Map<string, EntityDocumentListItemRow[]>> {
     const rowsBySourceId = new Map<string, EntityDocumentListItemRow[]>();
     const sourceIdsByType = new Map<RelationEntityType, string[]>();
@@ -4963,7 +5462,7 @@ export class KnowledgeService {
 
     await Promise.all(
       Array.from(sourceIdsByType.entries()).map(async ([entityType, entityIds]) => {
-        const rows = await this.listDocumentRowsForEntityIds(entityType, entityIds, manager);
+        const rows = await this.listDocumentRowsForEntityIds(entityType, entityIds, manager, userId || null);
         for (const row of rows) {
           const bucket = rowsBySourceId.get(row.entity_id) || [];
           bucket.push(row);
@@ -5412,6 +5911,14 @@ export class KnowledgeService {
     opts?: { manager?: EntityManager; userId?: string | null },
   ): Promise<EntityKnowledgeContextResponse> {
     const manager = this.getManager(opts);
+    const knowledgeLevel = await this.getKnowledgeLevelForUser(manager, opts?.userId ?? null);
+    if (!knowledgeLevel) {
+      return {
+        access: 'restricted',
+        total: 0,
+        groups: [],
+      };
+    }
     const definitions = entity === 'requests'
       ? await this.getRequestKnowledgeContextGroupDefinitions(entityId, manager)
       : entity === 'projects'
@@ -5427,7 +5934,7 @@ export class KnowledgeService {
 
     for (const definition of definitions) {
       if (definition.sources.length === 0) continue;
-      const rowsBySourceId = await this.listDocumentRowsForKnowledgeSources(definition.sources, manager);
+      const rowsBySourceId = await this.listDocumentRowsForKnowledgeSources(definition.sources, manager, opts?.userId ?? null);
       const group = this.buildKnowledgeContextGroup(definition, rowsBySourceId);
       if (!group) continue;
       group.items.forEach((item) => distinctDocumentIds.add(item.id));
@@ -5435,15 +5942,6 @@ export class KnowledgeService {
     }
 
     const total = distinctDocumentIds.size;
-    const knowledgeLevel = await this.getKnowledgeLevelForUser(manager, opts?.userId ?? null);
-    if (!knowledgeLevel) {
-      return {
-        access: 'restricted',
-        total,
-        groups: [],
-      };
-    }
-
     return {
       access: 'granted',
       total,
@@ -5459,6 +5957,29 @@ export class KnowledgeService {
     const manager = this.getManager(opts);
     const map = RELATION_TABLE_MAP[entity];
     if (!map) throw new BadRequestException('Unsupported relation entity');
+    const knowledgeLevel = await this.getKnowledgeLevelForUser(manager, opts?.userId ?? null);
+    if (!knowledgeLevel) {
+      return {
+        access: 'restricted',
+        total: 0,
+        items: [],
+      };
+    }
+    const accessibleLibraries = await this.listAccessibleLibraryIds(manager, opts?.userId || null, 'reader');
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return {
+        access: 'granted',
+        total: 0,
+        items: [],
+      };
+    }
+
+    const params: unknown[] = [entityId, entity];
+    let libraryClause = '';
+    if (accessibleLibraries) {
+      params.push(accessibleLibraries);
+      libraryClause = ` AND d.library_id = ANY($${params.length}::uuid[])`;
+    }
 
     const countRows: Array<{ total: string | number }> = await manager.query(
       `SELECT COUNT(DISTINCT d.id)::int AS total
@@ -5470,19 +5991,11 @@ export class KnowledgeService {
         AND b.source_entity_type = $2
         AND b.source_entity_id = $1
        WHERE rel.${map.idColumn} = $1
-         AND (b.document_id IS NULL OR b.hidden_from_entity_knowledge = false)`,
-      [entityId, entity],
+         AND (b.document_id IS NULL OR b.hidden_from_entity_knowledge = false)
+         ${libraryClause}`,
+      params,
     );
     const total = Number(countRows[0]?.total || 0);
-
-    const knowledgeLevel = await this.getKnowledgeLevelForUser(manager, opts?.userId ?? null);
-    if (!knowledgeLevel) {
-      return {
-        access: 'restricted',
-        total,
-        items: [],
-      };
-    }
 
     const items = await manager.query(
       `SELECT d.id,
@@ -5501,8 +6014,9 @@ export class KnowledgeService {
         AND b.source_entity_id = $1
        WHERE rel.${map.idColumn} = $1
          AND (b.document_id IS NULL OR b.hidden_from_entity_knowledge = false)
+         ${libraryClause}
        ORDER BY d.updated_at DESC`,
-      [entityId, entity],
+      params,
     );
     return {
       access: 'granted',

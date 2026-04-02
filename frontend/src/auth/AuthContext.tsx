@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import api from '../api';
+import api, { requestTokenRefresh } from '../api';
 import { clearSessionActivity, isIdleExpired, setRefreshTtlMs, touchLastActivity } from './sessionStorage';
-import { setAccessToken } from './accessTokenStore';
+import { getAccessToken, getAccessTokenExpiresAt, setAccessToken, subscribeAccessToken } from './accessTokenStore';
 import i18n, { detectBrowserLocale, LANGUAGE_OVERRIDE_STORAGE_KEY, SupportedLocale } from '../i18n';
 
 type PermissionLevel = 'reader' | 'contributor' | 'member' | 'manager' | 'admin';
@@ -113,8 +113,8 @@ function isLoginCallbackPath(pathname: string): boolean {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [tokenExpiresAt, setTokenExpiresAt] = useState<number | null>(null);
+  const [token, setToken] = useState<string | null>(() => getAccessToken());
+  const [tokenExpiresAt, setTokenExpiresAt] = useState<number | null>(() => getAccessTokenExpiresAt());
   const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [claims, setClaims] = useState<Claims | null>(null);
@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (refreshExpiresIn) {
       setRefreshTtlMs(refreshExpiresIn * 1000);
     }
-    setAccessToken(accessToken);
+    setAccessToken(accessToken, expiresAt);
     setToken(accessToken);
     setTokenExpiresAt(expiresAt);
   }, []);
@@ -175,14 +175,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
     try {
-      const payload = legacyRefreshToken ? { refresh_token: legacyRefreshToken } : {};
-      const res = await api.post('/auth/refresh', payload);
-      const { access_token, expires_in, refresh_expires_in } = res.data as { access_token: string; expires_in: number; refresh_expires_in?: number };
+      const payload = legacyRefreshToken ? { refresh_token: legacyRefreshToken } : undefined;
+      const refreshed = await requestTokenRefresh(payload);
+      if (!refreshed) {
+        clearAuthState({ clearActivity: true });
+        return false;
+      }
       if (isIdleExpired()) {
         clearAuthState({ clearActivity: true });
         return false;
       }
-      applyAccessToken(access_token, expires_in, refresh_expires_in);
+      applyAccessToken(refreshed.access_token, refreshed.expires_in, refreshed.refresh_expires_in);
       return true;
     } catch {
       clearAuthState({ clearActivity: true });
@@ -203,6 +206,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshAccessToken = useCallback(async (): Promise<boolean> => {
     return refreshAccessTokenInternal();
   }, [refreshAccessTokenInternal]);
+
+  useEffect(() => {
+    return subscribeAccessToken((next) => {
+      setToken(next.token);
+      setTokenExpiresAt(next.expiresAt);
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

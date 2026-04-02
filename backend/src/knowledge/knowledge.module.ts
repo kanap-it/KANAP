@@ -18,6 +18,7 @@ import { IntegratedDocumentBinding } from './integrated-document-binding.entity'
 import { IntegratedDocumentsService } from './integrated-documents.service';
 import { IntegratedDocumentSlotSetting } from './integrated-document-slot-setting.entity';
 import { DocumentLibrary } from './document-library.entity';
+import { DocumentLibraryMember } from './document-library-member.entity';
 import { DocumentProject } from './document-project.entity';
 import { DocumentReference } from './document-reference.entity';
 import { DocumentRequest } from './document-request.entity';
@@ -43,6 +44,7 @@ import { DocumentTypesController } from './document-types.controller';
       IntegratedDocumentBinding,
       IntegratedDocumentSlotSetting,
       DocumentLibrary,
+      DocumentLibraryMember,
       DocumentType,
       DocumentVersion,
       DocumentEditLock,

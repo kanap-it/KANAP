@@ -818,6 +818,7 @@ export class AiQueryExecutor {
       const result = await this.knowledge.list(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        userId: context.userId,
       });
       const resultPage = result.page ?? page;
       const resultLimit = result.limit ?? limit;

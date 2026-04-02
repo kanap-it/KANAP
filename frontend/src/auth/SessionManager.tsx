@@ -64,11 +64,21 @@ export function SessionManager({ children }: SessionManagerProps) {
     }
   }, [token, refreshAccessToken, refreshTtlMs, lastActivityAt, handleSessionExpired, idleStateReady]);
 
+  const handleTokenExpired = useCallback(async () => {
+    if (isPublicPage || !token) return;
+    if (isRefreshingRef.current) return;
+    if (refreshTtlMs && lastActivityAt && Date.now() - lastActivityAt >= refreshTtlMs) {
+      void handleSessionExpired();
+      return;
+    }
+    await handleTokenRefresh();
+  }, [token, refreshTtlMs, lastActivityAt, handleSessionExpired, handleTokenRefresh, isPublicPage]);
+
   // Monitor token expiration
   useSessionTimer({
     tokenExpiresAt: isPublicPage ? null : tokenExpiresAt,
     onExpiringSoon: handleTokenRefresh,
-    onExpired: handleSessionExpired,
+    onExpired: handleTokenExpired,
     warningBufferMs: REFRESH_BUFFER_MS,
   });
 

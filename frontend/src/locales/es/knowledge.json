@@ -18,7 +18,8 @@
   },
   "confirmations": {
     "deleteLibrary": "¿Eliminar esta biblioteca? Los documentos y carpetas se moverán a la biblioteca predeterminada.",
-    "discardChanges": "¿Descartar los cambios no guardados y volver a la última versión guardada?"
+    "discardChanges": "¿Descartar los cambios no guardados y volver a la última versión guardada?",
+    "resetLibraryAccess": "¿Volver a dejar esta biblioteca abierta a todos y borrar las listas personalizadas de lectores y editores?"
   },
   "dialogs": {
     "createLibrary": {
@@ -32,13 +33,26 @@
     },
     "editLibrary": {
       "fields": {
-        "libraryName": "Nombre de la biblioteca"
+        "accessMode": "Modo de acceso",
+        "libraryName": "Nombre de la biblioteca",
+        "owner": "Propietario",
+        "readers": "Lectores",
+        "writers": "Editores"
       },
       "messages": {
-        "failed": "No se pudo actualizar la biblioteca."
+        "failed": "No se pudo actualizar la biblioteca.",
+        "restrictedEmpty": "Si no agrega lectores ni editores, solo el propietario y los administradores de conocimiento podrán acceder a esta biblioteca."
+      },
+      "sections": {
+        "access": "Control de acceso",
+        "general": "General"
       },
       "slugWarning": "Renombrar esta biblioteca también cambia su URL.",
-      "title": "Editar biblioteca"
+      "title": "Configuración de la biblioteca",
+      "values": {
+        "accessModeDefault": "Abierta a todos",
+        "accessModeRestricted": "Restringida"
+      }
     },
     "manageTypes": {
       "title": "Gestionar tipos de documento"
@@ -120,6 +134,7 @@
     "moveFolderFailed": "No se pudo mover la carpeta.",
     "moveTemplatesSeparately": "Mueva los documentos de plantilla por separado de otras bibliotecas.",
     "noPermissionMoveDocuments": "No tiene permiso para mover documentos.",
+    "noPermissionMoveSelectedDocuments": "No tiene acceso de escritura a todos los documentos seleccionados.",
     "selectAtLeastOneDocument": "Seleccione al menos un documento.",
     "selectSingleLibraryToMove": "Seleccione documentos de una sola biblioteca para moverlos."
   },

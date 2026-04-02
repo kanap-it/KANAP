@@ -14,11 +14,18 @@ export class DocumentLibrariesController {
   @RequireLevel('knowledge', 'reader')
   @Get()
   list(@Tenant() ctx: TenantRequest) {
-    return this.docs.listLibraries({ manager: ctx.manager });
+    return this.docs.listLibraries({ manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
-  @RequireLevel('knowledge', 'admin')
+  @RequireLevel('knowledge', 'reader')
+  @Get(':id')
+  get(@Param('id') id: string, @Tenant() ctx: TenantRequest) {
+    return this.docs.getLibrary(id, { manager: ctx.manager, userId: ctx.userId || null });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'member')
   @Post()
   create(@Body() body: any, @Tenant() ctx: TenantRequest) {
     return this.docs.createLibrary(body, ctx.userId || null, { manager: ctx.manager });
@@ -33,16 +40,16 @@ export class DocumentLibrariesController {
   }
 
   @UseGuards(PermissionGuard)
-  @RequireLevel('knowledge', 'admin')
+  @RequireLevel('knowledge', 'reader')
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: any, @Tenant() ctx: TenantRequest) {
     return this.docs.updateLibrary(id, body, ctx.userId || null, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
-  @RequireLevel('knowledge', 'admin')
+  @RequireLevel('knowledge', 'reader')
   @Delete(':id')
   remove(@Param('id') id: string, @Tenant() ctx: TenantRequest) {
-    return this.docs.deleteLibrary(id, { manager: ctx.manager });
+    return this.docs.deleteLibrary(id, ctx.userId || null, { manager: ctx.manager });
   }
 }

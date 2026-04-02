@@ -38,6 +38,8 @@ export default function ConvertToProjectDialog({
   const [error, setError] = useState<string | null>(null);
 
   // Load estimated effort and current managed purpose when dialog opens.
+  // Depend on `open` and `request.id` only — not the request object, which is
+  // recreated on every parent render and would reset the user-edited name.
   useEffect(() => {
     if (open && request.id) {
       setName(request.name);
@@ -77,7 +79,8 @@ export default function ConvertToProjectDialog({
       loadEffort();
       loadPurpose();
     }
-  }, [open, request]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, request.id]);
 
   const handleSubmit = useCallback(async () => {
     setError(null);

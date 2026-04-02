@@ -73,7 +73,7 @@ export class PortfolioTimesheetService extends PortfolioProjectsBaseService {
       tenant_id: tenantId,
       project_id: projectId,
       category: body.category,
-      user_id: body.user_id || null,
+      user_id: body.user_id || userId || null,
       hours,
       notes: body.notes ? String(body.notes).trim() : null,
       logged_by_id: userId,

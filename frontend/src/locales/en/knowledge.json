@@ -18,7 +18,8 @@
   },
   "confirmations": {
     "deleteLibrary": "Delete this library? Knowledge items and folders will be moved to the fallback library.",
-    "discardChanges": "Discard unsaved changes and revert to the last saved version?"
+    "discardChanges": "Discard unsaved changes and revert to the last saved version?",
+    "resetLibraryAccess": "Switch this library back to open access and clear the custom reader and writer lists?"
   },
   "dialogs": {
     "createLibrary": {
@@ -32,13 +33,26 @@
     },
     "editLibrary": {
       "fields": {
-        "libraryName": "Library Name"
+        "accessMode": "Access mode",
+        "libraryName": "Library Name",
+        "owner": "Owner",
+        "readers": "Readers",
+        "writers": "Writers"
       },
       "messages": {
-        "failed": "Unable to update library."
+        "failed": "Unable to update library.",
+        "restrictedEmpty": "If you do not add any readers or writers, only the owner and knowledge administrators will be able to access this library."
+      },
+      "sections": {
+        "access": "Access control",
+        "general": "General"
       },
       "slugWarning": "Renaming this library also changes its URL slug.",
-      "title": "Edit Library"
+      "title": "Library Settings",
+      "values": {
+        "accessModeDefault": "Open to all",
+        "accessModeRestricted": "Restricted"
+      }
     },
     "manageTypes": {
       "title": "Manage Document Types"
@@ -120,6 +134,7 @@
     "moveFolderFailed": "Unable to move folder.",
     "moveTemplatesSeparately": "Move template documents separately from other libraries.",
     "noPermissionMoveDocuments": "You do not have permission to move documents.",
+    "noPermissionMoveSelectedDocuments": "You do not have write access to every selected document.",
     "selectAtLeastOneDocument": "Select at least one document.",
     "selectSingleLibraryToMove": "Select documents from a single library to move them."
   },

@@ -14,7 +14,7 @@ export class DocumentFoldersController {
   @RequireLevel('knowledge', 'reader')
   @Get('tree')
   tree(@Query('library_id') libraryId: string | undefined, @Tenant() ctx: TenantRequest) {
-    return this.docs.listFolderTree({ manager: ctx.manager, libraryId: libraryId || undefined });
+    return this.docs.listFolderTree({ manager: ctx.manager, libraryId: libraryId || undefined, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
@@ -28,14 +28,14 @@ export class DocumentFoldersController {
   @RequireLevel('knowledge', 'member')
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: any, @Tenant() ctx: TenantRequest) {
-    return this.docs.updateFolder(id, body, { manager: ctx.manager });
+    return this.docs.updateFolder(id, body, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('knowledge', 'member')
   @Delete(':id')
   remove(@Param('id') id: string, @Tenant() ctx: TenantRequest) {
-    return this.docs.deleteFolder(id, { manager: ctx.manager });
+    return this.docs.deleteFolder(id, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
   @UseGuards(PermissionGuard)
@@ -49,6 +49,6 @@ export class DocumentFoldersController {
   @RequireLevel('knowledge', 'reader')
   @Get(':id/knowledge')
   listDocuments(@Param('id') id: string, @Query() query: any, @Tenant() ctx: TenantRequest) {
-    return this.docs.listFolderDocuments(id, query, { manager: ctx.manager });
+    return this.docs.listFolderDocuments(id, query, { manager: ctx.manager, userId: ctx.userId || null });
   }
 }

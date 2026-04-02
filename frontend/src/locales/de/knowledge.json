@@ -18,7 +18,8 @@
   },
   "confirmations": {
     "deleteLibrary": "Diese Bibliothek löschen? Dokumente und Ordner werden in die Standardbibliothek verschoben.",
-    "discardChanges": "Nicht gespeicherte Änderungen verwerfen und zur letzten gespeicherten Version zurückkehren?"
+    "discardChanges": "Nicht gespeicherte Änderungen verwerfen und zur letzten gespeicherten Version zurückkehren?",
+    "resetLibraryAccess": "Diese Bibliothek wieder für alle freigeben und die benutzerdefinierten Leser- und Bearbeiterlisten löschen?"
   },
   "dialogs": {
     "createLibrary": {
@@ -32,13 +33,26 @@
     },
     "editLibrary": {
       "fields": {
-        "libraryName": "Name der Bibliothek"
+        "accessMode": "Zugriffsmodus",
+        "libraryName": "Name der Bibliothek",
+        "owner": "Eigentümer",
+        "readers": "Leser",
+        "writers": "Bearbeiter"
       },
       "messages": {
-        "failed": "Bibliothek konnte nicht aktualisiert werden."
+        "failed": "Bibliothek konnte nicht aktualisiert werden.",
+        "restrictedEmpty": "Wenn Sie keine Leser oder Bearbeiter hinzufügen, können nur der Eigentümer und die Knowledge-Administratoren auf diese Bibliothek zugreifen."
+      },
+      "sections": {
+        "access": "Zugriffskontrolle",
+        "general": "Allgemein"
       },
       "slugWarning": "Das Umbenennen dieser Bibliothek ändert auch deren URL.",
-      "title": "Bibliothek bearbeiten"
+      "title": "Bibliothekseinstellungen",
+      "values": {
+        "accessModeDefault": "Für alle offen",
+        "accessModeRestricted": "Eingeschränkt"
+      }
     },
     "manageTypes": {
       "title": "Dokumenttypen verwalten"
@@ -120,6 +134,7 @@
     "moveFolderFailed": "Ordner konnte nicht verschoben werden.",
     "moveTemplatesSeparately": "Verschieben Sie Vorlagendokumente getrennt von anderen Bibliotheken.",
     "noPermissionMoveDocuments": "Sie haben keine Berechtigung, Dokumente zu verschieben.",
+    "noPermissionMoveSelectedDocuments": "Sie haben nicht für alle ausgewählten Dokumente Schreibzugriff.",
     "selectAtLeastOneDocument": "Wählen Sie mindestens ein Dokument aus.",
     "selectSingleLibraryToMove": "Wählen Sie Dokumente aus einer einzelnen Bibliothek aus, um sie zu verschieben."
   },
