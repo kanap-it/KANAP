@@ -332,12 +332,8 @@ export default function Layout() {
               <IconButton
                 color="inherit"
                 size="small"
-                sx={{ color: 'inherit' }}
+                onClick={() => window.open(getDocUrl(location.pathname, locale), '_blank', 'noopener,noreferrer')}
                 title={t('nav:topBar.help')}
-                component="a"
-                href={getDocUrl(location.pathname, locale)}
-                target="_blank"
-                rel="noopener noreferrer"
                 aria-label={t('nav:topBar.openDocs')}
               >
                 <HelpOutlineIcon />
