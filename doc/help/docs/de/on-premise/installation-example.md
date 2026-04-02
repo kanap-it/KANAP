@@ -4,6 +4,9 @@ Dieser Leitfaden führt durch eine vollständige On-Premise-Installation auf ein
 
 Passen Sie ihn an Ihre Umgebung an -- die Kernleitfäden [Installation](installation.md) und [Konfiguration](configuration.md) bleiben die Referenz.
 
+!!! tip "Lieber automatisiert?"
+    Ein KI-gestützter Programmieragent kann diese gesamte Installation mit einem einzigen Prompt für Sie durchführen. Siehe [KI-gestützte Installation](installation-ai.md).
+
 ## Architektur
 
 ```

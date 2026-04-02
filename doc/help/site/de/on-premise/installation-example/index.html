@@ -16,7 +16,7 @@
         <link rel="prev" href="../installation/">
       
       
-        <link rel="next" href="../configuration/">
+        <link rel="next" href="../installation-ai/">
       
       
         
@@ -2532,6 +2532,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../installation-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    KI-gestützte Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../configuration/" class="md-nav__link">
         
   
@@ -2831,6 +2859,10 @@
 <h1 id="installationsbeispiel-ubuntu-2404">Installationsbeispiel: Ubuntu 24.04<a class="headerlink" href="#installationsbeispiel-ubuntu-2404" title="Permanent link">&para;</a></h1>
 <p>Dieser Leitfaden führt durch eine vollständige On-Premise-Installation auf einem einzelnen Ubuntu 24.04-Server mit PostgreSQL auf dem Host, MinIO als S3-kompatibler Speicher und nginx als TLS-Reverse-Proxy. Er basiert auf einer realen, funktionierenden Bereitstellung.</p>
 <p>Passen Sie ihn an Ihre Umgebung an -- die Kernleitfäden <a href="../installation/">Installation</a> und <a href="../configuration/">Konfiguration</a> bleiben die Referenz.</p>
+<div class="admonition tip">
+<p class="admonition-title">Lieber automatisiert?</p>
+<p>Ein KI-gestützter Programmieragent kann diese gesamte Installation mit einem einzigen Prompt für Sie durchführen. Siehe <a href="../installation-ai/">KI-gestützte Installation</a>.</p>
+</div>
 <h2 id="architektur">Architektur<a class="headerlink" href="#architektur" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Browser → nginx (:443, TLS) → Docker-Container (api :8080, web :8081)
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                             → PostgreSQL (:5432, auf dem Host)

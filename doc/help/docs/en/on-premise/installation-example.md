@@ -4,6 +4,9 @@ This guide walks through a complete on-premise installation on a single Ubuntu 2
 
 Adapt it to your environment — the core [Installation](installation.md) and [Configuration](configuration.md) guides remain the reference.
 
+!!! tip "Prefer automation?"
+    A coding AI agent can run this entire installation for you in a single prompt. See [AI-Assisted Installation](installation-ai.md).
+
 ## Architecture
 
 ```

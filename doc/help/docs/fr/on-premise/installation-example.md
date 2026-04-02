@@ -4,6 +4,9 @@ Ce guide décrit une installation on-premise complète sur un serveur Ubuntu 24.
 
 Adaptez-le à votre environnement — les guides [Installation](installation.md) et [Configuration](configuration.md) restent la référence.
 
+!!! tip "Vous préférez l'automatisation ?"
+    Un agent IA de programmation peut exécuter toute cette installation pour vous en un seul prompt. Voir [Installation assistée par IA](installation-ai.md).
+
 ## Architecture
 
 ```

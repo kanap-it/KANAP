@@ -6,6 +6,7 @@ KANAP peut être déployé on-premise en **mode single-tenant**. Vous fournissez
 
 - **[Installation](installation.md) :** Cloner, compiler, configurer et démarrer
 - **[Exemple d'installation](installation-example.md) :** Tutoriel pas à pas sur Ubuntu 24.04 avec PostgreSQL, MinIO et nginx
+- **[Installation assistée par IA](installation-ai.md) :** Installation en un seul prompt avec un agent IA de programmation
 - **[Configuration](configuration.md) :** Référence des variables d'environnement
 - **[Opérations](operations.md) :** Mises à jour, sauvegardes, supervision, dépannage
 - **[SSO Microsoft Entra](sso-entra.md) :** Authentification unique optionnelle avec Microsoft Entra ID

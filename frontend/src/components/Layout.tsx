@@ -332,6 +332,7 @@ export default function Layout() {
               <IconButton
                 color="inherit"
                 size="small"
+                sx={{ color: 'inherit' }}
                 title={t('nav:topBar.help')}
                 component="a"
                 href={getDocUrl(location.pathname, locale)}

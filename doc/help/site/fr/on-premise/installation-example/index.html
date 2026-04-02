@@ -16,7 +16,7 @@
         <link rel="prev" href="../installation/">
       
       
-        <link rel="next" href="../configuration/">
+        <link rel="next" href="../installation-ai/">
       
       
         
@@ -2532,6 +2532,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../installation-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation assistée par IA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../configuration/" class="md-nav__link">
         
   
@@ -2831,6 +2859,10 @@
 <h1 id="exemple-dinstallation-ubuntu-2404">Exemple d'installation : Ubuntu 24.04<a class="headerlink" href="#exemple-dinstallation-ubuntu-2404" title="Permanent link">&para;</a></h1>
 <p>Ce guide décrit une installation on-premise complète sur un serveur Ubuntu 24.04 unique, utilisant PostgreSQL sur l'hôte, MinIO pour le stockage compatible S3 et nginx comme reverse proxy TLS. Il est basé sur un déploiement réel et fonctionnel.</p>
 <p>Adaptez-le à votre environnement — les guides <a href="../installation/">Installation</a> et <a href="../configuration/">Configuration</a> restent la référence.</p>
+<div class="admonition tip">
+<p class="admonition-title">Vous préférez l'automatisation ?</p>
+<p>Un agent IA de programmation peut exécuter toute cette installation pour vous en un seul prompt. Voir <a href="../installation-ai/">Installation assistée par IA</a>.</p>
+</div>
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Navigateur → nginx (:443, TLS) → Conteneurs Docker (api :8080, web :8081)
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                                → PostgreSQL (:5432, sur l&#39;hôte)

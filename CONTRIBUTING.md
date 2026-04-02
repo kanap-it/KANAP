@@ -28,11 +28,13 @@ If you find a bug or have a feature request, please open an issue on GitHub. Inc
 
 ## License Agreement for Contributions
 
+KANAP is licensed under the [GNU Affero General Public License v3 (AGPL v3)](LICENSE).
+
 By submitting a pull request or other contribution to this project, you agree that:
 
 1. Your contribution is your original work, or you have the right to submit it.
-2. You grant Kanap SARL a perpetual, worldwide, non-exclusive, royalty-free, irrevocable license to use, reproduce, modify, distribute, and relicense your contribution as part of this project.
-3. You understand that your contribution may be relicensed under any license chosen by the project maintainers.
+2. Your contribution is licensed under the AGPL v3, consistent with the project license.
+3. You grant Kanap SARL a perpetual, worldwide, non-exclusive, royalty-free, irrevocable license to use, reproduce, modify, distribute, and relicense your contribution as part of this project.
 
 This agreement allows the project to evolve its licensing if needed while ensuring contributors retain credit for their work.
 

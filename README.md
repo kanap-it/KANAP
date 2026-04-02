@@ -2,9 +2,9 @@
 
 [![Website](https://img.shields.io/badge/website-kanap.net-blue)](https://kanap.net)
 [![Documentation](https://img.shields.io/badge/docs-doc.kanap.net-green)](https://doc.kanap.net)
-[![License](https://img.shields.io/badge/license-O'Saasy-orange)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
 
-**The integrated IT management platform for budget planning, enterprise architecture, and portfolio management.**
+**The AI-augmented IT governance platform for budget planning, enterprise architecture, and portfolio management.**
 
 Built by an IT director who got tired of duct-taping spreadsheets, wikis, and project tools together.
 
@@ -22,15 +22,17 @@ KANAP replaces that patchwork with a single platform where costs link to applica
 
 ## What it does
 
-**Budget Management** &mdash; Multi-year OPEX and CAPEX planning with six allocation methods, multi-currency support, CSV import/export, and executive reporting including chargeback and analytics dashboards.
+**Budget Management**: Multi-year OPEX and CAPEX planning with six allocation methods, multi-currency support, CSV import/export, and executive reporting including chargeback and analytics dashboards. Track contracts with links to OPEX/CAPEX items, attachments, deadlines, and automated expiration warnings.
 
-**IT Landscape** &mdash; Document and visualize your information system: application portfolio, infrastructure assets, network interfaces and connections with interactive architecture maps, location and subnet management, and business process catalog.
+**IT Landscape**: Document and visualize your information system: application portfolio, infrastructure assets, network interfaces and connections with interactive architecture maps, location and subnet management, and business process catalog.
 
-**Contract Management** &mdash; Track contracts with links to OPEX/CAPEX items, attachments, deadlines, and automated expiration warnings.
+**Portfolio Management**: Manage the project lifecycle from initial request through delivery with roadmap scheduling and capacity analysis.
 
-**Portfolio Management** &mdash; Manage the project lifecycle from initial request through delivery with roadmap scheduling and capacity analysis.
+**Unified Tasks**: One task system spanning budget items, contracts, CAPEX items, and projects with status tracking, assignments, and email notifications.
 
-**Unified Tasks** &mdash; One task system spanning budget items, contracts, CAPEX items, and projects with status tracking, assignments, and email notifications.
+**Knowledge Management**: Govern your IT documentation with a built-in markdown editor, structured libraries, review and approval workflows, version history, and export to PDF, DOCX, and ODT. Documents link directly to applications, projects, assets, and tasks.
+
+**AI Agents**: Ask questions, create documents, manage tasks, and explore all your data through natural-language chat. KANAP's AI layer works across all modules and is also available as an MCP server, so external AI tools can interact with your governance data directly.
 
 ## Tech stack
 
@@ -45,37 +47,12 @@ Multi-tenant by design &mdash; single database with RLS isolation, subdomain rou
 
 ## Self-hosted / on-premise
 
-KANAP on-premise runs in single-tenant mode. You must provide:
-- PostgreSQL 16+ (with `citext`, `pgcrypto`, and `uuid-ossp`)
-- S3-compatible object storage
-- A TLS reverse proxy and domain/DNS
+KANAP on-premise runs in single-tenant mode with Docker. Two ways to get started:
 
-```bash
-# 1. Clone
-git clone https://github.com/kanap-it/kanap.git
-cd kanap
+- **[AI-accelerated installation](https://doc.kanap.net/on-premise/installation-ai/)**: Let an AI assistant guide you through setup interactively. Fastest path to a running instance.
+- **[Manual installation](https://doc.kanap.net/on-premise/installation-example/)** : Step-by-step guide with full control over every configuration detail.
 
-# 2. Configure before build/start
-cp infra/.env.onprem.example .env
-# Edit .env: DATABASE_URL, S3 settings, ADMIN_EMAIL, ADMIN_PASSWORD, JWT secrets, APP_BASE_URL
-
-# 3. Build
-docker build -t kanap-api:latest ./backend
-docker build -t kanap-web:latest ./frontend
-
-# 4. Start
-docker compose -f infra/compose.onprem.yml up -d
-
-# 5. Verify API startup
-docker compose -f infra/compose.onprem.yml logs -f api
-```
-
-On first boot, KANAP runs migrations and provisions the tenant and admin user from `.env`.
-Your reverse proxy must route `/api/*` to `api:8080` and `/*` to `web:80`, preserve `Host`, and set `X-Forwarded-Proto`.
-
-Full documentation:
-- [On-premise overview](https://doc.kanap.net/on-premise/)
-- [Installation guide](https://doc.kanap.net/on-premise/installation/)
+Both paths require PostgreSQL 16+, S3-compatible object storage, and a TLS reverse proxy.
 
 ## Project structure
 
@@ -96,6 +73,6 @@ Contributions are welcome! Please [open an issue](https://github.com/kanap-it/ka
 
 ## License
 
-[O'Saasy License](LICENSE) &mdash; MIT-based with a single restriction: you may not offer KANAP as a competing hosted/SaaS product. Everything else (use, modify, distribute, sell) is permitted.
+[AGPL v3](LICENSE) : true open source. You are free to use, modify, and distribute KANAP. The AGPL copyleft clause ensures that anyone running a modified version as a network service must share their changes, keeping the project genuinely open for everyone.
 
-Copyright 2025, Kanap SARL.
+Copyright 2025-2026, Kanap SARL.

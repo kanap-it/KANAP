@@ -6,6 +6,7 @@ KANAP kann On-Premise im **Single-Tenant-Modus** bereitgestellt werden. Sie stel
 
 - **[Installation](installation.md):** Klonen, Bauen, Konfigurieren und Starten
 - **[Installationsbeispiel](installation-example.md):** Schritt-für-Schritt-Anleitung auf Ubuntu 24.04 mit PostgreSQL, MinIO und nginx
+- **[KI-gestützte Installation](installation-ai.md):** Installation mit einem einzigen Prompt über einen KI-Programmieragenten
 - **[Konfiguration](configuration.md):** Umgebungsvariablen-Referenz
 - **[Betrieb](operations.md):** Upgrades, Backups, Monitoring, Fehlerbehebung
 - **[Microsoft Entra SSO](sso-entra.md):** Optionales Single Sign-On mit Microsoft Entra ID

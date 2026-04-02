@@ -6,6 +6,7 @@ KANAP puede desplegarse de forma local en **modo de inquilino único**. Usted pr
 
 - **[Instalación](installation.md):** Clonar, construir, configurar e iniciar
 - **[Ejemplo de instalación](installation-example.md):** Guía paso a paso en Ubuntu 24.04 con PostgreSQL, MinIO y nginx
+- **[Instalación asistida por IA](installation-ai.md):** Instalación con un solo prompt usando un agente de programación con IA
 - **[Configuración](configuration.md):** Referencia de variables de entorno
 - **[Operaciones](operations.md):** Actualizaciones, copias de seguridad, monitorización, solución de problemas
 - **[SSO con Microsoft Entra](sso-entra.md):** Inicio de sesión único opcional con Microsoft Entra ID

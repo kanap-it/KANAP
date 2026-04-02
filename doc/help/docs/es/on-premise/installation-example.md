@@ -4,6 +4,9 @@ Esta guía describe una instalación local completa en un único servidor Ubuntu
 
 Adáptela a su entorno — las guías principales de [Instalación](installation.md) y [Configuración](configuration.md) siguen siendo la referencia.
 
+!!! tip "¿Prefiere automatizar?"
+    Un agente de programación con IA puede ejecutar toda esta instalación por usted con un solo prompt. Consulte [Instalación asistida por IA](installation-ai.md).
+
 ## Arquitectura
 
 ```

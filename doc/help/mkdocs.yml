@@ -145,6 +145,7 @@ plugins:
             Overview: Vue d'ensemble
             Installation: Installation
             "Installation Example (Ubuntu)": "Exemple d'installation (Ubuntu)"
+            "AI-Assisted Installation": "Installation assistée par IA"
             Configuration: Configuration
             Operations: Opérations
             Microsoft Entra SSO: Microsoft Entra SSO
@@ -207,6 +208,7 @@ plugins:
             Overview: Übersicht
             Installation: Installation
             "Installation Example (Ubuntu)": "Installationsbeispiel (Ubuntu)"
+            "AI-Assisted Installation": "KI-gestützte Installation"
             Configuration: Konfiguration
             Operations: Betrieb
             Microsoft Entra SSO: Microsoft Entra SSO
@@ -269,6 +271,7 @@ plugins:
             Overview: Vista general
             Installation: Instalación
             "Installation Example (Ubuntu)": "Ejemplo de instalación (Ubuntu)"
+            "AI-Assisted Installation": "Instalación asistida por IA"
             Configuration: Configuración
             Operations: Operaciones
             Microsoft Entra SSO: Microsoft Entra SSO
@@ -340,6 +343,7 @@ nav:
     - Overview: on-premise/index.md
     - Installation: on-premise/installation.md
     - "Installation Example (Ubuntu)": on-premise/installation-example.md
+    - "AI-Assisted Installation": on-premise/installation-ai.md
     - Configuration: on-premise/configuration.md
     - Operations: on-premise/operations.md
     - Microsoft Entra SSO: on-premise/sso-entra.md
