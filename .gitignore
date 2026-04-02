@@ -56,4 +56,9 @@ doc/operations/
 doc/planning/
 doc/templates/
 doc/cheatsheets/__pycache__/
-/.codex/skills/user-manual-maintainer
+# AI tooling (local dev only)
+.claude/
+.codex/
+AGENTS.md
+translation-state/
+tasks/
