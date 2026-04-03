@@ -57,6 +57,17 @@ function normalizeNullableString(value: string | null | undefined): string | nul
   return normalized === '' ? null : normalized;
 }
 
+function normalizeGlpiPathname(pathname: string): string {
+  const trimmed = (pathname || '/').replace(/\/+$/, '') || '/';
+  if (trimmed === '/apirest.php') {
+    return '/';
+  }
+  if (trimmed.endsWith('/apirest.php')) {
+    return trimmed.slice(0, -'/apirest.php'.length) || '/';
+  }
+  return trimmed;
+}
+
 function normalizeHttpUrl(value: string | null | undefined, fieldName: string): string | null {
   const normalized = normalizeNullableString(value);
   if (!normalized) {
@@ -79,7 +90,9 @@ function normalizeHttpUrl(value: string | null | undefined, fieldName: string): 
 
   parsed.search = '';
   parsed.hash = '';
-  parsed.pathname = (parsed.pathname || '/').replace(/\/+$/, '') || '/';
+  parsed.pathname = fieldName === 'glpi_url'
+    ? normalizeGlpiPathname(parsed.pathname)
+    : ((parsed.pathname || '/').replace(/\/+$/, '') || '/');
   return parsed.toString();
 }
 

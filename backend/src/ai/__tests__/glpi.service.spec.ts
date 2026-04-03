@@ -2,11 +2,11 @@ import * as assert from 'node:assert/strict';
 import { BadRequestException } from '@nestjs/common';
 import { GlpiService } from '../glpi/glpi.service';
 
-function createService() {
+function createService(glpiUrl = 'https://glpi.internal') {
   return new GlpiService(
     {
       find: async () => ({
-        glpi_url: 'https://glpi.internal',
+        glpi_url: glpiUrl,
         glpi_user_token_encrypted: 'enc:user-token',
         glpi_app_token_encrypted: 'enc:app-token',
       }),
@@ -62,9 +62,31 @@ async function testInitSessionExplainsHtmlResponse() {
   }
 }
 
+async function testInitSessionNormalizesApiEndpointBaseUrl() {
+  const service = createService('https://glpi.internal/helpdesk/apirest.php');
+  const originalFetch = global.fetch;
+  let requestedUrl = '';
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return new Response(JSON.stringify({ session_token: 'session-1' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    await service.initSession('tenant-1', {} as any);
+    assert.equal(requestedUrl, 'https://glpi.internal/helpdesk/apirest.php/initSession');
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
+  await testInitSessionNormalizesApiEndpointBaseUrl();
 }
 
 void run();

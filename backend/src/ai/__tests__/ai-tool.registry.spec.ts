@@ -7,6 +7,7 @@ import { AiToolRegistry } from '../ai-tool.registry';
 import { AiDocumentMutationSupportService } from '../mutation/ai-document-mutation-support.service';
 import { CreateDocumentAiMutationOperation } from '../mutation/operations/create-document.ai-mutation-operation';
 import { CreateTaskAiMutationOperation } from '../mutation/operations/create-task.ai-mutation-operation';
+import { ImportGlpiTicketAiMutationOperation } from '../mutation/operations/import-glpi-ticket.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from '../mutation/operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from '../mutation/operations/update-document-relations.ai-mutation-operation';
 
@@ -615,6 +616,41 @@ async function testCreateTaskToolSchemaExposesRelationAndAssignmentFields() {
   assert.match(String((schema!.parameters as any).properties?.assignee?.description || ''), /assignee email, full name/i);
   assert.match(String((schema!.parameters as any).properties?.priority_level?.description || ''), /task priority/i);
   assert.match(String((schema!.parameters as any).properties?.phase?.description || ''), /project phase/i);
+}
+
+async function testImportGlpiTicketToolSchemaUsesNumericExclusiveMinimum() {
+  const operation = new ImportGlpiTicketAiMutationOperation(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['tasks'],
+    },
+    settingsService: {
+      find: async () => ({
+        web_search_enabled: true,
+        glpi_enabled: true,
+        glpi_url: 'https://glpi.example.com',
+        glpi_user_token_encrypted: 'encrypted-token',
+      }),
+    },
+    mutationOperations: {
+      listOperations: () => [operation],
+      getOperationOrNull: (toolName: string) => (toolName === 'import_glpi_ticket' ? operation : null),
+    },
+  });
+
+  const tools = await registry.getToolJsonSchemas(createChatContext());
+  const schema = tools.find((tool) => tool.name === 'import_glpi_ticket');
+
+  assert.ok(schema);
+  assert.equal((schema!.parameters as any).properties?.ticket_id?.exclusiveMinimum, 0);
+  assert.equal(typeof (schema!.parameters as any).properties?.ticket_id?.exclusiveMinimum, 'number');
 }
 
 async function testUpdateDocumentContentToolSchemaExposesDocumentAndBodyFields() {
@@ -1358,6 +1394,7 @@ async function run() {
   await testGlpiImportToolAppearsWhenSettingsAreConfigured();
   await testCreateDocumentToolSchemaExposesBodyFields();
   await testCreateTaskToolSchemaExposesRelationAndAssignmentFields();
+  await testImportGlpiTicketToolSchemaUsesNumericExclusiveMinimum();
   await testUpdateDocumentContentToolSchemaExposesDocumentAndBodyFields();
   await testUpdateDocumentRelationsToolSchemaExposesRelationFields();
   await testQueryEntitiesDelegatesToQueryExecutor();

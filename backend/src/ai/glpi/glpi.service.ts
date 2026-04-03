@@ -27,6 +27,17 @@ function textOrNull(value: unknown): string | null {
   return normalized || null;
 }
 
+function normalizeGlpiPathname(pathname: string): string {
+  const trimmed = (pathname || '/').replace(/\/+$/, '') || '/';
+  if (trimmed === '/apirest.php') {
+    return '/';
+  }
+  if (trimmed.endsWith('/apirest.php')) {
+    return trimmed.slice(0, -'/apirest.php'.length) || '/';
+  }
+  return trimmed;
+}
+
 function normalizeBaseUrl(value: string | null | undefined): string | null {
   const normalized = textOrNull(value);
   if (!normalized) {
@@ -49,7 +60,8 @@ function normalizeBaseUrl(value: string | null | undefined): string | null {
 
   parsed.search = '';
   parsed.hash = '';
-  parsed.pathname = `${(parsed.pathname || '/').replace(/\/+$/, '') || ''}/`;
+  const normalizedPath = normalizeGlpiPathname(parsed.pathname);
+  parsed.pathname = normalizedPath === '/' ? '/' : `${normalizedPath}/`;
   return parsed.toString();
 }
 

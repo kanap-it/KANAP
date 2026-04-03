@@ -108,6 +108,37 @@ const UndoPreviewInputSchema = z.object({
   preview_id: z.string().trim().uuid(),
 });
 
+function normalizeJsonSchemaForProviders(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeJsonSchemaForProviders(entry));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const normalized = Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([key, entry]) => [key, normalizeJsonSchemaForProviders(entry)]),
+  );
+
+  if (normalized.exclusiveMinimum === true && typeof normalized.minimum === 'number') {
+    normalized.exclusiveMinimum = normalized.minimum;
+    delete normalized.minimum;
+  } else if (normalized.exclusiveMinimum === false) {
+    delete normalized.exclusiveMinimum;
+  }
+
+  if (normalized.exclusiveMaximum === true && typeof normalized.maximum === 'number') {
+    normalized.exclusiveMaximum = normalized.maximum;
+    delete normalized.maximum;
+  } else if (normalized.exclusiveMaximum === false) {
+    delete normalized.exclusiveMaximum;
+  }
+
+  return normalized;
+}
+
 function toDocumentRelation(type: AiEntitySummaryDto['type'], row: any): AiEntitySummaryDto {
   return {
     type,
@@ -566,7 +597,9 @@ export class AiToolRegistry {
     const available = await this.listAvailableTools(context);
     return available.map((item) => {
       const definition = this.definitions.get(item.name)!;
-      const jsonSchema = zodToJsonSchema(definition.inputSchema as any, { target: 'openApi3' });
+      const jsonSchema = normalizeJsonSchemaForProviders(
+        zodToJsonSchema(definition.inputSchema as any, { target: 'openApi3' }),
+      );
       return {
         name: definition.name,
         description: definition.description,

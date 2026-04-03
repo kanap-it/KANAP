@@ -189,6 +189,16 @@ async function testGlpiSecretsAreStoredEncryptedAndHiddenInView() {
   assert.equal(view.has_glpi_app_token, true);
 }
 
+async function testGlpiUrlNormalizesApiEndpointToBaseUrl() {
+  const service = createService(createMockSettings());
+
+  const updated = await service.update('tenant-1', {
+    glpi_url: 'https://glpi.internal/helpdesk/apirest.php',
+  });
+
+  assert.equal(updated.glpi_url, 'https://glpi.internal/helpdesk');
+}
+
 async function run() {
   await testRejectsWebSearchWhenEnvVarAbsent();
   await testAcceptsWebSearchWhenEnvVarPresent();
@@ -197,6 +207,7 @@ async function run() {
   await testUnrelatedSaveDoesNotBlockWhenEnvVarRemoved();
   await testEnablingGlpiRequiresUrlAndToken();
   await testGlpiSecretsAreStoredEncryptedAndHiddenInView();
+  await testGlpiUrlNormalizesApiEndpointToBaseUrl();
 }
 
 void run();
