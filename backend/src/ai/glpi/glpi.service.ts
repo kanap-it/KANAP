@@ -287,6 +287,7 @@ export class GlpiService {
   ): Record<string, string> {
     return {
       Accept: 'application/json',
+      'Content-Type': 'application/json',
       Authorization: `user_token ${userToken}`,
       ...(appToken ? { 'App-Token': appToken } : {}),
     };
@@ -297,6 +298,7 @@ export class GlpiService {
   ): Record<string, string> {
     return {
       Accept: 'application/json',
+      'Content-Type': 'application/json',
       'Session-Token': session.sessionToken,
       ...(session.appToken ? { 'App-Token': session.appToken } : {}),
     };
@@ -341,7 +343,12 @@ export class GlpiService {
   ): Promise<unknown> {
     const response = await this.request(url, init);
     const raw = await response.text();
-    const payload = this.safeParseJson(raw);
+    const payload = this.safeParseJson(raw, {
+      requestUrl: url,
+      responseUrl: response.url || url,
+      contentType: response.headers.get('content-type'),
+      status: response.status,
+    });
 
     const mappedError = this.extractGlpiError(payload);
     if (!response.ok) {
@@ -367,7 +374,15 @@ export class GlpiService {
     }
   }
 
-  private safeParseJson(raw: string): unknown {
+  private safeParseJson(
+    raw: string,
+    meta?: {
+      requestUrl?: string | null;
+      responseUrl?: string | null;
+      contentType?: string | null;
+      status?: number | null;
+    },
+  ): unknown {
     const text = String(raw || '').trim();
     if (!text) {
       return {};
@@ -375,7 +390,33 @@ export class GlpiService {
     try {
       return JSON.parse(text);
     } catch {
-      throw new BadRequestException('GLPI returned an invalid JSON response.');
+      const contentType = textOrNull(meta?.contentType);
+      const redirected = meta?.responseUrl && meta.requestUrl && meta.responseUrl !== meta.requestUrl
+        ? ` Redirected to ${meta.responseUrl}.`
+        : '';
+      const prefix = text.slice(0, 120).replace(/\s+/g, ' ').trim();
+      const status = meta?.status ? ` HTTP ${meta.status}.` : '';
+
+      this.logger.warn(
+        `GLPI returned non-JSON content for ${meta?.requestUrl || 'unknown request'}`
+        + `${meta?.responseUrl && meta?.responseUrl !== meta?.requestUrl ? ` -> ${meta.responseUrl}` : ''}`
+        + `${contentType ? ` [${contentType}]` : ''}`,
+      );
+
+      if (contentType?.toLowerCase().includes('text/html') || text.startsWith('<!DOCTYPE html') || text.startsWith('<html')) {
+        throw new BadRequestException(
+          `GLPI returned HTML instead of JSON.${status}`
+          + ` Check that the GLPI URL is the base GLPI URL and that the REST API is enabled.`
+          + redirected,
+        );
+      }
+
+      throw new BadRequestException(
+        `GLPI returned a non-JSON response.${status}`
+        + `${contentType ? ` Content-Type: ${contentType}.` : ''}`
+        + `${prefix ? ` Response starts with: ${prefix}.` : ''}`
+        + redirected,
+      );
     }
   }
 
