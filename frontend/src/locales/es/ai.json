@@ -25,6 +25,7 @@
     "approve": "Aprobar",
     "before": "Antes",
     "none": "Ninguno",
+    "pendingInlineImage": "La imagen inline se importará después de la aprobación.",
     "preview": "Vista previa",
     "reject": "Rechazar"
   },

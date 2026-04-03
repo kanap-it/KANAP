@@ -152,4 +152,60 @@ describe('ChatMessageList', () => {
     const link = screen.getByRole('link', { name: 'T-115' });
     expect(link.getAttribute('href')).toBe('/portfolio/tasks/task-115');
   });
+
+  it('replaces pending GLPI preview images with a placeholder message', () => {
+    const preview = {
+      preview_id: 'preview-1',
+      tool_name: 'import_glpi_ticket' as const,
+      status: 'pending' as const,
+      target: {
+        entity_type: 'tasks',
+        entity_id: null,
+        ref: null,
+        title: 'GLPI import',
+      },
+      changes: {
+        description: {
+          label: 'Description',
+          from: null,
+          to: 'Before image\n\n[![ticket-image](/front/document.send.php?docid=41260&itemtype=Ticket&items_id=59925)](/front/document.send.php?docid=41260&itemtype=Ticket&items_id=59925)\n\nAfter image',
+          format: 'markdown' as const,
+        },
+      },
+      requires_confirmation: true,
+      actions: ['approve', 'reject'] as Array<'approve' | 'reject'>,
+      summary: 'Import GLPI ticket.',
+      error_message: null,
+      conversation_id: 'conversation-1',
+      created_at: '2026-03-28T17:00:00.000Z',
+      expires_at: '2026-03-28T17:10:00.000Z',
+      approved_at: null,
+      rejected_at: null,
+      executed_at: null,
+    };
+
+    const { container } = render(
+      <ChatMessageList
+        messages={[
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: '',
+            toolResults: [
+              {
+                id: 'tool-1',
+                name: 'import_glpi_ticket',
+                result: preview,
+              },
+            ],
+          },
+        ]}
+        previews={[preview]}
+        onSend={() => undefined}
+      />,
+    );
+
+    expect(container.textContent || '').toContain('ai:previewCard.pendingInlineImage');
+    expect(container.querySelector('img')).toBeNull();
+  });
 });

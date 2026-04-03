@@ -10,6 +10,10 @@ import { useTranslation } from 'react-i18next';
 import { AiMutationPreview } from '../aiTypes';
 import { MarkdownContent } from '../../components/MarkdownContent';
 
+const LINKED_MARKDOWN_IMAGE_RE = /\[\s*!\[[^\]]*]\(\s*<?[^)\s>]+>?[\s\S]*?\)\s*]\(\s*<?[^)\s>]+>?[\s\S]*?\)/g;
+const MARKDOWN_IMAGE_RE = /!\[[^\]]*]\(\s*<?[^)\s>]+>?[\s\S]*?\)/g;
+const HTML_IMAGE_RE = /<img\b[\s\S]*?>/gi;
+
 type PreviewCardProps = {
   preview: AiMutationPreview;
   disabled?: boolean;
@@ -34,7 +38,21 @@ function hasDisplayValue(value: string | null | undefined): boolean {
   return typeof value === 'string' ? value.trim().length > 0 : value != null;
 }
 
-function renderValue(diff: AiMutationPreview['changes'][string], value: string | null, noneLabel: string) {
+function replacePendingImportImages(markdown: string, placeholder: string): string {
+  const replacement = `\n\n_${placeholder}_\n\n`;
+  return String(markdown || '')
+    .replace(LINKED_MARKDOWN_IMAGE_RE, replacement)
+    .replace(MARKDOWN_IMAGE_RE, replacement)
+    .replace(HTML_IMAGE_RE, replacement);
+}
+
+function renderValue(
+  preview: AiMutationPreview,
+  diff: AiMutationPreview['changes'][string],
+  value: string | null,
+  noneLabel: string,
+  pendingImagePlaceholder: string,
+) {
   if (!value) {
     return (
       <Typography variant="body2" color="text.secondary">
@@ -44,7 +62,10 @@ function renderValue(diff: AiMutationPreview['changes'][string], value: string |
   }
 
   if (diff.format === 'markdown') {
-    return <MarkdownContent content={value} variant="compact" />;
+    const content = preview.status === 'pending' && preview.tool_name === 'import_glpi_ticket'
+      ? replacePendingImportImages(value, pendingImagePlaceholder)
+      : value;
+    return <MarkdownContent content={content} variant="compact" />;
   }
 
   return (
@@ -62,6 +83,7 @@ function PreviewCard({
 }: PreviewCardProps) {
   const { t } = useTranslation(['ai']);
   const isPending = preview.status === 'pending';
+  const pendingImagePlaceholder = t('ai:previewCard.pendingInlineImage');
 
   return (
     <Box
@@ -101,14 +123,14 @@ function PreviewCard({
                     <Typography variant="body2" color="text.secondary">
                       {t('ai:previewCard.before')}
                     </Typography>
-                    {renderValue(diff, diff.from, t('ai:previewCard.none'))}
+                    {renderValue(preview, diff, diff.from, t('ai:previewCard.none'), pendingImagePlaceholder)}
                     <Typography variant="body2" color="text.secondary">
                       {t('ai:previewCard.after')}
                     </Typography>
                   </>
                 )}
                 <Box>
-                  {renderValue(diff, diff.to, t('ai:previewCard.none'))}
+                  {renderValue(preview, diff, diff.to, t('ai:previewCard.none'), pendingImagePlaceholder)}
                 </Box>
               </Stack>
             ) : (
@@ -118,14 +140,14 @@ function PreviewCard({
                 </Typography>
                 {hasDisplayValue(diff.from) && (
                   <>
-                    {renderValue(diff, diff.from, t('ai:previewCard.none'))}
+                    {renderValue(preview, diff, diff.from, t('ai:previewCard.none'), pendingImagePlaceholder)}
                     <Typography variant="body2" color="text.secondary">
                       →
                     </Typography>
                   </>
                 )}
                 <Box sx={{ fontWeight: 600 }}>
-                  {renderValue(diff, diff.to, t('ai:previewCard.none'))}
+                  {renderValue(preview, diff, diff.to, t('ai:previewCard.none'), pendingImagePlaceholder)}
                 </Box>
               </Stack>
             )
