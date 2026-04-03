@@ -353,11 +353,11 @@ async function testApprovalMarkerExecutesPreviewWithoutProviderRoundTrip() {
   assert.ok(previewResult);
   assert.equal(previewResult.status, 'executed');
   const textDeltas = events.filter((event) => event.type === 'text_delta') as any[];
-  assert.equal(textDeltas.map((event) => event.text).join(''), 'T-1 status updated to done.');
+  assert.equal(textDeltas.map((event) => event.text).join(''), '[T-1](/portfolio/tasks/task-1) status updated to done.');
   assert.equal(persistedMessages[0].role, 'user');
   assert.equal(persistedMessages[0].content, '[APPROVE:11111111-1111-4111-8111-111111111111]');
   assert.equal(persistedMessages[1].role, 'assistant');
-  assert.equal(persistedMessages[1].content, 'T-1 status updated to done.');
+  assert.equal(persistedMessages[1].content, '[T-1](/portfolio/tasks/task-1) status updated to done.');
   assert.equal(providerCallCount.value, 0);
   assert.equal(recordedRequests.length, 0);
 }

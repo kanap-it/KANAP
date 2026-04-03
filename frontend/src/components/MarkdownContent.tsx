@@ -30,6 +30,7 @@ function sanitizeUrl(url: string, key?: string): string {
 
   if (key === 'href') {
     if (/^(https?:|mailto:)/i.test(value)) return value;
+    if (value.startsWith('/')) return value;
     return '';
   }
 

@@ -30,6 +30,10 @@ function getStatusColor(status: AiMutationPreview['status']): 'default' | 'succe
   }
 }
 
+function hasDisplayValue(value: string | null | undefined): boolean {
+  return typeof value === 'string' ? value.trim().length > 0 : value != null;
+}
+
 function renderValue(diff: AiMutationPreview['changes'][string], value: string | null, noneLabel: string) {
   if (!value) {
     return (
@@ -50,7 +54,7 @@ function renderValue(diff: AiMutationPreview['changes'][string], value: string |
   );
 }
 
-export default function PreviewCard({
+function PreviewCard({
   preview,
   disabled,
   onApprove,
@@ -92,13 +96,17 @@ export default function PreviewCard({
                 <Typography variant="caption" color="text.secondary">
                   {diff.label || field}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t('ai:previewCard.before')}
-                </Typography>
-                {renderValue(diff, diff.from, t('ai:previewCard.none'))}
-                <Typography variant="body2" color="text.secondary">
-                  {t('ai:previewCard.after')}
-                </Typography>
+                {hasDisplayValue(diff.from) && (
+                  <>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('ai:previewCard.before')}
+                    </Typography>
+                    {renderValue(diff, diff.from, t('ai:previewCard.none'))}
+                    <Typography variant="body2" color="text.secondary">
+                      {t('ai:previewCard.after')}
+                    </Typography>
+                  </>
+                )}
                 <Box>
                   {renderValue(diff, diff.to, t('ai:previewCard.none'))}
                 </Box>
@@ -108,10 +116,14 @@ export default function PreviewCard({
                 <Typography variant="caption" color="text.secondary" sx={{ minWidth: 72 }}>
                   {diff.label || field}
                 </Typography>
-                {renderValue(diff, diff.from, t('ai:previewCard.none'))}
-                <Typography variant="body2" color="text.secondary">
-                  →
-                </Typography>
+                {hasDisplayValue(diff.from) && (
+                  <>
+                    {renderValue(diff, diff.from, t('ai:previewCard.none'))}
+                    <Typography variant="body2" color="text.secondary">
+                      →
+                    </Typography>
+                  </>
+                )}
                 <Box sx={{ fontWeight: 600 }}>
                   {renderValue(diff, diff.to, t('ai:previewCard.none'))}
                 </Box>
@@ -149,3 +161,8 @@ export default function PreviewCard({
     </Box>
   );
 }
+
+const MemoizedPreviewCard = React.memo(PreviewCard);
+MemoizedPreviewCard.displayName = 'PreviewCard';
+
+export default MemoizedPreviewCard;

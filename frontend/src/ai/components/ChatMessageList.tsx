@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   CircularProgress,
@@ -128,11 +128,19 @@ function AssistantBubble({
   disabled?: boolean;
   onSend: (text: string) => void;
 }) {
-  const previewResults = (message.toolResults || [])
-    .filter((toolResult) => toolResult.name !== 'preview_execution_result')
-    .map((toolResult) => toolResult.result)
-    .filter(isMutationPreview)
-    .map((preview) => previews.find((item) => item.preview_id === preview.preview_id) || preview);
+  const previewResults = useMemo(() => (
+    (message.toolResults || [])
+      .filter((toolResult) => toolResult.name !== 'preview_execution_result')
+      .map((toolResult) => toolResult.result)
+      .filter(isMutationPreview)
+      .map((preview) => previews.find((item) => item.preview_id === preview.preview_id) || preview)
+  ), [message.toolResults, previews]);
+  const handleApprove = useCallback((previewId: string) => {
+    onSend(`[APPROVE:${previewId}]`);
+  }, [onSend]);
+  const handleReject = useCallback((previewId: string) => {
+    onSend(`[REJECT:${previewId}]`);
+  }, [onSend]);
 
   return (
     <Box sx={{ px: 2, maxWidth: '90%' }}>
@@ -150,8 +158,8 @@ function AssistantBubble({
             key={preview.preview_id}
             preview={preview}
             disabled={disabled}
-            onApprove={(previewId) => onSend(`[APPROVE:${previewId}]`)}
-            onReject={(previewId) => onSend(`[REJECT:${previewId}]`)}
+            onApprove={handleApprove}
+            onReject={handleReject}
           />
         ))}
 

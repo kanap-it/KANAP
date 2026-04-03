@@ -156,7 +156,7 @@ export class AiChatOrchestratorService {
   }
 
   private buildPreviewResultAssistantText(preview: AiMutationPreviewDto): string {
-    const summary = String(preview.summary || '').trim();
+    const summary = this.linkifyPreviewSummary(preview, String(preview.summary || '').trim());
     const errorMessage = String(preview.error_message || '').trim();
 
     switch (preview.status) {
@@ -177,6 +177,23 @@ export class AiChatOrchestratorService {
         }
         return summary || 'The backend processed the preview action.';
     }
+  }
+
+  private linkifyPreviewSummary(preview: AiMutationPreviewDto, summary: string): string {
+    const text = String(summary || '').trim();
+    if (!text) {
+      return text;
+    }
+
+    const targetEntityType = String(preview.target?.entity_type || '').trim().toLowerCase();
+    const targetEntityId = String(preview.target?.entity_id || '').trim();
+    const targetRef = String(preview.target?.ref || '').trim();
+
+    if (targetEntityType === 'tasks' && targetEntityId && targetRef && text.includes(targetRef)) {
+      return text.replace(targetRef, `[${targetRef}](/portfolio/tasks/${targetEntityId})`);
+    }
+
+    return text;
   }
 
   private buildDisplayName(row: {
