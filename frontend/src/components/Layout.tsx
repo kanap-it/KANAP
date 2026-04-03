@@ -35,6 +35,7 @@ import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import BrushIcon from '@mui/icons-material/Brush';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import ExtensionIcon from '@mui/icons-material/Extension';
 import { useAuth } from '../auth/AuthContext';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -147,6 +148,7 @@ export default function Layout() {
     { to: '/admin/billing', label: t('nav:sidebar.admin.billing'), icon: <CreditCardIcon />, resource: 'billing' },
     { to: '/admin/auth', label: t('nav:sidebar.admin.authentication'), icon: <AdminPanelSettingsIcon />, resource: 'users' },
     { to: '/admin/branding', label: t('nav:sidebar.admin.branding'), icon: <BrushIcon />, resource: 'users' },
+    { to: '/admin/integrations', label: t('nav:sidebar.admin.integrations'), icon: <ExtensionIcon />, resource: 'ai_settings' },
     { to: '/admin/ai', label: t('nav:sidebar.admin.ai'), icon: <AutoAwesomeIcon />, resource: 'ai_settings' },
   ];
 
@@ -397,7 +399,9 @@ export default function Layout() {
                 if (entry.to === '/admin/billing' && !config.features.billing) return false;
                 if (entry.to === '/admin/auth' && !config.features.sso) return false;
                 if (entry.to === '/admin/ai' && !config.features.aiSettings) return false;
+                if (entry.to === '/admin/integrations' && !config.features.aiSettings) return false;
                 if (entry.to === '/admin/ai' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
+                if (entry.to === '/admin/integrations' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
                 return true;
               });
               // In single-tenant mode, append Scheduled Tasks for admin users
@@ -420,7 +424,7 @@ export default function Layout() {
             // Filter items by permission (dividers pass through)
             const visible = entries.filter((entry) => {
               if (!isNavItem(entry)) return true;
-              if (entry.to === '/admin/ai') {
+              if (entry.to === '/admin/ai' || entry.to === '/admin/integrations') {
                 return aiCapabilities.data?.surfaces.settings.available === true;
               }
               return !entry.resource || hasLevel(entry.resource, 'reader');

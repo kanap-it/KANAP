@@ -3,6 +3,7 @@ import { AiMutationWriteToolName } from '../ai.types';
 import { AddTaskCommentAiMutationOperation } from './operations/add-task-comment.ai-mutation-operation';
 import { CreateDocumentAiMutationOperation } from './operations/create-document.ai-mutation-operation';
 import { CreateTaskAiMutationOperation } from './operations/create-task.ai-mutation-operation';
+import { ImportGlpiTicketAiMutationOperation } from './operations/import-glpi-ticket.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from './operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentMetadataAiMutationOperation } from './operations/update-document-metadata.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from './operations/update-document-relations.ai-mutation-operation';
@@ -15,6 +16,7 @@ export class AiMutationOperationRegistry {
   private readonly operations = new Map<AiMutationWriteToolName, AiMutationOperation<any>>();
 
   constructor(
+    importGlpiTicket: ImportGlpiTicketAiMutationOperation,
     createDocument: CreateDocumentAiMutationOperation,
     createTask: CreateTaskAiMutationOperation,
     updateDocumentContent: UpdateDocumentContentAiMutationOperation,
@@ -25,6 +27,7 @@ export class AiMutationOperationRegistry {
     addTaskComment: AddTaskCommentAiMutationOperation,
   ) {
     for (const operation of [
+      importGlpiTicket,
       createDocument,
       createTask,
       updateDocumentContent,

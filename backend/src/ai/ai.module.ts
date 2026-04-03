@@ -47,12 +47,14 @@ import { AiToolRegistry } from './ai-tool.registry';
 import { McpApiKeyAuthGuard } from './auth/mcp-api-key-auth.guard';
 import { McpApiKeyHashService } from './auth/mcp-api-key-hash.service';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
+import { GlpiService } from './glpi/glpi.service';
 import { AiDocumentMutationSupportService } from './mutation/ai-document-mutation-support.service';
 import { AiMutationOperationRegistry } from './mutation/ai-mutation-operation.registry';
 import { AiTaskMutationSupportService } from './mutation/ai-task-mutation-support.service';
 import { AddTaskCommentAiMutationOperation } from './mutation/operations/add-task-comment.ai-mutation-operation';
 import { CreateDocumentAiMutationOperation } from './mutation/operations/create-document.ai-mutation-operation';
 import { CreateTaskAiMutationOperation } from './mutation/operations/create-task.ai-mutation-operation';
+import { ImportGlpiTicketAiMutationOperation } from './mutation/operations/import-glpi-ticket.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from './mutation/operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentMetadataAiMutationOperation } from './mutation/operations/update-document-metadata.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from './mutation/operations/update-document-relations.ai-mutation-operation';
@@ -110,8 +112,10 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiAdminOverviewService,
     AiApiKeysService,
     AiConversationService,
+    GlpiService,
     AiDocumentMutationSupportService,
     AiTaskMutationSupportService,
+    ImportGlpiTicketAiMutationOperation,
     CreateDocumentAiMutationOperation,
     CreateTaskAiMutationOperation,
     UpdateDocumentContentAiMutationOperation,

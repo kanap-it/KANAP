@@ -892,11 +892,18 @@ export class AiQueryExecutor {
     },
   ): Promise<AiFilterValuesResult> {
     const registry = getAiEntityRegistry(input.entity_type);
+    const requestedFields = Array.from(
+      new Set(
+        (input.fields || [])
+          .map((fieldName) => String(fieldName || '').trim())
+          .filter((fieldName) => fieldName.length > 0),
+      ),
+    );
     const values: Record<string, Array<string | boolean | null>> = {};
     const fieldsIgnored = new Set<string>();
     const dynamicFieldMap = new Map<string, string[]>();
 
-    for (const fieldName of input.fields) {
+    for (const fieldName of requestedFields) {
       const field = registry.fields[fieldName];
       if (!field || field.discoverable !== true) {
         fieldsIgnored.add(fieldName);
@@ -920,6 +927,9 @@ export class AiQueryExecutor {
       return {
         values,
         fields_ignored: ignoredFields,
+        total: requestedFields.length,
+        returned: Object.keys(values).length,
+        truncated: false,
         complete: ignoredFields.length === 0,
       };
     }
@@ -1011,6 +1021,9 @@ export class AiQueryExecutor {
     return {
       values,
       fields_ignored: ignoredFields,
+      total: requestedFields.length,
+      returned: Object.keys(values).length,
+      truncated: false,
       complete: ignoredFields.length === 0,
     };
   }

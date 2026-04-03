@@ -1589,6 +1589,9 @@ function buildToolIsolationCases(
           label: 'applications',
           input: { entity_type: 'applications', entity_id: fixtures.graphA.applicationId },
           assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.equal(result.returned, 1);
+            assert.equal(result.truncated, false);
             assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.applicationId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_requests'), [fixtures.graphA.requestId]);
@@ -1601,6 +1604,9 @@ function buildToolIsolationCases(
           label: 'assets',
           input: { entity_type: 'assets', entity_id: fixtures.graphA.assetId },
           assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.equal(result.returned, 1);
+            assert.equal(result.truncated, false);
             assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.assetId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_applications'), [fixtures.graphA.applicationId]);
@@ -1611,6 +1617,9 @@ function buildToolIsolationCases(
           label: 'projects',
           input: { entity_type: 'projects', entity_id: fixtures.graphA.projectId },
           assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.equal(result.returned, 1);
+            assert.equal(result.truncated, false);
             assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.projectId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_applications'), [fixtures.graphA.applicationId]);
@@ -1625,6 +1634,9 @@ function buildToolIsolationCases(
           label: 'requests',
           input: { entity_type: 'requests', entity_id: fixtures.graphA.requestId },
           assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.equal(result.returned, 1);
+            assert.equal(result.truncated, false);
             assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.requestId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'linked_applications'), [fixtures.graphA.applicationId]);
@@ -1639,6 +1651,9 @@ function buildToolIsolationCases(
           label: 'tasks',
           input: { entity_type: 'tasks', entity_id: fixtures.graphA.taskId },
           assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.equal(result.returned, 1);
+            assert.equal(result.truncated, false);
             assert.equal(result.complete, true);
             assert.equal(result.entity.id, fixtures.graphA.taskId);
             assert.deepEqual(getRelatedIdsByRelation(result, 'related_project'), [fixtures.graphA.projectId]);
@@ -1856,6 +1871,8 @@ function buildToolIsolationCases(
           assertResult: (result: any) => {
             assert.equal(result.complete, true);
             assert.equal(result.total, 1);
+            assert.equal(result.returned, 1);
+            assert.equal(result.truncated, false);
             assert.deepEqual(result.groups, [{ key: 'open', count: 1 }]);
             assert.deepEqual(result.filters_applied, []);
             assert.deepEqual(result.filters_ignored, []);
@@ -1871,6 +1888,8 @@ function buildToolIsolationCases(
           assertResult: (result: any) => {
             assert.equal(result.complete, true);
             assert.equal(result.total, 1);
+            assert.equal(result.returned, 1);
+            assert.equal(result.truncated, false);
             assert.deepEqual(result.groups, [{ key: fixtures.graphA.phaseName, count: 1 }]);
           },
         },
@@ -1886,6 +1905,8 @@ function buildToolIsolationCases(
           assertResult: (result: any) => {
             assert.equal(result.complete, true);
             assert.equal(result.total, 1);
+            assert.equal(result.returned, 1);
+            assert.equal(result.truncated, false);
             assert.equal(result.metric, 'execution_progress');
             assert.equal(result.function, 'max');
             assert.deepEqual(result.groups, [{ key: 'planned', value: 25 }]);
@@ -1902,6 +1923,9 @@ function buildToolIsolationCases(
             fields: ['status', 'lifecycle', 'business_owner', 'it_owner'],
           },
           assertResult: (result: any) => {
+            assert.equal(result.total, 4);
+            assert.equal(result.returned, 4);
+            assert.equal(result.truncated, false);
             assert.equal(result.complete, true);
             assert.equal(result.values.status.includes('enabled'), true);
             assert.equal(result.values.lifecycle.includes('active'), true);
@@ -1917,6 +1941,9 @@ function buildToolIsolationCases(
             fields: ['business_lead', 'it_lead', 'contributors'],
           },
           assertResult: (result: any) => {
+            assert.equal(result.total, 3);
+            assert.equal(result.returned, 3);
+            assert.equal(result.truncated, false);
             assert.equal(result.complete, true);
             assert.equal(result.values.business_lead.includes(fixtures.peopleA.projectBusinessLead.name), true);
             assert.equal(result.values.it_lead.includes(fixtures.peopleA.projectItLead.name), true);
@@ -1931,6 +1958,9 @@ function buildToolIsolationCases(
             fields: ['business_lead', 'it_lead', 'contributors'],
           },
           assertResult: (result: any) => {
+            assert.equal(result.total, 3);
+            assert.equal(result.returned, 3);
+            assert.equal(result.truncated, false);
             assert.equal(result.complete, true);
             assert.equal(result.values.business_lead.includes(fixtures.peopleA.requestBusinessLead.name), true);
             assert.equal(result.values.it_lead.includes(fixtures.peopleA.requestItLead.name), true);
@@ -1945,6 +1975,9 @@ function buildToolIsolationCases(
             fields: ['creator', 'phase'],
           },
           assertResult: (result: any) => {
+            assert.equal(result.total, 2);
+            assert.equal(result.returned, 2);
+            assert.equal(result.truncated, false);
             assert.equal(result.complete, true);
             assert.equal(result.values.creator.includes(fixtures.peopleA.taskCreator.name), true);
             assert.equal(result.values.phase.includes(fixtures.graphA.phaseName), true);
@@ -1976,6 +2009,9 @@ function buildToolIsolationCases(
           document_id: 'DOC-5101',
         },
         assertResult: (result: any) => {
+          assert.equal(result.total, 1);
+          assert.equal(result.returned, 1);
+          assert.equal(result.truncated, false);
           assert.equal(result.complete, true);
           assert.equal(result.id, fixtures.knowledgeA.documentId);
           assert.deepEqual(result.relations.applications.map((item: any) => item.id), [fixtures.graphA.applicationId]);
@@ -1989,6 +2025,7 @@ function buildToolIsolationCases(
     case 'web_search':
       return [];
 
+    case 'import_glpi_ticket':
     case 'create_task':
     case 'update_task_status':
     case 'update_task_assignee':
@@ -2188,6 +2225,10 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
       entity_type: 'applications',
       entity_id: graphA.applicationId,
     });
+    assert.equal(applicationContext.total, 1);
+    assert.equal(applicationContext.returned, 1);
+    assert.equal(applicationContext.truncated, false);
+    assert.equal(applicationContext.complete, true);
     assert.equal(applicationContext.entity.id, graphA.applicationId);
     assert.deepEqual(getRelatedIdsByRelation(applicationContext, 'linked_requests'), [graphA.requestId]);
     assert.deepEqual(getRelatedIdsByRelation(applicationContext, 'linked_projects'), [graphA.projectId]);
@@ -2204,6 +2245,10 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
       entity_type: 'assets',
       entity_id: graphA.assetId,
     });
+    assert.equal(assetContext.total, 1);
+    assert.equal(assetContext.returned, 1);
+    assert.equal(assetContext.truncated, false);
+    assert.equal(assetContext.complete, true);
     assert.equal(assetContext.entity.id, graphA.assetId);
     assert.deepEqual(getRelatedIdsByRelation(assetContext, 'linked_requests'), [graphA.requestId]);
     assert.deepEqual(getRelatedIdsByRelation(assetContext, 'linked_projects'), [graphA.projectId]);
@@ -2219,6 +2264,10 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
       entity_type: 'projects',
       entity_id: graphA.projectId,
     });
+    assert.equal(projectContext.total, 1);
+    assert.equal(projectContext.returned, 1);
+    assert.equal(projectContext.truncated, false);
+    assert.equal(projectContext.complete, true);
     assert.equal(projectContext.entity.id, graphA.projectId);
     assert.equal(getMetadataObjectNames(projectContext.entity.metadata.phases).includes(graphA.phaseName), true);
     assert.deepEqual(getRelatedIdsByRelation(projectContext, 'project_tasks'), [graphA.taskId]);
@@ -2247,6 +2296,10 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
       entity_type: 'tasks',
       entity_id: graphA.taskId,
     });
+    assert.equal(taskContext.total, 1);
+    assert.equal(taskContext.returned, 1);
+    assert.equal(taskContext.truncated, false);
+    assert.equal(taskContext.complete, true);
     assert.equal(taskContext.entity.id, graphA.taskId);
     assert.equal(getMetadataObjectName(taskContext.entity.metadata.phase), graphA.phaseName);
     assert.equal(
@@ -2527,6 +2580,91 @@ async function testAiEntityCommentsReturnsPaginatedCommentFeedsAndStaysTenantSco
   }
 }
 
+async function testAiEntityContextMarksRecentActivityAsTruncatedWhenCapped() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  const tenantId = randomUUID();
+
+  try {
+    await seedTenant(runner, tenantId, `ai-context-cap-${tenantId.slice(0, 8)}`, 'AI Context Cap Tenant');
+    const graph = await seedApplicationAssetGraph(runner, tenantId, '9101', {
+      applicationName: 'Context Cap Application',
+      projectName: 'Context Cap Project',
+      requestName: 'Context Cap Request',
+      taskTitle: 'Context Cap Task',
+    });
+    const people = await seedAiPeopleAssignments(runner, tenantId, graph, '9101');
+
+    await setCurrentTenant(runner, tenantId);
+    for (let offset = 0; offset < 25; offset += 1) {
+      await runner.query(
+        `INSERT INTO portfolio_activities (
+           id, tenant_id, project_id, author_id, type, content, changed_fields, created_at, updated_at
+         )
+         VALUES (
+           $1, $2, $3, $4, 'comment', $5, null,
+           now() - ($6::int * interval '1 minute'),
+           now() - ($6::int * interval '1 minute')
+         )`,
+        [
+          randomUUID(),
+          tenantId,
+          graph.projectId,
+          people.projectContributor.id,
+          `Project context activity ${offset}`,
+          offset,
+        ],
+      );
+    }
+
+    const entityService = new AiEntityService(
+      {
+        search: async () => ({ items: [], total: 0 }),
+        getKnowledgeContextForEntity: async () => ({
+          access: 'granted',
+          total: 0,
+          groups: [],
+        }),
+      } as any,
+      {
+        listReadableEntityTypes: async (_context: unknown, requested: string[]) => requested,
+        canReadKnowledge: async () => true,
+        assertEntityTypeReadAccess: async () => undefined,
+      } as any,
+    );
+
+    const context = {
+      tenantId,
+      userId: randomUUID(),
+      isPlatformHost: false,
+      surface: 'chat' as const,
+      authMethod: 'jwt' as const,
+      manager: runner.manager,
+    };
+
+    const projectContext = await entityService.getEntityContext(context, {
+      entity_type: 'projects',
+      entity_id: graph.projectId,
+    });
+
+    assert.equal(projectContext.total, 1);
+    assert.equal(projectContext.returned, 1);
+    assert.equal(projectContext.truncated, true);
+    assert.equal(projectContext.complete, false);
+    assert.equal(projectContext.entity.metadata.recent_activity_total, 25);
+    assert.equal(projectContext.entity.metadata.recent_activity_returned, 20);
+    assert.equal(projectContext.entity.metadata.recent_activity_truncated, true);
+    assert.equal(Array.isArray(projectContext.entity.metadata.recent_activity), true);
+    assert.equal((projectContext.entity.metadata.recent_activity as any[]).length, 20);
+    assert.equal((projectContext.entity.metadata.recent_activity as any[])[0]?.content, 'Project context activity 0');
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 async function testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScoped() {
   const runner = dataSource.createQueryRunner();
   await runner.connect();
@@ -2592,6 +2730,9 @@ async function testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScope
       q: 'Lifecycle Probe',
     }) as any;
     assert.equal(aggregateResult.total, 2);
+    assert.equal(aggregateResult.returned, 2);
+    assert.equal(aggregateResult.truncated, false);
+    assert.equal(aggregateResult.complete, true);
     assert.deepEqual(aggregateResult.groups, [
       { key: 'active', count: 1 },
       { key: 'retired', count: 1 },
@@ -2602,6 +2743,10 @@ async function testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScope
       entity_type: 'applications',
       fields: ['status', 'lifecycle'],
     }) as any;
+    assert.equal(filterValuesResult.total, 2);
+    assert.equal(filterValuesResult.returned, 2);
+    assert.equal(filterValuesResult.truncated, false);
+    assert.equal(filterValuesResult.complete, true);
     assert.equal(filterValuesResult.values.status.includes('enabled'), true);
     assert.equal(filterValuesResult.values.status.includes('disabled'), true);
     assert.equal(filterValuesResult.values.lifecycle.includes('active'), true);
@@ -3428,6 +3573,9 @@ async function testAiUsersEntitySupportsContributorReadsAndTenantIsolation() {
       q: '@example.com',
     }) as any;
     assert.equal(contributorBreakdown.total, 2);
+    assert.equal(contributorBreakdown.returned, 2);
+    assert.equal(contributorBreakdown.truncated, false);
+    assert.equal(contributorBreakdown.complete, true);
     assert.deepEqual(contributorBreakdown.groups, [
       { key: 'configured', count: 1 },
       { key: 'not_configured', count: 1 },
@@ -3443,6 +3591,9 @@ async function testAiUsersEntitySupportsContributorReadsAndTenantIsolation() {
       },
     }) as any;
     assert.equal(teamAvailability.total, 1);
+    assert.equal(teamAvailability.returned, 1);
+    assert.equal(teamAvailability.truncated, false);
+    assert.equal(teamAvailability.complete, true);
     assert.equal(teamAvailability.metric, 'project_availability');
     assert.equal(teamAvailability.function, 'avg');
     assert.deepEqual(teamAvailability.groups, [
@@ -3453,6 +3604,10 @@ async function testAiUsersEntitySupportsContributorReadsAndTenantIsolation() {
       entity_type: 'users',
       fields: ['company', 'department', 'primary_role', 'team', 'locale', 'areas_of_expertise', 'contributor_profile'],
     }) as any;
+    assert.equal(filterValues.total, 7);
+    assert.equal(filterValues.returned, 7);
+    assert.equal(filterValues.truncated, false);
+    assert.equal(filterValues.complete, true);
     assert.deepEqual(filterValues.fields_ignored, []);
     assert.equal(filterValues.values.company.includes('Tenant A Holdings'), true);
     assert.equal(filterValues.values.company.includes('Tenant B Holdings'), false);
@@ -4035,6 +4190,7 @@ async function run() {
   try {
     await testAiPhase1RepairMigrationReassertsCriticalRls();
     await testAiEntityServicePhase1TenantDefenseInDepth();
+    await testAiEntityContextMarksRecentActivityAsTruncatedWhenCapped();
     await testAiEntityCommentsReturnsPaginatedCommentFeedsAndStaysTenantScoped();
     await testAiQueryLayerToolsHandleInactiveApplicationsAndStayTenantScoped();
     await testAiQueryLayerExplicitTenantPlumbingStaysIsolatedAcrossFamilies();

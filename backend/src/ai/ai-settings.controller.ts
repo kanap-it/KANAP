@@ -10,6 +10,7 @@ import { UpdateAiSettingsDto } from './dto/update-ai-settings.dto';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
+import { GlpiService } from './glpi/glpi.service';
 import { BraveSearchService } from './web-search/brave-search.service';
 import { AiExecutionContext } from './ai.types';
 
@@ -31,6 +32,7 @@ export class AiSettingsController {
     private readonly providerTest: AiProviderTestService,
     private readonly providerRegistry: AiProviderRegistry,
     private readonly braveSearch: BraveSearchService,
+    private readonly glpi: GlpiService,
     private readonly builtinUsage: AiBuiltinUsageService,
   ) {}
 
@@ -141,6 +143,26 @@ export class AiSettingsController {
       async (manager) => {
         await this.policy.assertSettingsAccess(context, manager);
         return this.braveSearch.testConnectivity();
+      },
+      { transaction: false },
+    );
+  }
+
+  @Post('test-glpi')
+  async testGlpi(
+    @Body() body: {
+      glpi_url?: string | null;
+      glpi_user_token?: string | null;
+      glpi_app_token?: string | null;
+    },
+    @Req() req: AiSettingsRequest,
+  ) {
+    const context = this.buildContext(req);
+    return this.tenantExecutor.run(
+      context.tenantId,
+      async (manager) => {
+        await this.policy.assertSettingsAccess(context, manager);
+        return this.glpi.testConnection(context.tenantId, body, manager);
       },
       { transaction: false },
     );

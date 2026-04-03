@@ -111,6 +111,8 @@ export type AiAggregateResult = {
     | { key: string | null; value: number | string | null }
   >;
   total: number;
+  returned: number;
+  truncated: boolean;
   complete: boolean;
   filters_applied: string[];
   filters_ignored: string[];
@@ -124,5 +126,8 @@ export type AiAggregateResult = {
 export type AiFilterValuesResult = {
   values: Record<string, Array<string | boolean | null>>;
   fields_ignored: string[];
+  total: number;
+  returned: number;
+  truncated: boolean;
   complete: boolean;
 };

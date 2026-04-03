@@ -42,6 +42,18 @@ export class AiSettings {
   @Column('boolean', { default: false })
   web_enrichment_enabled!: boolean;
 
+  @Column('boolean', { default: false })
+  glpi_enabled!: boolean;
+
+  @Column('text', { nullable: true })
+  glpi_url!: string | null;
+
+  @Column('text', { nullable: true, select: false })
+  glpi_user_token_encrypted!: string | null;
+
+  @Column('text', { nullable: true, select: false })
+  glpi_app_token_encrypted!: string | null;
+
   @Column('timestamptz', { default: () => 'now()' })
   created_at!: Date;
 

@@ -425,12 +425,11 @@ export class CompaniesService {
       qb.orderBy('c.name', 'ASC');
     }
 
+    const total = await qb.clone().getCount();
     const limit = Math.min(Number(query?.limit) || 10000, 10000);
-    qb.take(limit);
-
-    const rows = await qb.getRawMany();
+    const rows = await qb.take(limit).getRawMany();
     const ids = rows.map((r: any) => r.id as string).filter((v) => !!v);
-    return { ids, total: ids.length };
+    return { ids, total };
   }
 
   async listFilterValues(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {

@@ -79,6 +79,7 @@
       "billing": "Facturation",
       "authentication": "Authentification",
       "branding": "Personnalisation",
+      "integrations": "Intégrations",
       "ai": "Plaid"
     },
     "platform": {

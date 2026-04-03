@@ -12,6 +12,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
 import { AiAggregateExecutor } from './query/ai-aggregate.executor';
 import { AiQueryExecutor } from './query/ai-query.executor';
 import { AiMutationOperationRegistry } from './mutation/ai-mutation-operation.registry';
+import { AiSettings } from './ai-settings.entity';
 import {
   AiContextEntityTypeSchema,
   AiDocumentDto,
@@ -348,6 +349,9 @@ export class AiToolRegistry {
                 role: row.role,
                 is_primary: row.is_primary === true,
               })),
+              total: 1,
+              returned: 1,
+              truncated: false,
               complete: true,
             };
             return result;
@@ -386,7 +390,13 @@ export class AiToolRegistry {
           readOnly: true,
           execute: async (_context, input) => {
             const results = await this.braveSearch.search(input.query, { count: input.count });
-            return { items: results, total: results.length, complete: false };
+            return {
+              items: results,
+              total: null,
+              returned: results.length,
+              truncated: false,
+              complete: false,
+            };
           },
         },
       ],
@@ -477,6 +487,20 @@ export class AiToolRegistry {
     }
   }
 
+  private isMutationOperationConfigured(
+    toolName: AiToolName,
+    settings: AiSettings | null,
+  ): boolean {
+    switch (toolName) {
+      case 'import_glpi_ticket':
+        return settings?.glpi_enabled === true
+          && !!settings.glpi_url
+          && !!settings.glpi_user_token_encrypted;
+      default:
+        return true;
+    }
+  }
+
   private async loadAvailabilityContext(context: AiExecutionContextWithManager) {
     const readableEntityTypes = await this.policy.listReadableEntityTypes(
       context,
@@ -502,7 +526,10 @@ export class AiToolRegistry {
 
     const writableMutationToolNames = new Set<AiToolName>(
       this.mutationOperations.listOperations()
-        .filter((operation) => writeAccessByResource.get(operation.businessResource) === true)
+        .filter((operation) =>
+          writeAccessByResource.get(operation.businessResource) === true
+          && this.isMutationOperationConfigured(operation.toolName, settings),
+        )
         .map((operation) => operation.toolName),
     );
 

@@ -27,6 +27,33 @@
       "label": "Label",
       "labelPlaceholder": "e.g., Desktop MCP client"
     },
+    "glpi": {
+      "description": "Configure tenant-scoped GLPI credentials so Plaid can import selected GLPI tickets into KANAP tasks after user confirmation.",
+      "fields": {
+        "appToken": "App Token",
+        "enabled": "Enable GLPI ticket import",
+        "url": "GLPI URL",
+        "userToken": "User Token"
+      },
+      "messages": {
+        "testFailed": "GLPI connection test failed."
+      },
+      "placeholders": {
+        "appTokenConfigured": "App token configured (leave blank to keep)",
+        "enterAppToken": "Enter optional app token",
+        "enterUserToken": "Enter user token",
+        "url": "https://glpi.example.com",
+        "userTokenConfigured": "User token configured (leave blank to keep)"
+      },
+      "title": "GLPI Integration",
+      "tooltips": {
+        "plaidRequired": "Plaid must be enabled for users to import GLPI tickets from chat."
+      },
+      "tokenHint": {
+        "appTokenExisting": "Leave blank to keep the stored app token for save and test actions.",
+        "userTokenExisting": "Leave blank to keep the stored user token for save and test actions."
+      }
+    },
     "keys": {
       "columns": {
         "created": "Created",
@@ -130,6 +157,7 @@
     },
     "sections": {
       "features": "Features",
+      "integrations": "Integrations",
       "retention": "Retention"
     },
     "shared": {

@@ -69,6 +69,8 @@ type SupportedAggregateEntityType =
   | 'users'
   | 'documents';
 
+const AGGREGATE_ID_COLLECTION_LIMIT = 10_000;
+
 const DOCUMENT_LINKED_ENTITY_FILTERS: Record<DocumentLinkedEntityField, DocumentLinkedEntitySurface[]> = {
   linked_application: [
     {
@@ -403,26 +405,31 @@ export class AiAggregateExecutor {
     q: string | undefined,
     adaptedFilters: Record<string, any>,
     scope?: AiQueryScope,
-  ): Promise<{ ids: string[]; scope: ResolvedAiScope | null }> {
+  ): Promise<{ ids: string[]; total: number; scope: ResolvedAiScope | null }> {
     if (entityType === 'tasks') {
       const scoped = await applyScopeToAiQuery(
         context,
         entityType,
         {
           q,
-          limit: 1000000,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: this.serializeFiltersForTasks(adaptedFilters),
         },
         scope,
       );
       if (scoped.scope && scoped.scope.resolved === false) {
-        return { ids: [], scope: scoped.scope };
+        return { ids: [], total: 0, scope: scoped.scope };
       }
       const result = await this.tasks.listIds(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
       });
-      return { ids: result.ids || [], scope: scoped.scope };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: scoped.scope,
+      };
     }
 
     if (entityType === 'projects') {
@@ -431,19 +438,25 @@ export class AiAggregateExecutor {
         entityType,
         {
           q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
           status: Object.prototype.hasOwnProperty.call(adaptedFilters, 'status') ? undefined : 'all',
         },
         scope,
       );
       if (scoped.scope && scoped.scope.resolved === false) {
-        return { ids: [], scope: scoped.scope };
+        return { ids: [], total: 0, scope: scoped.scope };
       }
       const result = await this.projects.listIds(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
       });
-      return { ids: result.ids || [], scope: scoped.scope };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: scoped.scope,
+      };
     }
 
     if (entityType === 'requests') {
@@ -452,19 +465,25 @@ export class AiAggregateExecutor {
         entityType,
         {
           q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
           status: Object.prototype.hasOwnProperty.call(adaptedFilters, 'status') ? undefined : 'all',
         },
         scope,
       );
       if (scoped.scope && scoped.scope.resolved === false) {
-        return { ids: [], scope: scoped.scope };
+        return { ids: [], total: 0, scope: scoped.scope };
       }
       const result = await this.requests.listIds(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
       });
-      return { ids: result.ids || [], scope: scoped.scope };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: scoped.scope,
+      };
     }
 
     if (entityType === 'applications') {
@@ -473,79 +492,115 @@ export class AiAggregateExecutor {
         entityType,
         {
           q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
           include_inactive: true,
         },
         scope,
       );
       if (scoped.scope && scoped.scope.resolved === false) {
-        return { ids: [], scope: scoped.scope };
+        return { ids: [], total: 0, scope: scoped.scope };
       }
       const result = await this.applications.listIds(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
       });
-      return { ids: result.ids || [], scope: scoped.scope };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: scoped.scope,
+      };
     }
 
     if (entityType === 'spend_items') {
       const result = await this.spendItems.summaryIds(
         {
           q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
           includeDisabled: true,
         },
         { manager: context.manager },
       );
-      return { ids: result.ids || [], scope: null };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
     }
 
     if (entityType === 'contracts') {
       const result = await this.contracts.listIds(
         {
           q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
           includeDisabled: true,
         },
         { manager: context.manager },
       );
-      return { ids: result.ids || [], scope: null };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
     }
 
     if (entityType === 'companies') {
       const result = await this.companies.listIds(
         {
           q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
           includeDisabled: true,
         },
         { manager: context.manager },
       );
-      return { ids: result.ids || [], scope: null };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
     }
 
     if (entityType === 'suppliers') {
       const result = await this.suppliers.listIds(
         {
           q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
           includeDisabled: true,
         },
         { manager: context.manager },
       );
-      return { ids: result.ids || [], scope: null };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
     }
 
     if (entityType === 'departments') {
       const result = await this.departments.listIds(
         {
           q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
           includeDisabled: true,
         },
         { manager: context.manager },
       );
-      return { ids: result.ids || [], scope: null };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
     }
 
     if (entityType === 'assets') {
@@ -554,15 +609,21 @@ export class AiAggregateExecutor {
         entityType,
         {
           q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
         },
         scope,
       );
       if (scoped.scope && scoped.scope.resolved === false) {
-        return { ids: [], scope: scoped.scope };
+        return { ids: [], total: 0, scope: scoped.scope };
       }
       const result = await this.assets.listIds(scoped.query, { manager: context.manager, tenantId: context.tenantId });
-      return { ids: result.ids || [], scope: scoped.scope };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: scoped.scope,
+      };
     }
 
     if (entityType === 'locations') {
@@ -571,13 +632,15 @@ export class AiAggregateExecutor {
         `SELECT id FROM locations WHERE tenant_id = $1`,
         [context.tenantId],
       );
-      return { ids: rows.map((r) => r.id), scope: null };
+      const ids = rows.map((r) => r.id);
+      return { ids, total: ids.length, scope: null };
     }
 
     if (entityType === 'users') {
       const result = await this.users.listIdsForAi(
         {
           q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
         },
         {
@@ -585,7 +648,12 @@ export class AiAggregateExecutor {
           tenantId: context.tenantId,
         },
       );
-      return { ids: result.ids || [], scope: null };
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
     }
 
     throw new BadRequestException('Unsupported entity type.');
@@ -928,6 +996,8 @@ export class AiAggregateExecutor {
           function: fn,
           groups: [],
           total: 0,
+          returned: 0,
+          truncated: false,
           complete: isCompleteAggregateResult(scoped.scope),
           filters_applied: adapted.applied,
           filters_ignored: adapted.ignored,
@@ -949,6 +1019,8 @@ export class AiAggregateExecutor {
           function: fn,
           groups: [],
           total: 0,
+          returned: 0,
+          truncated: false,
           complete: isCompleteAggregateResult(scoped.scope),
           filters_applied: adapted.applied,
           filters_ignored: adapted.ignored,
@@ -992,6 +1064,8 @@ export class AiAggregateExecutor {
         function: fn,
         groups: rows,
         total,
+        returned: rows.length,
+        truncated: false,
         complete: isCompleteAggregateResult(scoped.scope),
         filters_applied: adapted.applied,
         filters_ignored: adapted.ignored,
@@ -1007,14 +1081,17 @@ export class AiAggregateExecutor {
       input.scope,
     );
     const ids = scoped.ids;
+    const truncated = ids.length < scoped.total;
     if (ids.length === 0) {
       return {
         group_by: input.group_by,
         metric: metric?.key ?? null,
         function: fn,
         groups: [],
-        total: 0,
-        complete: isCompleteAggregateResult(scoped.scope),
+        total: scoped.total,
+        returned: 0,
+        truncated,
+        complete: !truncated && isCompleteAggregateResult(scoped.scope),
         filters_applied: adapted.applied,
         filters_ignored: adapted.ignored,
         scope: scoped.scope,
@@ -1029,8 +1106,10 @@ export class AiAggregateExecutor {
       metric: metric?.key ?? null,
       function: fn,
       groups,
-      total: ids.length,
-      complete: isCompleteAggregateResult(scoped.scope),
+      total: scoped.total,
+      returned: groups.length,
+      truncated,
+      complete: !truncated && isCompleteAggregateResult(scoped.scope),
       filters_applied: adapted.applied,
       filters_ignored: adapted.ignored,
       scope: scoped.scope,

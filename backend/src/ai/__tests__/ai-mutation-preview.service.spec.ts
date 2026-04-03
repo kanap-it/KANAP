@@ -7,6 +7,7 @@ import { AiTaskMutationSupportService } from '../mutation/ai-task-mutation-suppo
 import { AddTaskCommentAiMutationOperation } from '../mutation/operations/add-task-comment.ai-mutation-operation';
 import { CreateDocumentAiMutationOperation } from '../mutation/operations/create-document.ai-mutation-operation';
 import { CreateTaskAiMutationOperation } from '../mutation/operations/create-task.ai-mutation-operation';
+import { ImportGlpiTicketAiMutationOperation } from '../mutation/operations/import-glpi-ticket.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from '../mutation/operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentMetadataAiMutationOperation } from '../mutation/operations/update-document-metadata.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from '../mutation/operations/update-document-relations.ai-mutation-operation';
@@ -330,7 +331,7 @@ function createService(options?: {
   const documentRows = [...(options?.documentRows || [defaultDocumentRow])];
   const knowledge = {
     listLibraries: async () => options?.libraries ?? [
-      { id: 'library-1', name: 'Operations', is_system: false },
+      { id: 'library-1', name: 'Operations', is_system: false, can_write: true },
     ],
     listTypes: async () => options?.documentTypes ?? [
       { id: 'type-1', name: 'Document', is_default: true },
@@ -386,6 +387,13 @@ function createService(options?: {
   };
   const documentSupport = new AiDocumentMutationSupportService(knowledge as any);
   const operations = new AiMutationOperationRegistry(
+    new ImportGlpiTicketAiMutationOperation(
+      support,
+      tasks as any,
+      {} as any,
+      {} as any,
+      policy as any,
+    ),
     new CreateDocumentAiMutationOperation(
       documentSupport,
       knowledge as any,
@@ -903,7 +911,7 @@ async function testCreateDocumentTemplateReferenceMustPointToTemplatesLibrary() 
 
 async function testCreateDocumentInputSchemaAcceptsContentAlias() {
   const knowledge = {
-    listLibraries: async () => [{ id: 'library-1', name: 'Operations', is_system: false }],
+    listLibraries: async () => [{ id: 'library-1', name: 'Operations', is_system: false, can_write: true }],
     listTypes: async () => [{ id: 'type-1', name: 'Document', is_default: true }],
     get: async () => null,
     assertWorkflowAllowsEditing: async () => undefined,
@@ -928,7 +936,7 @@ async function testCreateDocumentInputSchemaAcceptsContentAlias() {
 
 async function testCreateDocumentInputSchemaAcceptsTemplateAlias() {
   const knowledge = {
-    listLibraries: async () => [{ id: 'library-1', name: 'Operations', is_system: false }],
+    listLibraries: async () => [{ id: 'library-1', name: 'Operations', is_system: false, can_write: true }],
     listTypes: async () => [{ id: 'type-1', name: 'Document', is_default: true }],
     get: async () => null,
     assertWorkflowAllowsEditing: async () => undefined,

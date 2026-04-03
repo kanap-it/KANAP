@@ -493,7 +493,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
   /**
    * Return ordered list of matching project IDs for navigation.
    */
-  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[] }> {
+  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; total: number }> {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(PortfolioProject);
     const tenantId = String(opts?.tenantId || '').trim();
@@ -636,7 +636,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     const rows = await qb.getRawMany();
     const ids = rows.map((r) => r.p_id);
 
-    return { ids };
+    return { ids, total: ids.length };
   }
 
   /**

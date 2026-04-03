@@ -50,4 +50,24 @@ export class UpdateAiSettingsDto {
   @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()
   web_enrichment_enabled?: boolean;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsBoolean()
+  glpi_enabled?: boolean;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsString()
+  @MaxLength(2048)
+  @IsUrl({ require_protocol: true, require_tld: false })
+  glpi_url?: string | null;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsString()
+  @MaxLength(4096)
+  glpi_user_token?: string | null;
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsString()
+  @MaxLength(255)
+  glpi_app_token?: string | null;
 }

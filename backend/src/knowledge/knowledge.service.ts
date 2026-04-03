@@ -2705,13 +2705,14 @@ export class KnowledgeService {
 
     applyDocumentLinkedEntityFilters(qb, filters, nextLinkedEntityParam);
 
+    const total = await qb.clone().getCount();
     const rows = await qb
       .orderBy('d.updated_at', 'DESC')
       .limit(Math.min(Number(query?.limit) || 10000, 10000))
       .getRawMany();
 
     const ids = rows.map((row: any) => String(row.id)).filter(Boolean);
-    return { ids, total: ids.length };
+    return { ids, total };
   }
 
   async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string; userId?: string | null }): Promise<Record<string, any[]>> {

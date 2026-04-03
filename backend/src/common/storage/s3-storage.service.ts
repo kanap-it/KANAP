@@ -68,6 +68,31 @@ export class S3StorageService extends StorageService {
     throw new Error('Unsupported S3 object body type');
   }
 
+  private async toReplayableBody(body: PutObjectParams['body']): Promise<PutObjectParams['body']> {
+    if (!(body instanceof Readable)) {
+      return body;
+    }
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of body) {
+      if (Buffer.isBuffer(chunk)) {
+        chunks.push(chunk);
+        continue;
+      }
+      if (chunk instanceof Uint8Array) {
+        chunks.push(Buffer.from(chunk));
+        continue;
+      }
+      if (typeof chunk === 'string') {
+        chunks.push(Buffer.from(chunk));
+        continue;
+      }
+      throw new Error('Unsupported S3 upload stream chunk type');
+    }
+
+    return Buffer.concat(chunks);
+  }
+
   async putObject(params: PutObjectParams): Promise<void> {
     if (!this.bucket) throw new Error('S3_BUCKET is not configured');
     const metadata: Record<string, string> = {};
@@ -75,8 +100,12 @@ export class S3StorageService extends StorageService {
       if (!value) continue;
       metadata[key] = value;
     }
-    const body = params.body as any;
-    const contentLength = typeof params.contentLength === 'number' ? params.contentLength : (Buffer.isBuffer(body) ? body.length : undefined);
+    // Materialize readable bodies when a retry may be needed so fallback uploads
+    // never reuse a consumed stream.
+    const body = (params.sse ? await this.toReplayableBody(params.body) : params.body) as any;
+    const contentLength = typeof params.contentLength === 'number'
+      ? params.contentLength
+      : ((Buffer.isBuffer(body) || body instanceof Uint8Array) ? body.length : undefined);
     const baseInput = {
       Bucket: this.bucket,
       Key: params.key,

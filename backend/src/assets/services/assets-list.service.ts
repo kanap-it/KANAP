@@ -134,7 +134,7 @@ export class AssetsListService extends AssetsBaseService {
    * Return ordered list of matching asset IDs for navigation.
    * Uses raw SQL to support filtering on enriched fields.
    */
-  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[] }> {
+  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; total: number }> {
     const mg = this.getManager(opts);
     const { sort, q, filters } = parsePagination(query);
 
@@ -187,7 +187,8 @@ export class AssetsListService extends AssetsBaseService {
     `;
 
     const rows: Array<{ id: string }> = await mg.query(orderedIdsQuery, params);
-    return { ids: rows.map((r) => r.id) };
+    const ids = rows.map((r) => r.id);
+    return { ids, total: ids.length };
   }
 
   /**

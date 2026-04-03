@@ -65,6 +65,10 @@ type AiSettingsForm = {
   conversation_retention_days: string | number;
   web_search_enabled: boolean;
   web_enrichment_enabled: boolean;
+  glpi_enabled: boolean;
+  glpi_url: string;
+  glpi_user_token: string;
+  glpi_app_token: string;
 };
 
 const EMPTY_FORM: AiSettingsForm = {
@@ -79,6 +83,10 @@ const EMPTY_FORM: AiSettingsForm = {
   conversation_retention_days: '',
   web_search_enabled: false,
   web_enrichment_enabled: false,
+  glpi_enabled: false,
+  glpi_url: '',
+  glpi_user_token: '',
+  glpi_app_token: '',
 };
 
 function normalizeNullableString(value: string | null | undefined): string | null {
@@ -112,6 +120,10 @@ function buildSettingsForm(settings: AiSettingsPayload['settings']): AiSettingsF
     conversation_retention_days: settings.conversation_retention_days ?? '',
     web_search_enabled: settings.web_search_enabled,
     web_enrichment_enabled: settings.web_enrichment_enabled,
+    glpi_enabled: settings.glpi_enabled,
+    glpi_url: settings.glpi_url || '',
+    glpi_user_token: '',
+    glpi_app_token: '',
   };
 }
 
@@ -151,6 +163,23 @@ function buildSettingsUpdatePayload(
   }
   if (form.web_enrichment_enabled !== settings.web_enrichment_enabled) {
     payload.web_enrichment_enabled = form.web_enrichment_enabled;
+  }
+
+  if (form.glpi_enabled !== settings.glpi_enabled) {
+    payload.glpi_enabled = form.glpi_enabled;
+  }
+
+  const glpiUrl = normalizeNullableString(form.glpi_url);
+  if (glpiUrl !== settings.glpi_url) {
+    payload.glpi_url = glpiUrl;
+  }
+
+  if (form.glpi_user_token.trim()) {
+    payload.glpi_user_token = form.glpi_user_token.trim();
+  }
+
+  if (form.glpi_app_token.trim()) {
+    payload.glpi_app_token = form.glpi_app_token.trim();
   }
 
   return payload;
@@ -407,7 +436,7 @@ export default function AdminAiPage() {
       setSaveSuccess(true);
       setSaveError(null);
       setProviderTestResult(null);
-      setForm((prev) => ({ ...prev, llm_api_key: '' }));
+      setForm((prev) => ({ ...prev, llm_api_key: '', glpi_user_token: '', glpi_app_token: '' }));
       await queryClient.invalidateQueries({ queryKey: ['admin-ai-settings'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-ai-builtin-usage'] });
       setTimeout(() => setSaveSuccess(false), 3000);

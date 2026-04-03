@@ -124,7 +124,7 @@ async function testExpandForeignKey() {
     ['s2', { id: 's2', name: 'Supplier 2' }],
   ]);
 
-  const configs: ExpandConfig<TestItem, Map<string, TestSupplier>>[] = [
+  const configs: ExpandConfig<TestItem, TestSupplier>[] = [
     {
       key: 'supplier',
       getIds: (items) => items.map(i => i.supplier_id).filter(Boolean) as string[],
@@ -162,7 +162,7 @@ async function testExpandOneToMany() {
     ['2', [{ id: 'o3', item_id: '2', user_name: 'Owner 3' }]],
   ]);
 
-  const configs: ExpandConfig<TestItem, Map<string, TestOwner[]>>[] = [
+  const configs: ExpandConfig<TestItem, TestOwner[]>[] = [
     {
       key: 'owners',
       getIds: (items) => items.map(i => i.id),

@@ -30,6 +30,12 @@ export type AiWebSearchTestResult = {
   latency_ms: number | null;
 };
 
+export type AiGlpiTestResult = {
+  ok: boolean;
+  message: string;
+  latency_ms: number | null;
+};
+
 export type AiSettingsPayload = {
   instance_features: { ai_chat: boolean; ai_mcp: boolean; ai_settings: boolean; ai_web_search: boolean };
   settings: {
@@ -43,6 +49,10 @@ export type AiSettingsPayload = {
     conversation_retention_days: number | null;
     web_search_enabled: boolean;
     web_enrichment_enabled: boolean;
+    glpi_enabled: boolean;
+    glpi_url: string | null;
+    has_glpi_user_token: boolean;
+    has_glpi_app_token: boolean;
     has_llm_api_key: boolean;
     provider_secret_writable: boolean;
     provider_validation_errors: string[];
@@ -241,6 +251,10 @@ export const aiAdminApi = {
   },
   async testWebSearch(): Promise<AiWebSearchTestResult> {
     const res = await api.post('/ai/settings/test-web-search');
+    return res.data;
+  },
+  async testGlpi(payload: Record<string, unknown>): Promise<AiGlpiTestResult> {
+    const res = await api.post('/ai/settings/test-glpi', payload);
     return res.data;
   },
   async getOverview(): Promise<AiAdminOverview> {

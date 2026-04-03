@@ -11,8 +11,8 @@ export interface ExpandConfig<T, R> {
   getIds: (items: T[]) => string[];
   /** Function to load related data by IDs, returns a Map of id -> data */
   loader: (ids: string[]) => Promise<Map<string, R>>;
-  /** Function to attach loaded data to each item */
-  attach: (item: T, data: R | undefined) => void;
+  /** Function to attach the loaded data map to each item */
+  attach: (item: T, dataMap: Map<string, R> | undefined) => void;
 }
 
 /**

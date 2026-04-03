@@ -106,6 +106,7 @@ export class SuppliersService {
     }
 
     const limit = Math.min(Number(query?.limit) || 10000, 10000);
+    const total = await repo.count({ where: whereArr ?? where });
     const items = await repo.find({
       where: whereArr ?? where,
       order: { [sort.field]: sort.direction as any },
@@ -114,7 +115,7 @@ export class SuppliersService {
       select: ['id'],
     });
     const ids = items.map((i) => i.id);
-    return { ids, total: ids.length };
+    return { ids, total };
   }
 
   async listFilterValues(query?: any, opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {

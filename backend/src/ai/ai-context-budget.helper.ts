@@ -56,7 +56,7 @@ function summarizeToolResult(result: unknown): string {
     summaryParts.push(`fields=${Object.keys(typedResult.values as Record<string, unknown>).length}`);
   }
 
-  for (const key of ['total', 'count', 'matched'] as const) {
+  for (const key of ['total', 'returned', 'count', 'matched'] as const) {
     const value = typedResult[key];
     if (typeof value === 'number' && Number.isFinite(value)) {
       summaryParts.push(`${key}=${value}`);

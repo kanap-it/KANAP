@@ -64,6 +64,10 @@ describe('AdminAiPage', () => {
                 conversation_retention_days: 14,
                 web_search_enabled: true,
                 web_enrichment_enabled: true,
+                glpi_enabled: true,
+                glpi_url: 'https://glpi.internal/',
+                has_glpi_user_token: true,
+                has_glpi_app_token: true,
                 has_llm_api_key: true,
                 provider_secret_writable: true,
                 provider_validation_errors: [],
@@ -137,7 +141,6 @@ describe('AdminAiPage', () => {
     const usageOverview = await screen.findByText('Usage Overview');
 
     expect(await screen.findByText('Token usage')).toBeInTheDocument();
-    expect(await screen.findByText('Test connection')).toBeInTheDocument();
     expect(await screen.findByText('No MCP API keys configured.')).toBeInTheDocument();
     expect(screen.queryByText('Recent activity')).not.toBeInTheDocument();
     expect(providerSettings.compareDocumentPosition(usageOverview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

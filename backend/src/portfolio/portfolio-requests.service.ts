@@ -405,7 +405,7 @@ export class PortfolioRequestsService {
   }
 
   // ==================== LIST IDS ====================
-  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ ids: string[] }> {
+  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ ids: string[]; total: number }> {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequest);
     const tenantId = String(opts?.tenantId || '').trim();
@@ -539,7 +539,7 @@ export class PortfolioRequestsService {
     const rows = await qb.getRawMany();
     const ids = rows.map((r) => r.r_id);
 
-    return { ids };
+    return { ids, total: ids.length };
   }
 
   // ==================== FILTER VALUES ====================

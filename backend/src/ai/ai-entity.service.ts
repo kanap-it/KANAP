@@ -2142,6 +2142,9 @@ export class AiEntityService {
 
     return {
       ...result,
+      total: 1,
+      returned: 1,
+      truncated: result.entity.metadata?.recent_activity_truncated === true,
       complete: result.entity.metadata?.recent_activity_truncated !== true,
     };
   }

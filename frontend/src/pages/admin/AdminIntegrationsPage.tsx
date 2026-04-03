@@ -1,0 +1,293 @@
+import React from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CircularProgress,
+  FormControlLabel,
+  IconButton,
+  Stack,
+  Switch,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import PageHeader from '../../components/PageHeader';
+import {
+  aiAdminApi,
+  type AiGlpiTestResult,
+  type AiSettingsPayload,
+} from '../../ai/aiApi';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+
+type IntegrationsForm = {
+  glpi_enabled: boolean;
+  glpi_url: string;
+  glpi_user_token: string;
+  glpi_app_token: string;
+};
+
+const EMPTY_FORM: IntegrationsForm = {
+  glpi_enabled: false,
+  glpi_url: '',
+  glpi_user_token: '',
+  glpi_app_token: '',
+};
+
+function normalizeNullableString(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const normalized = String(value).trim();
+  return normalized === '' ? null : normalized;
+}
+
+function buildForm(settings: AiSettingsPayload['settings']): IntegrationsForm {
+  return {
+    glpi_enabled: settings.glpi_enabled,
+    glpi_url: settings.glpi_url || '',
+    glpi_user_token: '',
+    glpi_app_token: '',
+  };
+}
+
+function buildUpdatePayload(
+  form: IntegrationsForm,
+  settings: AiSettingsPayload['settings'],
+): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+
+  if (form.glpi_enabled !== settings.glpi_enabled) {
+    payload.glpi_enabled = form.glpi_enabled;
+  }
+
+  const glpiUrl = normalizeNullableString(form.glpi_url);
+  if (glpiUrl !== settings.glpi_url) {
+    payload.glpi_url = glpiUrl;
+  }
+
+  if (form.glpi_user_token.trim()) {
+    payload.glpi_user_token = form.glpi_user_token.trim();
+  }
+
+  if (form.glpi_app_token.trim()) {
+    payload.glpi_app_token = form.glpi_app_token.trim();
+  }
+
+  return payload;
+}
+
+function buildGlpiTestPayload(form: IntegrationsForm): Record<string, unknown> {
+  return {
+    glpi_url: normalizeNullableString(form.glpi_url),
+    ...(form.glpi_user_token.trim() ? { glpi_user_token: form.glpi_user_token.trim() } : {}),
+    ...(form.glpi_app_token.trim() ? { glpi_app_token: form.glpi_app_token.trim() } : {}),
+  };
+}
+
+function glpiSecretHelperText(
+  hasStoredSecret: boolean | undefined,
+  keepExistingKey: string,
+  settings: AiSettingsPayload['settings'] | undefined,
+  t: (key: string) => string,
+): string | undefined {
+  const messages: string[] = [];
+  if (hasStoredSecret) {
+    messages.push(t(keepExistingKey));
+  }
+  if (settings && !settings.provider_secret_writable) {
+    messages.push(t('aiAdmin.provider.apiKey.storageUnavailable'));
+  }
+  return messages.length > 0 ? messages.join(' ') : undefined;
+}
+
+export default function AdminIntegrationsPage() {
+  const { t } = useTranslation(['admin', 'common']);
+  const queryClient = useQueryClient();
+
+  const [form, setForm] = React.useState<IntegrationsForm>(EMPTY_FORM);
+  const [saveSuccess, setSaveSuccess] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const [glpiTestResult, setGlpiTestResult] = React.useState<AiGlpiTestResult | null>(null);
+
+  const settingsQuery = useQuery<AiSettingsPayload>({
+    queryKey: ['admin-ai-settings'],
+    queryFn: () => aiAdminApi.getSettings(),
+  });
+
+  React.useEffect(() => {
+    if (settingsQuery.data?.settings) {
+      setForm(buildForm(settingsQuery.data.settings));
+    }
+  }, [settingsQuery.data]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (data: IntegrationsForm) => {
+      if (!settingsQuery.data) {
+        throw new Error('Settings are not loaded.');
+      }
+      const payload = buildUpdatePayload(data, settingsQuery.data.settings);
+      return aiAdminApi.updateSettings(payload);
+    },
+    onMutate: () => {
+      setSaveSuccess(false);
+      setSaveError(null);
+    },
+    onSuccess: async (data) => {
+      setSaveSuccess(true);
+      setForm(buildForm(data.settings));
+      await queryClient.invalidateQueries({ queryKey: ['admin-ai-settings'] });
+    },
+    onError: (error: any) => {
+      setSaveError(getApiErrorMessage(error, t, t('aiAdmin.messages.saveFailed')));
+    },
+  });
+
+  const testGlpiMutation = useMutation({
+    mutationFn: async (data: IntegrationsForm) => aiAdminApi.testGlpi(buildGlpiTestPayload(data)),
+    onMutate: () => {
+      setGlpiTestResult(null);
+    },
+    onSuccess: (result) => {
+      setGlpiTestResult(result);
+    },
+    onError: (error: any) => {
+      setGlpiTestResult({
+        ok: false,
+        message: getApiErrorMessage(error, t, t('aiAdmin.glpi.messages.testFailed')),
+        latency_ms: null,
+      });
+    },
+  });
+
+  const currentSettings = settingsQuery.data?.settings;
+
+  return (
+    <>
+      <PageHeader title={t('aiAdmin.sections.integrations')} />
+      <Stack spacing={2} maxWidth={760}>
+        <Card>
+          <CardContent>
+            {settingsQuery.isLoading ? (
+              <Box display="flex" justifyContent="center" py={4}>
+                <CircularProgress size={28} />
+              </Box>
+            ) : settingsQuery.isError ? (
+              <Alert severity="error">
+                {getApiErrorMessage(settingsQuery.error, t, t('aiAdmin.messages.loadSettingsFailed'))}
+              </Alert>
+            ) : settingsQuery.data ? (
+              <Stack spacing={2.5}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography variant="h6">{t('aiAdmin.glpi.title')}</Typography>
+                  <Tooltip title={t('aiAdmin.glpi.tooltips.plaidRequired')}>
+                    <IconButton
+                      size="small"
+                      aria-label={t('aiAdmin.glpi.tooltips.plaidRequired')}
+                      sx={{ p: 0.25 }}
+                    >
+                      <InfoOutlinedIcon fontSize="inherit" />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+
+                <Typography variant="body2" color="text.secondary">
+                  {t('aiAdmin.glpi.description')}
+                </Typography>
+
+                <FormControlLabel
+                  control={(
+                    <Switch
+                      checked={form.glpi_enabled}
+                      onChange={(event) => setForm((prev) => ({ ...prev, glpi_enabled: event.target.checked }))}
+                    />
+                  )}
+                  label={t('aiAdmin.glpi.fields.enabled')}
+                />
+
+                <TextField
+                  size="small"
+                  label={t('aiAdmin.glpi.fields.url')}
+                  value={form.glpi_url}
+                  onChange={(event) => setForm((prev) => ({ ...prev, glpi_url: event.target.value }))}
+                  placeholder={t('aiAdmin.glpi.placeholders.url')}
+                />
+
+                <TextField
+                  size="small"
+                  label={t('aiAdmin.glpi.fields.userToken')}
+                  type="password"
+                  value={form.glpi_user_token}
+                  onChange={(event) => setForm((prev) => ({ ...prev, glpi_user_token: event.target.value }))}
+                  placeholder={
+                    currentSettings?.has_glpi_user_token
+                      ? t('aiAdmin.glpi.placeholders.userTokenConfigured')
+                      : t('aiAdmin.glpi.placeholders.enterUserToken')
+                  }
+                  helperText={glpiSecretHelperText(
+                    currentSettings?.has_glpi_user_token,
+                    'aiAdmin.glpi.tokenHint.userTokenExisting',
+                    currentSettings,
+                    t,
+                  )}
+                />
+
+                <TextField
+                  size="small"
+                  label={t('aiAdmin.glpi.fields.appToken')}
+                  type="password"
+                  value={form.glpi_app_token}
+                  onChange={(event) => setForm((prev) => ({ ...prev, glpi_app_token: event.target.value }))}
+                  placeholder={
+                    currentSettings?.has_glpi_app_token
+                      ? t('aiAdmin.glpi.placeholders.appTokenConfigured')
+                      : t('aiAdmin.glpi.placeholders.enterAppToken')
+                  }
+                  helperText={glpiSecretHelperText(
+                    currentSettings?.has_glpi_app_token,
+                    'aiAdmin.glpi.tokenHint.appTokenExisting',
+                    currentSettings,
+                    t,
+                  )}
+                />
+
+                {glpiTestResult ? (
+                  <Alert
+                    severity={glpiTestResult.ok ? 'success' : 'error'}
+                    onClose={() => setGlpiTestResult(null)}
+                  >
+                    {glpiTestResult.message}
+                    {glpiTestResult.latency_ms != null ? ` (${glpiTestResult.latency_ms}ms)` : ''}
+                  </Alert>
+                ) : null}
+
+                {saveSuccess ? <Alert severity="success">{t('aiAdmin.messages.settingsSaved')}</Alert> : null}
+                {saveError ? <Alert severity="error">{saveError}</Alert> : null}
+
+                <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                  <Button
+                    variant="contained"
+                    onClick={() => saveMutation.mutate(form)}
+                    disabled={saveMutation.isPending}
+                  >
+                    {saveMutation.isPending ? t('common:status.saving') : t('aiAdmin.actions.saveSettings')}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => testGlpiMutation.mutate(form)}
+                    disabled={testGlpiMutation.isPending}
+                  >
+                    {testGlpiMutation.isPending ? t('aiAdmin.actions.testing') : t('aiAdmin.actions.testConnection')}
+                  </Button>
+                </Stack>
+              </Stack>
+            ) : null}
+          </CardContent>
+        </Card>
+      </Stack>
+    </>
+  );
+}

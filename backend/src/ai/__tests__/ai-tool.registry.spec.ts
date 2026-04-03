@@ -44,7 +44,15 @@ function createRegistry(overrides?: {
   return new AiToolRegistry(
     {
       searchAll: async () => ({ items: [], total: 0, complete: false, entity_types: ['applications'] }),
-      getEntityContext: async () => ({ entity: { id: 'app-1', metadata: {} }, related: [], knowledge: null, complete: true }),
+      getEntityContext: async () => ({
+        entity: { id: 'app-1', metadata: {} },
+        related: [],
+        knowledge: null,
+        total: 1,
+        returned: 1,
+        truncated: false,
+        complete: true,
+      }),
       getEntityComments: async () => ({
         entity: { type: 'tasks', id: 'task-1', ref: 'T-1', label: 'Test task' },
         items: [],
@@ -72,15 +80,20 @@ function createRegistry(overrides?: {
     } as any,
     {
       execute: async () => ({ items: [], total: 0, filters_applied: [], filters_ignored: [], complete: true }),
-      executeFilterValues: async () => ({ values: {}, fields_ignored: [], complete: true }),
+      executeFilterValues: async () => ({ values: {}, fields_ignored: [], total: 0, returned: 0, truncated: false, complete: true }),
       ...(overrides?.queryExecutor || {}),
     } as any,
     {
-      execute: async () => ({ group_by: 'status', groups: [], total: 0, filters_applied: [], filters_ignored: [], complete: true }),
+      execute: async () => ({ group_by: 'status', groups: [], total: 0, returned: 0, truncated: false, filters_applied: [], filters_ignored: [], complete: true }),
       ...(overrides?.aggregateExecutor || {}),
     } as any,
     {
-      find: async () => ({ web_search_enabled: true }),
+      find: async () => ({
+        web_search_enabled: true,
+        glpi_enabled: false,
+        glpi_url: null,
+        glpi_user_token_encrypted: null,
+      }),
       ...(overrides?.settingsService || {}),
     } as any,
     {
@@ -127,6 +140,23 @@ function createRegistry(overrides?: {
     } as any,
     {
       listOperations: () => ([
+        {
+          toolName: 'import_glpi_ticket',
+          description: 'Create a preview to import one GLPI ticket into one KANAP task.',
+          inputSchema: {
+            safeParse: (value: any) => ({ success: true, data: value }),
+          },
+          inputSummary: {
+            ticket_id: 'GLPI ticket numeric identifier.',
+          },
+          businessResource: 'tasks',
+          writePreview: {
+            entity_type: 'tasks',
+            fields: ['relation', 'title', 'description', 'assignee', 'priority_level', 'task_type', 'source'],
+            reversible: false,
+            prompt_hint: 'For GLPI escalation, use `import_glpi_ticket` with the numeric GLPI ticket id.',
+          },
+        },
         {
           toolName: 'create_document',
           description: 'Create a preview to create one draft knowledge document.',
@@ -287,6 +317,7 @@ function createRegistry(overrides?: {
       ]),
       getOperationOrNull: (toolName: string) => {
         const operation = ({
+          import_glpi_ticket: { toolName: 'import_glpi_ticket' },
           create_document: { toolName: 'create_document' },
           create_task: { toolName: 'create_task' },
           update_document_content: { toolName: 'update_document_content' },
@@ -331,7 +362,7 @@ function createAggregateExecutor(overrides?: {
 }) {
   return new AiAggregateExecutor(
     {
-      listIds: async () => ({ ids: [] }),
+      listIds: async () => ({ ids: [], total: 0 }),
       ...(overrides?.tasks || {}),
     } as any,
     {} as any,
@@ -405,6 +436,7 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
       'get_document',
       'undo_preview',
       'web_search',
+      'import_glpi_ticket',
       'create_document',
       'create_task',
       'update_document_content',
@@ -446,6 +478,7 @@ async function testRegisteredToolCategoriesMatchExpectedAssignments() {
   assert.equal(categories.get('get_document'), 'inspection');
   assert.equal(categories.get('web_search'), 'discovery');
   assert.equal(categories.get('undo_preview'), 'mutation');
+  assert.equal(categories.get('import_glpi_ticket'), 'mutation');
   assert.equal(categories.get('create_task'), 'mutation');
   assert.equal(categories.get('update_task_status'), 'mutation');
 }
@@ -464,6 +497,7 @@ async function testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed() {
   const tools = await registry.listAvailableTools(createChatContext());
   assert.ok(tools.some((tool) => tool.name === 'create_document'));
   assert.ok(tools.some((tool) => tool.name === 'create_task'));
+  assert.ok(!tools.some((tool) => tool.name === 'import_glpi_ticket'));
   assert.ok(tools.some((tool) => tool.name === 'update_document_content'));
   assert.ok(tools.some((tool) => tool.name === 'update_document_metadata'));
   assert.ok(tools.some((tool) => tool.name === 'update_document_relations'));
@@ -479,6 +513,7 @@ async function testWritePreviewToolsStayHiddenWithoutWriteAccess() {
   const tools = await registry.listAvailableTools(createChatContext());
   assert.ok(!tools.some((tool) => tool.name === 'create_document'));
   assert.ok(!tools.some((tool) => tool.name === 'create_task'));
+  assert.ok(!tools.some((tool) => tool.name === 'import_glpi_ticket'));
   assert.ok(!tools.some((tool) => tool.name === 'update_document_content'));
   assert.ok(!tools.some((tool) => tool.name === 'update_document_metadata'));
   assert.ok(!tools.some((tool) => tool.name === 'update_document_relations'));
@@ -502,6 +537,26 @@ async function testUndoPreviewStaysHiddenWhenOnlyNonReversibleWritesExist() {
   const tools = await registry.listAvailableTools(createChatContext());
   assert.ok(tools.some((tool) => tool.name === 'add_task_comment'));
   assert.ok(!tools.some((tool) => tool.name === 'undo_preview'));
+}
+
+async function testGlpiImportToolAppearsWhenSettingsAreConfigured() {
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['tasks'],
+    },
+    settingsService: {
+      find: async () => ({
+        web_search_enabled: true,
+        glpi_enabled: true,
+        glpi_url: 'https://glpi.internal/',
+        glpi_user_token_encrypted: 'enc:secret',
+      }),
+    },
+  });
+
+  const tools = await registry.listAvailableTools(createChatContext());
+  assert.ok(tools.some((tool) => tool.name === 'import_glpi_ticket'));
 }
 
 async function testCreateDocumentToolSchemaExposesBodyFields() {
@@ -690,7 +745,15 @@ async function testGetEntityContextDelegatesToEntityTools() {
     entityTools: {
       getEntityContext: async (_context: unknown, input: unknown) => {
         calls.push(input);
-        return { entity: { id: 'app-1', metadata: {} }, related: [], knowledge: null, complete: true };
+        return {
+          entity: { id: 'app-1', metadata: {} },
+          related: [],
+          knowledge: null,
+          total: 1,
+          returned: 1,
+          truncated: false,
+          complete: true,
+        };
       },
     },
     policy: {
@@ -704,6 +767,9 @@ async function testGetEntityContextDelegatesToEntityTools() {
   }) as any;
 
   assert.equal(result.entity.id, 'app-1');
+  assert.equal(result.total, 1);
+  assert.equal(result.returned, 1);
+  assert.equal(result.truncated, false);
   assert.equal(result.complete, true);
   assert.deepEqual(calls, [{
     entity_type: 'applications',
@@ -847,6 +913,9 @@ async function testGetDocumentMapsStableDto() {
   assert.equal(result.ref, 'DOC-7');
   assert.equal(result.relations.applications[0].label, 'Billing App');
   assert.equal(result.contributors[0].name, 'A. User');
+  assert.equal(result.total, 1);
+  assert.equal(result.returned, 1);
+  assert.equal(result.truncated, false);
   assert.equal(result.complete, true);
 }
 
@@ -970,7 +1039,7 @@ async function testGetFilterValuesDelegatesToQueryExecutor() {
     queryExecutor: {
       executeFilterValues: async (_context: unknown, input: unknown) => {
         calls.push(input);
-        return { values: { status: ['open', 'done'] }, fields_ignored: [], complete: true };
+        return { values: { status: ['open', 'done'] }, fields_ignored: [], total: 1, returned: 1, truncated: false, complete: true };
       },
     },
   });
@@ -981,6 +1050,9 @@ async function testGetFilterValuesDelegatesToQueryExecutor() {
   }) as any;
 
   assert.deepEqual(result.values.status, ['open', 'done']);
+  assert.equal(result.total, 1);
+  assert.equal(result.returned, 1);
+  assert.equal(result.truncated, false);
   assert.equal(result.complete, true);
   assert.deepEqual(calls, [{
     entity_type: 'tasks',
@@ -1015,7 +1087,9 @@ async function testWebSearchReturnsIncompleteResults() {
       count: 1,
     }) as any;
 
-    assert.equal(result.total, 1);
+    assert.equal(result.total, null);
+    assert.equal(result.returned, 1);
+    assert.equal(result.truncated, false);
     assert.equal(result.complete, false);
   } finally {
     (Features as any).AI_WEB_SEARCH_READY = original;
@@ -1155,6 +1229,9 @@ async function testFilterValuesMarksSupportedFieldsComplete() {
     fields: ['status'],
   });
 
+  assert.equal(result.total, 1);
+  assert.equal(result.returned, 1);
+  assert.equal(result.truncated, false);
   assert.deepEqual(result.fields_ignored, []);
   assert.equal(result.complete, true);
 }
@@ -1166,6 +1243,9 @@ async function testFilterValuesMarksIgnoredFieldsIncomplete() {
     fields: ['status', 'missing_field'],
   });
 
+  assert.equal(result.total, 2);
+  assert.equal(result.returned, 1);
+  assert.equal(result.truncated, false);
   assert.deepEqual(result.fields_ignored, ['missing_field']);
   assert.equal(result.complete, false);
 }
@@ -1195,6 +1275,9 @@ async function testAggregateExecutorMarksCompleteWhenNoIgnoredFilters() {
     group_by: 'status',
   });
 
+  assert.equal(result.total, 0);
+  assert.equal(result.returned, 0);
+  assert.equal(result.truncated, false);
   assert.equal(result.complete, true);
 }
 
@@ -1208,6 +1291,34 @@ async function testAggregateExecutorMarksIgnoredFiltersIncomplete() {
 
   assert.deepEqual(result.filters_ignored, ['not_a_real_field']);
   assert.equal(result.complete, false);
+}
+
+async function testAggregateExecutorMarksTruncatedWhenCollectedIdsAreCapped() {
+  const executor = createAggregateExecutor({
+    tasks: {
+      listIds: async () => ({
+        ids: ['task-1', 'task-2'],
+        total: 3,
+      }),
+    },
+  });
+  const context = {
+    ...createContext(),
+    manager: {
+      query: async () => ([{ key: 'open', count: 2 }]),
+    } as any,
+  };
+
+  const result = await executor.execute(context, {
+    entity_type: 'tasks',
+    group_by: 'status',
+  });
+
+  assert.equal(result.total, 3);
+  assert.equal(result.returned, 1);
+  assert.equal(result.truncated, true);
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.groups, [{ key: 'open', count: 2 }]);
 }
 
 async function testAggregateExecutorMarksUnresolvedScopeIncomplete() {
@@ -1244,6 +1355,7 @@ async function run() {
   await testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed();
   await testWritePreviewToolsStayHiddenWithoutWriteAccess();
   await testUndoPreviewStaysHiddenWhenOnlyNonReversibleWritesExist();
+  await testGlpiImportToolAppearsWhenSettingsAreConfigured();
   await testCreateDocumentToolSchemaExposesBodyFields();
   await testCreateTaskToolSchemaExposesRelationAndAssignmentFields();
   await testUpdateDocumentContentToolSchemaExposesDocumentAndBodyFields();
@@ -1273,6 +1385,7 @@ async function run() {
   await testAggregateExecutorRejectsStructuredPredicatesInsideQuickSearch();
   await testAggregateExecutorMarksCompleteWhenNoIgnoredFilters();
   await testAggregateExecutorMarksIgnoredFiltersIncomplete();
+  await testAggregateExecutorMarksTruncatedWhenCollectedIdsAreCapped();
   await testAggregateExecutorMarksUnresolvedScopeIncomplete();
 }
 

@@ -27,6 +27,33 @@
       "label": "Bezeichnung",
       "labelPlaceholder": "z. B. Desktop MCP-Client"
     },
+    "glpi": {
+      "description": "Konfigurieren Sie mandantenspezifische GLPI-Zugangsdaten, damit Plaid ausgewählte GLPI-Tickets nach Benutzerbestätigung als KANAP-Aufgaben importieren kann.",
+      "fields": {
+        "appToken": "App-Token",
+        "enabled": "GLPI-Ticketimport aktivieren",
+        "url": "GLPI-URL",
+        "userToken": "Benutzer-Token"
+      },
+      "messages": {
+        "testFailed": "GLPI-Verbindungstest fehlgeschlagen."
+      },
+      "placeholders": {
+        "appTokenConfigured": "App-Token konfiguriert (leer lassen zum Beibehalten)",
+        "enterAppToken": "Optionales App-Token eingeben",
+        "enterUserToken": "Benutzer-Token eingeben",
+        "url": "https://glpi.example.com",
+        "userTokenConfigured": "Benutzer-Token konfiguriert (leer lassen zum Beibehalten)"
+      },
+      "title": "GLPI-Integration",
+      "tooltips": {
+        "plaidRequired": "Plaid muss aktiviert sein, damit Benutzer GLPI-Tickets aus dem Chat importieren können."
+      },
+      "tokenHint": {
+        "appTokenExisting": "Leer lassen, um das gespeicherte App-Token für Speicher- und Testaktionen beizubehalten.",
+        "userTokenExisting": "Leer lassen, um das gespeicherte Benutzer-Token für Speicher- und Testaktionen beizubehalten."
+      }
+    },
     "keys": {
       "columns": {
         "created": "Erstellt",
@@ -130,6 +157,7 @@
     },
     "sections": {
       "features": "Funktionen",
+      "integrations": "Integrationen",
       "retention": "Aufbewahrung"
     },
     "shared": {

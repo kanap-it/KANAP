@@ -18,6 +18,10 @@ function createMockSettings(overrides?: Partial<AiSettings>): AiSettings {
     conversation_retention_days: null,
     web_search_enabled: false,
     web_enrichment_enabled: false,
+    glpi_enabled: false,
+    glpi_url: null,
+    glpi_user_token_encrypted: null,
+    glpi_app_token_encrypted: null,
     created_at: new Date(),
     updated_at: new Date(),
     ...overrides,
@@ -25,16 +29,16 @@ function createMockSettings(overrides?: Partial<AiSettings>): AiSettings {
 }
 
 function createService(settings: AiSettings) {
+  const queryBuilder = {
+    addSelect: () => queryBuilder,
+    where: () => ({
+      getOne: async () => settings,
+    }),
+  };
   const repo = {
     manager: {
       getRepository: () => ({
-        createQueryBuilder: () => ({
-          addSelect: () => ({
-            where: () => ({
-              getOne: async () => settings,
-            }),
-          }),
-        }),
+        createQueryBuilder: () => queryBuilder,
         save: async (entity: AiSettings) => entity,
         create: (data: any) => ({ ...settings, ...data }),
       }),
@@ -141,12 +145,58 @@ async function testUnrelatedSaveDoesNotBlockWhenEnvVarRemoved() {
   }
 }
 
+async function testEnablingGlpiRequiresUrlAndToken() {
+  const service = createService(createMockSettings());
+
+  await assert.rejects(
+    () => service.update('tenant-1', { glpi_enabled: true }),
+    (error: any) => {
+      const msg = error.message || error.response?.message || '';
+      return msg.includes('glpi_url');
+    },
+  );
+
+  await assert.rejects(
+    () => service.update('tenant-1', {
+      glpi_url: 'https://glpi.internal',
+      glpi_enabled: true,
+    }),
+    (error: any) => {
+      const msg = error.message || error.response?.message || '';
+      return msg.includes('glpi_user_token');
+    },
+  );
+}
+
+async function testGlpiSecretsAreStoredEncryptedAndHiddenInView() {
+  const service = createService(createMockSettings());
+
+  const updated = await service.update('tenant-1', {
+    glpi_enabled: true,
+    glpi_url: 'https://glpi.internal/helpdesk',
+    glpi_user_token: 'user-secret',
+    glpi_app_token: 'app-secret',
+  });
+  const view = await service.toView(updated);
+
+  assert.equal(updated.glpi_enabled, true);
+  assert.equal(updated.glpi_url, 'https://glpi.internal/helpdesk');
+  assert.equal(updated.glpi_user_token_encrypted, 'enc:user-secret');
+  assert.equal(updated.glpi_app_token_encrypted, 'enc:app-secret');
+  assert.equal(view.glpi_enabled, true);
+  assert.equal(view.glpi_url, 'https://glpi.internal/helpdesk');
+  assert.equal(view.has_glpi_user_token, true);
+  assert.equal(view.has_glpi_app_token, true);
+}
+
 async function run() {
   await testRejectsWebSearchWhenEnvVarAbsent();
   await testAcceptsWebSearchWhenEnvVarPresent();
   await testEnrichmentWithoutSearchThrows();
   await testDisablingSearchCascadesEnrichment();
   await testUnrelatedSaveDoesNotBlockWhenEnvVarRemoved();
+  await testEnablingGlpiRequiresUrlAndToken();
+  await testGlpiSecretsAreStoredEncryptedAndHiddenInView();
 }
 
 void run();

@@ -550,7 +550,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
   /**
    * Return ordered list of matching application IDs for navigation.
    */
-  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[] }> {
+  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; total: number }> {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
     const tenantId = String(opts?.tenantId || '').trim();
@@ -691,7 +691,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     const rows = await qb.getRawMany();
     const ids = rows.map((r) => r.a_id);
 
-    return { ids };
+    return { ids, total: ids.length };
   }
 
   /**

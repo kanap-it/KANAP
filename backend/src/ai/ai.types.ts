@@ -4,6 +4,7 @@ import { z } from 'zod';
 export type AiSurface = 'chat' | 'mcp';
 export type AiAuthMethod = 'jwt' | 'api_key';
 export type AiMutationWriteToolName =
+  | 'import_glpi_ticket'
   | 'create_task'
   | 'create_document'
   | 'update_document_content'
@@ -141,6 +142,9 @@ export type AiEntityContextPayloadDto = {
 };
 
 export type AiEntityContextDto = AiEntityContextPayloadDto & {
+  total: number;
+  returned: number;
+  truncated: boolean;
   complete: boolean;
 };
 
@@ -209,6 +213,9 @@ export type AiDocumentDto = {
     role: string;
     is_primary: boolean;
   }>;
+  total: number;
+  returned: number;
+  truncated: boolean;
   complete: boolean;
 };
 

@@ -21,6 +21,10 @@ export type AiSettingsView = {
   conversation_retention_days: number | null;
   web_search_enabled: boolean;
   web_enrichment_enabled: boolean;
+  glpi_enabled: boolean;
+  glpi_url: string | null;
+  has_glpi_user_token: boolean;
+  has_glpi_app_token: boolean;
   has_llm_api_key: boolean;
   provider_secret_writable: boolean;
   provider_validation_errors: string[];
@@ -41,12 +45,42 @@ export type UpdateAiSettingsInput = {
   conversation_retention_days?: number | null;
   web_search_enabled?: boolean;
   web_enrichment_enabled?: boolean;
+  glpi_enabled?: boolean;
+  glpi_url?: string | null;
+  glpi_user_token?: string | null;
+  glpi_app_token?: string | null;
 };
 
 function normalizeNullableString(value: string | null | undefined): string | null {
   if (value == null) return null;
   const normalized = String(value).trim();
   return normalized === '' ? null : normalized;
+}
+
+function normalizeHttpUrl(value: string | null | undefined, fieldName: string): string | null {
+  const normalized = normalizeNullableString(value);
+  if (!normalized) {
+    return null;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    throw new BadRequestException(`${fieldName} must be a valid HTTP(S) URL.`);
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new BadRequestException(`${fieldName} must use http:// or https://.`);
+  }
+  if (parsed.username || parsed.password) {
+    throw new BadRequestException(`${fieldName} must not include embedded credentials.`);
+  }
+
+  parsed.search = '';
+  parsed.hash = '';
+  parsed.pathname = (parsed.pathname || '/').replace(/\/+$/, '') || '/';
+  return parsed.toString();
 }
 
 @Injectable()
@@ -72,6 +106,8 @@ export class AiSettingsService {
     return repo
       .createQueryBuilder('settings')
       .addSelect('settings.llm_api_key_encrypted')
+      .addSelect('settings.glpi_user_token_encrypted')
+      .addSelect('settings.glpi_app_token_encrypted')
       .where('settings.tenant_id = :tenantId', { tenantId })
       .getOne();
   }
@@ -114,8 +150,12 @@ export class AiSettingsService {
         provider_source: Features.SINGLE_TENANT ? 'custom' : 'builtin',
         web_search_enabled: false,
         web_enrichment_enabled: false,
+        glpi_enabled: false,
+        glpi_url: null,
       }));
       settings.llm_api_key_encrypted = null;
+      settings.glpi_user_token_encrypted = null;
+      settings.glpi_app_token_encrypted = null;
     }
 
     return settings;
@@ -213,9 +253,38 @@ export class AiSettingsService {
     if (Object.prototype.hasOwnProperty.call(input, 'web_enrichment_enabled')) {
       settings.web_enrichment_enabled = input.web_enrichment_enabled === true;
     }
+    if (Object.prototype.hasOwnProperty.call(input, 'glpi_enabled')) {
+      settings.glpi_enabled = input.glpi_enabled === true;
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'glpi_url')) {
+      settings.glpi_url = normalizeHttpUrl(input.glpi_url, 'glpi_url');
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'glpi_user_token')) {
+      const raw = normalizeNullableString(input.glpi_user_token);
+      settings.glpi_user_token_encrypted = raw ? this.cipher.encrypt(raw) : null;
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'glpi_app_token')) {
+      const raw = normalizeNullableString(input.glpi_app_token);
+      settings.glpi_app_token_encrypted = raw ? this.cipher.encrypt(raw) : null;
+    }
 
     if (settings.web_enrichment_enabled && !settings.web_search_enabled) {
       throw new BadRequestException('Web enrichment requires web search to be enabled.');
+    }
+
+    const glpiConfigTouched = [
+      'glpi_enabled',
+      'glpi_url',
+      'glpi_user_token',
+      'glpi_app_token',
+    ].some((field) => Object.prototype.hasOwnProperty.call(input, field));
+    if (glpiConfigTouched && settings.glpi_enabled) {
+      if (!settings.glpi_url) {
+        throw new BadRequestException('GLPI integration requires glpi_url.');
+      }
+      if (!settings.glpi_user_token_encrypted) {
+        throw new BadRequestException('GLPI integration requires glpi_user_token.');
+      }
     }
 
     if (settings.chat_enabled) {
@@ -231,6 +300,8 @@ export class AiSettingsService {
     settings.updated_at = new Date();
     const saved = await repo.save(settings);
     saved.llm_api_key_encrypted = settings.llm_api_key_encrypted;
+    saved.glpi_user_token_encrypted = settings.glpi_user_token_encrypted;
+    saved.glpi_app_token_encrypted = settings.glpi_app_token_encrypted;
     if (this.audit) {
       await this.audit.log(
         {
@@ -265,6 +336,10 @@ export class AiSettingsService {
       conversation_retention_days: normalized.conversation_retention_days,
       web_search_enabled: normalized.web_search_enabled,
       web_enrichment_enabled: normalized.web_enrichment_enabled,
+      glpi_enabled: normalized.glpi_enabled,
+      glpi_url: normalized.glpi_url,
+      has_glpi_user_token: !!normalized.glpi_user_token_encrypted,
+      has_glpi_app_token: !!normalized.glpi_app_token_encrypted,
       has_llm_api_key: !!normalized.llm_api_key_encrypted,
       provider_secret_writable: this.cipher.canEncrypt(),
       provider_validation_errors: providerErrors,

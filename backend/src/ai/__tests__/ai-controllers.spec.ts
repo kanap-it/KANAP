@@ -97,7 +97,7 @@ async function testControllersBuildPlatformAwareContexts() {
     aiApiKeyId: null,
   });
 
-  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   assertBaseContext((settings as any).buildContext(req), {
     surface: 'chat',
     authMethod: 'jwt',
@@ -114,7 +114,7 @@ async function testControllersBuildPlatformAwareContexts() {
 
 async function testControllersRejectMissingTenantContext() {
   const req = createRequest({ tenant: undefined });
-  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
 
   assert.throws(
@@ -129,7 +129,7 @@ async function testControllersRejectMissingTenantContext() {
 
 async function testControllersRejectInvalidTenantContext() {
   const req = createRequest({ tenant: { id: 'tenant-1' } });
-  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+  const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   const overview = new AiAdminOverviewController({} as any, {} as any, {} as any);
   const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
 
@@ -175,6 +175,7 @@ async function testSettingsControllerDelegatesProviderTest() {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
   );
 
   const result = await controller.testProvider(
@@ -190,6 +191,49 @@ async function testSettingsControllerDelegatesProviderTest() {
   assert.equal(captured.tenantId, '11111111-1111-4111-8111-111111111111');
   assert.equal(captured.body.llm_provider, 'openai');
   assert.equal(captured.opts.manager.tag, 'manager');
+}
+
+async function testSettingsControllerDelegatesGlpiTest() {
+  let captured: any = null;
+  const controller = new AiSettingsController(
+    {
+      run: async (_tenantId: string, fn: Function) => fn({ tag: 'manager' }),
+    } as any,
+    {
+      assertSettingsAccess: async () => undefined,
+    } as any,
+    {
+      toView: () => ({ ok: true }),
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {
+      testConnection: async (tenantId: string, body: any, manager: any) => {
+        captured = { tenantId, body, manager };
+        return {
+          ok: true,
+          message: 'GLPI connection succeeded.',
+          latency_ms: 23,
+        };
+      },
+    } as any,
+    {} as any,
+  );
+
+  const result = await controller.testGlpi(
+    {
+      glpi_url: 'https://glpi.internal',
+      glpi_user_token: 'secret',
+      glpi_app_token: 'app-secret',
+    },
+    createRequest() as any,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(captured.tenantId, '11111111-1111-4111-8111-111111111111');
+  assert.equal(captured.body.glpi_url, 'https://glpi.internal');
+  assert.equal(captured.manager.tag, 'manager');
 }
 
 async function testChatControllerRejectsPlatformHostBeforeStreaming() {
@@ -399,6 +443,7 @@ async function run() {
   await testControllersRejectMissingTenantContext();
   await testControllersRejectInvalidTenantContext();
   await testSettingsControllerDelegatesProviderTest();
+  await testSettingsControllerDelegatesGlpiTest();
   await testChatControllerRejectsPlatformHostBeforeStreaming();
   await testChatControllerStreamsForTenantHost();
   await testChatControllerAbortsOnDisconnect();

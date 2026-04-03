@@ -51,6 +51,7 @@ export default function ProtectedRoute() {
     const path = location.pathname;
     const isAiWorkspaceRoute = path === '/ai' || path.startsWith('/ai/');
     const isAdminAiRoute = path === '/admin/ai' || path.startsWith('/admin/ai/');
+    const isAdminIntegrationsRoute = path === '/admin/integrations' || path.startsWith('/admin/integrations/');
     if (isPlatformHost && !path.startsWith('/admin')) {
       return <Navigate to="/admin/tenants" replace />;
     }
@@ -74,7 +75,7 @@ export default function ProtectedRoute() {
         return <Navigate to="/403" replace />;
       }
     }
-    if (isAdminAiRoute) {
+    if (isAdminAiRoute || isAdminIntegrationsRoute) {
       if (!config.features.aiSettings) {
         return <Navigate to="/403" replace />;
       }
@@ -104,6 +105,7 @@ export default function ProtectedRoute() {
       roles: 'users',
       auth: 'users',
       branding: 'users',
+      integrations: 'ai_settings',
       'audit-logs': 'users',
       'choose-plan': 'billing',
       ai: 'ai_settings',

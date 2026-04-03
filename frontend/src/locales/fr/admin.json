@@ -27,6 +27,33 @@
       "label": "Libellé",
       "labelPlaceholder": "Ex. : Client MCP de bureau"
     },
+    "glpi": {
+      "description": "Configurez des identifiants GLPI propres au tenant pour que Plaid puisse importer des tickets GLPI sélectionnés en tâches KANAP après confirmation de l'utilisateur.",
+      "fields": {
+        "appToken": "Jeton d'application",
+        "enabled": "Activer l'import de tickets GLPI",
+        "url": "URL GLPI",
+        "userToken": "Jeton utilisateur"
+      },
+      "messages": {
+        "testFailed": "Le test de connexion GLPI a échoué."
+      },
+      "placeholders": {
+        "appTokenConfigured": "Jeton d'application configuré (laissez vide pour conserver)",
+        "enterAppToken": "Saisissez un jeton d'application facultatif",
+        "enterUserToken": "Saisissez le jeton utilisateur",
+        "url": "https://glpi.example.com",
+        "userTokenConfigured": "Jeton utilisateur configuré (laissez vide pour conserver)"
+      },
+      "title": "Intégration GLPI",
+      "tooltips": {
+        "plaidRequired": "Plaid doit être activé pour que les utilisateurs puissent importer des tickets GLPI depuis le chat."
+      },
+      "tokenHint": {
+        "appTokenExisting": "Laissez vide pour conserver le jeton d'application enregistré pour les actions de sauvegarde et de test.",
+        "userTokenExisting": "Laissez vide pour conserver le jeton utilisateur enregistré pour les actions de sauvegarde et de test."
+      }
+    },
     "keys": {
       "columns": {
         "created": "Créé",
@@ -130,6 +157,7 @@
     },
     "sections": {
       "features": "Fonctionnalités",
+      "integrations": "Intégrations",
       "retention": "Conservation"
     },
     "shared": {

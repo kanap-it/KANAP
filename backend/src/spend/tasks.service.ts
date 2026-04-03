@@ -609,6 +609,29 @@ export class TasksService {
       project_category_name: 'project_pc.name',
     };
     const sortField = sortFieldMap[sort.field] || 't.created_at';
+    const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
+
+    const countQuery = `
+      SELECT COUNT(*)::int AS total
+      FROM tasks t
+      LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
+      LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
+      LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id AND si.tenant_id = t.tenant_id)
+      LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id AND c.tenant_id = t.tenant_id)
+      LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id AND ci.tenant_id = t.tenant_id)
+      LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id AND pp.tenant_id = t.tenant_id)
+      LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id AND phase.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id AND tt.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id AND ps.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id AND pc.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id AND pst.tenant_id = t.tenant_id
+      LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id AND comp.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id AND project_pst.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id AND project_pc.tenant_id = t.tenant_id
+      WHERE ${whereConditions}
+    `;
+    const countRows: Array<{ total: number }> = await manager.query(countQuery, params);
+    const total = Number(countRows[0]?.total) || 0;
 
     const idsQuery = `
       SELECT t.id,
@@ -652,11 +675,11 @@ export class TasksService {
       LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id AND project_pc.tenant_id = t.tenant_id
       WHERE ${whereConditions}
       ORDER BY ${sortField} ${sort.direction}
-      LIMIT 10000
+      LIMIT ${limit}
     `;
     const rows: Array<{ id: string }> = await manager.query(idsQuery, params);
     const ids = rows.map((r) => r.id);
-    return { ids, total: ids.length };
+    return { ids, total };
   }
 
   async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<Record<string, Array<string | null>>> {
