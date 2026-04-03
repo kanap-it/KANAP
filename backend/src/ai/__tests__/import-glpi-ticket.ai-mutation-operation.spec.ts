@@ -93,6 +93,60 @@ async function testPrepareCreatePreviewMapsTicketFieldsAndUsesCurrentUserAsReque
   assert.equal(killSessionCalls, 1);
 }
 
+async function testPrepareCreatePreviewConvertsEscapedHtmlContent() {
+  const operation = new ImportGlpiTicketAiMutationOperation(
+    {
+      resolveCurrentUser: async () => ({
+        id: 'user-1',
+        email: 'requestor@example.com',
+        label: 'Requestor User',
+      }),
+      resolveCreateTarget: async () => ({
+        mode: 'standalone',
+        type: null,
+        id: null,
+        ref: null,
+        label: 'Standalone',
+      }),
+    } as any,
+    {} as any,
+    {} as any,
+    {
+      initSession: async () => ({
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: null,
+      }),
+      getTicket: async () => ({
+        id: 59925,
+        name: 'Création demandeurs dans la COA',
+        content_html: '&lt;div&gt;&lt;h1&gt;Donn&#233;es du formulaire&lt;/h1&gt;'
+          + '&lt;div&gt;&lt;b&gt;Titre : &lt;/b&gt;Cr&#233;ation demandeurs dans la COA&lt;/div&gt;'
+          + '&lt;p&gt;&lt;img src=&quot;/front/document.send.php?docid=41260&amp;itemtype=Ticket&amp;items_id=59925&quot; /&gt;&lt;/p&gt;'
+          + '&lt;/div&gt;',
+        status: '2',
+        priority: 4,
+        urgency: '5',
+        type: 1,
+        glpi_url: 'https://glpi.internal/helpdesk/front/ticket.form.php?id=59925',
+      }),
+      killSession: async () => undefined,
+    } as any,
+    {
+      assertBusinessPermission: async () => undefined,
+    } as any,
+  );
+
+  const prepared = await operation.prepareCreatePreview(createContext() as any, {
+    ticket_id: 59925,
+    relation_type: 'standalone',
+  });
+
+  assert.match(String(prepared.mutationInput.description || ''), /# Données du formulaire/i);
+  assert.doesNotMatch(String(prepared.mutationInput.description || ''), /<div>|&lt;div&gt;/i);
+  assert.deepEqual(prepared.mutationInput.glpi_image_targets, ['/front/document.send.php?docid=41260&itemtype=Ticket&items_id=59925']);
+}
+
 async function testExecutePreviewImportsInlineImagesBestEffort() {
   const uploads: any[] = [];
   const taskUpdates: any[] = [];
@@ -191,6 +245,7 @@ async function testExecutePreviewImportsInlineImagesBestEffort() {
 
 async function run() {
   await testPrepareCreatePreviewMapsTicketFieldsAndUsesCurrentUserAsRequestor();
+  await testPrepareCreatePreviewConvertsEscapedHtmlContent();
   await testExecutePreviewImportsInlineImagesBestEffort();
 }
 

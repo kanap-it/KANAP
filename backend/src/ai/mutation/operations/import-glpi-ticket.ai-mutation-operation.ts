@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { htmlToMarkdown } from '../../../common/html-to-markdown';
+import { htmlToMarkdown, resolveHtmlContentSource } from '../../../common/html-to-markdown';
 import { normalizeMarkdownRichText } from '../../../common/markdown-rich-text';
 import { TaskPriorityLevel } from '../../../tasks/task.entity';
 import { TaskAttachmentsService } from '../../../tasks/task-attachments.service';
@@ -172,8 +172,8 @@ function buildSourceFooter(ticket: GlpiTicket): string {
   return lines.join('\n');
 }
 
-function buildDescription(ticket: GlpiTicket): string {
-  const converted = htmlToMarkdown(ticket.content_html || '');
+function buildDescription(ticket: GlpiTicket, contentHtml: string | null): string {
+  const converted = htmlToMarkdown(contentHtml || '');
   const sections = [textOrNull(converted), buildSourceFooter(ticket)].filter((part): part is string => !!part);
   return sections.join('\n\n');
 }
@@ -449,9 +449,10 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
     try {
       session = await this.glpi.initSession(context.tenantId, context.manager);
       const ticket = await this.glpi.getTicket(session, input.ticket_id);
-      const description = normalizeMarkdownRichText(buildDescription(ticket), { fieldName: 'description' });
+      const normalizedContentHtml = textOrNull(resolveHtmlContentSource(ticket.content_html || ''));
+      const description = normalizeMarkdownRichText(buildDescription(ticket, normalizedContentHtml), { fieldName: 'description' });
       const taskType = await this.resolveMappedTaskType(context, ticket.type);
-      const imageTargets = extractImageTargets(ticket.content_html);
+      const imageTargets = extractImageTargets(normalizedContentHtml);
       const title = textOrNull(ticket.name) || `GLPI Ticket #${ticket.id}`;
 
       return {

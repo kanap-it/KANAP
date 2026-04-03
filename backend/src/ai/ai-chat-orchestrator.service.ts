@@ -78,6 +78,16 @@ type PreparedChatRequest = {
   };
 };
 
+type StreamPreparationResult = {
+  conversationId: string;
+  title: string;
+  providerMessages: AiProviderMessage[];
+  tools: any[];
+  systemPromptText: string;
+  preStreamEvents: ChatStreamEvent[];
+  approvalAssistantText: string | null;
+};
+
 function buildToolCallSignature(toolCalls: Array<{ name: string; arguments: string }>): string {
   return toolCalls
     .map((toolCall) => `${toolCall.name}\u0000${toolCall.arguments}`)
@@ -145,14 +155,28 @@ export class AiChatOrchestratorService {
       && candidate.changes != null;
   }
 
-  private buildPreviewResultContextMessage(preview: AiMutationPreviewDto): AiProviderMessage {
-    const summary = preview.error_message
-      ? `${preview.summary} Error: ${preview.error_message}`
-      : preview.summary;
-    return {
-      role: 'assistant',
-      content: `Backend preview result: ${summary}`,
-    };
+  private buildPreviewResultAssistantText(preview: AiMutationPreviewDto): string {
+    const summary = String(preview.summary || '').trim();
+    const errorMessage = String(preview.error_message || '').trim();
+
+    switch (preview.status) {
+      case 'executed':
+        return summary || 'The approved change has been executed.';
+      case 'rejected':
+        return summary || 'The preview was rejected.';
+      case 'failed':
+        if (errorMessage) {
+          return summary ? `${summary}\n\nError: ${errorMessage}` : `The approved change failed. Error: ${errorMessage}`;
+        }
+        return summary || 'The approved change failed.';
+      case 'expired':
+        return summary || 'The preview expired before approval.';
+      default:
+        if (errorMessage) {
+          return summary ? `${summary}\n\nError: ${errorMessage}` : errorMessage;
+        }
+        return summary || 'The backend processed the preview action.';
+    }
   }
 
   private buildDisplayName(row: {
@@ -313,7 +337,7 @@ export class AiChatOrchestratorService {
 
     // Step 2: Load/create conversation, persist user message, build system prompt
     const approvalAction = prepared.approvalAction;
-    const { conversationId, title, providerMessages, tools, systemPromptText, preStreamEvents } =
+    const { conversationId, title, providerMessages, tools, systemPromptText, preStreamEvents, approvalAssistantText } =
       await this.tenantExecutor.runWithContext(context, async (ctx) => {
         let convId = prepared.inputConversationId;
         let convTitle: string;
@@ -354,20 +378,27 @@ export class AiChatOrchestratorService {
           },
           { manager: ctx.manager },
         );
-
         const streamEvents: ChatStreamEvent[] = [];
-        let previewContextMessage: AiProviderMessage | null = null;
 
         if (approvalAction) {
           const previewResult = approvalAction.action === 'approve'
             ? await this.previews.executePreview({ ...ctx, conversationId: convId! }, approvalAction.previewId)
             : await this.previews.rejectPreview({ ...ctx, conversationId: convId! }, approvalAction.previewId);
-          previewContextMessage = this.buildPreviewResultContextMessage(previewResult);
 
           streamEvents.push({
             type: 'preview_result',
             ...previewResult,
           });
+
+          return {
+            conversationId: convId!,
+            title: convTitle,
+            providerMessages: [],
+            tools: [],
+            systemPromptText: '',
+            preStreamEvents: streamEvents,
+            approvalAssistantText: this.buildPreviewResultAssistantText(previewResult),
+          } satisfies StreamPreparationResult;
         }
 
         // Load history
@@ -398,10 +429,6 @@ export class AiChatOrchestratorService {
             });
           }
         }
-        if (previewContextMessage) {
-          msgs.push(previewContextMessage);
-        }
-
         // Get tools and system prompt
         const toolContext: AiExecutionContextWithManager = {
           ...ctx,
@@ -430,13 +457,44 @@ export class AiChatOrchestratorService {
           tools: toolSchemas,
           systemPromptText: sysPrompt,
           preStreamEvents: streamEvents,
-        };
+          approvalAssistantText: null,
+        } satisfies StreamPreparationResult;
       });
 
     // Emit conversation event
     yield { type: 'conversation', id: conversationId, title };
     for (const event of preStreamEvents) {
       yield event;
+    }
+
+    if (approvalAssistantText != null) {
+      const conversationUsage = await this.tenantExecutor.runWithContext(context, async (ctx) => {
+        await this.conversations.appendMessage(
+          {
+            conversationId,
+            tenantId: ctx.tenantId,
+            conversationUserId: ctx.userId,
+            userId: null,
+            role: 'assistant',
+            content: approvalAssistantText,
+            usage: null,
+          },
+          { manager: ctx.manager },
+        );
+        return this.conversations.getConversationUsage(conversationId, ctx.tenantId, {
+          manager: ctx.manager,
+        });
+      });
+
+      yield { type: 'text_delta', text: approvalAssistantText };
+      yield {
+        type: 'done',
+        usage: undefined,
+        last_usage: undefined,
+        conversation_usage: conversationUsage,
+        builtin_usage: await this.loadBuiltinUsage(prepared),
+      };
+      return;
     }
 
     // Step 3: Provider streaming loop (NO DB transaction open)

@@ -7,6 +7,14 @@ const IMG_TAG_ONLY_REGEX = /^<img\b[\s\S]*\/?>$/i;
 const IMG_ATTR_REGEX = /([A-Za-z_:][\w:.-]*)\s*=\s*("([^"]*)"|'([^']*)')/g;
 const ALLOWED_IMG_ATTRS = new Set(['src', 'alt', 'title', 'width', 'height']);
 const DATA_IMAGE_URI_REGEX = /^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]+$/i;
+const HTML_ENTITY_MAP: Record<string, string> = {
+  amp: '&',
+  apos: '\'',
+  gt: '>',
+  lt: '<',
+  nbsp: ' ',
+  quot: '"',
+};
 
 type MarkdownToken = {
   type?: string;
@@ -17,6 +25,38 @@ type MarkdownToken = {
 
 function normalizeSnippet(value: unknown): string {
   return String(value ?? '').trim();
+}
+
+function decodeHtmlEntities(text: string): string {
+  return String(text || '').replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity) => {
+    const key = String(entity || '').toLowerCase();
+    if (HTML_ENTITY_MAP[key]) {
+      return HTML_ENTITY_MAP[key];
+    }
+    if (key.startsWith('#x')) {
+      const codePoint = Number.parseInt(key.slice(2), 16);
+      if (Number.isFinite(codePoint)) {
+        try {
+          return String.fromCodePoint(codePoint);
+        } catch {
+          return match;
+        }
+      }
+      return match;
+    }
+    if (key.startsWith('#')) {
+      const codePoint = Number.parseInt(key.slice(1), 10);
+      if (Number.isFinite(codePoint)) {
+        try {
+          return String.fromCodePoint(codePoint);
+        } catch {
+          return match;
+        }
+      }
+      return match;
+    }
+    return match;
+  });
 }
 
 function isAllowedImageSrc(value: string): boolean {
@@ -204,6 +244,21 @@ export function isHtmlContent(content: string): boolean {
   return HTML_TAG_REGEX_FALLBACK.test(text);
 }
 
+export function resolveHtmlContentSource(content: string): string {
+  const text = String(content || '').trim();
+  if (!text) return '';
+  if (isHtmlContent(text)) {
+    return text;
+  }
+
+  const decoded = decodeHtmlEntities(text).trim();
+  if (decoded && decoded !== text && isHtmlContent(decoded)) {
+    return decoded;
+  }
+
+  return text;
+}
+
 const turndown = new TurndownService({
   headingStyle: 'atx',
   codeBlockStyle: 'fenced',
@@ -231,8 +286,8 @@ turndown.addRule('dropUnderlineFormatting', {
 });
 
 export function htmlToMarkdown(content: string): string {
-  const text = String(content || '').trim();
-  if (!text) return '';
-  if (!isHtmlContent(text)) return text;
-  return turndown.turndown(text);
+  const source = resolveHtmlContentSource(content);
+  if (!source) return '';
+  if (!isHtmlContent(source)) return source;
+  return turndown.turndown(source);
 }

@@ -325,12 +325,8 @@ async function testToolCallFlow() {
   assert.deepEqual(done.conversation_usage, { input_tokens: 300, output_tokens: 150 });
 }
 
-async function testApprovalMarkerExecutesPreviewBeforeProviderResponse() {
-  const { orchestrator, persistedMessages, recordedRequests } = createOrchestrator({
-    providerEvents: [
-      { type: 'text_delta', text: 'Done after approval.' },
-      { type: 'done', usage: { input_tokens: 10, output_tokens: 5 } },
-    ],
+async function testApprovalMarkerExecutesPreviewWithoutProviderRoundTrip() {
+  const { orchestrator, persistedMessages, recordedRequests, providerCallCount } = createOrchestrator({
     historyMessages: [
       {
         role: 'user',
@@ -356,22 +352,14 @@ async function testApprovalMarkerExecutesPreviewBeforeProviderResponse() {
   const previewResult = events.find((event) => event.type === 'preview_result') as any;
   assert.ok(previewResult);
   assert.equal(previewResult.status, 'executed');
+  const textDeltas = events.filter((event) => event.type === 'text_delta') as any[];
+  assert.equal(textDeltas.map((event) => event.text).join(''), 'T-1 status updated to done.');
   assert.equal(persistedMessages[0].role, 'user');
   assert.equal(persistedMessages[0].content, '[APPROVE:11111111-1111-4111-8111-111111111111]');
   assert.equal(persistedMessages[1].role, 'assistant');
-  assert.equal(persistedMessages[1].content, 'Done after approval.');
-  assert.equal(
-    recordedRequests[0].messages.some(
-      (message: any) => message.role === 'user' && message.content === 'The user explicitly approved the pending AI preview.',
-    ),
-    true,
-  );
-  assert.equal(
-    recordedRequests[0].messages.some(
-      (message: any) => message.role === 'assistant' && message.content === 'Backend preview result: T-1 status updated to done.',
-    ),
-    true,
-  );
+  assert.equal(persistedMessages[1].content, 'T-1 status updated to done.');
+  assert.equal(providerCallCount.value, 0);
+  assert.equal(recordedRequests.length, 0);
 }
 
 async function testProviderReceivesAbortSignal() {
@@ -743,7 +731,7 @@ async function testReasoningModelsGetLargerOpenAiTokenBudget() {
 async function run() {
   await testSimpleTextResponse();
   await testToolCallFlow();
-  await testApprovalMarkerExecutesPreviewBeforeProviderResponse();
+  await testApprovalMarkerExecutesPreviewWithoutProviderRoundTrip();
   await testProviderReceivesAbortSignal();
   await testRepeatedToolCallsStopWithoutFurtherProgress();
   await testProviderErrorIncludesConversationUsage();
