@@ -60,8 +60,8 @@ async function testPrepareCreatePreviewMapsTicketFieldsAndUsesCurrentUserAsReque
         name: 'VPN access broken',
         content_html: '<p>User cannot connect.</p><p><img src="front/document.send.php?docid=19" /></p>',
         status: 'Assigned',
-        priority: 2,
-        urgency: 'High',
+        priority: 4,
+        urgency: '5',
         type: 2,
         glpi_url: 'https://glpi.internal/helpdesk/front/ticket.form.php?id=4523',
       }),
@@ -91,6 +91,55 @@ async function testPrepareCreatePreviewMapsTicketFieldsAndUsesCurrentUserAsReque
   assert.match(String(prepared.mutationInput.description || ''), /Source: GLPI Ticket #4523/);
   assert.match(String(prepared.mutationInput.description || ''), /GLPI URL: https:\/\/glpi\.internal\/helpdesk\/front\/ticket\.form\.php\?id=4523/);
   assert.equal(killSessionCalls, 1);
+}
+
+async function testPrepareCreatePreviewFallsBackToUrgencyWhenPriorityIsMissing() {
+  const operation = new ImportGlpiTicketAiMutationOperation(
+    {
+      resolveCurrentUser: async () => ({
+        id: 'user-1',
+        email: 'requestor@example.com',
+        label: 'Requestor User',
+      }),
+      resolveCreateTarget: async () => ({
+        mode: 'standalone',
+        type: null,
+        id: null,
+        ref: null,
+        label: 'Standalone',
+      }),
+    } as any,
+    {} as any,
+    {} as any,
+    {
+      initSession: async () => ({
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: null,
+      }),
+      getTicket: async () => ({
+        id: 5000,
+        name: 'Urgent ticket',
+        content_html: '<p>Urgent ticket</p>',
+        status: 'Assigned',
+        priority: null,
+        urgency: '5',
+        type: 1,
+        glpi_url: 'https://glpi.internal/helpdesk/front/ticket.form.php?id=5000',
+      }),
+      killSession: async () => undefined,
+    } as any,
+    {
+      assertBusinessPermission: async () => undefined,
+    } as any,
+  );
+
+  const prepared = await operation.prepareCreatePreview(createContext() as any, {
+    ticket_id: 5000,
+    relation_type: 'standalone',
+  });
+
+  assert.equal(prepared.mutationInput.priority_level, 'blocker');
 }
 
 async function testPrepareCreatePreviewConvertsEscapedHtmlContent() {
@@ -245,6 +294,7 @@ async function testExecutePreviewImportsInlineImagesBestEffort() {
 
 async function run() {
   await testPrepareCreatePreviewMapsTicketFieldsAndUsesCurrentUserAsRequestor();
+  await testPrepareCreatePreviewFallsBackToUrgencyWhenPriorityIsMissing();
   await testPrepareCreatePreviewConvertsEscapedHtmlContent();
   await testExecutePreviewImportsInlineImagesBestEffort();
 }

@@ -114,6 +114,12 @@ function decodeFilenameComponent(value: string): string {
   }
 }
 
+function isLikelyJsonPayload(contentType: string | null, raw: string): boolean {
+  const normalized = String(contentType || '').toLowerCase();
+  const text = String(raw || '').trim();
+  return normalized.includes('application/json') || text.startsWith('{') || text.startsWith('[');
+}
+
 @Injectable()
 export class GlpiService {
   private readonly logger = new Logger(GlpiService.name);
@@ -178,15 +184,51 @@ export class GlpiService {
     sourceUrl: string,
   ): Promise<GlpiDocument> {
     const resolvedUrl = this.resolveSameOriginUrl(session.baseUrl, sourceUrl);
+    const requestUrl = this.resolveDocumentDownloadUrl(session.baseUrl, resolvedUrl) ?? resolvedUrl.toString();
     const response = await this.request(
-      resolvedUrl.toString(),
+      requestUrl,
       {
-        headers: this.buildSessionHeaders(session),
+        headers: this.buildBinarySessionHeaders(session),
       },
     );
 
+    const contentType = textOrNull(response.headers.get('content-type'));
     if (!response.ok) {
-      throw this.createHttpError(response.status, null, `Unable to fetch GLPI image ${resolvedUrl.toString()}.`);
+      const raw = await response.text();
+      const payload = isLikelyJsonPayload(contentType, raw)
+        ? this.safeParseJson(raw, {
+            requestUrl,
+            responseUrl: response.url || requestUrl,
+            contentType,
+            status: response.status,
+          })
+        : null;
+      const mappedError = payload ? this.extractGlpiError(payload) : null;
+      throw this.createHttpError(response.status, mappedError, `Unable to fetch GLPI image ${resolvedUrl.toString()}.`);
+    }
+
+    if (contentType?.toLowerCase().includes('text/html')) {
+      const raw = await response.text();
+      const prefix = raw.slice(0, 120).replace(/\s+/g, ' ').trim();
+      throw new BadRequestException(
+        `GLPI document download returned HTML instead of a file.`
+        + `${prefix ? ` Response starts with: ${prefix}.` : ''}`,
+      );
+    }
+
+    if (isLikelyJsonPayload(contentType, '')) {
+      const raw = await response.text();
+      const payload = this.safeParseJson(raw, {
+        requestUrl,
+        responseUrl: response.url || requestUrl,
+        contentType,
+        status: response.status,
+      });
+      const mappedError = this.extractGlpiError(payload);
+      if (mappedError) {
+        throw new BadRequestException(mappedError);
+      }
+      throw new BadRequestException('GLPI document download returned JSON instead of a file.');
     }
 
     const declaredLength = Number(response.headers.get('content-length') || 0);
@@ -316,6 +358,16 @@ export class GlpiService {
     };
   }
 
+  private buildBinarySessionHeaders(
+    session: GlpiSession,
+  ): Record<string, string> {
+    return {
+      Accept: 'application/octet-stream',
+      'Session-Token': session.sessionToken,
+      ...(session.appToken ? { 'App-Token': session.appToken } : {}),
+    };
+  }
+
   private buildUrl(baseUrl: string, pathOrUrl: string): string {
     return new URL(pathOrUrl, baseUrl).toString();
   }
@@ -339,6 +391,28 @@ export class GlpiService {
     }
 
     return resolved;
+  }
+
+  private resolveDocumentDownloadUrl(baseUrl: string, sourceUrl: URL): string | null {
+    const pathname = sourceUrl.pathname.toLowerCase();
+    let documentId: number | null = null;
+
+    if (pathname.endsWith('/front/document.send.php') || pathname.endsWith('/document.send.php')) {
+      documentId = parseNumericGlpiValue(sourceUrl.searchParams.get('docid'));
+    } else {
+      const apiMatch = sourceUrl.pathname.match(/\/apirest\.php\/Document\/(\d+)(?:\/)?$/i);
+      if (apiMatch?.[1]) {
+        documentId = Number.parseInt(apiMatch[1], 10);
+      }
+    }
+
+    if (!documentId || !Number.isFinite(documentId) || documentId <= 0) {
+      return null;
+    }
+
+    const downloadUrl = new URL(this.buildUrl(baseUrl, `apirest.php/Document/${documentId}`));
+    downloadUrl.searchParams.set('alt', 'media');
+    return downloadUrl.toString();
   }
 
   private expectRecord(payload: unknown, label: string): Record<string, unknown> {

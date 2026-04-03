@@ -102,15 +102,27 @@ function buildTarget(preview: AiMutationPreview): AiMutationPreviewPresentation[
   };
 }
 
-function mapPriority(priority: number | null): ImportGlpiTicketPriorityLevel {
-  switch (priority) {
-    case 1:
-      return 'blocker';
-    case 2:
-      return 'high';
-    case 4:
-      return 'low';
+function parseNumericLevel(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.trunc(value);
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    return Number.parseInt(value.trim(), 10);
+  }
+  return null;
+}
+
+function mapPriority(priority: number | null, urgency: unknown): ImportGlpiTicketPriorityLevel {
+  const level = priority ?? parseNumericLevel(urgency);
+  switch (level) {
+    case 6:
     case 5:
+      return 'blocker';
+    case 4:
+      return 'high';
+    case 2:
+      return 'low';
+    case 1:
       return 'optional';
     case 3:
     default:
@@ -470,7 +482,7 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
           assignee_user_id: assignee?.id ?? null,
           assignee_label: assignee?.label ?? null,
           assignee_email: assignee?.email ?? null,
-          priority_level: input.priority_level ?? mapPriority(ticket.priority),
+          priority_level: input.priority_level ?? mapPriority(ticket.priority, ticket.urgency),
           task_type_id: taskType?.id ?? null,
           task_type_label: taskType?.label ?? null,
           glpi_ticket_id: ticket.id,

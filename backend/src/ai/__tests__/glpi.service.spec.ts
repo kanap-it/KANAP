@@ -83,10 +83,51 @@ async function testInitSessionNormalizesApiEndpointBaseUrl() {
   }
 }
 
+async function testFetchDocumentUsesDocumentApiDownloadForDocumentSendUrls() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+  let requestedUrl = '';
+  let capturedHeaders: Headers | undefined;
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      requestedUrl = String(input);
+      capturedHeaders = new Headers(init?.headers);
+      return new Response(Buffer.from('image-bytes'), {
+        status: 200,
+        headers: {
+          'content-type': 'image/png',
+          'content-disposition': 'inline; filename="ticket-image.png"',
+        },
+      });
+    }) as typeof fetch;
+
+    const document = await service.fetchDocument(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: 'app-token',
+      },
+      '/front/document.send.php?docid=41260&itemtype=Ticket&items_id=59925',
+    );
+
+    assert.equal(requestedUrl, 'https://glpi.internal/helpdesk/apirest.php/Document/41260?alt=media');
+    assert.equal(capturedHeaders?.get('accept'), 'application/octet-stream');
+    assert.equal(capturedHeaders?.get('session-token'), 'session-token');
+    assert.equal(capturedHeaders?.get('app-token'), 'app-token');
+    assert.equal(document.mimeType, 'image/png');
+    assert.equal(document.filename, 'ticket-image.png');
+    assert.equal(document.buffer.toString(), 'image-bytes');
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
   await testInitSessionNormalizesApiEndpointBaseUrl();
+  await testFetchDocumentUsesDocumentApiDownloadForDocumentSendUrls();
 }
 
 void run();
