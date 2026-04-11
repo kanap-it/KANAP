@@ -39,11 +39,11 @@ type ProjectRow = {
   updated_at: string;
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info' }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: 'default' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info' }> = {
   waiting_list: { label: 'Waiting List', color: 'default' },
   planned: { label: 'Planned', color: 'info' },
   in_progress: { label: 'In Progress', color: 'primary' },
-  in_testing: { label: 'In Testing', color: 'info' },
+  in_testing: { label: 'In Testing', color: 'secondary' },
   on_hold: { label: 'On Hold', color: 'warning' },
   done: { label: 'Done', color: 'success' },
   cancelled: { label: 'Cancelled', color: 'error' },

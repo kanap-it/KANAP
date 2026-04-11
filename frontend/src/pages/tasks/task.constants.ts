@@ -15,11 +15,11 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = Object.fromEntries
 
 export const TASK_STATUS_COLORS: Record<
 TaskStatus,
-'default' | 'warning' | 'info' | 'secondary' | 'success' | 'error'
+'default' | 'primary' | 'warning' | 'info' | 'secondary' | 'success' | 'error'
 > = {
   open: 'default',
-  in_progress: 'warning',
-  pending: 'info',
+  in_progress: 'primary',
+  pending: 'warning',
   in_testing: 'secondary',
   done: 'success',
   cancelled: 'error',

@@ -10,7 +10,11 @@ import { InterfaceKeyIdentifier } from './interface-key-identifier.entity';
 import { InterfaceLink } from './interface-link.entity';
 import { InterfaceAttachment } from './interface-attachment.entity';
 import { InterfaceDataResidency } from './interface-data-residency.entity';
+import { InterfaceMappingSet } from './interface-mapping-set.entity';
+import { InterfaceMappingGroup } from './interface-mapping-group.entity';
+import { InterfaceMappingRule } from './interface-mapping-rule.entity';
 import { InterfacesController } from './interfaces.controller';
+import { InterfaceMappingsController } from './interface-mappings.controller';
 import { InterfaceBinding } from '../interface-bindings/interface-binding.entity';
 import { Application } from '../applications/application.entity';
 import { AppInstance } from '../app-instances/app-instance.entity';
@@ -19,6 +23,7 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { UsersModule } from '../users/users.module';
 import { ItOpsSettingsModule } from '../it-ops-settings/it-ops-settings.module';
 import { StorageModule } from '../common/storage/storage.module';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
 
 // Decomposed services
 import {
@@ -26,6 +31,7 @@ import {
   InterfacesListService,
   InterfacesCrudService,
   InterfaceBindingsManagementService,
+  InterfaceMappingsService,
   InterfaceSyncService,
 } from './services';
 
@@ -42,6 +48,9 @@ import {
       InterfaceLink,
       InterfaceAttachment,
       InterfaceDataResidency,
+      InterfaceMappingSet,
+      InterfaceMappingGroup,
+      InterfaceMappingRule,
       InterfaceBinding,
       Application,
       AppInstance,
@@ -51,17 +60,19 @@ import {
     forwardRef(() => UsersModule),
     ItOpsSettingsModule,
     StorageModule,
+    KnowledgeModule,
   ],
   providers: [
     // Decomposed services (order matters for DI)
     InterfacesListService,
     InterfacesCrudService,
     InterfaceBindingsManagementService,
+    InterfaceMappingsService,
     InterfaceSyncService,
     // Main facade service
     InterfacesService,
   ],
-  controllers: [InterfacesController],
-  exports: [InterfacesService],
+  controllers: [InterfacesController, InterfaceMappingsController],
+  exports: [InterfacesService, InterfaceMappingsService],
 })
 export class InterfacesModule {}

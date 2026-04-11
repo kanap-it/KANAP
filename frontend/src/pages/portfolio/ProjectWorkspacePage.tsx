@@ -65,11 +65,11 @@ interface ClassificationStream {
   is_active: boolean;
 }
 
-const STATUS_COLORS: Record<string, 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info'> = {
+const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info'> = {
   waiting_list: 'default',
   planned: 'info',
   in_progress: 'primary',
-  in_testing: 'info',
+  in_testing: 'secondary',
   on_hold: 'warning',
   done: 'success',
   cancelled: 'error',

@@ -1119,7 +1119,7 @@ export default function InterfaceMapPage() {
 	                      variant="contained"
 	                      size="small"
                       onClick={() => {
-                        navigate(`/it/interfaces/${selectedLink.interfaceDbId}/overview`);
+                        navigate(`/it/interfaces/${selectedLink.interfaceDbId}/specification`);
                       }}
                     >
                       Edit interface

@@ -24,6 +24,7 @@ import { ItOpsSettingsModule } from '../it-ops-settings/it-ops-settings.module';
 import { CsvModule } from '../common/csv';
 import { PortfolioProject } from '../portfolio/portfolio-project.entity';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
+import { InterfacesModule } from '../interfaces/interfaces.module';
 
 // Decomposed services
 import {
@@ -62,6 +63,7 @@ import {
     ItOpsSettingsModule,
     CsvModule,
     KnowledgeModule,
+    InterfacesModule,
   ],
   providers: [
     // Decomposed services (order matters for DI)

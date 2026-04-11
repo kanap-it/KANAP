@@ -23,13 +23,14 @@ import {
 } from './integrated-document.constants';
 import { KnowledgeService, RelationEntityType } from './knowledge.service';
 
-type SourceScopedEntityType = 'requests' | 'projects';
+type SourceScopedEntityType = 'requests' | 'projects' | 'interfaces';
 type SourceAccessMode = 'read' | 'edit';
 type SourceDescriptor = {
   id: string;
   tenant_id: string;
   item_number: number | null;
   name: string;
+  reference_label?: string | null;
 };
 type ManagedWriteResult = {
   documentId: string;
@@ -82,6 +83,19 @@ type ProjectBackfillRow = SourceDescriptor & {
   purpose: string | null;
   it_lead_id: string | null;
   business_lead_id: string | null;
+};
+type InterfaceBackfillRow = SourceDescriptor & {
+  business_purpose: string | null;
+  overview_notes: string | null;
+  impact_of_failure: string | null;
+  business_objects: unknown | null;
+  main_use_cases: string | null;
+  functional_rules: string | null;
+  core_transformations_summary: string | null;
+  error_handling_summary: string | null;
+  typical_data: string | null;
+  audit_logging: string | null;
+  security_controls_summary: string | null;
 };
 type LegacyAttachmentRow = {
   id: string;
@@ -145,11 +159,11 @@ const PERMISSION_RANK: Record<PermissionLevel, number> = {
 const SOURCE_ENTITY_CONFIG: Record<
   SourceScopedEntityType,
   {
-    sourceTable: 'portfolio_requests' | 'portfolio_projects';
-    relationTable: 'document_requests' | 'document_projects';
-    relationIdColumn: 'request_id' | 'project_id';
-    permissionResource: 'portfolio_requests' | 'portfolio_projects';
-    referencePrefix: 'REQ' | 'PRJ';
+    sourceTable: 'portfolio_requests' | 'portfolio_projects' | 'interfaces';
+    relationTable: 'document_requests' | 'document_projects' | null;
+    relationIdColumn: 'request_id' | 'project_id' | null;
+    permissionResource: 'portfolio_requests' | 'portfolio_projects' | 'applications';
+    referencePrefix: 'REQ' | 'PRJ' | null;
     readLevel: PermissionLevel;
     editLevel: PermissionLevel;
   }
@@ -172,11 +186,24 @@ const SOURCE_ENTITY_CONFIG: Record<
     readLevel: 'reader',
     editLevel: 'contributor',
   },
+  interfaces: {
+    sourceTable: 'interfaces',
+    relationTable: null,
+    relationIdColumn: null,
+    permissionResource: 'applications',
+    referencePrefix: null,
+    readLevel: 'reader',
+    editLevel: 'member',
+  },
 };
 
 const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<SourceScopedEntityType, Set<string>>>(
   (acc, definition) => {
-    if (definition.sourceEntityType === 'requests' || definition.sourceEntityType === 'projects') {
+    if (
+      definition.sourceEntityType === 'requests'
+      || definition.sourceEntityType === 'projects'
+      || definition.sourceEntityType === 'interfaces'
+    ) {
       acc[definition.sourceEntityType].add(definition.slotKey);
     }
     return acc;
@@ -184,6 +211,7 @@ const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<S
   {
     requests: new Set<string>(),
     projects: new Set<string>(),
+    interfaces: new Set<string>(),
   },
 );
 
@@ -242,8 +270,9 @@ export class IntegratedDocumentsService {
     slotKey: IntegratedDocumentSlotKey,
   ): string {
     const definition = this.getSlotDefinition(sourceEntityType, slotKey);
-    const prefix = SOURCE_ENTITY_CONFIG[sourceEntityType].referencePrefix;
-    const ref = source.item_number ? `${prefix}-${source.item_number}` : source.id;
+    const config = SOURCE_ENTITY_CONFIG[sourceEntityType];
+    const ref = String(source.reference_label || '').trim()
+      || (source.item_number && config.referencePrefix ? `${config.referencePrefix}-${source.item_number}` : source.id);
     return `${ref} - ${source.name} - ${definition.displayName}`;
   }
 
@@ -257,7 +286,111 @@ export class IntegratedDocumentsService {
   private getImportChangeNote(sourceEntityType: SourceScopedEntityType): string {
     return sourceEntityType === 'requests'
       ? 'Imported from legacy request field'
+      : sourceEntityType === 'interfaces'
+        ? 'Imported from legacy interface fields'
       : 'Imported from legacy project field';
+  }
+
+  private formatInterfaceSpecificationValue(value: unknown): string | null {
+    if (value == null) {
+      return null;
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return null;
+      }
+      const allScalar = value.every((item) => (
+        item == null
+        || typeof item === 'string'
+        || typeof item === 'number'
+        || typeof item === 'boolean'
+      ));
+      if (!allScalar) {
+        return `\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
+      }
+
+      const scalars = value
+        .map((item) => this.formatInterfaceSpecificationValue(item))
+        .filter((item): item is string => !!item);
+      return scalars.length > 0 ? scalars.map((item) => `- ${item}`).join('\n') : null;
+    }
+
+    if (typeof value === 'object') {
+      return `\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
+    }
+
+    const normalized = String(value).trim();
+    if (!normalized) {
+      return null;
+    }
+    if (isHtmlContent(normalized)) {
+      return htmlToMarkdown(normalized);
+    }
+    return normalized;
+  }
+
+  private buildInterfaceSpecificationMarkdown(row: InterfaceBackfillRow): string {
+    const sections: Array<{
+      heading: string;
+      fields: Array<{ label: string; value: unknown }>;
+    }> = [
+      {
+        heading: 'Business Purpose & Overview',
+        fields: [
+          { label: 'Business purpose', value: row.business_purpose },
+          { label: 'Overview notes', value: row.overview_notes },
+        ],
+      },
+      {
+        heading: 'Business Objects',
+        fields: [{ label: 'Business objects', value: row.business_objects }],
+      },
+      {
+        heading: 'Use Cases',
+        fields: [{ label: 'Main use cases', value: row.main_use_cases }],
+      },
+      {
+        heading: 'Business Rules',
+        fields: [{ label: 'Functional rules', value: row.functional_rules }],
+      },
+      {
+        heading: 'Impact of Failure',
+        fields: [{ label: 'Impact of failure', value: row.impact_of_failure }],
+      },
+      {
+        heading: 'Transformations Overview',
+        fields: [{ label: 'Core transformations summary', value: row.core_transformations_summary }],
+      },
+      {
+        heading: 'Error Handling',
+        fields: [{ label: 'Error handling', value: row.error_handling_summary }],
+      },
+      {
+        heading: 'Data & Compliance Notes',
+        fields: [
+          { label: 'Typical data', value: row.typical_data },
+          { label: 'Audit logging', value: row.audit_logging },
+          { label: 'Security controls summary', value: row.security_controls_summary },
+        ],
+      },
+    ];
+
+    return sections.map((section) => {
+      const fieldBlocks = section.fields.flatMap((field) => {
+        const rendered = this.formatInterfaceSpecificationValue(field.value);
+        if (!rendered) {
+          return [];
+        }
+        return [`### ${field.label}`, '', rendered];
+      });
+
+      return [
+        `## ${section.heading}`,
+        '',
+        ...fieldBlocks,
+      ].join('\n').trimEnd();
+    }).join('\n\n');
   }
 
   private getLegacySourceField(
@@ -333,6 +466,21 @@ export class IntegratedDocumentsService {
     sourceEntityId: string,
     manager: EntityManager,
   ): Promise<string | null> {
+    if (sourceEntityType === 'interfaces') {
+      const rows = await manager.query<Array<{ user_id: string | null }>>(
+        `SELECT user_id::text
+         FROM interface_owners
+         WHERE interface_id = $1
+           AND tenant_id = app_current_tenant()
+         ORDER BY CASE owner_type WHEN 'business' THEN 0 WHEN 'it' THEN 1 ELSE 2 END,
+                  created_at ASC,
+                  id ASC
+         LIMIT 1`,
+        [sourceEntityId],
+      );
+      return this.normalizeOptionalUserId(rows[0]?.user_id);
+    }
+
     if (sourceEntityType === 'requests') {
       const rows = await manager.query<Array<{
         created_by_id: string | null;
@@ -398,6 +546,41 @@ export class IntegratedDocumentsService {
     sourceEntityId: string,
     manager: EntityManager,
   ): Promise<SourceRecoveryContext> {
+    if (sourceEntityType === 'interfaces') {
+      const rows = await manager.query<Array<{
+        id: string;
+        tenant_id: string;
+        interface_id: string | null;
+        name: string;
+      }>>(
+        `SELECT id::text AS id,
+                tenant_id::text AS tenant_id,
+                interface_id,
+                name
+         FROM interfaces
+         WHERE id = $1
+           AND tenant_id = app_current_tenant()
+         LIMIT 1`,
+        [sourceEntityId],
+      );
+      if (!rows.length) {
+        throw new NotFoundException('interface not found');
+      }
+
+      const row = rows[0];
+      return {
+        source: {
+          id: row.id,
+          tenant_id: row.tenant_id,
+          item_number: null,
+          name: row.name,
+          reference_label: String(row.interface_id || '').trim() || row.id,
+        },
+        ownerUserId: await this.loadPreferredOwnerUserId('interfaces', row.id, manager),
+        tenantSlug: await this.loadTenantSlug(row.tenant_id, manager),
+      };
+    }
+
     if (sourceEntityType === 'requests') {
       const rows = await manager.query<Array<{
         id: string;
@@ -434,12 +617,14 @@ export class IntegratedDocumentsService {
           tenant_id: row.tenant_id,
           item_number: row.item_number,
           name: row.name,
+          reference_label: row.item_number ? `REQ-${row.item_number}` : row.id,
         },
         ownerUserId: this.resolvePreferredOwnerUserId('requests', {
           id: row.id,
           tenant_id: row.tenant_id,
           item_number: row.item_number,
           name: row.name,
+          reference_label: row.item_number ? `REQ-${row.item_number}` : row.id,
           purpose: null,
           risks: null,
           created_by_id: row.created_by_id,
@@ -482,12 +667,14 @@ export class IntegratedDocumentsService {
         tenant_id: row.tenant_id,
         item_number: row.item_number,
         name: row.name,
+        reference_label: row.item_number ? `PRJ-${row.item_number}` : row.id,
       },
       ownerUserId: this.resolvePreferredOwnerUserId('projects', {
         id: row.id,
         tenant_id: row.tenant_id,
         item_number: row.item_number,
         name: row.name,
+        reference_label: row.item_number ? `PRJ-${row.item_number}` : row.id,
         purpose: null,
         it_lead_id: row.it_lead_id,
         business_lead_id: row.business_lead_id,
@@ -558,12 +745,88 @@ export class IntegratedDocumentsService {
     return rows[0].field_value ?? null;
   }
 
+  private async loadInterfaceBackfillRow(
+    sourceEntityId: string,
+    manager: EntityManager,
+  ): Promise<InterfaceBackfillRow> {
+    const rows = await manager.query<Array<{
+      id: string;
+      tenant_id: string;
+      interface_id: string | null;
+      name: string;
+      business_purpose: string | null;
+      overview_notes: string | null;
+      impact_of_failure: string | null;
+      business_objects: unknown | null;
+      main_use_cases: string | null;
+      functional_rules: string | null;
+      core_transformations_summary: string | null;
+      error_handling_summary: string | null;
+      typical_data: string | null;
+      audit_logging: string | null;
+      security_controls_summary: string | null;
+    }>>(
+      `SELECT id::text AS id,
+              tenant_id::text AS tenant_id,
+              interface_id,
+              name,
+              business_purpose,
+              overview_notes,
+              impact_of_failure,
+              business_objects,
+              main_use_cases,
+              functional_rules,
+              core_transformations_summary,
+              error_handling_summary,
+              typical_data,
+              audit_logging,
+              security_controls_summary
+       FROM interfaces
+       WHERE id = $1
+         AND tenant_id = app_current_tenant()
+       LIMIT 1`,
+      [sourceEntityId],
+    );
+    if (!rows.length) {
+      throw new NotFoundException('interface not found');
+    }
+
+    const row = rows[0];
+    return {
+      id: row.id,
+      tenant_id: row.tenant_id,
+      item_number: null,
+      name: row.name,
+      reference_label: String(row.interface_id || '').trim() || row.id,
+      business_purpose: row.business_purpose,
+      overview_notes: row.overview_notes,
+      impact_of_failure: row.impact_of_failure,
+      business_objects: row.business_objects,
+      main_use_cases: row.main_use_cases,
+      functional_rules: row.functional_rules,
+      core_transformations_summary: row.core_transformations_summary,
+      error_handling_summary: row.error_handling_summary,
+      typical_data: row.typical_data,
+      audit_logging: row.audit_logging,
+      security_controls_summary: row.security_controls_summary,
+    };
+  }
+
   private async loadRecoveredSlotContent(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
     slotKey: IntegratedDocumentSlotKey,
     manager: EntityManager,
   ): Promise<RecoveredSlotContent> {
+    if (sourceEntityType === 'interfaces') {
+      const row = await this.loadInterfaceBackfillRow(sourceEntityId, manager);
+      return {
+        content: this.buildInterfaceSpecificationMarkdown(row),
+        source: 'legacy',
+        unresolvedLegacyInlineAttachmentIds: [],
+      };
+    }
+
     const legacySourceField = this.getLegacySourceField(sourceEntityType, slotKey);
     if (await this.legacyColumnExists(sourceEntityType, slotKey, manager)) {
       const rows = await manager.query<Array<{ content: string | null }>>(
@@ -585,8 +848,9 @@ export class IntegratedDocumentsService {
       };
     }
 
+    const auditSourceTable = SOURCE_ENTITY_CONFIG[sourceEntityType].sourceTable as 'portfolio_requests' | 'portfolio_projects';
     const auditContent = await this.loadLatestAuditFieldValue(
-      SOURCE_ENTITY_CONFIG[sourceEntityType].sourceTable,
+      auditSourceTable,
       sourceEntityId,
       legacySourceField,
       manager,
@@ -805,6 +1069,9 @@ export class IntegratedDocumentsService {
     if (!normalized) {
       return null;
     }
+    if (sourceEntityType === 'interfaces') {
+      return null;
+    }
     const { routePrefix } = this.getLegacyAttachmentTable(sourceEntityType);
     const match = normalized.match(
       new RegExp(`${this.escapeRegExp(routePrefix)}[^/]+/([a-f0-9-]+)(?=[/?#]|$)`, 'i'),
@@ -885,6 +1152,9 @@ export class IntegratedDocumentsService {
     manager: EntityManager,
   ): Promise<boolean> {
     const config = SOURCE_ENTITY_CONFIG[sourceEntityType];
+    if (!config.relationTable || !config.relationIdColumn) {
+      return false;
+    }
     const rows = await manager.query(
       `SELECT 1
        FROM ${config.relationTable}
@@ -903,11 +1173,14 @@ export class IntegratedDocumentsService {
     documentId: string,
     manager: EntityManager,
   ): Promise<boolean> {
+    const config = SOURCE_ENTITY_CONFIG[sourceEntityType];
+    if (!config.relationTable || !config.relationIdColumn) {
+      return false;
+    }
     if (await this.hasOwningRelationRow(sourceEntityType, sourceEntityId, documentId, manager)) {
       return false;
     }
 
-    const config = SOURCE_ENTITY_CONFIG[sourceEntityType];
     const sourceRows = await manager.query<Array<{ tenant_id: string }>>(
       `SELECT tenant_id::text AS tenant_id
        FROM ${config.sourceTable}
@@ -1056,6 +1329,10 @@ export class IntegratedDocumentsService {
     userId: string | null | undefined,
     manager: EntityManager,
   ): Promise<void> {
+    if (sourceEntityType === 'interfaces') {
+      return;
+    }
+
     const repo = manager.getRepository(PortfolioActivity);
     await repo.save(repo.create({
       tenant_id: tenantId,
@@ -1654,7 +1931,7 @@ export class IntegratedDocumentsService {
         sourceEntityType,
         sourceEntityId,
         slotKey as IntegratedDocumentSlotKey,
-        { manager },
+        { manager, actorUserId: userId },
       );
       binding = await this.findBinding(
         sourceEntityType,
@@ -1722,8 +1999,12 @@ export class IntegratedDocumentsService {
         document_type_id: slotSetting.document_type_id,
         template_document_id: slotSetting.template_document_id,
         status: 'published',
-        relationEntityType: sourceEntityType as Extract<RelationEntityType, 'projects' | 'requests'>,
-        relationIds: [source.id],
+        relationEntityType: sourceEntityType === 'projects' || sourceEntityType === 'requests'
+          ? sourceEntityType as Extract<RelationEntityType, 'projects' | 'requests'>
+          : undefined,
+        relationIds: sourceEntityType === 'projects' || sourceEntityType === 'requests'
+          ? [source.id]
+          : undefined,
         change_note: opts?.changeNote ?? null,
         activity_content: opts?.activityContent ?? null,
       },
@@ -1735,16 +2016,26 @@ export class IntegratedDocumentsService {
     );
     await this.ensurePrimaryOwnerContributor(created.id, opts?.ownerUserId ?? null, manager);
 
-    await manager.getRepository(IntegratedDocumentBinding).save(
-      manager.getRepository(IntegratedDocumentBinding).create({
-        tenant_id: source.tenant_id,
-        source_entity_type: sourceEntityType,
-        source_entity_id: source.id,
-        slot_key: slotKey,
-        document_id: created.id,
-        hidden_from_entity_knowledge: true,
-      }),
-    );
+    try {
+      await manager.getRepository(IntegratedDocumentBinding).save(
+        manager.getRepository(IntegratedDocumentBinding).create({
+          tenant_id: source.tenant_id,
+          source_entity_type: sourceEntityType,
+          source_entity_id: source.id,
+          slot_key: slotKey,
+          document_id: created.id,
+          hidden_from_entity_knowledge: true,
+        }),
+      );
+    } catch (e: any) {
+      if (String(e?.message || '').includes('uq_integrated_document_bindings_slot')) {
+        const existingBinding = await this.findBinding(sourceEntityType, source.id, slotKey, manager);
+        if (existingBinding) {
+          return { documentId: existingBinding.document_id, changed: false, created: false };
+        }
+      }
+      throw e;
+    }
 
     return {
       documentId: created.id,
@@ -1784,6 +2075,25 @@ export class IntegratedDocumentsService {
     const ownerUserId = await this.loadPreferredOwnerUserId('projects', source.id, manager);
     await this.ensureBoundDocument('projects', source, 'purpose', body?.purpose, userId, manager, {
       ownerUserId,
+    });
+  }
+
+  async provisionForInterface(
+    source: SourceDescriptor,
+    body: {
+      specification?: string | null;
+    },
+    userId: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ): Promise<void> {
+    const manager = this.getManager(opts);
+    const ownerUserId = await this.loadPreferredOwnerUserId('interfaces', source.id, manager);
+    const explicitContent = String(body?.specification || '').trim()
+      ? body?.specification
+      : (await this.loadRecoveredSlotContent('interfaces', source.id, 'specification', manager)).content;
+    await this.ensureBoundDocument('interfaces', source, 'specification', explicitContent, userId, manager, {
+      ownerUserId,
+      useTemplateWhenBlank: false,
     });
   }
 
@@ -1954,17 +2264,19 @@ export class IntegratedDocumentsService {
     legacyContent: string | null | undefined,
     tenantSlug: string,
     ownerUserId: string | null,
+    actorUserId: string | null | undefined,
     manager: EntityManager,
   ): Promise<ManagedWriteResult> {
     const importChangeNote = this.getImportChangeNote(sourceEntityType);
     const initialContent = this.resolveRecoveredInitialContent(legacyContent);
+    const normalizedActorUserId = this.normalizeOptionalUserId(actorUserId);
 
     return this.ensureBoundDocument(
       sourceEntityType,
       source,
       slotKey,
       initialContent,
-      ownerUserId,
+      normalizedActorUserId,
       manager,
       {
         ownerUserId,
@@ -1980,7 +2292,7 @@ export class IntegratedDocumentsService {
             source.tenant_id,
             tenantSlug,
             legacyContent,
-            ownerUserId,
+            normalizedActorUserId,
             initializerManager,
             { includeLegacyAttachmentRefs: true },
           );
@@ -2013,6 +2325,7 @@ export class IntegratedDocumentsService {
       row.purpose,
       tenantSlug,
       ownerUserId,
+      null,
       manager,
     );
     const risks = await this.backfillSourceSlot(
@@ -2022,6 +2335,7 @@ export class IntegratedDocumentsService {
       row.risks,
       tenantSlug,
       ownerUserId,
+      null,
       manager,
     );
 
@@ -2053,6 +2367,7 @@ export class IntegratedDocumentsService {
       row.purpose,
       tenantSlug,
       ownerUserId,
+      null,
       manager,
     );
 
@@ -2066,9 +2381,10 @@ export class IntegratedDocumentsService {
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
     slotKey: IntegratedDocumentSlotKey,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; actorUserId?: string | null },
   ): Promise<RepairSourceSlotResult> {
     const manager = this.getManager(opts);
+    const actorUserId = this.normalizeOptionalUserId(opts?.actorUserId);
     this.assertSupportedSlot(sourceEntityType, slotKey);
 
     const existingBinding = await this.findBinding(sourceEntityType, sourceEntityId, slotKey, manager);
@@ -2100,6 +2416,7 @@ export class IntegratedDocumentsService {
         recovered.content,
         context.tenantSlug,
         context.ownerUserId,
+        actorUserId,
         manager,
       );
     } else {
@@ -2110,7 +2427,7 @@ export class IntegratedDocumentsService {
         context.source,
         slotKey,
         initialContent,
-        context.ownerUserId,
+        actorUserId,
         manager,
         {
           ownerUserId: context.ownerUserId,
@@ -2127,7 +2444,7 @@ export class IntegratedDocumentsService {
                 context.source.tenant_id,
                 context.tenantSlug,
                 recovered.content,
-                context.ownerUserId,
+                actorUserId,
                 initializerManager,
                 { includeLegacyAttachmentRefs: false },
               );
@@ -2165,7 +2482,7 @@ export class IntegratedDocumentsService {
   async repairSourceEntity(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; actorUserId?: string | null },
   ): Promise<RepairSourceEntityResult> {
     const slots: RepairSourceSlotResult[] = [];
     for (const definition of this.getSlotDefinitionsForSource(sourceEntityType)) {
@@ -2225,19 +2542,19 @@ export class IntegratedDocumentsService {
               d.content_markdown,
               d.revision,
               d.current_version_number,
-              (
+              ${config.relationTable ? `(
                 SELECT COUNT(*)::int
                 FROM ${config.relationTable} rel
                 WHERE rel.document_id = d.id
                   AND rel.tenant_id = d.tenant_id
-              ) AS relation_count,
-              (
+              )` : '0'} AS relation_count,
+              ${config.relationTable && config.relationIdColumn ? `(
                 SELECT COUNT(*)::int
                 FROM ${config.relationTable} rel
                 WHERE rel.document_id = d.id
                   AND rel.${config.relationIdColumn} = $2
                   AND rel.tenant_id = d.tenant_id
-              ) AS owning_relation_count
+              )` : '0'} AS owning_relation_count
        FROM documents d
        WHERE d.id = $1
          AND d.tenant_id = app_current_tenant()
@@ -2265,7 +2582,10 @@ export class IntegratedDocumentsService {
     if (String(document.template_document_id || '') !== String(slotSetting.template_document_id || '')) {
       throw new Error(`Managed document template mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
     }
-    if (Number(document.relation_count || 0) !== 1 || Number(document.owning_relation_count || 0) !== 1) {
+    if (
+      config.relationTable
+      && (Number(document.relation_count || 0) !== 1 || Number(document.owning_relation_count || 0) !== 1)
+    ) {
       throw new Error(`Managed document owning relation mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
     }
     if (Number(document.revision || 0) < 1 || Number(document.current_version_number || 0) < 1) {
@@ -2374,19 +2694,19 @@ export class IntegratedDocumentsService {
               d.content_markdown,
               d.revision,
               d.current_version_number,
-              (
+              ${config.relationTable ? `(
                 SELECT COUNT(*)::int
                 FROM ${config.relationTable} rel
                 WHERE rel.document_id = d.id
                   AND rel.tenant_id = d.tenant_id
-              ) AS relation_count,
-              (
+              )` : '0'} AS relation_count,
+              ${config.relationTable && config.relationIdColumn ? `(
                 SELECT COUNT(*)::int
                 FROM ${config.relationTable} rel
                 WHERE rel.document_id = d.id
                   AND rel.${config.relationIdColumn} = $2
                   AND rel.tenant_id = d.tenant_id
-              ) AS owning_relation_count
+              )` : '0'} AS owning_relation_count
        FROM documents d
        WHERE d.id = $1
          AND d.tenant_id = app_current_tenant()
@@ -2414,7 +2734,10 @@ export class IntegratedDocumentsService {
     if (String(document.template_document_id || '') !== String(slotSetting.template_document_id || '')) {
       throw new Error(`Managed document template mismatch for ${sourceEntityType}:${slotKey}:${source.id}`);
     }
-    if (Number(document.relation_count || 0) !== 1 || Number(document.owning_relation_count || 0) !== 1) {
+    if (
+      config.relationTable
+      && (Number(document.relation_count || 0) !== 1 || Number(document.owning_relation_count || 0) !== 1)
+    ) {
       throw new Error(`Managed document owning relation mismatch for ${sourceEntityType}:${slotKey}:${source.id}`);
     }
     if (Number(document.revision || 0) !== 1 || Number(document.current_version_number || 0) !== 1) {

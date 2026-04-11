@@ -11,7 +11,7 @@ export class IntegratedDocumentSlotSetting {
   tenant_id!: string;
 
   @Column('text')
-  source_entity_type!: 'requests' | 'projects' | 'applications' | 'assets';
+  source_entity_type!: 'requests' | 'projects' | 'interfaces' | 'applications' | 'assets';
 
   @Column('text')
   slot_key!: string;

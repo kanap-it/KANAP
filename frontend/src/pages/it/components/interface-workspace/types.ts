@@ -29,7 +29,7 @@ export type InterfaceDataResidency = {
 };
 
 export type InterfaceLink = {
-  id: string;
+  id?: string;
   kind: string;
   description: string | null;
   url: string;
@@ -73,6 +73,7 @@ export type InterfaceDetail = {
   id: string;
   interface_id: string;
   name: string;
+  specification_markdown?: string | null;
   business_process_id: string | null;
   business_purpose: string;
   source_application_id: string;

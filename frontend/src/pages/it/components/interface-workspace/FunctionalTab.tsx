@@ -326,9 +326,9 @@ export default function FunctionalTab({ data, update, markDirty }: InterfaceTabP
         <Stack direction="row" spacing={1} flexWrap="wrap">
           {functionalLinks.map((link) => (
             <Chip
-              key={link.id}
+              key={link.id || link.url}
               label={link.description || link.url}
-              onDelete={() => data?.id && void handleDeleteFunctionalLink(data.id, link.id)}
+              onDelete={link.id ? () => data?.id && void handleDeleteFunctionalLink(data.id, link.id!) : undefined}
               component="a"
               href={link.url}
               target="_blank"

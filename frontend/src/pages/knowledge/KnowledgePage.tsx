@@ -152,7 +152,7 @@ function StatusCellRenderer(props: any) {
   const status = props.value;
   const { t } = useTranslation(['knowledge']);
   return (
-    <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+    <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ height: '100%' }}>
       <Chip
         label={t(`knowledge:statuses.${status}`, { defaultValue: STATUS_LABELS[status] || status })}
         color={STATUS_COLORS[status] || 'default'}

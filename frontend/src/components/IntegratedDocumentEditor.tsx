@@ -28,8 +28,8 @@ import { normalizeMarkdownForRichTextEditor } from '../lib/markdownEditorNormali
 
 const MarkdownEditor = React.lazy(() => import('./MarkdownEditor'));
 
-type SourceEntityType = 'requests' | 'projects';
-type SlotKey = 'purpose' | 'risks_mitigations';
+type SourceEntityType = 'requests' | 'projects' | 'interfaces';
+type SlotKey = 'purpose' | 'risks_mitigations' | 'specification';
 
 type EditLockInfo = {
   holder_user_id: string;
@@ -72,11 +72,15 @@ type IntegratedDocumentEditorProps = {
   draftValue?: string;
   onDraftChange?: (value: string) => void;
   onDirtyChange?: (dirty: boolean) => void;
+  editModeBehavior?: 'explicit' | 'auto';
+  showDocumentControls?: boolean;
+  autosaveEnabled?: boolean;
 };
 
 const ENTITY_ENDPOINTS: Record<SourceEntityType, string> = {
   requests: '/portfolio/requests',
   projects: '/portfolio/projects',
+  interfaces: '/interfaces',
 };
 
 function MarkdownEditorLoadingFallback({ minRows }: { minRows: number }) {
@@ -118,6 +122,9 @@ export const IntegratedDocumentEditor = React.forwardRef<
     draftValue = '',
     onDraftChange,
     onDirtyChange,
+    editModeBehavior = 'explicit',
+    showDocumentControls = true,
+    autosaveEnabled = true,
   },
   ref,
 ) {
@@ -316,18 +323,38 @@ export const IntegratedDocumentEditor = React.forwardRef<
   }, [editMode, endpointBase, isDraftMode, lockToken, parseLockInfoFromError]);
 
   React.useEffect(() => {
+    if (!autosaveEnabled) return;
     if (isDraftMode || !editMode || !dirty || !lockToken) return;
     const timer = window.setInterval(() => {
       void saveMutation.mutateAsync('autosave').catch(() => undefined);
     }, 60_000);
     return () => window.clearInterval(timer);
-  }, [dirty, editMode, isDraftMode, lockToken, saveMutation]);
+  }, [autosaveEnabled, dirty, editMode, isDraftMode, lockToken, saveMutation]);
 
   React.useEffect(() => {
     return () => {
       void releaseLock();
     };
   }, [releaseLock]);
+
+  React.useEffect(() => {
+    if (editModeBehavior !== 'auto' || isDraftMode || !canEdit || editMode || lockToken) {
+      return;
+    }
+    if (activeLockInfo?.holder_user_id && activeLockInfo.holder_user_id !== profile?.id) {
+      return;
+    }
+    void startEdit({ silentConflict: true });
+  }, [
+    activeLockInfo?.holder_user_id,
+    canEdit,
+    editMode,
+    editModeBehavior,
+    isDraftMode,
+    lockToken,
+    profile?.id,
+    startEdit,
+  ]);
 
   const save = React.useCallback(async (): Promise<boolean> => {
     if (isDraftMode || !dirty) return true;
@@ -453,6 +480,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
   }, []);
 
   const handleBlurCapture = React.useCallback(() => {
+    if (editModeBehavior === 'auto') return;
     if (isDraftMode || !editMode || dirty || importInteractionActive) return;
     window.setTimeout(() => {
       const active = document.activeElement;
@@ -462,7 +490,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
       setEditMode(false);
       void releaseLock();
     }, 0);
-  }, [dirty, editMode, importInteractionActive, isDraftMode, releaseLock]);
+  }, [dirty, editMode, editModeBehavior, importInteractionActive, isDraftMode, releaseLock]);
 
   const lockHolderLabel = activeLockInfo?.holder_name || 'another user';
   const loadErrorMessage = React.useMemo(() => {
@@ -551,7 +579,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
   const persistedActions = (
     <>
       {showManagedDocChip && <Chip label={t('labels.managedDoc')} size="small" variant="outlined" />}
-      {!editMode && (
+      {showDocumentControls && !editMode && (
         <Chip
           icon={<LockOutlinedIcon fontSize="small" />}
           label={t('labels.readOnly')}
@@ -572,7 +600,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
           Open full document
         </Button>
       )}
-      {!editMode && canEdit && (
+      {showDocumentControls && !editMode && canEdit && (
         <Button
           size="small"
           variant="outlined"
@@ -582,7 +610,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
           {isLockedByAnotherUser ? t('documentEditor.retryLock') : t('buttons.edit')}
         </Button>
       )}
-      {editMode && canEdit && (
+      {showDocumentControls && editMode && canEdit && (
         <Button
           size="small"
           variant="outlined"
@@ -591,7 +619,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
           Discard
         </Button>
       )}
-      {editMode && canEdit && (
+      {showDocumentControls && editMode && canEdit && (
         <Button
           size="small"
           variant="contained"

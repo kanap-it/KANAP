@@ -97,6 +97,7 @@ export interface ConnectionSummary extends Connection {
  */
 export interface CreateInterfaceInput {
   name: string;
+  specification_markdown?: string | null;
   description?: string | null;
   source_application_id: string;
   target_application_id: string;
@@ -135,6 +136,92 @@ export interface CreateBindingInput {
  * Payload for updating an interface binding
  */
 export type UpdateBindingInput = Partial<CreateBindingInput>;
+
+export interface InterfaceMappingSet {
+  id: string;
+  tenant_id: string;
+  interface_id: string;
+  name: string;
+  description?: string | null;
+  is_default: boolean;
+  revision_number: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InterfaceMappingGroup {
+  id: string;
+  tenant_id: string;
+  interface_id: string;
+  mapping_set_id: string;
+  title: string;
+  description?: string | null;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InterfaceMappingRule {
+  id: string;
+  tenant_id: string;
+  interface_id: string;
+  mapping_set_id: string;
+  group_id?: string | null;
+  rule_key?: string | null;
+  title: string;
+  order_index: number;
+  applies_to_leg_id?: string | null;
+  operation_kind: string;
+  source_bindings: Array<Record<string, unknown>>;
+  target_bindings: Array<Record<string, unknown>>;
+  condition_text?: string | null;
+  business_rule_text?: string | null;
+  middleware_rule_text?: string | null;
+  remarks?: string | null;
+  example_input?: string | null;
+  example_output?: string | null;
+  implementation_status?: string | null;
+  test_status?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateInterfaceMappingSetInput {
+  name: string;
+  description?: string | null;
+  is_default?: boolean;
+}
+
+export type UpdateInterfaceMappingSetInput = Partial<CreateInterfaceMappingSetInput>;
+
+export interface CreateInterfaceMappingGroupInput {
+  title: string;
+  description?: string | null;
+  order_index?: number;
+}
+
+export type UpdateInterfaceMappingGroupInput = Partial<CreateInterfaceMappingGroupInput>;
+
+export interface CreateInterfaceMappingRuleInput {
+  group_id?: string | null;
+  rule_key?: string | null;
+  title: string;
+  order_index?: number;
+  applies_to_leg_id?: string | null;
+  operation_kind?: string | null;
+  source_bindings?: Array<Record<string, unknown>>;
+  target_bindings?: Array<Record<string, unknown>>;
+  condition_text?: string | null;
+  business_rule_text?: string | null;
+  middleware_rule_text?: string | null;
+  remarks?: string | null;
+  example_input?: string | null;
+  example_output?: string | null;
+  implementation_status?: string | null;
+  test_status?: string | null;
+}
+
+export type UpdateInterfaceMappingRuleInput = Partial<CreateInterfaceMappingRuleInput>;
 
 /**
  * Payload for creating a connection
@@ -232,6 +319,86 @@ export const interfacesApi = {
    */
   deleteBinding: (interfaceId: string, bindingId: string): Promise<void> =>
     api.delete(`/interfaces/${interfaceId}/bindings/${bindingId}`),
+
+  /**
+   * List mapping sets for an interface
+   */
+  listMappingSets: (interfaceId: string): Promise<{ items: InterfaceMappingSet[] }> =>
+    api.get<{ items: InterfaceMappingSet[] }>(`/interfaces/${interfaceId}/mapping-sets`),
+
+  /**
+   * Get a single mapping set
+   */
+  getMappingSet: (mappingSetId: string): Promise<InterfaceMappingSet> =>
+    api.get<InterfaceMappingSet>(`/interfaces/mapping-sets/${mappingSetId}`),
+
+  /**
+   * Create a mapping set for an interface
+   */
+  createMappingSet: (interfaceId: string, data: CreateInterfaceMappingSetInput): Promise<InterfaceMappingSet> =>
+    api.post<InterfaceMappingSet, CreateInterfaceMappingSetInput>(`/interfaces/${interfaceId}/mapping-sets`, data),
+
+  /**
+   * Update a mapping set
+   */
+  updateMappingSet: (mappingSetId: string, data: UpdateInterfaceMappingSetInput): Promise<InterfaceMappingSet> =>
+    api.patch<InterfaceMappingSet, UpdateInterfaceMappingSetInput>(`/interfaces/mapping-sets/${mappingSetId}`, data),
+
+  /**
+   * Delete a mapping set
+   */
+  deleteMappingSet: (mappingSetId: string): Promise<{ deleted: boolean }> =>
+    api.delete<{ deleted: boolean }>(`/interfaces/mapping-sets/${mappingSetId}`),
+
+  /**
+   * List mapping groups for a mapping set
+   */
+  listMappingGroups: (mappingSetId: string): Promise<{ items: InterfaceMappingGroup[] }> =>
+    api.get<{ items: InterfaceMappingGroup[] }>(`/interfaces/mapping-sets/${mappingSetId}/groups`),
+
+  /**
+   * Create a mapping group
+   */
+  createMappingGroup: (mappingSetId: string, data: CreateInterfaceMappingGroupInput): Promise<InterfaceMappingGroup> =>
+    api.post<InterfaceMappingGroup, CreateInterfaceMappingGroupInput>(`/interfaces/mapping-sets/${mappingSetId}/groups`, data),
+
+  /**
+   * Update a mapping group
+   */
+  updateMappingGroup: (groupId: string, data: UpdateInterfaceMappingGroupInput): Promise<InterfaceMappingGroup> =>
+    api.patch<InterfaceMappingGroup, UpdateInterfaceMappingGroupInput>(`/interfaces/mapping-groups/${groupId}`, data),
+
+  /**
+   * Delete a mapping group
+   */
+  deleteMappingGroup: (groupId: string): Promise<{ deleted: boolean }> =>
+    api.delete<{ deleted: boolean }>(`/interfaces/mapping-groups/${groupId}`),
+
+  /**
+   * List mapping rules for a mapping set
+   */
+  listMappingRules: (mappingSetId: string, groupId?: string | null): Promise<{ items: InterfaceMappingRule[] }> =>
+    api.get<{ items: InterfaceMappingRule[] }>(`/interfaces/mapping-sets/${mappingSetId}/rules`, {
+      params: groupId === undefined ? undefined : { group_id: groupId },
+    }),
+
+  /**
+   * Create a mapping rule
+   */
+  createMappingRule: (mappingSetId: string, data: CreateInterfaceMappingRuleInput): Promise<InterfaceMappingRule> =>
+    api.post<InterfaceMappingRule, CreateInterfaceMappingRuleInput>(`/interfaces/mapping-sets/${mappingSetId}/rules`, data),
+
+  /**
+   * Update a mapping rule
+   */
+  updateMappingRule: (ruleId: string, data: UpdateInterfaceMappingRuleInput): Promise<InterfaceMappingRule> =>
+    api.patch<InterfaceMappingRule, UpdateInterfaceMappingRuleInput>(`/interfaces/mapping-rules/${ruleId}`, data),
+
+  /**
+   * Delete a mapping rule
+   */
+  deleteMappingRule: (ruleId: string): Promise<{ deleted: boolean }> =>
+    api.delete<{ deleted: boolean }>(`/interfaces/mapping-rules/${ruleId}`),
 };
 
 /**

@@ -311,9 +311,9 @@ export default function TechnicalTab({ data, update, markDirty }: InterfaceTabPr
         <Stack direction="row" spacing={1} flexWrap="wrap">
           {technicalLinks.map((link) => (
             <Chip
-              key={link.id}
+              key={link.id || link.url}
               label={link.description || link.url}
-              onDelete={() => data?.id && void handleDeleteTechnicalLink(data.id, link.id)}
+              onDelete={link.id ? () => data?.id && void handleDeleteTechnicalLink(data.id, link.id!) : undefined}
               component="a"
               href={link.url}
               target="_blank"

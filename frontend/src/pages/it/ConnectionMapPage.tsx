@@ -1339,7 +1339,7 @@ export default function ConnectionMapPage() {
                                 size="small"
                                 variant="text"
                                 onClick={() => {
-                                  navigate(`/it/interfaces/${link.interface_id}/overview`);
+                                  navigate(`/it/interfaces/${link.interface_id}/specification`);
                                 }}
                               >
                                 Open interface

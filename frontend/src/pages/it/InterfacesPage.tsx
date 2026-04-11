@@ -80,7 +80,7 @@ export default function InterfacesPage() {
 
   const getInterfaceHref = useCallback((row: InterfaceRow | null | undefined) => {
     if (!row?.id) return undefined;
-    return `/it/interfaces/${row.id}/overview`;
+    return `/it/interfaces/${row.id}/specification`;
   }, []);
 
   const handleInternalNavigate = useCallback((event: React.MouseEvent, href: string | undefined) => {
@@ -277,7 +277,7 @@ export default function InterfacesPage() {
   const actions = (
     <Stack direction="row" spacing={1}>
       {canCreate && (
-        <Button variant="contained" onClick={() => navigate('/it/interfaces/new/overview')}>
+        <Button variant="contained" onClick={() => navigate('/it/interfaces/new/specification')}>
           Add interface
         </Button>
       )}

@@ -181,6 +181,15 @@ export class InterfacesService {
     return this.bindingsService.listLinks(interfaceId, opts);
   }
 
+  bulkReplaceLinks(
+    interfaceId: string,
+    links: Array<{ kind?: string; description?: string | null; url: string }>,
+    userId?: string | null,
+    opts?: ServiceOpts,
+  ) {
+    return this.bindingsService.bulkReplaceLinks(interfaceId, links, userId, opts);
+  }
+
   createLink(
     interfaceId: string,
     body: Partial<InterfaceLink>,

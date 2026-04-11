@@ -253,6 +253,7 @@ async function ensureTemplateDocument(
     documentTypeId: string;
     title: string;
     summary: string;
+    contentMarkdown?: string | null;
   },
 ): Promise<string> {
   const existing = await executor.query<{ id: string }>(
@@ -269,6 +270,14 @@ async function ensureTemplateDocument(
     [params.templatesLibraryId, params.documentTypeId, params.title],
   );
   if (existing[0]?.id) {
+    await executor.query(
+      `UPDATE documents
+       SET summary = $2,
+           content_markdown = $3,
+           updated_at = now()
+       WHERE id = $1`,
+      [existing[0].id, params.summary, params.contentMarkdown ?? ''],
+    );
     return String(existing[0].id);
   }
 
@@ -295,11 +304,11 @@ async function ensureTemplateDocument(
        $2,
        $3,
        $4,
-       '',
+       $5,
        '',
        NULL,
-       $5,
        $6,
+       $7,
        NULL,
        'published',
        1,
@@ -307,7 +316,15 @@ async function ensureTemplateDocument(
        now()
      )
      RETURNING id`,
-    [tenantId, itemNumber, params.title, params.summary, params.templatesLibraryId, params.documentTypeId],
+    [
+      tenantId,
+      itemNumber,
+      params.title,
+      params.summary,
+      params.contentMarkdown ?? '',
+      params.templatesLibraryId,
+      params.documentTypeId,
+    ],
   );
   return String(rows[0].id);
 }
@@ -378,6 +395,7 @@ export async function seedManagedDocsKnowledgeAssets(executor: SqlExecutor, tena
         documentTypeId: documentTypeIds.get(slotDefinition.documentTypeSystemKey)!,
         title: slotDefinition.templateTitle,
         summary: slotDefinition.templateSummary,
+        contentMarkdown: slotDefinition.templateContentMarkdown ?? '',
       });
     }
 

@@ -12,7 +12,7 @@ export class IntegratedDocumentBinding {
   tenant_id!: string;
 
   @Column('text')
-  source_entity_type!: 'requests' | 'projects' | 'applications' | 'assets';
+  source_entity_type!: 'requests' | 'projects' | 'interfaces' | 'applications' | 'assets';
 
   @Column('uuid')
   source_entity_id!: string;

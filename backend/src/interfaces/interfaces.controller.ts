@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   Res,
   UploadedFile,
   UseGuards,
@@ -18,15 +19,21 @@ import { RequireLevel } from '../auth/require-level.decorator';
 import { InterfacesService } from './services';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { attachmentMulterOptions } from '../common/upload';
+import { Throttle } from '@nestjs/throttler';
+import { DataSource } from 'typeorm';
+import { attachmentMulterOptions, documentImportMulterOptions, inlineImageMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { StorageService } from '../common/storage/storage.service';
+import { createRequestReleaseConnection } from '../common/import-connection';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
+import { RATE_LIMITS } from '../common/rate-limit';
+import { RateLimitGuard } from '../common/rate-limit.guard';
 import {
   CreateInterfaceInput,
   UpdateInterfaceInput,
   ListInterfacesQueryInput,
 } from './dto';
+import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('interfaces')
@@ -34,6 +41,8 @@ export class InterfacesController {
   constructor(
     private readonly svc: InterfacesService,
     private readonly storage: StorageService,
+    private readonly integratedDocuments: IntegratedDocumentsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   @UseGuards(PermissionGuard)
@@ -77,6 +86,191 @@ export class InterfacesController {
     return this.svc.listConnectionLinksForInterface(id, ctx.tenantId, query, {
       manager: ctx.manager,
     });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get(':id/integrated-documents/:slotKey')
+  getIntegratedDocument(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.getBySource('interfaces', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/integrated-documents/:slotKey/locks')
+  acquireIntegratedDocumentLock(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.acquireLockBySource('interfaces', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/integrated-documents/:slotKey/locks/heartbeat')
+  heartbeatIntegratedDocumentLock(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.heartbeatLockBySource(
+      'interfaces',
+      id,
+      slotKey,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Delete(':id/integrated-documents/:slotKey/locks')
+  releaseIntegratedDocumentLock(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.releaseLockBySource(
+      'interfaces',
+      id,
+      slotKey,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Patch(':id/integrated-documents/:slotKey')
+  updateIntegratedDocument(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Body() body: any,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.updateBySource(
+      'interfaces',
+      id,
+      slotKey,
+      body,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/integrated-documents/:slotKey/attachments/inline')
+  @UseInterceptors(FileInterceptor('file', inlineImageMulterOptions))
+  uploadIntegratedDocumentInlineAttachment(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.uploadInlineAttachmentBySource(
+      'interfaces',
+      id,
+      slotKey,
+      file,
+      ctx.userId || null,
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/integrated-documents/:slotKey/attachments/inline/import')
+  importIntegratedDocumentInlineAttachment(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Body() body: { source_url?: string },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.importInlineAttachmentBySourceUrl(
+      'interfaces',
+      id,
+      slotKey,
+      body?.source_url || '',
+      ctx.userId || null,
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @UseGuards(RateLimitGuard)
+  @Throttle({ default: RATE_LIMITS.documentImport })
+  @Post(':id/integrated-documents/:slotKey/import')
+  @UseInterceptors(FileInterceptor('file', documentImportMulterOptions))
+  importIntegratedDocument(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.importDocumentBySource(
+      'interfaces',
+      id,
+      slotKey,
+      file,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      {
+        manager: ctx.manager,
+        releaseConnection: createRequestReleaseConnection(req, this.dataSource, ctx.tenantId),
+      },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get(':id/integrated-documents/:slotKey/versions')
+  listIntegratedDocumentVersions(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.listVersionsBySource('interfaces', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/integrated-documents/:slotKey/revert/:versionNumber')
+  revertIntegratedDocument(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Param('versionNumber') versionNumber: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.revertBySource(
+      'interfaces',
+      id,
+      slotKey,
+      Number(versionNumber),
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
   }
 
   @UseGuards(PermissionGuard)
@@ -302,6 +496,17 @@ export class InterfacesController {
     @Tenant() ctx: TenantRequest,
   ) {
     return this.svc.listLinks(id, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/links/bulk-replace')
+  bulkReplaceLinks(
+    @Param('id') id: string,
+    @Body() body: { links: Array<{ kind?: string; description?: string | null; url: string }> },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.bulkReplaceLinks(id, body?.links ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)

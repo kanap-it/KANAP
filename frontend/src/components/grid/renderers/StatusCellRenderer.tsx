@@ -31,7 +31,7 @@ export const DEFAULT_STATUS_CONFIGS: StatusConfig[] = [
   { value: 'in_progress', label: 'In Progress', color: 'primary' },
   { value: 'on_hold', label: 'On Hold', color: 'warning' },
   { value: 'completed', label: 'Completed', color: 'success' },
-  { value: 'cancelled', label: 'Cancelled', color: 'default' },
+  { value: 'cancelled', label: 'Cancelled', color: 'error' },
   { value: 'pending', label: 'Pending', color: 'warning' },
   { value: 'open', label: 'Open', color: 'info' },
   { value: 'closed', label: 'Closed', color: 'default' },
@@ -186,7 +186,7 @@ export const ProjectStatusRenderer = createStatusCellRenderer({
     { value: 'in_progress', label: 'In Progress', color: 'primary' },
     { value: 'on_hold', label: 'On Hold', color: 'warning' },
     { value: 'completed', label: 'Completed', color: 'success' },
-    { value: 'cancelled', label: 'Cancelled', color: 'default' },
+    { value: 'cancelled', label: 'Cancelled', color: 'error' },
   ],
 });
 

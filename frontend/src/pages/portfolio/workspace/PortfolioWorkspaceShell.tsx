@@ -30,6 +30,7 @@ type PortfolioWorkspaceShellProps = {
   sidebarDefaultWidth?: number;
   sidebarMaxWidth?: number;
   sidebarMinWidth?: number;
+  sidebarCollapsible?: boolean;
   sidebarStorageKey: string;
   sidebarTitle?: string;
   tabs: PortfolioWorkspaceShellTab[];
@@ -47,6 +48,7 @@ export default function PortfolioWorkspaceShell({
   sidebarDefaultWidth = 320,
   sidebarMaxWidth = 440,
   sidebarMinWidth = 280,
+  sidebarCollapsible = false,
   sidebarStorageKey,
   sidebarTitle,
   tabs,
@@ -64,6 +66,10 @@ export default function PortfolioWorkspaceShell({
       : sidebarDefaultWidth;
   });
   const [isResizing, setIsResizing] = React.useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => {
+    if (typeof window === 'undefined' || !sidebarCollapsible) return false;
+    return window.localStorage.getItem(`${sidebarStorageKey}:collapsed`) === 'true';
+  });
   const sidebarRef = React.useRef<HTMLDivElement | null>(null);
   const resolvedSidebarTitle = sidebarTitle ?? t('workspace.sidebarTitle');
 
@@ -96,6 +102,11 @@ export default function PortfolioWorkspaceShell({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isNarrow, isResizing, sidebarMaxWidth, sidebarMinWidth, sidebarStorageKey, sidebarWidth]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !sidebarCollapsible) return;
+    window.localStorage.setItem(`${sidebarStorageKey}:collapsed`, sidebarCollapsed ? 'true' : 'false');
+  }, [sidebarCollapsed, sidebarCollapsible, sidebarStorageKey]);
 
   const mobileDrawer = (
     <Drawer
@@ -196,30 +207,65 @@ export default function PortfolioWorkspaceShell({
           <Box
             ref={sidebarRef}
             sx={{
-              width: sidebarWidth,
+              width: sidebarCollapsed ? 44 : sidebarWidth,
               flexShrink: 0,
               position: 'relative',
               borderRight: 1,
               borderColor: 'divider',
-              pr: 0.5,
+              pr: sidebarCollapsed ? 0 : 0.5,
             }}
           >
-            <Box sx={{ height: '100%', overflow: 'auto', pr: 1.5 }}>
-              {sidebar}
-            </Box>
-            <Box
-              onMouseDown={() => setIsResizing(true)}
-              sx={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                width: 6,
-                height: '100%',
-                cursor: 'col-resize',
-                '&:hover': { bgcolor: 'primary.main', opacity: 0.18 },
-                ...(isResizing && { bgcolor: 'primary.main', opacity: 0.3 }),
-              }}
-            />
+            {sidebarCollapsed ? (
+              <Stack alignItems="center" sx={{ py: 1 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => setSidebarCollapsed(false)}
+                  title={t('workspace.openProperties')}
+                  aria-label={t('workspace.openProperties')}
+                >
+                  <MenuOpenIcon />
+                </IconButton>
+              </Stack>
+            ) : (
+              <>
+                {sidebarCollapsible && (
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      {resolvedSidebarTitle}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => setSidebarCollapsed(true)}
+                      title={t('workspace.closeProperties')}
+                      aria-label={t('workspace.closeProperties')}
+                    >
+                      <ChevronLeftIcon />
+                    </IconButton>
+                  </Stack>
+                )}
+                <Box sx={{ height: '100%', overflow: 'auto', pr: 1.5, pt: sidebarCollapsible ? 1.5 : 0 }}>
+                  {sidebar}
+                </Box>
+                <Box
+                  onMouseDown={() => setIsResizing(true)}
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    width: 6,
+                    height: '100%',
+                    cursor: 'col-resize',
+                    '&:hover': { bgcolor: 'primary.main', opacity: 0.18 },
+                    ...(isResizing && { bgcolor: 'primary.main', opacity: 0.3 }),
+                  }}
+                />
+              </>
+            )}
           </Box>
         )}
 

@@ -1026,7 +1026,7 @@ export default function ApplicationWorkspacePage() {
                               <TableCell align="left">
                                 <Button
                                   size="small"
-                                  onClick={() => navigate(`/it/interfaces/${row.id}/overview`)}
+                                  onClick={() => navigate(`/it/interfaces/${row.id}/specification`)}
                                   sx={{ justifyContent: 'flex-start', textAlign: 'left', padding: 0, minWidth: 0, textTransform: 'none' }}
                                 >
                                   {row.name || '—'}

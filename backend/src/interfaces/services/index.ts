@@ -15,6 +15,7 @@ export {
 export { InterfacesListService } from './interfaces-list.service';
 export { InterfacesCrudService } from './interfaces-crud.service';
 export { InterfaceBindingsManagementService } from './interface-bindings.service';
+export { InterfaceMappingsService } from './interface-mappings.service';
 export { InterfaceSyncService } from './interface-sync.service';
 
 // Main facade service

@@ -92,6 +92,9 @@ export const CreateInterfaceSchema = z.object({
 
   /** Security controls summary (optional) */
   security_controls_summary: z.string().nullable().optional(),
+
+  /** Initial managed specification markdown (optional) */
+  specification_markdown: z.string().nullable().optional(),
 });
 
 export type CreateInterfaceInput = z.input<typeof CreateInterfaceSchema>;

@@ -306,8 +306,8 @@ export default function TaskWorkspacePage() {
     }
   }, [task?.item_number, params.id, location.pathname, location.search]);
 
-  const { data: totalTimeHours = 0, refetch: refetchTime } = useQuery({
-    queryKey: ['task-time-entries-sum', id],
+  const { data: totalTimeHours = 0 } = useQuery({
+    queryKey: ['task-time-entries-sum', task?.id],
     queryFn: async () => {
       try {
         const isProject = task?.related_object_type === 'project';

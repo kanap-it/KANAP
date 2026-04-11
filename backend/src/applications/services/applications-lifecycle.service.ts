@@ -23,6 +23,7 @@ import { InterfaceDataResidency } from '../../interfaces/interface-data-residenc
 import { InterfaceBinding } from '../../interface-bindings/interface-binding.entity';
 import { AuditService } from '../../audit/audit.service';
 import { ApplicationsBaseService, ServiceOpts } from './applications-base.service';
+import { InterfaceMappingsService } from '../../interfaces/services';
 
 /**
  * Service for managing application lifecycle transitions and version management.
@@ -32,6 +33,7 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
   constructor(
     @InjectRepository(Application) appRepo: Repository<Application>,
     private readonly audit: AuditService,
+    private readonly interfaceMappings: InterfaceMappingsService,
   ) {
     super(appRepo);
   }
@@ -483,6 +485,18 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
         }));
         await dataResRepo.save(copiedDataRes);
       }
+
+      await this.interfaceMappings.cloneInterfaceMappings(
+        ifaceId,
+        savedCopy.id,
+        savedCopy.tenant_id,
+        null,
+        {
+          manager: mg,
+          audit: false,
+          legMapping,
+        },
+      );
 
       if (copyBindings && legMapping.size > 0) {
         const originalBindings = await bindingRepo.find({ where: { interface_id: ifaceId } as any });

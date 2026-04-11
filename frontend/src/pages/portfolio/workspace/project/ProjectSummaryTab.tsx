@@ -16,7 +16,7 @@ import { useLocale } from '../../../../i18n/useLocale';
 import IntegratedDocumentEditor, { IntegratedDocumentEditorHandle } from '../../../../components/IntegratedDocumentEditor';
 
 type SummaryTabKey = 'activity' | 'timeline' | 'effort' | 'tasks' | 'knowledge';
-type StatusColor = 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info';
+type StatusColor = 'default' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info';
 
 type ProjectSummaryTabProps = {
   canEditManagedDocs: boolean;

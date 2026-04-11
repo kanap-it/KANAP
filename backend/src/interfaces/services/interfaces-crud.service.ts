@@ -9,12 +9,15 @@ import { InterfaceCompany } from '../interface-company.entity';
 import { InterfaceDependency } from '../interface-dependency.entity';
 import { InterfaceKeyIdentifier } from '../interface-key-identifier.entity';
 import { InterfaceLink } from '../interface-link.entity';
+import { InterfaceAttachment } from '../interface-attachment.entity';
 import { InterfaceDataResidency } from '../interface-data-residency.entity';
 import { InterfaceBinding } from '../../interface-bindings/interface-binding.entity';
 import { InterfaceConnectionLink } from '../../interface-connection-links/interface-connection-link.entity';
 import { Application } from '../../applications/application.entity';
 import { AuditService } from '../../audit/audit.service';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
+import { IntegratedDocumentsService } from '../../knowledge/integrated-documents.service';
+import { InterfaceMappingsService } from './interface-mappings.service';
 import {
   InterfacesBaseService,
   ServiceOpts,
@@ -34,8 +37,20 @@ export class InterfacesCrudService extends InterfacesBaseService {
     @InjectRepository(InterfaceBinding) bindings: Repository<InterfaceBinding>,
     itOpsSettings: ItOpsSettingsService,
     private readonly audit: AuditService,
+    private readonly integratedDocuments: IntegratedDocumentsService,
+    private readonly interfaceMappings: InterfaceMappingsService,
   ) {
     super(repo, legs, middlewareApps, apps, bindings, itOpsSettings);
+  }
+
+  private buildSourceDescriptor(entity: InterfaceEntity) {
+    return {
+      id: entity.id,
+      tenant_id: entity.tenant_id,
+      item_number: null,
+      name: entity.name,
+      reference_label: entity.interface_id,
+    };
   }
 
   /**
@@ -103,10 +118,10 @@ export class InterfacesCrudService extends InterfacesBaseService {
       });
     }
     if (includeRelations || include.has('attachments')) {
-      const repoAttachment = mg.getRepository(InterfaceLink);
+      const repoAttachment = mg.getRepository(InterfaceAttachment);
       data.attachments = await repoAttachment.find({
         where: { interface_id: id } as any,
-        order: { created_at: 'DESC' as any },
+        order: { uploaded_at: 'DESC' as any },
       });
     }
 
@@ -180,6 +195,18 @@ export class InterfacesCrudService extends InterfacesBaseService {
     const saved = await repo.save(entity);
     await this.syncMiddlewareApplications(saved, body.middleware_application_ids as string[] | undefined, opts?.manager);
     await this.createDefaultLegs(saved, tenantId, opts?.manager);
+    await this.interfaceMappings.ensureDefaultSetForInterface(saved.id, saved.tenant_id, userId, {
+      manager: opts?.manager,
+      audit: false,
+    });
+    await this.integratedDocuments.provisionForInterface(
+      this.buildSourceDescriptor(saved),
+      {
+        specification: String(body?.specification_markdown || '').trim() || null,
+      },
+      userId,
+      { manager: opts?.manager },
+    );
 
     await this.audit.log(
       { table: 'interfaces', recordId: saved.id, action: 'create', before: null, after: saved, userId },
@@ -266,6 +293,15 @@ export class InterfacesCrudService extends InterfacesBaseService {
 
     existing.updated_at = new Date();
     const saved = await repo.save(existing);
+    const titleFieldsChanged = before.name !== saved.name || before.interface_id !== saved.interface_id;
+    if (titleFieldsChanged) {
+      await this.integratedDocuments.syncTitles(
+        'interfaces',
+        this.buildSourceDescriptor(saved),
+        userId,
+        { manager: opts?.manager },
+      );
+    }
     await this.audit.log(
       { table: 'interfaces', recordId: saved.id, action: 'update', before, after: saved, userId },
       { manager: opts?.manager },
@@ -299,6 +335,7 @@ export class InterfacesCrudService extends InterfacesBaseService {
       await bindingRepo.delete({ interface_id: id } as any);
     }
 
+    await this.integratedDocuments.deleteForEntity('interfaces', id, userId, { manager: mg });
     await repo.delete({ id } as any);
     await this.audit.log(
       { table: 'interfaces', recordId: id, action: 'delete', before: existing, after: null, userId },
@@ -439,6 +476,12 @@ export class InterfacesCrudService extends InterfacesBaseService {
         legMapping.set(leg.id, savedLeg.id);
       }
     }
+
+    await this.interfaceMappings.cloneInterfaceMappings(id, savedInterface.id, tenantId, userId, {
+      manager: mg,
+      audit: false,
+      legMapping,
+    });
 
     // Copy middleware applications
     if (middlewareApps.length > 0) {

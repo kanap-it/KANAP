@@ -659,6 +659,72 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
   }
 
   /**
+   * Bulk replace links for an interface.
+   */
+  async bulkReplaceLinks(
+    interfaceId: string,
+    links: Array<{ kind?: string; description?: string | null; url: string }>,
+    userId?: string | null,
+    opts?: ServiceOpts,
+  ) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const repo = mg.getRepository(InterfaceLink);
+    const existing = await repo.find({
+      where: { interface_id: interfaceId } as any,
+      order: { created_at: 'ASC' as any },
+    });
+    const beforeState = existing.map((item) => ({
+      kind: item.kind,
+      description: item.description ?? null,
+      url: item.url,
+    }));
+
+    if (existing.length > 0) {
+      await repo.delete({ id: In(existing.map((item) => item.id)) as any });
+    }
+
+    const normalized = (links || [])
+      .map((item) => ({
+        kind: String(item.kind || 'functional').trim() || 'functional',
+        description: item.description == null ? null : String(item.description).trim() || null,
+        url: String(item.url || '').trim(),
+      }))
+      .filter((item) => item.url);
+
+    let saved: InterfaceLink[] = [];
+    if (normalized.length > 0) {
+      const rows = normalized.map((item) => repo.create({
+        interface_id: interfaceId,
+        kind: item.kind,
+        description: item.description,
+        url: item.url,
+      }));
+      saved = await repo.save(rows);
+    }
+
+    const afterState = saved.map((item) => ({
+      kind: item.kind,
+      description: item.description ?? null,
+      url: item.url,
+    }));
+    if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
+      await this.audit.log(
+        {
+          table: 'interface_links',
+          recordId: interfaceId,
+          action: 'update',
+          before: beforeState,
+          after: afterState,
+          userId: userId ?? null,
+        },
+        { manager: mg },
+      );
+    }
+
+    return this.listLinks(interfaceId, { manager: mg });
+  }
+
+  /**
    * Create a link for an interface.
    */
   async createLink(
