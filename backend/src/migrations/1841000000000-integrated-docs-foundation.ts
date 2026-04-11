@@ -138,7 +138,9 @@ export class IntegratedDocsFoundation1841000000000 implements MigrationInterface
     `);
 
     for (const tenant of tenants) {
-      await seedManagedDocsKnowledgeAssets(queryRunner, tenant.id);
+      await seedManagedDocsKnowledgeAssets(queryRunner, tenant.id, {
+        supportedSourceEntityTypes: ['requests', 'projects', 'applications', 'assets'],
+      });
     }
   }
 

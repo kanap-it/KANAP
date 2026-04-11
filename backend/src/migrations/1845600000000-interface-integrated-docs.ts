@@ -32,7 +32,9 @@ export class InterfaceIntegratedDocs1845600000000 implements MigrationInterface 
     `);
 
     for (const tenant of tenants) {
-      await seedManagedDocsKnowledgeAssets(queryRunner, tenant.id);
+      await seedManagedDocsKnowledgeAssets(queryRunner, tenant.id, {
+        supportedSourceEntityTypes: ['requests', 'projects', 'interfaces', 'applications', 'assets'],
+      });
     }
   }
 

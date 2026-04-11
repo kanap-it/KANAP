@@ -4,12 +4,36 @@ import {
   MANAGED_DOCS_LIBRARY_DISPLAY_ORDER,
   MANAGED_DOCS_LIBRARY_NAME,
   MANAGED_DOCS_LIBRARY_SLUG,
+  type IntegratedDocumentSourceEntityType,
   ManagedDocsFolderSystemKey,
 } from './integrated-document.constants';
 
 type SqlExecutor = {
   query<T = any>(query: string, parameters?: any[]): Promise<T[]>;
 };
+
+export type SeedManagedDocsKnowledgeAssetsOptions = {
+  supportedSourceEntityTypes?: readonly IntegratedDocumentSourceEntityType[];
+};
+
+export function getManagedDocsSeedDefinitions(options: SeedManagedDocsKnowledgeAssetsOptions = {}) {
+  if (!options.supportedSourceEntityTypes?.length) {
+    return {
+      folderDefinitions: MANAGED_DOCS_FOLDER_DEFINITIONS,
+      slotDefinitions: INTEGRATED_DOCUMENT_SLOT_DEFINITIONS,
+    };
+  }
+
+  const supportedSourceEntityTypes = new Set(options.supportedSourceEntityTypes);
+  return {
+    folderDefinitions: MANAGED_DOCS_FOLDER_DEFINITIONS.filter((definition) =>
+      supportedSourceEntityTypes.has(definition.sourceEntityType),
+    ),
+    slotDefinitions: INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.filter((definition) =>
+      supportedSourceEntityTypes.has(definition.sourceEntityType),
+    ),
+  };
+}
 
 async function ensureLibrary(
   executor: SqlExecutor,
@@ -329,8 +353,14 @@ async function ensureTemplateDocument(
   return String(rows[0].id);
 }
 
-export async function seedManagedDocsKnowledgeAssets(executor: SqlExecutor, tenantId: string): Promise<void> {
+export async function seedManagedDocsKnowledgeAssets(
+  executor: SqlExecutor,
+  tenantId: string,
+  options: SeedManagedDocsKnowledgeAssetsOptions = {},
+): Promise<void> {
   await executor.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
+
+  const { folderDefinitions, slotDefinitions } = getManagedDocsSeedDefinitions(options);
 
   await ensureLibrary(executor, tenantId, {
     name: 'Documents',
@@ -353,7 +383,7 @@ export async function seedManagedDocsKnowledgeAssets(executor: SqlExecutor, tena
   });
 
   const folderIds = new Map<ManagedDocsFolderSystemKey, string>();
-  for (const folderDefinition of MANAGED_DOCS_FOLDER_DEFINITIONS) {
+  for (const folderDefinition of folderDefinitions) {
     const folderId = await ensureManagedFolder(executor, tenantId, {
       libraryId: managedDocsLibraryId,
       systemKey: folderDefinition.systemKey,
@@ -364,7 +394,7 @@ export async function seedManagedDocsKnowledgeAssets(executor: SqlExecutor, tena
   }
 
   const documentTypeIds = new Map<string, string>();
-  for (const [index, slotDefinition] of INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.entries()) {
+  for (const [index, slotDefinition] of slotDefinitions.entries()) {
     const documentTypeId = await ensureManagedDocumentType(executor, tenantId, {
       name: slotDefinition.documentTypeName,
       systemKey: slotDefinition.documentTypeSystemKey,
@@ -374,7 +404,7 @@ export async function seedManagedDocsKnowledgeAssets(executor: SqlExecutor, tena
     documentTypeIds.set(slotDefinition.documentTypeSystemKey, documentTypeId);
   }
 
-  for (const slotDefinition of INTEGRATED_DOCUMENT_SLOT_DEFINITIONS) {
+  for (const slotDefinition of slotDefinitions) {
     const existingSettingRows = await executor.query<{ template_document_id: string | null }>(
       `SELECT template_document_id
        FROM integrated_document_slot_settings
