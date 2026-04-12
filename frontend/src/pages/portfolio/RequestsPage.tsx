@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react';
-import { Chip, Button, Stack, Box, RadioGroup, FormControlLabel, Radio, Tooltip, Typography } from '@mui/material';
+import { Button, Stack, Box, RadioGroup, FormControlLabel, Radio, Tooltip, Typography } from '@mui/material';
 import type { EnhancedColDef } from '../../components/ServerDataGrid';
 import ServerDataGrid from '../../components/ServerDataGrid';
 import { LinkCellRenderer } from '../../components/grid/renderers';
@@ -15,6 +15,7 @@ import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilte
 import api from '../../api';
 import { useGridScopePreference } from '../../hooks/useGridScopePreference';
 import { useTranslation } from 'react-i18next';
+import { getDotColor, REQUEST_STATUS_COLORS } from '../../utils/statusColors';
 
 type RequestRow = {
   id: string;
@@ -38,19 +39,16 @@ type RequestRow = {
   updated_at: string;
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info' }> = {
-  pending_review: { label: 'Pending Review', color: 'default' },
-  candidate: { label: 'Candidate', color: 'info' },
-  approved: { label: 'Approved', color: 'primary' },
-  on_hold: { label: 'On Hold', color: 'warning' },
-  rejected: { label: 'Rejected', color: 'error' },
-  converted: { label: 'Converted', color: 'success' },
+const STATUS_LABELS: Record<string, string> = {
+  pending_review: 'Pending Review',
+  candidate: 'Candidate',
+  approved: 'Approved',
+  on_hold: 'On Hold',
+  rejected: 'Rejected',
+  converted: 'Converted',
 };
 
-const STATUS_LABEL_MAP: Record<string, string> = Object.fromEntries(
-  Object.entries(STATUS_CONFIG).map(([key, cfg]) => [key, cfg.label]),
-);
-const STATUS_ORDER = Object.keys(STATUS_CONFIG);
+const STATUS_ORDER = Object.keys(STATUS_LABELS);
 
 
 function formatDate(dateStr: string | null): string {
@@ -76,21 +74,23 @@ export default function RequestsPage() {
   const canAdmin = hasLevel('portfolio_requests', 'admin');
 
   const statusLabelMap = useMemo(() => Object.fromEntries(
-    Object.entries(STATUS_CONFIG).map(([status, config]) => [
+    Object.entries(STATUS_LABELS).map(([status, label]) => [
       status,
-      t(`statuses.request.${status}`, { defaultValue: config.label }),
+      t(`statuses.request.${status}`, { defaultValue: label }),
     ]),
   ) as Record<string, string>, [t]);
 
   const renderStatusCell = useCallback((props: any) => {
     const status = props.value as string;
-    const cfg = STATUS_CONFIG[status] || { label: status, color: 'default' as const };
+    const label = t(`statuses.request.${status}`, { defaultValue: STATUS_LABELS[status] ?? status });
     return (
-      <Chip
-        label={t(`statuses.request.${status}`, { defaultValue: cfg.label })}
-        color={cfg.color}
-        size="small"
-      />
+      <Box component="span" sx={(theme) => {
+        const color = getDotColor(REQUEST_STATUS_COLORS[status], theme.palette.mode);
+        return { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', fontWeight: 500, color, lineHeight: 1 };
+      }}>
+        <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(REQUEST_STATUS_COLORS[status], theme.palette.mode) })} />
+        {label}
+      </Box>
     );
   }, [t]);
 
@@ -298,6 +298,7 @@ export default function RequestsPage() {
       cellRenderer: clickableCellRenderer,
       valueFormatter: (p: any) => p.value ? `REQ-${p.value}` : '',
       comparator: (a: number, b: number) => (a || 0) - (b || 0),
+      cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
     },
     {
       field: 'name',

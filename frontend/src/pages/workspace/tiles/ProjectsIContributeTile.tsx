@@ -3,7 +3,6 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Chip,
   Typography,
   Box,
   Button,
@@ -14,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
 import { useTranslation } from 'react-i18next';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { getDotColor, getPillBg, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
 
 interface MyContributionProject {
   id: string;
@@ -28,16 +28,6 @@ interface ProjectsIContributeTileProps {
 }
 
 
-
-const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
-  waiting_list: 'default',
-  planned: 'info',
-  in_progress: 'primary',
-  in_testing: 'secondary',
-  on_hold: 'warning',
-  done: 'success',
-  cancelled: 'error',
-};
 
 export default function ProjectsIContributeTile({ config }: ProjectsIContributeTileProps) {
   const navigate = useNavigate();
@@ -89,25 +79,24 @@ export default function ProjectsIContributeTile({ config }: ProjectsIContributeT
                 primary={project.name}
                 secondary={
                   <Box component="span" sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                    <Chip
-                      label={project.team === 'it_team' ? t('dashboard.tiles.itTeam') : project.team === 'business_team' ? t('dashboard.tiles.businessTeam') : project.team}
-                      size="small"
-                      variant="outlined"
-                      sx={{ height: 20, fontSize: '0.7rem' }}
-                    />
-                    <Chip
-                      label={project.status.replace('_', ' ')}
-                      size="small"
-                      color={STATUS_COLORS[project.status] || 'default'}
-                      sx={{ height: 20, fontSize: '0.7rem' }}
-                    />
+                    <Typography variant="caption" color="text.disabled">
+                      {project.team === 'it_team' ? t('dashboard.tiles.itTeam') : project.team === 'business_team' ? t('dashboard.tiles.businessTeam') : project.team}
+                    </Typography>
+                    <Box component="span" sx={(theme) => {
+                      const muiColor = PROJECT_STATUS_COLORS[project.status] || 'default';
+                      const textColor = getDotColor(muiColor, theme.palette.mode);
+                      const bgColor = getPillBg(muiColor, theme.palette.mode);
+                      return { display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500, color: textColor, bgcolor: bgColor };
+                    }}>
+                      {project.status.replace('_', ' ')}
+                    </Box>
                   </Box>
                 }
                 primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
                 secondaryTypographyProps={{ component: 'div' }}
               />
               {project.my_tasks_count > 0 && (
-                <Badge badgeContent={project.my_tasks_count} color="primary" sx={{ ml: 1 }}>
+                <Badge badgeContent={project.my_tasks_count} color="default" sx={{ ml: 1 }}>
                   <TaskIcon fontSize="small" color="action" />
                 </Badge>
               )}

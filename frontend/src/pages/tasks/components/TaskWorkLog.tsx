@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   IconButton,
   Stack,
   Table,
@@ -211,12 +210,9 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
                 <TableRow key={entry.id} hover>
                   <TableCell>{formatDate(entry.logged_at)}</TableCell>
                   <TableCell>
-                    <Chip
-                      label={t(`portfolio:dialogs.logTime.categories.${entry.category}`)}
-                      size="small"
-                      color={entry.category === 'business' ? 'secondary' : 'primary'}
-                      variant="outlined"
-                    />
+                    <Typography variant="body2" color="text.secondary">
+                      {t(`portfolio:dialogs.logTime.categories.${entry.category}`)}
+                    </Typography>
                   </TableCell>
                   <TableCell>{entry.user_name || t('portfolio:workspace.task.workLog.values.unknownPerson')}</TableCell>
                   <TableCell align="right">{formatHours(entry.hours)}</TableCell>

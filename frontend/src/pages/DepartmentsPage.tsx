@@ -99,10 +99,10 @@ export default function DepartmentsPage() {
           getHref={(row) => getWorkspaceHref(row, 'details')}
           onNavigate={(href) => navigate(href)}
           linkSx={{
-            color: 'primary.main',
-            textDecoration: 'underline',
-            '&:visited': { color: 'primary.main' },
-            '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+            color: 'inherit',
+            textDecoration: 'none',
+            '&:visited': { color: 'inherit' },
+            '&:hover': { color: 'inherit' },
           }}
         />
       ),

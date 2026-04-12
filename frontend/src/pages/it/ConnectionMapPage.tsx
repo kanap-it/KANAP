@@ -802,11 +802,10 @@ export default function ConnectionMapPage() {
           </Select>
         </FormControl>
         {appServersLoading && (
-          <Chip
-            label="Loading servers..."
-            size="small"
-            icon={<CircularProgress size={14} />}
-          />
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <CircularProgress size={14} />
+            <Typography variant="caption" color="text.disabled">Loading servers...</Typography>
+          </Stack>
         )}
         <Autocomplete
           multiple
@@ -959,7 +958,7 @@ export default function ConnectionMapPage() {
           )}
           label="Role-based placement"
         />
-        {isFetching && <Chip label="Updating…" size="small" color="default" />}
+        {isFetching && <Typography variant="caption" color="text.disabled">Updating…</Typography>}
       </Stack>
     </Stack>
   );

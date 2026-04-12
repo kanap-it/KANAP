@@ -4,7 +4,6 @@ import {
   Box,
   Breadcrumbs,
   Button,
-  Chip,
   IconButton,
   Link as MLink,
   Paper,
@@ -34,6 +33,7 @@ import FolderTreePanel from './components/FolderTreePanel';
 import ValidatedBadge from './components/ValidatedBadge';
 import { CircularProgress } from '@mui/material';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { getDotColor } from '../../utils/statusColors';
 import { normalizeMarkdownForRichTextEditor } from '../../lib/markdownEditorNormalization';
 
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
@@ -1607,46 +1607,35 @@ export default function KnowledgeWorkspacePage() {
                 {showTitleMeta && (
                   <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                     {!isCreate && doc?.item_number && (
-                      <Chip
-                        label={`DOC-${doc.item_number}`}
-                        size="small"
-                        variant="outlined"
-                        sx={{ fontFamily: 'monospace' }}
+                      <Box
+                        component="span"
+                        sx={{ fontFamily: 'monospace', fontSize: '0.8125rem', color: 'text.secondary', cursor: 'pointer' }}
                         onClick={() => navigator.clipboard.writeText(`DOC-${doc.item_number}`)}
                         title={t('workspace.messages.clickToCopyReference')}
-                      />
+                      >
+                        DOC-{doc.item_number}
+                      </Box>
                     )}
                     {isManagedIntegratedDocument && (
-                      <Chip
-                        label={t('workspace.values.integrated')}
-                        size="small"
-                        color="info"
-                        variant="outlined"
-                      />
+                      <Typography variant="body2" color="text.secondary">{t('workspace.values.integrated')}</Typography>
                     )}
                     {!isCreate && isValidatedCurrentRevision && (
                       <ValidatedBadge size="small" validatedAtLabel={validatedAtLabel} />
                     )}
                     {!isCreate && (
                       <>
-                        <Chip
-                          label={currentStatusLabel}
-                          size="small"
-                          color={currentStatusColor}
-                        />
-                        <Chip
-                          label={t('workspace.values.typeLabel', { value: currentDocumentTypeLabel })}
-                          size="small"
-                          variant="outlined"
-                          title={currentDocumentTypeLabel}
-                        />
-                        <Chip
-                          label={t('workspace.values.ownerLabel', { value: currentOwnerLabel })}
-                          size="small"
-                          variant="outlined"
-                          title={currentOwnerLabel}
-                          sx={{ maxWidth: 280 }}
-                        />
+                        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(currentStatusColor, theme.palette.mode) }} />
+                          <Typography variant="body2" sx={{ color: getDotColor(currentStatusColor, theme.palette.mode), fontWeight: 500, fontSize: '0.8125rem' }}>
+                            {currentStatusLabel}
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" title={currentDocumentTypeLabel}>
+                          {t('workspace.values.typeLabel', { value: currentDocumentTypeLabel })}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" title={currentOwnerLabel} sx={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {t('workspace.values.ownerLabel', { value: currentOwnerLabel })}
+                        </Typography>
                       </>
                     )}
                   </Stack>

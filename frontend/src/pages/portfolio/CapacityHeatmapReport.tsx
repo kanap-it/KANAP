@@ -521,7 +521,7 @@ export default function CapacityHeatmapReport() {
             <Stack direction="row" alignItems="center" justifyContent="space-between">
               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t('reports.capacityHeatmap.sections.unassignedWork')}</Typography>
               <ButtonBase onClick={() => setUnassignedOpen((v) => !v)} sx={{ px: 1, py: 0.5, borderRadius: 1 }}>
-                <Typography variant="body2" color="primary">
+                <Typography variant="body2" color="text.secondary">
                   {unassignedOpen ? t('reports.capacityHeatmap.actions.hideDetails') : t('reports.capacityHeatmap.actions.showDetails')}
                 </Typography>
               </ButtonBase>

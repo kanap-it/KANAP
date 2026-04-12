@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../components/ServerDataGrid';
 import { ICellRendererParams } from 'ag-grid-community';
-import { Button, Stack, Box, Chip } from '@mui/material';
+import { Button, Stack, Box, Typography } from '@mui/material';
 import CsvExportDialog from '../components/csv/CsvExportDialog';
 import CsvImportDialog from '../components/csv/CsvImportDialog';
 import FormModal from '../components/forms/FormModal';
@@ -147,7 +147,7 @@ export default function UsersPage() {
   const ClickableCell: React.FC<ICellRendererParams<any, any>> = (params) => (
     <Box
       component="span"
-      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+      sx={{ cursor: 'pointer' }}
       onClick={() => handleEdit(params.data)}
     >
       {params.value}
@@ -156,7 +156,7 @@ export default function UsersPage() {
   const ClickableCellGeneric: React.FC<ICellRendererParams<any, any>> = (params) => (
     <Box
       component="span"
-      sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+      sx={{ cursor: 'pointer' }}
       onClick={() => handleEdit(params.data)}
     >
       {params.valueFormatted ?? params.value}
@@ -230,7 +230,7 @@ export default function UsersPage() {
         />
       )}
       {subscription && (
-        <Chip label={subscription.seat_limit != null ? t('users.seats.limited', { used: subscription.seats_used, limit: subscription.seat_limit }) : t('users.seats.unlimited', { used: subscription.seats_used })} size="small" color={subscription.seat_limit != null && subscription.seats_used >= subscription.seat_limit ? 'warning' : 'default'} />
+        <Typography variant="body2" color="text.secondary">{subscription.seat_limit != null ? t('users.seats.limited', { used: subscription.seats_used, limit: subscription.seat_limit }) : t('users.seats.unlimited', { used: subscription.seats_used })}</Typography>
       )}
     </Stack>
   );

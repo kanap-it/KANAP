@@ -929,7 +929,7 @@ export default function AssetWorkspacePage() {
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Stack direction="row" spacing={1} alignItems="center">
           <Typography variant="h6">{isCreate ? 'New Server' : data?.name || 'Server'}</Typography>
-          {isCluster && <Chip size="small" color="primary" label="Cluster" />}
+          {isCluster && <Typography variant="body2" color="text.secondary">Cluster</Typography>}
           {!isCreate && total > 0 && (
             <Typography variant="body2" color="text.secondary">
               ({index + 1} of {total})
@@ -1183,7 +1183,7 @@ export default function AssetWorkspacePage() {
                               {c.environment?.toUpperCase()} · {labelFor('lifecycleStatus', c.status) || c.status}
                             </Typography>
                           </Box>
-                          <Chip size="small" label="Cluster" />
+                          <Typography variant="body2" color="text.secondary">Cluster</Typography>
                         </Stack>
                       ))}
                     </Stack>
@@ -1519,7 +1519,7 @@ export default function AssetWorkspacePage() {
                         <TableCell>
                           <Stack direction="row" spacing={0.5} flexWrap="wrap">
                             {(conn.protocol_labels || []).map((p) => (
-                              <Chip key={p} size="small" label={p} />
+                              <Box key={p} component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{p}</Box>
                             ))}
                           </Stack>
                         </TableCell>

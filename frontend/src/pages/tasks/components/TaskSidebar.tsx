@@ -141,7 +141,7 @@ interface RelationChangeParams {
 
 interface TaskSidebarProps {
   task: TaskData;
-  onChange: (field: string, value: any) => void;
+  onPatch: (patch: Record<string, any>) => void;
   readOnly?: boolean;
   totalTimeHours?: number;
   isCreate?: boolean;
@@ -151,7 +151,7 @@ interface TaskSidebarProps {
 
 export default function TaskSidebar({
   task,
-  onChange,
+  onPatch,
   readOnly = false,
   totalTimeHours = 0,
   isCreate = false,
@@ -342,7 +342,7 @@ export default function TaskSidebar({
                         task.related_object_type === 'contract' ? `/ops/contracts/${task.related_object_id}` :
                         task.related_object_type === 'capex_item' ? `/ops/capex/${task.related_object_id}` :
                         '#'}
-                    sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                    sx={{ color: 'text.primary', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
                   >
                     {task.related_object_name || t('workspace.task.sidebar.values.unknown')}
                   </Typography>
@@ -364,7 +364,7 @@ export default function TaskSidebar({
                 <EnumAutocomplete
                   label={t('workspace.task.sidebar.fields.phase')}
                   value={task.phase_id || ''}
-                  onChange={(v) => onChange('phase_id', v || null)}
+                  onChange={(v) => onPatch({ phase_id: v || null })}
                   options={[
                     { label: t('workspace.task.sidebar.values.projectLevel'), value: '' },
                     ...phases.map((p) => ({ label: p.name, value: p.id })),
@@ -407,7 +407,7 @@ export default function TaskSidebar({
               <EnumAutocomplete
                 label={t('workspace.task.sidebar.fields.taskType')}
                 value={task.task_type_id || ''}
-                onChange={(v) => onChange('task_type_id', v || null)}
+                onChange={(v) => onPatch({ task_type_id: v || null })}
                 options={taskTypeOptions}
                 size="small"
               />
@@ -426,7 +426,7 @@ export default function TaskSidebar({
               <EnumAutocomplete
                 label={t('workspace.task.sidebar.fields.priority')}
                 value={task.priority_level}
-                onChange={(v) => onChange('priority_level', v)}
+                onChange={(v) => onPatch({ priority_level: v })}
                 options={priorityOptions}
                 size="small"
               />
@@ -450,7 +450,7 @@ export default function TaskSidebar({
                     alert(t('workspace.task.sidebar.messages.doneRequiresTimeAlert'));
                     return;
                   }
-                  onChange('status', v);
+                  onPatch({ status: v });
                 }}
                 options={statusOptions.map((opt) => ({
                   ...opt,
@@ -489,7 +489,7 @@ export default function TaskSidebar({
                     <EnumAutocomplete
                       label={t('workspace.task.sidebar.fields.source')}
                       value={task.source_id || ''}
-                      onChange={(v) => onChange('source_id', v || null)}
+                      onChange={(v) => onPatch({ source_id: v || null })}
                       options={sourceOptions}
                       size="small"
                     />
@@ -497,16 +497,17 @@ export default function TaskSidebar({
                       label={t('workspace.task.sidebar.fields.category')}
                       value={task.category_id || ''}
                       onChange={(v) => {
-                        onChange('category_id', v || null);
-                        // Clear stream if it doesn't belong to the new category
-                        if (v && task.stream_id) {
-                          const streamBelongsToCategory = streams.some(
-                            (s) => s.id === task.stream_id && s.category_id === v,
-                          );
+                        const nextCategoryId = v || null;
+                        const nextPatch: Record<string, any> = { category_id: nextCategoryId };
+                        if (task.stream_id) {
+                          const streamBelongsToCategory = nextCategoryId
+                            ? streams.some((s) => s.id === task.stream_id && s.category_id === nextCategoryId)
+                            : false;
                           if (!streamBelongsToCategory) {
-                            onChange('stream_id', null);
+                            nextPatch.stream_id = null;
                           }
                         }
+                        onPatch(nextPatch);
                       }}
                       options={categoryOptions}
                       size="small"
@@ -514,7 +515,7 @@ export default function TaskSidebar({
                     <EnumAutocomplete
                       label={t('workspace.task.sidebar.fields.stream')}
                       value={task.stream_id || ''}
-                      onChange={(v) => onChange('stream_id', v || null)}
+                      onChange={(v) => onPatch({ stream_id: v || null })}
                       options={streamOptions}
                       size="small"
                       disabled={!task.category_id}
@@ -522,7 +523,7 @@ export default function TaskSidebar({
                     <CompanySelect
                       label={t('workspace.task.sidebar.fields.company')}
                       value={task.company_id || null}
-                      onChange={(v) => onChange('company_id', v)}
+                      onChange={(v) => onPatch({ company_id: v })}
                       size="small"
                     />
                   </>
@@ -652,21 +653,21 @@ export default function TaskSidebar({
             <UserSelect
               label={t('workspace.task.sidebar.fields.requestor')}
               value={task.creator_id}
-              onChange={(v) => onChange('creator_id', v)}
+              onChange={(v) => onPatch({ creator_id: v })}
               disabled={readOnly}
               size="small"
             />
             <UserSelect
               label={t('workspace.task.sidebar.fields.assignee')}
               value={task.assignee_user_id}
-              onChange={(v) => onChange('assignee_user_id', v)}
+              onChange={(v) => onPatch({ assignee_user_id: v })}
               disabled={readOnly}
               size="small"
             />
             <UserMultiSelect
               label={t('workspace.task.sidebar.fields.viewers')}
               value={task.viewer_ids || []}
-              onChange={(v) => onChange('viewer_ids', v)}
+              onChange={(v) => onPatch({ viewer_ids: v })}
               disabled={readOnly}
               size="small"
             />
@@ -694,14 +695,14 @@ export default function TaskSidebar({
             <DateEUField
               label={t('workspace.task.sidebar.fields.startDate')}
               valueYmd={task.start_date || ''}
-              onChangeYmd={(v) => onChange('start_date', v || null)}
+              onChangeYmd={(v) => onPatch({ start_date: v || null })}
               disabled={readOnly}
               size="small"
             />
             <DateEUField
               label={t('workspace.task.sidebar.fields.dueDate')}
               valueYmd={task.due_date || ''}
-              onChangeYmd={(v) => onChange('due_date', v || null)}
+              onChangeYmd={(v) => onPatch({ due_date: v || null })}
               disabled={readOnly}
               size="small"
             />

@@ -7,7 +7,6 @@ import {
   Button,
   ButtonGroup,
   CircularProgress,
-  Chip,
   Divider,
   Dialog,
   DialogActions,
@@ -28,6 +27,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
@@ -52,6 +52,7 @@ import KnowledgeMoveDialog from './components/KnowledgeMoveDialog';
 import ValidatedBadge from './components/ValidatedBadge';
 import KnowledgeTypesManager from './components/KnowledgeTypesManager';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { getDotColor } from '../../utils/statusColors';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
@@ -151,13 +152,16 @@ type DraggedFolderState = FolderTreeDraggedFolderState & {
 function StatusCellRenderer(props: any) {
   const status = props.value;
   const { t } = useTranslation(['knowledge']);
+  const mode = useTheme().palette.mode;
+  const colorKey = STATUS_COLORS[status] || 'default';
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ height: '100%' }}>
-      <Chip
-        label={t(`knowledge:statuses.${status}`, { defaultValue: STATUS_LABELS[status] || status })}
-        color={STATUS_COLORS[status] || 'default'}
-        size="small"
-      />
+      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(colorKey, mode) }} />
+        <Typography variant="body2" sx={{ color: getDotColor(colorKey, mode), fontWeight: 500, fontSize: '0.8125rem' }}>
+          {t(`knowledge:statuses.${status}`, { defaultValue: STATUS_LABELS[status] || status })}
+        </Typography>
+      </Box>
       {props.data?.is_validated_current_revision && (
         <ValidatedBadge size="small" iconOnly />
       )}
@@ -1252,7 +1256,7 @@ export default function KnowledgePage() {
                           ml: 0.5,
                           opacity: 0,
                           transition: 'opacity 0.15s',
-                          '&:hover': { color: 'primary.main' },
+                          '&:hover': { color: 'text.primary' },
                         }}
                       >
                         <EditIcon sx={{ fontSize: 14 }} />

@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Chip,
   List,
   ListItemButton,
   ListItemText,
@@ -13,6 +12,7 @@ import api from '../../../api';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../../i18n/useLocale';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { getDotColor, getPillBg, TASK_STATUS_COLORS } from '../../../utils/statusColors';
 
 interface StaleTaskItem {
   id: string;
@@ -30,15 +30,6 @@ interface StaleTaskItem {
 interface StaleTasksTileProps {
   config: Record<string, unknown>;
 }
-
-const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
-  open: 'default',
-  in_progress: 'primary',
-  pending: 'warning',
-  in_testing: 'secondary',
-  done: 'success',
-  cancelled: 'error',
-};
 
 function formatDate(dateStr: string, loc?: string): string {
   return new Date(dateStr).toLocaleDateString(loc || 'en-US', { month: 'short', day: 'numeric' });
@@ -94,19 +85,22 @@ export default function StaleTasksTile({ config }: StaleTasksTileProps) {
                 secondary={(
                   <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <Chip
-                        label={t('dashboard.tiles.daysStale', { count: item.staleDays })}
-                        size="small"
-                        color={item.staleDays >= thresholdDays * 2 ? 'error' : 'warning'}
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
-                      <Chip
-                        label={item.status.replace(/_/g, ' ')}
-                        size="small"
-                        color={STATUS_COLORS[item.status] || 'default'}
-                        variant="outlined"
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
+                      <Box component="span" sx={(theme) => {
+                        const muiColor = item.staleDays >= thresholdDays * 2 ? 'error' : 'warning';
+                        const textColor = getDotColor(muiColor, theme.palette.mode);
+                        const bgColor = getPillBg(muiColor, theme.palette.mode);
+                        return { display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500, color: textColor, bgcolor: bgColor };
+                      }}>
+                        {t('dashboard.tiles.daysStale', { count: item.staleDays })}
+                      </Box>
+                      <Box component="span" sx={(theme) => {
+                        const muiColor = TASK_STATUS_COLORS[item.status] || 'default';
+                        const textColor = getDotColor(muiColor, theme.palette.mode);
+                        const bgColor = getPillBg(muiColor, theme.palette.mode);
+                        return { display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500, color: textColor, bgcolor: bgColor };
+                      }}>
+                        {item.status.replace(/_/g, ' ')}
+                      </Box>
                     </Box>
                     <Typography variant="caption" color="text.secondary">
                       {item.relatedObjectName || t('dashboard.tiles.standaloneTask')} {String.fromCharCode(8226)} {t('dashboard.tiles.updated', { date: formatDate(item.updatedAt, locale) })}

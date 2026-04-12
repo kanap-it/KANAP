@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Button, Chip, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell,
+  Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell,
   TableHead, TableRow, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -16,6 +16,7 @@ import { useLocale } from '../i18n/useLocale';
 import { TASK_STATUS_COLORS, TASK_STATUS_LABELS } from '../pages/tasks/task.constants';
 import type { TaskStatus } from '../pages/tasks/task.constants';
 import { getApiErrorMessage } from '../utils/apiErrorMessage';
+import { getDotColor, PRIORITY_COLORS } from '../utils/statusColors';
 
 type Task = {
   id: string;
@@ -40,14 +41,6 @@ type Props = {
 
 const STATUS_LABELS = TASK_STATUS_LABELS as Record<string, string>;
 const STATUS_COLORS = TASK_STATUS_COLORS as Record<string, 'default' | 'warning' | 'info' | 'secondary' | 'success' | 'error'>;
-
-const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' | 'success'> = {
-  blocker: 'error',
-  high: 'warning',
-  normal: 'default',
-  low: 'info',
-  optional: 'success',
-};
 
 const PRIORITY_LABELS: Record<string, string> = {
   blocker: 'Blocker',
@@ -294,7 +287,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                     onClick={() => navigate(buildTaskWorkspacePath(task.id))}
                     sx={{
                       cursor: 'pointer',
-                      color: 'primary.main',
+                      color: 'text.primary',
                       textDecoration: 'none',
                       '&:hover': { textDecoration: 'underline' },
                     }}
@@ -303,19 +296,24 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    label={t(`portfolio:statuses.task.${task.status}`, { defaultValue: STATUS_LABELS[task.status] || task.status })}
-                    color={STATUS_COLORS[task.status] || 'default'}
-                    size="small"
-                  />
+                  {(() => {
+                    const colorKey = STATUS_COLORS[task.status] || 'default';
+                    return (
+                      <Box component="span" sx={(theme) => ({
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        fontSize: '0.8125rem', fontWeight: 500,
+                        color: getDotColor(colorKey, theme.palette.mode),
+                      })}>
+                        <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(colorKey, theme.palette.mode) })} />
+                        {t(`portfolio:statuses.task.${task.status}`, { defaultValue: STATUS_LABELS[task.status] || task.status })}
+                      </Box>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    label={t(`portfolio:priority.${task.priority_level}`, { defaultValue: PRIORITY_LABELS[task.priority_level] || task.priority_level })}
-                    color={PRIORITY_COLORS[task.priority_level] || 'default'}
-                    size="small"
-                    variant="outlined"
-                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {t(`portfolio:priority.${task.priority_level}`, { defaultValue: PRIORITY_LABELS[task.priority_level] || task.priority_level })}
+                  </Typography>
                 </TableCell>
                 {isProject && (
                   <TableCell>

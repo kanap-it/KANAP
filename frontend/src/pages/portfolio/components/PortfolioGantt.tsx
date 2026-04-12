@@ -808,7 +808,7 @@ export function PortfolioGantt({
           top: 0,
           bottom: 0,
           width: '2px',
-          backgroundColor: '#1976d2',
+          backgroundColor: 'error.main',
           zIndex: 8,
           pointerEvents: 'none',
         },

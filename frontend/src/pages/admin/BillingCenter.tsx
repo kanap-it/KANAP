@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Grid,
   Stack,
@@ -14,6 +13,8 @@ import {
   Typography,
 } from '@mui/material';
 import type { ChipProps } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { getDotColor } from '../../utils/statusColors';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
@@ -255,6 +256,7 @@ export default function BillingCenter() {
   const { subscription, claims } = useAuth();
   const { t } = useTranslation(['admin', 'common']);
   const locale = useLocale();
+  const { mode } = useTheme().palette;
   const [portalError, setPortalError] = React.useState<string | null>(null);
   const [planDialogOpen, setPlanDialogOpen] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -475,7 +477,10 @@ export default function BillingCenter() {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <SummaryItem label={t('billing.subscription.labels.status')}>
-                    <Chip label={statusMeta.label} color={statusMeta.color} size="small" sx={{ textTransform: 'capitalize' }} />
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(statusMeta.color ?? 'default', mode) }} />
+                      <Typography variant="body2" sx={{ color: getDotColor(statusMeta.color ?? 'default', mode), fontWeight: 500, fontSize: '0.8125rem', textTransform: 'capitalize' }}>{statusMeta.label}</Typography>
+                    </Box>
                   </SummaryItem>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
@@ -584,7 +589,10 @@ export default function BillingCenter() {
                           {invoice.createdAt ? formatDate(locale, invoice.createdAt) : '—'}
                         </Typography>
                       </Box>
-                      <Chip label={statusMeta.label} color={statusMeta.color} size="small" sx={{ textTransform: 'capitalize' }} />
+                      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(statusMeta.color ?? 'default', mode) }} />
+                        <Typography variant="body2" sx={{ color: getDotColor(statusMeta.color ?? 'default', mode), fontWeight: 500, fontSize: '0.8125rem', textTransform: 'capitalize' }}>{statusMeta.label}</Typography>
+                      </Box>
                       <Box sx={{ flexGrow: 1 }}>
                         <Typography>{formatMoney(locale, invoice.total, invoice.currency)}</Typography>
                       </Box>

@@ -1,10 +1,11 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
-import { Box, Button, Chip, Link, Stack } from '@mui/material';
+import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
 import { ICellRendererParams } from 'ag-grid-community';
 import { LinkCellRenderer } from '../../components/grid/renderers';
+import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
@@ -61,6 +62,7 @@ const ENV_ORDER = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox'];
 
 export default function AssetsPage() {
   const { t } = useTranslation(['it', 'common']);
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { hasLevel } = useAuth();
@@ -204,6 +206,26 @@ export default function AssetsPage() {
     return Cell;
   }, [getAssetHref, navigate]);
 
+  const EnvironmentCell = useMemo(() => {
+    const mode = theme.palette.mode;
+    const Cell: React.FC<ICellRendererParams<AssetRow, any>> = (params) => {
+      const env = params.data?.environment;
+      if (!env) return null;
+      const href = getAssetHref(params.data as AssetRow);
+      return (
+        <Link
+          href={href}
+          onClick={(event) => handleInternalNavigate(event, href)}
+          sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', textDecoration: 'none', color: 'text.primary', '&:hover': { textDecoration: 'none' } }}
+        >
+          <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getEnvDotColor(env, mode), flexShrink: 0 }} />
+          {envLabel(env)}
+        </Link>
+      );
+    };
+    return Cell;
+  }, [getAssetHref, handleInternalNavigate, theme.palette.mode]);
+
   const ClusterCell = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<AssetRow, any>> = (params) => {
       const id = params.data?.id;
@@ -216,12 +238,12 @@ export default function AssetsPage() {
         <Link
           href={href}
           onClick={(event) => handleInternalNavigate(event, href)}
-          sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+          sx={{ cursor: 'pointer' }}
           underline="none"
           color="inherit"
         >
           {isCluster ? (
-            <Chip size="small" label="Cluster" color="primary" variant="outlined" sx={{ height: 22 }} />
+            <Typography variant="body2" color="text.secondary">Cluster</Typography>
           ) : value ? (
             value
           ) : (
@@ -272,7 +294,7 @@ export default function AssetsPage() {
         searchable: false,
       },
       valueFormatter: (p) => envLabel(p.value),
-      cellRenderer: ClickToWorkspace,
+      cellRenderer: EnvironmentCell,
     },
     {
       headerName: t('pages.assets.columns.location'),
@@ -375,7 +397,7 @@ export default function AssetsPage() {
       cellRenderer: ClickToWorkspace,
     },
     { headerName: t('pages.assets.columns.created'), field: 'created_at', width: 180, cellRenderer: ClickToWorkspace },
-  ], [ClickToWorkspace, ClusterCell, getAssetFilterValues, labelFor, lifecycleLabel]);
+  ], [ClickToWorkspace, ClusterCell, EnvironmentCell, getAssetFilterValues, labelFor, lifecycleLabel]);
 
   const actions = (
     <Stack direction="row" spacing={1}>

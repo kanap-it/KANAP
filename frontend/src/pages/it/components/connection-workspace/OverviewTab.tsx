@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Autocomplete,
-  Chip,
   CircularProgress,
   Stack,
   TextField,
@@ -466,7 +465,9 @@ export default function OverviewTab({
               {data.protocol_codes
                 .map((code) => ({ code, ports: protocolPortMap.get(code) || '' }))
                 .map(({ code, ports }) => (
-                  <Chip key={code} label={`${code}${ports ? `: ${ports}` : ''}`} />
+                  <Typography key={code} component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace", fontSize: '12px', color: 'text.secondary' }}>
+                    {`${code}${ports ? `: ${ports}` : ''}`}
+                  </Typography>
                 ))}
             </Stack>
           </Stack>

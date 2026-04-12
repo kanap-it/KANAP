@@ -7,7 +7,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  Chip,
   Divider,
   IconButton,
   MenuItem,
@@ -18,6 +17,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -25,6 +25,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SaveIcon from '@mui/icons-material/Save';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../../i18n/useLocale';
+import { getDotColor } from '../../../utils/statusColors';
 
 const STATUS_OPTIONS = [
   { value: 'draft' },
@@ -216,6 +217,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
 }: KnowledgeSidebarProps) {
   const { t } = useTranslation(['knowledge', 'common']);
   const locale = useLocale();
+  const mode = useTheme().palette.mode;
   const [activeTab, setActiveTab] = React.useState<'properties' | 'comments'>('properties');
   const [expanded, setExpanded] = React.useState<string[]>([]);
   const [workflowComment, setWorkflowComment] = React.useState('');
@@ -594,11 +596,11 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     <Stack spacing={0.75}>
                       {(doc?.contributors || []).map((row: any) => (
                         <Box key={row.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                          <Chip label={contributorRoleLabel[row.role] || row.role} size="small" variant="outlined" />
+                          <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{contributorRoleLabel[row.role] || row.role}</Box>
                           <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {row.user_name || row.user_id}
                           </Typography>
-                          {row.is_primary && <Chip label={t('sidebar.contributors.primary')} size="small" color="primary" />}
+                          {row.is_primary && <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{t('sidebar.contributors.primary')}</Box>}
                         </Box>
                       ))}
                     </Stack>
@@ -692,17 +694,16 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                 <Stack spacing={1}>
                   {workflowActive ? (
                     <>
-                      <Stack direction="row" spacing={0.75} flexWrap="wrap">
-                        <Chip
-                          size="small"
-                          color="warning"
-                          label={currentStage === 'approver' ? t('sidebar.workflow.values.awaitingApproval') : t('sidebar.workflow.values.awaitingReview')}
-                        />
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label={t('sidebar.workflow.values.revision', { count: workflow?.requested_revision || form.revision || 1 })}
-                        />
+                      <Stack direction="row" spacing={0.75} flexWrap="wrap" alignItems="center">
+                        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+                          <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>
+                            {currentStage === 'approver' ? t('sidebar.workflow.values.awaitingApproval') : t('sidebar.workflow.values.awaitingReview')}
+                          </Typography>
+                        </Box>
+                        <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
+                          {t('sidebar.workflow.values.revision', { count: workflow?.requested_revision || form.revision || 1 })}
+                        </Box>
                       </Stack>
                       <Typography variant="body2">
                         {t('sidebar.workflow.requestedBy', { user: workflow?.requested_by_name || t('shared.unknown') })}
@@ -722,22 +723,31 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                                 total: reviewerParticipants.length,
                               })}
                             </Typography>
-                            <Chip
-                              size="small"
-                              color={reviewerStageState === 'active' ? 'warning' : reviewerStageState === 'completed' ? 'success' : 'default'}
-                              variant={reviewerStageState === 'completed' ? 'filled' : 'outlined'}
-                              label={reviewerStageState === 'active' ? t('sidebar.workflow.values.active') : reviewerStageState === 'completed' ? t('sidebar.workflow.values.completed') : t('sidebar.workflow.values.pending')}
-                            />
+                            {(() => {
+                              const _c = reviewerStageState === 'active' ? 'warning' : reviewerStageState === 'completed' ? 'success' : 'default';
+                              const _l = reviewerStageState === 'active' ? t('sidebar.workflow.values.active') : reviewerStageState === 'completed' ? t('sidebar.workflow.values.completed') : t('sidebar.workflow.values.pending');
+                              return (
+                                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(_c, mode) }} />
+                                  <Typography variant="body2" sx={{ color: getDotColor(_c, mode), fontWeight: 500, fontSize: '0.8125rem' }}>{_l}</Typography>
+                                </Box>
+                              );
+                            })()}
                           </Stack>
                           {reviewerParticipants.map((row: any) => (
                             <Box key={row.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
                               <Typography variant="body2" sx={{ flex: 1 }}>{row.user_name || row.user_id}</Typography>
-                              <Chip
-                                size="small"
-                              color={row.decision === 'approved' ? 'success' : row.decision === 'changes_requested' ? 'error' : 'default'}
-                                label={row.decision === 'approved' ? t('sidebar.workflow.values.approved') : row.decision === 'changes_requested' ? t('sidebar.workflow.values.changesRequested') : t('sidebar.workflow.values.pending')}
-                              />
-                              {row.user_id === currentUserId && <Chip size="small" variant="outlined" label={t('sidebar.workflow.values.you')} />}
+                              {(() => {
+                                const _c = row.decision === 'approved' ? 'success' : row.decision === 'changes_requested' ? 'error' : 'default';
+                                const _l = row.decision === 'approved' ? t('sidebar.workflow.values.approved') : row.decision === 'changes_requested' ? t('sidebar.workflow.values.changesRequested') : t('sidebar.workflow.values.pending');
+                                return (
+                                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(_c, mode) }} />
+                                    <Typography variant="body2" sx={{ color: getDotColor(_c, mode), fontWeight: 500, fontSize: '0.8125rem' }}>{_l}</Typography>
+                                  </Box>
+                                );
+                              })()}
+                              {row.user_id === currentUserId && <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{t('sidebar.workflow.values.you')}</Box>}
                               {!!row.comment && (
                                 <Typography variant="caption" color="text.secondary" sx={{ width: '100%' }}>
                                   {row.comment}
@@ -756,30 +766,37 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                                 total: approverParticipants.length,
                               })}
                             </Typography>
-                            <Chip
-                              size="small"
-                              color={approverStageState === 'active' ? 'warning' : approverStageState === 'completed' ? 'success' : 'default'}
-                              variant={approverStageState === 'completed' ? 'filled' : 'outlined'}
-                              label={approverStageState === 'active' ? t('sidebar.workflow.values.active') : approverStageState === 'completed' ? t('sidebar.workflow.values.completed') : approverStageState === 'waiting' ? t('sidebar.workflow.values.waiting') : t('sidebar.workflow.values.pending')}
-                            />
+                            {(() => {
+                              const _c = approverStageState === 'active' ? 'warning' : approverStageState === 'completed' ? 'success' : 'default';
+                              const _l = approverStageState === 'active' ? t('sidebar.workflow.values.active') : approverStageState === 'completed' ? t('sidebar.workflow.values.completed') : approverStageState === 'waiting' ? t('sidebar.workflow.values.waiting') : t('sidebar.workflow.values.pending');
+                              return (
+                                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(_c, mode) }} />
+                                  <Typography variant="body2" sx={{ color: getDotColor(_c, mode), fontWeight: 500, fontSize: '0.8125rem' }}>{_l}</Typography>
+                                </Box>
+                              );
+                            })()}
                           </Stack>
                           {approverParticipants.map((row: any) => (
                             <Box key={row.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
                               <Typography variant="body2" sx={{ flex: 1 }}>{row.user_name || row.user_id}</Typography>
-                              <Chip
-                                size="small"
-                                color={row.decision === 'approved' ? 'success' : row.decision === 'changes_requested' ? 'error' : 'default'}
-                                label={
-                                  row.decision === 'approved'
-                                    ? t('sidebar.workflow.values.approved')
-                                    : row.decision === 'changes_requested'
-                                      ? t('sidebar.workflow.values.changesRequested')
-                                      : currentStage === 'reviewer'
-                                        ? t('sidebar.workflow.values.waiting')
-                                        : t('sidebar.workflow.values.pending')
-                                }
-                              />
-                              {row.user_id === currentUserId && <Chip size="small" variant="outlined" label={t('sidebar.workflow.values.you')} />}
+                              {(() => {
+                                const _c = row.decision === 'approved' ? 'success' : row.decision === 'changes_requested' ? 'error' : 'default';
+                                const _l = row.decision === 'approved'
+                                  ? t('sidebar.workflow.values.approved')
+                                  : row.decision === 'changes_requested'
+                                    ? t('sidebar.workflow.values.changesRequested')
+                                    : currentStage === 'reviewer'
+                                      ? t('sidebar.workflow.values.waiting')
+                                      : t('sidebar.workflow.values.pending');
+                                return (
+                                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(_c, mode) }} />
+                                    <Typography variant="body2" sx={{ color: getDotColor(_c, mode), fontWeight: 500, fontSize: '0.8125rem' }}>{_l}</Typography>
+                                  </Box>
+                                );
+                              })()}
+                              {row.user_id === currentUserId && <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{t('sidebar.workflow.values.you')}</Box>}
                               {!!row.comment && (
                                 <Typography variant="caption" color="text.secondary" sx={{ width: '100%' }}>
                                   {row.comment}
@@ -913,7 +930,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   ) : (
                     <Stack spacing={0.75}>
                       {readOnlyClassifications.map((row: { key: string; label: string }) => (
-                        <Chip key={row.key} label={row.label} size="small" variant="outlined" />
+                        <Typography key={row.key} variant="body2" color="text.secondary">{row.label}</Typography>
                       ))}
                     </Stack>
                   )
@@ -1031,7 +1048,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                           </Typography>
                           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
                             {group.items.map((item) => (
-                              <Chip key={`${group.key}:${item.id}`} label={item.label} size="small" variant="outlined" />
+                              <Typography key={`${group.key}:${item.id}`} variant="body2" color="text.secondary">{item.label}</Typography>
                             ))}
                           </Stack>
                         </Stack>

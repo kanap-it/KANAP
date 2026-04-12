@@ -2,7 +2,6 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
-  Chip,
   Stack,
   Typography,
 } from '@mui/material';
@@ -179,16 +178,13 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
           }}
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Chip
-              label={activity.type === 'comment'
+            <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
+              {activity.type === 'comment'
                 ? t('activity.labels.comment')
                 : activity.type === 'change'
                 ? t('activity.labels.change')
                 : t('activity.labels.decision')}
-              size="small"
-              variant="outlined"
-              sx={{ fontSize: '0.7rem' }}
-            />
+            </Box>
             <Typography variant="body2" sx={{ fontWeight: 500 }}>
               {getActivityDescription(activity)}
             </Typography>

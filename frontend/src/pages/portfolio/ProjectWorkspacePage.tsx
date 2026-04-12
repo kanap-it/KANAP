@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Alert, Box, Button, Chip, IconButton, LinearProgress, Stack, Typography,
+  Alert, Box, Button, IconButton, LinearProgress, Stack, Typography, useTheme,
 } from '@mui/material';
 import ShareIcon from '@mui/icons-material/Share';
 import CloseIcon from '@mui/icons-material/Close';
@@ -18,6 +18,7 @@ import { type EffortAllocationData } from './components/EffortAllocationTable';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
 import { formatItemRef } from '../../utils/item-ref';
+import { getDotColor, PROJECT_STATUS_COLORS } from '../../utils/statusColors';
 import ShareDialog from '../../components/ShareDialog';
 import { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
 import PortfolioWorkspaceShell from './workspace/PortfolioWorkspaceShell';
@@ -65,16 +66,6 @@ interface ClassificationStream {
   is_active: boolean;
 }
 
-const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info'> = {
-  waiting_list: 'default',
-  planned: 'info',
-  in_progress: 'primary',
-  in_testing: 'secondary',
-  on_hold: 'warning',
-  done: 'success',
-  cancelled: 'error',
-};
-
 const ProjectTimelineTab = React.lazy(() => import('./workspace/project/ProjectTimelineTab'));
 const ProjectScoringTab = React.lazy(() => import('./workspace/project/ProjectScoringTab'));
 const ProjectEffortTab = React.lazy(() => import('./workspace/project/ProjectEffortTab'));
@@ -84,6 +75,7 @@ const ProjectKnowledgeTab = React.lazy(() => import('./workspace/project/Project
 
 export default function ProjectWorkspacePage() {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -630,7 +622,7 @@ export default function ProjectWorkspacePage() {
   }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab, t]);
 
   const statusLabel = form?.status ? getProjectStatusLabel(t, form.status) : '';
-  const statusColor = STATUS_COLORS[form?.status] || 'default';
+  const statusColor = (PROJECT_STATUS_COLORS[form?.status] || 'default') as 'default' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info';
   const originLabel = originLabels[form?.origin] || form?.origin || '';
   const showRefreshState = !isCreate && !!data && isFetching;
 
@@ -684,14 +676,15 @@ export default function ProjectWorkspacePage() {
             <Stack spacing={0.5} sx={{ minWidth: 0 }}>
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 {data?.item_number && (
-                  <Chip
-                    label={`PRJ-${data.item_number}`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontFamily: 'monospace' }}
+                  <Typography
+                    component="span"
+                    variant="body2"
+                    sx={{ fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', monospace", color: 'text.secondary', cursor: 'pointer' }}
                     onClick={() => navigator.clipboard.writeText(`PRJ-${data.item_number}`)}
                     title={t('portfolio:workspace.project.actions.copyReference')}
-                  />
+                  >
+                    PRJ-{data.item_number}
+                  </Typography>
                 )}
                 <Typography variant="h6" sx={{ minWidth: 0 }}>
                   {isCreate ? t('portfolio:workspace.project.title.new') : (form?.name || t('portfolio:workspace.project.title.fallback'))}
@@ -700,13 +693,16 @@ export default function ProjectWorkspacePage() {
               {!isCreate && (
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                   {form?.status && (
-                    <Chip label={statusLabel} color={statusColor} size="small" />
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', fontWeight: 500, color: getDotColor(statusColor, theme.palette.mode), lineHeight: 1 }}>
+                      <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(statusColor, theme.palette.mode) }} />
+                      {statusLabel}
+                    </Box>
                   )}
                   {form?.origin && (
-                    <Chip
-                      label={originLabel}
-                      size="small"
-                      variant="outlined"
+                    <Typography
+                      component="span"
+                      variant="body2"
+                      color="text.secondary"
                       onClick={
                         form.origin === 'standard' && form.source_requests?.[0]
                           ? () => navigate(`/portfolio/requests/${form.source_requests[0].id}/summary`)
@@ -714,7 +710,7 @@ export default function ProjectWorkspacePage() {
                       }
                       sx={
                         form.origin === 'standard' && form.source_requests?.[0]
-                          ? { cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }
+                          ? { cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }
                           : undefined
                       }
                       title={
@@ -722,7 +718,9 @@ export default function ProjectWorkspacePage() {
                           ? t('portfolio:workspace.project.origin.viewSourceRequest', { name: form.source_requests[0].name })
                           : undefined
                       }
-                    />
+                    >
+                      {originLabel}
+                    </Typography>
                   )}
                   {form?.execution_progress != null && (
                     <Stack direction="row" alignItems="center" spacing={1}>
@@ -747,11 +745,9 @@ export default function ProjectWorkspacePage() {
         headerActions={(
           <>
             {!isCreate && showRefreshState && (
-              <Chip
-                label={isPlaceholderData ? t('portfolio:workspace.project.messages.loadingTabData') : t('portfolio:workspace.project.messages.refreshing')}
-                size="small"
-                variant="outlined"
-              />
+              <Typography variant="body2" color="text.secondary">
+                {isPlaceholderData ? t('portfolio:workspace.project.messages.loadingTabData') : t('portfolio:workspace.project.messages.refreshing')}
+              </Typography>
             )}
             {!isCreate && (
               <Button
@@ -852,7 +848,7 @@ export default function ProjectWorkspacePage() {
             onPurposeDirtyChange={setPurposeDirty}
             onPurposeDraftChange={(value) => updateManagedDocDraft({ purpose: value })}
             purposeEditorRef={purposeEditorRef}
-            statusColor={statusColor}
+            statusColor={statusColor as 'default' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info'}
             statusLabel={statusLabel}
           />
         )}

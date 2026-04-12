@@ -151,7 +151,6 @@ export default forwardRef<DepartmentCreateEditorHandle, Props>(function Departme
         helperText={err.name?.message as string}
         InputLabelProps={{ shrink: true }}
         inputProps={{ autoComplete: 'off', spellCheck: 'false' as any }}
-        variant="outlined"
       />
       <Controller
         control={control}

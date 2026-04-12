@@ -2,8 +2,8 @@ import React from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
-  IconButton, LinearProgress, Snackbar, Stack, Typography,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
+  IconButton, LinearProgress, Snackbar, Stack, Typography, useTheme,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -31,6 +31,7 @@ import WorkspaceTabLoadingFallback from './workspace/WorkspaceTabLoadingFallback
 import { getRequestWorkspaceInclude } from './workspace/workspace-detail-includes';
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { getDotColor, REQUEST_STATUS_COLORS } from '../../utils/statusColors';
 import {
   getDecisionOutcomeLabel,
   getRequestStatusLabel,
@@ -70,15 +71,6 @@ interface ClassificationStream {
   is_active: boolean;
 }
 
-const STATUS_COLORS: Record<string, 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info'> = {
-  pending_review: 'default',
-  candidate: 'info',
-  approved: 'primary',
-  on_hold: 'warning',
-  rejected: 'error',
-  converted: 'success',
-};
-
 const ANALYSIS_RECOMMENDATION_CONTEXT = 'analysis recommendation';
 
 const DECISION_OUTCOME_COLORS: Record<string, 'default' | 'success' | 'error' | 'warning' | 'info'> = {
@@ -97,6 +89,7 @@ const RequestKnowledgeTab = React.lazy(() => import('./workspace/request/Request
 export default function RequestWorkspacePage() {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const locale = useLocale();
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -640,7 +633,7 @@ export default function RequestWorkspacePage() {
   }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab, t]);
 
   const statusLabel = form?.status ? getRequestStatusLabel(t, form.status) : '';
-  const statusColor = STATUS_COLORS[form?.status] || 'default';
+  const statusColor = (REQUEST_STATUS_COLORS[form?.status] || 'default') as 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info';
   const categoryName = classificationData?.categories?.find((c) => c.id === form?.category_id)?.name;
   const streamName = classificationData?.streams?.find((s) => s.id === form?.stream_id)?.name;
   const analysisRecommendations = React.useMemo(() => {
@@ -732,14 +725,15 @@ export default function RequestWorkspacePage() {
             <Stack spacing={0.5} sx={{ minWidth: 0 }}>
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 {data?.item_number && (
-                  <Chip
-                    label={`REQ-${data.item_number}`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontFamily: 'monospace' }}
+                  <Typography
+                    variant="body2"
+                    component="span"
+                    sx={{ fontFamily: 'monospace', color: 'text.secondary', cursor: 'pointer', '&:hover': { color: 'text.primary' } }}
                     onClick={() => navigator.clipboard.writeText(`REQ-${data.item_number}`)}
                     title={t('portfolio:workspace.request.actions.copyReference')}
-                  />
+                  >
+                    {`REQ-${data.item_number}`}
+                  </Typography>
                 )}
                 <Typography variant="h6" sx={{ minWidth: 0 }}>
                   {isCreate ? t('portfolio:workspace.request.title.new') : (form?.name || t('portfolio:workspace.request.title.fallback'))}
@@ -748,21 +742,23 @@ export default function RequestWorkspacePage() {
               {!isCreate && (
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                   {form?.status && (
-                    <Chip label={statusLabel} color={statusColor} size="small" />
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', fontWeight: 500, color: getDotColor(statusColor, theme.palette.mode), lineHeight: 1 }}>
+                      <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(statusColor, theme.palette.mode) }} />
+                      {statusLabel}
+                    </Box>
                   )}
                   {form?.origin_task?.id && (
-                    <Chip
-                      label={
-                        form.origin_task.item_number
-                          ? t('portfolio:workspace.request.originTask.withReference', { ref: `T-${form.origin_task.item_number}` })
-                          : t('portfolio:workspace.request.originTask.fallback')
-                      }
-                      size="small"
-                      variant="outlined"
+                    <Typography
+                      variant="body2"
+                      component="span"
+                      sx={{ color: 'text.secondary', cursor: 'pointer', '&:hover': { color: 'text.primary' } }}
                       onClick={() => navigate(`/portfolio/tasks/${form.origin_task.id}/overview`)}
-                      sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
                       title={t('portfolio:workspace.request.originTask.title', { name: form.origin_task.title || form.origin_task.id })}
-                    />
+                    >
+                      {form.origin_task.item_number
+                        ? t('portfolio:workspace.request.originTask.withReference', { ref: `T-${form.origin_task.item_number}` })
+                        : t('portfolio:workspace.request.originTask.fallback')}
+                    </Typography>
                   )}
                   {total > 0 && (
                     <Typography variant="body2" color="text.secondary">
@@ -777,11 +773,9 @@ export default function RequestWorkspacePage() {
         headerActions={(
           <>
             {!isCreate && showRefreshState && (
-              <Chip
-                label={isPlaceholderData ? t('portfolio:workspace.request.messages.loadingTabData') : t('portfolio:workspace.request.messages.refreshing')}
-                size="small"
-                variant="outlined"
-              />
+              <Typography variant="caption" color="text.secondary">
+                {isPlaceholderData ? t('portfolio:workspace.request.messages.loadingTabData') : t('portfolio:workspace.request.messages.refreshing')}
+              </Typography>
             )}
             {!isCreate && (
               <Button

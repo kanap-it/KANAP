@@ -199,7 +199,7 @@ export function DateCellRenderer<T = unknown>(
       component="span"
       sx={{
         cursor: handleClick ? 'pointer' : 'default',
-        '&:hover': handleClick ? { color: 'primary.main' } : undefined,
+        '&:hover': handleClick ? { color: 'text.primary' } : undefined,
       }}
       onClick={handleClick}
     >

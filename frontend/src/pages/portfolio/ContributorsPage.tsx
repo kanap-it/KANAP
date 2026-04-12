@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Box, Button, Card, CardActionArea, CardContent, Chip, Collapse, Dialog, DialogActions,
+  Box, Button, Card, CardActionArea, CardContent, Collapse, Dialog, DialogActions,
   DialogContent, DialogTitle, Autocomplete, TextField, Stack, Alert, Typography,
   IconButton, FormControl, InputLabel, Select, MenuItem,
 } from '@mui/material';
@@ -244,11 +244,9 @@ export default function ContributorsPage() {
                     <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600, textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: 0.5 }}>
                       {teamName}
                     </Typography>
-                    <Chip
-                      label={`${members.length}`}
-                      size="small"
-                      color={members.length > 0 ? 'primary' : 'default'}
-                    />
+                    <Typography variant="body2" color="text.secondary">
+                      {members.length}
+                    </Typography>
                   </Stack>
 
                   <Collapse in={isExpanded}>
@@ -265,23 +263,16 @@ export default function ContributorsPage() {
                                 <Typography variant="body2" sx={{ flex: 1 }}>
                                   {contributor.user_display_name || contributor.user_email}
                                 </Typography>
-                                <Chip
-                                  label={t('contributors.cards.skillCount', { count: contributor.skills?.length || 0 })}
-                                  size="small"
-                                  variant="outlined"
-                                />
-                                <Chip
-                                  label={t('contributors.cards.daysPerMonth', { count: contributor.project_availability ?? 5 })}
-                                  size="small"
-                                  color="primary"
-                                />
+                                <Typography variant="body2" color="text.secondary">
+                                  {t('contributors.cards.skillCount', { count: contributor.skills?.length || 0 })}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {t('contributors.cards.daysPerMonth', { count: contributor.project_availability ?? 5 })}
+                                </Typography>
                                 {timeStatsData?.[contributor.id] && (
-                                  <Chip
-                                    label={t('contributors.cards.avgDaysPerMonth', { count: timeStatsData[contributor.id].avgProjectDays })}
-                                    size="small"
-                                    color="secondary"
-                                    variant="outlined"
-                                  />
+                                  <Typography variant="body2" color="text.secondary">
+                                    {t('contributors.cards.avgDaysPerMonth', { count: timeStatsData[contributor.id].avgProjectDays })}
+                                  </Typography>
                                 )}
                               </Stack>
                             </CardContent>

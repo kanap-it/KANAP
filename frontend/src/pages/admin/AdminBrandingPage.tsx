@@ -40,7 +40,7 @@ type BrandingFormState = {
 };
 
 const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
-const LIGHT_COLOR_PRESETS = ['#0D47A1', '#1976D2', '#1E88E5', '#00897B', '#2E7D32', '#F57C00', '#EF6C00', '#D32F2F', '#6A1B9A', '#37474F'];
+const LIGHT_COLOR_PRESETS = ['#0D47A1', '#1A6B7A', '#1E88E5', '#00897B', '#2E7D32', '#F57C00', '#EF6C00', '#D32F2F', '#6A1B9A', '#37474F'];
 const DARK_COLOR_PRESETS = ['#90CAF9', '#64B5F6', '#4DD0E1', '#80CBC4', '#81C784', '#FFCC80', '#FFAB91', '#EF9A9A', '#CE93D8', '#B0BEC5'];
 
 function normalizeColorForCompare(value: string | null | undefined): string {
@@ -112,7 +112,7 @@ function HeaderPreview({ label, logoAlt, dark = false, logoUrl, showLogo }: Head
       sx={{
         px: 2,
         py: 1,
-        bgcolor: dark ? '#182230' : '#f3f6fb',
+        bgcolor: dark ? '#0F1117' : '#FAFAFA',
         borderColor: dark ? 'rgba(255,255,255,0.16)' : 'divider',
       }}
     >
@@ -460,7 +460,7 @@ export default function AdminBrandingPage() {
                       <input
                         ref={lightColorInputRef}
                         type="color"
-                        value={pickerValue(form.primaryColorLight, '#1976D2')}
+                        value={pickerValue(form.primaryColorLight, '#1A6B7A')}
                         style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
                         onChange={(event) => setForm((prev) => ({ ...prev, primaryColorLight: event.target.value.toUpperCase() }))}
                       />

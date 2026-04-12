@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
   CircularProgress,
   Stack,
   Table,
@@ -224,8 +223,8 @@ export default function KnowledgeTypesManager() {
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                        {item.is_default && <Chip size="small" color="success" variant="outlined" label={t('typesManager.flags.default')} />}
-                        {item.is_system && <Chip size="small" variant="outlined" label={t('typesManager.flags.builtIn')} />}
+                        {item.is_default && <Typography variant="body2" color="text.secondary">{t('typesManager.flags.default')}</Typography>}
+                        {item.is_system && <Typography variant="body2" color="text.secondary">{t('typesManager.flags.builtIn')}</Typography>}
                       </Stack>
                     </TableCell>
                     <TableCell align="right">

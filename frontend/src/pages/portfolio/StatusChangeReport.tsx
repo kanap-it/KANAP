@@ -242,7 +242,7 @@ export default function StatusChangeReport() {
     const ClickableNameCell: React.FC<ICellRendererParams<StatusChangeRow, string>> = (params) => (
       <Box
         component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+        sx={{ cursor: 'pointer' }}
         onClick={() => {
           if (!params.data?.itemPath) return;
           navigate(params.data.itemPath);

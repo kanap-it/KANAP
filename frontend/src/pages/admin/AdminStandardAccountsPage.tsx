@@ -60,6 +60,7 @@ export default function AdminStandardAccountsPage() {
       headerName: t('standardAccounts.columns.accountNumber'),
       width: 160,
       required: true,
+      cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
       ),
@@ -95,6 +96,7 @@ export default function AdminStandardAccountsPage() {
       field: 'consolidation_account_number',
       headerName: t('standardAccounts.columns.consolidationAccountNumber'),
       width: 180,
+      cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getStandardAccountHref} onNavigate={(href) => navigate(href)} />
       ),

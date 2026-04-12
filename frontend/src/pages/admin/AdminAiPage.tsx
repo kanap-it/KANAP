@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -52,6 +51,8 @@ import {
 } from '../../ai/aiApi';
 import { AiApiKeyRecord } from '../../ai/aiTypes';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useTheme } from '@mui/material/styles';
+import { getDotColor } from '../../utils/statusColors';
 
 type AiSettingsForm = {
   chat_enabled: boolean;
@@ -286,7 +287,7 @@ function renderOverviewSection(overviewQuery: {
       <CardContent>
         <Stack spacing={2.5}>
           <Stack direction="row" spacing={1} alignItems="center">
-            <AutoAwesomeIcon color="primary" />
+            <AutoAwesomeIcon sx={{ color: 'text.secondary' }} />
             <Typography variant="h6">{t('aiAdmin.overview.title')}</Typography>
           </Stack>
 
@@ -377,6 +378,7 @@ export default function AdminAiPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation(['admin', 'common']);
   const locale = useLocale();
+  const { mode } = useTheme().palette;
 
   const [form, setForm] = useState<AiSettingsForm>(EMPTY_FORM);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -539,24 +541,21 @@ export default function AdminAiPage() {
                 ) : settingsQuery.data ? (
                   <Stack spacing={2.5}>
                     <Stack direction="row" spacing={1} alignItems="center">
-                      <AutoAwesomeIcon color="primary" />
+                      <AutoAwesomeIcon sx={{ color: 'text.secondary' }} />
                       <Typography variant="h6">{t('aiAdmin.provider.title')}</Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ ml: 'auto' }}>
-                        <Chip
-                          label={settingsQuery.data.settings.chat_enabled ? t('aiAdmin.provider.chips.chatEnabled') : t('aiAdmin.provider.chips.chatDisabled')}
-                          size="small"
-                          color={settingsQuery.data.settings.chat_enabled ? 'success' : 'default'}
-                        />
-                        <Chip
-                          label={settingsQuery.data.settings.mcp_enabled ? t('aiAdmin.provider.chips.mcpEnabled') : t('aiAdmin.provider.chips.mcpDisabled')}
-                          size="small"
-                          color={settingsQuery.data.settings.mcp_enabled ? 'success' : 'default'}
-                        />
-                        <Chip
-                          label={settingsQuery.data.settings.chat_ready ? t('aiAdmin.provider.chips.providerReady') : t('aiAdmin.provider.chips.providerIncomplete')}
-                          size="small"
-                          color={settingsQuery.data.settings.chat_ready ? 'success' : 'default'}
-                        />
+                      <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ ml: 'auto' }}>
+                        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(settingsQuery.data.settings.chat_enabled ? 'success' : 'default', mode) }} />
+                          <Typography variant="body2" sx={{ color: getDotColor(settingsQuery.data.settings.chat_enabled ? 'success' : 'default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{settingsQuery.data.settings.chat_enabled ? t('aiAdmin.provider.chips.chatEnabled') : t('aiAdmin.provider.chips.chatDisabled')}</Typography>
+                        </Box>
+                        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(settingsQuery.data.settings.mcp_enabled ? 'success' : 'default', mode) }} />
+                          <Typography variant="body2" sx={{ color: getDotColor(settingsQuery.data.settings.mcp_enabled ? 'success' : 'default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{settingsQuery.data.settings.mcp_enabled ? t('aiAdmin.provider.chips.mcpEnabled') : t('aiAdmin.provider.chips.mcpDisabled')}</Typography>
+                        </Box>
+                        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(settingsQuery.data.settings.chat_ready ? 'success' : 'default', mode) }} />
+                          <Typography variant="body2" sx={{ color: getDotColor(settingsQuery.data.settings.chat_ready ? 'success' : 'default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{settingsQuery.data.settings.chat_ready ? t('aiAdmin.provider.chips.providerReady') : t('aiAdmin.provider.chips.providerIncomplete')}</Typography>
+                        </Box>
                       </Stack>
                     </Stack>
 
@@ -906,9 +905,15 @@ export default function AdminAiPage() {
                             <TableCell>{key.last_used_at ? new Date(key.last_used_at).toLocaleString(locale) : t('aiAdmin.shared.never')}</TableCell>
                             <TableCell>
                               {key.revoked_at ? (
-                                <Chip label={t('aiAdmin.keys.statuses.revoked')} size="small" color="error" />
+                                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('error', mode) }} />
+                                  <Typography variant="body2" sx={{ color: getDotColor('error', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('aiAdmin.keys.statuses.revoked')}</Typography>
+                                </Box>
                               ) : (
-                                <Chip label={t('aiAdmin.keys.statuses.active')} size="small" color="success" />
+                                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('success', mode) }} />
+                                  <Typography variant="body2" sx={{ color: getDotColor('success', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('aiAdmin.keys.statuses.active')}</Typography>
+                                </Box>
                               )}
                             </TableCell>
                             <TableCell>

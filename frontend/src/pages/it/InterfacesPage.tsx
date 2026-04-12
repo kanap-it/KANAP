@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Snackbar,
   Stack,
   Dialog,
@@ -15,6 +14,7 @@ import {
   Typography,
   CircularProgress,
   Link,
+  useTheme,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { ICellRendererParams } from 'ag-grid-community';
@@ -22,6 +22,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
 import { LinkCellRenderer } from '../../components/grid/renderers';
+import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
@@ -50,6 +51,7 @@ type InterfaceRow = {
 
 export default function InterfacesPage() {
   const { t } = useTranslation(['it', 'common']);
+  const theme = useTheme();
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
   const { labelFor } = useItOpsEnumOptions();
@@ -147,6 +149,7 @@ export default function InterfacesPage() {
   }, [getInterfaceHref, navigate]);
 
   const EnvPills = useMemo(() => {
+    const mode = theme.palette.mode;
     const Cell: React.FC<ICellRendererParams<InterfaceRow, any>> = (params) => {
       const envs = (params.data?.binding_environments || []) as string[];
       if (!envs || envs.length === 0) return null;
@@ -157,7 +160,7 @@ export default function InterfacesPage() {
           sx={{
             display: 'flex',
             flexWrap: 'wrap',
-            gap: 0.5,
+            gap: 1,
             cursor: 'pointer',
             alignItems: 'center',
             height: '100%',
@@ -166,19 +169,28 @@ export default function InterfacesPage() {
           }}
         >
           {envs.map((env) => (
-            <Chip
+            <Box
               key={env}
-              size="small"
-              variant="filled"
-              color="primary"
-              label={env.toUpperCase()}
-            />
+              component="span"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                color: 'text.primary',
+                lineHeight: 1,
+              }}
+            >
+              <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getEnvDotColor(env, mode), flexShrink: 0 }} />
+              {env.toUpperCase()}
+            </Box>
           ))}
         </Link>
       );
     };
     return Cell;
-  }, [getInterfaceHref, handleInternalNavigate]);
+  }, [getInterfaceHref, handleInternalNavigate, theme.palette.mode]);
 
   if (!hasLevel('applications', 'reader')) {
     return <ForbiddenPage />;
@@ -190,6 +202,7 @@ export default function InterfacesPage() {
       field: 'interface_id',
       width: 150,
       cellRenderer: ClickToWorkspace,
+      cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
     },
     {
       headerName: t('common.name'),

@@ -14,7 +14,6 @@ import {
   TableRow,
   TextField,
   Typography,
-  Chip,
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
@@ -167,12 +166,9 @@ export default function EffortAllocationDialog({
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Typography variant="body2">{displayName}</Typography>
                           {user.is_lead && (
-                            <Chip
-                              label={t('portfolio:dialogs.effortAllocation.chips.lead')}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                            />
+                            <Typography variant="body2" color="text.secondary">
+                              {t('portfolio:dialogs.effortAllocation.chips.lead')}
+                            </Typography>
                           )}
                         </Stack>
                       </TableCell>

@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
   CircularProgress,
   FormControl,
   FormControlLabel,
@@ -642,7 +641,7 @@ export default function InterfaceMapPage() {
         label="Show middleware"
       />
       {isFetching && (
-        <Chip label="Updating…" size="small" color="default" />
+        <Typography variant="caption" color="text.disabled">Updating…</Typography>
       )}
     </Stack>
   );

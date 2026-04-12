@@ -2,13 +2,14 @@ import React from 'react';
 import {
   Box,
   Button,
-  Chip,
   Stack,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { AiMutationPreview } from '../aiTypes';
 import { MarkdownContent } from '../../components/MarkdownContent';
+import { getDotColor, getPillBg } from '../../utils/statusColors';
 
 const LINKED_MARKDOWN_IMAGE_RE = /\[\s*!\[[^\]]*]\(\s*<?[^)\s>]+>?[\s\S]*?\)\s*]\(\s*<?[^)\s>]+>?[\s\S]*?\)/g;
 const MARKDOWN_IMAGE_RE = /!\[[^\]]*]\(\s*<?[^)\s>]+>?[\s\S]*?\)/g;
@@ -21,7 +22,7 @@ type PreviewCardProps = {
   onReject: (previewId: string) => void;
 };
 
-function getStatusColor(status: AiMutationPreview['status']): 'default' | 'success' | 'error' | 'warning' {
+function getStatusColorKey(status: AiMutationPreview['status']): string {
   switch (status) {
     case 'executed':
       return 'success';
@@ -82,8 +83,10 @@ function PreviewCard({
   onReject,
 }: PreviewCardProps) {
   const { t } = useTranslation(['ai']);
+  const mode = useTheme().palette.mode;
   const isPending = preview.status === 'pending';
   const pendingImagePlaceholder = t('ai:previewCard.pendingInlineImage');
+  const statusColorKey = getStatusColorKey(preview.status);
 
   return (
     <Box
@@ -97,8 +100,8 @@ function PreviewCard({
     >
       <Stack spacing={1}>
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-          <Chip label={t('ai:previewCard.preview')} size="small" variant="outlined" />
-          <Chip label={preview.status} size="small" color={getStatusColor(preview.status)} />
+          <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{t('ai:previewCard.preview')}</Box>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: '9999px', bgcolor: getPillBg(statusColorKey, mode), color: getDotColor(statusColorKey, mode), fontSize: '12px', fontWeight: 500 }}>{preview.status}</Box>
           {preview.target.ref && (
             <Typography variant="body2" fontWeight={600}>
               {preview.target.ref}

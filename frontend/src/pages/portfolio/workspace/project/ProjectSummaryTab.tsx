@@ -3,17 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Box,
   Button,
-  Chip,
   LinearProgress,
   Paper,
   Stack,
   Typography,
+  useTheme,
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
 import { useLocale } from '../../../../i18n/useLocale';
 import IntegratedDocumentEditor, { IntegratedDocumentEditorHandle } from '../../../../components/IntegratedDocumentEditor';
+import { getDotColor, getPillBg } from '../../../../utils/statusColors';
 
 type SummaryTabKey = 'activity' | 'timeline' | 'effort' | 'tasks' | 'knowledge';
 type StatusColor = 'default' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info';
@@ -134,6 +135,7 @@ export default function ProjectSummaryTab({
 }: ProjectSummaryTabProps) {
   const { t } = useTranslation('portfolio');
   const locale = useLocale();
+  const { palette: { mode } } = useTheme();
   const [purposeExpanded, setPurposeExpanded] = React.useState(true);
 
   const { data: taskSummary } = useQuery({
@@ -245,24 +247,20 @@ export default function ProjectSummaryTab({
           ) : undefined}
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Chip label={statusLabel || t('workspace.project.summary.values.draft')} color={statusColor} size="small" />
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: '9999px', bgcolor: getPillBg(statusColor, mode), color: getDotColor(statusColor, mode), fontSize: '12px', fontWeight: 500 }}>
+              {statusLabel || t('workspace.project.summary.values.draft')}
+            </Box>
             {!isCreate && form?.priority_score != null && (
-              <Chip
-                label={t('workspace.project.summary.values.priority', {
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                {t('workspace.project.summary.values.priority', {
                   value: Math.round(form.priority_score),
                 })}
-                size="small"
-                variant="outlined"
-                color={form?.priority_override ? 'warning' : 'default'}
-              />
+              </Typography>
             )}
             {!isCreate && activePhase?.name && (
-              <Chip
-                label={t('workspace.project.summary.values.phase', { name: activePhase.name })}
-                size="small"
-                variant="outlined"
-                color={activePhase.status === 'completed' ? 'success' : activePhase.status === 'in_progress' ? 'primary' : 'default'}
-              />
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                {t('workspace.project.summary.values.phase', { name: activePhase.name })}
+              </Typography>
             )}
           </Stack>
           <Box>
@@ -367,12 +365,22 @@ export default function ProjectSummaryTab({
             </Typography>
             <DividerLine />
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip size="small" label={t('workspace.project.summary.values.activeTasks', { count: activeTaskCount })} />
-              <Chip size="small" variant="outlined" label={t('workspace.project.summary.values.inProgressTasks', { count: inProgressTaskCount })} />
-              <Chip size="small" variant="outlined" label={t('workspace.project.summary.values.pendingTasks', { count: pendingTaskCount })} />
-              <Chip size="small" color="success" variant="outlined" label={t('workspace.project.summary.values.doneTasks', { count: doneTaskCount })} />
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                {t('workspace.project.summary.values.activeTasks', { count: activeTaskCount })}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                {t('workspace.project.summary.values.inProgressTasks', { count: inProgressTaskCount })}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                {t('workspace.project.summary.values.pendingTasks', { count: pendingTaskCount })}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                {t('workspace.project.summary.values.doneTasks', { count: doneTaskCount })}
+              </Typography>
               {cancelledTaskCount > 0 && (
-                <Chip size="small" color="default" variant="outlined" label={t('workspace.project.summary.values.cancelledTasks', { count: cancelledTaskCount })} />
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                  {t('workspace.project.summary.values.cancelledTasks', { count: cancelledTaskCount })}
+                </Typography>
               )}
             </Stack>
           </Stack>

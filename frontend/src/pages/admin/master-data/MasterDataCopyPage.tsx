@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   FormControl,
   InputLabel,
@@ -289,23 +288,17 @@ export default function MasterDataCopyPage() {
               value={selectedScopes}
               onChange={handleScopeChange}
               label={t('admin.copy.dataSources')}
-              renderValue={(selected) => (
-                <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                  {selected.map((value) => (
-                    <Chip key={value} size="small" label={value === 'companies' ? t('admin.freeze.scopeCompanies') : t('admin.freeze.scopeDepartments')} sx={{ mr: 0.5, mb: 0.5 }} />
-                  ))}
-                </Stack>
-              )}
+              renderValue={(selected) => selected.map((value) => value === 'companies' ? t('admin.freeze.scopeCompanies') : t('admin.freeze.scopeDepartments')).join(', ')}
             >
               <MenuItem value="companies" disabled={disabledScopes.companies}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip size="small" label={t('admin.freeze.scopeCompanies')} />
+                  <Typography variant="body2">{t('admin.freeze.scopeCompanies')}</Typography>
                   {disabledScopes.companies && <Typography variant="caption" color="text.secondary">{t('admin.copy.noAdminAccess')}</Typography>}
                 </Stack>
               </MenuItem>
               <MenuItem value="departments" disabled={disabledScopes.departments}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip size="small" label={t('admin.freeze.scopeDepartments')} />
+                  <Typography variant="body2">{t('admin.freeze.scopeDepartments')}</Typography>
                   {disabledScopes.departments && <Typography variant="caption" color="text.secondary">No admin access</Typography>}
                 </Stack>
               </MenuItem>
@@ -336,7 +329,7 @@ export default function MasterDataCopyPage() {
               >
                 {COMPANY_METRIC_KEYS.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
-                    <Chip size="small" label={t(option.labelKey)} />
+                    <Typography variant="body2">{t(option.labelKey)}</Typography>
                   </MenuItem>
                 ))}
               </Select>

@@ -482,7 +482,7 @@ export default function ProjectPropertyPanel({
                             background: 'transparent',
                             p: 0,
                             textAlign: 'left',
-                            color: 'primary.main',
+                            color: 'text.primary',
                             cursor: 'pointer',
                             font: 'inherit',
                           }}

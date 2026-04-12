@@ -1,6 +1,6 @@
 import React from 'react';
 import PageHeader from '../../components/PageHeader';
-import { Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, Grid, InputLabel, List, ListItemButton, ListItemText, MenuItem, Select, Snackbar, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, Grid, InputLabel, List, ListItemButton, ListItemText, MenuItem, Select, Snackbar, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
@@ -196,10 +196,10 @@ export default function RolesPage() {
   const getRoleBadge = (role: Role) => {
     const key = (role.role_name ?? '').toLowerCase();
     if (role.is_system && (key === 'administrator' || key === 'contact')) {
-      return <Chip label={t('roles.badges.system')} size="small" color="error" />;
+      return <Typography variant="body2" color="text.secondary">{t('roles.badges.system')}</Typography>;
     }
     if (role.is_built_in) {
-      return <Chip label={t('roles.badges.builtIn')} size="small" color="primary" />;
+      return <Typography variant="body2" color="text.secondary">{t('roles.badges.builtIn')}</Typography>;
     }
     return null;
   };
@@ -252,7 +252,7 @@ export default function RolesPage() {
                     {getRoleBadge(selected)}
                   </Stack>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    {typeof selected.user_count === 'number' && <Chip size="small" label={t('roles.userCount', { count: selected.user_count })} />}
+                    {typeof selected.user_count === 'number' && <Typography variant="body2" color="text.secondary">{t('roles.userCount', { count: selected.user_count })}</Typography>}
                     {canEdit && !locked && (
                       <Button size="small" color="error" onClick={() => setConfirmDelete(true)} disabled={!!selected.user_count && selected.user_count > 0}>{t('common:buttons.delete')}</Button>
                     )}

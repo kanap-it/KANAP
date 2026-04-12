@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
   Box,
-  Chip,
   CircularProgress,
   Dialog,
   DialogContent,
@@ -37,18 +36,6 @@ type AuditLogItem = {
   created_at: string;
 };
 
-const ACTION_COLOR: Record<string, 'success' | 'info' | 'error' | 'warning' | 'default'> = {
-  create: 'success',
-  update: 'info',
-  delete: 'error',
-  disable: 'warning',
-};
-
-const SOURCE_COLOR: Record<string, 'success' | 'warning' | 'default'> = {
-  user: 'success',
-  webhook: 'warning',
-  system: 'default',
-};
 
 function formatJson(value: any): string {
   if (value == null) return 'null';
@@ -145,12 +132,9 @@ export default function AuditLogsPage() {
         cellRenderer: (p: any) => {
           const value = String(p.value || '').toLowerCase();
           return (
-            <Chip
-              size="small"
-              label={value ? t(`auditLogs.actions.${value}`, { defaultValue: value }) : t('auditLogs.shared.empty')}
-              color={ACTION_COLOR[value] ?? 'default'}
-              variant="outlined"
-            />
+            <Typography variant="body2" color="text.secondary">
+              {value ? t(`auditLogs.actions.${value}`, { defaultValue: value }) : t('auditLogs.shared.empty')}
+            </Typography>
           );
         },
       },
@@ -167,12 +151,9 @@ export default function AuditLogsPage() {
         cellRenderer: (p: any) => {
           const value = String(p.value || 'system').toLowerCase();
           return (
-            <Chip
-              size="small"
-              label={t(`auditLogs.sources.${value}`, { defaultValue: value })}
-              color={SOURCE_COLOR[value] ?? 'default'}
-              variant="outlined"
-            />
+            <Typography variant="body2" color="text.secondary">
+              {t(`auditLogs.sources.${value}`, { defaultValue: value })}
+            </Typography>
           );
         },
       },
@@ -181,6 +162,7 @@ export default function AuditLogsPage() {
         headerName: t('auditLogs.columns.recordId'),
         width: 170,
         defaultHidden: true,
+        cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
         valueFormatter: (p: any) => {
           const value = String(p.value || '');
           if (!value) return '';
@@ -211,6 +193,7 @@ export default function AuditLogsPage() {
         headerName: t('auditLogs.columns.userId'),
         width: 220,
         defaultHidden: true,
+        cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
       },
       {
         field: 'user_name',
@@ -223,12 +206,14 @@ export default function AuditLogsPage() {
         headerName: t('auditLogs.columns.sourceRef'),
         width: 220,
         defaultHidden: true,
+        cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
       },
       {
         field: 'tenant_id',
         headerName: t('auditLogs.columns.tenantId'),
         width: 220,
         defaultHidden: true,
+        cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
       },
     ];
   }, [getFilterValues, locale, t]);
@@ -281,43 +266,23 @@ export default function AuditLogsPage() {
 
           {detail && !detailQuery.isLoading && (
             <Stack spacing={2}>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip size="small" label={t('auditLogs.details.date', { value: new Date(detail.created_at).toLocaleString(locale) })} variant="outlined" />
-                <Chip size="small" label={t('auditLogs.details.table', { value: detail.table_name })} variant="outlined" />
-                <Chip
-                  size="small"
-                  label={t('auditLogs.details.action', {
-                    value: t(`auditLogs.actions.${detail.action}`, { defaultValue: detail.action }),
-                  })}
-                  color={ACTION_COLOR[String(detail.action).toLowerCase()] ?? 'default'}
-                  variant="outlined"
-                />
-                <Chip
-                  size="small"
-                  label={t('auditLogs.details.source', {
-                    value: t(`auditLogs.sources.${detail.source || 'system'}`, { defaultValue: detail.source || 'system' }),
-                  })}
-                  color={SOURCE_COLOR[String(detail.source || 'system').toLowerCase()] ?? 'default'}
-                  variant="outlined"
-                />
-                {detail.source_ref && <Chip size="small" label={t('auditLogs.details.sourceRef', { value: detail.source_ref })} variant="outlined" />}
-                <Chip size="small" label={t('auditLogs.details.tenant', { value: detail.tenant_id })} variant="outlined" />
-                {detail.record_id && <Chip size="small" label={t('auditLogs.details.recordId', { value: detail.record_id })} variant="outlined" />}
-                <Chip
-                  size="small"
-                  label={t('auditLogs.details.user', {
-                    value: detail.user_email || detail.user_id || t(`auditLogs.sources.${detail.source === 'webhook' ? 'webhook' : 'system'}`),
-                  })}
-                  variant="outlined"
-                />
+              <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap alignItems="center">
+                <Typography variant="body2" color="text.secondary">{t('auditLogs.details.date', { value: new Date(detail.created_at).toLocaleString(locale) })}</Typography>
+                <Typography component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace", fontSize: '12px', color: 'text.secondary' }}>{t('auditLogs.details.table', { value: detail.table_name })}</Typography>
+                <Typography variant="body2" color="text.secondary">{t('auditLogs.details.action', { value: t(`auditLogs.actions.${detail.action}`, { defaultValue: detail.action }) })}</Typography>
+                <Typography variant="body2" color="text.secondary">{t('auditLogs.details.source', { value: t(`auditLogs.sources.${detail.source || 'system'}`, { defaultValue: detail.source || 'system' }) })}</Typography>
+                {detail.source_ref && <Typography component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace", fontSize: '12px', color: 'text.secondary' }}>{t('auditLogs.details.sourceRef', { value: detail.source_ref })}</Typography>}
+                <Typography component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace", fontSize: '12px', color: 'text.secondary' }}>{t('auditLogs.details.tenant', { value: detail.tenant_id })}</Typography>
+                {detail.record_id && <Typography component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace", fontSize: '12px', color: 'text.secondary' }}>{t('auditLogs.details.recordId', { value: detail.record_id })}</Typography>}
+                <Typography variant="body2" color="text.secondary">{t('auditLogs.details.user', { value: detail.user_email || detail.user_id || t(`auditLogs.sources.${detail.source === 'webhook' ? 'webhook' : 'system'}`) })}</Typography>
               </Stack>
 
               <Box>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('auditLogs.details.changedFields')}</Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {changedKeys.length === 0 && <Chip size="small" label={t('auditLogs.details.noFieldChanges')} variant="outlined" />}
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                  {changedKeys.length === 0 && <Typography variant="body2" color="text.secondary">{t('auditLogs.details.noFieldChanges')}</Typography>}
                   {changedKeys.map((key) => (
-                    <Chip key={key} size="small" label={key} color="warning" variant="outlined" />
+                    <Typography key={key} component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace", fontSize: '12px', color: 'text.secondary' }}>{key}</Typography>
                   ))}
                 </Stack>
               </Box>

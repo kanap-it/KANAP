@@ -81,7 +81,7 @@ export default function ContributorDrilldownDialog({
       cellRenderer: (p: any) => (
         <Box
           component="span"
-          sx={{ cursor: 'pointer', color: 'primary.main', '&:hover': { textDecoration: 'underline' } }}
+          sx={{ cursor: 'pointer', color: 'text.primary', '&:hover': { textDecoration: 'underline' } }}
           onClick={() => openProject(p.data?.projectId)}
         >
           {p.value}

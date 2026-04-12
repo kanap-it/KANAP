@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Dialog,
   DialogContent,
@@ -249,12 +248,9 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
                           <Typography variant="h6" fontWeight={700}>
                             {plan.display_name}
                           </Typography>
-                          <Chip
-                            label={t('planSelection.seatLimitContributors', { limit: formatSeatLimit(plan.seat_limit, t) })}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
+                          <Typography variant="body2" color="text.secondary">
+                            {t('planSelection.seatLimitContributors', { limit: formatSeatLimit(plan.seat_limit, t) })}
+                          </Typography>
                           <Box>
                             <Typography variant="h4" fontWeight={700}>
                               {formatPrice(price, locale)}

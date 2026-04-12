@@ -1,5 +1,5 @@
 import React from 'react';
-import { Breadcrumbs, Link as MLink, Typography, Stack, Chip } from '@mui/material';
+import { Breadcrumbs, Link as MLink, Typography, Stack, Box } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -125,7 +125,7 @@ export default function PageHeader({
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ flexWrap: 'wrap', gap: 1 }}>
         <Stack direction="row" alignItems="center" spacing={1}>
           <Typography variant="h5">{title}</Typography>
-          {isAdmin && <Chip label={t('breadcrumbs.admin')} size="small" />}
+          {isAdmin && <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{t('breadcrumbs.admin')}</Box>}
         </Stack>
         {actions}
       </Stack>

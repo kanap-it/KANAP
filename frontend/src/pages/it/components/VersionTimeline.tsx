@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Chip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { useNavigate } from 'react-router-dom';
 
@@ -26,20 +26,6 @@ export default function VersionTimeline({ predecessors, current, successors }: V
   // Don't render if there's no lineage
   if (allVersions.length <= 1) return null;
 
-  const getChipColor = (lifecycle?: string): 'default' | 'success' | 'warning' | 'error' => {
-    switch (lifecycle) {
-      case 'active':
-        return 'success';
-      case 'proposed':
-        return 'warning';
-      case 'sunset':
-      case 'retired':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
   const getLabel = (app: VersionApp) => {
     if (app.version) return app.version;
     // Extract version from name if present (e.g., "SAP S/4HANA 2023" -> "2023")
@@ -57,19 +43,21 @@ export default function VersionTimeline({ predecessors, current, successors }: V
         {allVersions.map((app, idx) => (
           <React.Fragment key={app.id}>
             {idx > 0 && <ArrowForwardIcon fontSize="small" sx={{ color: 'text.disabled' }} />}
-            <Chip
-              label={getLabel(app)}
-              size="small"
-              color={app.id === current.id ? 'primary' : getChipColor(app.lifecycle)}
-              variant={app.id === current.id ? 'filled' : 'outlined'}
+            <Typography
+              variant="body2"
+              component="span"
               onClick={() => app.id !== current.id && navigate(`/it/applications/${app.id}`)}
               sx={{
                 cursor: app.id !== current.id ? 'pointer' : 'default',
                 opacity: app.lifecycle === 'retired' ? 0.6 : 1,
                 textDecoration: app.lifecycle === 'retired' ? 'line-through' : 'none',
                 fontWeight: app.id === current.id ? 600 : 400,
+                color: app.id === current.id ? 'text.primary' : 'text.secondary',
+                '&:hover': app.id !== current.id ? { color: 'text.primary' } : {},
               }}
-            />
+            >
+              {getLabel(app)}
+            </Typography>
           </React.Fragment>
         ))}
       </Box>

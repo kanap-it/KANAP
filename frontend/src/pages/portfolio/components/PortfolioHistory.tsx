@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Chip,
   Stack,
   Typography,
 } from '@mui/material';
@@ -277,18 +276,13 @@ export default function PortfolioHistory({
           }}
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Chip
-              label={
-                activity.type === 'comment'
-                  ? t('activity.labels.comment')
-                  : activity.type === 'change'
-                  ? t('activity.labels.change')
-                  : t('activity.labels.decision')
-              }
-              size="small"
-              variant="outlined"
-              sx={{ fontSize: '0.7rem' }}
-            />
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+              {activity.type === 'comment'
+                ? t('activity.labels.comment')
+                : activity.type === 'change'
+                ? t('activity.labels.change')
+                : t('activity.labels.decision')}
+            </Typography>
             <Typography variant="body2" sx={{ fontWeight: 500 }}>
               {getActivityDescription(activity)}
             </Typography>

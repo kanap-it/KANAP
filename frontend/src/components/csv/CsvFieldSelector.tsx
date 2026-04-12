@@ -7,7 +7,6 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Chip,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { CsvFieldInfo } from './csv.types';
@@ -59,12 +58,9 @@ export function CsvFieldSelector({
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                 <Typography variant="subtitle2">{groupName}</Typography>
-                <Chip
-                  label={`${selectedCount}/${groupFields.length}`}
-                  size="small"
-                  color={allSelected ? 'primary' : noneSelected ? 'default' : 'info'}
-                  variant="outlined"
-                />
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                  {`${selectedCount}/${groupFields.length}`}
+                </Typography>
               </Box>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0 }}>

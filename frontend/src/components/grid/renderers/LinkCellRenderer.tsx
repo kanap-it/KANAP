@@ -204,11 +204,12 @@ export function LinkCellRenderer<T = unknown>(
           whiteSpace: 'nowrap',
           color: isExternal ? undefined : 'inherit',
           textDecoration: 'none',
+          cursor: 'pointer',
           '&:visited': {
             color: isExternal ? undefined : 'inherit',
           },
           '&:hover': {
-            color: isExternal ? undefined : 'primary.main',
+            color: isExternal ? undefined : 'inherit',
             textDecoration: isExternal ? undefined : 'none',
           },
           ...linkSx,

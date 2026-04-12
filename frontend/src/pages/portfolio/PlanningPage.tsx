@@ -9,7 +9,6 @@ import {
   Stack,
   CircularProgress,
   Alert,
-  Chip,
   SelectChangeEvent,
   ButtonGroup,
   Button,
@@ -239,7 +238,11 @@ export default function PlanningPage() {
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {selected.map((value) => {
                       const opt = statusOptions.find(o => o.value === value);
-                      return <Chip key={value} label={opt?.label || value} size="small" />;
+                      return (
+                        <Box component="span" key={value} sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
+                          {opt?.label || value}
+                        </Box>
+                      );
                     })}
                   </Box>
                 )}

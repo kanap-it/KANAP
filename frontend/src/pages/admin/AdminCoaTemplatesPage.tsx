@@ -102,7 +102,7 @@ export default function AdminCoaTemplatesPage() {
   const gridApiRef = useRef<any>(null);
 
   const columns: EnhancedColDef<Template>[] = useMemo(() => [
-    { field: 'template_code', headerName: t('coaTemplates.columns.code'), width: 160, required: true },
+    { field: 'template_code', headerName: t('coaTemplates.columns.code'), width: 160, required: true, cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' } },
     { field: 'template_name', headerName: t('coaTemplates.columns.name'), flex: 1, required: true },
     { field: 'version', headerName: t('coaTemplates.columns.version'), width: 120 },
     { field: 'country_iso', headerName: t('coaTemplates.columns.scope'), width: 150, valueFormatter: (p: any) => (!p.value ? t('coaTemplates.shared.allCountries') : p.value) },

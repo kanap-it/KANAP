@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Autocomplete, Box, Chip, IconButton, Stack, TextField, Typography, CircularProgress,
+  Autocomplete, Box, IconButton, Stack, TextField, Typography, CircularProgress,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useTranslation } from 'react-i18next';
@@ -171,13 +171,11 @@ export default function DependencySelector({
               spacing={1}
               sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1 }}
             >
-              <Chip
-                label={dep.target_type === 'request'
+              <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
+                {dep.target_type === 'request'
                   ? t('activity.dependencies.types.request')
                   : t('activity.dependencies.types.project')}
-                size="small"
-                color={dep.target_type === 'request' ? 'info' : 'success'}
-              />
+              </Box>
               <Typography variant="body2" sx={{ flex: 1 }}>
                 {dep.target_name}
               </Typography>

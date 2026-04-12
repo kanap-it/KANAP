@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Button, Chip, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
@@ -69,7 +69,7 @@ export default function ConnectionsPage() {
       return (
         <Stack direction="row" spacing={0.5} flexWrap="wrap">
           {list.slice(0, 4).map((label) => (
-            <Chip key={label} size="small" label={label} />
+            <Box key={label} component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{label}</Box>
           ))}
           {list.length > 4 && (
             <Typography variant="body2" color="text.secondary">
@@ -87,7 +87,7 @@ export default function ConnectionsPage() {
   }
 
   const columns: EnhancedColDef<ConnectionRow>[] = [
-    { headerName: t('pages.connections.columns.connectionId'), field: 'connection_id', width: 160, cellRenderer: ClickToWorkspace },
+    { headerName: t('pages.connections.columns.connectionId'), field: 'connection_id', width: 160, cellRenderer: ClickToWorkspace, cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' } },
     { headerName: t('common.name'), field: 'name', minWidth: 200, cellRenderer: ClickToWorkspace },
     {
       headerName: t('pages.connections.columns.topology'),

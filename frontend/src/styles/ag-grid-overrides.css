@@ -1,0 +1,131 @@
+/*
+ * KANAP AG Grid "Refined Density" overrides
+ * Lightens the default Quartz theme: subtler borders, quieter header, tighter rows.
+ */
+
+/* ── Light theme ────────────────────────────────────────── */
+.ag-theme-quartz {
+  --ag-row-height: 38px;
+  --ag-header-height: 36px;
+  --ag-font-size: 13px;
+  --ag-font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Borders */
+  --ag-border-color: #F0F0F0;
+  --ag-row-border-color: #F5F5F5;
+  --ag-header-column-separator-color: transparent;
+
+  /* Header */
+  --ag-header-background-color: #FAFAFA;
+  --ag-header-foreground-color: #6B7280;
+  --ag-header-cell-hover-background-color: #F3F4F6;
+
+  /* Rows */
+  --ag-odd-row-background-color: transparent;
+  --ag-row-hover-color: #F9FAFB;
+  --ag-selected-row-background-color: #E6F4F7;
+
+  /* Range / focus */
+  --ag-range-selection-background-color: rgba(26, 107, 122, 0.08);
+  --ag-range-selection-border-color: #1A6B7A;
+
+  /* Cell */
+  --ag-cell-horizontal-padding: 12px;
+
+  /* KANAP custom tokens */
+  --kanap-text-secondary: #6B7280;
+
+  /* Misc */
+  --ag-wrapper-border-radius: 8px;
+  --ag-card-radius: 8px;
+}
+
+/* ── Dark theme ─────────────────────────────────────────── */
+.ag-theme-quartz-dark {
+  --ag-row-height: 38px;
+  --ag-header-height: 36px;
+  --ag-font-size: 13px;
+  --ag-font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Borders */
+  --ag-border-color: rgba(255, 255, 255, 0.06);
+  --ag-row-border-color: rgba(255, 255, 255, 0.04);
+  --ag-header-column-separator-color: transparent;
+
+  /* Header */
+  --ag-header-background-color: #0F1117;
+  --ag-header-foreground-color: rgba(255, 255, 255, 0.5);
+  --ag-header-cell-hover-background-color: rgba(255, 255, 255, 0.04);
+
+  /* Background */
+  --ag-background-color: #181A20;
+
+  /* Rows */
+  --ag-odd-row-background-color: transparent;
+  --ag-row-hover-color: rgba(255, 255, 255, 0.03);
+  --ag-selected-row-background-color: rgba(77, 184, 201, 0.12);
+
+  /* Range / focus */
+  --ag-range-selection-background-color: rgba(77, 184, 201, 0.1);
+  --ag-range-selection-border-color: #4DB8C9;
+
+  /* Cell */
+  --ag-cell-horizontal-padding: 12px;
+
+  /* KANAP custom tokens */
+  --kanap-text-secondary: rgba(255, 255, 255, 0.55);
+
+  /* Misc */
+  --ag-wrapper-border-radius: 8px;
+  --ag-card-radius: 8px;
+}
+
+/* ──────────────────────────────────────────────────────────
+   ABSOLUTE RULE: No teal/primary color on ANY cell text.
+   All links, MuiLink, and anchors inside AG Grid cells
+   inherit their color from the cell. No exceptions.
+   ────────────────────────────────────────────────────────── */
+.ag-theme-quartz .ag-cell a,
+.ag-theme-quartz .ag-cell a:visited,
+.ag-theme-quartz .ag-cell a:hover,
+.ag-theme-quartz .ag-cell a:active,
+.ag-theme-quartz .ag-cell .MuiLink-root,
+.ag-theme-quartz .ag-cell .MuiLink-root:visited,
+.ag-theme-quartz .ag-cell .MuiLink-root:hover {
+  color: inherit !important;
+  text-decoration: none !important;
+}
+
+.ag-theme-quartz-dark .ag-cell a,
+.ag-theme-quartz-dark .ag-cell a:visited,
+.ag-theme-quartz-dark .ag-cell a:hover,
+.ag-theme-quartz-dark .ag-cell a:active,
+.ag-theme-quartz-dark .ag-cell .MuiLink-root,
+.ag-theme-quartz-dark .ag-cell .MuiLink-root:visited,
+.ag-theme-quartz-dark .ag-cell .MuiLink-root:hover {
+  color: inherit !important;
+  text-decoration: none !important;
+}
+
+/* Clickable rows: pointer cursor on all row cells */
+.ag-theme-quartz .ag-row,
+.ag-theme-quartz-dark .ag-row {
+  cursor: pointer;
+}
+
+/* ── Shared typography overrides ────────────────────────── */
+
+/* Quieter header text */
+.ag-theme-quartz .ag-header-cell-text,
+.ag-theme-quartz-dark .ag-header-cell-text {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Softer floating filter inputs */
+.ag-theme-quartz .ag-floating-filter-input,
+.ag-theme-quartz-dark .ag-floating-filter-input {
+  font-size: 12px;
+}

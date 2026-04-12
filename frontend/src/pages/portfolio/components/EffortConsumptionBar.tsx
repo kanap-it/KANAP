@@ -75,7 +75,7 @@ export default function EffortConsumptionBar({
               left: 0,
               width: `${itNormalPct}%`,
               height: '100%',
-              bgcolor: 'primary.main',
+              bgcolor: 'info.main',
               borderRadius: !isOverConsumed && bizNormalPct === 0 ? 1 : '4px 0 0 4px',
             }} />
           )}
@@ -140,7 +140,7 @@ export default function EffortConsumptionBar({
       {/* Legend - below the aligned section */}
       <Stack direction="row" spacing={2} sx={{ mt: '13px' }}>
         <Stack direction="row" spacing={0.5} alignItems="center">
-          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'primary.main' }} />
+          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'info.main' }} />
           <Typography variant="caption">{t('dialogs.logTime.categories.it')}</Typography>
         </Stack>
         <Stack direction="row" spacing={0.5} alignItems="center">

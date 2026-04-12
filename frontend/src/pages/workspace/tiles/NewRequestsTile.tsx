@@ -3,7 +3,6 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Chip,
   Typography,
   Box,
   Button,
@@ -104,12 +103,9 @@ export default function NewRequestsTile({ config }: NewRequestsTileProps) {
                 secondaryTypographyProps={{ component: 'div' }}
               />
               {request.priority_score != null && request.priority_score > 80 && (
-                <Chip
-                  label={t('dashboard.tiles.high')}
-                  size="small"
-                  color="warning"
-                  sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
-                />
+                <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.75rem', ml: 1 }}>
+                  {t('dashboard.tiles.high')}
+                </Box>
               )}
             </ListItemButton>
           ))}

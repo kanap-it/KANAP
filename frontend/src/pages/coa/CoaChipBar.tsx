@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
-  Chip,
   Paper,
   Stack,
   Tooltip,
@@ -71,16 +70,35 @@ export default function CoaChipBar({
           {coas.map((coa) => {
             const badges = `${coa.is_default ? '★' : ''}${coa.is_global_default ? '⊕' : ''}`;
             const label = `${coa.code}${badges ? ` ${badges}` : ''}`;
+            const isSelected = selectedCoaId === coa.id;
             return (
               <Tooltip key={coa.id} title={`${coa.name}${coa.accounts_count != null ? ` • ${coa.accounts_count} accounts` : ''}`}>
-                <Chip
-                  label={label}
-                  clickable
-                  color={selectedCoaId === coa.id ? 'primary' : 'default'}
-                  variant={selectedCoaId === coa.id ? 'filled' : 'outlined'}
+                <Box
+                  component="button"
                   onClick={() => onSelect(coa.id)}
-                  sx={{ maxWidth: 260, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
-                />
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: isSelected ? 'primary.main' : 'divider',
+                    bgcolor: isSelected ? 'primary.main' : 'transparent',
+                    color: isSelected ? 'primary.contrastText' : 'text.primary',
+                    fontSize: '0.8125rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    maxWidth: 260,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontFamily: 'inherit',
+                    '&:hover': { borderColor: 'primary.main' },
+                  }}
+                >
+                  {label}
+                </Box>
               </Tooltip>
             );
           })}
@@ -88,14 +106,14 @@ export default function CoaChipBar({
 
         {canManage && (
           <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-            <Chip
-              icon={<AddIcon />}
-              label={t('coa.chipBar.newChip')}
-              clickable
-              color="primary"
+            <Button
+              size="small"
               variant="outlined"
+              startIcon={<AddIcon />}
               onClick={onCreate}
-            />
+            >
+              {t('coa.chipBar.newChip')}
+            </Button>
             <Button
               size="small"
               variant="outlined"

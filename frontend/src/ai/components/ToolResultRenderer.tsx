@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import {
   Alert,
   Box,
-  Chip,
   Collapse,
   IconButton,
   Stack,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { getDotColor } from '../../utils/statusColors';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import BuildIcon from '@mui/icons-material/Build';
@@ -34,15 +35,21 @@ function getIgnoredFields(result: unknown): string[] {
 
 function EntityList({ items }: { items: any[] }) {
   const { t } = useTranslation(['ai']);
+  const mode = useTheme().palette.mode;
   if (!items?.length) return <Typography variant="body2" color="text.secondary">{t('toolResults.noResults')}</Typography>;
   return (
     <Stack spacing={0.5}>
       {items.map((item: any, i: number) => (
         <Stack key={item.id || i} direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-          <Chip label={item.type} size="small" variant="outlined" />
+          <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{item.type}</Box>
           {item.ref && <Typography variant="body2" fontWeight={600}>{item.ref}</Typography>}
           <Typography variant="body2">{item.label}</Typography>
-          {item.status && <Chip label={item.status} size="small" />}
+          {item.status && (
+            <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('info', mode) }} />
+              <Typography variant="body2" sx={{ color: getDotColor('info', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{item.status}</Typography>
+            </Box>
+          )}
         </Stack>
       ))}
     </Stack>
@@ -79,7 +86,7 @@ function CommentsList({ result }: { result: any }) {
     <Stack spacing={1}>
       {result?.entity && (
         <Stack direction="row" spacing={1} alignItems="center">
-          <Chip label={result.entity.type} size="small" variant="outlined" />
+          <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{result.entity.type}</Box>
           {result.entity.ref && <Typography variant="body2" fontWeight={600}>{result.entity.ref}</Typography>}
           <Typography variant="body2">{result.entity.label}</Typography>
         </Stack>
@@ -96,11 +103,9 @@ function CommentsList({ result }: { result: any }) {
               </Typography>
             )}
             {item.edited && (
-              <Chip
-                label={t('toolResults.edited', { defaultValue: 'Edited' })}
-                size="small"
-                variant="outlined"
-              />
+              <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
+                {t('toolResults.edited', { defaultValue: 'Edited' })}
+              </Box>
             )}
           </Stack>
           <Typography variant="body2">{item.content || t('toolResults.emptyComment', { defaultValue: '(empty comment)' })}</Typography>
@@ -145,7 +150,7 @@ export default function ToolResultRenderer({ name, result, arguments: args }: To
           <Stack spacing={1}>
             {data?.entity && (
               <Stack direction="row" spacing={1} alignItems="center">
-                <Chip label={data.entity.type} size="small" variant="outlined" />
+                <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{data.entity.type}</Box>
                 {data.entity.ref && <Typography variant="body2" fontWeight={600}>{data.entity.ref}</Typography>}
                 <Typography variant="body2">{data.entity.label}</Typography>
               </Stack>
@@ -197,7 +202,9 @@ export default function ToolResultRenderer({ name, result, arguments: args }: To
           {label}
         </Typography>
         {args && Object.keys(args).length > 0 && (
-          <Chip label={Object.values(args).join(', ').slice(0, 40)} size="small" variant="outlined" />
+          <Typography component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace", fontSize: '12px', color: 'text.secondary' }}>
+            {Object.values(args).join(', ').slice(0, 40)}
+          </Typography>
         )}
         <IconButton size="small">
           {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}

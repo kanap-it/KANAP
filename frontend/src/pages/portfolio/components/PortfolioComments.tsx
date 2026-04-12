@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
   FormControl,
   FormControlLabel,
   IconButton,
@@ -387,23 +386,15 @@ export default function PortfolioComments({
                     alignItems="center"
                     sx={{ mb: 1 }}
                   >
-                    <Chip
-                      label={a.type === 'decision'
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                      {a.type === 'decision'
                         ? t('portfolio:activity.labels.decision')
                         : t('portfolio:activity.labels.comment')}
-                      size="small"
-                      color={a.type === 'decision' ? 'warning' : 'primary'}
-                    />
+                    </Typography>
                     {a.type === 'decision' && a.decision_outcome && (
-                      <Chip
-                        label={getDecisionOutcomeLabel(t, a.decision_outcome)}
-                        size="small"
-                        color={
-                          DECISION_OUTCOME_COLORS[a.decision_outcome] ||
-                          'default'
-                        }
-                        variant="outlined"
-                      />
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                        {getDecisionOutcomeLabel(t, a.decision_outcome)}
+                      </Typography>
                     )}
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {`${a.first_name || ''} ${a.last_name || ''}`.trim() || t('portfolio:activity.authorUnknown')}

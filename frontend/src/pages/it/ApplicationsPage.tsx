@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
-import { Box, Button, Stack, Chip, Tooltip, Typography, RadioGroup, FormControlLabel, Radio, Link } from '@mui/material';
+import { Box, Button, Stack, Chip, Tooltip, Typography, RadioGroup, FormControlLabel, Radio, Link, useTheme } from '@mui/material';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
 import { ICellRendererParams } from 'ag-grid-community';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LinkCellRenderer } from '../../components/grid/renderers';
+import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
 import { useAuth } from '../../auth/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import ForbiddenPage from '../ForbiddenPage';
@@ -82,6 +83,7 @@ type AppRow = {
 
 export default function ApplicationsPage() {
   const { t } = useTranslation(['it', 'common']);
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { hasLevel, profile } = useAuth();
@@ -368,7 +370,7 @@ export default function ApplicationsPage() {
         <Link
           href={buildAppHref(params.data as AppRow, 'ownership')}
           onClick={(event) => handleInternalNavigate(event, buildAppHref(params.data as AppRow, 'ownership'))}
-          sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+          sx={{ cursor: 'pointer' }}
           underline="none"
           color="inherit"
         >
@@ -389,7 +391,7 @@ export default function ApplicationsPage() {
         <Link
           href={buildAppHref(params.data as AppRow, 'compliance')}
           onClick={(event) => handleInternalNavigate(event, buildAppHref(params.data as AppRow, 'compliance'))}
-          sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+          sx={{ cursor: 'pointer' }}
           underline="none"
           color="inherit"
         >
@@ -415,7 +417,7 @@ export default function ApplicationsPage() {
         <Link
           href={buildAppHref(data as AppRow, tab)}
           onClick={(event) => handleInternalNavigate(event, buildAppHref(data as AppRow, tab))}
-          sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+          sx={{ cursor: 'pointer' }}
           underline="none"
           color="inherit"
         >
@@ -437,7 +439,7 @@ export default function ApplicationsPage() {
         <Link
           href={buildAppHref(data as AppRow, 'relations')}
           onClick={(event) => handleInternalNavigate(event, buildAppHref(data as AppRow, 'relations'))}
-          sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+          sx={{ cursor: 'pointer' }}
           underline="none"
           color="inherit"
         >
@@ -461,7 +463,7 @@ export default function ApplicationsPage() {
             <Link
               href={buildAppHref(data as AppRow, 'overview')}
               onClick={(event) => handleInternalNavigate(event, buildAppHref(data as AppRow, 'overview'))}
-              sx={{ cursor: 'pointer', display: 'block', '&:hover': { color: 'primary.main' } }}
+              sx={{ cursor: 'pointer', display: 'block' }}
               underline="none"
               color="inherit"
             >
@@ -491,6 +493,7 @@ export default function ApplicationsPage() {
   }, [buildAppHref, categoryLabel, handleInternalNavigate, suitesColVisible]);
 
   const EnvironmentCell = useMemo(() => {
+    const mode = theme.palette.mode;
     const Cell: React.FC<ICellRendererParams<AppRow, any>> = (params) => {
       const instances = (params.data?.instances || []) as AppInstanceSummary[];
       const activeEnvs = ENV_SUMMARY.map((env) => {
@@ -521,18 +524,28 @@ export default function ApplicationsPage() {
             const tooltip = `${env.label}${match.base_url ? ` · ${match.base_url}` : ''}${lifecycleText}`;
             return (
               <Tooltip key={`${params.data?.id}-${env.value}`} title={tooltip}>
-                <Chip
-                  size="small"
-                  variant="filled"
-                  color="primary"
-                  label={env.short}
+                <Box
                   component="a"
                   href={buildAppHref(params.data as AppRow, 'instances')}
-                  clickable
-                  onClick={(event) => {
-                    handleInternalNavigate(event, buildAppHref(params.data as AppRow, 'instances'));
+                  onClick={(event: React.MouseEvent) => {
+                    handleInternalNavigate(event as any, buildAppHref(params.data as AppRow, 'instances'));
                   }}
-                />
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    color: 'text.primary',
+                    lineHeight: 1,
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    '&:hover': { textDecoration: 'none' },
+                  }}
+                >
+                  <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getEnvDotColor(env.value, mode), flexShrink: 0 }} />
+                  {env.short}
+                </Box>
               </Tooltip>
             );
           })}
@@ -540,7 +553,7 @@ export default function ApplicationsPage() {
       );
     };
     return Cell;
-  }, [buildAppHref, handleInternalNavigate, isInstanceActive, lifecycleLabel]);
+  }, [buildAppHref, handleInternalNavigate, isInstanceActive, lifecycleLabel, theme.palette.mode]);
 
   const SuitesSummaryCell = useMemo(() => StructureSummaryCell('suites'), [StructureSummaryCell]);
   const ComponentsSummaryCell = useMemo(() => StructureSummaryCell('components'), [StructureSummaryCell]);

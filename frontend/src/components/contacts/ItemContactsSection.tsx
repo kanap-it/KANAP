@@ -16,7 +16,6 @@ import {
   FormControl,
   InputLabel,
   SelectChangeEvent,
-  Chip,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -162,13 +161,13 @@ export default function ItemContactsSection({ itemType, itemId, canManage }: Pro
               {contacts.map((link) => (
                 <TableRow key={link.id} hover onClick={() => navigate(`/master-data/contacts/${link.contact.id}/overview`)}>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Chip
-                      label={t(`contacts.role${link.role.charAt(0).toUpperCase() + link.role.slice(1)}`)}
-                      size="small"
-                      variant={link.origin === 'supplier' ? 'filled' : 'outlined'}
-                      color={link.origin === 'supplier' ? 'primary' : 'default'}
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
                       title={link.origin === 'supplier' ? t('contacts.fromSupplier') : t('contacts.manuallyAdded')}
-                    />
+                    >
+                      {t(`contacts.role${link.role.charAt(0).toUpperCase() + link.role.slice(1)}`)}
+                    </Typography>
                   </TableCell>
                   <TableCell>{link.contact.first_name || ''}</TableCell>
                   <TableCell>{link.contact.last_name || ''}</TableCell>

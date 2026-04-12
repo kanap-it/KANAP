@@ -3,7 +3,6 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Chip,
   Typography,
   Box,
   Divider,
@@ -30,20 +29,6 @@ interface Task {
 
 interface MyTasksTileProps {
   config: Record<string, unknown>;
-}
-
-function getPriorityColor(level: string): 'error' | 'warning' | 'default' | 'info' {
-  switch (level) {
-    case 'blocker':
-      return 'error';
-    case 'high':
-      return 'warning';
-    case 'low':
-    case 'optional':
-      return 'info';
-    default:
-      return 'default';
-  }
 }
 
 function isOverdue(dueDate: string | null): boolean {
@@ -142,12 +127,9 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
               secondaryTypographyProps={{ component: 'div' }}
             />
             {task.priority_level !== 'normal' && (
-              <Chip
-                label={task.priority_level}
-                size="small"
-                color={getPriorityColor(task.priority_level)}
-                sx={{ ml: 1 }}
-              />
+              <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.75rem', ml: 1 }}>
+                {task.priority_level}
+              </Box>
             )}
           </ListItemButton>
         ))}

@@ -363,7 +363,7 @@ export default function WeeklyReport() {
     const ClickableNameCell: React.FC<ICellRendererParams<WeeklyProjectRow, string>> = (params) => (
       <Box
         component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+        sx={{ cursor: 'pointer' }}
         onClick={() => {
           if (!params.data?.itemPath) return;
           navigate(params.data.itemPath);
@@ -420,7 +420,7 @@ export default function WeeklyReport() {
     const ClickableNameCell: React.FC<ICellRendererParams<WeeklyTaskRow, string>> = (params) => (
       <Box
         component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+        sx={{ cursor: 'pointer' }}
         onClick={() => {
           if (!params.data?.itemPath) return;
           navigate(params.data.itemPath);
@@ -473,7 +473,7 @@ export default function WeeklyReport() {
     const ClickableNameCell: React.FC<ICellRendererParams<WeeklyRequestRow, string>> = (params) => (
       <Box
         component="span"
-        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+        sx={{ cursor: 'pointer' }}
         onClick={() => {
           if (!params.data?.itemPath) return;
           navigate(params.data.itemPath);

@@ -12,7 +12,6 @@ import {
   MenuItem,
   Select,
   Box,
-  Chip,
   LinearProgress,
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
@@ -164,12 +163,9 @@ export default function CsvExportDialogV2({
 
             {/* Field count indicator */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Chip
-                label={t('csv.fieldsSelected', { selected: fieldCount, total: totalFields })}
-                size="small"
-                color={fieldCount === totalFields ? 'primary' : 'default'}
-                variant="outlined"
-              />
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                {t('csv.fieldsSelected', { selected: fieldCount, total: totalFields })}
+              </Typography>
               {preset === 'custom' && (
                 <Stack direction="row" spacing={1}>
                   <Button size="small" onClick={selectAll}>{t('buttons.selectAll')}</Button>

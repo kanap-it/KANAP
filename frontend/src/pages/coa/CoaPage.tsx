@@ -132,6 +132,7 @@ export default function CoaPage() {
       headerName: t('coa.columns.accountNumber'),
       width: 160,
       required: true,
+      cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
       ),
@@ -167,6 +168,7 @@ export default function CoaPage() {
       field: 'consolidation_account_number',
       headerName: t('coa.columns.consolAccountNumber'),
       width: 180,
+      cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getAccountHref} onNavigate={(href) => navigate(href)} />
       ),

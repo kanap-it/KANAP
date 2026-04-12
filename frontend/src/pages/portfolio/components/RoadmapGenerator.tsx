@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
   CircularProgress,
   Collapse,
   Divider,
@@ -40,6 +39,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -52,6 +52,7 @@ import LightModeIsland from '../../../components/LightModeIsland';
 import { useLocale } from '../../../i18n/useLocale';
 import { PortfolioGantt } from './PortfolioGantt';
 import { computeInactiveSegments } from './roadmap-inactive-segments';
+import { getDotColor, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
 
 type RoadmapTab = 'schedule' | 'bottlenecks' | 'occupation';
 type OccupationView = 'contributor' | 'team';
@@ -859,7 +860,7 @@ const exportRoadmapGanttAsPng = async (
   const todayOffset = dayDiffUtc(rangeStart, today);
   if (todayOffset >= 0 && todayOffset < totalDays) {
     const x = leftWidth + (todayOffset * pxPerDay) + 0.5;
-    ctx.strokeStyle = '#1976d2';
+    ctx.strokeStyle = '#1A6B7A';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(x, headerHeight);
@@ -1105,6 +1106,7 @@ type Props = {
 };
 
 export default function RoadmapGenerator({ onApplied }: Props) {
+  const mode = useTheme().palette.mode;
   const locale = useLocale();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<RoadmapTab>('schedule');
@@ -2252,7 +2254,10 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                 renderValue={(selected) => (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {selected.map((status) => (
-                      <Chip key={status} size="small" label={STATUS_LABELS[status] || status} />
+                      <Box key={status} component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(PROJECT_STATUS_COLORS[status] ?? 'default', mode) }} />
+                        <Typography variant="body2" sx={{ color: getDotColor(PROJECT_STATUS_COLORS[status] ?? 'default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{STATUS_LABELS[status] || status}</Typography>
+                      </Box>
                     ))}
                   </Box>
                 )}
@@ -2423,9 +2428,12 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
                             {explanationSubjectByKey.get(override.projectId) || scheduleRowsById.get(override.projectId)?.projectName || override.projectId}
                           </Typography>
-                          <Chip size="small" color="info" label={formatConstraint(override.constraint)} />
+                          <Box component="span" sx={{ color: getDotColor('info', mode), fontSize: '0.8125rem' }}>{formatConstraint(override.constraint)}</Box>
                           {warningCount > 0 && (
-                            <Chip size="small" color="warning" label={`Conflict${warningCount > 1 ? 's' : ''}`} />
+                            <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+                              <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{`Conflict${warningCount > 1 ? 's' : ''}`}</Typography>
+                            </Box>
                           )}
                         </Stack>
                         <Stack direction="row" spacing={1}>
@@ -2454,15 +2462,15 @@ export default function RoadmapGenerator({ onApplied }: Props) {
 
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} flexWrap="wrap" useFlexGap>
-              <Chip label={`Scheduled: ${response.schedule.length}`} />
-              <Chip label={`Reservations: ${response.reservations.length}`} />
-              <Chip label={`External blockers: ${response.diagnostics.reservationByReason?.external_blocker ?? 0}`} />
-              <Chip label={`Unschedulable: ${response.unschedulable.length}`} />
-              <Chip label={`Roadmap end: ${response.roadmapEndDate || 'N/A'}`} />
-              <Chip label={`Run: ${response.diagnostics.runDurationMs} ms`} />
-              <Chip label={`Sensitivity reruns: ${response.diagnostics.sensitivityReruns}`} />
+              <Typography variant="body2" color="text.secondary">{`Scheduled: ${response.schedule.length}`}</Typography>
+              <Typography variant="body2" color="text.secondary">{`Reservations: ${response.reservations.length}`}</Typography>
+              <Typography variant="body2" color="text.secondary">{`External blockers: ${response.diagnostics.reservationByReason?.external_blocker ?? 0}`}</Typography>
+              <Typography variant="body2" color="text.secondary">{`Unschedulable: ${response.unschedulable.length}`}</Typography>
+              <Typography variant="body2" color="text.secondary">{`Roadmap end: ${response.roadmapEndDate || 'N/A'}`}</Typography>
+              <Typography variant="body2" color="text.secondary">{`Run: ${response.diagnostics.runDurationMs} ms`}</Typography>
+              <Typography variant="body2" color="text.secondary">{`Sensitivity reruns: ${response.diagnostics.sensitivityReruns}`}</Typography>
               {response.diagnostics.sensitivityTruncated && (
-                <Chip color="warning" label="Sensitivity sampled (truncated)" />
+                <Typography variant="body2" sx={{ color: getDotColor('warning', mode) }}>Sensitivity sampled (truncated)</Typography>
               )}
             </Stack>
           </Paper>
@@ -2578,10 +2586,16 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                 </Link>
                                 <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }} flexWrap="wrap" useFlexGap>
                                   {pinStartValue && (
-                                    <Chip size="small" color="info" label="Pinned" />
+                                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('info', mode) }} />
+                                      <Typography variant="body2" sx={{ color: getDotColor('info', mode), fontWeight: 500, fontSize: '0.8125rem' }}>Pinned</Typography>
+                                    </Box>
                                   )}
                                   {hasConstraintConflict && (
-                                    <Chip size="small" color="warning" label="Conflict" />
+                                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+                                      <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>Conflict</Typography>
+                                    </Box>
                                   )}
                                 </Stack>
                               </TableCell>
@@ -2692,10 +2706,16 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                               </Tooltip>
                               <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
                                 {pinStartValue && (
-                                  <Chip size="small" color="info" label="Pinned" />
+                                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('info', mode) }} />
+                                    <Typography variant="body2" sx={{ color: getDotColor('info', mode), fontWeight: 500, fontSize: '0.8125rem' }}>Pinned</Typography>
+                                  </Box>
                                 )}
                                 {hasConstraintConflict && (
-                                  <Chip size="small" color="warning" label="Conflict" />
+                                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+                                    <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>Conflict</Typography>
+                                  </Box>
                                 )}
                               </Stack>
                             </Stack>
@@ -3143,17 +3163,12 @@ export default function RoadmapGenerator({ onApplied }: Props) {
             </Stack>
             {activeGanttFocusScope && (
               <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1, pb: 0.5 }} flexWrap="wrap" useFlexGap>
-                <Chip
-                  size="small"
-                  color="default"
-                  label={activeGanttFocusScope === 'contributor' ? 'Contributor Significance View' : 'Team Significance View'}
-                />
+                <Typography variant="body2" color="text.secondary">{activeGanttFocusScope === 'contributor' ? 'Contributor Significance View' : 'Team Significance View'}</Typography>
                 {hiddenSupportSummary && (
-                  <Chip
-                    size="small"
-                    color="warning"
-                    label={`Hidden support work: ${hiddenSupportSummary.count} project(s), ${hiddenSupportSummary.totalDays.toFixed(1)}d`}
-                  />
+                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+                    <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{`Hidden support work: ${hiddenSupportSummary.count} project(s), ${hiddenSupportSummary.totalDays.toFixed(1)}d`}</Typography>
+                  </Box>
                 )}
               </Stack>
             )}
@@ -3301,8 +3316,8 @@ export default function RoadmapGenerator({ onApplied }: Props) {
           {selectedExplanation && (
             <Stack spacing={2} sx={{ mt: 2 }}>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip size="small" label={selectedExplanation.classification} />
-                <Chip size="small" label={SCHEDULING_MODE_LABELS[selectedExplanation.schedulingMode]} />
+                <Typography variant="body2" color="text.secondary">{selectedExplanation.classification}</Typography>
+                <Typography variant="body2" color="text.secondary">{SCHEDULING_MODE_LABELS[selectedExplanation.schedulingMode]}</Typography>
               </Stack>
 
               <Box>
@@ -3377,23 +3392,16 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                         Planned contribution: {selectedFocusTimeline.totalProjectDays.toFixed(2)}d across {selectedFocusTimeline.weekDetails.length} active week(s)
                       </Typography>
                       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                        <Chip
-                          size="small"
-                          color={selectedFocusTimeline.significance === 'primary' ? 'success' : 'warning'}
-                          label={selectedFocusTimeline.significance === 'primary' ? 'Primary roadmap work' : 'Support work'}
-                        />
+                        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(selectedFocusTimeline.significance === 'primary' ? 'success' : 'warning', mode) }} />
+                          <Typography variant="body2" sx={{ color: getDotColor(selectedFocusTimeline.significance === 'primary' ? 'success' : 'warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>
+                            {selectedFocusTimeline.significance === 'primary' ? 'Primary roadmap work' : 'Support work'}
+                          </Typography>
+                        </Box>
                         {selectedFocusTimeline.contributionShare != null && (
-                          <Chip
-                            size="small"
-                            variant="outlined"
-                            label={`${Math.round(selectedFocusTimeline.contributionShare * 100)}% of project effort`}
-                          />
+                          <Typography variant="body2" color="text.secondary">{`${Math.round(selectedFocusTimeline.contributionShare * 100)}% of project effort`}</Typography>
                         )}
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label={`${selectedFocusTimeline.averageDaysPerWeek.toFixed(2)}d/week avg`}
-                        />
+                        <Typography variant="body2" color="text.secondary">{`${selectedFocusTimeline.averageDaysPerWeek.toFixed(2)}d/week avg`}</Typography>
                       </Stack>
                       <Typography variant="caption" color="text.secondary">
                         {selectedFocusTimeline.significance === 'primary'

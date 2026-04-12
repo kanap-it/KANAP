@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   IconButton,
   Stack,
@@ -578,15 +577,12 @@ export const IntegratedDocumentEditor = React.forwardRef<
 
   const persistedActions = (
     <>
-      {showManagedDocChip && <Chip label={t('labels.managedDoc')} size="small" variant="outlined" />}
+      {showManagedDocChip && <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>{t('labels.managedDoc')}</Typography>}
       {showDocumentControls && !editMode && (
-        <Chip
-          icon={<LockOutlinedIcon fontSize="small" />}
-          label={t('labels.readOnly')}
-          size="small"
-          variant="outlined"
-          sx={{ borderColor: 'divider' }}
-        />
+        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, color: 'text.secondary', fontSize: '0.8125rem' }}>
+          <LockOutlinedIcon sx={{ fontSize: 14 }} />
+          {t('labels.readOnly')}
+        </Box>
       )}
       {canOpenKnowledge && deepLinkRef && (
         <Button

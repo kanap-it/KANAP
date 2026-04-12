@@ -75,7 +75,7 @@ export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) 
         <Box>
           {/* Total hours - prominent display */}
           <Box sx={{ textAlign: 'center', mb: 2 }}>
-            <Typography variant="h3" color="primary" fontWeight={600}>
+            <Typography variant="h3" color="text.primary" fontWeight={600}>
               {summary.totalHours.toFixed(1)}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -86,7 +86,7 @@ export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) 
           {/* Category breakdown */}
           <Box sx={{ display: 'flex', gap: 2, mb: 2, justifyContent: 'center' }}>
             <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="subtitle2" color="primary">
+              <Typography variant="subtitle2" color="text.primary">
                 {summary.byCategory.it.toFixed(1)}h
               </Typography>
               <Typography variant="caption" color="text.secondary">

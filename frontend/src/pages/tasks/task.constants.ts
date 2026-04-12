@@ -18,7 +18,7 @@ TaskStatus,
 'default' | 'primary' | 'warning' | 'info' | 'secondary' | 'success' | 'error'
 > = {
   open: 'default',
-  in_progress: 'primary',
+  in_progress: 'info',
   pending: 'warning',
   in_testing: 'secondary',
   done: 'success',

@@ -47,6 +47,7 @@ import '@mdxeditor/editor/style.css';
 import { $getSelection, type LexicalEditor } from 'lexical';
 import { hasPotentiallyUnsafeMdxPaste, sanitizeMarkdownForMdxPaste } from '../lib/mdxPaste';
 import { normalizeMarkdownForRichTextEditor } from '../lib/markdownEditorNormalization';
+import { getMarkdownEditorToolbarConfig } from './markdownEditorToolbarConfig';
 import {
   convertRichClipboardToMarkdown,
   extractClipboardImageFiles,
@@ -66,7 +67,7 @@ interface MarkdownEditorProps {
   refreshNonce?: number;
   onImageUpload?: (file: File) => Promise<string>;
   onImageUrlImport?: (sourceUrl: string) => Promise<string>;
-  /** Show the full toolbar (Sub, Sup, ThematicBreak). Default is compact. */
+  /** Enable the full Knowledge toolbar. Default is the simplified toolbar used elsewhere. */
   fullToolbar?: boolean;
 }
 
@@ -410,9 +411,10 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   }, [disabled, insertPlainText, insertSanitizedMarkdown]);
 
   const plugins = React.useMemo(() => {
+    const toolbarConfig = getMarkdownEditorToolbarConfig(fullToolbar);
     const basePlugins = [
       captureRootEditorPlugin({ editorRef: lexicalEditorRef }),
-      headingsPlugin({ allowedHeadingLevels: [1, 2, 3, 4, 5, 6] }),
+      headingsPlugin({ allowedHeadingLevels: toolbarConfig.allowedHeadingLevels }),
       listsPlugin(),
       quotePlugin(),
       linkPlugin(),
@@ -462,19 +464,19 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
                         <Separator />
                         <BlockTypeSelect />
                         <BoldItalicUnderlineToggles options={['Bold', 'Italic']} />
-                        <StrikeThroughSupSubToggles options={fullToolbar ? ['Strikethrough', 'Sub', 'Sup'] : ['Strikethrough']} />
-                        <HighlightToggle />
+                        <StrikeThroughSupSubToggles options={toolbarConfig.strikeThroughOptions} />
+                        {toolbarConfig.showHighlight ? <HighlightToggle /> : null}
                         <CodeToggle />
                         <Separator />
                         <ListsToggle options={['bullet', 'number', 'check']} />
                         <Separator />
                         <CreateLink />
-                        <EmojiPickerButton />
+                        {toolbarConfig.showEmoji ? <EmojiPickerButton /> : null}
                         {onImageUpload ? <InsertImage /> : null}
-                        <InsertTable />
+                        {toolbarConfig.showTable ? <InsertTable /> : null}
                         <InsertCodeBlock />
-                        <InsertAdmonition />
-                        {fullToolbar && <InsertThematicBreak />}
+                        {toolbarConfig.showAdmonition ? <InsertAdmonition /> : null}
+                        {toolbarConfig.showThematicBreak ? <InsertThematicBreak /> : null}
                       </>
                     ),
                   },

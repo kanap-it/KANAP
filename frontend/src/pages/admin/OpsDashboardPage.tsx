@@ -13,7 +13,6 @@ import {
   TableHead,
   TableRow,
   Typography,
-  Chip,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -234,7 +233,7 @@ function SnapshotView({
               {data.topRoutes.map((r) => (
                 <TableRow key={`${r.method}-${r.route}`} hover>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                    <Chip label={r.method} size="small" variant="outlined" sx={{ mr: 1, fontFamily: 'monospace', height: 20, fontSize: '0.7rem' }} />
+                    <Typography component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace", fontSize: '12px', color: 'text.secondary', mr: 1 }}>{r.method}</Typography>
                     {r.route}
                   </TableCell>
                   <TableCell align="right">{r.count}</TableCell>

@@ -5,7 +5,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Divider,
   IconButton,
   Stack,
@@ -44,20 +43,13 @@ import {
 import type { TaskStatus } from './task.constants';
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { getDotColor } from '../../utils/statusColors';
 import {
   getPriorityLabel,
   getTaskStatusLabel,
 } from '../../utils/portfolioI18n';
 import { useLocale } from '../../i18n/useLocale';
 import { useTenant } from '../../tenant/TenantContext';
-
-const PRIORITY_COLORS: Record<string, 'error' | 'warning' | 'default' | 'info' | 'success'> = {
-  blocker: 'error',
-  high: 'warning',
-  normal: 'default',
-  low: 'info',
-  optional: 'success',
-};
 
 const PROJECT_WORKSPACE_TABS = new Set([
   'summary',
@@ -208,6 +200,7 @@ export default function TaskWorkspacePage() {
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [initialized, setInitialized] = React.useState(false);
+  const dirtyRef = React.useRef(false);
   const createInitKeyRef = React.useRef<string | null>(null);
   const classificationTouchedRef = React.useRef({
     source_id: false,
@@ -215,6 +208,10 @@ export default function TaskWorkspacePage() {
     stream_id: false,
     company_id: false,
   });
+  const sidebarSaveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+  const pendingSidebarPatchCountRef = React.useRef(0);
+  const hydratedTaskIdRef = React.useRef<string | null>(null);
+  const currentTaskDraftRef = React.useRef<TaskData | null>(null);
   const [descriptionFocusNonce, setDescriptionFocusNonce] = React.useState(0);
   const [commentFocusNonce, setCommentFocusNonce] = React.useState(0);
   const pendingDescriptionFocusRef = React.useRef(false);
@@ -326,6 +323,44 @@ export default function TaskWorkspacePage() {
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [convertToRequestOpen, setConvertToRequestOpen] = React.useState(false);
   const [descriptionResetNonce, setDescriptionResetNonce] = React.useState(0);
+  const resetClassificationTouched = React.useCallback(() => {
+    classificationTouchedRef.current = {
+      source_id: false,
+      category_id: false,
+      stream_id: false,
+      company_id: false,
+    };
+  }, []);
+  const buildTaskFormFromTask = React.useCallback((source: TaskData): Partial<TaskData> => ({
+    status: source.status,
+    task_type_id: source.task_type_id,
+    task_type_name: source.task_type_name,
+    priority_level: source.priority_level,
+    start_date: source.start_date,
+    due_date: source.due_date,
+    assignee_user_id: source.assignee_user_id,
+    creator_id: source.creator_id,
+    phase_id: source.phase_id,
+    labels: source.labels,
+    viewer_ids: source.viewer_ids,
+    related_object_type: source.related_object_type,
+    related_object_id: source.related_object_id,
+    related_object_name: source.related_object_name,
+    source_id: source.source_id,
+    category_id: source.category_id,
+    stream_id: source.stream_id,
+    company_id: source.company_id,
+  }), []);
+  const liveTask = React.useMemo<TaskData | null>(() => (
+    task
+      ? {
+          ...task,
+          ...form,
+          title,
+          description,
+        } as TaskData
+      : null
+  ), [description, form, task, title]);
 
   // Attachments
   const [showUploadArea, setShowUploadArea] = React.useState(false);
@@ -337,6 +372,14 @@ export default function TaskWorkspacePage() {
     },
     enabled: !!id && !isCreate,
   });
+
+  React.useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+
+  React.useEffect(() => {
+    currentTaskDraftRef.current = liveTask;
+  }, [liveTask]);
 
   React.useEffect(() => {
     if (!location.search.includes('action=') && !location.search.includes('status=')) return;
@@ -449,39 +492,20 @@ export default function TaskWorkspacePage() {
   // Initialize form from task data
   React.useEffect(() => {
     if (task) {
-      setTitle(task.title || '');
-      setDescription(task.description || '');
-      setForm({
-        status: task.status,
-        task_type_id: task.task_type_id,
-        task_type_name: task.task_type_name,
-        priority_level: task.priority_level,
-        start_date: task.start_date,
-        due_date: task.due_date,
-        assignee_user_id: task.assignee_user_id,
-        creator_id: task.creator_id,
-        phase_id: task.phase_id,
-        labels: task.labels,
-        viewer_ids: task.viewer_ids,
-        related_object_type: task.related_object_type,
-        related_object_id: task.related_object_id,
-        related_object_name: task.related_object_name,
-        // Classification fields (for standalone tasks)
-        source_id: task.source_id,
-        category_id: task.category_id,
-        stream_id: task.stream_id,
-        company_id: task.company_id,
-      });
-      setDirty(false);
+      const taskChanged = hydratedTaskIdRef.current !== task.id;
+      if (taskChanged || !dirtyRef.current) {
+        setTitle(task.title || '');
+        setDescription(task.description || '');
+      }
+      setForm(buildTaskFormFromTask(task));
+      if (taskChanged) {
+        setDirty(false);
+      }
       setInitialized(true);
-      classificationTouchedRef.current = {
-        source_id: false,
-        category_id: false,
-        stream_id: false,
-        company_id: false,
-      };
+      resetClassificationTouched();
+      hydratedTaskIdRef.current = task.id;
     }
-  }, [task]);
+  }, [buildTaskFormFromTask, resetClassificationTouched, task]);
 
   // Fetch task types for default task type
   const { data: taskTypesData } = useQuery({
@@ -560,12 +584,7 @@ export default function TaskWorkspacePage() {
     });
     setTitle('');
     setDescription('');
-    classificationTouchedRef.current = {
-      source_id: false,
-      category_id: false,
-      stream_id: false,
-      company_id: false,
-    };
+    resetClassificationTouched();
 
     if (originProjectId) {
       api.get<{ id: string; name: string }>(`/portfolio/projects/${originProjectId}`)
@@ -630,6 +649,7 @@ export default function TaskWorkspacePage() {
     createCapexItemId,
     createContractId,
     createPhaseId,
+    resetClassificationTouched,
     t,
   ]);
 
@@ -728,31 +748,138 @@ export default function TaskWorkspacePage() {
     form.company_id,
   ]);
 
-  const handleFieldChange = (field: string, value: any) => {
-    setForm(prev => ({ ...prev, [field]: value }));
-    if (field === 'source_id' || field === 'category_id' || field === 'stream_id' || field === 'company_id') {
-      const key = field as 'source_id' | 'category_id' | 'stream_id' | 'company_id';
-      classificationTouchedRef.current = {
-        ...classificationTouchedRef.current,
-        [key]: true,
-      };
-    }
-    setDirty(true);
-  };
-
-  const handleRelationChange = React.useCallback((params: { type: RelatedObjectType; id: string | null; name: string | null }) => {
-    setForm(prev => {
-      const relationChanged = prev.related_object_type !== params.type || prev.related_object_id !== params.id;
-      return {
-        ...prev,
-        related_object_type: params.type,
-        related_object_id: params.id,
-        related_object_name: params.name,
-        ...(params.type !== 'project' || relationChanged ? { phase_id: null } : {}),
-      };
+  const applyFormPatch = React.useCallback((patch: Record<string, any>) => {
+    setForm((prev) => ({ ...prev, ...patch }));
+    const nextTouched = { ...classificationTouchedRef.current };
+    let touchedChanged = false;
+    (['source_id', 'category_id', 'stream_id', 'company_id'] as const).forEach((field) => {
+      if (!Object.prototype.hasOwnProperty.call(patch, field)) return;
+      nextTouched[field] = true;
+      touchedChanged = true;
     });
+    if (touchedChanged) {
+      classificationTouchedRef.current = nextTouched;
+    }
+  }, []);
+
+  const waitForSidebarSaves = React.useCallback(async () => {
+    await sidebarSaveQueueRef.current;
+  }, []);
+
+  const buildSidebarPatchRequest = React.useCallback((snapshot: TaskData, patch: Record<string, any>) => {
+    const requestPayload = { ...patch };
+    delete requestPayload.related_object_name;
+
+    const hasRelatedType = Object.prototype.hasOwnProperty.call(requestPayload, 'related_object_type');
+    const hasRelatedId = Object.prototype.hasOwnProperty.call(requestPayload, 'related_object_id');
+    if (hasRelatedType !== hasRelatedId) {
+      throw new Error(t('portfolio:workspace.task.messages.invalidRelationConfiguration'));
+    }
+
+    const nextType = hasRelatedType
+      ? (requestPayload.related_object_type ?? null) as RelatedObjectType
+      : snapshot.related_object_type;
+    const nextId = hasRelatedId
+      ? (requestPayload.related_object_id ?? null) as string | null
+      : snapshot.related_object_id;
+
+    if (nextType === null && nextId !== null) {
+      throw new Error(t('portfolio:workspace.task.messages.invalidStandaloneRelation'));
+    }
+    if (nextType !== null && !nextId) {
+      throw new Error(t('portfolio:workspace.task.messages.relatedItemRequired'));
+    }
+
+    return {
+      endpoint: nextType === 'project' && nextId
+        ? `/portfolio/projects/${nextId}/tasks/${snapshot.id}`
+        : `/tasks/${snapshot.id}`,
+      payload: requestPayload,
+      nextType,
+    };
+  }, [t]);
+
+  const enqueueSidebarPatch = React.useCallback((localPatch: Record<string, any>, requestPatch: Record<string, any> = localPatch) => {
+    applyFormPatch(localPatch);
+
+    if (isCreate || !task) {
+      setDirty(true);
+      return;
+    }
+
+    const baseSnapshot = currentTaskDraftRef.current ?? liveTask ?? task;
+    const snapshot = { ...baseSnapshot, ...localPatch } as TaskData;
+    const previousRelatedType = baseSnapshot.related_object_type;
+
+    setError(null);
+    pendingSidebarPatchCountRef.current += 1;
+    sidebarSaveQueueRef.current = sidebarSaveQueueRef.current.then(async () => {
+      try {
+        const { endpoint, payload, nextType } = buildSidebarPatchRequest(snapshot, requestPatch);
+        await api.patch(endpoint, payload);
+        pendingSidebarPatchCountRef.current = Math.max(0, pendingSidebarPatchCountRef.current - 1);
+        if (pendingSidebarPatchCountRef.current === 0) {
+          void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+          void queryClient.invalidateQueries({ queryKey: ['task-activities', snapshot.id] });
+          if (
+            Object.prototype.hasOwnProperty.call(requestPatch, 'related_object_type')
+            || Object.prototype.hasOwnProperty.call(requestPatch, 'related_object_id')
+          ) {
+            void queryClient.invalidateQueries({ queryKey: ['task-time-entries-sum', snapshot.id] });
+          }
+          if (previousRelatedType === 'project' || nextType === 'project') {
+            void queryClient.invalidateQueries({ queryKey: ['portfolio-project'] });
+            void queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+          }
+        }
+      } catch (saveError) {
+        pendingSidebarPatchCountRef.current = Math.max(0, pendingSidebarPatchCountRef.current - 1);
+        setError(getApiErrorMessage(saveError, t, t('portfolio:workspace.task.messages.saveFailed')));
+        await refetch();
+      }
+    });
+  }, [applyFormPatch, buildSidebarPatchRequest, isCreate, liveTask, queryClient, refetch, t, task]);
+
+  const handleCreateSidebarPatch = React.useCallback((patch: Record<string, any>) => {
+    applyFormPatch(patch);
+    setDirty(true);
+  }, [applyFormPatch]);
+
+  const handleEditSidebarPatch = React.useCallback((patch: Record<string, any>) => {
+    enqueueSidebarPatch(patch);
+  }, [enqueueSidebarPatch]);
+
+  const handleCreateRelationChange = React.useCallback((params: { type: RelatedObjectType; id: string | null; name: string | null }) => {
+    setCreateRelation(params);
     setDirty(true);
   }, []);
+
+  const handleEditRelationChange = React.useCallback((params: { type: RelatedObjectType; id: string | null; name: string | null }) => {
+    const snapshot = currentTaskDraftRef.current ?? liveTask ?? task;
+    const relationChanged = snapshot
+      ? snapshot.related_object_type !== params.type || snapshot.related_object_id !== params.id
+      : true;
+    const localPatch: Record<string, any> = {
+      related_object_type: params.type,
+      related_object_id: params.id,
+      related_object_name: params.name,
+      ...(params.type !== 'project' || relationChanged ? { phase_id: null } : {}),
+    };
+
+    if (params.type !== null && !params.id) {
+      applyFormPatch(localPatch);
+      return;
+    }
+
+    const requestPatch: Record<string, any> = {
+      related_object_type: params.type,
+      related_object_id: params.id,
+    };
+    if (Object.prototype.hasOwnProperty.call(localPatch, 'phase_id')) {
+      requestPatch.phase_id = localPatch.phase_id;
+    }
+    enqueueSidebarPatch(localPatch, requestPatch);
+  }, [applyFormPatch, enqueueSidebarPatch, liveTask, task]);
 
   const handleSave = async () => {
     if (!task || saving) return;
@@ -760,6 +887,7 @@ export default function TaskWorkspacePage() {
     setError(null);
 
     try {
+      await waitForSidebarSaves();
       const currentType = task.related_object_type;
       const currentId = task.related_object_id;
       const nextType = (form.related_object_type !== undefined ? form.related_object_type : currentType) as RelatedObjectType;
@@ -817,12 +945,7 @@ export default function TaskWorkspacePage() {
 
       await api.patch(endpoint, payload);
       setDirty(false);
-      classificationTouchedRef.current = {
-        source_id: false,
-        category_id: false,
-        stream_id: false,
-        company_id: false,
-      };
+      resetClassificationTouched();
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['task-activities', task.id] });
@@ -836,6 +959,7 @@ export default function TaskWorkspacePage() {
   const handleDelete = async () => {
     if (!task || !window.confirm(t('portfolio:workspace.task.confirmations.deleteTask'))) return;
     try {
+      await waitForSidebarSaves();
       await api.delete('/tasks/bulk', { data: { ids: [task.id] } });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       navigate('/portfolio/tasks');
@@ -844,7 +968,8 @@ export default function TaskWorkspacePage() {
     }
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
+    await waitForSidebarSaves();
     if (originProjectPath) {
       navigate(originProjectPath);
       return;
@@ -873,6 +998,7 @@ export default function TaskWorkspacePage() {
 
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
+    await waitForSidebarSaves();
     if (dirty) {
       const proceed = window.confirm(t('portfolio:workspace.task.confirmations.unsavedNavigate'));
       if (proceed) {
@@ -884,20 +1010,15 @@ export default function TaskWorkspacePage() {
         if (task) {
           setTitle(task.title || '');
           setDescription(task.description || '');
-          setForm({ ...task });
+          setForm(buildTaskFormFromTask(task));
         }
-        classificationTouchedRef.current = {
-          source_id: false,
-          category_id: false,
-          stream_id: false,
-          company_id: false,
-        };
+        resetClassificationTouched();
         setDirty(false);
       }
     }
     const qs = cleanedSearchParams.toString();
     navigate(`/portfolio/tasks/${targetId}${qs ? `?${qs}` : ''}`);
-  }, [dirty, task, cleanedSearchParams, navigate, handleSave, t]);
+  }, [buildTaskFormFromTask, cleanedSearchParams, dirty, handleSave, navigate, resetClassificationTouched, task, t, waitForSidebarSaves]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString(locale, {
@@ -1142,17 +1263,16 @@ export default function TaskWorkspacePage() {
               />
             </Box>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Chip
-                label={getTaskStatusLabel(t, (form.status as TaskStatus) || 'open')}
-                color={TASK_STATUS_COLORS[(form.status as TaskStatus) || 'open'] || 'default'}
-                size="small"
-              />
-              <Chip
-                label={priorityLabels[form.priority_level as string] || getPriorityLabel(t, 'normal')}
-                color={PRIORITY_COLORS[form.priority_level as string] || 'default'}
-                size="small"
-                variant="outlined"
-              />
+              <Box component="span" sx={(theme) => {
+                const color = getDotColor(TASK_STATUS_COLORS[(form.status as TaskStatus) || 'open'] || 'default', theme.palette.mode);
+                return { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', fontWeight: 500, color };
+              }}>
+                <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(TASK_STATUS_COLORS[(form.status as TaskStatus) || 'open'] || 'default', theme.palette.mode) })} />
+                {getTaskStatusLabel(t, (form.status as TaskStatus) || 'open')}
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                {priorityLabels[form.priority_level as string] || getPriorityLabel(t, 'normal')}
+              </Typography>
             </Stack>
           </Stack>
         </Box>
@@ -1232,11 +1352,11 @@ export default function TaskWorkspacePage() {
                 company_id: (form as any).company_id ?? null,
                 company_name: null,
               }}
-              onChange={handleFieldChange}
+              onPatch={handleCreateSidebarPatch}
               readOnly={false}
               totalTimeHours={0}
               isCreate={true}
-              onRelationChange={(params) => setCreateRelation(params)}
+              onRelationChange={handleCreateRelationChange}
             />
           </Box>
 
@@ -1307,12 +1427,13 @@ export default function TaskWorkspacePage() {
     );
   }
 
-  const isProjectTask = task.related_object_type === 'project';
+  const effectiveTask = liveTask || task;
+  const isProjectTask = effectiveTask.related_object_type === 'project';
   const hasConvertedRequest = Boolean(task.converted_request_id);
   const canConvertToRequest = canManage && canCreateRequest;
-  const headerRelatedType = (form.related_object_type ?? task.related_object_type) as TaskData['related_object_type'];
-  const headerRelatedId = (form.related_object_id ?? task.related_object_id) as string | null;
-  const headerRelatedName = (form.related_object_name ?? task.related_object_name ?? '').trim();
+  const headerRelatedType = effectiveTask.related_object_type;
+  const headerRelatedId = effectiveTask.related_object_id;
+  const headerRelatedName = (effectiveTask.related_object_name ?? '').trim();
   const sidebarProjectWorkspaceLink = (
     headerRelatedType === 'project' && headerRelatedId
       ? buildProjectWorkspacePath(headerRelatedId, 'overview')
@@ -1417,7 +1538,7 @@ export default function TaskWorkspacePage() {
 
         {/* Title with priority score and chips */}
         <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 2 }}>
-          {task.related_object_type === 'project' && task.priority_score != null && (
+          {effectiveTask.related_object_type === 'project' && task.priority_score != null && (
             <Box
               sx={{
                 display: 'flex',
@@ -1441,14 +1562,15 @@ export default function TaskWorkspacePage() {
           <Stack spacing={0.5} sx={{ flex: 1 }}>
             <Stack direction="row" alignItems="center" spacing={1}>
               {task?.item_number && (
-                <Chip
-                  label={`T-${task.item_number}`}
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontFamily: 'monospace' }}
+                <Typography
+                  component="span"
+                  variant="body2"
                   onClick={() => navigator.clipboard.writeText(`T-${task.item_number}`)}
                   title={t('portfolio:workspace.task.actions.copyReference')}
-                />
+                  sx={{ fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', monospace", cursor: 'pointer', color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+                >
+                  T-{task.item_number}
+                </Typography>
               )}
               <Box sx={{ ...titleBarSx, flex: 1 }}>
                 {canManage ? (
@@ -1477,27 +1599,27 @@ export default function TaskWorkspacePage() {
               </Box>
             </Stack>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Chip
-                label={getTaskStatusLabel(t, (form.status || task.status) as TaskStatus)}
-                color={TASK_STATUS_COLORS[(form.status || task.status) as TaskStatus] || 'default'}
-                size="small"
-              />
+              <Box component="span" sx={(theme) => {
+                const color = getDotColor(TASK_STATUS_COLORS[effectiveTask.status] || 'default', theme.palette.mode);
+                return { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', fontWeight: 500, color };
+              }}>
+                <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(TASK_STATUS_COLORS[effectiveTask.status] || 'default', theme.palette.mode) })} />
+                {getTaskStatusLabel(t, effectiveTask.status)}
+              </Box>
               {projectHeaderChip && (
-                <Chip
-                  label={projectHeaderChip.name}
-                  size="small"
-                  variant="outlined"
+                <Typography
+                  component="span"
+                  variant="body2"
                   onClick={() => navigate(buildProjectWorkspacePath(projectHeaderChip.id, 'activity'))}
-                  sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                  sx={{ cursor: 'pointer', color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
                   title={t('portfolio:workspace.task.actions.openProjectActivity', { name: projectHeaderChip.name })}
-                />
+                >
+                  {projectHeaderChip.name}
+                </Typography>
               )}
-              <Chip
-                label={priorityLabels[form.priority_level || task.priority_level] || getPriorityLabel(t, form.priority_level || task.priority_level)}
-                color={PRIORITY_COLORS[form.priority_level || task.priority_level] || 'default'}
-                size="small"
-                variant="outlined"
-              />
+              <Typography variant="body2" color="text.secondary">
+                {priorityLabels[effectiveTask.priority_level] || getPriorityLabel(t, effectiveTask.priority_level)}
+              </Typography>
               <Button
                 size="small"
                 startIcon={<AttachFileIcon />}
@@ -1558,41 +1680,13 @@ export default function TaskWorkspacePage() {
             />
           )}
           <TaskSidebar
-            task={{
-              id: task.id,
-              status: form.status || task.status,
-              task_type_id: (form as any).task_type_id !== undefined ? (form as any).task_type_id : task.task_type_id,
-              task_type_name: task.task_type_name,
-              priority_level: form.priority_level || task.priority_level,
-              start_date: form.start_date !== undefined ? form.start_date : task.start_date,
-              due_date: form.due_date !== undefined ? form.due_date : task.due_date,
-              assignee_user_id: form.assignee_user_id !== undefined ? form.assignee_user_id : task.assignee_user_id,
-              assignee_name: task.assignee_name,
-              creator_id: form.creator_id !== undefined ? form.creator_id : task.creator_id,
-              creator_name: task.creator_name,
-              owner_ids: task.owner_ids || [],
-              viewer_ids: form.viewer_ids !== undefined ? form.viewer_ids : (task.viewer_ids || []),
-              labels: form.labels || task.labels || [],
-              related_object_type: form.related_object_type !== undefined ? form.related_object_type : task.related_object_type,
-              related_object_id: form.related_object_id !== undefined ? form.related_object_id : task.related_object_id,
-              related_object_name: form.related_object_name !== undefined ? form.related_object_name : task.related_object_name,
-              phase_id: form.phase_id !== undefined ? form.phase_id : task.phase_id,
-              phase_name: task.phase_name,
-              source_id: form.source_id !== undefined ? form.source_id : task.source_id,
-              source_name: task.source_name,
-              category_id: form.category_id !== undefined ? form.category_id : task.category_id,
-              category_name: task.category_name,
-              stream_id: form.stream_id !== undefined ? form.stream_id : task.stream_id,
-              stream_name: task.stream_name,
-              company_id: form.company_id !== undefined ? form.company_id : task.company_id,
-              company_name: task.company_name,
-            }}
-              onChange={handleFieldChange}
-              readOnly={!canManage}
-              totalTimeHours={totalTimeHours}
-              onRelationChange={handleRelationChange}
-              projectWorkspaceLink={sidebarProjectWorkspaceLink}
-            />
+            task={effectiveTask}
+            onPatch={handleEditSidebarPatch}
+            readOnly={!canManage}
+            totalTimeHours={totalTimeHours}
+            onRelationChange={handleEditRelationChange}
+            projectWorkspaceLink={sidebarProjectWorkspaceLink}
+          />
         </Box>
 
         {/* Main content area */}
@@ -1660,10 +1754,10 @@ export default function TaskWorkspacePage() {
           {/* Activity Section */}
           <TaskActivity
             taskId={task.id}
-            projectId={isProjectTask && task.related_object_id ? task.related_object_id : undefined}
+            projectId={isProjectTask && effectiveTask.related_object_id ? effectiveTask.related_object_id : undefined}
             readOnly={!canManage}
-            relatedObjectType={task.related_object_type ?? undefined}
-            currentStatus={task.status}
+            relatedObjectType={effectiveTask.related_object_type ?? undefined}
+            currentStatus={effectiveTask.status}
             totalTimeHours={totalTimeHours}
             initialStatus={initialStatus}
             commentFocusNonce={commentFocusNonce}

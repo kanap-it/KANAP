@@ -6,7 +6,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Stack,
   Typography,
 } from '@mui/material';
@@ -168,11 +167,9 @@ export default function RequestAnalysisTab({
                   {t('workspace.request.analysis.labels.latestRecommendation')}
                 </Typography>
                 {latestRecommendationOutcome && (
-                  <Chip
-                    size="small"
-                    color={latestRecommendationOutcomeColor}
-                    label={latestRecommendationOutcome}
-                  />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                    {latestRecommendationOutcome}
+                  </Typography>
                 )}
                 <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
                   {latestRecommendationAuthor} • {latestRecommendationCreatedAt}

@@ -6,7 +6,6 @@ import {
   RadioGroup,
   Typography,
   Box,
-  Chip,
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { WORKFLOW_PRESETS } from './csv.types';
@@ -56,7 +55,7 @@ export function CsvImportWorkflowPresets({
                     {preset.label}
                   </Typography>
                   {preset.recommended && (
-                    <Chip label={t('labels.recommended')} size="small" color="primary" variant="outlined" />
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>{t('labels.recommended')}</Typography>
                   )}
                 </Box>
               }

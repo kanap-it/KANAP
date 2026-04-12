@@ -51,7 +51,7 @@ import { useAiCapabilities } from '../ai/useAiCapabilities';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../i18n/useLocale';
 
-const drawerWidth = 240;
+const drawerWidth = 220;
 
 type NavItem = { to: string; label: string; icon: React.ReactNode; resource?: string };
 type NavDivider = { divider: string };
@@ -255,10 +255,9 @@ export default function Layout() {
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar>
           <IconButton
-            color="inherit"
             edge="start"
             onClick={() => setNavOpen((v) => !v)}
-            sx={{ mr: 2 }}
+            sx={{ mr: 1.5, color: 'text.secondary' }}
             title={navOpen ? t('nav:topBar.collapseNav') : t('nav:topBar.expandNav')}
             aria-label={navOpen ? t('nav:topBar.collapseNav') : t('nav:topBar.expandNav')}
           >
@@ -282,7 +281,7 @@ export default function Layout() {
               variant="h6"
               component={Link}
               to="/"
-              sx={{ mr: 3, textDecoration: 'none', color: 'inherit' }}
+              sx={{ mr: 3, textDecoration: 'none', color: 'text.primary' }}
             >
               KANAP
             </Typography>
@@ -293,28 +292,24 @@ export default function Layout() {
               onChange={(_, val) => {
                 navigate(workspaceRoutes[val as WorkspaceKey] ?? workspaceRoutes.admin);
               }}
+              centered
               sx={{
                 flex: 1,
                 '& .MuiTab-root': {
-                  color: 'rgba(255,255,255,0.7)',
-                  minHeight: 64,
-                  textTransform: 'none',
-                  fontSize: '0.95rem',
-                  fontWeight: 500,
+                  color: 'text.secondary',
+                  minHeight: 48,
                   textDecoration: 'none',
                   '&:visited, &:hover, &:active': {
-                    color: 'rgba(255,255,255,0.7)',
                     textDecoration: 'none',
                   },
                 },
                 '& .MuiTab-root.Mui-selected': {
-                  color: 'common.white',
-                  '&:visited, &:hover, &:active': {
-                    color: 'common.white',
-                  },
+                  color: 'text.primary',
+                  fontWeight: 600,
                 },
                 '& .MuiTabs-indicator': {
-                  backgroundColor: 'common.white',
+                  backgroundColor: 'primary.main',
+                  height: 2,
                 },
               }}
               aria-label={t('nav:topBar.sectionNav')}
@@ -332,8 +327,8 @@ export default function Layout() {
           {token && (
             <>
               <IconButton
-                color="inherit"
                 size="small"
+                sx={{ color: 'text.secondary' }}
                 onClick={() => window.open(getDocUrl(location.pathname, locale), '_blank', 'noopener,noreferrer')}
                 title={t('nav:topBar.help')}
                 aria-label={t('nav:topBar.openDocs')}
@@ -342,15 +337,15 @@ export default function Layout() {
               </IconButton>
               <Tooltip title={t('nav:topBar.themeTooltip', { mode: themeModeLabel })}>
                 <IconButton
-                  color="inherit"
                   size="small"
+                  sx={{ color: 'text.secondary' }}
                   onClick={() => setMode(mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light')}
                   aria-label={t('nav:topBar.themeLabel', { mode: themeModeLabel })}
                 >
                   {themeModeIcon}
                 </IconButton>
               </Tooltip>
-              <IconButton color="inherit" onClick={openMenu} size="small" title={t('nav:topBar.account')}>
+              <IconButton onClick={openMenu} size="small" sx={{ color: 'text.secondary' }} title={t('nav:topBar.account')}>
                 <AccountCircleIcon />
               </IconButton>
               <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={closeMenu} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
@@ -441,20 +436,22 @@ export default function Layout() {
                         <ListSubheader
                           key={`divider-${idx}`}
                           sx={{
-                            lineHeight: '32px',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
+                            lineHeight: '16px',
+                            fontSize: '0.6875rem',
+                            fontWeight: 500,
                             color: 'text.secondary',
                             textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                            mt: idx === 0 ? 0 : 1,
+                            letterSpacing: '0.06em',
+                            pt: idx === 0 ? 1 : '18px',
+                            pb: '10px',
+                            px: '18px',
                           }}
                         >
                           {entry.divider}
                         </ListSubheader>
                       );
                     }
-                    return <Divider key={`divider-${idx}`} sx={{ my: 1 }} />;
+                    return <Divider key={`divider-${idx}`} sx={{ my: '8px', mx: 1 }} />;
                   }
 
                   // Render nav items
@@ -465,19 +462,19 @@ export default function Layout() {
                       to={entry.to}
                       selected={location.pathname === entry.to || location.pathname.startsWith(entry.to + '/')}
                       sx={{
-                        minHeight: 48,
                         justifyContent: navOpen ? 'initial' : 'center',
-                        px: 2.5,
+                        px: navOpen ? 1.5 : 2.5,
                       }}
                     >
                       <ListItemIcon sx={{
                         minWidth: 0,
-                        mr: navOpen ? 3 : 'auto',
+                        mr: navOpen ? 1.5 : 'auto',
                         justifyContent: 'center',
+                        '& .MuiSvgIcon-root': { fontSize: '1.3rem' },
                       }}>
                         {entry.icon}
                       </ListItemIcon>
-                      {navOpen && <ListItemText primary={entry.label} />}
+                      {navOpen && <ListItemText primary={entry.label} primaryTypographyProps={{ variant: 'body1' }} />}
                     </ListItemButton>
                   );
                   return navOpen ? (

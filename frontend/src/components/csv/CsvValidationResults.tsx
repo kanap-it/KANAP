@@ -2,14 +2,14 @@ import React from 'react';
 import {
   Alert,
   Box,
-  Chip,
-  Divider,
   List,
   ListItem,
   ListItemText,
   Stack,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { getDotColor } from '../../utils/statusColors';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import WarningIcon from '@mui/icons-material/Warning';
@@ -28,6 +28,7 @@ export function CsvValidationResults({
   maxWarnings = 5,
 }: CsvValidationResultsProps) {
   const { t } = useTranslation('common');
+  const mode = useTheme().palette.mode;
   const isValidation = result.dryRun;
   const hasErrors = result.errors.length > 0;
   const hasWarnings = result.warnings.length > 0;
@@ -52,35 +53,28 @@ export function CsvValidationResults({
       </Alert>
 
       {/* Counts */}
-      <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-        <Chip
-          label={t('csv.totalRows', { count: result.total })}
-          size="small"
-          variant="outlined"
-        />
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('default', mode) }} />
+          <Typography variant="body2" sx={{ color: getDotColor('default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('csv.totalRows', { count: result.total })}</Typography>
+        </Box>
         {result.inserted > 0 && (
-          <Chip
-            label={t('csv.toInsert', { count: result.inserted })}
-            size="small"
-            color="success"
-            variant="outlined"
-          />
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('success', mode) }} />
+            <Typography variant="body2" sx={{ color: getDotColor('success', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('csv.toInsert', { count: result.inserted })}</Typography>
+          </Box>
         )}
         {result.updated > 0 && (
-          <Chip
-            label={t('csv.toUpdate', { count: result.updated })}
-            size="small"
-            color="info"
-            variant="outlined"
-          />
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('info', mode) }} />
+            <Typography variant="body2" sx={{ color: getDotColor('info', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('csv.toUpdate', { count: result.updated })}</Typography>
+          </Box>
         )}
         {result.skipped > 0 && (
-          <Chip
-            label={t('csv.skipped', { count: result.skipped })}
-            size="small"
-            color="warning"
-            variant="outlined"
-          />
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+            <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('csv.skipped', { count: result.skipped })}</Typography>
+          </Box>
         )}
       </Stack>
 

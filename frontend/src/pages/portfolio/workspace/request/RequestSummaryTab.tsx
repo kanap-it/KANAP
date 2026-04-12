@@ -3,11 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Box,
   Button,
-  Chip,
   Divider,
   Paper,
   Stack,
   Typography,
+  useTheme,
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import { useLocale } from '../../../../i18n/useLocale';
 import IntegratedDocumentEditor, { IntegratedDocumentEditorHandle } from '../../../../components/IntegratedDocumentEditor';
 import { normalizeFeasibilityReviewValue } from '../../editors/FeasibilityReview';
 import { getFeasibilityStatusLabel } from '../../../../utils/portfolioI18n';
+import { getDotColor, getPillBg } from '../../../../utils/statusColors';
 
 type SummaryTabKey = 'activity' | 'analysis' | 'knowledge';
 
@@ -130,6 +131,7 @@ export default function RequestSummaryTab({
 }: RequestSummaryTabProps) {
   const { t } = useTranslation('portfolio');
   const locale = useLocale();
+  const { palette: { mode } } = useTheme();
   const [purposeExpanded, setPurposeExpanded] = React.useState(true);
   const { data: knowledgeContext } = useQuery({
     queryKey: ['request-summary-knowledge-context', id],
@@ -208,16 +210,15 @@ export default function RequestSummaryTab({
           ) : undefined}
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Chip label={statusLabel || t('workspace.request.summary.values.draft')} color={statusColor} size="small" />
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: '9999px', bgcolor: getPillBg(statusColor, mode), color: getDotColor(statusColor, mode), fontSize: '12px', fontWeight: 500 }}>
+              {statusLabel || t('workspace.request.summary.values.draft')}
+            </Box>
             {!isCreate && form?.priority_score != null && (
-              <Chip
-                label={t('workspace.request.summary.values.priority', {
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                {t('workspace.request.summary.values.priority', {
                   value: Math.round(form.priority_score),
                 })}
-                size="small"
-                variant="outlined"
-                color={form?.priority_override ? 'warning' : 'default'}
-              />
+              </Typography>
             )}
           </Stack>
           <Stack spacing={1}>
@@ -228,7 +229,9 @@ export default function RequestSummaryTab({
               {businessProcesses.length > 0 ? (
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   {businessProcesses.map((process: any) => (
-                    <Chip key={process.id || process.name} size="small" label={process.name || process.id} />
+                    <Typography key={process.id || process.name} variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                      {process.name || process.id}
+                    </Typography>
                   ))}
                 </Stack>
               ) : (
@@ -260,11 +263,9 @@ export default function RequestSummaryTab({
         >
           <Stack spacing={1.5}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Chip
-                size="small"
-                color={FEASIBILITY_STATUS_COLORS[topFeasibilityStatus]}
-                label={getFeasibilityStatusLabel(t, topFeasibilityStatus)}
-              />
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: '9999px', bgcolor: getPillBg(FEASIBILITY_STATUS_COLORS[topFeasibilityStatus], mode), color: getDotColor(FEASIBILITY_STATUS_COLORS[topFeasibilityStatus], mode), fontSize: '12px', fontWeight: 500 }}>
+                {getFeasibilityStatusLabel(t, topFeasibilityStatus)}
+              </Box>
               <Typography variant="body2">
                 {t('workspace.request.summary.values.dimensionsAssessed', {
                   count: 7 - (feasibilityCounts.get('not_assessed') || 0),
@@ -279,11 +280,9 @@ export default function RequestSummaryTab({
                 <Stack spacing={1}>
                   <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                     {latestRecommendationOutcome && (
-                      <Chip
-                        label={latestRecommendationOutcome}
-                        size="small"
-                        color={latestRecommendationOutcomeColor}
-                      />
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                        {latestRecommendationOutcome}
+                      </Typography>
                     )}
                     <Typography variant="body2" color="text.secondary">
                       {latestRecommendationAuthor}

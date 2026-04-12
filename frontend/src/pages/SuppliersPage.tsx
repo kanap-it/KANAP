@@ -60,6 +60,7 @@ export default function SuppliersPage() {
       field: 'erp_supplier_id',
       headerName: t('suppliers.columns.erpSupplierId'),
       width: 200,
+      cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getSupplierHref} onNavigate={(href) => navigate(href)} />
       ),

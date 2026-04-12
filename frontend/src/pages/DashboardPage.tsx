@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import { Box, Grid, Typography, Stack, Button, Chip, Skeleton, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Box, Grid, Typography, Stack, Button, Skeleton, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { getDotColor } from '../utils/statusColors';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -222,6 +224,7 @@ export default function DashboardPage() {
   const locale = useLocale();
   const Y = new Date().getFullYear();
 
+  const mode = useTheme().palette.mode;
   const { data: opexTotals, isLoading: opexLoading } = useOpexTotals();
   const { data: capexTotals, isLoading: capexLoading } = useCapexTotals();
   const { data: myTasks, isLoading: tasksLoading } = useMyTasksSummary(profile?.id);
@@ -350,7 +353,7 @@ export default function DashboardPage() {
                 const overdue = due ? due < new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
                 return (
                   <Stack key={tk.id} direction="row" spacing={1} alignItems="center">
-                    <Chip size="small" color={overdue ? 'error' : 'default'} label={due ? new Date(due).toLocaleDateString(locale) : '\u2014'} />
+                    <Typography variant="body2" sx={{ color: overdue ? getDotColor('error', mode) : 'text.secondary', fontWeight: 500, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{due ? new Date(due).toLocaleDateString(locale) : '\u2014'}</Typography>
                     <Typography variant="body1" noWrap sx={{ flex: 1 }}>{tk.title || t('labels.task')}</Typography>
                   </Stack>
                 );
@@ -368,7 +371,7 @@ export default function DashboardPage() {
             <Stack spacing={0.75}>
               {upcomingRenewals.map((r) => (
                 <Stack key={r.id} direction="row" spacing={1} alignItems="center">
-                  <Chip size="small" label={r.cancellation_deadline ? new Date(r.cancellation_deadline).toLocaleDateString(locale) : '\u2014'} />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{r.cancellation_deadline ? new Date(r.cancellation_deadline).toLocaleDateString(locale) : '\u2014'}</Typography>
                   <Typography variant="body1" noWrap sx={{ flex: 1 }}>{r.name}</Typography>
                 </Stack>
               ))}
@@ -383,10 +386,10 @@ export default function DashboardPage() {
         <Grid item xs={12} md={6} lg={4}>
           <DashboardTile icon="ReportProblemOutlined" title={t('dashboard.dataHygieneOpex')} isLoading={hygiene.loading} action={<Button size="small" onClick={() => navigate('/ops/opex')}>{t('buttons.view')}</Button>}>
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1 }}>
-              <Chip label={t('dashboard.noItOwner', { count: hygiene.counts.noItOwner })} color={hygiene.counts.noItOwner ? 'warning' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
-              <Chip label={t('dashboard.noBizOwner', { count: hygiene.counts.noBizOwner })} color={hygiene.counts.noBizOwner ? 'warning' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
-              <Chip label={t('dashboard.noPayingCompany', { count: hygiene.counts.noPayingCompany })} color={hygiene.counts.noPayingCompany ? 'warning' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
-              <Chip label={t('dashboard.coaMismatches', { count: hygiene.counts.accountWarning })} color={hygiene.counts.accountWarning ? 'error' : 'default'} clickable onClick={() => navigate('/ops/opex')} />
+              <Typography variant="body2" sx={{ color: hygiene.counts.noItOwner ? getDotColor('warning', mode) : 'text.secondary', fontWeight: 500, cursor: 'pointer' }} onClick={() => navigate('/ops/opex')}>{t('dashboard.noItOwner', { count: hygiene.counts.noItOwner })}</Typography>
+              <Typography variant="body2" sx={{ color: hygiene.counts.noBizOwner ? getDotColor('warning', mode) : 'text.secondary', fontWeight: 500, cursor: 'pointer' }} onClick={() => navigate('/ops/opex')}>{t('dashboard.noBizOwner', { count: hygiene.counts.noBizOwner })}</Typography>
+              <Typography variant="body2" sx={{ color: hygiene.counts.noPayingCompany ? getDotColor('warning', mode) : 'text.secondary', fontWeight: 500, cursor: 'pointer' }} onClick={() => navigate('/ops/opex')}>{t('dashboard.noPayingCompany', { count: hygiene.counts.noPayingCompany })}</Typography>
+              <Typography variant="body2" sx={{ color: hygiene.counts.accountWarning ? getDotColor('error', mode) : 'text.secondary', fontWeight: 500, cursor: 'pointer' }} onClick={() => navigate('/ops/opex')}>{t('dashboard.coaMismatches', { count: hygiene.counts.accountWarning })}</Typography>
             </Stack>
           </DashboardTile>
         </Grid>
@@ -407,7 +410,7 @@ export default function DashboardPage() {
               <Stack spacing={0.5} sx={{ mt: 1 }}>
                 {(recentOpex?.items || []).map((r) => (
                   <Stack key={r.id} direction="row" spacing={1} alignItems="center">
-                    <Chip size="small" label={new Date((r.updated_at || r.created_at || '')).toLocaleDateString(locale)} />
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{new Date((r.updated_at || r.created_at || '')).toLocaleDateString(locale)}</Typography>
                     <Typography variant="body1" noWrap sx={{ flex: 1 }}>{r.product_name}</Typography>
                   </Stack>
                 ))}

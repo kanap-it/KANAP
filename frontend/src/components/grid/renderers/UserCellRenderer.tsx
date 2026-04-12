@@ -184,7 +184,7 @@ export function UserCellRenderer<T = unknown>(
       alignItems="center"
       sx={{
         cursor: handleClick ? 'pointer' : 'default',
-        '&:hover': handleClick ? { color: 'primary.main' } : undefined,
+        '&:hover': handleClick ? { color: 'text.primary' } : undefined,
       }}
       onClick={handleClick}
     >
@@ -195,7 +195,7 @@ export function UserCellRenderer<T = unknown>(
             width: avatarSize,
             height: avatarSize,
             fontSize: avatarSize * 0.4,
-            bgcolor: 'primary.main',
+            bgcolor: 'grey.500',
           }}
         >
           {initials}

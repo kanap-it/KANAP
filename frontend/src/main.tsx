@@ -12,8 +12,11 @@ import { ThemeModeProvider, createAppTheme, useThemeMode } from './config/ThemeC
 import { TenantProvider, useTenant } from './tenant/TenantContext'
 import './i18n'
 import { useLocale } from './i18n/useLocale'
+import '@fontsource-variable/inter'
+import '@fontsource-variable/jetbrains-mono'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
+import './styles/ag-grid-overrides.css'
 import './styles/print.css'
 
 const MUI_LOCALES = {

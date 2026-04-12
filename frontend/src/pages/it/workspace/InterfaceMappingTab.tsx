@@ -4,7 +4,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -1147,10 +1146,10 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
           <Stack spacing={1}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <Typography variant="subtitle2">Mapping workspace</Typography>
-              <Chip label={`Set: ${mappingSet.name}`} size="small" />
-              <Chip label={`Revision ${mappingSet.revision_number || 1}`} size="small" variant="outlined" />
-              <Chip label={`${draftRules.length} rules`} size="small" variant="outlined" />
-              <Chip label={`${draftGroups.length} groups`} size="small" variant="outlined" />
+              <Typography variant="body2" color="text.secondary">{`Set: ${mappingSet.name}`}</Typography>
+              <Typography variant="body2" color="text.secondary">{`Revision ${mappingSet.revision_number || 1}`}</Typography>
+              <Typography variant="body2" color="text.secondary">{`${draftRules.length} rules`}</Typography>
+              <Typography variant="body2" color="text.secondary">{`${draftGroups.length} groups`}</Typography>
             </Stack>
             <Typography variant="body2" color="text.secondary">
               This view is simplified for editors: each source and target binding gets its own row, optional type descriptions stay lightweight, and saving a rule from the drawer persists it immediately.
@@ -1355,7 +1354,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                     key={group.id}
                     disablePadding
                     secondaryAction={isReservedGroup(group) ? (
-                      <Chip label="Default" size="small" variant="outlined" />
+                      <Typography variant="body2" color="text.secondary">Default</Typography>
                     ) : canManage ? (
                       <Stack direction="row" spacing={0.5}>
                         <IconButton

@@ -658,7 +658,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                       variant="body2"
                       sx={{
                         flex: 1,
-                        color: 'primary.main',
+                        color: 'text.primary',
                         textDecoration: 'none',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',

@@ -77,7 +77,7 @@ export default function LocationsPage() {
   }, [getLocationHref, navigate]);
 
   const columns: EnhancedColDef<LocationRow>[] = [
-    { headerName: t('pages.locations.columns.code'), field: 'code', minWidth: 140, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
+    { headerName: t('pages.locations.columns.code'), field: 'code', minWidth: 140, filter: 'agTextColumnFilter', cellRenderer: ClickableCell, cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' } },
     { headerName: t('common.name'), field: 'name', minWidth: 200, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
     {
       headerName: t('pages.locations.columns.hostingType'),

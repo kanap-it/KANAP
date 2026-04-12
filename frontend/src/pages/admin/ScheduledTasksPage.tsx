@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Alert,
   Box,
-  Chip,
   CircularProgress,
   Drawer,
   IconButton,
@@ -20,6 +19,8 @@ import {
   Typography,
   Pagination,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { getDotColor } from '../../utils/statusColors';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import HistoryIcon from '@mui/icons-material/History';
 import EditIcon from '@mui/icons-material/Edit';
@@ -61,18 +62,15 @@ function humanCron(expr: string, t: (key: string) => string): string {
   return labelKey ? t(labelKey) : expr;
 }
 
-function statusChip(status: string | null, t: (key: string, options?: Record<string, unknown>) => string) {
-  if (!status) return <Chip label={t('scheduledTasks.statuses.neverRun')} size="small" variant="outlined" />;
-  switch (status) {
-    case 'success':
-      return <Chip label={t('scheduledTasks.statuses.success')} size="small" color="success" />;
-    case 'failure':
-      return <Chip label={t('scheduledTasks.statuses.failure')} size="small" color="error" />;
-    case 'running':
-      return <Chip label={t('scheduledTasks.statuses.running')} size="small" color="info" />;
-    default:
-      return <Chip label={status} size="small" />;
-  }
+function StatusDot({ status, t, mode }: { status: string | null; t: (key: string, options?: Record<string, unknown>) => string; mode: 'light' | 'dark' }) {
+  const colorKey = !status ? 'default' : status === 'success' ? 'success' : status === 'failure' ? 'error' : status === 'running' ? 'info' : 'default';
+  const label = !status ? t('scheduledTasks.statuses.neverRun') : status === 'success' ? t('scheduledTasks.statuses.success') : status === 'failure' ? t('scheduledTasks.statuses.failure') : status === 'running' ? t('scheduledTasks.statuses.running') : status;
+  return (
+    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(colorKey, mode) }} />
+      <Typography variant="body2" sx={{ color: getDotColor(colorKey, mode), fontWeight: 500, fontSize: '0.8125rem' }}>{label}</Typography>
+    </Box>
+  );
 }
 
 function formatDuration(ms: number | null): string {
@@ -101,6 +99,7 @@ export default function ScheduledTasksPage() {
 function ScheduledTasksContent() {
   const { t } = useTranslation(['admin', 'common']);
   const locale = useLocale();
+  const { mode } = useTheme().palette;
   const queryClient = useQueryClient();
   const [snack, setSnack] = useState<string | null>(null);
   const [editingCron, setEditingCron] = useState<string | null>(null);
@@ -240,7 +239,7 @@ function ScheduledTasksContent() {
                 <TableCell>
                   <Typography variant="body2">{formatDuration(task.last_duration_ms)}</Typography>
                 </TableCell>
-                <TableCell>{statusChip(task.last_status, t)}</TableCell>
+                <TableCell><StatusDot status={task.last_status} t={t} mode={mode} /></TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                     <Tooltip title={t('scheduledTasks.actions.runNow')}>
@@ -302,7 +301,7 @@ function ScheduledTasksContent() {
                   {(runsQuery.data?.runs ?? []).map((run: ScheduledTaskRun) => (
                     <TableRow key={run.id}>
                       <TableCell><Typography variant="body2">{formatDate(locale, run.started_at)}</Typography></TableCell>
-                      <TableCell>{statusChip(run.status, t)}</TableCell>
+                      <TableCell><StatusDot status={run.status} t={t} mode={mode} /></TableCell>
                       <TableCell><Typography variant="body2">{formatDuration(run.duration_ms)}</Typography></TableCell>
                       <TableCell>
                         {run.error ? (

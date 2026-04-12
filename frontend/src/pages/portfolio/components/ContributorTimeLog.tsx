@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   Box,
-  Chip,
   IconButton,
   Stack,
   Table,
@@ -242,12 +241,9 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={t(`portfolio:dialogs.logTime.categories.${entry.category}`)}
-                        size="small"
-                        color={entry.category === 'business' ? 'secondary' : 'primary'}
-                        variant="outlined"
-                      />
+                      <Typography variant="body2" color="text.secondary">
+                        {t(`portfolio:dialogs.logTime.categories.${entry.category}`)}
+                      </Typography>
                     </TableCell>
                     <TableCell align="right">{formatHours(Number(entry.hours) || 0)}</TableCell>
                     <TableCell>

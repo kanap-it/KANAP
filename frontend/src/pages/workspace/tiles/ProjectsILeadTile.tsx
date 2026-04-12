@@ -3,7 +3,6 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Chip,
   Typography,
   Box,
   Button,
@@ -13,6 +12,7 @@ import api from '../../../api';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../../i18n/useLocale';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { getDotColor, getPillBg, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
 
 interface MyLeadershipProject {
   id: string;
@@ -32,16 +32,6 @@ interface ProjectsILeadTileProps {
 }
 
 
-
-const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
-  waiting_list: 'default',
-  planned: 'info',
-  in_progress: 'primary',
-  in_testing: 'secondary',
-  on_hold: 'warning',
-  done: 'success',
-  cancelled: 'error',
-};
 
 export default function ProjectsILeadTile({ config }: ProjectsILeadTileProps) {
   const navigate = useNavigate();
@@ -100,18 +90,17 @@ export default function ProjectsILeadTile({ config }: ProjectsILeadTileProps) {
                 secondary={
                   <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <Chip
-                        label={({'it_lead': t('dashboard.tiles.itLead'), 'business_lead': t('dashboard.tiles.businessLead'), 'it_sponsor': t('dashboard.tiles.itSponsor'), 'business_sponsor': t('dashboard.tiles.businessSponsor')} as Record<string, string>)[project.role] || project.role}
-                        size="small"
-                        variant="outlined"
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
-                      <Chip
-                        label={project.status.replace('_', ' ')}
-                        size="small"
-                        color={STATUS_COLORS[project.status] || 'default'}
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
+                      <Typography variant="caption" color="text.disabled">
+                        {({'it_lead': t('dashboard.tiles.itLead'), 'business_lead': t('dashboard.tiles.businessLead'), 'it_sponsor': t('dashboard.tiles.itSponsor'), 'business_sponsor': t('dashboard.tiles.businessSponsor')} as Record<string, string>)[project.role] || project.role}
+                      </Typography>
+                      <Box component="span" sx={(theme) => {
+                        const muiColor = PROJECT_STATUS_COLORS[project.status] || 'default';
+                        const textColor = getDotColor(muiColor, theme.palette.mode);
+                        const bgColor = getPillBg(muiColor, theme.palette.mode);
+                        return { display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500, color: textColor, bgcolor: bgColor };
+                      }}>
+                        {project.status.replace('_', ' ')}
+                      </Box>
                     </Box>
                     {project.next_milestone && (
                       <Typography variant="caption" color="text.secondary">

@@ -465,7 +465,7 @@ Errors: ${result.summary.errors} items`);
             {showPreview && (
               <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                 <Typography variant="body2" color="text.secondary">{t('operations.copyBudgetColumns.previewTotal')}</Typography>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'info.main' }}>
                   {formatNumber(stats.totalPreview, locale)}
                 </Typography>
               </Box>

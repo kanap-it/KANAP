@@ -4,7 +4,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -636,12 +635,9 @@ export default function InterfaceBindingsMatrix({
               {links && links.length > 0 && (
                 <Stack direction="row" spacing={0.5} flexWrap="wrap">
                   {links.map((link) => (
-                    <Chip
-                      key={link.id}
-                      size="small"
-                      label={link.connection.name || link.connection.connection_id}
-                      sx={{ mr: 0.5, mb: 0.5 }}
-                    />
+                    <Typography key={link.id} variant="body2" color="text.secondary" sx={{ mr: 0.5, mb: 0.5 }}>
+                      {link.connection.name || link.connection.connection_id}
+                    </Typography>
                   ))}
                 </Stack>
               )}
@@ -651,13 +647,9 @@ export default function InterfaceBindingsMatrix({
                 </Typography>
               )}
               {links && links.length === 0 && binding.status === 'active' && (
-                <Chip
-                  size="small"
-                  color="warning"
-                  variant="outlined"
-                  label="Active binding without infra connection"
-                  sx={{ mt: 0.5 }}
-                />
+                <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block' }}>
+                  Active binding without infra connection
+                </Typography>
               )}
             </Box>
           )}
@@ -884,18 +876,18 @@ export default function InterfaceBindingsMatrix({
                           </Typography>
                         </Typography>
                         <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
-                          <Chip
-                            size="small"
-                            label={link.connection.topology === 'multi_server' ? 'Multi-server' : 'Server to server'}
-                          />
-                          <Chip size="small" label={`Lifecycle: ${link.connection.lifecycle}`} />
-                          <Chip size="small" label={`Criticality: ${link.connection.criticality}`} />
-                          <Chip
-                            size="small"
-                            variant="outlined"
-                            color={link.connection.contains_pii ? 'warning' : 'default'}
-                            label={link.connection.contains_pii ? 'Contains PII' : 'No PII'}
-                          />
+                          <Typography variant="body2" color="text.secondary">
+                            {link.connection.topology === 'multi_server' ? 'Multi-server' : 'Server to server'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {`Lifecycle: ${link.connection.lifecycle}`}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {`Criticality: ${link.connection.criticality}`}
+                          </Typography>
+                          <Typography variant="body2" color={link.connection.contains_pii ? 'warning.main' : 'text.secondary'}>
+                            {link.connection.contains_pii ? 'Contains PII' : 'No PII'}
+                          </Typography>
                         </Stack>
                         {link.notes && (
                           <Typography variant="caption" color="text.secondary">

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { Chip, Button, Stack, Box, RadioGroup, FormControlLabel, Radio, Tooltip, Typography } from '@mui/material';
+import { Button, Stack, Box, RadioGroup, FormControlLabel, Radio, Tooltip, Typography } from '@mui/material';
 import type { EnhancedColDef } from '../components/ServerDataGrid';
 import ServerDataGrid from '../components/ServerDataGrid';
 import { LinkCellRenderer } from '../components/grid/renderers';
@@ -17,6 +17,7 @@ import CheckboxSetFloatingFilter from '../components/CheckboxSetFloatingFilter';
 import { useGridScopePreference } from '../hooks/useGridScopePreference';
 import { ACTIVE_TASK_STATUSES, TASK_STATUS_COLORS, TASK_STATUS_LABELS } from './tasks/task.constants';
 import { useTranslation } from 'react-i18next';
+import { getDotColor } from '../utils/statusColors';
 
 type TaskRow = {
   id: string;
@@ -80,43 +81,25 @@ const PRIORITY_LABEL_MAP: Record<string, string> = {
 
 function TaskTypeCellRenderer(props: any) {
   const typeName = props.value;
-
   if (!typeName) {
     return <Box component="span" sx={{ color: 'text.disabled' }}>-</Box>;
   }
-
-  // Simple color mapping based on common task type names
-  const colorMap: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'warning'> = {
-    Task: 'primary',
-    Bug: 'error',
-    Problem: 'warning',
-    Incident: 'secondary',
-  };
-
   return (
-    <Chip
-      label={typeName}
-      color={colorMap[typeName] || 'default'}
-      size="small"
-      variant="outlined"
-    />
+    <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
+      {typeName}
+    </Box>
   );
 }
 
 function ScoreCellRenderer(props: any) {
   const score = props.value;
-
   if (score === null || score === undefined) {
     return <Box component="span" sx={{ color: 'text.disabled' }}>-</Box>;
   }
-
   return (
-    <Chip
-      label={Math.round(score)}
-      size="small"
-      variant="outlined"
-      sx={{ fontWeight: 'bold', minWidth: 40 }}
-    />
+    <Box component="span" sx={{ color: 'text.primary', fontSize: '0.8125rem', fontWeight: 600 }}>
+      {Math.round(score)}
+    </Box>
   );
 }
 
@@ -190,24 +173,32 @@ export default function TasksPage() {
 
   const renderStatusCell = useCallback((props: any) => {
     const status = String(props.value || '');
+    const label = t(`statuses.task.${status}`, { defaultValue: STATUS_LABEL_MAP[status] || status });
+    const colorKey = STATUS_COLOR_MAP[status] || 'default';
     return (
-      <Chip
-        label={t(`statuses.task.${status}`, { defaultValue: STATUS_LABEL_MAP[status] || status })}
-        color={STATUS_COLOR_MAP[status] || 'default'}
-        size="small"
-      />
+      <Box component="span" sx={(theme) => {
+        const color = getDotColor(colorKey, theme.palette.mode);
+        return {
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
+          fontSize: '0.8125rem', fontWeight: 500, color, lineHeight: 1,
+        };
+      }}>
+        <Box component="span" sx={(theme) => ({
+          width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+          backgroundColor: getDotColor(colorKey, theme.palette.mode),
+        })} />
+        {label}
+      </Box>
     );
   }, [t]);
 
   const renderPriorityCell = useCallback((props: any) => {
     const priority = String(props.value || 'normal');
+    const label = t(`priority.${priority}`, { defaultValue: PRIORITY_LABEL_MAP[priority] || PRIORITY_LABEL_MAP.normal });
     return (
-      <Chip
-        label={t(`priority.${priority}`, { defaultValue: PRIORITY_LABEL_MAP[priority] || PRIORITY_LABEL_MAP.normal })}
-        color={PRIORITY_COLOR_MAP[priority] || 'default'}
-        size="small"
-        variant="outlined"
-      />
+      <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
+        {label}
+      </Box>
     );
   }, [t]);
 
@@ -216,15 +207,10 @@ export default function TasksPage() {
     const label = type
       ? t(`context.${type}`, { defaultValue: CONTEXT_LABEL_MAP[type] || type })
       : t('tasks.values.standalone');
-
     return (
-      <Chip
-        label={label}
-        size="small"
-        variant="outlined"
-        color={type ? 'default' : 'info'}
-        sx={{ fontSize: '0.7rem' }}
-      />
+      <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
+        {label}
+      </Box>
     );
   }, [t]);
 
@@ -410,6 +396,7 @@ export default function TasksPage() {
       cellRenderer: clickableCellRenderer,
       valueFormatter: (p: any) => p.value ? `T-${p.value}` : '',
       comparator: (a: number, b: number) => (a || 0) - (b || 0),
+      cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
     },
     {
       field: 'title',

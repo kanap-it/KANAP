@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Box,
   Button,
-  Chip,
   Stack,
   Table,
   TableBody,
@@ -82,14 +81,11 @@ export default function EffortAllocationTable({
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
         <Stack direction="row" spacing={1} alignItems="center">
           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{title}</Typography>
-          <Chip
-            label={mode === 'auto'
+          <Typography variant="body2" color="text.secondary">
+            {mode === 'auto'
               ? t('portfolio:dialogs.effortAllocation.chips.autoCalculated')
               : t('portfolio:dialogs.effortAllocation.chips.manual')}
-            size="small"
-            color={mode === 'auto' ? 'default' : 'primary'}
-            variant="outlined"
-          />
+          </Typography>
         </Stack>
         {canManage && (
           <Stack direction="row" spacing={1}>
@@ -151,19 +147,14 @@ export default function EffortAllocationTable({
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="body2">{displayName}</Typography>
                     {alloc.is_lead && (
-                      <Chip
-                        label={t('portfolio:dialogs.effortAllocation.chips.lead')}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
+                      <Typography variant="body2" color="text.secondary">
+                        {t('portfolio:dialogs.effortAllocation.chips.lead')}
+                      </Typography>
                     )}
                     {alloc.is_orphaned && (
-                      <Chip
-                        label={t('portfolio:dialogs.effortAllocation.chips.orphaned')}
-                        size="small"
-                        color="warning"
-                      />
+                      <Typography variant="body2" color="warning.main">
+                        {t('portfolio:dialogs.effortAllocation.chips.orphaned')}
+                      </Typography>
                     )}
                   </Stack>
                 </TableCell>

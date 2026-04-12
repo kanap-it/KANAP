@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   IconButton,
   LinearProgress,
   Stack,
@@ -588,12 +587,9 @@ export default function InterfaceWorkspacePage() {
           <Stack spacing={0.5} sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               {current?.interface_id ? (
-                <Chip
-                  label={current.interface_id}
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontFamily: 'monospace' }}
-                />
+                <Typography component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', monospace", color: 'text.secondary' }}>
+                  {current.interface_id}
+                </Typography>
               ) : null}
               <Typography variant="h6" sx={{ minWidth: 0 }}>
                 {isCreate ? t('workspace.interface.newTitle') : current?.name || t('workspace.interface.title')}
@@ -602,10 +598,14 @@ export default function InterfaceWorkspacePage() {
             {!isCreate && (
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 {current?.lifecycle ? (
-                  <Chip label={labelFor('lifecycleStatus', current.lifecycle) || current.lifecycle} size="small" />
+                  <Typography component="span" variant="body2" color="text.secondary">
+                    {labelFor('lifecycleStatus', current.lifecycle) || current.lifecycle}
+                  </Typography>
                 ) : null}
                 {current?.criticality ? (
-                  <Chip label={criticalityLabel(current.criticality)} size="small" variant="outlined" />
+                  <Typography component="span" variant="body2" color="text.secondary">
+                    {criticalityLabel(current.criticality)}
+                  </Typography>
                 ) : null}
                 {current?.source_application_name && current?.target_application_name ? (
                   <Typography variant="body2" color="text.secondary">
@@ -619,7 +619,7 @@ export default function InterfaceWorkspacePage() {
         headerActions={(
           <>
             {loading && !isCreate ? (
-              <Chip label="Loading" size="small" variant="outlined" />
+              <Typography variant="body2" color="text.disabled">Loading</Typography>
             ) : null}
             <Button
               onClick={() => { void handleReset(); }}

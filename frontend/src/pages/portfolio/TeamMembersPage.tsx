@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Box, Button, Card, CardActionArea, CardContent, Chip, Dialog, DialogActions,
+  Box, Button, Card, CardActionArea, CardContent, Dialog, DialogActions,
   DialogContent, DialogTitle, Autocomplete, TextField, Stack, Alert, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -125,16 +125,12 @@ export default function TeamMembersPage() {
                         </Typography>
                       )}
                     </Box>
-                    <Chip
-                      label={t('teamMembers.cards.skillCount', { count: member.skills?.length || 0 })}
-                      size="small"
-                      variant="outlined"
-                    />
-                    <Chip
-                      label={t('teamMembers.cards.daysPerMonth', { count: member.project_availability ?? 5 })}
-                      size="small"
-                      color="primary"
-                    />
+                    <Typography variant="body2" color="text.secondary">
+                      {t('teamMembers.cards.skillCount', { count: member.skills?.length || 0 })}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('teamMembers.cards.daysPerMonth', { count: member.project_availability ?? 5 })}
+                    </Typography>
                   </Stack>
                 </CardContent>
               </CardActionArea>

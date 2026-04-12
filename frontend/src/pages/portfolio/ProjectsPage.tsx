@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react';
-import { Chip, Button, Stack, Box, LinearProgress, Typography, RadioGroup, FormControlLabel, Radio, Tooltip } from '@mui/material';
+import { Button, Stack, Box, LinearProgress, Typography, RadioGroup, FormControlLabel, Radio, Tooltip } from '@mui/material';
 import type { EnhancedColDef } from '../../components/ServerDataGrid';
 import ServerDataGrid from '../../components/ServerDataGrid';
 import { LinkCellRenderer } from '../../components/grid/renderers';
@@ -15,6 +15,7 @@ import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilte
 import api from '../../api';
 import { useGridScopePreference } from '../../hooks/useGridScopePreference';
 import { useTranslation } from 'react-i18next';
+import { getDotColor, PROJECT_STATUS_COLORS } from '../../utils/statusColors';
 
 type ProjectRow = {
   id: string;
@@ -39,14 +40,14 @@ type ProjectRow = {
   updated_at: string;
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: 'default' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info' }> = {
-  waiting_list: { label: 'Waiting List', color: 'default' },
-  planned: { label: 'Planned', color: 'info' },
-  in_progress: { label: 'In Progress', color: 'primary' },
-  in_testing: { label: 'In Testing', color: 'secondary' },
-  on_hold: { label: 'On Hold', color: 'warning' },
-  done: { label: 'Done', color: 'success' },
-  cancelled: { label: 'Cancelled', color: 'error' },
+const STATUS_LABELS: Record<string, string> = {
+  waiting_list: 'Waiting List',
+  planned: 'Planned',
+  in_progress: 'In Progress',
+  in_testing: 'In Testing',
+  on_hold: 'On Hold',
+  done: 'Done',
+  cancelled: 'Cancelled',
 };
 
 const ORIGIN_LABELS: Record<string, string> = {
@@ -55,10 +56,7 @@ const ORIGIN_LABELS: Record<string, string> = {
   legacy: 'Legacy',
 };
 
-const STATUS_LABEL_MAP: Record<string, string> = Object.fromEntries(
-  Object.entries(STATUS_CONFIG).map(([key, cfg]) => [key, cfg.label]),
-);
-const STATUS_ORDER = Object.keys(STATUS_CONFIG);
+const STATUS_ORDER = Object.keys(STATUS_LABELS);
 
 
 function ProgressCellRenderer(props: any) {
@@ -98,9 +96,9 @@ export default function ProjectsPage() {
   const canAdmin = hasLevel('portfolio_projects', 'admin');
 
   const statusLabelMap = useMemo(() => Object.fromEntries(
-    Object.entries(STATUS_CONFIG).map(([status, config]) => [
+    Object.entries(STATUS_LABELS).map(([status, label]) => [
       status,
-      t(`statuses.project.${status}`, { defaultValue: config.label }),
+      t(`statuses.project.${status}`, { defaultValue: label }),
     ]),
   ) as Record<string, string>, [t]);
 
@@ -113,13 +111,15 @@ export default function ProjectsPage() {
 
   const renderStatusCell = useCallback((props: any) => {
     const status = props.value as string;
-    const cfg = STATUS_CONFIG[status] || { label: status, color: 'default' as const };
+    const label = t(`statuses.project.${status}`, { defaultValue: STATUS_LABELS[status] || status });
     return (
-      <Chip
-        label={t(`statuses.project.${status}`, { defaultValue: cfg.label })}
-        color={cfg.color}
-        size="small"
-      />
+      <Box component="span" sx={(theme) => {
+        const color = getDotColor(PROJECT_STATUS_COLORS[status], theme.palette.mode);
+        return { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', fontWeight: 500, color, lineHeight: 1 };
+      }}>
+        <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(PROJECT_STATUS_COLORS[status], theme.palette.mode) })} />
+        {label}
+      </Box>
     );
   }, [t]);
 
@@ -321,6 +321,7 @@ export default function ProjectsPage() {
       cellRenderer: clickableCellRenderer,
       valueFormatter: (p: any) => p.value ? `PRJ-${p.value}` : '',
       comparator: (a: number, b: number) => (a || 0) - (b || 0),
+      cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
     },
     {
       field: 'name',

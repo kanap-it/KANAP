@@ -40,8 +40,8 @@ function UserBubble({ message }: { message: ChatMessage }) {
     <Box sx={{ pl: 10, pr: 2 }}>
       <Box
         sx={{
-          bgcolor: 'primary.main',
-          color: 'primary.contrastText',
+          bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : '#F3F4F6',
+          color: 'text.primary',
           px: 2,
           py: 1,
           borderRadius: 2,

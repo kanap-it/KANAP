@@ -3,7 +3,6 @@ import type { TFunction } from 'i18next';
 import {
   Box,
   Button,
-  Chip,
   Divider,
   Grid,
   IconButton,
@@ -387,11 +386,11 @@ export default function ProjectEffortTab({
                       height: 8,
                       borderRadius: 4,
                       bgcolor: 'secondary.light',
-                      '& .MuiLinearProgress-bar': { bgcolor: 'primary.main' },
+                      '& .MuiLinearProgress-bar': { bgcolor: 'info.main' },
                     }}
                   />
                   <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
-                    <Typography variant="caption" color="primary.main">
+                    <Typography variant="caption" color="info.main">
                       {t('workspace.project.effort.values.projectOverhead')}
                     </Typography>
                     <Typography variant="caption" color="secondary.main">
@@ -457,14 +456,11 @@ export default function ProjectEffortTab({
                     </TableCell>
                     <TableCell>{personName}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={entry.category === 'it'
+                      <Typography variant="body2" color="text.secondary">
+                        {entry.category === 'it'
                           ? t('dialogs.logTime.categories.it')
                           : t('dialogs.logTime.categories.business')}
-                        size="small"
-                        color={entry.category === 'it' ? 'primary' : 'secondary'}
-                        variant="outlined"
-                      />
+                      </Typography>
                     </TableCell>
                     <TableCell align="right">
                       {t('workspace.project.effort.values.hoursValue', { hours: entry.hours })}

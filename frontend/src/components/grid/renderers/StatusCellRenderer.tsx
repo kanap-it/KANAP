@@ -1,5 +1,5 @@
 import React from 'react';
-import { Chip, ChipProps } from '@mui/material';
+import { Box, ChipProps, useTheme } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
 import { useTranslation } from 'react-i18next';
 
@@ -10,6 +10,41 @@ export interface StatusConfig {
   value: string;
   label: string;
   color: ChipProps['color'];
+}
+
+/**
+ * Dot+text color palette for statuses (light and dark mode)
+ */
+const STATUS_COLORS: Record<string, { light: string; dark: string }> = {
+  success:   { light: '#15803D', dark: '#4ADE80' },
+  error:     { light: '#B91C1C', dark: '#F87171' },
+  warning:   { light: '#B45309', dark: '#F0A830' },
+  info:      { light: '#1D4ED8', dark: '#60A5FA' },
+  secondary: { light: '#7C3AED', dark: '#A78BFA' },
+  default:   { light: '#6B7280', dark: 'rgba(255,255,255,0.45)' },
+};
+
+function getStatusColor(color: string, mode: 'light' | 'dark'): string {
+  return STATUS_COLORS[color]?.[mode] ?? STATUS_COLORS.default[mode];
+}
+
+/**
+ * Standard environment → color mapping (business convention)
+ */
+const ENV_COLOR_MAP: Record<string, string> = {
+  prod:     'error',
+  pre_prod: 'warning',
+  qa:       'info',
+  test:     'secondary',
+  dev:      'success',
+  sandbox:  'default',
+};
+
+/**
+ * Returns the dot color for a given environment value, respecting light/dark mode.
+ */
+export function getEnvDotColor(env: string, mode: 'light' | 'dark'): string {
+  return getStatusColor(ENV_COLOR_MAP[env] ?? 'default', mode);
 }
 
 /**
@@ -28,12 +63,12 @@ export const DEFAULT_STATUS_CONFIGS: StatusConfig[] = [
   { value: 'under_review', label: 'Under Review', color: 'warning' },
   { value: 'approved', label: 'Approved', color: 'success' },
   { value: 'rejected', label: 'Rejected', color: 'error' },
-  { value: 'in_progress', label: 'In Progress', color: 'primary' },
+  { value: 'in_progress', label: 'In Progress', color: 'info' },
   { value: 'on_hold', label: 'On Hold', color: 'warning' },
   { value: 'completed', label: 'Completed', color: 'success' },
   { value: 'cancelled', label: 'Cancelled', color: 'error' },
   { value: 'pending', label: 'Pending', color: 'warning' },
-  { value: 'open', label: 'Open', color: 'info' },
+  { value: 'open', label: 'Open', color: 'default' },
   { value: 'closed', label: 'Closed', color: 'default' },
 ];
 
@@ -76,23 +111,10 @@ function formatStatusValue(value: string | null | undefined): string {
 }
 
 /**
- * StatusCellRenderer - Renders status values as colored chips
+ * StatusCellRenderer - Renders status values as colored dot + text
  *
- * Usage in column definition:
- * ```tsx
- * {
- *   field: 'status',
- *   headerName: 'Status',
- *   cellRenderer: StatusCellRenderer,
- *   cellRendererParams: {
- *     size: 'small',
- *     variant: 'filled',
- *     statusConfigs: [
- *       { value: 'custom', label: 'Custom Status', color: 'secondary' }
- *     ],
- *   },
- * }
- * ```
+ * Design system: dot+text pattern in tables (6px dot + colored text).
+ * Chip/pill pattern is reserved for dashboard cards only.
  */
 export function StatusCellRenderer<T = unknown>(
   props: StatusCellRendererProps<T>
@@ -101,15 +123,14 @@ export function StatusCellRenderer<T = unknown>(
     value,
     data,
     statusConfigs = DEFAULT_STATUS_CONFIGS,
-    size = 'small',
-    variant = 'filled',
     statusField,
     onClick,
   } = props;
 
   const { t } = useTranslation('common');
+  const theme = useTheme();
+  const mode = theme.palette.mode;
 
-  // Get the status value (from statusField if specified, otherwise from value)
   const statusValue = statusField && data
     ? String((data as Record<string, unknown>)[statusField] ?? '')
     : String(value ?? '');
@@ -121,24 +142,39 @@ export function StatusCellRenderer<T = unknown>(
   const config = getStatusConfig(statusValue, statusConfigs);
   const normalizedKey = statusValue.toLowerCase().trim().replace(/\s+/g, '_');
   const label = t(`statuses.${normalizedKey}`, { defaultValue: config?.label ?? formatStatusValue(statusValue) });
-  const color = config?.color ?? 'default';
+  const dotColor = getStatusColor(config?.color ?? 'default', mode);
 
   const handleClick = onClick && data
     ? () => onClick(data, statusValue)
     : undefined;
 
   return (
-    <Chip
-      label={label}
-      color={color}
-      size={size}
-      variant={variant}
+    <Box
+      component="span"
       onClick={handleClick}
       sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
         cursor: handleClick ? 'pointer' : 'default',
-        '&:hover': handleClick ? { opacity: 0.9 } : undefined,
+        fontSize: '0.8125rem',
+        fontWeight: 500,
+        color: dotColor,
+        lineHeight: 1,
       }}
-    />
+    >
+      <Box
+        component="span"
+        sx={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          backgroundColor: dotColor,
+          flexShrink: 0,
+        }}
+      />
+      {label}
+    </Box>
   );
 }
 
@@ -183,7 +219,7 @@ export const ProjectStatusRenderer = createStatusCellRenderer({
     { value: 'draft', label: 'Draft', color: 'default' },
     { value: 'proposed', label: 'Proposed', color: 'info' },
     { value: 'approved', label: 'Approved', color: 'success' },
-    { value: 'in_progress', label: 'In Progress', color: 'primary' },
+    { value: 'in_progress', label: 'In Progress', color: 'info' },
     { value: 'on_hold', label: 'On Hold', color: 'warning' },
     { value: 'completed', label: 'Completed', color: 'success' },
     { value: 'cancelled', label: 'Cancelled', color: 'error' },

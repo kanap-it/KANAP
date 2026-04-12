@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Autocomplete, Box, Button, Card, CardContent, Checkbox, Chip, Collapse, Dialog,
+  Alert, Autocomplete, Box, Button, Card, CardContent, Checkbox, Collapse, Dialog,
   DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel,
   IconButton, Stack, Switch, Tab, Tabs, TextField, Typography,
 } from '@mui/material';
@@ -572,26 +572,33 @@ export default function SettingsPage() {
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <Typography variant="subtitle1">{criterion.name}</Typography>
                           {criterion.inverted && (
-                            <Chip label={t('settings.scoring.chips.inverted')} size="small" variant="outlined" />
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                              {t('settings.scoring.chips.inverted')}
+                            </Typography>
                           )}
-                          <Chip
-                            label={t('settings.scoring.chips.weight', { value: criterion.weight })}
-                            size="small"
-                          />
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                            {t('settings.scoring.chips.weight', { value: criterion.weight })}
+                          </Typography>
                           {!criterion.enabled && (
-                            <Chip label={t('common:statuses.disabled')} size="small" color="warning" />
+                            <Typography variant="body2" color="warning.main" sx={{ fontSize: '0.8125rem' }}>
+                              {t('common:statuses.disabled')}
+                            </Typography>
                           )}
                         </Stack>
 
                         <Stack direction="row" spacing={0.5} mt={1} flexWrap="wrap" useFlexGap>
                           {criterion.values.map((v, idx) => (
-                            <Chip
+                            <Typography
                               key={v.id || idx}
-                              label={v.label}
-                              size="small"
-                              color={v.triggers_mandatory_bypass ? 'error' : 'default'}
-                              variant={v.triggers_mandatory_bypass ? 'filled' : 'outlined'}
-                            />
+                              variant="body2"
+                              sx={{
+                                fontSize: '0.8125rem',
+                                color: v.triggers_mandatory_bypass ? 'error.main' : 'text.secondary',
+                                fontWeight: v.triggers_mandatory_bypass ? 500 : 400,
+                              }}
+                            >
+                              {v.label}
+                            </Typography>
                           ))}
                         </Stack>
                       </Box>
@@ -1013,11 +1020,9 @@ function SkillsSection({
                 <Typography variant="subtitle1" sx={{ flex: 1 }}>
                   {category}
                 </Typography>
-                <Chip
-                  label={`${enabledCount}/${categorySkills.length}`}
-                  size="small"
-                  color={enabledCount === categorySkills.length ? 'success' : 'default'}
-                />
+                <Typography variant="body2" color="text.secondary">
+                  {`${enabledCount}/${categorySkills.length}`}
+                </Typography>
               </Stack>
 
               <Collapse in={isExpanded}>
@@ -1202,23 +1207,25 @@ function PhaseTemplatesSection({
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <Typography variant="subtitle1">{template.name}</Typography>
                   {template.is_system && (
-                    <Chip label={t('settings.labels.system')} size="small" variant="outlined" color="info" />
+                    <Typography variant="body2" color="info.main" sx={{ fontSize: '0.8125rem' }}>
+                      {t('settings.labels.system')}
+                    </Typography>
                   )}
-                  <Chip
-                    label={t('settings.phaseTemplates.chips.phaseCount', { count: template.items.length })}
-                    size="small"
-                  />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                    {t('settings.phaseTemplates.chips.phaseCount', { count: template.items.length })}
+                  </Typography>
                 </Stack>
 
                 <Stack direction="row" spacing={0.5} mt={1} flexWrap="wrap" useFlexGap>
                   {template.items.map((item, idx) => (
-                    <Chip
+                    <Typography
                       key={item.id || idx}
-                      label={item.name}
-                      size="small"
-                      variant="outlined"
-                      icon={item.has_milestone ? undefined : undefined}
-                    />
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ fontSize: '0.8125rem' }}
+                    >
+                      {item.name}
+                    </Typography>
                   ))}
                 </Stack>
               </Box>
@@ -1520,7 +1527,9 @@ function ClassificationSection({
                     </Typography>
                   )}
                   {source.is_system && (
-                    <Chip label={t('settings.labels.system')} size="small" variant="outlined" color="info" />
+                    <Typography variant="body2" color="info.main" sx={{ fontSize: '0.8125rem' }}>
+                      {t('settings.labels.system')}
+                    </Typography>
                   )}
                   {canEdit && (
                     <>
@@ -1588,16 +1597,16 @@ function ClassificationSection({
                     <Typography variant="subtitle1" sx={{ flex: 1 }}>
                       {category.name}
                     </Typography>
-                    <Chip
-                      label={t('settings.classification.chips.streamsCount', {
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                      {t('settings.classification.chips.streamsCount', {
                         active: activeStreams,
                         total: category.streams.length,
                       })}
-                      size="small"
-                      color={activeStreams === category.streams.length ? 'success' : 'default'}
-                    />
+                    </Typography>
                     {category.is_system && (
-                      <Chip label={t('settings.labels.system')} size="small" variant="outlined" color="info" />
+                      <Typography variant="body2" color="info.main" sx={{ fontSize: '0.8125rem' }}>
+                        {t('settings.labels.system')}
+                      </Typography>
                     )}
                     {canEdit && (
                       <>
@@ -1733,7 +1742,9 @@ function ClassificationSection({
                     </Typography>
                   )}
                   {taskType.is_system && (
-                    <Chip label={t('settings.labels.system')} size="small" variant="outlined" color="info" />
+                    <Typography variant="body2" color="info.main" sx={{ fontSize: '0.8125rem' }}>
+                      {t('settings.labels.system')}
+                    </Typography>
                   )}
                   {canEdit && (
                     <>
@@ -2148,13 +2159,13 @@ function TeamsSection({
                     </Typography>
                   )}
                 </Box>
-                <Chip
-                  label={t('settings.teams.memberCount', { count: team.member_count })}
-                  size="small"
-                  variant="outlined"
-                />
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                  {t('settings.teams.memberCount', { count: team.member_count })}
+                </Typography>
                 {team.is_system && (
-                  <Chip label={t('settings.labels.system')} size="small" variant="outlined" color="info" />
+                  <Typography variant="body2" color="info.main" sx={{ fontSize: '0.8125rem' }}>
+                    {t('settings.labels.system')}
+                  </Typography>
                 )}
                 {canEdit && (
                   <>

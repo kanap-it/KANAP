@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Chip,
   List,
   ListItemButton,
   ListItemText,
@@ -13,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../../i18n/useLocale';
 import api from '../../../api';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { getDotColor, getPillBg, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
 
 interface ProjectStatusChangeItem {
   id: string;
@@ -27,16 +27,6 @@ interface ProjectStatusChangeItem {
 interface GlobalStatusChangesTileProps {
   config: Record<string, unknown>;
 }
-
-const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
-  waiting_list: 'default',
-  planned: 'info',
-  in_progress: 'primary',
-  in_testing: 'secondary',
-  on_hold: 'warning',
-  done: 'success',
-  cancelled: 'error',
-};
 
 function formatStatus(status: string | null): string {
   if (!status) return 'Unknown';
@@ -94,22 +84,25 @@ export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesT
                 secondary={(
                   <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <Chip
-                        label={formatStatus(item.previousStatus)}
-                        size="small"
-                        color={STATUS_COLORS[item.previousStatus || ''] || 'default'}
-                        variant="outlined"
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
+                      <Box component="span" sx={(theme) => {
+                        const muiColor = PROJECT_STATUS_COLORS[item.previousStatus || ''] || 'default';
+                        const textColor = getDotColor(muiColor, theme.palette.mode);
+                        const bgColor = getPillBg(muiColor, theme.palette.mode);
+                        return { display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500, color: textColor, bgcolor: bgColor };
+                      }}>
+                        {formatStatus(item.previousStatus)}
+                      </Box>
                       <Typography variant="caption" color="text.secondary">
                         {t('dashboard.tiles.to')}
                       </Typography>
-                      <Chip
-                        label={formatStatus(item.nextStatus)}
-                        size="small"
-                        color={STATUS_COLORS[item.nextStatus || ''] || 'default'}
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
+                      <Box component="span" sx={(theme) => {
+                        const muiColor = PROJECT_STATUS_COLORS[item.nextStatus || ''] || 'default';
+                        const textColor = getDotColor(muiColor, theme.palette.mode);
+                        const bgColor = getPillBg(muiColor, theme.palette.mode);
+                        return { display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500, color: textColor, bgcolor: bgColor };
+                      }}>
+                        {formatStatus(item.nextStatus)}
+                      </Box>
                     </Box>
                     <Typography variant="caption" color="text.secondary">
                       {t('dashboard.tiles.authorOnDate', { author: item.authorName, date: formatDate(item.createdAt, locale) })}

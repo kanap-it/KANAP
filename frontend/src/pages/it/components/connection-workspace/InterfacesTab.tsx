@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Stack,
   Typography,
 } from '@mui/material';
@@ -88,20 +87,15 @@ export default function InterfacesTab({
                       </Typography>
                     </Typography>
                     <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5 }}>
-                      <Chip
-                        size="small"
-                        label={`Criticality: ${item.interface_criticality || 'n/a'}`}
-                      />
-                      <Chip
-                        size="small"
-                        label={`Data class: ${dataClassLabel(item.interface_data_class) || item.interface_data_class || 'n/a'}`}
-                      />
-                      <Chip
-                        size="small"
-                        variant={item.interface_contains_pii ? 'filled' : 'outlined'}
-                        color={item.interface_contains_pii ? 'warning' : 'default'}
-                        label={item.interface_contains_pii ? 'PII' : 'No PII'}
-                      />
+                      <Typography variant="body2" color="text.secondary">
+                        {`Criticality: ${item.interface_criticality || 'n/a'}`}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {`Data class: ${dataClassLabel(item.interface_data_class) || item.interface_data_class || 'n/a'}`}
+                      </Typography>
+                      <Typography variant="body2" color={item.interface_contains_pii ? 'warning.main' : 'text.secondary'}>
+                        {item.interface_contains_pii ? 'PII' : 'No PII'}
+                      </Typography>
                     </Stack>
                   </td>
                   <td style={{ padding: '8px 8px' }}>
