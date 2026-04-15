@@ -196,28 +196,21 @@ export default function TaskComments({
       )}
 
       {/* Comments List */}
-      <Stack spacing={2}>
+      <Stack spacing="22px">
         {comments.map((comment) => (
           <Box
             key={comment.id}
-            sx={{
-              p: 2,
-              bgcolor: 'background.paper',
-              borderRadius: 1,
-              borderLeft: 3,
-              borderColor: 'primary.main',
-            }}
+            sx={{ display: 'flex', gap: '12px' }}
           >
-            <Stack direction="row" spacing={1.5} alignItems="flex-start">
-              <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem', bgcolor: 'primary.main' }}>
-                {getInitials(comment.first_name, comment.last_name)}
-              </Avatar>
-              <Box sx={{ flex: 1 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            <Avatar sx={{ width: 26, height: 26, fontSize: '10px', fontWeight: 500, bgcolor: 'primary.main', flexShrink: 0 }}>
+              {getInitials(comment.first_name, comment.last_name)}
+            </Avatar>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Stack direction="row" spacing={1} alignItems="baseline">
+                  <Typography sx={{ fontSize: '13px', fontWeight: 500 }}>
                     {`${comment.first_name || ''} ${comment.last_name || ''}`.trim() || t('portfolio:activity.authorUnknown')}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography sx={{ fontSize: '11px', color: 'text.secondary' }}>
                     {formatRelativeTime(t, comment.created_at, locale)}
                   </Typography>
                   {comment.updated_at && (
@@ -270,12 +263,11 @@ export default function TaskComments({
                     </Stack>
                   </Box>
                 ) : (
-                  <Box sx={{ mt: 0.5 }}>
+                  <Box sx={{ mt: '4px' }}>
                     <MarkdownContent content={comment.content || ''} variant="compact" />
                   </Box>
                 )}
-              </Box>
-            </Stack>
+            </Box>
           </Box>
         ))}
       </Stack>

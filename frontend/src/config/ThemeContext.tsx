@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createTheme } from '@mui/material/styles';
 import type { ThemeOptions } from '@mui/material/styles';
+import { resolveKanapPalette } from '../pages/tasks/theme/taskDetailTokens';
 
 const THEME_MODE_STORAGE_KEY = 'themeMode';
 
@@ -135,6 +136,48 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
           borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#D1D5DB',
         },
       },
+      variants: [
+        {
+          props: { variant: 'action' as any },
+          style: {
+            padding: '4px 11px',
+            borderRadius: 5,
+            fontSize: 12,
+            fontWeight: 500,
+            textTransform: 'none',
+            minWidth: 0,
+            height: 'auto',
+            backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#F6F7F9',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : '#E5E7EB'}`,
+            color: isDark ? '#9CA3AF' : '#6B7280',
+            boxShadow: 'none',
+            '&:hover': {
+              backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#EDEEF1',
+              boxShadow: 'none',
+            },
+          },
+        },
+        {
+          props: { variant: 'action-danger' as any },
+          style: {
+            padding: '4px 11px',
+            borderRadius: 5,
+            fontSize: 12,
+            fontWeight: 500,
+            textTransform: 'none',
+            minWidth: 0,
+            height: 'auto',
+            backgroundColor: isDark ? 'rgba(248, 113, 113, 0.08)' : 'rgba(220, 38, 38, 0.06)',
+            border: `1px solid ${isDark ? 'rgba(248, 113, 113, 0.25)' : 'rgba(220, 38, 38, 0.20)'}`,
+            color: isDark ? '#F87171' : '#DC2626',
+            boxShadow: 'none',
+            '&:hover': {
+              backgroundColor: isDark ? 'rgba(248, 113, 113, 0.12)' : 'rgba(220, 38, 38, 0.10)',
+              boxShadow: 'none',
+            },
+          },
+        },
+      ],
     },
     MuiCard: {
       defaultProps: { elevation: 0 },
@@ -278,6 +321,7 @@ export function createAppTheme(mode: PaletteMode, brandingPrimaryColors?: Brandi
     palette: {
       mode,
       primary,
+      kanap: resolveKanapPalette(mode),
       warning: {
         main: '#E8920F',
         dark: '#C67A00',

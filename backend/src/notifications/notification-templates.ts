@@ -4,7 +4,7 @@
  */
 import type { EmailAttachment } from '../email/email.service';
 import type { EmailBranding } from '../email/email-branding';
-import { getDefaultEmailBranding } from '../email/email-branding';
+import { DEFAULT_EMAIL_PRIMARY_COLOR, getDefaultEmailBranding } from '../email/email-branding';
 import { getEmailStrings, interpolate } from '../i18n/email-i18n';
 import type { EmailStrings } from '../i18n/email-locales/en';
 
@@ -26,6 +26,34 @@ export interface ActionButton {
 }
 
 type ItemTypeLabelKey = 'request' | 'project' | 'task' | 'contract' | 'opex';
+type EmailTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'testing';
+
+const EMAIL_TOKENS = {
+  background: '#FAFAFA',
+  paper: '#FFFFFF',
+  surface: '#F9FAFB',
+  surfaceMuted: '#F3F4F6',
+  borderSubtle: '#E5E7EB',
+  border: '#D1D5DB',
+  textPrimary: '#111827',
+  textSecondary: '#6B7280',
+  textTertiary: '#9CA3AF',
+  attention: '#E8920F',
+  attentionSoft: '#FFF4E0',
+  info: '#1D4ED8',
+  infoSoft: '#EFF6FF',
+  success: '#15803D',
+  successSoft: '#F0FDF4',
+  testing: '#7C3AED',
+  testingSoft: '#F5F3FF',
+  danger: '#B91C1C',
+  dangerSoft: '#FEF2F2',
+} as const;
+
+const EMAIL_UI_FONT =
+  "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+const EMAIL_MONO_FONT =
+  "'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace";
 
 // Helper functions
 function formatStatus(status: string): string {
@@ -75,6 +103,52 @@ function joinTextBlocks(lines: Array<string | null | undefined>): string {
   return lines.filter((line): line is string => Boolean(line && line.trim().length > 0)).join('\n\n');
 }
 
+function getPrimaryColor(branding?: EmailBranding): string {
+  return branding?.primaryColor ?? DEFAULT_EMAIL_PRIMARY_COLOR;
+}
+
+function getToneColors(tone: EmailTone): { background: string; text: string; border: string } {
+  switch (tone) {
+    case 'info':
+      return {
+        background: EMAIL_TOKENS.infoSoft,
+        text: EMAIL_TOKENS.info,
+        border: '#BFDBFE',
+      };
+    case 'success':
+      return {
+        background: EMAIL_TOKENS.successSoft,
+        text: EMAIL_TOKENS.success,
+        border: '#BBF7D0',
+      };
+    case 'warning':
+      return {
+        background: EMAIL_TOKENS.attentionSoft,
+        text: '#B45309',
+        border: '#FCD34D',
+      };
+    case 'danger':
+      return {
+        background: EMAIL_TOKENS.dangerSoft,
+        text: EMAIL_TOKENS.danger,
+        border: '#FECACA',
+      };
+    case 'testing':
+      return {
+        background: EMAIL_TOKENS.testingSoft,
+        text: EMAIL_TOKENS.testing,
+        border: '#DDD6FE',
+      };
+    case 'neutral':
+    default:
+      return {
+        background: EMAIL_TOKENS.surface,
+        text: EMAIL_TOKENS.textPrimary,
+        border: EMAIL_TOKENS.borderSubtle,
+      };
+  }
+}
+
 /**
  * Compute a readable foreground color (white or dark) for text on a given background.
  * Uses relative luminance per WCAG 2.0.
@@ -89,19 +163,109 @@ function contrastTextColor(hexBg: string): string {
   return luminance > 0.4 ? '#111827' : '#ffffff';
 }
 
-function buildActionButtons(buttons: ActionButton[] | undefined, primaryColor: string): string {
+export function buildActionButtons(
+  buttons: ActionButton[] | undefined,
+  primaryColor: string,
+  options?: {
+    align?: 'left' | 'center' | 'right';
+    marginTop?: number;
+  },
+): string {
   if (!buttons || buttons.length === 0) return '';
   const textColor = contrastTextColor(primaryColor);
   const rendered = buttons
     .map((button) => (
-      `<a href="${button.url}" style="display:inline-block;background-color:${primaryColor};color:${textColor};text-decoration:none;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:600;margin-right:8px;margin-bottom:8px;">${escapeHtml(button.label)}</a>`
+      `<a href="${escapeHtml(button.url)}" style="display:inline-block;background-color:${primaryColor};color:${textColor};text-decoration:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;line-height:20px;margin-right:8px;margin-bottom:8px;">${escapeHtml(button.label)}</a>`
     ))
     .join('');
-  return `<div style="margin-top:20px;">${rendered}</div>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:${options?.marginTop ?? 24}px;">
+<tr><td align="${options?.align ?? 'left'}">${rendered}</td></tr>
+</table>`;
+}
+
+export function buildEmailIntro(params: {
+  eyebrow?: string;
+  title: string;
+  summaryHtml?: string;
+  badgeHtml?: string;
+}): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;">
+<tr><td>
+${params.eyebrow
+    ? `<div style="margin:0 0 10px 0;font-size:11px;line-height:16px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:${EMAIL_TOKENS.textSecondary};">${escapeHtml(params.eyebrow)}</div>`
+    : ''}
+${params.badgeHtml ? `<div style="margin:0 0 12px 0;">${params.badgeHtml}</div>` : ''}
+<h1 style="margin:0;font-size:24px;line-height:30px;font-weight:600;color:${EMAIL_TOKENS.textPrimary};font-family:${EMAIL_UI_FONT};">${escapeHtml(params.title)}</h1>
+${params.summaryHtml
+    ? `<div style="margin:12px 0 0 0;font-size:14px;line-height:22px;color:${EMAIL_TOKENS.textSecondary};">${params.summaryHtml}</div>`
+    : ''}
+</td></tr>
+</table>`;
+}
+
+export function buildSurfacePanel(params: {
+  contentHtml: string;
+  labelHtml?: string;
+  tone?: EmailTone;
+  marginTop?: number;
+  padding?: number;
+}): string {
+  const tone = getToneColors(params.tone ?? 'neutral');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:${params.marginTop ?? 0}px;background-color:${tone.background};border:1px solid ${tone.border};border-radius:10px;">
+<tr><td style="padding:${params.padding ?? 16}px;">
+${params.labelHtml
+    ? `<div style="margin:0 0 10px 0;font-size:11px;line-height:16px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:${EMAIL_TOKENS.textSecondary};">${params.labelHtml}</div>`
+    : ''}
+<div style="font-size:14px;line-height:22px;color:${tone.text};">${params.contentHtml}</div>
+</td></tr>
+</table>`;
+}
+
+export function buildUrlPanel(
+  introText: string,
+  url: string,
+  primaryColor: string,
+  options?: {
+    marginTop?: number;
+  },
+): string {
+  const safeUrl = escapeHtml(url);
+  return buildSurfacePanel({
+    marginTop: options?.marginTop ?? 20,
+    contentHtml: `<p style="margin:0 0 10px 0;color:${EMAIL_TOKENS.textSecondary};">${escapeHtml(introText)}</p>
+<a href="${safeUrl}" style="color:${primaryColor};text-decoration:none;word-break:break-all;">${safeUrl}</a>`,
+  });
+}
+
+function buildDataPanel(rows: Array<{
+  label: string;
+  value: string;
+  mono?: boolean;
+  html?: boolean;
+}>): string {
+  const renderedRows = rows
+    .map((row, index) => (
+      `<tr>
+<td style="padding:12px 16px;${index > 0 ? `border-top:1px solid ${EMAIL_TOKENS.borderSubtle};` : ''}">
+<div style="margin:0 0 4px 0;font-size:11px;line-height:16px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:${EMAIL_TOKENS.textSecondary};">${escapeHtml(row.label)}</div>
+<div style="font-size:14px;line-height:20px;font-weight:500;color:${EMAIL_TOKENS.textPrimary};font-family:${row.mono ? EMAIL_MONO_FONT : EMAIL_UI_FONT};">${row.html ? row.value : escapeHtml(row.value)}</div>
+</td>
+</tr>`
+    ))
+    .join('');
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${EMAIL_TOKENS.surface};border:1px solid ${EMAIL_TOKENS.borderSubtle};border-radius:10px;margin-top:20px;">
+${renderedRows}
+</table>`;
+}
+
+function buildToneBadge(label: string, tone: EmailTone): string {
+  const colors = getToneColors(tone);
+  return `<span style="display:inline-block;padding:4px 10px;border-radius:999px;background-color:${colors.background};color:${colors.text};font-size:12px;line-height:14px;font-weight:500;border:1px solid ${colors.border};">${escapeHtml(label)}</span>`;
 }
 
 /**
- * Shared email wrapper: thin colored accent bar, white card body, logo in footer.
+ * Shared email wrapper.
  * Returns { html, attachments } — the logo is always included as a CID inline attachment.
  */
 export function emailWrapper(
@@ -114,32 +278,45 @@ export function emailWrapper(
 ): EmailWrapperResult {
   const branding = options?.branding ?? getDefaultEmailBranding();
   const strings = getEmailStrings(options?.locale);
-  const pc = branding.primaryColor;
+  const pc = getPrimaryColor(branding);
   const hasLogo = branding.logoBuffer.length > 0;
   const preferencesLink = options?.preferencesUrl
-    ? `<a href="${options.preferencesUrl}" style="color:#9ca3af;text-decoration:none;font-size:11px;">${escapeHtml(strings.common.footer.managePreferencesLink)}</a>`
+    ? `<a href="${escapeHtml(options.preferencesUrl)}" style="color:${pc};text-decoration:none;font-size:11px;line-height:16px;">${escapeHtml(strings.common.footer.managePreferencesLink)}</a>`
     : '';
 
   const html = `<!DOCTYPE html>
 <html lang="${escapeHtml(strings.common.htmlLang)}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
-<tr><td align="center" style="padding:24px 16px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
-<!-- Accent bar -->
-<tr><td style="background-color:${pc};height:10px;font-size:0;line-height:0;">&nbsp;</td></tr>
-<!-- Body -->
-<tr><td style="padding:32px;line-height:1.6;font-size:15px;color:#374151;">
+<body style="margin:0;padding:0;background-color:${EMAIL_TOKENS.background};font-family:${EMAIL_UI_FONT};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${EMAIL_TOKENS.background};">
+<tr><td align="center" style="padding:24px 16px 32px;">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;">
+<tr><td style="padding:0 0 12px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td align="left" style="font-size:0;line-height:0;">
+${hasLogo
+    ? `<img src="cid:${branding.logoCid}" alt="KANAP" height="26" style="display:block;height:26px;width:auto;max-width:180px;" />`
+    : `<span style="font-size:13px;line-height:20px;font-weight:600;color:${EMAIL_TOKENS.textPrimary};">${escapeHtml(strings.common.footer.poweredBy)}</span>`}
+</td>
+<td align="right" style="font-size:11px;line-height:16px;color:${EMAIL_TOKENS.textTertiary};">${branding.isCustom ? escapeHtml(strings.common.footer.poweredBy) : '&nbsp;'}</td>
+</tr>
+</table>
+</td></tr>
+<tr><td style="background-color:${EMAIL_TOKENS.paper};border:1px solid ${EMAIL_TOKENS.border};border-radius:10px;overflow:hidden;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:28px 32px 8px 32px;font-size:14px;line-height:22px;color:${EMAIL_TOKENS.textPrimary};">
 ${body}
 </td></tr>
-<!-- Footer -->
-<tr><td style="padding:20px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-${hasLogo
-    ? `<img src="cid:${branding.logoCid}" alt="KANAP" width="24" height="24" style="display:inline-block;vertical-align:middle;max-height:24px;width:auto;max-width:24px;" />
-<span style="display:inline-block;vertical-align:middle;margin-left:6px;color:#9ca3af;font-size:11px;font-weight:600;letter-spacing:0.5px;">${escapeHtml(strings.common.footer.poweredBy)}</span>`
-    : `<span style="display:inline-block;vertical-align:middle;color:#9ca3af;font-size:11px;font-weight:600;letter-spacing:0.5px;">${escapeHtml(strings.common.footer.poweredBy)}</span>`}
-${preferencesLink ? `<br />${preferencesLink}` : ''}
+<tr><td style="padding:0 32px 24px 32px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${EMAIL_TOKENS.borderSubtle};">
+<tr>
+<td align="left" style="padding-top:16px;font-size:11px;line-height:16px;color:${EMAIL_TOKENS.textTertiary};">${escapeHtml(strings.common.footer.poweredBy)}</td>
+<td align="right" style="padding-top:16px;font-size:11px;line-height:16px;">${preferencesLink}</td>
+</tr>
+</table>
+</td></tr>
+</table>
 </td></tr>
 </table>
 </td></tr>
@@ -176,7 +353,7 @@ export function buildStatusChangeEmail(params: {
   const strings = getEmailStrings(params.locale);
   const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
+  const pc = getPrimaryColor(branding);
 
   const subject = interpolate(strings.notifications.statusChange.subject, {
     itemType: typeLabel.label,
@@ -187,18 +364,26 @@ export function buildStatusChangeEmail(params: {
     ? params.actionButtons
     : [{ label: typeLabel.view, url: params.itemUrl }];
 
+  const updatedHtml = interpolate(strings.notifications.statusChange.updatedHtml, {
+    itemTypeLower: typeLabel.lower,
+    itemName: escapeHtml(params.itemName),
+  });
+  const statusChangedHtml = interpolate(strings.notifications.statusChange.statusChangedHtml, {
+    oldStatus: formatStatus(params.oldStatus),
+    newStatus: formatStatus(params.newStatus),
+  });
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${interpolate(strings.notifications.statusChange.heading, {
-      itemType: typeLabel.label,
-    })}</h2>
-    <p>${interpolate(strings.notifications.statusChange.updatedHtml, {
-      itemTypeLower: typeLabel.lower,
-      itemName: escapeHtml(params.itemName),
-    })}</p>
-    <p>${interpolate(strings.notifications.statusChange.statusChangedHtml, {
-      oldStatus: formatStatus(params.oldStatus),
-      newStatus: formatStatus(params.newStatus),
-    })}</p>
+    ${buildEmailIntro({
+      eyebrow: typeLabel.label,
+      title: interpolate(strings.notifications.statusChange.heading, {
+        itemType: typeLabel.label,
+      }),
+      summaryHtml: `<p style="margin:0;">${updatedHtml}</p>`,
+    })}
+    ${buildSurfacePanel({
+      tone: 'info',
+      contentHtml: `<p style="margin:0;">${statusChangedHtml}</p>`,
+    })}
     ${buildActionButtons(actionButtons, pc)}
   `;
   const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
@@ -235,7 +420,7 @@ export function buildStatusChangeWithCommentEmail(params: {
   const strings = getEmailStrings(params.locale);
   const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
+  const pc = getPrimaryColor(branding);
 
   const subject = interpolate(strings.notifications.statusChangeWithComment.subject, {
     itemType: typeLabel.label,
@@ -248,24 +433,29 @@ export function buildStatusChangeWithCommentEmail(params: {
     ? params.actionButtons
     : [{ label: typeLabel.view, url: params.itemUrl }];
 
+  const updatedHtml = interpolate(strings.notifications.statusChange.updatedHtml, {
+    itemTypeLower: typeLabel.lower,
+    itemName: escapeHtml(params.itemName),
+  });
+  const statusChangedHtml = interpolate(strings.notifications.statusChange.statusChangedHtml, {
+    oldStatus: formatStatus(params.oldStatus),
+    newStatus: formatStatus(params.newStatus),
+  });
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${interpolate(strings.notifications.statusChange.heading, {
-      itemType: typeLabel.label,
-    })}</h2>
-    <p>${interpolate(strings.notifications.statusChange.updatedHtml, {
-      itemTypeLower: typeLabel.lower,
-      itemName: escapeHtml(params.itemName),
-    })}</p>
-    <p>${interpolate(strings.notifications.statusChange.statusChangedHtml, {
-      oldStatus: formatStatus(params.oldStatus),
-      newStatus: formatStatus(params.newStatus),
-    })}</p>
-    <p style="margin:18px 0 8px 0;color:#111827;">${interpolate(strings.notifications.statusChangeWithComment.commentIntroHtml, {
-      authorName: escapeHtml(params.authorName),
-    })}</p>
-    <div style="border-left:3px solid ${pc};padding:12px 16px;background-color:#f9fafb;border-radius:0 4px 4px 0;margin:8px 0 16px 0;color:#374151;">
-      ${safeHtml}
-    </div>
+    ${buildEmailIntro({
+      eyebrow: typeLabel.label,
+      title: interpolate(strings.notifications.statusChange.heading, {
+        itemType: typeLabel.label,
+      }),
+      summaryHtml: `<p style="margin:0 0 10px 0;">${updatedHtml}</p><p style="margin:0;">${statusChangedHtml}</p>`,
+    })}
+    ${buildSurfacePanel({
+      marginTop: 20,
+      labelHtml: interpolate(strings.notifications.statusChangeWithComment.commentIntroHtml, {
+        authorName: escapeHtml(params.authorName),
+      }),
+      contentHtml: safeHtml,
+    })}
     ${buildActionButtons(actionButtons, pc)}
   `;
   const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
@@ -301,8 +491,7 @@ export function buildTeamAddedEmail(params: {
   const strings = getEmailStrings(params.locale);
   const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
-  const btnText = contrastTextColor(pc);
+  const pc = getPrimaryColor(branding);
 
   const subject = interpolate(strings.notifications.teamAdded.subject, {
     itemType: typeLabel.label,
@@ -311,14 +500,17 @@ export function buildTeamAddedEmail(params: {
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${interpolate(strings.notifications.teamAdded.heading, {
-      itemType: typeLabel.label,
-    })}</h2>
-    <p>${interpolate(strings.notifications.teamAdded.bodyHtml, {
-      role: formatRole(params.role),
-      itemName: escapeHtml(params.itemName),
-    })}</p>
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(typeLabel.view)}</a></p>
+    ${buildEmailIntro({
+      eyebrow: typeLabel.label,
+      title: interpolate(strings.notifications.teamAdded.heading, {
+        itemType: typeLabel.label,
+      }),
+      summaryHtml: `<p style="margin:0;">${interpolate(strings.notifications.teamAdded.bodyHtml, {
+        role: formatRole(params.role),
+        itemName: escapeHtml(params.itemName),
+      })}</p>`,
+    })}
+    ${buildActionButtons([{ label: typeLabel.view, url: params.itemUrl }], pc)}
   `;
   const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
@@ -348,8 +540,7 @@ export function buildTeamMemberAddedEmail(params: {
   const strings = getEmailStrings(params.locale);
   const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
-  const btnText = contrastTextColor(pc);
+  const pc = getPrimaryColor(branding);
 
   const subject = interpolate(strings.notifications.teamMemberAdded.subject, {
     itemType: typeLabel.label,
@@ -358,14 +549,17 @@ export function buildTeamMemberAddedEmail(params: {
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.notifications.teamMemberAdded.heading}</h2>
-    <p>${interpolate(strings.notifications.teamMemberAdded.bodyHtml, {
-      addedUserName: escapeHtml(params.addedUserName),
-      role: formatRole(params.role),
-      itemTypeLower: typeLabel.lower,
-      itemName: escapeHtml(params.itemName),
-    })}</p>
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(typeLabel.view)}</a></p>
+    ${buildEmailIntro({
+      eyebrow: typeLabel.label,
+      title: strings.notifications.teamMemberAdded.heading,
+      summaryHtml: `<p style="margin:0;">${interpolate(strings.notifications.teamMemberAdded.bodyHtml, {
+        addedUserName: escapeHtml(params.addedUserName),
+        role: formatRole(params.role),
+        itemTypeLower: typeLabel.lower,
+        itemName: escapeHtml(params.itemName),
+      })}</p>`,
+    })}
+    ${buildActionButtons([{ label: typeLabel.view, url: params.itemUrl }], pc)}
   `;
   const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
@@ -397,8 +591,7 @@ export function buildCommentEmail(params: {
   const strings = getEmailStrings(params.locale);
   const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
-  const btnText = contrastTextColor(pc);
+  const pc = getPrimaryColor(branding);
 
   const subject = interpolate(strings.notifications.comment.subject, {
     itemType: typeLabel.label,
@@ -408,16 +601,20 @@ export function buildCommentEmail(params: {
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.notifications.comment.heading}</h2>
-    <p>${interpolate(strings.notifications.comment.introHtml, {
-      authorName: escapeHtml(params.authorName),
-      itemTypeLower: typeLabel.lower,
-      itemName: escapeHtml(params.itemName),
-    })}</p>
-    <div style="border-left:3px solid ${pc};padding:12px 16px;background-color:#f9fafb;border-radius:0 4px 4px 0;margin:16px 0;color:#374151;">
-      ${safeHtml}
-    </div>
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(typeLabel.view)}</a></p>
+    ${buildEmailIntro({
+      eyebrow: typeLabel.label,
+      title: strings.notifications.comment.heading,
+      summaryHtml: `<p style="margin:0;">${interpolate(strings.notifications.comment.introHtml, {
+        authorName: escapeHtml(params.authorName),
+        itemTypeLower: typeLabel.lower,
+        itemName: escapeHtml(params.itemName),
+      })}</p>`,
+    })}
+    ${buildSurfacePanel({
+      marginTop: 20,
+      contentHtml: safeHtml,
+    })}
+    ${buildActionButtons([{ label: typeLabel.view, url: params.itemUrl }], pc)}
   `;
   const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
@@ -448,8 +645,7 @@ export function buildShareEmail(params: {
   const strings = getEmailStrings(params.locale);
   const typeLabel = getItemTypeStrings(strings, params.itemType);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
-  const btnText = contrastTextColor(pc);
+  const pc = getPrimaryColor(branding);
 
   const subject = interpolate(strings.notifications.share.subject, {
     senderName: params.senderName,
@@ -459,22 +655,26 @@ export function buildShareEmail(params: {
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
 
   const messageBlock = params.message
-    ? `<div style="border-left:3px solid ${pc};padding:12px 16px;background-color:#f9fafb;border-radius:0 4px 4px 0;margin:16px 0;color:#374151;">
-      ${escapeHtml(params.message)}
-    </div>`
+    ? buildSurfacePanel({
+      marginTop: 20,
+      contentHtml: `<div style="white-space:pre-wrap;">${escapeHtml(params.message)}</div>`,
+    })
     : '';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${interpolate(strings.notifications.share.heading, {
-      itemType: typeLabel.label,
-    })}</h2>
-    <p>${interpolate(strings.notifications.share.introHtml, {
-      senderName: escapeHtml(params.senderName),
-      itemTypeLower: typeLabel.lower,
-      itemName: escapeHtml(params.itemName),
-    })}</p>
+    ${buildEmailIntro({
+      eyebrow: typeLabel.label,
+      title: interpolate(strings.notifications.share.heading, {
+        itemType: typeLabel.label,
+      }),
+      summaryHtml: `<p style="margin:0;">${interpolate(strings.notifications.share.introHtml, {
+        senderName: escapeHtml(params.senderName),
+        itemTypeLower: typeLabel.lower,
+        itemName: escapeHtml(params.itemName),
+      })}</p>`,
+    })}
     ${messageBlock}
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(typeLabel.view)}</a></p>
+    ${buildActionButtons([{ label: typeLabel.view, url: params.itemUrl }], pc)}
   `;
   const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
@@ -505,26 +705,32 @@ export function buildTaskAssignedEmail(params: {
 }): EmailContent {
   const strings = getEmailStrings(params.locale);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
-  const btnText = contrastTextColor(pc);
+  const pc = getPrimaryColor(branding);
   const taskType = strings.common.itemTypes.task;
   const subject = interpolate(strings.notifications.taskAssigned.subject, {
     taskTitle: params.taskTitle,
   });
   const preferencesUrl = getBaseUrl(params.taskUrl) + '/settings/notifications';
 
-  const dueLine = params.dueDate
-    ? `<p>${interpolate(strings.common.labels.dueDateHtml, { value: params.dueDate })}</p>`
+  const duePanel = params.dueDate
+    ? buildSurfacePanel({
+      marginTop: 20,
+      tone: 'info',
+      contentHtml: `<p style="margin:0;">${interpolate(strings.common.labels.dueDateHtml, { value: params.dueDate })}</p>`,
+    })
     : '';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.notifications.taskAssigned.heading}</h2>
-    <p>${interpolate(strings.notifications.taskAssigned.introHtml, {
-      assignerName: escapeHtml(params.assignerName),
-      taskTitle: escapeHtml(params.taskTitle),
-    })}</p>
-    ${dueLine}
-    <p style="margin-top:24px;"><a href="${params.taskUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(taskType.view)}</a></p>
+    ${buildEmailIntro({
+      eyebrow: taskType.label,
+      title: strings.notifications.taskAssigned.heading,
+      summaryHtml: `<p style="margin:0;">${interpolate(strings.notifications.taskAssigned.introHtml, {
+        assignerName: escapeHtml(params.assignerName),
+        taskTitle: escapeHtml(params.taskTitle),
+      })}</p>`,
+    })}
+    ${duePanel}
+    ${buildActionButtons([{ label: taskType.view, url: params.taskUrl }], pc)}
   `;
   const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
@@ -554,7 +760,7 @@ export function buildKnowledgeWorkflowRequestedEmail(params: {
 }): EmailContent {
   const strings = getEmailStrings(params.locale);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
+  const pc = getPrimaryColor(branding);
   const subject = interpolate(
     params.stage === 'review'
       ? strings.knowledge.requested.subjectReview
@@ -565,20 +771,23 @@ export function buildKnowledgeWorkflowRequestedEmail(params: {
     },
   );
   const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
+  const introHtml = interpolate(
+    params.stage === 'review'
+      ? strings.knowledge.requested.introReviewHtml
+      : strings.knowledge.requested.introApprovalHtml,
+    {
+      requesterName: escapeHtml(params.requesterName),
+      documentRef: escapeHtml(params.documentRef),
+    },
+  );
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${params.stage === 'review'
-      ? strings.knowledge.requested.headingReview
-      : strings.knowledge.requested.headingApproval}</h2>
-    <p>${interpolate(
-      params.stage === 'review'
-        ? strings.knowledge.requested.introReviewHtml
-        : strings.knowledge.requested.introApprovalHtml,
-      {
-        requesterName: escapeHtml(params.requesterName),
-        documentRef: escapeHtml(params.documentRef),
-      },
-    )}</p>
-    <p>${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>
+    ${buildEmailIntro({
+      eyebrow: params.documentRef,
+      title: params.stage === 'review'
+        ? strings.knowledge.requested.headingReview
+        : strings.knowledge.requested.headingApproval,
+      summaryHtml: `<p style="margin:0 0 10px 0;">${introHtml}</p><p style="margin:0;">${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>`,
+    })}
     ${buildActionButtons(
       params.documentUrl
         ? [{ label: strings.common.labels.openDocument, url: params.documentUrl }]
@@ -615,18 +824,20 @@ export function buildKnowledgeWorkflowApprovedEmail(params: {
 }): EmailContent {
   const strings = getEmailStrings(params.locale);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
+  const pc = getPrimaryColor(branding);
   const subject = interpolate(strings.knowledge.approved.subject, {
     documentRef: params.documentRef,
     documentTitle: params.documentTitle,
   });
   const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.knowledge.approved.heading}</h2>
-    <p>${interpolate(strings.knowledge.approved.bodyHtml, {
-      documentRef: escapeHtml(params.documentRef),
-    })}</p>
-    <p>${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>
+    ${buildEmailIntro({
+      eyebrow: params.documentRef,
+      title: strings.knowledge.approved.heading,
+      summaryHtml: `<p style="margin:0 0 10px 0;">${interpolate(strings.knowledge.approved.bodyHtml, {
+        documentRef: escapeHtml(params.documentRef),
+      })}</p><p style="margin:0;">${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>`,
+    })}
     ${buildActionButtons(
       params.documentUrl
         ? [{ label: strings.common.labels.openDocument, url: params.documentUrl }]
@@ -657,22 +868,26 @@ export function buildKnowledgeWorkflowChangesRequestedEmail(params: {
 }): EmailContent {
   const strings = getEmailStrings(params.locale);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
+  const pc = getPrimaryColor(branding);
   const subject = interpolate(strings.knowledge.changesRequested.subject, {
     documentRef: params.documentRef,
     documentTitle: params.documentTitle,
   });
   const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.knowledge.changesRequested.heading}</h2>
-    <p>${interpolate(strings.knowledge.changesRequested.introHtml, {
-      actorName: escapeHtml(params.actorName),
-      documentRef: escapeHtml(params.documentRef),
-    })}</p>
-    <p>${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>
-    <div style="border-left:3px solid ${pc};padding:12px 16px;background-color:#f9fafb;border-radius:0 4px 4px 0;margin:16px 0;color:#374151;">
-      ${escapeHtml(params.comment)}
-    </div>
+    ${buildEmailIntro({
+      eyebrow: params.documentRef,
+      title: strings.knowledge.changesRequested.heading,
+      summaryHtml: `<p style="margin:0 0 10px 0;">${interpolate(strings.knowledge.changesRequested.introHtml, {
+        actorName: escapeHtml(params.actorName),
+        documentRef: escapeHtml(params.documentRef),
+      })}</p><p style="margin:0;">${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>`,
+    })}
+    ${buildSurfacePanel({
+      marginTop: 20,
+      tone: 'warning',
+      contentHtml: `<div style="white-space:pre-wrap;">${escapeHtml(params.comment)}</div>`,
+    })}
     ${buildActionButtons(
       params.documentUrl
         ? [{ label: strings.common.labels.openDocument, url: params.documentUrl }]
@@ -706,19 +921,21 @@ export function buildKnowledgeWorkflowCancelledEmail(params: {
 }): EmailContent {
   const strings = getEmailStrings(params.locale);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
+  const pc = getPrimaryColor(branding);
   const subject = interpolate(strings.knowledge.cancelled.subject, {
     documentRef: params.documentRef,
     documentTitle: params.documentTitle,
   });
   const preferencesUrl = params.documentUrl ? `${getBaseUrl(params.documentUrl)}/settings/notifications` : undefined;
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${strings.knowledge.cancelled.heading}</h2>
-    <p>${interpolate(strings.knowledge.cancelled.introHtml, {
-      actorName: escapeHtml(params.actorName),
-      documentRef: escapeHtml(params.documentRef),
-    })}</p>
-    <p>${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>
+    ${buildEmailIntro({
+      eyebrow: params.documentRef,
+      title: strings.knowledge.cancelled.heading,
+      summaryHtml: `<p style="margin:0 0 10px 0;">${interpolate(strings.knowledge.cancelled.introHtml, {
+        actorName: escapeHtml(params.actorName),
+        documentRef: escapeHtml(params.documentRef),
+      })}</p><p style="margin:0;">${interpolate(strings.common.labels.titleHtml, { value: escapeHtml(params.documentTitle) })}</p>`,
+    })}
     ${buildActionButtons(
       params.documentUrl
         ? [{ label: strings.common.labels.openDocument, url: params.documentUrl }]
@@ -755,8 +972,7 @@ export function buildExpirationWarningEmail(params: {
   const typeLabel = getItemTypeStrings(strings, params.itemType);
   const warningStrings = strings.notifications.expirationWarning.warningTypes[params.warningType];
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
-  const btnText = contrastTextColor(pc);
+  const pc = getPrimaryColor(branding);
 
   const subject = interpolate(strings.notifications.expirationWarning.subject, {
     itemType: typeLabel.label,
@@ -767,18 +983,22 @@ export function buildExpirationWarningEmail(params: {
   const preferencesUrl = getBaseUrl(params.itemUrl) + '/settings/notifications';
 
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">${interpolate(strings.notifications.expirationWarning.heading, {
-      itemType: typeLabel.label,
-      warningHeading: warningStrings.heading,
-    })}</h2>
-    <p>${interpolate(strings.notifications.expirationWarning.bodyHtml, {
-      itemTypeLower: typeLabel.lower,
-      itemName: escapeHtml(params.itemName),
-      warningLabel: warningStrings.label,
-      expirationDate: params.expirationDate,
-      daysRemaining: params.daysRemaining,
-    })}</p>
-    <p style="margin-top:24px;"><a href="${params.itemUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">${escapeHtml(typeLabel.view)}</a></p>
+    ${buildEmailIntro({
+      eyebrow: typeLabel.label,
+      title: interpolate(strings.notifications.expirationWarning.heading, {
+        itemType: typeLabel.label,
+        warningHeading: warningStrings.heading,
+      }),
+      badgeHtml: buildToneBadge(warningStrings.label, 'warning'),
+      summaryHtml: `<p style="margin:0;">${interpolate(strings.notifications.expirationWarning.bodyHtml, {
+        itemTypeLower: typeLabel.lower,
+        itemName: escapeHtml(params.itemName),
+        warningLabel: warningStrings.label,
+        expirationDate: params.expirationDate,
+        daysRemaining: params.daysRemaining,
+      })}</p>`,
+    })}
+    ${buildActionButtons([{ label: typeLabel.view, url: params.itemUrl }], pc)}
   `;
   const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
 
@@ -804,21 +1024,21 @@ export function buildExpirationWarningEmail(params: {
 function buildStatsBar(stats: Array<{ label: string; count: number }>, pc: string): string {
   const cells = stats
     .map(
-      (s) => `<td align="center" style="padding:14px 8px;width:${Math.floor(100 / stats.length)}%;">
-<div style="font-size:28px;font-weight:bold;color:${pc};line-height:1.2;">${s.count}</div>
-<div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">${escapeHtml(s.label)}</div>
+      (s, index) => `<td align="center" style="padding:16px 10px;width:${Math.floor(100 / stats.length)}%;${index > 0 ? `border-left:1px solid ${EMAIL_TOKENS.borderSubtle};` : ''}">
+<div style="font-size:30px;font-weight:600;color:${pc};line-height:1.1;">${s.count}</div>
+<div style="font-size:11px;line-height:16px;color:${EMAIL_TOKENS.textSecondary};text-transform:uppercase;letter-spacing:0.06em;margin-top:6px;">${escapeHtml(s.label)}</div>
 </td>`,
     )
     .join('');
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:8px;margin-bottom:28px;border:1px solid #e5e7eb;">
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${EMAIL_TOKENS.surface};border-radius:10px;margin-bottom:24px;border:1px solid ${EMAIL_TOKENS.borderSubtle};">
 <tr>${cells}</tr>
 </table>`;
 }
 
-function buildSection(title: string, emoji: string, contentHtml: string): string {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
-<tr><td style="padding-bottom:10px;border-bottom:2px solid #e5e7eb;">
-<span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:0.2px;">${emoji} ${escapeHtml(title)}</span>
+function buildSection(title: string, contentHtml: string): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+<tr><td style="padding-bottom:10px;border-bottom:1px solid ${EMAIL_TOKENS.borderSubtle};">
+<span style="font-size:13px;line-height:18px;font-weight:600;color:${EMAIL_TOKENS.textPrimary};letter-spacing:0.01em;">${escapeHtml(title)}</span>
 </td></tr>
 <tr><td style="padding-top:12px;">
 ${contentHtml}
@@ -826,47 +1046,46 @@ ${contentHtml}
 </table>`;
 }
 
-function buildItemRow(linkHtml: string, pc: string, metaHtml?: string): string {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:6px;">
-<tr><td style="padding:10px 14px;background-color:#f9fafb;border-left:3px solid ${pc};border-radius:0 6px 6px 0;">
-<div style="font-size:14px;color:#111827;">${linkHtml}</div>
-${metaHtml ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">${metaHtml}</div>` : ''}
+function buildItemRow(linkHtml: string, metaHtml?: string): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+<tr><td style="padding:12px 14px;background-color:${EMAIL_TOKENS.surface};border:1px solid ${EMAIL_TOKENS.borderSubtle};border-radius:10px;">
+<div style="font-size:14px;line-height:20px;color:${EMAIL_TOKENS.textPrimary};">${linkHtml}</div>
+${metaHtml ? `<div style="font-size:12px;line-height:18px;color:${EMAIL_TOKENS.textSecondary};margin-top:6px;">${metaHtml}</div>` : ''}
 </td></tr>
 </table>`;
 }
 
 function priorityBadge(priority: string): string {
-  const colors: Record<string, { bg: string; text: string }> = {
-    blocker: { bg: '#dc2626', text: '#ffffff' },
-    high: { bg: '#ea580c', text: '#ffffff' },
-    normal: { bg: '#2D69E0', text: '#ffffff' },
-    low: { bg: '#9ca3af', text: '#ffffff' },
-    optional: { bg: '#e5e7eb', text: '#374151' },
+  const tones: Record<string, EmailTone> = {
+    blocker: 'danger',
+    high: 'warning',
+    normal: 'info',
+    low: 'neutral',
+    optional: 'neutral',
   };
-  const c = colors[priority] || colors.normal;
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;background-color:${c.bg};color:${c.text};text-transform:uppercase;">${escapeHtml(formatStatus(priority))}</span>`;
+  return buildToneBadge(formatStatus(priority), tones[priority] ?? 'info');
 }
 
 function statusBadge(status: string): string {
-  const colors: Record<string, { bg: string; text: string }> = {
-    planned: { bg: '#dbeafe', text: '#1e40af' },
-    in_progress: { bg: '#fef3c7', text: '#92400e' },
-    pending: { bg: '#fff7ed', text: '#9a3412' },
-    in_testing: { bg: '#ede9fe', text: '#5b21b6' },
-    completed: { bg: '#d1fae5', text: '#065f46' },
-    done: { bg: '#d1fae5', text: '#065f46' },
+  const tones: Record<string, EmailTone> = {
+    planned: 'neutral',
+    open: 'neutral',
+    draft: 'neutral',
+    in_progress: 'info',
+    pending: 'warning',
+    on_hold: 'warning',
+    in_testing: 'testing',
+    completed: 'success',
+    approved: 'success',
+    done: 'success',
+    cancelled: 'danger',
+    rejected: 'danger',
   };
-  const c = colors[status] || { bg: '#f3f4f6', text: '#374151' };
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;background-color:${c.bg};color:${c.text};">${escapeHtml(formatStatus(status))}</span>`;
+  return buildToneBadge(formatStatus(status), tones[status] ?? 'neutral');
 }
 
 function buildCtaButton(appUrl: string, pc: string, label: string): string {
-  const btnText = contrastTextColor(pc);
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;">
-<tr><td align="center">
-<a href="${appUrl}" style="display:inline-block;background-color:${pc};color:${btnText};text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:bold;">${escapeHtml(label)}</a>
-</td></tr>
-</table>`;
+  return buildActionButtons([{ label, url: appUrl }], pc, { align: 'center', marginTop: 28 });
 }
 
 // Template: Weekly Review
@@ -886,7 +1105,7 @@ export function buildWeeklyReviewEmail(params: {
 }): EmailContent {
   const strings = getEmailStrings(params.locale);
   const branding = params.branding;
-  const pc = branding?.primaryColor ?? '#2D69E0';
+  const pc = getPrimaryColor(branding);
   const subject = interpolate(strings.notifications.weeklyReview.subject, {
     weekLabel: params.weekLabel,
   });
@@ -901,18 +1120,21 @@ export function buildWeeklyReviewEmail(params: {
     params.topProjectsAsContributor.length > 0 ||
     params.newRequests.length > 0;
 
-  let body = `<p style="font-size:16px;color:#111827;margin:0 0 24px 0;">${interpolate(strings.notifications.weeklyReview.introHtml, {
-    userName: escapeHtml(params.userName),
-    weekLabel: escapeHtml(params.weekLabel),
-  })}</p>`;
+  let body = buildEmailIntro({
+    eyebrow: params.weekLabel,
+    title: subject,
+    summaryHtml: `<p style="margin:0;">${interpolate(strings.notifications.weeklyReview.introHtml, {
+      userName: escapeHtml(params.userName),
+      weekLabel: escapeHtml(params.weekLabel),
+    })}</p>`,
+  });
 
   if (!hasContent) {
-    body += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
-<tr><td align="center" style="padding:32px;background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
-<div style="font-size:32px;margin-bottom:12px;">&#11088;</div>
-<div style="font-size:14px;color:#6b7280;">${escapeHtml(strings.notifications.weeklyReview.empty)}</div>
-</td></tr>
-</table>`;
+    body += buildSurfacePanel({
+      marginTop: 8,
+      padding: 24,
+      contentHtml: `<p style="margin:0;color:${EMAIL_TOKENS.textSecondary};">${escapeHtml(strings.notifications.weeklyReview.empty)}</p>`,
+    });
     body += buildCtaButton(params.appUrl, pc, strings.common.buttons.goToKanap);
     const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
     const text = joinTextBlocks([
@@ -938,10 +1160,10 @@ export function buildWeeklyReviewEmail(params: {
   if (params.tasksClosed.length > 0) {
     const items = params.tasksClosed
       .map((t) =>
-        buildItemRow(`<a href="${params.appUrl}/tasks/${t.id}" style="color:${pc};text-decoration:none;font-weight:500;">${escapeHtml(t.title)}</a>`, pc),
+        buildItemRow(`<a href="${params.appUrl}/tasks/${t.id}" style="color:${pc};text-decoration:none;font-weight:600;">${escapeHtml(t.title)}</a>`),
       )
       .join('');
-    body += buildSection(strings.notifications.weeklyReview.sections.tasksCompleted, '&#9989;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.tasksCompleted, items);
   }
 
   // Section 2: Project Status Changes
@@ -949,13 +1171,12 @@ export function buildWeeklyReviewEmail(params: {
     const items = params.projectsWithChanges
       .map((p) =>
         buildItemRow(
-          `<a href="${params.appUrl}/portfolio/projects/${p.id}" style="color:${pc};text-decoration:none;font-weight:500;">${escapeHtml(p.name)}</a>`,
-          pc,
+          `<a href="${params.appUrl}/portfolio/projects/${p.id}" style="color:${pc};text-decoration:none;font-weight:600;">${escapeHtml(p.name)}</a>`,
           `${statusBadge(p.oldStatus)} &rarr; ${statusBadge(p.newStatus)}`,
         ),
       )
       .join('');
-    body += buildSection(strings.notifications.weeklyReview.sections.projectStatusChanges, '&#128260;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.projectStatusChanges, items);
   }
 
   // Section 3: Tasks Completed on Your Projects
@@ -963,13 +1184,12 @@ export function buildWeeklyReviewEmail(params: {
     const items = params.tasksClosedOnProjects
       .map((t) =>
         buildItemRow(
-          `<a href="${params.appUrl}/tasks/${t.id}" style="color:${pc};text-decoration:none;font-weight:500;">${escapeHtml(t.title)}</a>`,
-          pc,
+          `<a href="${params.appUrl}/tasks/${t.id}" style="color:${pc};text-decoration:none;font-weight:600;">${escapeHtml(t.title)}</a>`,
           escapeHtml(t.projectName),
         ),
       )
       .join('');
-    body += buildSection(strings.notifications.weeklyReview.sections.tasksCompletedOnProjects, '&#128203;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.tasksCompletedOnProjects, items);
   }
 
   // Section 4: Your Top Priority Tasks
@@ -981,13 +1201,12 @@ export function buildWeeklyReviewEmail(params: {
           : '';
         const meta = [priorityBadge(t.priority), due].filter(Boolean).join(' &middot; ');
         return buildItemRow(
-          `<a href="${params.appUrl}/tasks/${t.id}" style="color:${pc};text-decoration:none;font-weight:500;">${escapeHtml(t.title)}</a>`,
-          pc,
+          `<a href="${params.appUrl}/tasks/${t.id}" style="color:${pc};text-decoration:none;font-weight:600;">${escapeHtml(t.title)}</a>`,
           meta,
         );
       })
       .join('');
-    body += buildSection(strings.notifications.weeklyReview.sections.topTasks, '&#128293;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.topTasks, items);
   }
 
   // Section 5: Projects You Lead
@@ -995,13 +1214,12 @@ export function buildWeeklyReviewEmail(params: {
     const items = params.topProjectsAsLead
       .map((p) =>
         buildItemRow(
-          `<a href="${params.appUrl}/portfolio/projects/${p.id}" style="color:${pc};text-decoration:none;font-weight:500;">${escapeHtml(p.name)}</a>`,
-          pc,
+          `<a href="${params.appUrl}/portfolio/projects/${p.id}" style="color:${pc};text-decoration:none;font-weight:600;">${escapeHtml(p.name)}</a>`,
           statusBadge(p.status),
         ),
       )
       .join('');
-    body += buildSection(strings.notifications.weeklyReview.sections.projectsLead, '&#11088;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.projectsLead, items);
   }
 
   // Section 6: Projects You Contribute To
@@ -1009,23 +1227,22 @@ export function buildWeeklyReviewEmail(params: {
     const items = params.topProjectsAsContributor
       .map((p) =>
         buildItemRow(
-          `<a href="${params.appUrl}/portfolio/projects/${p.id}" style="color:${pc};text-decoration:none;font-weight:500;">${escapeHtml(p.name)}</a>`,
-          pc,
+          `<a href="${params.appUrl}/portfolio/projects/${p.id}" style="color:${pc};text-decoration:none;font-weight:600;">${escapeHtml(p.name)}</a>`,
           statusBadge(p.status),
         ),
       )
       .join('');
-    body += buildSection(strings.notifications.weeklyReview.sections.projectsContribute, '&#129309;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.projectsContribute, items);
   }
 
   // Section 7: New Requests
   if (params.newRequests.length > 0) {
     const items = params.newRequests
       .map((r) =>
-        buildItemRow(`<a href="${params.appUrl}/portfolio/requests/${r.id}" style="color:${pc};text-decoration:none;font-weight:500;">${escapeHtml(r.name)}</a>`, pc),
+        buildItemRow(`<a href="${params.appUrl}/portfolio/requests/${r.id}" style="color:${pc};text-decoration:none;font-weight:600;">${escapeHtml(r.name)}</a>`),
       )
       .join('');
-    body += buildSection(strings.notifications.weeklyReview.sections.newRequests, '&#128229;', items);
+    body += buildSection(strings.notifications.weeklyReview.sections.newRequests, items);
   }
 
   body += buildCtaButton(params.appUrl, pc, strings.common.buttons.goToKanap);
@@ -1113,14 +1330,20 @@ export function buildActivationEmail(params: {
   const strings = getEmailStrings(params.locale);
   const subject = strings.auth.activation.subject;
   const body = `
-    <p>${interpolate(strings.common.labels.greetingHelloName, { name: escapeHtml(params.greeting) })}</p>
-    <p>${strings.auth.activation.intro}</p>
-    <p style="text-align:center;margin:32px 0;">
-      <a href="${params.activationUrl}" style="background:#2D69E0;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;display:inline-block;font-weight:600;">${escapeHtml(strings.common.buttons.activateWorkspace)}</a>
-    </p>
-    <p>${strings.auth.activation.copyPaste}</p>
-    <p style="word-break:break-all;"><a href="${params.activationUrl}">${escapeHtml(params.activationUrl)}</a></p>
-    <p>${interpolate(strings.auth.activation.expires, {})}</p>
+    ${buildEmailIntro({
+      title: subject,
+      summaryHtml: `<p style="margin:0 0 10px 0;">${interpolate(strings.common.labels.greetingHelloName, { name: escapeHtml(params.greeting) })}</p><p style="margin:0;">${strings.auth.activation.intro}</p>`,
+    })}
+    ${buildActionButtons(
+      [{ label: strings.common.buttons.activateWorkspace, url: params.activationUrl }],
+      DEFAULT_EMAIL_PRIMARY_COLOR,
+    )}
+    ${buildUrlPanel(strings.auth.activation.copyPaste, params.activationUrl, DEFAULT_EMAIL_PRIMARY_COLOR)}
+    ${buildSurfacePanel({
+      marginTop: 20,
+      tone: 'warning',
+      contentHtml: `<p style="margin:0;">${interpolate(strings.auth.activation.expires, {})}</p>`,
+    })}
   `;
   // Activation emails always use KANAP default branding (no tenant yet)
   const wrapper = emailWrapper(body, { locale: params.locale });
@@ -1142,12 +1365,21 @@ export function buildContactFormEmail(params: {
 }): EmailContent {
   const subject = `Contact form submission from ${params.name} (${params.company})`;
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">New contact form submission</h2>
-    <p><strong>Name:</strong> ${escapeHtml(params.name)}</p>
-    <p><strong>Email:</strong> ${escapeHtml(params.email)}</p>
-    <p><strong>Company:</strong> ${escapeHtml(params.company)}</p>
-    <p><strong>Message:</strong></p>
-    <div style="white-space:pre-wrap;background:#f9fafb;padding:16px;border-radius:6px;border:1px solid #e5e7eb;color:#374151;">${escapeHtml(params.message)}</div>
+    ${buildEmailIntro({
+      eyebrow: 'Contact',
+      title: 'New contact form submission',
+      summaryHtml: `<p style="margin:0;color:${EMAIL_TOKENS.textSecondary};">A new website contact form has been submitted.</p>`,
+    })}
+    ${buildDataPanel([
+      { label: 'Name', value: params.name },
+      { label: 'Email', value: params.email },
+      { label: 'Company', value: params.company },
+    ])}
+    ${buildSurfacePanel({
+      marginTop: 20,
+      contentHtml: `<div style="white-space:pre-wrap;color:${EMAIL_TOKENS.textPrimary};">${escapeHtml(params.message)}</div>`,
+      labelHtml: 'Message',
+    })}
   `;
   const wrapper = emailWrapper(body);
   const text =
@@ -1167,12 +1399,18 @@ export function buildSupportRequestEmail(params: {
 }): EmailContent {
   const subject = `New Enterprise Support request: ${params.companyName}`;
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">New Enterprise Support request</h2>
-    <p><strong>Company:</strong> ${escapeHtml(params.companyName)}</p>
-    <p><strong>Contact:</strong> ${escapeHtml(params.contactName)}</p>
-    <p><strong>Email:</strong> ${escapeHtml(params.billingEmail)}</p>
-    <p><strong>Country:</strong> ${escapeHtml(params.country)}</p>
-    <p><strong>VAT:</strong> ${escapeHtml(params.vatId || 'N/A')}</p>
+    ${buildEmailIntro({
+      eyebrow: 'Support',
+      title: 'New Enterprise Support request',
+      summaryHtml: `<p style="margin:0;color:${EMAIL_TOKENS.textSecondary};">A new enterprise billing/support request is waiting for review.</p>`,
+    })}
+    ${buildDataPanel([
+      { label: 'Company', value: params.companyName },
+      { label: 'Contact', value: params.contactName },
+      { label: 'Email', value: params.billingEmail },
+      { label: 'Country', value: params.country },
+      { label: 'VAT', value: params.vatId || 'N/A' },
+    ])}
   `;
   const wrapper = emailWrapper(body);
   const text =
@@ -1191,11 +1429,17 @@ export function buildNewTenantNotificationEmail(params: {
 }): EmailContent {
   const subject = `New tenant created: ${params.tenantName} (${params.slug})`;
   const body = `
-    <h2 style="margin:0 0 16px 0;color:#111827;">New tenant created</h2>
-    <p><strong>Name:</strong> ${escapeHtml(params.tenantName)}</p>
-    <p><strong>Slug:</strong> ${escapeHtml(params.slug)}</p>
-    <p><strong>Registered email:</strong> ${escapeHtml(params.email)}</p>
-    <p><strong>Country:</strong> ${escapeHtml(params.countryIso)}</p>
+    ${buildEmailIntro({
+      eyebrow: 'Tenant',
+      title: 'New tenant created',
+      summaryHtml: `<p style="margin:0;color:${EMAIL_TOKENS.textSecondary};">A new tenant has been provisioned from self-service signup.</p>`,
+    })}
+    ${buildDataPanel([
+      { label: 'Name', value: params.tenantName },
+      { label: 'Slug', value: params.slug, mono: true },
+      { label: 'Registered email', value: params.email },
+      { label: 'Country', value: params.countryIso },
+    ])}
   `;
   const wrapper = emailWrapper(body);
   const text =

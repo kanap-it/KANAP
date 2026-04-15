@@ -15,11 +15,6 @@ import {
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ShareIcon from '@mui/icons-material/Share';
-import CloseIcon from '@mui/icons-material/Close';
 import api from '../../api';
 import { useTaskNav } from '../../hooks/useTaskNav';
 import { useClassificationDefaults } from '../../hooks/useClassificationDefaults';
@@ -30,6 +25,9 @@ import { importDocument as importMarkdownDocument, type ImportDocumentResult } f
 import TaskSidebar from './components/TaskSidebar';
 import TaskActivity from './components/TaskActivity';
 import TaskAttachments, { TaskAttachment } from './components/TaskAttachments';
+import TaskDetailHeader from './components/TaskDetailHeader';
+import TaskPropertiesDrawer from './components/TaskPropertiesDrawer';
+import type { PriorityLevel } from './theme/taskDetailTokens';
 import { RelatedObjectType } from '../../components/fields/RelatedObjectSelect';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import ShareDialog from '../../components/ShareDialog';
@@ -214,6 +212,11 @@ export default function TaskWorkspacePage() {
   const currentTaskDraftRef = React.useRef<TaskData | null>(null);
   const [descriptionFocusNonce, setDescriptionFocusNonce] = React.useState(0);
   const [commentFocusNonce, setCommentFocusNonce] = React.useState(0);
+  // Description autosave
+  const [descSaveStatus, setDescSaveStatus] = React.useState<'idle' | 'saving' | 'saved'>('idle');
+  const descAutosaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedDescriptionRef = React.useRef('');
+  const descSavingRef = React.useRef(false);
   const pendingDescriptionFocusRef = React.useRef(false);
   const autoCommentFocusTaskRef = React.useRef<string | null>(null);
   const [isContentScrolled, setIsContentScrolled] = React.useState(false);
@@ -322,6 +325,15 @@ export default function TaskWorkspacePage() {
 
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [convertToRequestOpen, setConvertToRequestOpen] = React.useState(false);
+  const [drawerOpen, setDrawerOpen] = React.useState(() => {
+    try {
+      const stored = localStorage.getItem('kanap.taskDetail.drawerOpen');
+      return stored ? JSON.parse(stored) === true : false;
+    } catch { return false; }
+  });
+  React.useEffect(() => {
+    try { localStorage.setItem('kanap.taskDetail.drawerOpen', JSON.stringify(drawerOpen)); } catch {}
+  }, [drawerOpen]);
   const [descriptionResetNonce, setDescriptionResetNonce] = React.useState(0);
   const resetClassificationTouched = React.useCallback(() => {
     classificationTouchedRef.current = {
@@ -433,6 +445,7 @@ export default function TaskWorkspacePage() {
   const handleDescriptionImported = React.useCallback((result: ImportDocumentResult) => {
     setError(null);
     setDescription(result.markdown);
+    savedDescriptionRef.current = result.markdown; // Import endpoint already saved server-side
     setDirty(true);
     setDescriptionResetNonce((prev) => prev + 1);
     window.setTimeout(() => {
@@ -496,6 +509,7 @@ export default function TaskWorkspacePage() {
       if (taskChanged || !dirtyRef.current) {
         setTitle(task.title || '');
         setDescription(task.description || '');
+        savedDescriptionRef.current = task.description || '';
       }
       setForm(buildTaskFormFromTask(task));
       if (taskChanged) {
@@ -659,12 +673,7 @@ export default function TaskWorkspacePage() {
     setDescriptionFocusNonce((prev) => prev + 1);
   }, [isCreate, initialized]);
 
-  React.useEffect(() => {
-    if (isCreate || !initialized) return;
-    if (autoCommentFocusTaskRef.current === id) return;
-    autoCommentFocusTaskRef.current = id;
-    setCommentFocusNonce((prev) => prev + 1);
-  }, [id, isCreate, initialized]);
+  // Auto-focus on comment composer disabled — toolbar loads on user click via hideToolbarUntilFocus
 
   React.useEffect(() => {
     setIsContentScrolled(false);
@@ -881,6 +890,71 @@ export default function TaskWorkspacePage() {
     enqueueSidebarPatch(localPatch, requestPatch);
   }, [applyFormPatch, enqueueSidebarPatch, liveTask, task]);
 
+  // Title blur-to-save: patches only the title field immediately on blur
+  const handleTitleSave = React.useCallback(async (newTitle: string) => {
+    if (!task || saving) return;
+    const trimmed = newTitle.trim();
+    if (!trimmed || trimmed === task.title) return;
+    setTitle(trimmed);
+    setError(null);
+    try {
+      await waitForSidebarSaves();
+      const isProject = task.related_object_type === 'project';
+      const endpoint = isProject && task.related_object_id
+        ? `/portfolio/projects/${task.related_object_id}/tasks/${task.id}`
+        : `/tasks/${task.id}`;
+      await api.patch(endpoint, { title: trimmed });
+      setDirty(false);
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['task-activities', task.id] });
+    } catch (err) {
+      setError(getApiErrorMessage(err, t, t('portfolio:workspace.task.messages.saveFailed')));
+    }
+  }, [task, saving, waitForSidebarSaves, queryClient, t]);
+
+  // Description autosave: patches only the description field
+  const handleDescriptionAutosave = React.useCallback(async (descToSave: string) => {
+    if (!task || isCreate || !canManage || descSavingRef.current) return;
+    const trimmed = descToSave.trim() || null;
+    const savedTrimmed = savedDescriptionRef.current.trim() || null;
+    if (trimmed === savedTrimmed) return;
+
+    descSavingRef.current = true;
+    setDescSaveStatus('saving');
+    try {
+      const isProject = task.related_object_type === 'project';
+      const endpoint = isProject && task.related_object_id
+        ? `/portfolio/projects/${task.related_object_id}/tasks/${task.id}`
+        : `/tasks/${task.id}`;
+      await api.patch(endpoint, { description: trimmed });
+      savedDescriptionRef.current = descToSave;
+      setDescSaveStatus('saved');
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['task-activities', task.id] });
+      setTimeout(() => setDescSaveStatus((s) => s === 'saved' ? 'idle' : s), 1500);
+    } catch (err) {
+      setDescSaveStatus('idle');
+      setError(getApiErrorMessage(err, t, t('portfolio:workspace.task.messages.saveFailed')));
+    } finally {
+      descSavingRef.current = false;
+    }
+  }, [task, isCreate, canManage, queryClient, t]);
+
+  // Debounced description autosave: fires 2s after last change
+  React.useEffect(() => {
+    if (isCreate || !initialized || !task || !canManage) return;
+    const trimmed = description.trim() || null;
+    const savedTrimmed = savedDescriptionRef.current.trim() || null;
+    if (trimmed === savedTrimmed) return;
+
+    const timer = setTimeout(() => {
+      void handleDescriptionAutosave(description);
+    }, 2000);
+    descAutosaveTimerRef.current = timer;
+
+    return () => clearTimeout(timer);
+  }, [description, isCreate, initialized, task, canManage, handleDescriptionAutosave]);
+
   const handleSave = async () => {
     if (!task || saving) return;
     setSaving(true);
@@ -944,6 +1018,7 @@ export default function TaskWorkspacePage() {
       }
 
       await api.patch(endpoint, payload);
+      savedDescriptionRef.current = description;
       setDirty(false);
       resetClassificationTouched();
       await refetch();
@@ -998,6 +1073,11 @@ export default function TaskWorkspacePage() {
 
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
+    // Flush pending description autosave (handleSave includes description in payload)
+    if (descAutosaveTimerRef.current) {
+      clearTimeout(descAutosaveTimerRef.current);
+      descAutosaveTimerRef.current = null;
+    }
     await waitForSidebarSaves();
     if (dirty) {
       const proceed = window.confirm(t('portfolio:workspace.task.confirmations.unsavedNavigate'));
@@ -1176,6 +1256,12 @@ export default function TaskWorkspacePage() {
         return;
       }
 
+      // Cancel pending description debounce — handleSave includes description
+      if (descAutosaveTimerRef.current) {
+        clearTimeout(descAutosaveTimerRef.current);
+        descAutosaveTimerRef.current = null;
+      }
+
       if (!dirty || saving) return;
       void handleSave();
     };
@@ -1183,6 +1269,39 @@ export default function TaskWorkspacePage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [canManage, isCreate, isCreateValid, createSaving, dirty, saving, handleCreateSave, handleSave]);
+
+  // Keyboard shortcuts: J/K/←/→ for navigation, Escape to close
+  React.useEffect(() => {
+    if (isCreate) return;
+    const handler = (e: KeyboardEvent) => {
+      // Ignore when typing in an input/textarea/contenteditable
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+      // Skip if modifier keys are held
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      switch (e.key) {
+        case 'j':
+        case 'ArrowLeft':
+          if (hasPrev) { e.preventDefault(); void confirmAndNavigate(prevId); }
+          break;
+        case 'k':
+        case 'ArrowRight':
+          if (hasNext) { e.preventDefault(); void confirmAndNavigate(nextId); }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          void handleBack();
+          break;
+        case 'p':
+          e.preventDefault();
+          setDrawerOpen((o: boolean) => !o);
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isCreate, hasPrev, hasNext, prevId, nextId, confirmAndNavigate, handleBack]);
 
   // Create mode UI - full workspace layout
   if (isCreate) {
@@ -1447,192 +1566,47 @@ export default function TaskWorkspacePage() {
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <Box
-        sx={{
-          p: 2,
-          borderBottom: 1,
-          borderColor: 'divider',
-          boxShadow: headerShadow,
-          transition: 'box-shadow 140ms ease',
-          zIndex: 2,
-        }}
-      >
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <IconButton onClick={handleBack} size="small">
-              <ArrowBackIcon />
-            </IconButton>
-            <Typography variant="body2" color="text.secondary">
-              {t('portfolio:actions.backToTasks')}
-            </Typography>
-            {total > 0 && (
-              <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-                ({t('portfolio:workspace.task.navigation.position', { index: index + 1, total })})
-              </Typography>
-            )}
-          </Stack>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Button
-              startIcon={<ShareIcon />}
-              onClick={() => setShareDialogOpen(true)}
-              size="small"
-            >
-              {t('portfolio:actions.sendLink')}
-            </Button>
-            <Button
-              onClick={() => setConvertToRequestOpen(true)}
-              disabled={!canConvertToRequest || hasConvertedRequest}
-              size="small"
-              title={
-                hasConvertedRequest
-                  ? (task.converted_request_item_number
-                    ? t('portfolio:workspace.task.actions.alreadyConvertedWithReference', { ref: `REQ-${task.converted_request_item_number}` })
-                    : t('portfolio:workspace.task.actions.alreadyConverted'))
-                  : (!canCreateRequest ? t('portfolio:workspace.task.actions.convertRequiresPermission') : undefined)
-              }
-            >
-              {t('portfolio:actions.convertToRequest')}
-            </Button>
-            <IconButton
-              aria-label={t('portfolio:actions.previous')}
-              title={t('portfolio:actions.previous')}
-              onClick={() => confirmAndNavigate(prevId)}
-              disabled={!hasPrev}
-              size="small"
-            >
-              <ArrowBackIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              aria-label={t('portfolio:actions.next')}
-              title={t('portfolio:actions.next')}
-              onClick={() => confirmAndNavigate(nextId)}
-              disabled={!hasNext}
-              size="small"
-            >
-              <ArrowForwardIcon fontSize="small" />
-            </IconButton>
-            {canDelete && (
-              <Button
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={handleDelete}
-                size="small"
-              >
-                {t('common:buttons.delete')}
-              </Button>
-            )}
-            <Button
-              variant="contained"
-              onClick={handleSave}
-              disabled={!dirty || saving || !canManage}
-              size="small"
-            >
-              {saving ? t('common:status.saving') : t('common:buttons.save')}
-            </Button>
-            <IconButton onClick={handleBack} size="small" title={t('common:buttons.close')}>
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-        </Stack>
-
-        {/* Title with priority score and chips */}
-        <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 2 }}>
-          {effectiveTask.related_object_type === 'project' && task.priority_score != null && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                bgcolor: 'primary.main',
-                color: 'primary.contrastText',
-                fontWeight: 700,
-                fontSize: '1.25rem',
-                boxShadow: 2,
-                flexShrink: 0,
-              }}
-              title={t('portfolio:workspace.task.priority.title')}
-            >
-              {Math.round(task.priority_score)}
-            </Box>
-          )}
-          <Stack spacing={0.5} sx={{ flex: 1 }}>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              {task?.item_number && (
-                <Typography
-                  component="span"
-                  variant="body2"
-                  onClick={() => navigator.clipboard.writeText(`T-${task.item_number}`)}
-                  title={t('portfolio:workspace.task.actions.copyReference')}
-                  sx={{ fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', monospace", cursor: 'pointer', color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
-                >
-                  T-{task.item_number}
-                </Typography>
-              )}
-              <Box sx={{ ...titleBarSx, flex: 1 }}>
-                {canManage ? (
-                  <TextField
-                    value={title}
-                    onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Tab' && !event.shiftKey) {
-                        event.preventDefault();
-                        setCommentFocusNonce((prev) => prev + 1);
-                      }
-                    }}
-                    variant="standard"
-                    fullWidth
-                    placeholder={t('portfolio:workspace.task.title.placeholder')}
-                    InputProps={{
-                      disableUnderline: true,
-                      sx: { fontSize: '1.5rem', fontWeight: 600 },
-                    }}
-                  />
-                ) : (
-                  <Typography variant="h5" sx={{ fontWeight: 600, py: 0.4 }}>
-                    {title || t('portfolio:workspace.task.title.untitled')}
-                  </Typography>
-                )}
-              </Box>
-            </Stack>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Box component="span" sx={(theme) => {
-                const color = getDotColor(TASK_STATUS_COLORS[effectiveTask.status] || 'default', theme.palette.mode);
-                return { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', fontWeight: 500, color };
-              }}>
-                <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(TASK_STATUS_COLORS[effectiveTask.status] || 'default', theme.palette.mode) })} />
-                {getTaskStatusLabel(t, effectiveTask.status)}
-              </Box>
-              {projectHeaderChip && (
-                <Typography
-                  component="span"
-                  variant="body2"
-                  onClick={() => navigate(buildProjectWorkspacePath(projectHeaderChip.id, 'activity'))}
-                  sx={{ cursor: 'pointer', color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
-                  title={t('portfolio:workspace.task.actions.openProjectActivity', { name: projectHeaderChip.name })}
-                >
-                  {projectHeaderChip.name}
-                </Typography>
-              )}
-              <Typography variant="body2" color="text.secondary">
-                {priorityLabels[effectiveTask.priority_level] || getPriorityLabel(t, effectiveTask.priority_level)}
-              </Typography>
-              <Button
-                size="small"
-                startIcon={<AttachFileIcon />}
-                onClick={() => setShowUploadArea(!showUploadArea)}
-                disabled={!canManage}
-                variant={showUploadArea ? 'contained' : 'text'}
-              >
-                {t('portfolio:workspace.task.actions.attachFiles')}
-              </Button>
-            </Stack>
-          </Stack>
-        </Stack>
-      </Box>
+      <TaskDetailHeader
+        taskId={task.id}
+        itemNumber={task.item_number}
+        title={title}
+        status={effectiveTask.status}
+        priorityLevel={effectiveTask.priority_level as PriorityLevel}
+        priorityScore={task.priority_score}
+        assigneeUserId={effectiveTask.assignee_user_id}
+        assigneeName={effectiveTask.assignee_name}
+        dueDate={effectiveTask.due_date}
+        isProjectTask={isProjectTask}
+        hasConvertedRequest={hasConvertedRequest}
+        projectId={isProjectTask ? effectiveTask.related_object_id : null}
+        projectName={isProjectTask ? (effectiveTask.related_object_name ?? null) : null}
+        onNavigateToProject={(pid) => navigate(buildProjectWorkspacePath(pid, 'activity'))}
+        currentIndex={index}
+        totalCount={total}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        onPrev={() => confirmAndNavigate(prevId)}
+        onNext={() => confirmAndNavigate(nextId)}
+        onClose={handleBack}
+        onSendLink={() => setShareDialogOpen(true)}
+        onConvertToRequest={() => setConvertToRequestOpen(true)}
+        onDelete={handleDelete}
+        onTitleChange={(v) => { setTitle(v); setDirty(true); }}
+        onTitleSave={handleTitleSave}
+        onMetadataPatch={handleEditSidebarPatch}
+        canManage={canManage}
+        canDelete={canDelete}
+        canConvertToRequest={canConvertToRequest}
+        convertDisabledTitle={
+          hasConvertedRequest
+            ? (task.converted_request_item_number
+              ? t('portfolio:workspace.task.actions.alreadyConvertedWithReference', { ref: `REQ-${task.converted_request_item_number}` })
+              : t('portfolio:workspace.task.actions.alreadyConverted'))
+            : (!canCreateRequest ? t('portfolio:workspace.task.actions.convertRequiresPermission') : undefined)
+        }
+        originProjectName={projectHeaderChip?.name}
+        onBreadcrumbBack={handleBack}
+      />
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mx: 2, mt: 1 }}>
@@ -1640,94 +1614,52 @@ export default function TaskWorkspacePage() {
         </Alert>
       )}
 
-      {/* Main Content */}
+      {/* Work Area: Content + Tab-anchor + Drawer */}
       <Box
         sx={{
           flex: 1,
           display: 'flex',
           flexDirection: isMobile ? 'column' : 'row',
           overflow: 'hidden',
+          position: 'relative',
+          minHeight: 380,
         }}
       >
-        {/* Sidebar */}
-        <Box
-          ref={sidebarRef}
-          sx={{
-            width: isMobile ? '100%' : sidebarWidth,
-            flexShrink: 0,
-            borderRight: isMobile ? 0 : 1,
-            borderBottom: isMobile ? 1 : 0,
-            borderColor: 'divider',
-            overflow: 'auto',
-            p: 2,
-            position: 'relative',
-          }}
-        >
-          {/* Resize handle */}
-          {!isMobile && (
-            <Box
-              onMouseDown={() => setIsResizing(true)}
-              sx={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                width: 4,
-                height: '100%',
-                cursor: 'col-resize',
-                '&:hover': { bgcolor: 'primary.main', opacity: 0.3 },
-                ...(isResizing && { bgcolor: 'primary.main', opacity: 0.5 }),
-              }}
-            />
-          )}
-          <TaskSidebar
-            task={effectiveTask}
-            onPatch={handleEditSidebarPatch}
-            readOnly={!canManage}
-            totalTimeHours={totalTimeHours}
-            onRelationChange={handleEditRelationChange}
-            projectWorkspaceLink={sidebarProjectWorkspaceLink}
-          />
-        </Box>
-
-        {/* Main content area */}
-        <Box sx={{ flex: 1, overflow: 'auto', p: 3 }} onScroll={handleMainContentScroll}>
+        {/* Content column — 26px right gutter for the tab to sit in */}
+        <Box sx={{ flex: 1, minWidth: 0, overflow: 'auto', pt: '8px', pl: 3, pr: isMobile ? 3 : '29px', pb: 3 }} onScroll={handleMainContentScroll}>
           {/* Description */}
           <Box sx={{ mb: contentSpacing.sectionLarge }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
               <Typography variant="subtitle2" fontWeight="bold">
                 {t('portfolio:labels.description')}
               </Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <ImportButton
-                  onImportFile={handleDescriptionImport}
-                  onImported={handleDescriptionImported}
-                  onError={handleDescriptionImportError}
-                  hasContent={!!description.trim()}
-                  disabled={taskImportDisabled}
-                  disabledTitle={taskImportDisabledTitle}
-                  size="small"
-                />
-                <ExportButton
-                  content={description}
-                  title={title || task.title || 'task-description'}
-                  disabled={!description.trim()}
-                />
-              </Stack>
+              {descSaveStatus === 'saved' && (
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    color: 'kanap.text.secondary',
+                    fontWeight: 400,
+                  }}
+                >
+                  {'✓ '}{t('common:status.saved')}
+                </Typography>
+              )}
             </Stack>
             {initialized ? (
               <React.Suspense fallback={<Box sx={{ minHeight: 10 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
-                  <MarkdownEditor
-                    key={`task-description:${id || 'create'}:${descriptionResetNonce}`}
-                    value={description}
-                    onChange={(val) => { setDescription(val); setDirty(true); }}
-                    placeholder={t('portfolio:workspace.task.description.placeholder')}
-                    minRows={10}
-                    maxRows={26}
-                    disabled={!canManage}
+                <MarkdownEditor
+                  key={`task-description:${id || 'create'}:${descriptionResetNonce}`}
+                  value={description}
+                  onChange={(val) => { setDescription(val); setDirty(true); }}
+                  placeholder={t('portfolio:workspace.task.description.placeholder')}
+                  minRows={10}
+                  maxRows={26}
+                  disabled={!canManage}
                   onImageUpload={handleUploadImage}
                   onImageUrlImport={handleImportImageUrl}
                   focusNonce={descriptionFocusNonce}
                   refreshNonce={descriptionResetNonce}
+                  hideToolbarUntilFocus
                 />
               </React.Suspense>
             ) : (
@@ -1763,14 +1695,74 @@ export default function TaskWorkspacePage() {
             commentFocusNonce={commentFocusNonce}
           />
         </Box>
-      </Box>
 
-      {/* Footer */}
-      <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
-        <Typography variant="caption" color="text.secondary">
-          {t('portfolio:workspace.task.footer.created', { date: formatDate(task.created_at) })}
-          {task.updated_at && ` • ${t('portfolio:workspace.task.footer.updated', { date: formatDate(task.updated_at) })}`}
-        </Typography>
+        {/* Tab-anchor: zero-width column with absolutely-positioned classeur tab */}
+        {!isMobile && (
+          <Box sx={{ width: 0, position: 'relative', alignSelf: 'stretch' }}>
+            <Box
+              component="button"
+              onClick={() => setDrawerOpen((o: boolean) => !o)}
+              aria-label={drawerOpen ? 'Close properties' : 'Open properties'}
+              aria-expanded={drawerOpen}
+              sx={(theme) => ({
+                position: 'absolute',
+                top: 20,
+                right: 0,
+                width: 26,
+                height: 120,
+                bgcolor: drawerOpen ? theme.palette.kanap.tab.bgActive : theme.palette.kanap.tab.bg,
+                border: `1px solid ${drawerOpen ? theme.palette.kanap.tab.borderActive : theme.palette.kanap.tab.border}`,
+                borderRight: 'none',
+                borderRadius: '8px 0 0 8px',
+                cursor: 'pointer',
+                zIndex: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                p: 0,
+                transition: 'background-color 0.15s, border-color 0.15s',
+                '&:hover': {
+                  bgcolor: drawerOpen ? theme.palette.kanap.tab.bgActive : theme.palette.kanap.tab.bgHover,
+                },
+              })}
+            >
+              <Box
+                component="span"
+                sx={(theme) => ({
+                  writingMode: 'vertical-rl',
+                  transform: 'rotate(180deg)',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  letterSpacing: '0.03em',
+                  color: drawerOpen ? theme.palette.kanap.tab.fgActive : theme.palette.kanap.tab.fg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  pointerEvents: 'none',
+                })}
+              >
+                <Box component="span" sx={{ fontSize: '14px', lineHeight: 1 }}>
+                  {drawerOpen ? '›' : '‹'}
+                </Box>
+                <span>Properties</span>
+              </Box>
+            </Box>
+          </Box>
+        )}
+
+        {/* Properties drawer (conditionally rendered) */}
+        {drawerOpen && (
+          <TaskPropertiesDrawer
+            task={effectiveTask}
+            open={drawerOpen}
+            onToggle={() => setDrawerOpen((o: boolean) => !o)}
+            onPatch={handleEditSidebarPatch}
+            readOnly={!canManage}
+            totalTimeHours={totalTimeHours}
+            onRelationChange={handleEditRelationChange}
+            projectWorkspaceLink={sidebarProjectWorkspaceLink}
+          />
+        )}
       </Box>
 
       <ShareDialog

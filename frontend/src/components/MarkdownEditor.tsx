@@ -69,6 +69,8 @@ interface MarkdownEditorProps {
   onImageUrlImport?: (sourceUrl: string) => Promise<string>;
   /** Enable the full Knowledge toolbar. Default is the simplified toolbar used elsewhere. */
   fullToolbar?: boolean;
+  /** Hide the toolbar until the editor receives focus (via :focus-within). */
+  hideToolbarUntilFocus?: boolean;
 }
 
 const EMOJI_OPTIONS = [
@@ -148,6 +150,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   onImageUpload,
   onImageUrlImport,
   fullToolbar = false,
+  hideToolbarUntilFocus = false,
 }: MarkdownEditorProps) {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
@@ -172,8 +175,8 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   imageUrlImportHandlerRef.current = onImageUrlImport;
   const [editorInstanceKey, setEditorInstanceKey] = React.useState(0);
   const mdxRootClassName = React.useMemo(
-    () => `kanap-mdx-root ${isDarkMode ? 'dark-theme' : 'light-theme'}`,
-    [isDarkMode],
+    () => `kanap-mdx-root ${isDarkMode ? 'dark-theme' : 'light-theme'}${hideToolbarUntilFocus ? ' kanap-mdx-hide-toolbar' : ''}`,
+    [isDarkMode, hideToolbarUntilFocus],
   );
   const mdxEditorKey = React.useMemo(
     () => `${editorInstanceKey}:${disabled ? 'readonly' : 'editable'}:${onImageUpload ? 'image' : 'no-image'}`,
@@ -592,6 +595,10 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
             top: 0,
             zIndex: 1,
             bgcolor: 'background.paper',
+          },
+          // Hide toolbar until the editor container has focus-within
+          '&:not(:focus-within) .kanap-mdx-hide-toolbar .kanap-mdx-toolbar': {
+            display: 'none',
           },
           '& .kanap-mdx-root': {
             display: 'flex',

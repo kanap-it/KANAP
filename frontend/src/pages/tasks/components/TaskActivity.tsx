@@ -1,18 +1,15 @@
 import React from 'react';
 import {
   Box,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
+  Tab,
+  Tabs,
 } from '@mui/material';
-import CommentIcon from '@mui/icons-material/Comment';
-import HistoryIcon from '@mui/icons-material/History';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useTranslation } from 'react-i18next';
 import TaskComments from './TaskComments';
 import TaskHistory from './TaskHistory';
 import TaskWorkLog from './TaskWorkLog';
 import type { TaskStatus } from '../task.constants';
+import { taskDetailTokens } from '../theme/taskDetailTokens';
 
 type ActivityTab = 'comments' | 'history' | 'worklog';
 
@@ -49,39 +46,48 @@ export default function TaskActivity({
     setActiveTab('comments');
   }, [commentFocusNonce]);
 
-  const handleTabChange = (_: React.MouseEvent<HTMLElement>, newTab: ActivityTab | null) => {
-    if (newTab) {
-      setActiveTab(newTab);
-    }
-  };
-
   return (
     <Box>
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-          {t('activity.title')}
-        </Typography>
-        <ToggleButtonGroup
+      {/* Activity tabs (no label — tabs serve as section title) */}
+      <Box sx={{ mb: taskDetailTokens.activityHead.mb }}>
+        <Tabs
           value={activeTab}
-          exclusive
-          onChange={handleTabChange}
-          size="small"
+          onChange={(_, v) => setActiveTab(v)}
+          sx={{ minHeight: 'auto', '& .MuiTabs-indicator': { display: 'none' } }}
         >
-          <ToggleButton value="comments">
-            <CommentIcon fontSize="small" sx={{ mr: 0.5 }} />
-            {t('activity.tabs.comments')}
-          </ToggleButton>
-          <ToggleButton value="history">
-            <HistoryIcon fontSize="small" sx={{ mr: 0.5 }} />
-            {t('activity.tabs.history')}
-          </ToggleButton>
+          <Tab
+            label={t('activity.tabs.comments')}
+            value="comments"
+            sx={(theme) => ({
+              minHeight: 'auto', p: 0, mr: 2, textTransform: 'none', minWidth: 'auto',
+              fontSize: '13px',
+              fontWeight: activeTab === 'comments' ? 500 : 400,
+              color: activeTab === 'comments' ? theme.palette.kanap.text.primary : theme.palette.kanap.text.tertiary,
+            })}
+          />
+          <Tab
+            label={t('activity.tabs.history')}
+            value="history"
+            sx={(theme) => ({
+              minHeight: 'auto', p: 0, mr: 2, textTransform: 'none', minWidth: 'auto',
+              fontSize: '13px',
+              fontWeight: activeTab === 'history' ? 500 : 400,
+              color: activeTab === 'history' ? theme.palette.kanap.text.primary : theme.palette.kanap.text.tertiary,
+            })}
+          />
           {supportsTimeLogging && (
-            <ToggleButton value="worklog">
-              <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
-              {t('activity.tabs.workLog')}
-            </ToggleButton>
+            <Tab
+              label={t('activity.tabs.workLog')}
+              value="worklog"
+              sx={(theme) => ({
+                minHeight: 'auto', p: 0, textTransform: 'none', minWidth: 'auto',
+                fontSize: '13px',
+                fontWeight: activeTab === 'worklog' ? 500 : 400,
+                color: activeTab === 'worklog' ? theme.palette.kanap.text.primary : theme.palette.kanap.text.tertiary,
+              })}
+            />
           )}
-        </ToggleButtonGroup>
+        </Tabs>
       </Box>
 
       <Box sx={{ minHeight: 200 }}>

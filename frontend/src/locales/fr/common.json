@@ -36,7 +36,8 @@
     "deleting": "Suppression...",
     "sending": "Envoi...",
     "importing": "Importation...",
-    "exporting": "Exportation {{format}}..."
+    "exporting": "Exportation {{format}}...",
+    "saved": "Enregistré"
   },
   "statuses": {
     "enabled": "Activé",

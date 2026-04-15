@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { emailWrapper } from '../notifications/notification-templates';
+import {
+  buildActionButtons,
+  buildEmailIntro,
+  buildSurfacePanel,
+  buildUrlPanel,
+  emailWrapper,
+} from '../notifications/notification-templates';
 import { getEmailStrings, interpolate } from '../i18n/email-i18n';
-import type { EmailBranding } from './email-branding';
+import { DEFAULT_EMAIL_PRIMARY_COLOR, type EmailBranding } from './email-branding';
 import { createEmailTransport } from './transports/email-transport.factory';
 import type {
   DeliveryError,
@@ -159,24 +165,22 @@ export class EmailService {
     const strings = getEmailStrings(params.locale);
     const expires = params.expiresInMinutes ?? 60;
     const branding = params.branding;
-    const pc = branding?.primaryColor ?? '#2D69E0';
+    const pc = branding?.primaryColor ?? DEFAULT_EMAIL_PRIMARY_COLOR;
     const subject = strings.auth.passwordReset.subject;
     const baseUrl = params.resetUrl.match(/^(https?:\/\/[^/]+)/)?.[1] || '';
     const preferencesUrl = baseUrl ? baseUrl + '/settings/notifications' : undefined;
-    const safeResetUrl = escapeHtml(params.resetUrl);
     const body = `
-      <p>${strings.common.labels.greetingHello}</p>
-      <p>${strings.auth.passwordReset.intro}</p>
-      <p style="text-align: center; margin: 32px 0;">
-        <a href="${safeResetUrl}" style="background: ${pc}; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">
-          ${escapeHtml(strings.common.buttons.resetPassword)}
-        </a>
-      </p>
-      <p>${strings.auth.passwordReset.copyPaste}</p>
-      <p style="word-break: break-all;">
-        <a href="${safeResetUrl}">${safeResetUrl}</a>
-      </p>
-      <p>${interpolate(strings.auth.passwordReset.expires, { minutes: expires })}</p>
+      ${buildEmailIntro({
+        title: subject,
+        summaryHtml: `<p style="margin:0 0 10px 0;">${strings.common.labels.greetingHello}</p><p style="margin:0;">${strings.auth.passwordReset.intro}</p>`,
+      })}
+      ${buildActionButtons([{ label: strings.common.buttons.resetPassword, url: params.resetUrl }], pc)}
+      ${buildUrlPanel(strings.auth.passwordReset.copyPaste, params.resetUrl, pc)}
+      ${buildSurfacePanel({
+        marginTop: 20,
+        tone: 'warning',
+        contentHtml: `<p style="margin:0;">${interpolate(strings.auth.passwordReset.expires, { minutes: expires })}</p>`,
+      })}
     `;
     const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
     const text = [
@@ -203,7 +207,7 @@ export class EmailService {
     const strings = getEmailStrings(params.locale);
     const expires = params.expiresInMinutes ?? 60;
     const branding = params.branding;
-    const pc = branding?.primaryColor ?? '#2D69E0';
+    const pc = branding?.primaryColor ?? DEFAULT_EMAIL_PRIMARY_COLOR;
     const subject = strings.auth.userInvite.subject;
     const roleLine = params.roleName
       ? interpolate(strings.auth.userInvite.rolePart, {
@@ -223,23 +227,21 @@ export class EmailService {
       : '';
     const baseUrl = params.inviteUrl.match(/^(https?:\/\/[^/]+)/)?.[1] || '';
     const preferencesUrl = baseUrl ? baseUrl + '/settings/notifications' : undefined;
-    const safeInviteUrl = escapeHtml(params.inviteUrl);
     const body = `
-      <p>${strings.common.labels.greetingHello}</p>
-      <p>${interpolate(strings.auth.userInvite.intro, {
-        inviterPart: inviterLine,
-        rolePart: roleLine,
-      })}</p>
-      <p style="text-align: center; margin: 32px 0;">
-        <a href="${safeInviteUrl}" style="background: ${pc}; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">
-          ${escapeHtml(strings.common.buttons.setPassword)}
-        </a>
-      </p>
-      <p>${strings.auth.userInvite.copyPaste}</p>
-      <p style="word-break: break-all;">
-        <a href="${safeInviteUrl}">${safeInviteUrl}</a>
-      </p>
-      <p>${interpolate(strings.auth.userInvite.expires, { minutes: expires })}</p>
+      ${buildEmailIntro({
+        title: subject,
+        summaryHtml: `<p style="margin:0 0 10px 0;">${strings.common.labels.greetingHello}</p><p style="margin:0;">${interpolate(strings.auth.userInvite.intro, {
+          inviterPart: inviterLine,
+          rolePart: roleLine,
+        })}</p>`,
+      })}
+      ${buildActionButtons([{ label: strings.common.buttons.setPassword, url: params.inviteUrl }], pc)}
+      ${buildUrlPanel(strings.auth.userInvite.copyPaste, params.inviteUrl, pc)}
+      ${buildSurfacePanel({
+        marginTop: 20,
+        tone: 'info',
+        contentHtml: `<p style="margin:0;">${interpolate(strings.auth.userInvite.expires, { minutes: expires })}</p>`,
+      })}
     `;
     const wrapper = emailWrapper(body, { preferencesUrl, branding, locale: params.locale });
     const text = [

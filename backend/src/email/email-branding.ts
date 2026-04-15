@@ -11,7 +11,7 @@ export interface EmailBranding {
   isCustom: boolean;
 }
 
-const DEFAULT_PRIMARY_COLOR = '#2D69E0';
+export const DEFAULT_EMAIL_PRIMARY_COLOR = '#1A6B7A';
 const LOGO_CID = 'kanap-branding-logo';
 
 let cachedDefaultLogo: Buffer | null = null;
@@ -44,7 +44,7 @@ function getDefaultLogo(): Buffer {
 
 export function getDefaultEmailBranding(): EmailBranding {
   return {
-    primaryColor: DEFAULT_PRIMARY_COLOR,
+    primaryColor: DEFAULT_EMAIL_PRIMARY_COLOR,
     logoBuffer: getDefaultLogo(),
     logoContentType: 'image/png',
     logoCid: LOGO_CID,
@@ -63,7 +63,7 @@ export async function resolveEmailBranding(
 ): Promise<EmailBranding> {
   if (!branding) return getDefaultEmailBranding();
 
-  const primaryColor = branding.primary_color_light || DEFAULT_PRIMARY_COLOR;
+  const primaryColor = branding.primary_color_light || DEFAULT_EMAIL_PRIMARY_COLOR;
 
   if (branding.logo_storage_path) {
     try {
@@ -93,6 +93,6 @@ export async function resolveEmailBranding(
     logoBuffer: getDefaultLogo(),
     logoContentType: 'image/png',
     logoCid: LOGO_CID,
-    isCustom: primaryColor !== DEFAULT_PRIMARY_COLOR,
+    isCustom: primaryColor !== DEFAULT_EMAIL_PRIMARY_COLOR,
   };
 }

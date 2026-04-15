@@ -1,14 +1,16 @@
 import React from 'react';
-import { Alert, Box, Button, Slider, Stack } from '@mui/material';
+import { Alert, Box, Button, MenuItem, Select, Slider, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
-import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { hasRenderableContent } from '../../../utils/contentToPlainText';
 import { getTaskStatusLabel, getTaskStatusOptions } from '../../../utils/portfolioI18n';
 import { TASK_STATUS_OPTIONS } from '../task.constants';
 import type { TaskStatus } from '../task.constants';
+import { taskDetailTokens, taskDetailTypography, STATUS_DOT_COLORS } from '../theme/taskDetailTokens';
+import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
+import { useTheme } from '@mui/material/styles';
 
 const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
 
@@ -48,18 +50,23 @@ export default function UnifiedActivityForm({
   const [timeHours, setTimeHours] = React.useState<number>(0);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [feedbackLabel, setFeedbackLabel] = React.useState<string | null>(null);
   const initialAppliedRef = React.useRef<string | null>(null);
 
   const supportsTimeLogging = !TIME_LOGGING_EXCLUDED_TYPES.includes(relatedObjectType || '');
   const isProjectTask = relatedObjectType === 'project';
+  const theme = useTheme();
+  const mode = theme.palette.mode;
+  // Show current status as default (value=''), all others as change options
+  const currentStatusLabel = getTaskStatusLabel(t, currentStatus);
   const statusOptions = React.useMemo(
     () => [
-      { label: t('portfolio:activity.form.noChange'), value: '' },
+      { label: currentStatusLabel, value: '', statusKey: currentStatus },
       ...getTaskStatusOptions(t)
         .filter((option) => option.value !== currentStatus)
-        .map((option) => ({ label: option.label, value: option.value })),
+        .map((option) => ({ label: option.label, value: option.value, statusKey: option.value })),
     ],
-    [currentStatus, t],
+    [currentStatus, currentStatusLabel, t],
   );
 
   React.useEffect(() => {
@@ -100,8 +107,17 @@ export default function UnifiedActivityForm({
     });
   }, [hasAnyAction, hasComment, hasStatusChange, hasTime, status, t, timeHours]);
 
+  // Build success label based on what was submitted
+  const getSuccessLabel = React.useCallback(() => {
+    if (hasComment && hasTime) return `✓ Submitted & logged ${timeHours}h`;
+    if (hasStatusChange && hasTime) return `✓ Updated & logged ${timeHours}h`;
+    if (hasTime) return `✓ Logged ${timeHours}h`;
+    if (hasStatusChange) return '✓ Updated';
+    return '✓ Submitted';
+  }, [hasComment, hasStatusChange, hasTime, timeHours]);
+
   const handleSubmit = async () => {
-    if (readOnly || submitting) return;
+    if (readOnly || submitting || feedbackLabel) return;
     setError(null);
 
     if (!hasAnyAction) {
@@ -113,6 +129,8 @@ export default function UnifiedActivityForm({
       setError(t('portfolio:workspace.task.activity.messages.doneRequiresTime'));
       return;
     }
+
+    const successLabel = getSuccessLabel();
 
     const payload: Record<string, unknown> = { type: 'unified' };
     if (hasComment) payload.content = comment.trim();
@@ -129,9 +147,18 @@ export default function UnifiedActivityForm({
     setSubmitting(true);
     try {
       await api.post(endpoint, payload);
-      setComment('');
-      setStatus('');
-      setTimeHours(0);
+
+      // Show success feedback
+      setFeedbackLabel(successLabel);
+      setSubmitting(false);
+
+      // Reset after 1500ms
+      setTimeout(() => {
+        setComment('');
+        setStatus('');
+        setTimeHours(0);
+        setFeedbackLabel(null);
+      }, 1500);
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['task-activities', taskId] }),
@@ -152,72 +179,151 @@ export default function UnifiedActivityForm({
         t,
         t('portfolio:workspace.task.activity.messages.submitFailed'),
       ));
-    } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Stack spacing={1.5}>
-      {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
-
-      <React.Suspense fallback={<Box sx={{ minHeight: 8 * 24, border: 1, borderColor: 'divider', borderRadius: 1 }} />}>
-        <MarkdownEditor
-          value={comment}
-          onChange={setComment}
-          placeholder={t('portfolio:workspace.task.comments.placeholders.writeComment')}
-          minRows={8}
-          maxRows={20}
-          disabled={submitting || readOnly}
-          focusNonce={focusNonce}
-          onImageUpload={onImageUpload}
-          onImageUrlImport={onImageUrlImport}
-        />
-      </React.Suspense>
+    <Box sx={{ mb: taskDetailTokens.composer.mb }}>
+      {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 1.5 }}>{error}</Alert>}
 
       <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: supportsTimeLogging ? '1fr 1fr' : '1fr' },
-          gap: 2,
-          alignItems: 'start',
-        }}
+        sx={(theme) => ({
+          bgcolor: theme.palette.kanap.bg.composer,
+          border: `1px solid ${theme.palette.kanap.border.default}`,
+          borderRadius: taskDetailTokens.composer.borderRadius,
+        })}
       >
-        <Box>
-          <EnumAutocomplete
-            label={t('portfolio:workspace.task.sidebar.fields.status')}
-            value={status}
-            onChange={setStatus}
-            options={statusOptions}
-            size="small"
-            disabled={submitting || readOnly}
-          />
-        </Box>
-        {supportsTimeLogging && (
-          <Box sx={{ px: 0.5 }}>
-            <Slider
-              min={0}
-              max={8}
-              step={1}
-              marks={Array.from({ length: 9 }, (_, value) => ({ value, label: String(value) }))}
-              value={timeHours}
-              onChange={(_, value) => setTimeHours(Array.isArray(value) ? value[0] : value)}
+        {/* Comment input zone — ~5 visible lines */}
+        <Box sx={{ p: taskDetailTokens.composer.inputPadding, minHeight: 130 }}>
+          <React.Suspense fallback={<Box sx={{ minHeight: 130 }} />}>
+            <MarkdownEditor
+              value={comment}
+              onChange={setComment}
+              placeholder={t('portfolio:workspace.task.comments.placeholders.writeComment')}
+              minRows={5}
+              maxRows={14}
               disabled={submitting || readOnly}
+              focusNonce={focusNonce}
+              onImageUpload={onImageUpload}
+              onImageUrlImport={onImageUrlImport}
+              hideToolbarUntilFocus
             />
-          </Box>
-        )}
-      </Box>
+          </React.Suspense>
+        </Box>
 
-      <Stack direction="row" justifyContent="flex-end">
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={submitting || readOnly || !hasAnyAction}
-          sx={{ minWidth: { xs: '100%', sm: 220 }, height: 40 }}
+        {/* Composer footer: Status (inline) | Time (flex) | Submit */}
+        <Box
+          sx={(theme) => ({
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+            p: taskDetailTokens.composer.footPadding,
+            borderTop: `1px solid ${theme.palette.kanap.border.soft}`,
+          })}
         >
-          {submitting ? t('portfolio:workspace.task.activity.actions.submitting') : submitLabel}
-        </Button>
-      </Stack>
-    </Stack>
+          {/* Status — inline label + naked Select, no FormControl */}
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <Typography
+              component="span"
+              sx={(theme) => ({ ...taskDetailTypography.composerCtrl, color: theme.palette.kanap.text.tertiary, whiteSpace: 'nowrap' })}
+            >
+              {t('portfolio:workspace.task.sidebar.fields.status')}
+            </Typography>
+            <Select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              variant="standard"
+              disableUnderline
+              disabled={submitting || readOnly}
+              displayEmpty
+              renderValue={(val) => {
+                const opt = statusOptions.find((o) => o.value === val) || statusOptions[0];
+                const dotColor = STATUS_DOT_COLORS[opt.statusKey as keyof typeof STATUS_DOT_COLORS]?.[mode] ?? '#9CA3AF';
+                return (
+                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Box component="span" sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: dotColor, flexShrink: 0 }} />
+                    <span>{opt.label}</span>
+                  </Box>
+                );
+              }}
+              sx={(theme) => ({
+                minWidth: 140,
+                fontSize: 12,
+                color: theme.palette.kanap.text.primary,
+                '& .MuiSelect-select': { padding: '2px 0', display: 'flex', alignItems: 'center' },
+                '& .MuiSelect-icon': { color: theme.palette.kanap.text.tertiary, fontSize: 16 },
+              })}
+            >
+              {statusOptions.map((opt) => {
+                const dotColor = STATUS_DOT_COLORS[opt.statusKey as keyof typeof STATUS_DOT_COLORS]?.[mode] ?? '#9CA3AF';
+                return (
+                  <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: 13, gap: '8px' }}>
+                    <Box component="span" sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: dotColor, flexShrink: 0 }} />
+                    {opt.label}
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          </Box>
+
+          {/* Time — inline label + slider flex + value */}
+          {supportsTimeLogging && (
+            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <Typography
+                component="span"
+                sx={(theme) => ({ ...taskDetailTypography.composerCtrl, color: theme.palette.kanap.text.tertiary, flexShrink: 0, whiteSpace: 'nowrap' })}
+              >
+                {t('portfolio:workspace.task.activity.actions.time', 'Time')}
+              </Typography>
+              <Slider
+                min={0}
+                max={8}
+                step={1}
+                value={timeHours}
+                onChange={(_, value) => setTimeHours(Array.isArray(value) ? value[0] : value)}
+                disabled={submitting || readOnly}
+                sx={(theme) => ({
+                  flex: 1,
+                  height: 4,
+                  '& .MuiSlider-rail': { bgcolor: theme.palette.kanap.sliderTrack, opacity: 1 },
+                  '& .MuiSlider-track': { bgcolor: theme.palette.kanap.teal },
+                  '& .MuiSlider-thumb': { bgcolor: theme.palette.kanap.teal, width: 14, height: 14 },
+                  color: theme.palette.kanap.teal,
+                })}
+              />
+              <Typography
+                component="span"
+                sx={{ fontFamily: MONO_FONT_FAMILY, ...taskDetailTypography.composerCtrl, minWidth: 24, flexShrink: 0 }}
+              >
+                {timeHours}h
+              </Typography>
+            </Box>
+          )}
+
+          {/* Submit */}
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={submitting || readOnly || (!hasAnyAction && !feedbackLabel)}
+            sx={(theme) => ({
+              flexShrink: 0,
+              py: '7px',
+              px: '18px',
+              borderRadius: taskDetailTokens.borderRadius.submit,
+              ...taskDetailTypography.composerSubmit,
+              bgcolor: theme.palette.kanap.teal,
+              color: theme.palette.kanap.tealForeground,
+              textTransform: 'none',
+              '&:hover': { bgcolor: theme.palette.primary.dark },
+              '&.Mui-disabled': { opacity: 0.5 },
+              ...(feedbackLabel && { pointerEvents: 'none' }),
+            })}
+          >
+            {feedbackLabel || (submitting ? t('portfolio:workspace.task.activity.actions.submitting') : submitLabel)}
+          </Button>
+        </Box>
+      </Box>
+    </Box>
   );
 }

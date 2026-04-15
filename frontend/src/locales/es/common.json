@@ -36,7 +36,8 @@
     "deleting": "Eliminando...",
     "sending": "Enviando...",
     "importing": "Importando...",
-    "exporting": "Exportando {{format}}..."
+    "exporting": "Exportando {{format}}...",
+    "saved": "Guardado"
   },
   "statuses": {
     "enabled": "Activado",
