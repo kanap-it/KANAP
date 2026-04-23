@@ -61,4 +61,4 @@ doc/cheatsheets/__pycache__/
 .codex/
 AGENTS.md
 translation-state/
-tasks/
+/tasks/
