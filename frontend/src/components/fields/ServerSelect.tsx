@@ -1,7 +1,9 @@
 import React from 'react';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 export type ServerOption = {
   id: string;
@@ -21,6 +23,8 @@ type ServerSelectProps = {
   required?: boolean;
   placeholder?: string;
   allowClusters?: boolean;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 function useServerOptions(search: string, opts?: { allowClusters?: boolean }) {
@@ -61,6 +65,8 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
   required,
   placeholder,
   allowClusters = true,
+  hideLabel = false,
+  textFieldSx,
 }) => {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.server');
@@ -103,11 +109,11 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
       renderOption={(props, option) => (
         <li {...props} key={option.id}>
           <div>
-            <div style={{ fontWeight: 600 }}>
+            <div className="kanap-autocomplete-option-primary">
               {option.is_cluster ? `${t('selects.cluster')} ` : ''}
               {option.name}
             </div>
-            <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+            <div className="kanap-autocomplete-option-secondary">
               {option.environment?.toUpperCase()} · {option.kind}
               {option.is_cluster ? ' · cluster' : ''}
               {' · '}
@@ -116,15 +122,19 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
           </div>
         </li>
       )}
+      ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
+          label={hideLabel ? undefined : label}
           required={required}
           placeholder={placeholder}
           helperText={helperText}
+          variant={hideLabel ? 'standard' : undefined}
+          sx={textFieldSx}
           InputProps={{
             ...params.InputProps,
+            ...(hideLabel ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {loading ? <CircularProgress color="inherit" size={16} /> : null}

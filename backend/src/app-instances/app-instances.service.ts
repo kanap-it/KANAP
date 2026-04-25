@@ -86,7 +86,17 @@ export class AppInstancesService {
 
   private async ensureApplication(applicationId: string, manager?: EntityManager): Promise<Application> {
     const repo = this.getAppRepo(manager);
-    const app = await repo.findOne({ where: { id: applicationId } as any });
+    const normalized = String(applicationId || '').trim();
+    const uuidMatch = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized);
+    const sequentialMatch = normalized.match(/^(APP-[0-9]+)(?:-.+)?$/i);
+    const app = uuidMatch
+      ? await repo.findOne({ where: { id: normalized } as any })
+      : sequentialMatch
+        ? await repo
+          .createQueryBuilder('application')
+          .where('upper(application.sequential_id) = upper(:sequentialId)', { sequentialId: sequentialMatch[1] })
+          .getOne()
+        : null;
     if (!app) {
       throw new NotFoundException('Application not found');
     }
@@ -94,10 +104,10 @@ export class AppInstancesService {
   }
 
   async list(applicationId: string, opts?: { manager?: EntityManager }) {
-    await this.ensureApplication(applicationId, opts?.manager);
+    const app = await this.ensureApplication(applicationId, opts?.manager);
     const repo = this.getRepo(opts?.manager);
     return repo.find({
-      where: { application_id: applicationId } as any,
+      where: { application_id: app.id } as any,
       order: { environment: 'ASC', created_at: 'ASC' } as any,
     });
   }
@@ -132,7 +142,7 @@ export class AppInstancesService {
       throw new BadRequestException('Body is required');
     }
     const environment = this.normalizeEnvironment(payload.environment ?? payload.env ?? payload.environment_id);
-    await this.assertEnvironmentAvailable(applicationId, environment, { manager: mg });
+    await this.assertEnvironmentAvailable(app.id, environment, { manager: mg });
 
     const ssoEnabled = this.normalizeBoolean(payload.sso_enabled, app.sso_enabled);
     const mfaSupported = this.normalizeBoolean(payload.mfa_supported, app.mfa_supported);
@@ -144,7 +154,7 @@ export class AppInstancesService {
     });
 
     const instance = repo.create({
-      application_id: applicationId,
+      application_id: app.id,
       environment,
       lifecycle,
       sso_enabled: ssoEnabled,

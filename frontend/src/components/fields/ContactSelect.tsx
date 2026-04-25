@@ -1,8 +1,10 @@
 import React from 'react';
 import { Autocomplete, TextField, CircularProgress } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type Contact = {
   id: string;
@@ -19,19 +21,26 @@ type ContactSelectProps = {
   label?: string;
   value: string | null | undefined;
   onChange: (v: string | null) => void;
+  onContactChange?: (contact: Contact | null) => void;
   disabled?: boolean;
   error?: boolean;
   helperText?: React.ReactNode;
   required?: boolean;
   query?: string; // initial query
   showEmail?: boolean;
+  compactOptions?: boolean;
+  groupByCompany?: boolean;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
-function formatLabel(c: Contact, showEmail: boolean): string {
-  const name = [c.first_name, c.last_name].filter(Boolean).join(' ').trim();
-  if (!showEmail) return name || c.email;
+function formatLabel(c: Contact, showEmail: boolean, compactOptions = false): string {
+  const fullName = [c.first_name, c.last_name].filter(Boolean).join(' ').trim();
+  const name = fullName || c.email;
   const supplier = c.supplier_name ? ` — ${c.supplier_name}` : '';
-  return name ? `${name}${supplier} (${c.email})` : c.email;
+  if (compactOptions) return `${name}${supplier}`;
+  if (!showEmail) return name;
+  return fullName ? `${fullName}${supplier} (${c.email})` : c.email;
 }
 
 const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(function ContactSelect(
@@ -39,12 +48,17 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
     label: labelProp,
     value,
     onChange,
+    onContactChange,
     disabled,
     error,
     helperText,
     required = false,
     query = '',
     showEmail = true,
+    compactOptions = false,
+    groupByCompany = true,
+    hideLabel = false,
+    textFieldSx,
   },
   ref,
 ) {
@@ -89,23 +103,38 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
     <Autocomplete
       options={mergedOptions}
       value={selected}
-      onChange={(_, newValue) => onChange((newValue as Contact | null)?.id || null)}
+      onChange={(_, newValue) => {
+        const nextContact = (newValue as Contact | null) || null;
+        onChange(nextContact?.id || null);
+        onContactChange?.(nextContact);
+      }}
       onInputChange={(_, newValue, reason) => {
         if (reason === 'input') setInput(newValue);
         else if (reason === 'clear') setInput('');
       }}
-      getOptionLabel={(option) => formatLabel(option as Contact, showEmail)}
-      groupBy={(option) => (option as Contact).supplier_name || t('selects.noSupplier')}
+      getOptionLabel={(option) => formatLabel(option as Contact, showEmail, compactOptions)}
+      groupBy={groupByCompany ? (option) => (option as Contact).supplier_name || t('selects.noSupplier') : undefined}
+      ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
+      renderOption={(props, option) => (
+        <li {...props}>
+          <span className="kanap-autocomplete-option-primary">
+            {formatLabel(option as Contact, showEmail, compactOptions)}
+          </span>
+        </li>
+      )}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
+          label={hideLabel ? undefined : label}
           required={required}
           inputRef={ref}
           error={error}
           helperText={helperText}
+          variant={hideLabel ? 'standard' : undefined}
+          sx={textFieldSx}
           InputProps={{
             ...params.InputProps,
+            ...(hideLabel ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isFetching || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}

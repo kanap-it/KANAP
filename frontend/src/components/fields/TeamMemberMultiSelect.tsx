@@ -3,10 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Autocomplete, CircularProgress, Divider, IconButton, Stack, TextField, Typography,
 } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 interface TeamMember {
   user_id: string;
@@ -30,6 +32,8 @@ interface TeamMemberMultiSelectProps {
   value: TeamMember[];
   onChange: (userIds: string[]) => Promise<void>;
   disabled?: boolean;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 }
 
 export default function TeamMemberMultiSelect({
@@ -37,6 +41,8 @@ export default function TeamMemberMultiSelect({
   value,
   onChange,
   disabled,
+  hideLabel = false,
+  textFieldSx,
 }: TeamMemberMultiSelectProps) {
   const { t } = useTranslation('common');
   const [loading, setLoading] = useState(false);
@@ -123,7 +129,7 @@ export default function TeamMemberMultiSelect({
 
   return (
     <Stack spacing={1}>
-      <Typography variant="subtitle2">{label}</Typography>
+      {!hideLabel && <Typography variant="subtitle2">{label}</Typography>}
 
       <Autocomplete
         options={availableUsers}
@@ -146,13 +152,16 @@ export default function TeamMemberMultiSelect({
           );
         }}
         renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder={t('selects.addTeamMember')}
-            size="small"
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
+            <TextField
+              {...params}
+              placeholder={t('selects.addTeamMember')}
+              size="small"
+              variant={hideLabel ? 'standard' : undefined}
+              sx={textFieldSx}
+              InputProps={{
+                ...params.InputProps,
+                ...(hideLabel ? { disableUnderline: true } : {}),
+                endAdornment: (
                 <>
                   {isLoading ? <CircularProgress color="inherit" size={16} /> : null}
                   {params.InputProps.endAdornment}
@@ -163,6 +172,7 @@ export default function TeamMemberMultiSelect({
         )}
         disabled={disabled || isLoading}
         loading={isLoading}
+        ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
         size="small"
       />
 
@@ -174,9 +184,14 @@ export default function TeamMemberMultiSelect({
               direction="row"
               alignItems="center"
               spacing={1}
-              sx={{ p: 0.5, bgcolor: 'action.hover', borderRadius: 1 }}
+              sx={(theme) => ({
+                p: 0.5,
+                bgcolor: 'action.hover',
+                borderRadius: '4px',
+                '&:hover': { bgcolor: theme.palette.kanap.bg.hover },
+              })}
             >
-              <Typography variant="body2" sx={{ flex: 1 }}>
+              <Typography sx={(theme) => ({ flex: 1, fontSize: 13, color: theme.palette.kanap.text.primary })}>
                 {getDisplayName(m)}
               </Typography>
               {!disabled && (
@@ -192,7 +207,7 @@ export default function TeamMemberMultiSelect({
           ))}
         </Stack>
       ) : (
-        <Typography variant="body2" color="text.secondary">
+        <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary })}>
           {t('selects.noTeamMembers')}
         </Typography>
       )}

@@ -9,38 +9,87 @@ import { AppAssetAssignmentsService } from './app-asset-assignments.service';
 export class AppAssetAssignmentsController {
   constructor(private readonly svc: AppAssetAssignmentsService) {}
 
+  private listForDeployment(instanceId: string, req: any) {
+    return this.svc.list(instanceId, { manager: req?.queryRunner?.manager });
+  }
+
+  private createForDeployment(instanceId: string, body: any, req: any) {
+    return this.svc.create(instanceId, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+  }
+
+  private updateForDeployment(instanceId: string, assignmentId: string, body: any, req: any) {
+    return this.svc.update(instanceId, assignmentId, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+  }
+
+  private deleteForDeployment(instanceId: string, assignmentId: string, req: any) {
+    return this.svc.delete(instanceId, assignmentId, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+  }
+
   // New asset-based endpoints
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
+  @Get('app-deployments/:instanceId/assets')
+  listDeploymentAssets(@Param('instanceId') instanceId: string, @Req() req: any) {
+    return this.listForDeployment(instanceId, req);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
   @Get('app-instances/:instanceId/assets')
-  list(@Param('instanceId') instanceId: string, @Req() req: any) {
-    return this.svc.list(instanceId, { manager: req?.queryRunner?.manager });
+  listInstanceAssetsCompatibility(@Param('instanceId') instanceId: string, @Req() req: any) {
+    return this.listForDeployment(instanceId, req);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post('app-deployments/:instanceId/assets')
+  createDeploymentAsset(@Param('instanceId') instanceId: string, @Body() body: any, @Req() req: any) {
+    return this.createForDeployment(instanceId, body, req);
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'member')
   @Post('app-instances/:instanceId/assets')
-  create(@Param('instanceId') instanceId: string, @Body() body: any, @Req() req: any) {
-    return this.svc.create(instanceId, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+  createInstanceAssetCompatibility(@Param('instanceId') instanceId: string, @Body() body: any, @Req() req: any) {
+    return this.createForDeployment(instanceId, body, req);
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'member')
-  @Patch('app-instances/:instanceId/assets/:assignmentId')
-  update(
+  @Patch('app-deployments/:instanceId/assets/:assignmentId')
+  updateDeploymentAsset(
     @Param('instanceId') instanceId: string,
     @Param('assignmentId') assignmentId: string,
     @Body() body: any,
     @Req() req: any,
   ) {
-    return this.svc.update(instanceId, assignmentId, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+    return this.updateForDeployment(instanceId, assignmentId, body, req);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Patch('app-instances/:instanceId/assets/:assignmentId')
+  updateInstanceAssetCompatibility(
+    @Param('instanceId') instanceId: string,
+    @Param('assignmentId') assignmentId: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    return this.updateForDeployment(instanceId, assignmentId, body, req);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Delete('app-deployments/:instanceId/assets/:assignmentId')
+  deleteDeploymentAsset(@Param('instanceId') instanceId: string, @Param('assignmentId') assignmentId: string, @Req() req: any) {
+    return this.deleteForDeployment(instanceId, assignmentId, req);
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'member')
   @Delete('app-instances/:instanceId/assets/:assignmentId')
-  deleteAssetAssignment(@Param('instanceId') instanceId: string, @Param('assignmentId') assignmentId: string, @Req() req: any) {
-    return this.svc.delete(instanceId, assignmentId, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+  deleteInstanceAssetCompatibility(@Param('instanceId') instanceId: string, @Param('assignmentId') assignmentId: string, @Req() req: any) {
+    return this.deleteForDeployment(instanceId, assignmentId, req);
   }
 
   @UseGuards(PermissionGuard)
@@ -62,35 +111,68 @@ export class AppAssetAssignmentsController {
   // Backwards compatibility endpoints (servers → assets)
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
+  @Get('app-deployments/:instanceId/servers')
+  listDeploymentServers(@Param('instanceId') instanceId: string, @Req() req: any) {
+    return this.listForDeployment(instanceId, req);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
   @Get('app-instances/:instanceId/servers')
-  listLegacy(@Param('instanceId') instanceId: string, @Req() req: any) {
-    return this.svc.list(instanceId, { manager: req?.queryRunner?.manager });
+  listInstanceServersCompatibility(@Param('instanceId') instanceId: string, @Req() req: any) {
+    return this.listForDeployment(instanceId, req);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post('app-deployments/:instanceId/servers')
+  createDeploymentServer(@Param('instanceId') instanceId: string, @Body() body: any, @Req() req: any) {
+    return this.createForDeployment(instanceId, body, req);
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'member')
   @Post('app-instances/:instanceId/servers')
-  createLegacy(@Param('instanceId') instanceId: string, @Body() body: any, @Req() req: any) {
-    return this.svc.create(instanceId, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+  createInstanceServerCompatibility(@Param('instanceId') instanceId: string, @Body() body: any, @Req() req: any) {
+    return this.createForDeployment(instanceId, body, req);
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'member')
-  @Patch('app-instances/:instanceId/servers/:assignmentId')
-  updateLegacy(
+  @Patch('app-deployments/:instanceId/servers/:assignmentId')
+  updateDeploymentServer(
     @Param('instanceId') instanceId: string,
     @Param('assignmentId') assignmentId: string,
     @Body() body: any,
     @Req() req: any,
   ) {
-    return this.svc.update(instanceId, assignmentId, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+    return this.updateForDeployment(instanceId, assignmentId, body, req);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Patch('app-instances/:instanceId/servers/:assignmentId')
+  updateInstanceServerCompatibility(
+    @Param('instanceId') instanceId: string,
+    @Param('assignmentId') assignmentId: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    return this.updateForDeployment(instanceId, assignmentId, body, req);
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Delete('app-deployments/:instanceId/servers/:assignmentId')
+  deleteDeploymentServer(@Param('instanceId') instanceId: string, @Param('assignmentId') assignmentId: string, @Req() req: any) {
+    return this.deleteForDeployment(instanceId, assignmentId, req);
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'member')
   @Delete('app-instances/:instanceId/servers/:assignmentId')
-  deleteLegacy(@Param('instanceId') instanceId: string, @Param('assignmentId') assignmentId: string, @Req() req: any) {
-    return this.svc.delete(instanceId, assignmentId, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+  deleteInstanceServerCompatibility(@Param('instanceId') instanceId: string, @Param('assignmentId') assignmentId: string, @Req() req: any) {
+    return this.deleteForDeployment(instanceId, assignmentId, req);
   }
 
   @UseGuards(PermissionGuard)

@@ -10,7 +10,7 @@ const content: HomeContent = {
   hero: {
     eyebrow: 'Aporta claridad a tu departamento de TI',
     title: 'La plataforma de gobernanza de TI de código abierto.',
-    lead: 'Presupuesto, arquitectura, portafolio y conocimiento en una sola plataforma, con Plaid, el asistente de IA integrado. Autoaloja o déjanos gestionarla.',
+    lead: 'Presupuesto, arquitectura, portafolio y conocimiento en una sola plataforma, con Plaid, el asistente de IA integrado.\nAutoaloja o déjanos gestionarla.',
     primaryCta: 'Empezar prueba gratuita',
     secondaryCta: 'Explorar funcionalidades',
     trialNote: 'Prueba de 14 días · sin tarjeta · sesión de activación gratuita.',
@@ -18,7 +18,7 @@ const content: HomeContent = {
 
   pillars: {
     eyebrow: 'Por qué KANAP',
-    title: 'Pensada distinto.\nPrecio justo.',
+    title: 'Pensada distinto.',
     items: [
       {
         title: 'Creada por profesionales',
@@ -30,14 +30,14 @@ const content: HomeContent = {
       },
       {
         title: 'Realmente código abierto',
-        body: 'AGPL v3. Código fuente completo en GitHub. Autoalojamiento gratuito, abierto a contribuciones. Sin bloqueo de proveedor, sin sorpresas. Si desaparecemos mañana, tu plataforma sigue siendo tuya.',
+        body: 'AGPL v3. Código fuente completo en GitHub. Autoalojamiento gratuito, abierto a contribuciones. Sin bloqueo de proveedor, sin sorpresas, sin precios freemium.',
       },
     ],
   },
 
   modules: {
     eyebrow: 'Caja de herramientas de TI completa',
-    title: 'Cinco módulos integrados.\nUna fuente de verdad.',
+    title: 'Pensada para cada rol de TI.\nPlataforma completa, o ficha por ficha.',
     intro:
       'KANAP cubre todo lo que un departamento de TI necesita, desde la primera línea de presupuesto hasta la última aplicación retirada, con un asistente de IA que lee todos tus datos de forma transversal.',
     items: [
@@ -45,7 +45,7 @@ const content: HomeContent = {
         slug: '/features/budget',
         title: 'Gestión de presupuesto',
         blurb:
-          'Controla tu presupuesto de TI con planificación plurianual, asignaciones inteligentes e informes de repercusión ejecutivos. OPEX y CAPEX con visibilidad completa.',
+          'Para CIOs y socios de finanzas. Planificación plurianual, asignaciones inteligentes, repercusión lista para dirección. Defiende el presupuesto de TI con cifras que tu CFO va a respaldar.',
         bullets: [
           'Planificación plurianual',
           'Seis métodos de asignación',
@@ -58,7 +58,7 @@ const content: HomeContent = {
         slug: '/features/it-landscape',
         title: 'Paisaje de TI',
         blurb:
-          'Documenta tu sistema de información: aplicaciones, interfaces, infraestructura. Visualiza tu arquitectura con mapas interactivos.',
+          'Para arquitectos, responsables de aplicación y equipos de infraestructura. Documenta aplicaciones, interfaces y servidores. Visualiza el sistema de un vistazo y planifica los cambios con las dependencias delante.',
         bullets: [
           'Portafolio de aplicaciones con instancias por entorno',
           'Documentación de interfaces con middleware de 3 tramos',
@@ -71,7 +71,7 @@ const content: HomeContent = {
         slug: '/features/portfolio',
         title: 'Gestión de portafolio',
         blurb:
-          'De la demanda a la entrega: puntúa las solicitudes, genera hojas de ruta conscientes de la capacidad, aplica fechas con confianza.',
+          'Para jefes de proyecto y responsables de TI. Puntúa la demanda, simula hojas de ruta conscientes de la capacidad, comprométete con fechas sin cruzar los dedos.',
         bullets: [
           'Puntuación de solicitudes con criterios ponderados',
           'Planificación automática de hoja de ruta',
@@ -84,7 +84,7 @@ const content: HomeContent = {
         slug: '/features/knowledge',
         title: 'Conocimiento',
         blurb:
-          'Gobierna tu documentación de TI con un editor markdown, bibliotecas estructuradas y flujos de revisión. Vincula documentos con todo.',
+          'Para todo el mundo, especialmente soporte y operaciones. Editor markdown, bibliotecas, flujos de revisión. Runbooks, decisiones y notas de arquitectura conectados con las aplicaciones y proyectos que describen.',
         bullets: [
           'Editor markdown con flujos de revisión',
           'Bibliotecas, carpetas, tipos de documento',
@@ -97,7 +97,7 @@ const content: HomeContent = {
         slug: '/features/ai',
         title: 'Plaid, Asistente de IA',
         blurb:
-          'Pregúntale a Plaid sobre tus datos. Crea documentos, actualiza tareas, conecta tus herramientas de IA mediante MCP.',
+          'Para cada rol, no solo para los entusiastas de la IA. Pregunta en lenguaje natural; obtén respuestas estructuradas en todos los módulos. El camino más corto entre una pregunta de TI y los datos que la responden.',
         bullets: [
           'Consultas en lenguaje natural en todos los módulos',
           'Acciones sobre documentos y tareas con vista previa',
@@ -106,6 +106,17 @@ const content: HomeContent = {
         ],
         ctaLabel: 'Más información',
       },
+      {
+        title: 'Adóptala a tu ritmo',
+        blurb:
+          'Cada módulo central está plenamente operativo por sí solo. Empieza por donde más duela — presupuesto, paisaje, portafolio, conocimiento — y añade el resto cuando estés listo. La plataforma te devuelve más cuanto más la adoptas, pero nunca necesitas los cinco para sacar valor.',
+        bullets: [
+          'Cada módulo plenamente usable por sí solo',
+          'Sin secuencia obligada ni migración integral',
+          'El valor transversal se acumula con la adopción',
+          'Sustituye una herramienta hoy, consolida cuando quieras',
+        ],
+      },
     ],
   },
 
@@ -113,7 +124,7 @@ const content: HomeContent = {
     eyebrow: 'Listo para empresas',
     title: 'Todo conectado.\nSiempre bajo control.',
     intro:
-      'Cinco módulos trabajan sobre los mismos datos, con la capa de gobernanza que un departamento de TI realmente necesita.',
+      'Cinco módulos trabajan sobre los mismos datos, creando la capa de gobernanza que un departamento de TI realmente necesita.',
     items: [
       {
         title: 'Informes y paneles',
@@ -124,7 +135,7 @@ const content: HomeContent = {
         body: 'Permisos granulares por módulo. Niveles lector, gestor, administrador.',
       },
       {
-        title: 'Relaciones completas',
+        title: 'Relaciones ricas',
         body: 'Vincula costes con aplicaciones, aplicaciones con proyectos, proyectos con presupuestos, conocimiento con todo.',
       },
       {
@@ -136,16 +147,8 @@ const content: HomeContent = {
         body: 'Asigna tareas a OPEX, CAPEX, contratos y proyectos. Un único backlog en toda la plataforma.',
       },
       {
-        title: 'Multi-tenant con RLS',
-        body: 'Row-level security aísla cada tenant. Tus datos siguen siendo tuyos.',
-      },
-      {
         title: 'SSO vía Microsoft Entra ID',
         body: 'Inicio de sesión único empresarial. Un solo acceso para toda la organización.',
-      },
-      {
-        title: 'Abierto por diseño',
-        body: 'Servidor MCP, API pública, importación y exportación CSV. Ningún jardín cerrado.',
       },
     ],
   },
@@ -153,9 +156,9 @@ const content: HomeContent = {
   cta: {
     title: '¿Listo para aportar claridad a tu departamento de TI?',
     body:
-      'Empieza gratis autoalojando, o prueba la nube desde 49 €/mes. Todas las funcionalidades en todos los planes. Sin bloqueo.',
+      'Empieza gratis autoalojando, o prueba la nube desde 49 €/mes.\nTodas las funcionalidades en cada plan, en la nube o autoalojado.',
     primary: 'Empezar prueba gratuita',
-    secondary: 'Habla con nosotros',
+    secondary: 'Desplegar desde GitHub',
   },
 };
 

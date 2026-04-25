@@ -23,7 +23,7 @@ import {
 } from './integrated-document.constants';
 import { KnowledgeService, RelationEntityType } from './knowledge.service';
 
-type SourceScopedEntityType = 'requests' | 'projects' | 'interfaces';
+type SourceScopedEntityType = 'requests' | 'projects' | 'interfaces' | 'applications';
 type SourceAccessMode = 'read' | 'edit';
 type SourceDescriptor = {
   id: string;
@@ -97,6 +97,9 @@ type InterfaceBackfillRow = SourceDescriptor & {
   audit_logging: string | null;
   security_controls_summary: string | null;
 };
+type ApplicationBackfillRow = SourceDescriptor & {
+  description: string | null;
+};
 type LegacyAttachmentRow = {
   id: string;
   original_filename: string;
@@ -159,7 +162,7 @@ const PERMISSION_RANK: Record<PermissionLevel, number> = {
 const SOURCE_ENTITY_CONFIG: Record<
   SourceScopedEntityType,
   {
-    sourceTable: 'portfolio_requests' | 'portfolio_projects' | 'interfaces';
+    sourceTable: 'portfolio_requests' | 'portfolio_projects' | 'interfaces' | 'applications';
     relationTable: 'document_requests' | 'document_projects' | null;
     relationIdColumn: 'request_id' | 'project_id' | null;
     permissionResource: 'portfolio_requests' | 'portfolio_projects' | 'applications';
@@ -195,6 +198,15 @@ const SOURCE_ENTITY_CONFIG: Record<
     readLevel: 'reader',
     editLevel: 'member',
   },
+  applications: {
+    sourceTable: 'applications',
+    relationTable: null,
+    relationIdColumn: null,
+    permissionResource: 'applications',
+    referencePrefix: null,
+    readLevel: 'reader',
+    editLevel: 'member',
+  },
 };
 
 const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<SourceScopedEntityType, Set<string>>>(
@@ -203,6 +215,7 @@ const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<S
       definition.sourceEntityType === 'requests'
       || definition.sourceEntityType === 'projects'
       || definition.sourceEntityType === 'interfaces'
+      || definition.sourceEntityType === 'applications'
     ) {
       acc[definition.sourceEntityType].add(definition.slotKey);
     }
@@ -212,6 +225,7 @@ const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<S
     requests: new Set<string>(),
     projects: new Set<string>(),
     interfaces: new Set<string>(),
+    applications: new Set<string>(),
   },
 );
 
@@ -288,6 +302,8 @@ export class IntegratedDocumentsService {
       ? 'Imported from legacy request field'
       : sourceEntityType === 'interfaces'
         ? 'Imported from legacy interface fields'
+      : sourceEntityType === 'applications'
+        ? 'Imported from legacy application description'
       : 'Imported from legacy project field';
   }
 
@@ -396,7 +412,10 @@ export class IntegratedDocumentsService {
   private getLegacySourceField(
     sourceEntityType: SourceScopedEntityType,
     slotKey: IntegratedDocumentSlotKey,
-  ): 'purpose' | 'risks' {
+  ): 'purpose' | 'risks' | 'description' {
+    if (sourceEntityType === 'applications' && slotKey === 'overview') {
+      return 'description';
+    }
     if (slotKey === 'purpose') {
       return 'purpose';
     }
@@ -466,6 +485,21 @@ export class IntegratedDocumentsService {
     sourceEntityId: string,
     manager: EntityManager,
   ): Promise<string | null> {
+    if (sourceEntityType === 'applications') {
+      const rows = await manager.query<Array<{ user_id: string | null }>>(
+        `SELECT user_id::text
+         FROM application_owners
+         WHERE application_id = $1
+           AND tenant_id = app_current_tenant()
+         ORDER BY CASE owner_type WHEN 'business' THEN 0 WHEN 'it' THEN 1 ELSE 2 END,
+                  created_at ASC,
+                  id ASC
+         LIMIT 1`,
+        [sourceEntityId],
+      );
+      return this.normalizeOptionalUserId(rows[0]?.user_id);
+    }
+
     if (sourceEntityType === 'interfaces') {
       const rows = await manager.query<Array<{ user_id: string | null }>>(
         `SELECT user_id::text
@@ -546,6 +580,41 @@ export class IntegratedDocumentsService {
     sourceEntityId: string,
     manager: EntityManager,
   ): Promise<SourceRecoveryContext> {
+    if (sourceEntityType === 'applications') {
+      const rows = await manager.query<Array<{
+        id: string;
+        tenant_id: string;
+        sequential_id: string | null;
+        name: string;
+      }>>(
+        `SELECT id::text AS id,
+                tenant_id::text AS tenant_id,
+                sequential_id,
+                name
+         FROM applications
+         WHERE id = $1
+           AND tenant_id = app_current_tenant()
+         LIMIT 1`,
+        [sourceEntityId],
+      );
+      if (!rows.length) {
+        throw new NotFoundException('application not found');
+      }
+
+      const row = rows[0];
+      return {
+        source: {
+          id: row.id,
+          tenant_id: row.tenant_id,
+          item_number: null,
+          name: row.name,
+          reference_label: String(row.sequential_id || '').trim() || row.id,
+        },
+        ownerUserId: await this.loadPreferredOwnerUserId('applications', row.id, manager),
+        tenantSlug: await this.loadTenantSlug(row.tenant_id, manager),
+      };
+    }
+
     if (sourceEntityType === 'interfaces') {
       const rows = await manager.query<Array<{
         id: string;
@@ -723,9 +792,9 @@ export class IntegratedDocumentsService {
   }
 
   private async loadLatestAuditFieldValue(
-    tableName: 'portfolio_requests' | 'portfolio_projects',
+    tableName: 'portfolio_requests' | 'portfolio_projects' | 'applications',
     recordId: string,
-    fieldName: 'purpose' | 'risks',
+    fieldName: 'purpose' | 'risks' | 'description',
     manager: EntityManager,
   ): Promise<string | null | undefined> {
     const rows = await manager.query<Array<{ field_value: string | null }>>(
@@ -812,12 +881,58 @@ export class IntegratedDocumentsService {
     };
   }
 
+  private async loadApplicationBackfillRow(
+    sourceEntityId: string,
+    manager: EntityManager,
+  ): Promise<ApplicationBackfillRow> {
+    const rows = await manager.query<Array<{
+      id: string;
+      tenant_id: string;
+      sequential_id: string | null;
+      name: string;
+      description: string | null;
+    }>>(
+      `SELECT id::text AS id,
+              tenant_id::text AS tenant_id,
+              sequential_id,
+              name,
+              description
+       FROM applications
+       WHERE id = $1
+         AND tenant_id = app_current_tenant()
+       LIMIT 1`,
+      [sourceEntityId],
+    );
+    if (!rows.length) {
+      throw new NotFoundException('application not found');
+    }
+
+    const row = rows[0];
+    return {
+      id: row.id,
+      tenant_id: row.tenant_id,
+      item_number: null,
+      name: row.name,
+      reference_label: String(row.sequential_id || '').trim() || row.id,
+      description: row.description,
+    };
+  }
+
   private async loadRecoveredSlotContent(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
     slotKey: IntegratedDocumentSlotKey,
     manager: EntityManager,
   ): Promise<RecoveredSlotContent> {
+    if (sourceEntityType === 'applications') {
+      const row = await this.loadApplicationBackfillRow(sourceEntityId, manager);
+      return {
+        content: this.prepareRecoveredContent(row.description),
+        source: 'legacy',
+        unresolvedLegacyInlineAttachmentIds: [],
+      };
+    }
+
     if (sourceEntityType === 'interfaces') {
       const row = await this.loadInterfaceBackfillRow(sourceEntityId, manager);
       return {
@@ -848,7 +963,7 @@ export class IntegratedDocumentsService {
       };
     }
 
-    const auditSourceTable = SOURCE_ENTITY_CONFIG[sourceEntityType].sourceTable as 'portfolio_requests' | 'portfolio_projects';
+    const auditSourceTable = SOURCE_ENTITY_CONFIG[sourceEntityType].sourceTable as 'portfolio_requests' | 'portfolio_projects' | 'applications';
     const auditContent = await this.loadLatestAuditFieldValue(
       auditSourceTable,
       sourceEntityId,
@@ -1329,7 +1444,7 @@ export class IntegratedDocumentsService {
     userId: string | null | undefined,
     manager: EntityManager,
   ): Promise<void> {
-    if (sourceEntityType === 'interfaces') {
+    if (sourceEntityType === 'interfaces' || sourceEntityType === 'applications') {
       return;
     }
 
@@ -1432,7 +1547,7 @@ export class IntegratedDocumentsService {
   private async loadLegacyAttachmentRows(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
-    sourceField: 'purpose' | 'risks',
+    sourceField: 'purpose' | 'risks' | 'description',
     attachmentIds: string[],
     manager: EntityManager,
   ): Promise<LegacyAttachmentRow[]> {

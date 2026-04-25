@@ -7,11 +7,17 @@ import { ApplicationsDeleteService } from './applications-delete.service';
 import { ApplicationsCsvService } from './applications-csv.service';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { attachmentMulterOptions, csvImportMulterOptions } from '../common/upload';
+import { Throttle } from '@nestjs/throttler';
+import { DataSource } from 'typeorm';
+import { attachmentMulterOptions, csvImportMulterOptions, documentImportMulterOptions, inlineImageMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { StorageService } from '../common/storage/storage.service';
+import { createRequestReleaseConnection } from '../common/import-connection';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
+import { RATE_LIMITS } from '../common/rate-limit';
+import { RateLimitGuard } from '../common/rate-limit.guard';
 import {
   CreateApplicationInput,
   UpdateApplicationInput,
@@ -42,6 +48,8 @@ export class ApplicationsController {
     private readonly deleteSvc: ApplicationsDeleteService,
     private readonly csvSvc: ApplicationsCsvService,
     private readonly knowledge: KnowledgeService,
+    private readonly integratedDocuments: IntegratedDocumentsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   @UseGuards(PermissionGuard)
@@ -254,6 +262,191 @@ export class ApplicationsController {
       manager: ctx.manager,
       userId: req?.user?.sub ?? null,
     });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get(':id/integrated-documents/:slotKey')
+  getIntegratedDocument(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.getBySource('applications', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/integrated-documents/:slotKey/locks')
+  acquireIntegratedDocumentLock(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.acquireLockBySource('applications', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/integrated-documents/:slotKey/locks/heartbeat')
+  heartbeatIntegratedDocumentLock(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.heartbeatLockBySource(
+      'applications',
+      id,
+      slotKey,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Delete(':id/integrated-documents/:slotKey/locks')
+  releaseIntegratedDocumentLock(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.releaseLockBySource(
+      'applications',
+      id,
+      slotKey,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Patch(':id/integrated-documents/:slotKey')
+  updateIntegratedDocument(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Body() body: any,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.updateBySource(
+      'applications',
+      id,
+      slotKey,
+      body,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/integrated-documents/:slotKey/attachments/inline')
+  @UseInterceptors(FileInterceptor('file', inlineImageMulterOptions))
+  uploadIntegratedDocumentInlineAttachment(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.uploadInlineAttachmentBySource(
+      'applications',
+      id,
+      slotKey,
+      file,
+      ctx.userId || null,
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/integrated-documents/:slotKey/attachments/inline/import')
+  importIntegratedDocumentInlineAttachment(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Body() body: { source_url?: string },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.importInlineAttachmentBySourceUrl(
+      'applications',
+      id,
+      slotKey,
+      body?.source_url || '',
+      ctx.userId || null,
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @UseGuards(RateLimitGuard)
+  @Throttle({ default: RATE_LIMITS.documentImport })
+  @Post(':id/integrated-documents/:slotKey/import')
+  @UseInterceptors(FileInterceptor('file', documentImportMulterOptions))
+  importIntegratedDocument(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.importDocumentBySource(
+      'applications',
+      id,
+      slotKey,
+      file,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      {
+        manager: ctx.manager,
+        releaseConnection: createRequestReleaseConnection(req, this.dataSource, ctx.tenantId),
+      },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get(':id/integrated-documents/:slotKey/versions')
+  listIntegratedDocumentVersions(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.listVersionsBySource('applications', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/integrated-documents/:slotKey/revert/:versionNumber')
+  revertIntegratedDocument(
+    @Param('id') id: string,
+    @Param('slotKey') slotKey: string,
+    @Param('versionNumber') versionNumber: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.integratedDocuments.revertBySource(
+      'applications',
+      id,
+      slotKey,
+      Number(versionNumber),
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
   }
 
   @UseGuards(PermissionGuard)

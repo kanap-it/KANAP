@@ -10,7 +10,7 @@ const content: HomeContent = {
   hero: {
     eyebrow: 'Bringen Sie Klarheit in Ihre IT',
     title: 'Die Open-Source-Plattform für IT-Governance.',
-    lead: 'Budget, Architektur, Portfolio und Wissen in einer Plattform, mit Plaid, dem integrierten KI-Assistenten. Selbst hosten oder von uns betreiben lassen.',
+    lead: 'Budget, Architektur, Portfolio und Wissen in einer Plattform, mit Plaid, dem integrierten KI-Assistenten.\nSelbst hosten oder von uns betreiben lassen.',
     primaryCta: 'Testversion starten',
     secondaryCta: 'Funktionen entdecken',
     trialNote: '14-Tage-Test · keine Kreditkarte · kostenlose Aktivierungssitzung.',
@@ -18,7 +18,7 @@ const content: HomeContent = {
 
   pillars: {
     eyebrow: 'Warum KANAP',
-    title: 'Anders gedacht.\nFair bepreist.',
+    title: 'Anders gedacht.',
     items: [
       {
         title: 'Von Praktikern entwickelt',
@@ -30,14 +30,14 @@ const content: HomeContent = {
       },
       {
         title: 'Wirklich Open Source',
-        body: 'AGPL v3. Vollständiger Quellcode auf GitHub. Frei zum Selbsthosten, offen für Beiträge. Kein Vendor-Lock-in, kein Bait-and-Switch. Wenn wir morgen verschwinden, bleibt Ihre Plattform Ihnen.',
+        body: 'AGPL v3. Vollständiger Quellcode auf GitHub. Frei zum Selbsthosten, offen für Beiträge. Kein Vendor-Lock-in, kein Bait-and-Switch, kein Freemium-Pricing.',
       },
     ],
   },
 
   modules: {
     eyebrow: 'Komplettes IT-Toolkit',
-    title: 'Fünf integrierte Module.\nEine Quelle der Wahrheit.',
+    title: 'Für jede IT-Rolle gemacht.\nGanze Plattform, oder Kachel für Kachel.',
     intro:
       'KANAP deckt alles ab, was eine IT-Abteilung im Griff haben muss, von der ersten Budgetzeile bis zur letzten abgeschalteten Anwendung, mit einem KI-Assistenten, der alles quer liest.',
     items: [
@@ -45,7 +45,7 @@ const content: HomeContent = {
         slug: '/features/budget',
         title: 'Budget-Management',
         blurb:
-          'Beherrschen Sie Ihr IT-Budget mit mehrjähriger Planung, intelligenter Kostenverteilung und Chargeback-Berichten für die Geschäftsführung. OPEX und CAPEX transparent.',
+          'Für CIOs und Finanzpartner. Mehrjährige Planung, intelligente Verteilung, Chargeback-Berichte, die der Geschäftsführung passen. Verteidigen Sie das IT-Budget mit Zahlen, denen Ihr CFO vertraut.',
         bullets: [
           'Mehrjährige Budgetplanung',
           'Sechs Verteilungsmethoden',
@@ -58,7 +58,7 @@ const content: HomeContent = {
         slug: '/features/it-landscape',
         title: 'IT-Landschaft',
         blurb:
-          'Dokumentieren Sie Ihr Informationssystem: Anwendungen, Schnittstellen, Infrastruktur. Visualisieren Sie Ihre Architektur mit interaktiven Karten.',
+          'Für Architekten, Anwendungsverantwortliche und Infrastruktur-Teams. Dokumentieren Sie Apps, Schnittstellen und Server. Sehen Sie das System auf einen Blick, planen Sie Änderungen mit allen Abhängigkeiten vor Augen.',
         bullets: [
           'Anwendungsportfolio mit Instanzen pro Umgebung',
           'Schnittstellendokumentation mit 3-Leg-Middleware',
@@ -71,7 +71,7 @@ const content: HomeContent = {
         slug: '/features/portfolio',
         title: 'Portfolio-Management',
         blurb:
-          'Von der Anfrage zur Lieferung: Bewerten Sie die Nachfrage, erstellen Sie kapazitätsbewusste Roadmaps, setzen Sie Projekttermine mit Vertrauen.',
+          'Für Projektleiter und IT-Leads. Bewerten Sie die Nachfrage, simulieren Sie kapazitätsbewusste Roadmaps, setzen Sie Termine, ohne die Daumen zu drücken.',
         bullets: [
           'Anfrage-Scoring mit gewichteten Kriterien',
           'Automatische Roadmap-Planung',
@@ -84,7 +84,7 @@ const content: HomeContent = {
         slug: '/features/knowledge',
         title: 'Wissen',
         blurb:
-          'Steuern Sie Ihre IT-Dokumentation mit einem Markdown-Editor, strukturierten Bibliotheken und Review-Workflows. Verknüpfen Sie Dokumente mit allem.',
+          'Für alle, besonders Support und Operations. Markdown-Editor, Bibliotheken, Review-Workflows. Runbooks, Entscheidungen und Architekturnotizen, verknüpft mit den Apps und Projekten, die sie beschreiben.',
         bullets: [
           'Markdown-Editor mit Review-Workflows',
           'Bibliotheken, Ordner, Dokumenttypen',
@@ -97,7 +97,7 @@ const content: HomeContent = {
         slug: '/features/ai',
         title: 'Plaid, KI-Assistent',
         blurb:
-          'Fragen Sie Plaid alles zu Ihren Daten. Dokumente erstellen, Aufgaben aktualisieren, Ihre KI-Tools per MCP anbinden.',
+          'Für jede Rolle, nicht nur für KI-Begeisterte. Fragen Sie in Alltagssprache, bekommen Sie strukturierte Antworten über alle Module hinweg. Der kürzeste Weg zwischen einer IT-Frage und der Antwort, die in den Daten liegt.',
         bullets: [
           'Natürlichsprachliche Abfragen über alle Module',
           'Dokument- und Aufgabenaktionen mit Vorschau',
@@ -106,6 +106,17 @@ const content: HomeContent = {
         ],
         ctaLabel: 'Mehr erfahren',
       },
+      {
+        title: 'In Ihrem Tempo einführen',
+        blurb:
+          'Jedes Kernmodul ist allein voll einsatzfähig. Beginnen Sie dort, wo es heute am meisten weh tut — Budget, Landschaft, Portfolio, Wissen — und ergänzen Sie den Rest, wenn Sie soweit sind. Die Plattform liefert mehr Wert, je mehr Sie einführen, aber Sie brauchen nie alle fünf, um Wert zu schöpfen.',
+        bullets: [
+          'Jedes Modul vollständig allein nutzbar',
+          'Keine erzwungene Reihenfolge, keine Komplettmigration',
+          'Modulübergreifender Wert wächst mit der Adoption',
+          'Heute ein Tool ersetzen, später konsolidieren',
+        ],
+      },
     ],
   },
 
@@ -113,7 +124,7 @@ const content: HomeContent = {
     eyebrow: 'Enterprise-ready',
     title: 'Alles verbunden.\nImmer unter Kontrolle.',
     intro:
-      'Fünf Module arbeiten auf derselben Datenbasis, mit der Governance-Schicht, die IT-Abteilungen tatsächlich brauchen.',
+      'Fünf Module arbeiten auf derselben Datenbasis und bauen so die Governance-Schicht, die IT-Abteilungen tatsächlich brauchen.',
     items: [
       {
         title: 'Reporting & Dashboards',
@@ -124,7 +135,7 @@ const content: HomeContent = {
         body: 'Feinkörnige Berechtigungen pro Modul. Leser-, Manager- und Administratorebenen.',
       },
       {
-        title: 'Vollständige Beziehungen',
+        title: 'Reichhaltige Beziehungen',
         body: 'Verknüpfen Sie Kosten mit Apps, Apps mit Projekten, Projekte mit Budgets, Wissen mit allem.',
       },
       {
@@ -136,16 +147,8 @@ const content: HomeContent = {
         body: 'Aufgaben auf OPEX, CAPEX, Verträgen und Projekten. Ein Backlog über die ganze Plattform.',
       },
       {
-        title: 'Multi-Tenant mit RLS',
-        body: 'Row-Level Security isoliert jeden Tenant. Ihre Daten bleiben Ihre.',
-      },
-      {
         title: 'SSO über Microsoft Entra ID',
         body: 'Enterprise Single Sign-On. Ein Login für Ihre gesamte Organisation.',
-      },
-      {
-        title: 'Offen by Design',
-        body: 'MCP-Server, öffentliche API, CSV-Import/Export. Keine geschlossene Plattform.',
       },
     ],
   },
@@ -153,9 +156,9 @@ const content: HomeContent = {
   cta: {
     title: 'Bereit, Klarheit in Ihre IT zu bringen?',
     body:
-      'Starten Sie kostenlos mit Self-Hosting oder testen Sie die Cloud ab 49 €/Mon. Alle Funktionen in jedem Plan. Kein Lock-in.',
+      'Starten Sie kostenlos mit Self-Hosting oder testen Sie die Cloud ab 49 €/Mon.\nAlle Funktionen in jedem Plan, Cloud wie Self-Hosting.',
     primary: 'Testversion starten',
-    secondary: 'Sprechen Sie mit uns',
+    secondary: 'Von GitHub bereitstellen',
   },
 };
 

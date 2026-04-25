@@ -10,7 +10,7 @@ const content: HomeContent = {
   hero: {
     eyebrow: 'Mettez de la clarté dans votre DSI',
     title: 'La plateforme de gouvernance IT open source.',
-    lead: 'Budget, architecture, portefeuille et connaissance dans une seule plateforme, avec Plaid, l\'assistant IA intégré. Auto-hébergez-la, ou laissez-nous la gérer.',
+    lead: 'Budget, architecture, portefeuille et connaissance dans une seule plateforme, avec Plaid, l\'assistant IA intégré.\nAuto-hébergez-la, ou laissez-nous la gérer.',
     primaryCta: 'Essai gratuit',
     secondaryCta: 'Découvrir les fonctionnalités',
     trialNote: 'Essai 14 jours · sans carte · session d\'activation offerte.',
@@ -18,7 +18,7 @@ const content: HomeContent = {
 
   pillars: {
     eyebrow: 'Pourquoi KANAP',
-    title: 'Pensée autrement.\nTarifée équitablement.',
+    title: 'Pensée autrement.',
     items: [
       {
         title: 'Conçue par des praticiens',
@@ -30,14 +30,14 @@ const content: HomeContent = {
       },
       {
         title: 'Véritablement open source',
-        body: 'AGPL v3. Tout le code source sur GitHub. Libre à auto-héberger, ouverte aux contributions. Aucun enfermement, aucune mauvaise surprise. Si nous disparaissons demain, votre plateforme reste à vous.',
+        body: 'AGPL v3. Tout le code source sur GitHub. Libre à auto-héberger, ouverte aux contributions. Aucun enfermement, aucune mauvaise surprise, aucune tarification freemium.',
       },
     ],
   },
 
   modules: {
     eyebrow: 'Boîte à outils IT complète',
-    title: 'Cinq modules intégrés.\nUne source de vérité.',
+    title: 'Pensée pour chaque rôle IT.\nPlateforme entière, ou tuile par tuile.',
     intro:
       'KANAP couvre tout ce qu\'une DSI doit maîtriser, de la première ligne de budget à la dernière application retirée, avec un assistant IA qui lit transversalement toutes vos données.',
     items: [
@@ -45,7 +45,7 @@ const content: HomeContent = {
         slug: '/features/budget',
         title: 'Gestion du budget',
         blurb:
-          'Maîtrisez votre budget IT avec une planification pluriannuelle, des allocations intelligentes et des rapports de refacturation exécutifs. OPEX et CAPEX suivis en toute transparence.',
+          'Pour les DSI et leurs partenaires finance. Planification pluriannuelle, allocations intelligentes, refacturation prête pour la direction. Défendez le budget IT avec des chiffres que votre directeur financier validera.',
         bullets: [
           'Planification budgétaire pluriannuelle',
           'Six méthodes d\'allocation',
@@ -58,7 +58,7 @@ const content: HomeContent = {
         slug: '/features/it-landscape',
         title: 'Paysage IT',
         blurb:
-          'Documentez votre système d\'information : applications, interfaces, infrastructure. Visualisez votre architecture via des cartes interactives.',
+          'Pour les architectes, responsables d\'application et équipes infrastructure. Documentez applications, interfaces et serveurs. Visualisez le SI d\'un coup d\'œil, planifiez les changements avec leurs dépendances sous les yeux.',
         bullets: [
           'Portefeuille applicatif avec instances par environnement',
           'Documentation des interfaces avec middleware 3 segments',
@@ -71,7 +71,7 @@ const content: HomeContent = {
         slug: '/features/portfolio',
         title: 'Gestion de portefeuille',
         blurb:
-          'De la demande à la livraison : scorez la demande, générez des feuilles de route tenant compte de la capacité, appliquez les dates projet en confiance.',
+          'Pour les chefs de projet et les leads IT. Scorez la demande, simulez des feuilles de route qui tiennent compte de la capacité, engagez des dates sans croiser les doigts.',
         bullets: [
           'Scoring des demandes avec critères pondérés',
           'Planification automatique de la feuille de route',
@@ -84,7 +84,7 @@ const content: HomeContent = {
         slug: '/features/knowledge',
         title: 'Connaissance',
         blurb:
-          'Gouvernez votre documentation IT avec un éditeur markdown, des bibliothèques structurées et des flux de revue. Liez les documents à tout le reste.',
+          'Pour tout le monde, et particulièrement le support et les opérations. Éditeur markdown, bibliothèques, flux de revue. Runbooks, décisions et notes d\'architecture connectés aux applications et projets qu\'ils décrivent.',
         bullets: [
           'Éditeur markdown avec flux de revue',
           'Bibliothèques, dossiers, types de documents',
@@ -97,7 +97,7 @@ const content: HomeContent = {
         slug: '/features/ai',
         title: 'Plaid, Assistant IA',
         blurb:
-          'Demandez n\'importe quoi à Plaid sur vos données. Créez des documents, mettez à jour les tâches, connectez vos outils IA existants via MCP.',
+          'Pour chaque rôle, pas seulement les passionnés d\'IA. Posez vos questions en langage naturel ; obtenez des réponses structurées sur tous les modules. Le chemin le plus court entre une question IT et la donnée qui y répond.',
         bullets: [
           'Requêtes en langage naturel sur tous les modules',
           'Actions sur documents et tâches avec aperçu',
@@ -106,6 +106,17 @@ const content: HomeContent = {
         ],
         ctaLabel: 'En savoir plus',
       },
+      {
+        title: 'Adoptez à votre rythme',
+        blurb:
+          'Chaque module est pleinement opérationnel par lui-même. Commencez là où ça fait mal — budget, paysage, portefeuille, connaissance — et ajoutez le reste quand vous serez prêt. La plateforme rend de plus en plus à mesure que vous l\'adoptez, mais vous n\'avez jamais besoin des cinq pour en tirer de la valeur.',
+        bullets: [
+          'Chaque module pleinement utilisable seul',
+          'Aucune séquence imposée, aucune migration globale',
+          'La valeur transverse se cumule au fil de l\'adoption',
+          'Remplacez un outil aujourd\'hui, consolidez quand vous voudrez',
+        ],
+      },
     ],
   },
 
@@ -113,7 +124,7 @@ const content: HomeContent = {
     eyebrow: 'Pensé pour l\'entreprise',
     title: 'Tout connecté.\nToujours maîtrisé.',
     intro:
-      'Cinq modules travaillent sur les mêmes données, avec la couche de gouvernance dont une DSI a réellement besoin.',
+      'Cinq modules travaillent sur les mêmes données, créant la couche de gouvernance dont une DSI a réellement besoin.',
     items: [
       {
         title: 'Reporting & tableaux de bord',
@@ -124,7 +135,7 @@ const content: HomeContent = {
         body: 'Permissions fines par module. Niveaux lecteur, gestionnaire, administrateur.',
       },
       {
-        title: 'Relations complètes',
+        title: 'Relations riches',
         body: 'Liez les coûts aux applications, les applications aux projets, les projets aux budgets, la connaissance à tout.',
       },
       {
@@ -136,16 +147,8 @@ const content: HomeContent = {
         body: 'Affectez des tâches aux OPEX, CAPEX, contrats, projets. Une seule pile de tâches à travers la plateforme.',
       },
       {
-        title: 'Multi-tenant avec RLS',
-        body: 'Row-level security isole chaque tenant. Vos données restent les vôtres.',
-      },
-      {
         title: 'SSO via Microsoft Entra ID',
         body: 'Authentification unique pour l\'entreprise. Un seul identifiant pour toute l\'organisation.',
-      },
-      {
-        title: 'Ouvert par nature',
-        body: 'Serveur MCP, API publique, import/export CSV. Aucun jardin clos.',
       },
     ],
   },
@@ -153,9 +156,9 @@ const content: HomeContent = {
   cta: {
     title: 'Prêt à mettre de la clarté dans votre DSI ?',
     body:
-      'Démarrez gratuitement en auto-hébergement, ou essayez le cloud à partir de 49 €/mois. Toutes les fonctionnalités sur tous les plans. Aucun enfermement.',
+      'Démarrez gratuitement en auto-hébergement, ou essayez le cloud à partir de 49 €/mois.\nToutes les fonctionnalités sur chaque plan, cloud comme auto-hébergement.',
     primary: 'Essai gratuit',
-    secondary: 'Nous contacter',
+    secondary: 'Déployer depuis GitHub',
   },
 };
 

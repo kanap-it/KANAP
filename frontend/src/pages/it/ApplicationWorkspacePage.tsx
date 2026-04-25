@@ -1,42 +1,113 @@
 import React from 'react';
-import { Box, Tabs, Tab, Stack, Typography, Divider, Button, TextField, Checkbox, FormControlLabel, Alert, IconButton, Autocomplete, Table, TableBody, TableCell, TableHead, TableRow, Chip } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import {
+  Alert,
+  Autocomplete,
+  Box,
+  Button,
+  IconButton,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+  useTheme,
+} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useApplicationNav } from '../../hooks/useApplicationNav';
 import api from '../../api';
-import SupplierSelect from '../../components/fields/SupplierSelect';
-import EnumAutocomplete from '../../components/fields/EnumAutocomplete';
-import DateEUField from '../../components/fields/DateEUField';
-import UserSelect from '../../components/fields/UserSelect';
-import CompanySelect from '../../components/fields/CompanySelect';
-import DepartmentSelect from '../../components/fields/DepartmentSelect';
-import AddIcon from '@mui/icons-material/Add';
-import InstancesEditor from './components/InstancesEditor';
-import ServerAssignmentsEditor from './components/ServerAssignmentsEditor';
-import VersionTimeline from './components/VersionTimeline';
-import CreateVersionDialog from './components/CreateVersionDialog';
-import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
-import ContactSelect from '../../components/fields/ContactSelect';
-import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
 import { useAuth } from '../../auth/AuthContext';
+import { KanapDialog, PropertyGroup, PropertyRow } from '../../components/design';
+import IntegratedDocumentEditor, { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
+import DateEUField from '../../components/fields/DateEUField';
+import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
+import SupplierSelect from '../../components/fields/SupplierSelect';
+import ContactSelect from '../../components/fields/ContactSelect';
+import CompanySelect from '../../components/fields/CompanySelect';
+import DepartmentMultiSelect from '../../components/fields/DepartmentMultiSelect';
+import TeamMemberMultiSelect from '../../components/fields/TeamMemberMultiSelect';
+import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
+import { useApplicationNav } from '../../hooks/useApplicationNav';
+import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
+import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../theme/formSx';
+import { CRITICALITY_COLORS, getDotColor, LIFECYCLE_COLORS } from '../../utils/statusColors';
+import { COUNTRY_OPTIONS } from '../../constants/isoOptions';
+import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
+import { PortfolioMetadataItem, PortfolioStatusMetadata } from '../portfolio/workspace/PortfolioMetadataBar';
+import DeploymentsEditor from './components/DeploymentsEditor';
+import ApplicationRelationsPanel from './editors/ApplicationRelationsPanel';
+import ApplicationCreateEditor, { type ApplicationCreateEditorHandle } from './editors/ApplicationCreateEditor';
+import CreateVersionDialog from './components/CreateVersionDialog';
 
-type TabKey = 'overview' | 'instances' | 'servers' | 'interfaces' | 'ownership' | 'technical' | 'relations' | 'compliance' | 'knowledge';
-type ApplicationRelationsHandle = { save: () => Promise<void>; reset: () => void };
-type ApplicationComplianceHandle = { save: () => Promise<void>; reset: () => void };
-import { COUNTRY_OPTIONS, CountryOption } from '../../constants/isoOptions';
-import ApplicationRelationsPanel, { ApplicationRelationsPanelHandle } from './editors/ApplicationRelationsPanel';
-import ApplicationCreateEditor, { ApplicationCreateEditorHandle } from './editors/ApplicationCreateEditor';
+type TabKey = 'overview' | 'deployments' | 'interfaces' | 'operations' | 'compliance' | 'relations';
 
-import { useTranslation } from 'react-i18next';
-import { getApiErrorMessage } from '../../utils/apiErrorMessage';
-type SupportContactRow = {
-  id?: string;
-  contact_id: string | null;
-  role: string;
-  contact?: { id: string; first_name?: string | null; last_name?: string | null; email?: string | null; phone?: string | null; mobile?: string | null } | null;
+type ApplicationDetail = {
+  id: string;
+  sequential_id?: string | null;
+  name: string;
+  category: string;
+  supplier_id: string | null;
+  editor: string | null;
+  lifecycle: string;
+  criticality: 'business_critical' | 'high' | 'medium' | 'low' | string;
+  version: string | null;
+  go_live_date: string | null;
+  end_of_support_date: string | null;
+  retired_date: string | null;
+  external_facing: boolean;
+  is_suite: boolean;
+  etl_enabled: boolean;
+  contains_pii: boolean;
+  data_class: string | null;
+  last_dr_test: string | null;
+  support_notes: string | null;
+  access_methods: string[];
+  users_mode: string | null;
+  users_year?: number | null;
+  users_override: number | null;
+  derived_total_users?: number | null;
+  owners: Array<{
+    id?: string;
+    user_id: string;
+    owner_type: 'business' | 'it';
+    full_name?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+  }>;
+  companies: Array<{ company_id: string }>;
+  departments: Array<{ department_id: string }>;
+  data_residency: Array<{ country_iso: string }>;
+  support_contacts?: any[];
+  instances?: Array<{
+    id: string;
+    application_id: string;
+    environment: string;
+    lifecycle: string;
+    base_url: string | null;
+    sso_enabled: boolean;
+    mfa_supported: boolean;
+    status: 'enabled' | 'disabled';
+    notes: string | null;
+  }>;
+  deployments?: Array<{
+    id: string;
+    application_id: string;
+    environment: string;
+    lifecycle: string;
+    base_url: string | null;
+    sso_enabled: boolean;
+    mfa_supported: boolean;
+    status: 'enabled' | 'disabled';
+    notes: string | null;
+  }>;
 };
 
 type InterfaceMiniRow = {
@@ -48,1050 +119,1350 @@ type InterfaceMiniRow = {
   source_application_name?: string | null;
   target_application_id?: string | null;
   target_application_name?: string | null;
+  middleware_application_ids?: string[];
+  middleware_application_names?: string[];
   via_middleware: boolean;
 };
 
-const ENV_ORDER = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox'] as const;
+type ConnectionsResult =
+  | { type: 'none' }
+  | { type: 'directed'; receivesFrom: Array<{ id: string; name: string }>; sendsTo: Array<{ id: string; name: string }> }
+  | { type: 'undirected'; connected: Array<{ id: string; name: string }> };
 
-// Stable id helper for client-side-only rows/entries
-const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+type SupportContactRow = {
+  id?: string;
+  contact_id: string | null;
+  role?: string | null;
+  contact?: {
+    id?: string;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+  } | null;
+};
 
-function useAppData(id: string, enabled: boolean) {
-  const [data, setData] = React.useState<any | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-  const [loading, setLoading] = React.useState<boolean>(false);
-  const load = React.useCallback(async () => {
-    if (!enabled) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get(`/applications/${id}`, { params: { include: 'instances,support' } });
-      setData(res.data);
-    } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to load application');
-      setData(null);
-    } finally { setLoading(false); }
-  }, [id, enabled]);
-  React.useEffect(() => { void load(); }, [load]);
-  return { data, setData, error, loading, reload: load };
+const VALID_TABS = new Set<TabKey>(['overview', 'deployments', 'interfaces', 'operations', 'compliance', 'relations']);
+
+function slugify(value: string) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
 }
 
-function OwnersAudienceEditor({ data, update, markDirty }: { data: any; update: (patch: any) => void; markDirty: () => void }) {
-  const { t } = useTranslation(['it', 'common']);
-  const [rows, setRows] = React.useState<Array<{ __id: string; company_id: string | null; department_id: string | null }>>([{ __id: uid(), company_id: null, department_id: null }]);
-  const rowsEditedRef = React.useRef(false);
+function formatShortDate(value: string | null | undefined) {
+  if (!value) return 'Not set';
+  const date = new Date(String(value).includes('T') ? String(value) : `${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+}
 
-  const owners = (data?.owners || []) as Array<{ id?: string; __tid?: string; user_id: string; owner_type: 'business' | 'it' }>;
-  const companies = (data?.companies || []) as Array<{ company_id: string }>;
-  const departments = (data?.departments || []) as Array<{ department_id: string }>;
+function humanize(value: string | null | undefined) {
+  const text = String(value || '').trim();
+  if (!text) return 'Not set';
+  return text.replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase());
+}
 
-  const bizOwners = owners.map((o, i) => ({ ...o, __idx: i })).filter((o) => o.owner_type === 'business');
-  const itOwners = owners.map((o, i) => ({ ...o, __idx: i })).filter((o) => o.owner_type === 'it');
+function contactName(row: SupportContactRow) {
+  const contact = row.contact || {};
+  const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ').trim();
+  return name || contact.email || 'Unnamed contact';
+}
 
-  const [userById, setUserById] = React.useState<Record<string, any>>({});
-  const [deptById, setDeptById] = React.useState<Record<string, any>>({});
-  React.useEffect(() => {
-    const ids = Array.from(new Set(owners.map((o) => o.user_id).filter(Boolean)));
-    const missing = ids.filter((id) => !userById[id]); if (missing.length === 0) return;
-    (async () => {
-      const entries = await Promise.all(missing.map(async (id) => { try { const res = await api.get(`/users/${id}`); return [id, res.data]; } catch { return [id, null]; } }));
-      setUserById((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
-    })();
-  }, [owners, userById]);
-  React.useEffect(() => {
-    const ids = Array.from(new Set(departments.map((d) => d.department_id).filter(Boolean)));
-    const missing = ids.filter((id) => !deptById[id]); if (missing.length === 0) return;
-    (async () => {
-      const entries = await Promise.all(missing.map(async (id) => { try { const res = await api.get(`/departments/${id}`); return [id, res.data]; } catch { return [id, null]; } }));
-      setDeptById((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
-    })();
-  }, [departments, deptById]);
+function contactPhone(row: SupportContactRow) {
+  return row.contact?.phone || row.contact?.mobile || null;
+}
 
-  React.useEffect(() => {
-    if (rowsEditedRef.current) return;
-    const next: Array<{ __id: string; company_id: string | null; department_id: string | null }> = [];
-    for (const c of companies) next.push({ __id: uid(), company_id: c.company_id, department_id: null });
-    for (const d of departments) next.push({ __id: uid(), company_id: deptById[d.department_id]?.company_id || null, department_id: d.department_id });
-    setRows(next.length > 0 ? next : [{ __id: uid(), company_id: null, department_id: null }]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(companies), JSON.stringify(departments), JSON.stringify(deptById)]);
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography
+      component="h2"
+      sx={(theme) => ({
+        m: 0,
+        fontSize: 14,
+        fontWeight: 500,
+        lineHeight: 1.4,
+        color: theme.palette.kanap.text.primary,
+      })}
+    >
+      {children}
+    </Typography>
+  );
+}
 
-  const syncFromRows = React.useCallback((nextRows: Array<{ __id: string; company_id: string | null; department_id: string | null }>) => {
-    const compArr: Array<{ company_id: string }> = [];
-    const deptArr: Array<{ department_id: string }> = [];
-    const compSeen = new Set<string>();
-    const deptSeen = new Set<string>();
-    for (const r of nextRows) {
-      if (r.department_id) { if (!deptSeen.has(r.department_id)) { deptSeen.add(r.department_id); deptArr.push({ department_id: r.department_id }); } }
-      else if (r.company_id) { if (!compSeen.has(r.company_id)) { compSeen.add(r.company_id); compArr.push({ company_id: r.company_id }); } }
+function addUniqueApp(target: Map<string, { id: string; name: string }>, id: string | null | undefined, name: string | null | undefined) {
+  if (!id || target.has(id)) return;
+  target.set(id, { id, name: name || 'Untitled application' });
+}
+
+function computeConnections(app: ApplicationDetail, interfaces: InterfaceMiniRow[]): ConnectionsResult {
+  const isMiddleware = app.etl_enabled === true;
+  if (isMiddleware) {
+    const connected = new Map<string, { id: string; name: string }>();
+    interfaces.forEach((row) => {
+      addUniqueApp(connected, row.source_application_id === app.id ? null : row.source_application_id, row.source_application_name);
+      addUniqueApp(connected, row.target_application_id === app.id ? null : row.target_application_id, row.target_application_name);
+    });
+    if (connected.size === 0) return { type: 'none' };
+    return { type: 'undirected', connected: Array.from(connected.values()) };
+  }
+
+  const receivesFrom = new Map<string, { id: string; name: string }>();
+  const sendsTo = new Map<string, { id: string; name: string }>();
+  interfaces.forEach((row) => {
+    if (row.target_application_id === app.id && row.source_application_id !== app.id) {
+      addUniqueApp(receivesFrom, row.source_application_id, row.source_application_name);
     }
-    rowsEditedRef.current = true;
-    update({ companies: compArr, departments: deptArr });
-  }, [update]);
+    if (row.source_application_id === app.id && row.target_application_id !== app.id) {
+      addUniqueApp(sendsTo, row.target_application_id, row.target_application_name);
+    }
+  });
 
-  const addRow = () => { rowsEditedRef.current = true; markDirty(); setRows((prev) => [...prev, { __id: uid(), company_id: null, department_id: null }]); };
-  const removeRow = (idx: number) => setRows((prev) => { const next = prev.filter((_, i) => i !== idx); const normalized = next.length > 0 ? next : [{ __id: uid(), company_id: null, department_id: null }]; syncFromRows(normalized); return normalized; });
-  const setRowCompany = (idx: number, companyId: string | null) => setRows((prev) => { const next = prev.map((r, i) => (i === idx ? { ...r, company_id: companyId, department_id: null } : r)); syncFromRows(next); return next; });
-  const setRowDepartment = (idx: number, departmentId: string | null) => setRows((prev) => { const next = prev.map((r, i) => (i === idx ? { ...r, department_id: departmentId } : r)); syncFromRows(next); return next; });
-
-  const mode = data?.users_mode === 'manual' ? 'manual' : 'derived';
-  const year = new Date().getFullYear();
-  const [companyMetricCache, setCompanyMetricCache] = React.useState<Record<string, { users: number; fallback: boolean }>>({});
-  const [deptMetricCache, setDeptMetricCache] = React.useState<Record<string, { users: number; fallback: boolean }>>({});
-  React.useEffect(() => {
-    const companiesToFetch = Array.from(new Set(rows.filter(r => r.company_id && !r.department_id).map(r => r.company_id as string).filter((id) => !(id in companyMetricCache))));
-    const deptsToFetch = Array.from(new Set(rows.filter(r => r.department_id).map(r => r.department_id as string).filter((id) => !(id in deptMetricCache))));
-    (async () => {
-      if (companiesToFetch.length > 0) {
-        const entries = await Promise.all(companiesToFetch.map(async (cid) => {
-          try { const res = await api.get(`/company-metrics/${cid}`, { params: { year } }); const m = res.data || null; const iu = m?.it_users != null ? Number(m.it_users) : null; const hc = m?.headcount != null ? Number(m.headcount) : 0; return [cid, { users: iu != null ? iu : hc, fallback: iu == null }]; } catch { return [cid, { users: 0, fallback: true }]; }
-        }));
-        setCompanyMetricCache((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
-      }
-      if (deptsToFetch.length > 0) {
-        const entries = await Promise.all(deptsToFetch.map(async (did) => {
-          try { const res = await api.get(`/department-metrics/${did}`, { params: { year } }); const m = res.data || null; const hc = m?.headcount != null ? Number(m.headcount) : 0; return [did, { users: hc, fallback: true }]; } catch { return [did, { users: 0, fallback: true }]; }
-        }));
-        setDeptMetricCache((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(rows), year]);
-
-  const rowUsers = (row: { company_id: string | null; department_id: string | null }) => {
-    if (row.department_id) { const meta = deptMetricCache[row.department_id]; return { users: meta?.users ?? null, fallback: true }; }
-    if (row.company_id) { const meta = companyMetricCache[row.company_id]; return { users: meta?.users ?? null, fallback: meta?.fallback ?? false }; }
-    return { users: null, fallback: true };
+  if (receivesFrom.size === 0 && sendsTo.size === 0) return { type: 'none' };
+  return {
+    type: 'directed',
+    receivesFrom: Array.from(receivesFrom.values()),
+    sendsTo: Array.from(sendsTo.values()),
   };
-  const derivedTotal = rows.reduce((sum, r) => { const u = rowUsers(r).users; return sum + (u != null ? Number(u) : 0); }, 0);
+}
+
+function useAppData(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['application-workspace', id],
+    queryFn: async () => {
+      const res = await api.get<ApplicationDetail>(`/applications/${id}`, { params: { include: 'deployments,support' } });
+      return res.data;
+    },
+    enabled,
+  });
+}
+
+function ApplicationProperties({
+  app,
+  canManage,
+  onPatch,
+  onLocalUpdate,
+}: {
+  app: ApplicationDetail;
+  canManage: boolean;
+  onPatch: (patch: Partial<ApplicationDetail>) => void;
+  onLocalUpdate: (updater: (prev: ApplicationDetail) => ApplicationDetail) => void;
+}) {
+  const { byField } = useItOpsEnumOptions();
+  const categoryOptions = byField.applicationCategory || [];
+  const [savingOwners, setSavingOwners] = React.useState(false);
+  const [savingAudience, setSavingAudience] = React.useState(false);
+  const [audienceRows, setAudienceRows] = React.useState<Array<{ key: string; company_id: string | null; department_ids: string[] }>>([]);
+
+  const selectedDepartmentIds = React.useMemo(
+    () => (app.departments || []).map((row) => row.department_id).filter(Boolean),
+    [app.departments],
+  );
+
+  const departmentDetailsQuery = useQuery({
+    queryKey: ['application-audience-departments', app.id, selectedDepartmentIds],
+    queryFn: async () => {
+      const entries = await Promise.all(selectedDepartmentIds.map(async (departmentId) => {
+        const res = await api.get<{ id: string; company_id: string; name: string }>(`/departments/${departmentId}`);
+        return [departmentId, res.data] as const;
+      }));
+      return Object.fromEntries(entries) as Record<string, { id: string; company_id: string; name: string }>;
+    },
+    enabled: selectedDepartmentIds.length > 0,
+  });
+
+  React.useEffect(() => {
+    const departmentDetails = departmentDetailsQuery.data || {};
+    const companyRows = (app.companies || []).map((row) => ({
+      key: `company:${row.company_id}`,
+      company_id: row.company_id,
+      department_ids: [],
+    }));
+    const wholeCompanyIds = new Set(companyRows.map((row) => row.company_id).filter(Boolean));
+    const departmentsByCompany = new Map<string, string[]>();
+    for (const row of app.departments || []) {
+      const companyId = departmentDetails[row.department_id]?.company_id || null;
+      if (!companyId || wholeCompanyIds.has(companyId)) continue;
+      departmentsByCompany.set(companyId, [...(departmentsByCompany.get(companyId) || []), row.department_id]);
+    }
+    const departmentRows = Array.from(departmentsByCompany.entries()).map(([companyId, departmentIds]) => ({
+      key: `company-departments:${companyId}`,
+      company_id: companyId,
+      department_ids: departmentIds,
+    }));
+    const nextRows = [...companyRows, ...departmentRows];
+    setAudienceRows(nextRows.length ? nextRows : []);
+  }, [app.companies, app.departments, departmentDetailsQuery.data]);
+
+  const replaceOwners = React.useCallback(async (owners: ApplicationDetail['owners']) => {
+    setSavingOwners(true);
+    try {
+      const res = await api.post<ApplicationDetail['owners']>(`/applications/${app.id}/owners/bulk-replace`, {
+        owners: owners.map((owner) => ({ user_id: owner.user_id, owner_type: owner.owner_type })),
+      });
+      onLocalUpdate((prev) => ({ ...prev, owners: res.data || [] }));
+    } finally {
+      setSavingOwners(false);
+    }
+  }, [app.id, onLocalUpdate]);
+
+  const replaceOwnersByType = React.useCallback(async (ownerType: 'business' | 'it', userIds: string[]) => {
+    const keep = (app.owners || []).filter((owner) => owner.owner_type !== ownerType);
+    const next = [
+      ...keep,
+      ...Array.from(new Set(userIds)).map((user_id) => ({ user_id, owner_type: ownerType })),
+    ];
+    await replaceOwners(next as ApplicationDetail['owners']);
+  }, [app.owners, replaceOwners]);
+
+  const saveAudienceRows = React.useCallback(async (rows: Array<{ company_id: string | null; department_ids: string[] }>) => {
+    setSavingAudience(true);
+    try {
+      const companyIds = Array.from(new Set(rows
+        .filter((row) => row.company_id && row.department_ids.length === 0)
+        .map((row) => row.company_id as string)));
+      const allCompanyIds = new Set(companyIds);
+      const departmentIds = Array.from(new Set(rows
+        .filter((row) => row.company_id && !allCompanyIds.has(row.company_id))
+        .flatMap((row) => row.department_ids)));
+      const [companiesRes, departmentsRes] = await Promise.all([
+        api.post<ApplicationDetail['companies']>(`/applications/${app.id}/companies/bulk-replace`, { company_ids: companyIds }),
+        api.post<ApplicationDetail['departments']>(`/applications/${app.id}/departments/bulk-replace`, { department_ids: departmentIds }),
+      ]);
+      onLocalUpdate((prev) => ({
+        ...prev,
+        companies: companiesRes.data || [],
+        departments: departmentsRes.data || [],
+      }));
+      const refreshed = await api.get<ApplicationDetail>(`/applications/${app.id}`, { params: { include: 'deployments,support' } });
+      onLocalUpdate(() => refreshed.data);
+    } finally {
+      setSavingAudience(false);
+    }
+  }, [app.id, onLocalUpdate]);
 
   return (
-    <Stack spacing={3}>
-      <Stack spacing={1}>
-        <Typography variant="subtitle2">Business Owners</Typography>
-        <Stack spacing={1}>
-          {(bizOwners.length > 0 ? bizOwners : ([{ user_id: '' as any, owner_type: 'business' as const, __idx: -1 }] as any)).map((o: any, idx: number) => {
-            const u = o.user_id ? userById[o.user_id] : null;
-            return (
-              <Box key={`biz-row-${o.id || o.__tid || o.__idx || idx}`} sx={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1.2fr 1.6fr auto', gap: 1, alignItems: 'center' }}>
-                <UserSelect label="User" value={o.user_id || null} onChange={(v) => {
-                  if (!v) return;
-                  const exists = owners.some((x, i) => x.owner_type === 'business' && x.user_id === v && i !== (o.__idx ?? -2));
-                  if (exists) return;
-                  if ((o.__idx ?? -1) >= 0) { const next = owners.map((x, i) => (i === o.__idx ? { ...x, user_id: v } : x)); update({ owners: next }); }
-                  else { update({ owners: [...owners, { owner_type: 'business' as const, user_id: v, __tid: uid() }] }); }
-                }} />
-                <TextField label="Last Name" value={u?.last_name || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
-                <TextField label="First Name" value={u?.first_name || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
-                <TextField label="Job Title" value={u?.job_title || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
-                {(o.__idx ?? -1) >= 0 ? (<IconButton aria-label={t('common.remove')} onClick={() => update({ owners: owners.filter((_, i) => i !== o.__idx) })} size="small"><DeleteIcon fontSize="small" /></IconButton>) : <span />}
-              </Box>
-            );
-          })}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button startIcon={<AddIcon />} onClick={() => update({ owners: [...owners, { user_id: '' as any, owner_type: 'business' as const, __tid: uid() }] })} size="small">Add row</Button>
-          </Box>
-        </Stack>
-      </Stack>
+    <>
+      <PropertyGroup>
+        <PropertyRow label="Category">
+          <Select
+            value={app.category || 'line_of_business'}
+            onChange={(event) => onPatch({ category: event.target.value })}
+            variant="standard"
+            disableUnderline
+            disabled={!canManage}
+            sx={drawerSelectSx}
+          >
+            {categoryOptions.map((option) => (
+              <MenuItem key={option.code} value={option.code} sx={drawerMenuItemSx}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </PropertyRow>
+        <PropertyRow label="Supplier">
+          <SupplierSelect
+            value={app.supplier_id || null}
+            onChange={(value) => onPatch({ supplier_id: value })}
+            disabled={!canManage}
+            hideLabel
+            textFieldSx={drawerFieldValueSx}
+          />
+        </PropertyRow>
+        <PropertyRow label="Publisher">
+          <TextField
+            value={app.editor || ''}
+            onChange={(event) => onPatch({ editor: event.target.value })}
+            variant="standard"
+            size="small"
+            fullWidth
+            disabled={!canManage}
+            InputProps={{ disableUnderline: true }}
+            sx={drawerFieldValueSx}
+          />
+        </PropertyRow>
+      </PropertyGroup>
 
-      <Stack spacing={1}>
-        <Typography variant="subtitle2">IT Owners</Typography>
-        <Stack spacing={1}>
-          {(itOwners.length > 0 ? itOwners : ([{ user_id: '' as any, owner_type: 'it' as const, __idx: -1 }] as any)).map((o: any, idx: number) => {
-            const u = o.user_id ? userById[o.user_id] : null;
-            return (
-              <Box key={`it-row-${o.id || o.__tid || o.__idx || idx}`} sx={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1.2fr 1.6fr auto', gap: 1, alignItems: 'center' }}>
-                <UserSelect label="User" value={o.user_id || null} onChange={(v) => {
-                  if (!v) return;
-                  const exists = owners.some((x, i) => x.owner_type === 'it' && x.user_id === v && i !== (o.__idx ?? -2));
-                  if (exists) return;
-                  if ((o.__idx ?? -1) >= 0) { const next = owners.map((x, i) => (i === o.__idx ? { ...x, user_id: v } : x)); update({ owners: next }); }
-                  else { update({ owners: [...owners, { owner_type: 'it' as const, user_id: v, __tid: uid() }] }); }
-                }} />
-                <TextField label="Last Name" value={u?.last_name || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
-                <TextField label="First Name" value={u?.first_name || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
-                <TextField label="Job Title" value={u?.job_title || ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
-                {(o.__idx ?? -1) >= 0 ? (<IconButton aria-label={t('common.remove')} onClick={() => update({ owners: owners.filter((_, i) => i !== o.__idx) })} size="small"><DeleteIcon fontSize="small" /></IconButton>) : <span />}
-              </Box>
-            );
-          })}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button startIcon={<AddIcon />} onClick={() => update({ owners: [...owners, { user_id: '' as any, owner_type: 'it' as const, __tid: uid() }] })} size="small">Add row</Button>
-          </Box>
-        </Stack>
-      </Stack>
+      <PropertyGroup>
+        <PropertyRow label="Go live">
+          <DateEUField label="" valueYmd={app.go_live_date || ''} onChangeYmd={(value) => onPatch({ go_live_date: value || null })} disabled={!canManage} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
+        </PropertyRow>
+        <PropertyRow label="End of support">
+          <DateEUField label="" valueYmd={app.end_of_support_date || ''} onChangeYmd={(value) => onPatch({ end_of_support_date: value || null })} disabled={!canManage} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
+        </PropertyRow>
+        <PropertyRow label="Retired date">
+          <DateEUField label="" valueYmd={app.retired_date || ''} onChangeYmd={(value) => onPatch({ retired_date: value || null })} disabled={!canManage} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
+        </PropertyRow>
+      </PropertyGroup>
 
-      <Divider />
-      <Stack spacing={1}>
-        <Typography variant="subtitle2">Audience</Typography>
-        <Typography variant="body2" color="text.secondary">Select company and optionally a department (leave empty to select the full company).</Typography>
-        <Stack spacing={1}>
-          {rows.map((r, idx) => {
-            const meta = rowUsers(r);
-            const usersText = meta.users != null ? String(meta.users) : '';
-            const warn = meta.fallback;
-            const deptCompanyId = r.company_id || (r.department_id ? (deptById[r.department_id!]?.company_id || null) : null);
-            return (
-              <Box key={r.__id} sx={{ display: 'grid', gridTemplateColumns: '1.3fr 1.3fr 0.9fr auto', gap: 1, alignItems: 'center' }}>
-                <CompanySelect value={r.company_id} onChange={(v) => setRowCompany(idx, v)} size="small" />
-                <DepartmentSelect companyId={deptCompanyId || undefined} value={r.department_id} onChange={(v) => setRowDepartment(idx, v)} size="small" />
-                <TextField label="Users" value={usersText ? `${usersText} ${warn ? '(headcount)' : '(IT users)'}` : ''} size="small" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} />
-                <IconButton aria-label={t('common.remove')} onClick={() => removeRow(idx)} size="small"><DeleteIcon fontSize="small" /></IconButton>
-              </Box>
-            );
-          })}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button startIcon={<AddIcon />} onClick={addRow} size="small">Add row</Button>
-          </Box>
-        </Stack>
-      </Stack>
+      <PropertyGroup>
+        <PropertyRow label="Business owners">
+          <TeamMemberMultiSelect
+            label="Business owners"
+            value={(app.owners || []).filter((owner) => owner.owner_type === 'business').map((owner) => ({
+              user_id: owner.user_id,
+              user_display_name: owner.full_name || [owner.first_name, owner.last_name].filter(Boolean).join(' ') || owner.email || owner.user_id,
+              user_email: owner.email || undefined,
+            }))}
+            onChange={(userIds) => replaceOwnersByType('business', userIds)}
+            disabled={!canManage || savingOwners}
+            hideLabel
+            textFieldSx={drawerFieldValueSx}
+          />
+        </PropertyRow>
+        <PropertyRow label="IT owners">
+          <TeamMemberMultiSelect
+            label="IT owners"
+            value={(app.owners || []).filter((owner) => owner.owner_type === 'it').map((owner) => ({
+              user_id: owner.user_id,
+              user_display_name: owner.full_name || [owner.first_name, owner.last_name].filter(Boolean).join(' ') || owner.email || owner.user_id,
+              user_email: owner.email || undefined,
+            }))}
+            onChange={(userIds) => replaceOwnersByType('it', userIds)}
+            disabled={!canManage || savingOwners}
+            hideLabel
+            textFieldSx={drawerFieldValueSx}
+          />
+        </PropertyRow>
+      </PropertyGroup>
 
-      <Divider />
-      <Stack spacing={1}>
-        <Typography variant="subtitle2">Number of users</Typography>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <EnumAutocomplete label="Calculation method" value={mode} onChange={(v) => update({ users_mode: v === 'manual' ? 'manual' : 'it_users', users_year: year })} options={[{ label: 'Derived', value: 'derived' }, { label: 'Manual', value: 'manual' }]} />
-          {mode === 'manual' ? (
-            <TextField type="number" label="Manual users" value={data?.users_override ?? ''} onChange={(e) => update({ users_override: e.target.value === '' ? null : parseInt(e.target.value, 10) })} />
-          ) : (
-            <Typography variant="body2">Derived users: <strong>{derivedTotal}</strong> <Typography component="span" variant="caption" color="text.secondary">(based on Audience)</Typography></Typography>
+      <PropertyGroup>
+        <Stack spacing={0.75}>
+          {audienceRows.length === 0 && (
+            <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary })}>
+              No audience defined.
+            </Typography>
+          )}
+          {audienceRows.map((row, index) => (
+            <Box
+              key={row.key}
+              sx={{
+                position: 'relative',
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0, 1fr)',
+                gap: '4px',
+                pr: canManage ? '28px' : 0,
+                py: 0.25,
+              }}
+            >
+              <CompanySelect
+                value={row.company_id}
+                onChange={(value) => {
+                  const nextRows = audienceRows.map((item, itemIndex) => (
+                    itemIndex === index ? { ...item, company_id: value, department_ids: [] } : item
+                  ));
+                  setAudienceRows(nextRows);
+                  void saveAudienceRows(nextRows);
+                }}
+                disabled={!canManage || savingAudience}
+                size="small"
+                label="Company"
+                hideLabel
+                textFieldSx={drawerFieldValueSx}
+              />
+              <Box>
+                <DepartmentMultiSelect
+                  value={row.department_ids}
+                  companyId={row.company_id}
+                  onChange={(value) => {
+                    const nextRows = audienceRows.map((item, itemIndex) => (
+                      itemIndex === index ? { ...item, department_ids: value } : item
+                    ));
+                    setAudienceRows(nextRows);
+                    if (row.company_id) void saveAudienceRows(nextRows);
+                  }}
+                  disabled={!canManage || savingAudience || !row.company_id}
+                  size="small"
+                  label="Departments"
+                  hideLabel
+                  textFieldSx={drawerFieldValueSx}
+                />
+              </Box>
+              {canManage && (
+                <IconButton
+                  aria-label="Remove audience row"
+                  size="small"
+                  disabled={savingAudience}
+                  onClick={() => {
+                    const nextRows = audienceRows.filter((_, itemIndex) => itemIndex !== index);
+                    setAudienceRows(nextRows);
+                    void saveAudienceRows(nextRows);
+                  }}
+                  sx={{ position: 'absolute', top: 2, right: 0, width: 22, height: 22 }}
+                >
+                  <DeleteIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              )}
+            </Box>
+          ))}
+          {canManage && (
+            <Box
+              component="button"
+              type="button"
+              disabled={savingAudience}
+              onClick={() => setAudienceRows((rows) => [...rows, { key: `draft:${Date.now()}`, company_id: null, department_ids: [] }])}
+              sx={(theme) => ({
+                alignSelf: 'flex-start',
+                border: 0,
+                p: 0,
+                bgcolor: 'transparent',
+                color: theme.palette.kanap.teal,
+                fontSize: 12,
+                cursor: savingAudience ? 'default' : 'pointer',
+              })}
+            >
+              + Add audience
+            </Box>
           )}
         </Stack>
-      </Stack>
+        <Box sx={(theme) => ({ mt: 1, fontSize: 12, color: theme.palette.kanap.text.secondary, lineHeight: 1.5 })}>
+          Users: {app.users_mode === 'manual' ? Number(app.users_override || 0).toLocaleString() : Number(app.derived_total_users || 0).toLocaleString()}
+        </Box>
+        <PropertyRow label="Calculation method">
+          <Select
+            value={app.users_mode === 'manual' ? 'manual' : 'it_users'}
+            onChange={(event) => onPatch({ users_mode: event.target.value })}
+            variant="standard"
+            disableUnderline
+            disabled={!canManage}
+            sx={drawerSelectSx}
+          >
+            <MenuItem value="it_users" sx={drawerMenuItemSx}>Derived</MenuItem>
+            <MenuItem value="manual" sx={drawerMenuItemSx}>Manual</MenuItem>
+          </Select>
+        </PropertyRow>
+        {app.users_mode === 'manual' && (
+          <PropertyRow label="Manual users">
+            <TextField
+              value={app.users_override ?? ''}
+              onChange={(event) => onPatch({ users_override: event.target.value === '' ? null : Number(event.target.value) })}
+              type="number"
+              variant="standard"
+              size="small"
+              fullWidth
+              disabled={!canManage}
+              InputProps={{ disableUnderline: true }}
+              sx={drawerFieldValueSx}
+            />
+          </PropertyRow>
+        )}
+      </PropertyGroup>
+    </>
+  );
+}
+
+function OverviewTab({
+  app,
+  canEditManagedDocs,
+  canCreateKnowledge,
+  editorRef,
+  connections,
+  onOpenApplication,
+  onShowInterfaces,
+}: {
+  app: ApplicationDetail;
+  canEditManagedDocs: boolean;
+  canCreateKnowledge: boolean;
+  editorRef: React.RefObject<IntegratedDocumentEditorHandle | null>;
+  connections: ConnectionsResult;
+  onOpenApplication: (appId: string) => void;
+  onShowInterfaces: () => void;
+}) {
+  const renderConnectionRow = (label: string, items: Array<{ id: string; name: string }>) => {
+    if (items.length === 0) return null;
+    const visible = items.slice(0, 8);
+    const overflow = items.length - visible.length;
+    return (
+      <Box sx={{ display: 'flex', gap: '12px', alignItems: 'center', minHeight: 26 }}>
+        <Box sx={(theme) => ({ width: 90, flexShrink: 0, fontSize: 12, color: theme.palette.kanap.text.tertiary })}>
+          {label}
+        </Box>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px', minWidth: 0 }}>
+          {visible.map((item) => (
+            <Box
+              key={item.id}
+              component="button"
+              type="button"
+              onClick={() => onOpenApplication(item.id)}
+              sx={(theme) => ({
+                border: `1px solid ${theme.palette.kanap.pill.border}`,
+                borderRadius: '999px',
+                bgcolor: theme.palette.kanap.pill.bg,
+                color: theme.palette.kanap.text.primary,
+                px: '8px',
+                py: '2px',
+                font: 'inherit',
+                fontSize: 12,
+                cursor: 'pointer',
+                '&:hover': { bgcolor: theme.palette.kanap.pill.hoverBg },
+              })}
+            >
+              {item.name}
+            </Box>
+          ))}
+          {overflow > 0 && (
+            <Box
+              component="button"
+              type="button"
+              onClick={onShowInterfaces}
+              sx={(theme) => ({
+                border: 0,
+                bgcolor: 'transparent',
+                color: theme.palette.kanap.teal,
+                p: 0,
+                font: 'inherit',
+                fontSize: 12,
+                cursor: 'pointer',
+              })}
+            >
+              + {overflow} more in Interfaces
+            </Box>
+          )}
+        </Box>
+      </Box>
+    );
+  };
+
+  return (
+    <Stack spacing={3.5}>
+      <Box>
+        <Box sx={{ mb: 1 }}>
+          <SectionLabel>Description</SectionLabel>
+        </Box>
+        <IntegratedDocumentEditor
+          ref={editorRef as React.Ref<IntegratedDocumentEditorHandle>}
+          entityType="applications"
+          entityId={app.id}
+          slotKey="overview"
+          label="Description"
+          hideHeaderLabel
+          placeholder="Add a description for this application..."
+          minRows={10}
+          maxRows={24}
+          disabled={!canEditManagedDocs}
+          showManagedDocChip={false}
+          showDocumentControls={false}
+          editModeBehavior="auto"
+          autosaveEnabled
+          autosaveDelayMs={2000}
+        />
+      </Box>
+      {connections.type !== 'none' && (
+        <Box>
+          <Box sx={{ mb: 1 }}>
+            <SectionLabel>Connections</SectionLabel>
+          </Box>
+          <Stack spacing={0.75}>
+            {connections.type === 'undirected'
+              ? renderConnectionRow('Connected to', connections.connected)
+              : (
+                <>
+                  {renderConnectionRow('Receives from', connections.receivesFrom)}
+                  {renderConnectionRow('Sends to', connections.sendsTo)}
+                </>
+              )}
+          </Stack>
+        </Box>
+      )}
+      <Box>
+        <Box sx={{ mb: 1 }}>
+          <SectionLabel>Knowledge</SectionLabel>
+        </Box>
+        <EntityKnowledgePanel entityType="applications" entityId={app.id} canCreate={canCreateKnowledge} />
+      </Box>
     </Stack>
   );
 }
 
-export default function ApplicationWorkspacePage() {
-  const { t } = useTranslation(['it', 'common']);
-  const { hasLevel } = useAuth();
-  const params = useParams();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const idParam = String(params.id || '');
-  const isCreate = idParam === 'new';
-  const id = idParam;
-  const tab = (params.tab as TabKey) || 'overview';
+function viaMiddlewareLabel(row: InterfaceMiniRow) {
+  if (!row.via_middleware) return '—';
+  const names = (row.middleware_application_names || []).filter(Boolean);
+  return names.length > 0 ? `via ${names.join(', ')}` : 'via middleware';
+}
 
-  // Navigation for prev/next
-  const sort = searchParams.get('sort') || 'name:ASC';
-  const q = searchParams.get('q') || '';
-  const filters = searchParams.get('filters') || '';
-  const ownerUserId = searchParams.get('ownerUserId') || undefined;
-  const ownerTeamId = searchParams.get('ownerTeamId') || undefined;
-  const navExtraParams = React.useMemo(() => {
-    const params: Record<string, string | undefined> = {};
-    if (ownerUserId) params.ownerUserId = ownerUserId;
-    if (ownerTeamId) params.ownerTeamId = ownerTeamId;
-    return Object.keys(params).length > 0 ? params : undefined;
-  }, [ownerUserId, ownerTeamId]);
-  const nav = useApplicationNav({ id, sort, q, filters, extraParams: navExtraParams });
-  const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate
-    ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null as any, nextId: null as any }
-    : nav;
-
-  const { data, setData, error, reload } = useAppData(id, !isCreate);
-  const [saveError, setSaveError] = React.useState<string | null>(null);
-  const dataRef = React.useRef<any>(null);
-  React.useEffect(() => { dataRef.current = data; }, [data]);
-  const [dirty, setDirty] = React.useState(false);
-  const [hasParentSuite, setHasParentSuite] = React.useState<boolean>(false);
-  const [interfacesByEnv, setInterfacesByEnv] = React.useState<Record<string, InterfaceMiniRow[]>>({});
-  const [interfacesLoading, setInterfacesLoading] = React.useState<boolean>(false);
-  const [interfacesError, setInterfacesError] = React.useState<string | null>(null);
-  // Suites selection (parent suites)
-  const [suites, setSuites] = React.useState<Array<{ id: string; name: string }>>([]);
-  const [baselineSuites, setBaselineSuites] = React.useState<Array<{ id: string; name: string }>>([]);
-  const canCreateKnowledge = hasLevel('knowledge', 'member');
-  const [suiteOptions, setSuiteOptions] = React.useState<Array<{ id: string; name: string }>>([]);
-  // Support contacts
-  const [supportContacts, setSupportContacts] = React.useState<SupportContactRow[]>([]);
-  const [supportBaseline, setSupportBaseline] = React.useState<SupportContactRow[]>([]);
-  // Version management
-  const [versionDialogOpen, setVersionDialogOpen] = React.useState(false);
-  const [lineage, setLineage] = React.useState<{
-    predecessors: Array<{ id: string; name: string; version?: string | null; lifecycle?: string }>;
-    current: { id: string; name: string; version?: string | null; lifecycle?: string };
-    successors: Array<{ id: string; name: string; version?: string | null; lifecycle?: string }>;
-  } | null>(null);
-  const relationsRef = React.useRef<ApplicationRelationsPanelHandle>(null);
-  const complianceRef = React.useRef<ApplicationComplianceHandle>(null);
-  const createRef = React.useRef<ApplicationCreateEditorHandle>(null);
-  const update = React.useCallback((patch: any) => {
-    setDirty(true);
-    // Update ref synchronously to avoid stale reads on immediate save
-    const base = dataRef.current ?? null;
-    const next = { ...(base || {}), ...patch };
-    dataRef.current = next;
-    setData((d: any) => ({ ...(d || {}), ...patch }));
-  }, [setData]);
-  const { byField } = useItOpsEnumOptions();
-  const lifecycleOptions = React.useMemo(() => {
-    const list = byField.lifecycleStatus || [];
-    const current = data?.lifecycle;
-    const opts = list.map((item) => ({
-      value: item.code,
-      label: item.deprecated ? `${item.label} (deprecated)` : item.label,
-      deprecated: !!item.deprecated,
-    }));
-    if (current && !opts.some((opt) => opt.value === current)) {
-      opts.push({ value: current, label: current, deprecated: false });
-    }
-    return opts.filter((opt) => !opt.deprecated || opt.value === current);
-  }, [byField.lifecycleStatus, data?.lifecycle]);
-
-  // Clear dirty when transitioning from 'new' to a persisted id
-  const prevIdRef = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    const prev = prevIdRef.current;
-    prevIdRef.current = id;
-    if (prev === 'new' && id !== 'new') {
-      setDirty(false);
-    }
-  }, [id]);
-
-  // Load whether this app has any parent suites to control the Overview toggle availability
-  const loadSuites = React.useCallback(async () => {
-    if (isCreate) return;
-    try {
-      const res = await api.get(`/applications/${id}/suites`);
-      const items = (res.data?.items || []) as Array<{ id: string; name: string }>;
-      setSuites(items);
-      setBaselineSuites(items);
-      setHasParentSuite((items?.length || 0) > 0);
-    } catch {
-      setSuites([]);
-      setBaselineSuites([]);
-      setHasParentSuite(false);
-    }
-  }, [id, isCreate]);
-  React.useEffect(() => { void loadSuites(); }, [loadSuites]);
-
-  // Load version lineage
-  React.useEffect(() => {
-    if (isCreate || !id) {
-      setLineage(null);
-      return;
-    }
-    api.get(`/applications/${id}/version-lineage`)
-      .then(res => setLineage(res.data))
-      .catch(() => setLineage(null));
-  }, [id, isCreate]);
-
-  // Load Interfaces tab data (grouped per environment)
-  React.useEffect(() => {
-    let cancelled = false;
-    if (isCreate || tab !== 'interfaces') {
-      return () => { cancelled = true; };
-    }
-    const fetchInterfaces = async () => {
-      setInterfacesLoading(true);
-      setInterfacesError(null);
-      try {
-        const res = await api.get<{ items: InterfaceMiniRow[] }>(`/interfaces/by-application/${id}`);
-        if (cancelled) return;
-        const grouped: Record<string, InterfaceMiniRow[]> = {};
-        (res.data?.items || []).forEach((item) => {
-          const env = (item.environment || '').toLowerCase() || 'prod';
-          const row = { ...item, environment: env };
-          grouped[env] = grouped[env] ? [...grouped[env], row] : [row];
-        });
-        const sortRank = (row: InterfaceMiniRow) => {
-          if (row.source_application_id === id) return 0;
-          if (row.target_application_id === id) return 1;
-          return 2;
-        };
-        const sortedGrouped = Object.fromEntries(
-          Object.entries(grouped).map(([env, rows]) => {
-            const sorted = rows.slice().sort((a, b) => {
-              const ra = sortRank(a);
-              const rb = sortRank(b);
-              if (ra !== rb) return ra - rb;
-              const sa = (a.source_application_name || a.source_application_id || '').toLowerCase();
-              const sb = (b.source_application_name || b.source_application_id || '').toLowerCase();
-              if (sa !== sb) return sa.localeCompare(sb);
-              const ta = (a.target_application_name || a.target_application_id || '').toLowerCase();
-              const tb = (b.target_application_name || b.target_application_id || '').toLowerCase();
-              if (ta !== tb) return ta.localeCompare(tb);
-              return (a.name || '').localeCompare(b.name || '');
-            });
-            return [env, sorted];
-          }),
-        );
-        setInterfacesByEnv(sortedGrouped);
-      } catch (e: any) {
-        if (cancelled) return;
-        setInterfacesError(getApiErrorMessage(e, t, t('messages.loadInterfacesFailed')));
-        setInterfacesByEnv({});
-      } finally {
-        if (!cancelled) setInterfacesLoading(false);
-      }
-    };
-    void fetchInterfaces();
-    return () => { cancelled = true; };
-  }, [id, isCreate, tab]);
-
-  // Sync support contacts from API payload
-  React.useEffect(() => {
-    if (!data || isCreate) return;
-    const items = ((data as any).support_contacts || []) as any[];
-    const mapped: SupportContactRow[] = items.map((row) => ({
-      id: row.id,
-      contact_id: row.contact_id || null,
-      role: row.role || '',
-      contact: row.contact || null,
-    }));
-    setSupportContacts(mapped.length > 0 ? mapped : [{ contact_id: null, role: '', contact: null }]);
-    setSupportBaseline(mapped);
-  }, [isCreate, JSON.stringify(data?.support_contacts)]);
-
-  const normalizeSupport = React.useCallback((rows: SupportContactRow[]) => rows.map((r) => ({ contact_id: r.contact_id, role: (r.role || '').trim() })), []);
-
-  const addSupportRow = () => { setDirty(true); setSupportContacts((rows) => [...rows, { contact_id: null, role: '', contact: null }]); };
-  const removeSupportRow = (idx: number) => {
-    setDirty(true);
-    setSupportContacts((rows) => {
-      const next = rows.filter((_, i) => i !== idx);
-      return next.length > 0 ? next : [{ contact_id: null, role: '', contact: null }];
-    });
-  };
-  const setSupportRowContact = async (idx: number, contactId: string | null) => {
-    setDirty(true);
-    setSupportContacts((rows) => {
-      if (rows.length === 0) return [{ contact_id: contactId, role: '', contact: null }];
-      return rows.map((row, i) => (i === idx ? { ...row, contact_id: contactId, contact: contactId ? row.contact : null } : row));
-    });
-    if (contactId) {
-      try {
-        const res = await api.get(`/contacts/${contactId}`);
-        const details = res.data;
-        setSupportContacts((rows) => rows.map((row, i) => (i === idx ? { ...row, contact: details } : row)));
-      } catch { /* ignore */ }
-    }
-  };
-  const setSupportRowRole = (idx: number, role: string) => { setDirty(true); setSupportContacts((rows) => rows.map((row, i) => (i === idx ? { ...row, role } : row))); };
-
-  // Preload suite options (applications that are suites, excluding self)
-  React.useEffect(() => {
-    let alive = true;
-    if (isCreate) { setSuiteOptions([]); return () => { alive = false; }; }
-    (async () => {
-      try {
-        const options: Array<{ id: string; name: string }> = [];
-        const filters = JSON.stringify({ is_suite: { type: 'equals', filter: true } });
-        let page = 1; const limit = 100; let total = Infinity;
-        while ((page - 1) * limit < total) {
-          const res = await api.get('/applications', { params: { page, limit, sort: 'name:ASC', filters } });
-          const items = (res.data?.items || []) as Array<{ id: string; name: string }>;
-          total = Number(res.data?.total || items.length);
-          for (const a of items) { if (a.id !== id) options.push({ id: a.id, name: (a as any).name }); }
-          if (items.length < limit) break;
-          page += 1;
-        }
-        if (!alive) return;
-        setSuiteOptions(options);
-      } catch {
-        if (!alive) return;
-        setSuiteOptions([]);
-      }
-    })();
-    return () => { alive = false; };
-  }, [id, isCreate]);
-
-  const handleSave = async () => {
-    setSaveError(null);
-    // Read the freshest values from the ref to avoid race conditions when clicking save immediately after typing
-    const current = (dataRef.current || data || {}) as any;
-    if (isCreate) {
-      const newId = await createRef.current?.save();
-      // Reset dirty to avoid a second-save impression after navigation
-      setDirty(false);
-      if (newId) {
-        const qs = searchParams.toString();
-        navigate(`/it/applications/${newId}/overview${qs ? `?${qs}` : ''}`);
-      }
-      return;
-    }
-    // Save overview + technical + compliance simple fields at once
-    const body: any = {
-      name: current?.name,
-      supplier_id: current?.supplier_id ?? null,
-      description: current?.description ?? null,
-      editor: current?.editor ?? null,
-      category: current?.category || 'line_of_business',
-      retired_date: current?.retired_date || null,
-      version: current?.version || null,
-      end_of_support_date: current?.end_of_support_date || null,
-      go_live_date: current?.go_live_date || null,
-      lifecycle: current?.lifecycle,
-      criticality: current?.criticality,
-      external_facing: !!current?.external_facing,
-      is_suite: !!current?.is_suite,
-      last_dr_test: current?.last_dr_test || null,
-      etl_enabled: !!current?.etl_enabled,
-      contains_pii: !!current?.contains_pii,
-      data_class: current?.data_class,
-      licensing: current?.licensing ?? null,
-      notes: current?.notes ?? null,
-      support_notes: current?.support_notes ?? null,
-      access_methods: current?.access_methods || [],
-      users_mode: current?.users_mode,
-      users_year: current?.users_year,
-      users_override: current?.users_override ?? null,
-    };
-    await api.patch(`/applications/${id}`, body);
-    // Save suites (parent membership)
-    try {
-      await api.post(`/applications/${id}/suites/bulk-replace`, { suite_ids: suites.map((s) => s.id) });
-      setBaselineSuites(suites);
-      setHasParentSuite((suites?.length || 0) > 0);
-    } catch (e: any) {
-      const msg = getApiErrorMessage(e, t, t('messages.saveSuitesFailed'));
-      setSaveError(msg);
-      throw e;
-    }
-    // Save support contacts + notes
-    try {
-      const payload = normalizeSupport(supportContacts).filter((r) => r.contact_id);
-      await api.post(`/applications/${id}/support-contacts/bulk-replace`, { contacts: payload });
-      setSupportBaseline(supportContacts);
-    } catch (e: any) {
-      const msg = getApiErrorMessage(e, t, t('messages.saveSupportContactsFailed'));
-      setSaveError(msg);
-      throw e;
-    }
-    // Save Relations (linked OPEX/CAPEX/Contracts and URLs) if the panel is mounted
-    try { await relationsRef.current?.save(); } catch { /* child handles error */ }
-    // Refresh parent-suite info in case it changed
-    try { await loadSuites(); } catch {}
-    // Save Compliance residency via panel
-    try { await complianceRef.current?.save(); } catch { /* child handles error */ }
-    // Persist owners and audience in the same Save action
-    try {
-      const ownersRaw = (data?.owners || []) as Array<{ user_id: any; owner_type: 'business' | 'it' }>;
-      const seen = new Set<string>();
-      const ownersPayload = ownersRaw
-        .filter((o) => typeof o.user_id === 'string' && o.user_id.trim() !== '')
-        .filter((o) => {
-          const k = `${o.owner_type}:${o.user_id}`;
-          if (seen.has(k)) return false; seen.add(k); return true;
-        })
-        .map((o) => ({ user_id: o.user_id, owner_type: o.owner_type }));
-      const companies = (data?.companies || []) as Array<{ company_id: string }>;
-      const departments = (data?.departments || []) as Array<{ department_id: string }>;
-      await Promise.all([
-        api.post(`/applications/${id}/owners/bulk-replace`, { owners: ownersPayload }),
-        api.post(`/applications/${id}/companies/bulk-replace`, { company_ids: companies.map((c) => c.company_id) }),
-        api.post(`/applications/${id}/departments/bulk-replace`, { department_ids: departments.map((d) => d.department_id) }),
-      ]);
-    } catch {}
-    setDirty(false);
-    await reload();
-  };
-
-  const handleReset = () => {
-    relationsRef.current?.reset();
-    complianceRef.current?.reset();
-    setSuites(baselineSuites);
-    setSupportContacts(supportBaseline.length > 0 ? supportBaseline : [{ contact_id: null, role: '', contact: null }]);
-    void reload();
-    void loadSuites();
-    setDirty(false);
-  };
-
-  const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
-    if (!targetId) return;
-    if (dirty) {
-      const proceed = window.confirm(t('confirmations.unsavedSaveBeforeNav'));
-      if (proceed) {
-        try { await handleSave(); } catch { return; }
-      } else {
-        handleReset();
-      }
-    }
-    const qs = searchParams.toString();
-    navigate(`/it/applications/${targetId}/${tab}${qs ? `?${qs}` : ''}`);
-  }, [dirty, handleSave, handleReset, searchParams, navigate, tab]);
-
-  // Note: OwnersAudienceEditor is hoisted at module scope to keep its state stable
-
-  const ComplianceEditor = React.forwardRef<ApplicationComplianceHandle, { onDirtyChange?: (dirty: boolean) => void }>((props, ref) => {
-    const { onDirtyChange } = props;
-    const { byField } = useItOpsEnumOptions();
-    const residency = (data?.data_residency || []) as Array<{ id?: string; country_iso: string }>;
-    const [baselineCodes, setBaselineCodes] = React.useState<string[]>(() => (residency || []).map((r) => (r.country_iso || '').toUpperCase()));
-    const currentCodes = React.useMemo(() => (residency || []).map((r) => (r.country_iso || '').toUpperCase()), [residency]);
-    const dirtyLocal = React.useMemo(() => JSON.stringify(currentCodes) !== JSON.stringify(baselineCodes), [currentCodes, baselineCodes]);
-    React.useEffect(() => { onDirtyChange?.(dirtyLocal); }, [dirtyLocal, onDirtyChange]);
-
-    const save = React.useCallback(async () => {
-      if (isCreate) return;
-      const codes = (data?.data_residency || []).map((r: any) => (r.country_iso || '').toUpperCase());
-      await api.post(`/applications/${id}/data-residency/bulk-replace`, { countries: codes });
-      setBaselineCodes(codes);
-      await reload();
-    }, [data?.data_residency, id, isCreate, reload]);
-
-    React.useImperativeHandle(ref, () => ({ save, reset: () => { setBaselineCodes((data?.data_residency || []).map((r: any) => (r.country_iso || '').toUpperCase())); } }), [save, data?.data_residency]);
-
-    // Keep baseline in sync when server data changes
-    React.useEffect(() => {
-      setBaselineCodes((data?.data_residency || []).map((r: any) => (r.country_iso || '').toUpperCase()));
-    }, [JSON.stringify(data?.data_residency)]);
-
-    const valueOptions: CountryOption[] = React.useMemo(() => {
-      const set = new Set(currentCodes);
-      return COUNTRY_OPTIONS.filter((o) => set.has(o.code));
-    }, [currentCodes]);
-
-    const dataClassOptions = React.useMemo(() => {
-      const list = byField.dataClass || [];
-      const base = list.filter((o) => !o.deprecated).map((o) => ({ label: o.label, value: o.code }));
-      const current = (data?.data_class || 'internal') as string;
-      const hasCurrent = list.some((o) => o.code === current);
-      if (!hasCurrent && current) {
-        return [...base, { label: current, value: current }];
-      }
-      return base;
-    }, [byField.dataClass, data?.data_class]);
-
-    return (
-      <Stack spacing={2}>
-        <EnumAutocomplete
-          label="Data Class"
-          value={data?.data_class || 'internal'}
-          onChange={(v) => update({ data_class: v })}
-          options={dataClassOptions as any}
-        />
-        <DateEUField label="Last DR Test" valueYmd={data?.last_dr_test || ''} onChangeYmd={(v) => update({ last_dr_test: v })} />
-        <FormControlLabel control={<Checkbox checked={!!data?.contains_pii} onChange={(e) => update({ contains_pii: e.target.checked })} />} label="Contains PII" />
-        <Autocomplete<CountryOption, true, false, false>
-          multiple
-          options={COUNTRY_OPTIONS}
-          value={valueOptions}
-          onChange={(_: any, v: CountryOption[]) => {
-            const codes = v.map((o) => o.code);
-            update({ data_residency: codes.map((c) => ({ country_iso: c })) });
-          }}
-          getOptionLabel={(o: CountryOption) => `${o.code} — ${o.name}`}
-          isOptionEqualToValue={(opt: CountryOption, val: CountryOption) => opt.code === val.code}
-          renderInput={(params: any) => (
-            <TextField {...params} label="Data Residency (countries)" placeholder="Add countries" />
-          )}
-          fullWidth
-        />
-      </Stack>
-    );
-  });
+function InterfaceRowsTable({
+  app,
+  rows,
+  direction,
+  onOpenInterface,
+  onOpenApplication,
+}: {
+  app: ApplicationDetail;
+  rows: InterfaceMiniRow[];
+  direction: 'inbound' | 'outbound' | 'routed';
+  onOpenInterface: (id: string) => void;
+  onOpenApplication: (id: string) => void;
+}) {
+  const counterpartHeader = direction === 'inbound' ? 'Source' : direction === 'outbound' ? 'Target' : 'Endpoints';
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Stack spacing={0.5}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Typography variant="h6">{isCreate ? 'New App / Service' : (data?.name || 'App / Service')}</Typography>
-            {!isCreate && total > 0 && (
-              <Typography variant="body2" color="text.secondary">
-                ({index + 1} of {total})
-              </Typography>
+    <Table
+      size="small"
+      sx={(theme) => ({
+        '& th': {
+          fontSize: 11,
+          fontWeight: 500,
+          color: theme.palette.kanap.text.tertiary,
+          borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+          py: '5px',
+        },
+        '& td': {
+          fontSize: 13,
+          color: theme.palette.kanap.text.primary,
+          borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
+          py: '6px',
+        },
+        '& tbody tr': { cursor: 'pointer' },
+        '& tbody tr:hover': { bgcolor: theme.palette.kanap.bg.hover },
+      })}
+    >
+      <TableHead>
+        <TableRow>
+          <TableCell>Interface name</TableCell>
+          <TableCell sx={{ width: direction === 'routed' ? 260 : 180 }}>{counterpartHeader}</TableCell>
+          <TableCell sx={{ width: 190 }}>Via middleware</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {rows.length === 0 && (
+          <TableRow>
+            <TableCell colSpan={3} sx={(theme) => ({ color: `${theme.palette.kanap.text.tertiary} !important`, cursor: 'default' })}>
+              No interfaces.
+            </TableCell>
+          </TableRow>
+        )}
+        {rows.map((row) => {
+          const counterpartId = direction === 'inbound' ? row.source_application_id : direction === 'outbound' ? row.target_application_id : null;
+          const counterpartName = direction === 'inbound'
+            ? row.source_application_name
+            : direction === 'outbound'
+              ? row.target_application_name
+              : `${row.source_application_name || '—'} → ${row.target_application_name || '—'}`;
+          return (
+            <TableRow key={`${direction}:${row.id}:${row.environment}`} onClick={() => onOpenInterface(row.id)}>
+              <TableCell>{row.name}</TableCell>
+              <TableCell
+                onClick={(event) => {
+                  if (!counterpartId || counterpartId === app.id) return;
+                  event.stopPropagation();
+                  onOpenApplication(counterpartId);
+                }}
+              >
+                {counterpartName || '—'}
+              </TableCell>
+              <TableCell>
+                {row.via_middleware ? (
+                  <Box sx={(theme) => ({ display: 'inline-flex', alignItems: 'center', gap: '6px', color: theme.palette.kanap.text.primary })}>
+                    <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', bgcolor: theme.palette.kanap.text.secondary, flexShrink: 0 })} />
+                    {viaMiddlewareLabel(row)}
+                  </Box>
+                ) : '—'}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+function InterfacesTab({
+  app,
+  rows,
+  loading,
+  onOpenInterface,
+  onOpenApplication,
+}: {
+  app: ApplicationDetail;
+  rows: InterfaceMiniRow[];
+  loading: boolean;
+  onOpenInterface: (id: string) => void;
+  onOpenApplication: (id: string) => void;
+}) {
+  const grouped = React.useMemo(() => {
+    const map = new Map<string, { inbound: InterfaceMiniRow[]; outbound: InterfaceMiniRow[]; routed: InterfaceMiniRow[] }>();
+    rows.forEach((row) => {
+      const env = row.environment || 'unknown';
+      const bucket = map.get(env) || { inbound: [], outbound: [], routed: [] };
+      if (row.target_application_id === app.id) bucket.inbound.push(row);
+      else if (row.source_application_id === app.id) bucket.outbound.push(row);
+      else bucket.routed.push(row);
+      map.set(env, bucket);
+    });
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [app.id, rows]);
+
+  if (loading) return <LinearProgress />;
+  if (rows.length === 0) {
+    return (
+      <Typography sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary })}>
+        No interfaces found for this application.
+      </Typography>
+    );
+  }
+
+  return (
+    <Stack spacing={3}>
+      {grouped.map(([environment, groups]) => (
+        <Box key={environment}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
+            <Box sx={{ fontFamily: MONO_FONT_FAMILY, fontSize: 14, fontWeight: 500 }}>
+              {environment.toUpperCase()}
+            </Box>
+          </Box>
+          <Stack spacing={2}>
+            {groups.inbound.length > 0 && (
+              <Box>
+                <Box sx={{ mb: 0.75 }}>
+                  <SectionLabel>Inbound ({groups.inbound.length})</SectionLabel>
+                </Box>
+                <InterfaceRowsTable app={app} rows={groups.inbound} direction="inbound" onOpenInterface={onOpenInterface} onOpenApplication={onOpenApplication} />
+              </Box>
+            )}
+            {groups.outbound.length > 0 && (
+              <Box>
+                <Box sx={{ mb: 0.75 }}>
+                  <SectionLabel>Outbound ({groups.outbound.length})</SectionLabel>
+                </Box>
+                <InterfaceRowsTable app={app} rows={groups.outbound} direction="outbound" onOpenInterface={onOpenInterface} onOpenApplication={onOpenApplication} />
+              </Box>
+            )}
+            {groups.routed.length > 0 && (
+              <Box>
+                <Box sx={{ mb: 0.75 }}>
+                  <SectionLabel>Routed ({groups.routed.length})</SectionLabel>
+                </Box>
+                <InterfaceRowsTable app={app} rows={groups.routed} direction="routed" onOpenInterface={onOpenInterface} onOpenApplication={onOpenApplication} />
+              </Box>
             )}
           </Stack>
-          {!isCreate && data?.category && (
-            <Typography variant="body2" color="text.secondary">
-              {byField.applicationCategory.find((c) => c.code === data?.category)?.label || data?.category}
-            </Typography>
-          )}
+        </Box>
+      ))}
+    </Stack>
+  );
+}
+
+function OperationsTab({
+  app,
+  canManage,
+  onPatch,
+  onRefresh,
+}: {
+  app: ApplicationDetail;
+  canManage: boolean;
+  onPatch: (patch: Partial<ApplicationDetail>) => Promise<void>;
+  onRefresh: () => Promise<void>;
+}) {
+  const { byField, labelFor } = useItOpsEnumOptions();
+  const [contactDialogOpen, setContactDialogOpen] = React.useState(false);
+  const [contactDraft, setContactDraft] = React.useState<{ contact_id: string | null; role: string }>({ contact_id: null, role: '' });
+  const [savingContact, setSavingContact] = React.useState(false);
+  const contacts = (app.support_contacts || []) as SupportContactRow[];
+  const accessOptions = byField.accessMethod || [];
+  const horizontalRowSx = { display: 'grid', gridTemplateColumns: '140px minmax(0, 1fr)', columnGap: '18px', alignItems: 'center' } as const;
+  const horizontalLabelSx = { pt: '3px' } as const;
+
+  const replaceContacts = React.useCallback(async (nextContacts: SupportContactRow[]) => {
+    await api.post(`/applications/${app.id}/support-contacts/bulk-replace`, {
+      contacts: nextContacts
+        .filter((item) => item.contact_id)
+        .map((item) => ({ contact_id: item.contact_id, role: item.role || null })),
+    });
+    await onRefresh();
+  }, [app.id, onRefresh]);
+
+  const addContact = React.useCallback(async () => {
+    if (!contactDraft.contact_id) return;
+    setSavingContact(true);
+    try {
+      await replaceContacts([...contacts, { contact_id: contactDraft.contact_id, role: contactDraft.role || null }]);
+      setContactDialogOpen(false);
+      setContactDraft({ contact_id: null, role: '' });
+    } finally {
+      setSavingContact(false);
+    }
+  }, [contactDraft, contacts, replaceContacts]);
+
+  const removeContact = React.useCallback(async (row: SupportContactRow) => {
+    await replaceContacts(contacts.filter((item) => item !== row));
+  }, [contacts, replaceContacts]);
+
+  return (
+    <Stack spacing={3.75}>
+      <Box>
+        <SectionLabel>Technical</SectionLabel>
+        <Stack spacing={1.5} sx={{ mt: 1.25 }}>
+          <PropertyRow label="Access methods" sx={horizontalRowSx} labelSx={horizontalLabelSx} valueSx={{ maxWidth: 360 }}>
+            <Autocomplete
+              multiple
+              options={accessOptions}
+              value={accessOptions.filter((option) => (app.access_methods || []).includes(option.code))}
+              onChange={(_, value) => { void onPatch({ access_methods: value.map((item) => item.code) } as Partial<ApplicationDetail>); }}
+              getOptionLabel={(option) => option.label}
+              disabled={!canManage}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  variant="standard"
+                  placeholder={(app.access_methods || []).length === 0 ? 'Not assigned' : undefined}
+                  InputProps={{ ...params.InputProps, disableUnderline: true }}
+                  sx={drawerFieldValueSx}
+                />
+              )}
+              ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+              sx={[drawerFieldValueSx, { width: '100%' }]}
+            />
+          </PropertyRow>
+
+          <Stack spacing={0.9} sx={{ pt: 0.5 }}>
+            {[
+              ['external_facing', 'External facing'],
+              ['etl_enabled', 'Data integration / ETL'],
+              ['is_suite', 'Can have child apps'],
+            ].map(([field, label]) => (
+              <Box component="label" key={field} sx={(theme) => ({ display: 'flex', gap: '8px', alignItems: 'center', fontSize: 13, color: theme.palette.kanap.text.primary })}>
+                <input
+                  type="checkbox"
+                  checked={!!(app as any)[field]}
+                  disabled={!canManage}
+                  onChange={(event) => { void onPatch({ [field]: event.target.checked } as Partial<ApplicationDetail>); }}
+                  style={{ accentColor: 'var(--kanap-teal)' }}
+                />
+                {label}
+              </Box>
+            ))}
+          </Stack>
         </Stack>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <IconButton
-            aria-label={t('common.previous')}
-            title={t('common.previous')}
-            onClick={() => confirmAndNavigate(prevId)}
-            disabled={!hasPrev}
-            size="small"
-          >
-            <ArrowBackIcon />
-          </IconButton>
-          <IconButton
-            aria-label={t('common.next')}
-            title={t('common.next')}
-            onClick={() => confirmAndNavigate(nextId)}
-            disabled={!hasNext}
-            size="small"
-          >
-            <ArrowForwardIcon />
-          </IconButton>
-          <Button onClick={handleReset} disabled={!dirty}>{t('common:buttons.reset')}</Button>
-          <Button variant="contained" onClick={() => void handleSave()} disabled={!dirty}>{t('common:buttons.save')}</Button>
-          {!isCreate && (
-            <Button
-              variant="outlined"
-              onClick={() => setVersionDialogOpen(true)}
-              disabled={dirty}
-              title={dirty ? 'Save changes before creating a new version' : undefined}
-            >
-              Create New Version
+      </Box>
+
+      <Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <SectionLabel>Support</SectionLabel>
+          <Box sx={{ flex: 1 }} />
+          {canManage && (
+            <Button variant="action" size="small" onClick={() => setContactDialogOpen(true)}>
+              Add contact
             </Button>
           )}
-          <IconButton onClick={async () => {
-            if (dirty) {
-              const save = window.confirm(t('confirmations.unsavedSave'));
-              if (save) { try { await handleSave(); } catch {} }
-            }
-            const qs = searchParams.toString();
-            navigate(`/it/applications${qs ? `?${qs}` : ''}`);
-          }} title={t('common.close')}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-      </Stack>
-
-      {!!error && <Alert severity="error">{error}</Alert>}
-      {!!saveError && <Alert severity="error" sx={{ mt: 1 }}>{saveError}</Alert>}
-      <Divider sx={{ mb: 2 }} />
-
-      <Box sx={{ display: 'flex', minHeight: 420 }}>
-        <Tabs orientation="vertical" value={tab} onChange={async (_, v) => {
-          if (dirty) {
-            const save = window.confirm(t('confirmations.unsavedSave'));
-            if (save) { try { await handleSave(); } catch {} }
-          }
-          const qs = searchParams.toString();
-          navigate(`/it/applications/${id}/${v}${qs ? `?${qs}` : ''}`);
-        }} sx={{ borderRight: 1, borderColor: 'divider', minWidth: 180 }}>
-          <Tab label="Overview" value="overview" />
-          <Tab label="Instances" value="instances" disabled={isCreate} />
-          <Tab label="Servers" value="servers" disabled={isCreate} />
-          <Tab label="Interfaces" value="interfaces" disabled={isCreate} />
-          <Tab label="Ownership & Audience" value="ownership" disabled={isCreate} />
-          <Tab label="Technical & Support" value="technical" disabled={isCreate} />
-          <Tab label="Relations" value="relations" disabled={isCreate} />
-          <Tab label="Knowledge" value="knowledge" disabled={isCreate} />
-          <Tab label="Compliance" value="compliance" disabled={isCreate} />
-        </Tabs>
-
-        <Box sx={{ flex: 1, pl: 3 }}>
-          {tab === 'overview' && (
-            isCreate ? (
-              <ApplicationCreateEditor ref={createRef} onDirtyChange={setDirty} />
-            ) : (
-              <Stack spacing={2}>
-                {lineage && (lineage.predecessors.length > 0 || lineage.successors.length > 0) && (
-                  <VersionTimeline
-                    predecessors={lineage.predecessors}
-                    current={lineage.current}
-                    successors={lineage.successors}
-                  />
-                )}
-                <TextField label="Name" value={data?.name || ''} onChange={(e) => update({ name: e.target.value })} required fullWidth />
-                <TextField label="Description" value={data?.description || ''} onChange={(e) => update({ description: e.target.value })} fullWidth />
-                <EnumAutocomplete
-                  label="Category"
-                  value={data?.category || 'line_of_business'}
-                  onChange={(v) => update({ category: v })}
-                  options={byField.applicationCategory.filter((o) => !o.deprecated).map((o) => ({ label: o.label, value: o.code }))}
-                  required
-                />
-                <SupplierSelect label="Supplier" value={data?.supplier_id || null} onChange={(v) => update({ supplier_id: v })} />
-                <TextField label="Publisher" value={data?.editor || ''} onChange={(e) => update({ editor: e.target.value })} fullWidth />
-                <EnumAutocomplete
-                  label="Criticality"
-                  value={data?.criticality || 'medium'}
-                  onChange={(v) => update({ criticality: v })}
-                  options={[
-                    { label: 'Business critical', value: 'business_critical' },
-                    { label: 'High', value: 'high' },
-                    { label: 'Medium', value: 'medium' },
-                    { label: 'Low', value: 'low' },
-                  ]}
-                  required
-                />
-                <EnumAutocomplete
-                  label="Lifecycle"
-                  value={data?.lifecycle || 'active'}
-                  onChange={(v) => update({ lifecycle: v })}
-                  options={lifecycleOptions}
-                  required
-                />
-                <FormControlLabel control={<Checkbox checked={!!data?.is_suite} onChange={(e) => update({ is_suite: e.target.checked })} disabled={hasParentSuite} />} label="Can have child apps" />
-                {hasParentSuite && (
-                  <Typography variant="caption" color="text.secondary">
-                    This setting is disabled because the application belongs to a suite. Remove the parent suite under the Relations tab to re‑enable it.
-                  </Typography>
-                )}
-
-                <Divider sx={{ my: 1 }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Version Information</Typography>
-                <TextField
-                  label="Version"
-                  value={data?.version || ''}
-                  onChange={(e) => update({ version: e.target.value })}
-                  fullWidth
-                  placeholder="e.g., 4.2.1, 2023, Q1 2024"
-                  size="small"
-                />
-                <DateEUField label="Go Live Date" valueYmd={data?.go_live_date || ''} onChangeYmd={(v) => update({ go_live_date: v })} />
-                <DateEUField label="End of Support" valueYmd={data?.end_of_support_date || ''} onChangeYmd={(v) => update({ end_of_support_date: v })} />
-                <DateEUField label="Retired Date" valueYmd={data?.retired_date || ''} onChangeYmd={(v) => update({ retired_date: v })} />
-                <Divider sx={{ my: 1 }} />
-
-                <TextField label="Licensing" value={data?.licensing || ''} onChange={(e) => update({ licensing: e.target.value })} fullWidth multiline minRows={3} />
-                <TextField label="Notes" value={data?.notes || ''} onChange={(e) => update({ notes: e.target.value })} multiline minRows={3} fullWidth />
-              </Stack>
-            )
-          )}
-          {tab === 'ownership' && !isCreate && (
-            <OwnersAudienceEditor data={data} update={update} markDirty={() => setDirty(true)} />
-          )}
-          {tab === 'technical' && !isCreate && (
-            <Stack spacing={3}>
-              <Stack spacing={2}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Technical information</Typography>
-                <Autocomplete
-                  multiple
-                  options={suiteOptions}
-                  value={suites}
-                  getOptionLabel={(o) => o.name}
-                  onChange={(_, v) => { setSuites(v as any); setDirty(true); }}
-                  renderOption={(props, option) => (
-                    <li {...props} key={option.id}>{option.name}</li>
-                  )}
-                  renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip {...getTagProps({ index })} key={option.id} label={option.name} />
-                    ))
-                  }
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Suites"
-                      placeholder="Select suites this application belongs to"
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  )}
-                  isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
-                  filterSelectedOptions
-                  fullWidth
-                />
-                <Autocomplete
-                  multiple
-                  options={(() => {
-                    const list = byField.accessMethod || [];
-                    const currentCodes = data?.access_methods || [];
-                    // Include non-deprecated options and any deprecated options that are currently selected
-                    return list
-                      .filter((o) => !o.deprecated || currentCodes.includes(o.code))
-                      .map((o) => ({
-                        value: o.code,
-                        label: o.deprecated ? `${o.label} (deprecated)` : o.label,
-                      }));
-                  })()}
-                  value={(() => {
-                    const list = byField.accessMethod || [];
-                    const currentCodes = data?.access_methods || [];
-                    return currentCodes.map((code: string) => {
-                      const found = list.find((o) => o.code === code);
-                      return {
-                        value: code,
-                        label: found ? (found.deprecated ? `${found.label} (deprecated)` : found.label) : code,
-                      };
-                    });
-                  })()}
-                  getOptionLabel={(o) => o.label}
-                  onChange={(_, v) => { update({ access_methods: v.map((opt) => opt.value) }); }}
-                  renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip {...getTagProps({ index })} key={option.value} label={option.label} />
-                    ))
-                  }
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Access Methods"
-                      placeholder="Select how this application is accessed"
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  )}
-                  isOptionEqualToValue={(opt, val) => opt.value === val.value}
-                  filterSelectedOptions
-                  fullWidth
-                />
-                <FormControlLabel control={<Checkbox checked={!!data?.external_facing} onChange={(e) => update({ external_facing: e.target.checked })} />} label="External Facing" />
-                <FormControlLabel control={<Checkbox checked={!!data?.etl_enabled} onChange={(e) => update({ etl_enabled: e.target.checked })} />} label="Data Integration / ETL" />
-              </Stack>
-
-              <Divider />
-
-              <Stack spacing={1}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Support Information</Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button startIcon={<AddIcon />} onClick={addSupportRow} size="small">Add contact</Button>
-                </Box>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Contact</TableCell>
-                      <TableCell>Email</TableCell>
-                      <TableCell>Phone</TableCell>
-                      <TableCell>Mobile</TableCell>
-                      <TableCell>Role</TableCell>
-                      <TableCell />
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {supportContacts.map((row, idx) => (
-                      <TableRow key={row.id || idx}>
-                        <TableCell sx={{ minWidth: 260 }}>
-                          <ContactSelect value={row.contact_id} onChange={(v) => void setSupportRowContact(idx, v)} showEmail={false} />
-                        </TableCell>
-                        <TableCell>{row.contact?.email || '—'}</TableCell>
-                        <TableCell>{row.contact?.phone || '—'}</TableCell>
-                        <TableCell>{row.contact?.mobile || '—'}</TableCell>
-                        <TableCell sx={{ minWidth: 180 }}>
-                          <TextField value={row.role} onChange={(e) => setSupportRowRole(idx, e.target.value)} size="small" placeholder="Role" fullWidth />
-                        </TableCell>
-                        <TableCell width={48}>
-                          {supportContacts.length > 0 && (
-                            <IconButton aria-label={t('common.remove')} size="small" onClick={() => removeSupportRow(idx)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <Box sx={{ height: 16 }} />
-
-                <TextField
-                  label="Support notes"
-                  value={data?.support_notes || ''}
-                  onChange={(e) => update({ support_notes: e.target.value })}
-                  multiline
-                  minRows={3}
-                  fullWidth
-                />
-              </Stack>
-            </Stack>
-          )}
-          {tab === 'instances' && !isCreate && (
-            <InstancesEditor
-              applicationId={id}
-              instances={(data?.instances || []) as any}
-              onRefresh={reload}
-            />
-          )}
-          {tab === 'servers' && !isCreate && (
-            <ServerAssignmentsEditor
-              applicationId={id}
-              instances={(data?.instances || []) as any}
-              onRefreshInstances={reload}
-            />
-          )}
-          {tab === 'interfaces' && !isCreate && (
-            <Stack spacing={2}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                Interfaces
-              </Typography>
-              {interfacesLoading && (
-                <Typography variant="body2" color="text.secondary">
-                  Loading interfaces…
-                </Typography>
-              )}
-              {interfacesError && (
-                <Alert severity="error">{interfacesError}</Alert>
-              )}
-              {!interfacesLoading && !interfacesError && Object.keys(interfacesByEnv).length === 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  No interfaces found for this application.
-                </Typography>
-              )}
-              {!interfacesLoading && !interfacesError && Object.keys(interfacesByEnv).length > 0 && (
-                <Stack spacing={2}>
-                  {ENV_ORDER.filter((env) => interfacesByEnv[env]?.length > 0).map((env) => (
-                    <Box key={env}>
-                      <Typography variant="subtitle2" sx={{ mb: 1 }}>{env.toUpperCase()}</Typography>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell width="34%" align="left">Interface Name</TableCell>
-                            <TableCell width="28%" align="left">Source Application</TableCell>
-                            <TableCell width="28%" align="left">Target Application</TableCell>
-                            <TableCell width="10%" align="left">Via middleware</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {interfacesByEnv[env].map((row) => (
-                            <TableRow key={`${row.id}-${env}`} hover>
-                              <TableCell align="left">
-                                <Button
-                                  size="small"
-                                  onClick={() => navigate(`/it/interfaces/${row.id}/specification`)}
-                                  sx={{ justifyContent: 'flex-start', textAlign: 'left', padding: 0, minWidth: 0, textTransform: 'none' }}
-                                >
-                                  {row.name || '—'}
-                                </Button>
-                              </TableCell>
-                              <TableCell align="left">
-                                {row.source_application_id ? (
-                                  <Button
-                                    size="small"
-                                    onClick={() => navigate(`/it/applications/${row.source_application_id}/overview`)}
-                                    sx={{ justifyContent: 'flex-start', textAlign: 'left', padding: 0, minWidth: 0, textTransform: 'none' }}
-                                  >
-                                    {row.source_application_name || row.source_application_id}
-                                  </Button>
-                                ) : (
-                                  <Typography variant="body2" color="text.secondary">—</Typography>
-                                )}
-                              </TableCell>
-                              <TableCell align="left">
-                                {row.target_application_id ? (
-                                  <Button
-                                    size="small"
-                                    onClick={() => navigate(`/it/applications/${row.target_application_id}/overview`)}
-                                    sx={{ justifyContent: 'flex-start', textAlign: 'left', padding: 0, minWidth: 0, textTransform: 'none' }}
-                                  >
-                                    {row.target_application_name || row.target_application_id}
-                                  </Button>
-                                ) : (
-                                  <Typography variant="body2" color="text.secondary">—</Typography>
-                                )}
-                              </TableCell>
-                              <TableCell align="left">
-                                <Typography variant="body2">{row.via_middleware ? t('enums.yesNo.yes') : t('enums.yesNo.no')}</Typography>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+        </Box>
+        <Table size="small" sx={(theme) => ({
+          '& th': { fontSize: 11, fontWeight: 500, color: theme.palette.kanap.text.tertiary, borderBottom: `1px solid ${theme.palette.kanap.border.default}` },
+          '& td': { fontSize: 13, color: theme.palette.kanap.text.primary, borderBottom: `1px solid ${theme.palette.kanap.border.soft}` },
+          '& tbody tr:hover': { bgcolor: theme.palette.kanap.bg.hover },
+          '& .hover-actions': { opacity: 0, transition: 'opacity 120ms' },
+          '& tbody tr:hover .hover-actions': { opacity: 1 },
+        })}>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ width: 140 }}>Contact</TableCell>
+              <TableCell sx={{ width: 180 }}>Email</TableCell>
+              <TableCell sx={{ width: 130 }}>Phone</TableCell>
+              <TableCell>Role</TableCell>
+              {canManage && <TableCell align="right" sx={{ width: 52 }} />}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {contacts.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={canManage ? 5 : 4} sx={(theme) => ({ color: `${theme.palette.kanap.text.tertiary} !important` })}>
+                  No support contacts.
+                </TableCell>
+              </TableRow>
+            )}
+            {contacts.map((row, index) => (
+              <TableRow key={row.id || `${row.contact_id}:${index}`}>
+                <TableCell>{contactName(row)}</TableCell>
+                <TableCell>{row.contact?.email || '—'}</TableCell>
+                <TableCell sx={{ fontFamily: MONO_FONT_FAMILY, fontSize: '12px !important' }}>{contactPhone(row) || '—'}</TableCell>
+                <TableCell sx={!row.role ? (theme) => ({ color: `${theme.palette.kanap.text.tertiary} !important` }) : undefined}>{row.role || '—'}</TableCell>
+                {canManage && (
+                  <TableCell align="right">
+                    <Box className="hover-actions">
+                      <IconButton aria-label={`Remove ${contactName(row)}`} size="small" onClick={() => { void removeContact(row); }}>
+                        <DeleteIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
                     </Box>
-                  ))}
-                </Stack>
-              )}
-            </Stack>
-          )}
-          {tab === 'relations' && !isCreate && (
-            <ApplicationRelationsPanel ref={relationsRef} id={id} isSuite={!!data?.is_suite} onDirtyChange={(dirty) => dirty && setDirty(true)} />
-          )}
-          {tab === 'knowledge' && !isCreate && (
-            <EntityKnowledgePanel entityType="applications" entityId={id} canCreate={canCreateKnowledge} />
-          )}
-          {tab === 'compliance' && !isCreate && (
-            <ComplianceEditor ref={complianceRef} onDirtyChange={(dirty) => dirty && setDirty(true)} />
-          )}
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        <Box sx={{ mt: 2.25 }}>
+          <SectionLabel>Support notes</SectionLabel>
+          <TextField
+            value={app.support_notes || ''}
+            onChange={(event) => { void onPatch({ support_notes: event.target.value || null }); }}
+            variant="standard"
+            fullWidth
+            multiline
+            minRows={5}
+            disabled={!canManage}
+            InputProps={{ disableUnderline: true }}
+            placeholder="Add support notes..."
+            sx={(theme) => ({
+              ...drawerFieldValueSx,
+              mt: 1,
+              border: `1px solid ${theme.palette.kanap.border.soft}`,
+              borderRadius: '6px',
+              px: 1.25,
+              py: 1,
+              '&:focus-within': { borderColor: theme.palette.kanap.border.default },
+            })}
+          />
         </Box>
       </Box>
 
-      {/* Create Version Dialog */}
-      {data && (
+      <KanapDialog
+        open={contactDialogOpen}
+        title="New support contact"
+        onClose={() => setContactDialogOpen(false)}
+        onSave={addContact}
+        saveDisabled={!contactDraft.contact_id}
+        saveLoading={savingContact}
+      >
+        <Stack spacing={1.25}>
+          <PropertyRow label="Contact" required>
+            <ContactSelect
+              value={contactDraft.contact_id}
+              onChange={(value) => setContactDraft((prev) => ({ ...prev, contact_id: value }))}
+              onContactChange={(contact) => setContactDraft({
+                contact_id: contact?.id || null,
+                role: contact?.job_title || '',
+              })}
+              compactOptions
+              groupByCompany={false}
+              hideLabel
+              textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+            />
+          </PropertyRow>
+          <PropertyRow label="Role">
+            <TextField
+              value={contactDraft.role}
+              onChange={(event) => setContactDraft((prev) => ({ ...prev, role: event.target.value }))}
+              variant="standard"
+              fullWidth
+              InputProps={{ disableUnderline: true }}
+              sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+            />
+          </PropertyRow>
+        </Stack>
+      </KanapDialog>
+    </Stack>
+  );
+}
+
+function ComplianceTab({
+  app,
+  canManage,
+  onPatch,
+  onRefresh,
+}: {
+  app: ApplicationDetail;
+  canManage: boolean;
+  onPatch: (patch: Partial<ApplicationDetail>) => Promise<void>;
+  onRefresh: () => Promise<void>;
+}) {
+  const { byField } = useItOpsEnumOptions();
+  const residencyCodes = (app.data_residency || []).map((row) => row.country_iso);
+  const selectedCountries = COUNTRY_OPTIONS.filter((option) => residencyCodes.includes(option.code));
+  const horizontalRowSx = { display: 'grid', gridTemplateColumns: '160px minmax(0, 1fr)', columnGap: '18px', alignItems: 'center' } as const;
+  const horizontalLabelSx = { pt: '3px' } as const;
+  const compactValueSx = { maxWidth: 360 } as const;
+
+  return (
+    <Box>
+      <Stack spacing={1.35}>
+        <PropertyRow label="Data class" required sx={horizontalRowSx} labelSx={horizontalLabelSx} valueSx={compactValueSx}>
+          <Select
+            value={app.data_class || 'internal'}
+            onChange={(event) => { void onPatch({ data_class: event.target.value }); }}
+            variant="standard"
+            disableUnderline
+            disabled={!canManage}
+            sx={drawerSelectSx}
+          >
+            {(byField.dataClass || []).map((option) => (
+              <MenuItem key={option.code} value={option.code} sx={drawerMenuItemSx}>{option.label}</MenuItem>
+            ))}
+          </Select>
+        </PropertyRow>
+        <PropertyRow label="Last DR test" sx={horizontalRowSx} labelSx={horizontalLabelSx} valueSx={compactValueSx}>
+          <DateEUField label="" valueYmd={app.last_dr_test || ''} onChangeYmd={(value) => { void onPatch({ last_dr_test: value || null }); }} size="small" disabled={!canManage} hideLabel textFieldSx={drawerFieldValueSx} />
+        </PropertyRow>
+        <PropertyRow label="Contains PII" sx={horizontalRowSx} labelSx={horizontalLabelSx} valueSx={compactValueSx}>
+          <Box component="label" sx={{ display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+            <input
+              type="checkbox"
+              checked={!!app.contains_pii}
+              disabled={!canManage}
+              onChange={(event) => { void onPatch({ contains_pii: event.target.checked }); }}
+              style={{ accentColor: 'var(--kanap-teal)' }}
+            />
+          </Box>
+        </PropertyRow>
+        <PropertyRow label="Data residency" sx={horizontalRowSx} labelSx={horizontalLabelSx} valueSx={compactValueSx}>
+          <Autocomplete
+            multiple
+            options={COUNTRY_OPTIONS}
+            value={selectedCountries}
+            onChange={(_, value) => {
+              void (async () => {
+                await api.post(`/applications/${app.id}/data-residency/bulk-replace`, { countries: value.map((item) => item.code) });
+                await onRefresh();
+              })();
+            }}
+            getOptionLabel={(option) => `${option.code} — ${option.name}`}
+            disabled={!canManage}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                variant="standard"
+                placeholder={selectedCountries.length === 0 ? 'Not set' : undefined}
+                InputProps={{ ...params.InputProps, disableUnderline: true }}
+                sx={drawerFieldValueSx}
+              />
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            sx={[drawerFieldValueSx, { width: '100%' }]}
+          />
+        </PropertyRow>
+      </Stack>
+      {/*
+        TODO(NIS2): extend this tab with:
+          - Risk register (collection of related Risks)
+          - Audit log (last 5 audit events with date + actor + outcome)
+          - Certifications (chips: ISO 27001, SOC 2, HDS, etc. with expiry date)
+          - Exemption documentation (rich text + linked managed docs)
+          - DPIA reference (link to managed doc)
+          - Last NIS2 self-assessment date
+        Keep the section structure flat — divider-separated sub-sections, no accordions.
+      */}
+    </Box>
+  );
+}
+
+export default function ApplicationWorkspacePage() {
+  const theme = useTheme();
+  const navigate = useNavigate();
+  const params = useParams();
+  const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { hasLevel } = useAuth();
+  const { byField } = useItOpsEnumOptions();
+
+  const routeId = String(params.id || '');
+  const isCreate = routeId === 'new';
+  const routeTab = React.useMemo<TabKey>(() => {
+    const rawTab = params.tab as string | undefined;
+    if (VALID_TABS.has(rawTab as TabKey)) return rawTab as TabKey;
+    if (rawTab === 'instances' || rawTab === 'servers') return 'deployments';
+    if (rawTab === 'technical') return 'operations';
+    if (rawTab === 'business' || rawTab === 'knowledge') return 'relations';
+    return 'overview';
+  }, [params.tab]);
+  const canManage = hasLevel('applications', 'member');
+  const canDelete = hasLevel('applications', 'admin');
+  const canCreateKnowledge = hasLevel('knowledge', 'member');
+  const overviewEditorRef = React.useRef<IntegratedDocumentEditorHandle>(null);
+  const createRef = React.useRef<ApplicationCreateEditorHandle>(null);
+  const [versionDialogOpen, setVersionDialogOpen] = React.useState(false);
+  const [savingCreate, setSavingCreate] = React.useState(false);
+  const [createDirty, setCreateDirty] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const listContextParams = React.useMemo(() => new URLSearchParams(searchParams), [searchParams]);
+  const sort = searchParams.get('sort') || 'name:ASC';
+  const q = searchParams.get('q') || '';
+  const filters = searchParams.get('filters') || '';
+
+  const appQuery = useAppData(routeId, !isCreate && !!routeId);
+  const app = appQuery.data || null;
+  const nav = useApplicationNav({ id: app?.id || routeId, sort, q, filters });
+
+  const interfacesQuery = useQuery({
+    queryKey: ['application-workspace-interfaces', app?.id],
+    queryFn: async () => {
+      const res = await api.get<{ items: InterfaceMiniRow[] }>(`/interfaces/by-application/${app?.id}`);
+      return res.data.items || [];
+    },
+    enabled: !!app?.id,
+  });
+
+  const connections = React.useMemo(
+    () => app ? computeConnections(app, interfacesQuery.data || []) : { type: 'none' } as ConnectionsResult,
+    [app, interfacesQuery.data],
+  );
+
+  React.useEffect(() => {
+    if (!app?.sequential_id || isCreate) return;
+    const canonicalBase = `${app.sequential_id}-${slugify(app.name)}`;
+    if (routeId === canonicalBase || routeId === app.sequential_id) return;
+    const qs = searchParams.toString();
+    navigate(`/it/applications/${canonicalBase}/${routeTab}${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [app?.name, app?.sequential_id, isCreate, navigate, routeId, routeTab, searchParams]);
+
+  const closeWorkspace = React.useCallback(() => {
+    const qs = listContextParams.toString();
+    navigate(`/it/applications${qs ? `?${qs}` : ''}`);
+  }, [listContextParams, navigate]);
+
+  const canonicalPathFor = React.useCallback((targetId: string, tab: TabKey = routeTab) => {
+    const qs = listContextParams.toString();
+    return `/it/applications/${targetId}/${tab}${qs ? `?${qs}` : ''}`;
+  }, [listContextParams, routeTab]);
+
+  const handleTabChange = React.useCallback((nextTab: string) => {
+    const canonical = app?.sequential_id ? `${app.sequential_id}-${slugify(app.name)}` : routeId;
+    navigate(canonicalPathFor(canonical, nextTab as TabKey));
+  }, [app?.name, app?.sequential_id, canonicalPathFor, navigate, routeId]);
+
+  const updateApplicationCache = React.useCallback((updater: (prev: ApplicationDetail) => ApplicationDetail) => {
+    const keys = new Set<string>([routeId]);
+    if (app?.id) keys.add(app.id);
+    if (app?.sequential_id) {
+      keys.add(app.sequential_id);
+      keys.add(`${app.sequential_id}-${slugify(app.name)}`);
+    }
+    keys.forEach((key) => {
+      queryClient.setQueryData<ApplicationDetail>(['application-workspace', key], (prev) => (prev ? updater(prev) : prev));
+    });
+  }, [app?.id, app?.name, app?.sequential_id, queryClient, routeId]);
+
+  const patchApplication = React.useCallback(async (patch: Partial<ApplicationDetail>) => {
+    if (!app) return;
+    updateApplicationCache((prev) => ({ ...prev, ...patch }));
+    try {
+      const res = await api.patch<Partial<ApplicationDetail>>(`/applications/${app.id}`, patch);
+      updateApplicationCache((prev) => ({ ...prev, ...res.data }));
+    } catch (err) {
+      const res = await api.get<ApplicationDetail>(`/applications/${app.id}`, { params: { include: 'deployments,support' } });
+      updateApplicationCache(() => res.data);
+      throw err;
+    }
+  }, [app, updateApplicationCache]);
+
+  const handleCreate = React.useCallback(async () => {
+    setSavingCreate(true);
+    setError(null);
+    try {
+      const newId = await createRef.current?.save();
+      if (newId) {
+        navigate(`/it/applications/${newId}/overview${searchParams.toString() ? `?${searchParams.toString()}` : ''}`);
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to create application');
+    } finally {
+      setSavingCreate(false);
+    }
+  }, [navigate, searchParams]);
+
+  const lifecycleOptions = React.useMemo(() => {
+    const list = byField.lifecycleStatus || [];
+    return list.map((option) => ({
+      value: option.code,
+      label: option.label,
+      color: getDotColor(LIFECYCLE_COLORS[option.code] || 'default', theme.palette.mode),
+    }));
+  }, [byField.lifecycleStatus, theme.palette.mode]);
+
+  const criticalityOptions = React.useMemo(() => [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'business_critical', label: 'Business critical' },
+  ].map((option) => ({
+    ...option,
+    color: getDotColor(CRITICALITY_COLORS[option.value] || 'default', theme.palette.mode),
+  })), [theme.palette.mode]);
+
+  if (!isCreate && appQuery.isLoading && !app) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <LinearProgress sx={{ mb: 2 }} />
+        <Typography variant="body2" color="text.secondary">Loading application...</Typography>
+      </Box>
+    );
+  }
+
+  if (!isCreate && (appQuery.error || !app)) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Alert severity="error">Application not found.</Alert>
+      </Box>
+    );
+  }
+
+  const appReference = app?.sequential_id || null;
+  const deployments = app?.deployments || app?.instances || [];
+  const deploymentCount = deployments.length;
+  const interfaceCount = interfacesQuery.data?.length || 0;
+  const tabs = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'deployments', label: 'Deployments', badge: deploymentCount, disabled: isCreate },
+    { key: 'interfaces', label: 'Interfaces', badge: interfaceCount, disabled: isCreate },
+    { key: 'operations', label: 'Operations', disabled: isCreate },
+    { key: 'compliance', label: 'Compliance', disabled: isCreate },
+    { key: 'relations', label: 'Relations', disabled: isCreate },
+  ];
+
+  return (
+    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {!!error && <Alert severity="error" sx={{ mx: 2, mt: 1 }}>{error}</Alert>}
+      {!!appQuery.error && <Alert severity="error" sx={{ mx: 2, mt: 1 }}>Failed to load application.</Alert>}
+
+      <PortfolioDetailWorkspaceShell
+        activeTab={routeTab}
+        tabs={tabs}
+        onTabChange={handleTabChange}
+        drawerStorageKey="kanap.applications.drawerOpen"
+        backLabel="Applications"
+        onBack={closeWorkspace}
+        itemReference={appReference}
+        onCopyReference={appReference ? () => { void navigator.clipboard?.writeText(appReference); } : undefined}
+        title={isCreate ? '' : app?.name || ''}
+        titleFallback={isCreate ? 'New application' : 'Untitled application'}
+        canEditTitle={isCreate || canManage}
+        onTitleSave={(value) => { void patchApplication({ name: value }); }}
+        nav={!isCreate && nav.total > 0 ? {
+          currentIndex: nav.index + 1,
+          totalCount: nav.total,
+          hasPrev: nav.hasPrev,
+          hasNext: nav.hasNext,
+          onPrev: () => { if (nav.prevId) navigate(canonicalPathFor(nav.prevId)); },
+          onNext: () => { if (nav.nextId) navigate(canonicalPathFor(nav.nextId)); },
+          previousLabel: 'Previous application',
+          nextLabel: 'Next application',
+        } : undefined}
+        onSaveShortcut={() => { void overviewEditorRef.current?.save(); }}
+        metadata={!isCreate && app ? (
+          <>
+            <PortfolioStatusMetadata
+              value={app.lifecycle || 'active'}
+              label={humanize(app.lifecycle)}
+              color={getDotColor(LIFECYCLE_COLORS[app.lifecycle] || 'default', theme.palette.mode)}
+              options={lifecycleOptions}
+              onChange={(value) => { void patchApplication({ lifecycle: value }); }}
+              disabled={!canManage}
+            />
+            <PortfolioStatusMetadata
+              value={app.criticality || 'medium'}
+              label={humanize(app.criticality)}
+              color={getDotColor(CRITICALITY_COLORS[app.criticality] || 'default', theme.palette.mode)}
+              options={criticalityOptions}
+              onChange={(value) => { void patchApplication({ criticality: value }); }}
+              disabled={!canManage}
+            />
+            {app.version && (
+              <PortfolioMetadataItem mono onClick={() => { void navigator.clipboard?.writeText(app.version || ''); }}>
+                v{app.version}
+              </PortfolioMetadataItem>
+            )}
+            <PortfolioMetadataItem label="Go live">
+              {formatShortDate(app.go_live_date)}
+            </PortfolioMetadataItem>
+          </>
+        ) : undefined}
+        actions={(
+          <>
+            {!isCreate && (
+              <Button variant="action" onClick={() => setVersionDialogOpen(true)} size="small">
+                Create new version
+              </Button>
+            )}
+            {isCreate && (
+              <Button variant="contained" onClick={() => void handleCreate()} disabled={!createDirty || savingCreate} size="small">
+                Create
+              </Button>
+            )}
+            {!isCreate && canDelete && (
+              <Button variant="action-danger" startIcon={<DeleteIcon sx={{ fontSize: '14px !important' }} />} size="small">
+                Delete
+              </Button>
+            )}
+            <IconButton aria-label="Close" title="Close" onClick={closeWorkspace} size="small">
+              <CloseIcon />
+            </IconButton>
+          </>
+        )}
+        properties={app ? (
+          <ApplicationProperties
+            app={app}
+            canManage={canManage}
+            onPatch={(patch) => { void patchApplication(patch); }}
+            onLocalUpdate={updateApplicationCache}
+          />
+        ) : <Box />}
+      >
+        {appQuery.isFetching && !isCreate && <LinearProgress sx={{ mb: 2 }} />}
+
+        {isCreate && routeTab === 'overview' && (
+          <ApplicationCreateEditor ref={createRef} onDirtyChange={setCreateDirty} />
+        )}
+
+        {!isCreate && app && routeTab === 'overview' && (
+          <OverviewTab
+            app={app}
+            canEditManagedDocs={canManage}
+            canCreateKnowledge={canCreateKnowledge}
+            editorRef={overviewEditorRef}
+            connections={connections}
+            onOpenApplication={(appId) => navigate(canonicalPathFor(appId, 'overview'))}
+            onShowInterfaces={() => handleTabChange('interfaces')}
+          />
+        )}
+
+        {!isCreate && app && routeTab === 'deployments' && (
+          <DeploymentsEditor applicationId={app.id} deployments={deployments as any} onRefresh={async () => { await appQuery.refetch(); }} readOnly={!canManage} />
+        )}
+
+        {!isCreate && app && routeTab === 'interfaces' && (
+          <InterfacesTab
+            app={app}
+            rows={interfacesQuery.data || []}
+            loading={interfacesQuery.isLoading}
+            onOpenInterface={(id) => navigate(`/it/interfaces/${id}/specification`)}
+            onOpenApplication={(id) => navigate(canonicalPathFor(id, 'overview'))}
+          />
+        )}
+
+        {!isCreate && app && routeTab === 'operations' && (
+          <OperationsTab
+            app={app}
+            canManage={canManage}
+            onPatch={patchApplication}
+            onRefresh={async () => { await appQuery.refetch(); }}
+          />
+        )}
+
+        {!isCreate && app && routeTab === 'compliance' && (
+          <ComplianceTab
+            app={app}
+            canManage={canManage}
+            onPatch={patchApplication}
+            onRefresh={async () => { await appQuery.refetch(); }}
+          />
+        )}
+
+        {!isCreate && app && routeTab === 'relations' && (
+          <ApplicationRelationsPanel id={app.id} isSuite={!!app.is_suite} />
+        )}
+      </PortfolioDetailWorkspaceShell>
+
+      {app && (
         <CreateVersionDialog
           open={versionDialogOpen}
           onClose={() => setVersionDialogOpen(false)}
-          sourceApp={{ id, name: data.name, version: data.version }}
+          sourceApp={{ id: app.id, name: app.name, version: app.version }}
           onSuccess={(newApp) => {
             setVersionDialogOpen(false);
-            navigate(`/it/applications/${newApp.id}`);
+            navigate(`/it/applications/${newApp.id}/overview`);
           }}
         />
       )}

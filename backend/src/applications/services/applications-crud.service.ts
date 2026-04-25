@@ -20,6 +20,13 @@ import { ApplicationsBaseService, ServiceOpts } from './applications-base.servic
 import { validateUploadedFile } from '../../common/upload-validation';
 import { fixMulterFilename } from '../../common/upload';
 
+type OwnerQueryRow = ApplicationOwner & {
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  full_name?: string | null;
+};
+
 /**
  * Service for core CRUD operations on applications.
  */
@@ -39,30 +46,47 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
    */
   async get(id: string, opts?: ServiceOpts & { include?: string | string[] }) {
     const mg = this.getManager(opts);
+    const appId = await this.resolveApplicationIdentifier(id, mg);
     const includeRaw = Array.isArray(opts?.include) ? opts?.include.join(',') : String(opts?.include ?? '').trim();
     const include = new Set(includeRaw.split(',').map((s) => s.trim()).filter(Boolean));
-    const app = await mg.getRepository(Application).findOne({ where: { id } });
+    const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
     if (!app) throw new NotFoundException('Application not found');
-    const owners = await mg.getRepository(ApplicationOwner).find({ where: { application_id: id } as any });
-    const companies = await mg.getRepository(ApplicationCompany).find({ where: { application_id: id } as any });
-    const departments = await mg.getRepository(ApplicationDepartment).find({ where: { application_id: id } as any });
-    const links = await mg.getRepository(ApplicationLink).find({ where: { application_id: id } as any });
-    const attachments = await mg.getRepository(ApplicationAttachment).find({ where: { application_id: id } as any, order: { uploaded_at: 'DESC' as any } });
-    const data_residency = await mg.getRepository(ApplicationDataResidency).find({ where: { application_id: id } as any });
+    const owners = await mg.query(
+      `SELECT o.id,
+              o.tenant_id,
+              o.application_id,
+              o.user_id,
+              o.owner_type,
+              o.created_at,
+              u.email,
+              u.first_name,
+              u.last_name,
+              NULLIF(TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))), '') AS full_name
+       FROM application_owners o
+       LEFT JOIN users u ON u.id = o.user_id AND u.tenant_id = o.tenant_id
+       WHERE o.application_id = $1 AND o.tenant_id = $2
+       ORDER BY o.owner_type ASC, full_name ASC NULLS LAST, u.email ASC NULLS LAST, o.created_at ASC`,
+      [appId, app.tenant_id],
+    ).then((rows: OwnerQueryRow[]) => rows.map((row) => ({ ...row, full_name: row.full_name || row.email || row.user_id })));
+    const companies = await mg.getRepository(ApplicationCompany).find({ where: { application_id: appId } as any });
+    const departments = await mg.getRepository(ApplicationDepartment).find({ where: { application_id: appId } as any });
+    const links = await mg.getRepository(ApplicationLink).find({ where: { application_id: appId } as any });
+    const attachments = await mg.getRepository(ApplicationAttachment).find({ where: { application_id: appId } as any, order: { uploaded_at: 'DESC' as any } });
+    const data_residency = await mg.getRepository(ApplicationDataResidency).find({ where: { application_id: appId } as any });
     const includeSupport = include.has('support') || include.has('support_contacts') || include.has('supportContacts');
     let support_contacts: Array<{ id: string; contact_id: string; role: string | null; contact?: any }> = [];
     if (includeSupport) {
-      support_contacts = await this.listSupportContactsInternal(id, mg);
+      support_contacts = await this.listSupportContactsInternal(appId, mg);
     }
     const derived_total_users = await this.computeDerivedUsers(app.id, app.users_year, app.users_mode, { manager: mg });
     let instances: Array<any> = [];
-    if (include.has('instances')) {
+    if (include.has('instances') || include.has('deployments')) {
       instances = await mg.query(
         `SELECT id, application_id, environment, lifecycle, status, base_url, region, zone, notes, sso_enabled, mfa_supported, disabled_at, created_at, updated_at
          FROM app_instances
          WHERE application_id = $1
          ORDER BY environment ASC, created_at ASC`,
-        [id],
+        [appId],
       );
     }
     const result: any = { ...app, owners, companies, departments, links, attachments, data_residency, derived_total_users };
@@ -71,6 +95,9 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     }
     if (include.has('instances')) {
       result.instances = instances;
+    }
+    if (include.has('deployments')) {
+      result.deployments = instances;
     }
     return result;
   }
@@ -129,7 +156,8 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   async update(id: string, body: Partial<Application>, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
-    const existing = await this.get(id, { manager: mg });
+    const appId = await this.resolveApplicationIdentifier(id, mg);
+    const existing = await this.get(appId, { manager: mg });
     const before = { ...existing };
     const patch: any = { ...body };
     if (patch.last_dr_test !== undefined) patch.last_dr_test = patch.last_dr_test ? new Date(patch.last_dr_test as any) : null;
@@ -154,23 +182,26 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   async delete(id: string, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
-    const existing = await repo.findOne({ where: { id } });
+    const appId = await this.resolveApplicationIdentifier(id, mg);
+    const existing = await repo.findOne({ where: { id: appId } });
     if (!existing) return { ok: true };
-    await repo.delete({ id } as any);
-    await this.audit.log({ table: 'applications', recordId: id, action: 'delete', before: existing, after: null, userId }, { manager: mg });
+    await repo.delete({ id: appId } as any);
+    await this.audit.log({ table: 'applications', recordId: appId, action: 'delete', before: existing, after: null, userId }, { manager: mg });
     return { ok: true };
   }
 
   // Links
   async listLinks(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    return mg.getRepository(ApplicationLink).find({ where: { application_id: appId } as any, order: { created_at: 'DESC' as any } });
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    return mg.getRepository(ApplicationLink).find({ where: { application_id: resolvedAppId } as any, order: { created_at: 'DESC' as any } });
   }
 
   async createLink(appId: string, body: Partial<ApplicationLink>, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     const repo = mg.getRepository(ApplicationLink);
-    const entity = repo.create({ application_id: appId, description: body.description ?? null, url: String(body.url || '').trim() });
+    const entity = repo.create({ application_id: resolvedAppId, description: body.description ?? null, url: String(body.url || '').trim() });
     if (!entity.url) throw new BadRequestException('url is required');
     const saved = await repo.save(entity);
     await this.audit.log({ table: 'application_links', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager: mg });
@@ -179,9 +210,10 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
 
   async updateLink(appId: string, linkId: string, body: Partial<ApplicationLink>, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     const repo = mg.getRepository(ApplicationLink);
     const existing = await repo.findOne({ where: { id: linkId } });
-    if (!existing) throw new NotFoundException('Link not found');
+    if (!existing || existing.application_id !== resolvedAppId) throw new NotFoundException('Link not found');
     const before = { ...existing };
     if (body.description !== undefined) existing.description = body.description as any;
     if (body.url !== undefined) existing.url = String(body.url || '').trim();
@@ -192,9 +224,10 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
 
   async deleteLink(appId: string, linkId: string, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     const repo = mg.getRepository(ApplicationLink);
     const existing = await repo.findOne({ where: { id: linkId } });
-    if (!existing) return { ok: true };
+    if (!existing || existing.application_id !== resolvedAppId) return { ok: true };
     await repo.delete({ id: linkId } as any);
     await this.audit.log({ table: 'application_links', recordId: linkId, action: 'delete', before: existing, after: null, userId }, { manager: mg });
     return { ok: true };
@@ -203,11 +236,13 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   // Attachments
   async listAttachments(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    return mg.getRepository(ApplicationAttachment).find({ where: { application_id: appId } as any, order: { uploaded_at: 'DESC' as any } });
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    return mg.getRepository(ApplicationAttachment).find({ where: { application_id: resolvedAppId } as any, order: { uploaded_at: 'DESC' as any } });
   }
 
   async uploadAttachment(appId: string, file: Express.Multer.File, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     if (!file) throw new BadRequestException('No file uploaded');
     const tenant_id = await this.resolveTenantId(mg);
     const buf = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer as any);
@@ -221,10 +256,10 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     });
     const originalName = decodedName || `attachment${validated.extension}`;
     const stored = `${randomUUID()}_${originalName}`;
-    const key = path.posix.join('files', tenant_id, 'applications', appId, stored);
+    const key = path.posix.join('files', tenant_id, 'applications', resolvedAppId, stored);
     await this.storage.putObject({ key, body: buf as Buffer, contentType: validated.mimeType, contentLength: validated.size, sse: 'AES256' });
     const repo = mg.getRepository(ApplicationAttachment);
-    const saved = await repo.save(repo.create({ application_id: appId, original_filename: originalName, stored_filename: stored, mime_type: validated.mimeType || null, size: validated.size, storage_path: key }));
+    const saved = await repo.save(repo.create({ application_id: resolvedAppId, original_filename: originalName, stored_filename: stored, mime_type: validated.mimeType || null, size: validated.size, storage_path: key }));
     await this.audit.log({ table: 'application_attachments', recordId: (saved as any).id, action: 'create', before: null, after: saved, userId }, { manager: mg });
     return saved;
   }

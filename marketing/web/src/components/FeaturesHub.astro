@@ -1,11 +1,19 @@
 ---
+/**
+ * FeaturesHub — role-based scenario page.
+ *
+ * Each persona is rendered as an alternating split-row: a placeholder
+ * screenshot on one side, a story block on the other. The story block
+ * carries the role label, headline, narrative, an outcome callout
+ * (teal-bordered), and a list of module chips that link to the
+ * corresponding deep-dive pages.
+ */
+
 import BaseLayout from '../layouts/BaseLayout.astro';
 import {
   Section,
   PageHeader,
-  SplitSection,
   ScreenshotFrame,
-  FeatureGrid,
   CTABand,
 } from './sections';
 import { getLocaleFromUrl, localePath } from '../i18n/ui';
@@ -26,45 +34,155 @@ const locale = getLocaleFromUrl(Astro.url);
     lead={content.header.lead}
   />
 
-  {content.modules.map((mod, i) => (
-    <Section tone={i % 2 === 0 ? 'default' : 'sunken'} id={mod.slug.replace('/features/', '')}>
-      <SplitSection
-        eyebrow={mod.eyebrow}
-        title={mod.title}
-        body={mod.body}
-        bullets={mod.bullets}
-        reverse={i % 2 === 1}
-      >
-        <Fragment slot="visual">
-          <ScreenshotFrame placeholder alt={mod.shotAlt} />
-        </Fragment>
-        <Fragment slot="cta">
-          <a href={localePath(locale, mod.slug)} class="mk-btn mk-btn--ghost">
-            {mod.ctaLabel} →
-          </a>
-        </Fragment>
-      </SplitSection>
+  {content.personas.map((p, i) => (
+    <Section tone={i % 2 === 0 ? 'default' : 'sunken'}>
+      <article class:list={['mk-persona', { 'mk-persona--reverse': i % 2 === 1 }]}>
+        <div class="mk-persona__visual">
+          <ScreenshotFrame placeholder alt={p.shotAlt} />
+        </div>
+
+        <div class="mk-persona__copy">
+          <span class="mk-eyebrow mk-persona__role">{p.role}</span>
+          <h2 class="mk-persona__headline">{p.headline}</h2>
+          <p class="mk-persona__body">{p.body}</p>
+          <p class="mk-persona__outcome">{p.outcome}</p>
+
+          <div class="mk-persona__modules">
+            <span class="mk-persona__modules-label">{content.modulesUsedLabel}</span>
+            <ul>
+              {p.modules.map((m) => (
+                <li>
+                  <a href={localePath(locale, `/features/${m.slug}`)} class="mk-persona__chip">
+                    {m.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </article>
     </Section>
   ))}
 
-  <Section tone="default">
-    <FeatureGrid
-      eyebrow={content.crossCutting.eyebrow}
-      title={content.crossCutting.title}
-      intro={content.crossCutting.intro}
-      items={content.crossCutting.items.map((i) => ({ title: i.title, blurb: i.body }))}
-      columns={2}
-    />
-  </Section>
-
-  <Section tone="sunken" compact>
+  <Section tone="default" compact>
     <CTABand
       title={content.cta.title}
       body={content.cta.body}
       primaryHref={localePath(locale, '/trial/start')}
       primaryLabel={content.cta.primary}
-      secondaryHref={localePath(locale, '/contact')}
+      secondaryHref="https://github.com/kanap-it/kanap"
       secondaryLabel={content.cta.secondary}
     />
   </Section>
 </BaseLayout>
+
+<style>
+  .mk-persona {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(28px, 4vw, 48px);
+    align-items: center;
+  }
+
+  @media (min-width: 900px) {
+    .mk-persona {
+      grid-template-columns: 1.05fr 1fr;
+    }
+    /* Even-indexed personas: visual left, copy right.
+       Odd-indexed (reverse): visual right, copy left. */
+    .mk-persona--reverse .mk-persona__visual {
+      order: 2;
+    }
+    .mk-persona--reverse {
+      grid-template-columns: 1fr 1.05fr;
+    }
+  }
+
+  .mk-persona__visual {
+    min-width: 0;
+  }
+
+  .mk-persona__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 560px;
+  }
+
+  .mk-persona__role {
+    margin: 0;
+  }
+
+  .mk-persona__headline {
+    font-size: clamp(24px, 2.6vw, 30px);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    margin: 0;
+    /* Headlines are statements; let `text-wrap: balance` handle wrap nicely */
+    white-space: normal;
+  }
+
+  .mk-persona__body {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--kanap-text-secondary);
+    margin: 0;
+  }
+
+  /* Outcome — the punchline. Subtle teal accent, slightly heavier voice. */
+  .mk-persona__outcome {
+    margin: 6px 0 0;
+    padding: 4px 0 4px 16px;
+    border-left: 2px solid var(--kanap-teal);
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.55;
+    color: var(--kanap-text-primary);
+  }
+
+  /* Modules used — chip row */
+  .mk-persona__modules {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .mk-persona__modules-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--kanap-text-tertiary);
+  }
+
+  .mk-persona__modules ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .mk-persona__chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--kanap-text-secondary);
+    background: var(--kanap-pill-bg);
+    border: 1px solid var(--kanap-pill-border);
+    border-radius: 9999px;
+    transition:
+      color var(--mk-duration) var(--mk-ease),
+      background-color var(--mk-duration) var(--mk-ease),
+      border-color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-persona__chip:hover {
+    color: var(--kanap-teal);
+    background: var(--kanap-nav-chip-bg);
+    border-color: var(--kanap-nav-chip-border);
+  }
+</style>

@@ -15,6 +15,9 @@ export class Application {
   @Column('text')
   name!: string;
 
+  @Column('text', { nullable: true })
+  sequential_id!: string | null;
+
   @Column('uuid', { nullable: true })
   supplier_id!: string | null;
 

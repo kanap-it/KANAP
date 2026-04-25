@@ -1,9 +1,6 @@
 import React from 'react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Box,
   Button,
   TextField,
   Stack,
@@ -11,7 +8,6 @@ import {
   Stepper,
   Step,
   StepLabel,
-  FormControlLabel,
   Checkbox,
   List,
   ListItem,
@@ -23,6 +19,8 @@ import {
 } from '@mui/material';
 import DateEUField from '../../../components/fields/DateEUField';
 import api from '../../../api';
+import { KanapDialog, PropertyRow } from '../../../components/design';
+import { drawerFieldValueSx } from '../../../theme/formSx';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
@@ -49,7 +47,7 @@ interface CreateVersionDialogProps {
   onSuccess: (newApp: any) => void;
 }
 
-const STEPS = ['Version Details', 'Copy Options', 'Interfaces'];
+const STEPS = ['Version details', 'Copy options', 'Interfaces'];
 
 export default function CreateVersionDialog({ open, onClose, sourceApp, onSuccess }: CreateVersionDialogProps) {
   const { t } = useTranslation(['it', 'common']);
@@ -161,11 +159,78 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
     setSelectedInterfaceIds([]);
   };
 
+  const copyOptionRows: Array<{
+    key: keyof typeof copyOptions;
+    label: string;
+    disabled?: boolean;
+    indent?: boolean;
+    onChange?: (checked: boolean) => void;
+  }> = [
+    { key: 'copyOwners', label: 'Owners (business and IT)' },
+    { key: 'copyCompanies', label: 'Companies (audience)' },
+    { key: 'copyDepartments', label: 'Departments' },
+    { key: 'copyDataResidency', label: 'Data residency' },
+    { key: 'copyLinks', label: 'Links' },
+    { key: 'copySupportContacts', label: 'Support contacts' },
+    {
+      key: 'copySpendItems',
+      label: 'Budget items',
+      onChange: (checked) => setCopyOptions({ ...copyOptions, copySpendItems: checked, copyCapexItems: checked }),
+    },
+    { key: 'copyContracts', label: 'Contracts' },
+    {
+      key: 'copyInstances',
+      label: 'Deployments',
+      onChange: (checked) => setCopyOptions({
+        ...copyOptions,
+        copyInstances: checked,
+        copyBindings: checked ? copyOptions.copyBindings : false,
+      }),
+    },
+    { key: 'copyBindings', label: 'Deployment bindings', disabled: !copyOptions.copyInstances, indent: true },
+  ];
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Create New Version</DialogTitle>
-      <DialogContent>
-        <Stepper activeStep={step} sx={{ mb: 3, mt: 1 }}>
+    <KanapDialog
+      open={open}
+      onClose={onClose}
+      title="Create new version"
+      onSave={() => {
+        if (step < 2) {
+          setStep(step + 1);
+          return;
+        }
+        void handleCreate();
+      }}
+      saveLabel={step < 2 ? 'Next' : 'Create version'}
+      saveDisabled={step === 2 && !name.trim()}
+      saveLoading={step === 2 && loading}
+      sx={{ maxWidth: 720 }}
+      footerLeft={step > 0 ? (
+        <Button variant="action" onClick={() => setStep(step - 1)} disabled={loading}>
+          Back
+        </Button>
+      ) : null}
+    >
+        <Stepper
+          activeStep={step}
+          sx={(theme) => ({
+            mb: 3,
+            '& .MuiStepLabel-label': {
+              fontSize: 12,
+              fontWeight: 400,
+              color: theme.palette.kanap.text.secondary,
+            },
+            '& .MuiStepLabel-label.Mui-active': {
+              fontWeight: 500,
+              color: theme.palette.kanap.text.primary,
+            },
+            '& .MuiStepIcon-root': {
+              width: 18,
+              height: 18,
+            },
+          })}
+        >
           {STEPS.map(label => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -176,147 +241,94 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         {step === 0 && (
-          <Stack spacing={2}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Creating a new version of: <strong>{sourceApp.name}</strong>
+          <Stack spacing={1.35}>
+            <Typography sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.secondary, mb: 0.5 })}>
+              Creating a new version of: <Box component="span" sx={(theme) => ({ fontWeight: 500, color: theme.palette.kanap.text.primary })}>{sourceApp.name}</Box>
               {sourceApp.version && ` (${sourceApp.version})`}
             </Typography>
-            <TextField
-              label="Application Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              fullWidth
-              autoFocus
-            />
-            <TextField
-              label="Version"
-              value={version}
-              onChange={(e) => setVersion(e.target.value)}
-              placeholder="e.g., 2.0, 2024, Q1 2025"
-              fullWidth
-            />
-            <DateEUField
-              label="Go Live Date"
-              valueYmd={goLiveDate}
-              onChangeYmd={setGoLiveDate}
-            />
-            <DateEUField
-              label="End of Support Date"
-              valueYmd={endOfSupportDate}
-              onChangeYmd={setEndOfSupportDate}
-            />
+            <PropertyRow label="Application name" required>
+              <TextField
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                fullWidth
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={drawerFieldValueSx}
+              />
+            </PropertyRow>
+            <PropertyRow label="Version">
+              <TextField
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+                placeholder="e.g., 2.0, 2024, Q1 2025"
+                fullWidth
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={drawerFieldValueSx}
+              />
+            </PropertyRow>
+            <PropertyRow label="Go live">
+              <DateEUField
+                label=""
+                valueYmd={goLiveDate}
+                onChangeYmd={setGoLiveDate}
+                hideLabel
+                textFieldSx={drawerFieldValueSx}
+              />
+            </PropertyRow>
+            <PropertyRow label="End of support">
+              <DateEUField
+                label=""
+                valueYmd={endOfSupportDate}
+                onChangeYmd={setEndOfSupportDate}
+                hideLabel
+                textFieldSx={drawerFieldValueSx}
+              />
+            </PropertyRow>
           </Stack>
         )}
 
         {step === 1 && (
           <Stack spacing={1}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            <Typography sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.secondary, mb: 0.5 })}>
               Select what to copy from the source application:
             </Typography>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={copyOptions.copyOwners}
-                  onChange={(e) => setCopyOptions({ ...copyOptions, copyOwners: e.target.checked })}
+            {copyOptionRows.map((row) => (
+              <Box
+                component="label"
+                key={row.key}
+                sx={(theme) => ({
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  pl: row.indent ? '24px' : 0,
+                  fontSize: 13,
+                  color: row.disabled ? theme.palette.kanap.text.tertiary : theme.palette.kanap.text.primary,
+                })}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!copyOptions[row.key]}
+                  disabled={row.disabled}
+                  onChange={(e) => {
+                    if (row.onChange) {
+                      row.onChange(e.target.checked);
+                    } else {
+                      setCopyOptions({ ...copyOptions, [row.key]: e.target.checked });
+                    }
+                  }}
+                  style={{ accentColor: 'var(--kanap-teal)' }}
                 />
-              }
-              label="Owners (Business & IT)"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={copyOptions.copyCompanies}
-                  onChange={(e) => setCopyOptions({ ...copyOptions, copyCompanies: e.target.checked })}
-                />
-              }
-              label="Companies (Audience)"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={copyOptions.copyDepartments}
-                  onChange={(e) => setCopyOptions({ ...copyOptions, copyDepartments: e.target.checked })}
-                />
-              }
-              label="Departments"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={copyOptions.copyDataResidency}
-                  onChange={(e) => setCopyOptions({ ...copyOptions, copyDataResidency: e.target.checked })}
-                />
-              }
-              label="Data Residency"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={copyOptions.copyLinks}
-                  onChange={(e) => setCopyOptions({ ...copyOptions, copyLinks: e.target.checked })}
-                />
-              }
-              label="Links (Documentation)"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={copyOptions.copySupportContacts}
-                  onChange={(e) => setCopyOptions({ ...copyOptions, copySupportContacts: e.target.checked })}
-                />
-              }
-              label="Support Contacts"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={copyOptions.copySpendItems}
-                  onChange={(e) => setCopyOptions({ ...copyOptions, copySpendItems: e.target.checked, copyCapexItems: e.target.checked })}
-                />
-              }
-              label="OPEX/CAPEX Items"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={copyOptions.copyContracts}
-                  onChange={(e) => setCopyOptions({ ...copyOptions, copyContracts: e.target.checked })}
-                />
-              }
-              label="Contracts"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={copyOptions.copyInstances}
-                  onChange={(e) => setCopyOptions({
-                    ...copyOptions,
-                    copyInstances: e.target.checked,
-                    // Clear bindings when instances is unchecked
-                    copyBindings: e.target.checked ? copyOptions.copyBindings : false,
-                  })}
-                />
-              }
-              label="Instances (Environments)"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={copyOptions.copyBindings}
-                  disabled={!copyOptions.copyInstances}
-                  onChange={(e) => setCopyOptions({ ...copyOptions, copyBindings: e.target.checked })}
-                />
-              }
-              label="Bindings (environment connections)"
-              sx={{ ml: 3 }}
-            />
+                {row.label}
+              </Box>
+            ))}
             {copyOptions.copyBindings && (
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 3 }}>
-                Bindings connect interface legs to app instances. Environment-specific details (endpoints, auth, job names) will be cleared.
+              <Typography sx={(theme) => ({ ml: 3, fontSize: 12, color: theme.palette.kanap.text.secondary })}>
+                Bindings connect interface legs to deployments. Environment-specific details will be cleared.
               </Typography>
             )}
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+            <Typography sx={(theme) => ({ mt: 1, fontSize: 12, color: theme.palette.kanap.text.secondary })}>
               Note: Suites and attachments are not copied.
             </Typography>
           </Stack>
@@ -324,7 +336,7 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
 
         {step === 2 && (
           <Stack spacing={2}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.secondary })}>
               Select interfaces to migrate to the new version.
               Selected interfaces will be duplicated and linked to the new version.
             </Typography>
@@ -332,24 +344,24 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
             {interfacesLoading ? (
               <Stack alignItems="center" py={4}>
                 <CircularProgress size={24} />
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                <Typography sx={(theme) => ({ mt: 1, fontSize: 13, color: theme.palette.kanap.text.secondary })}>
                   Loading interfaces...
                 </Typography>
               </Stack>
             ) : interfaces.length === 0 ? (
-              <Typography color="text.secondary" sx={{ py: 2 }}>
+              <Typography sx={(theme) => ({ py: 2, fontSize: 13, color: theme.palette.kanap.text.secondary })}>
                 No interfaces found for this application.
               </Typography>
             ) : (
               <>
                 <Stack direction="row" spacing={1}>
-                  <Button size="small" onClick={selectAllInterfaces}>Select All</Button>
-                  <Button size="small" onClick={deselectAllInterfaces}>Deselect All</Button>
-                  <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto', alignSelf: 'center' }}>
+                  <Button variant="action" size="small" onClick={selectAllInterfaces}>Select all</Button>
+                  <Button variant="action" size="small" onClick={deselectAllInterfaces}>Deselect all</Button>
+                  <Typography sx={(theme) => ({ ml: 'auto', alignSelf: 'center', fontSize: 12, color: theme.palette.kanap.text.secondary })}>
                     {selectedInterfaceIds.length} of {interfaces.length} selected
                   </Typography>
                 </Stack>
-                <List dense sx={{ maxHeight: 300, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                <List dense sx={(theme) => ({ maxHeight: 300, overflow: 'auto', border: `1px solid ${theme.palette.kanap.border.soft}`, borderRadius: '6px' })}>
                   {interfaces.map(iface => {
                     const isMiddleware = iface.app_role === 'via_middleware';
                     const roleLabel = isMiddleware
@@ -382,7 +394,7 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
                   })}
                 </List>
                 {interfaces.some(i => i.app_role === 'via_middleware') && (
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.secondary })}>
                     Interfaces marked "flows through this ETL" use this application as middleware.
                     Copying them creates new interface definitions for the upgraded ETL.
                   </Typography>
@@ -391,24 +403,6 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
             )}
           </Stack>
         )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>{t('common:buttons.cancel')}</Button>
-        {step > 0 && (
-          <Button onClick={() => setStep(step - 1)} disabled={loading}>
-            Back
-          </Button>
-        )}
-        {step < 2 ? (
-          <Button variant="contained" onClick={() => setStep(step + 1)}>
-            Next
-          </Button>
-        ) : (
-          <Button variant="contained" onClick={handleCreate} disabled={loading || !name.trim()}>
-            {loading ? <CircularProgress size={20} /> : 'Create Version'}
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+    </KanapDialog>
   );
 }

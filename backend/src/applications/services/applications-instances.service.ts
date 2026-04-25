@@ -26,8 +26,9 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
   // Relations - OPEX (spend items)
   async listLinkedSpendItems(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     const repo = mg.getRepository(ApplicationSpendItemLink);
-    const rows = await repo.find({ where: { application_id: appId } as any });
+    const rows = await repo.find({ where: { application_id: resolvedAppId } as any });
     const ids = rows.map((r: any) => r.spend_item_id);
     const items = ids.length ? await mg.query(`SELECT id, product_name FROM spend_items WHERE id = ANY($1)`, [ids]) : [];
     return { items };
@@ -35,13 +36,14 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
 
   async bulkReplaceLinkedSpendItems(appId: string, spendItemIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     const repo = mg.getRepository(ApplicationSpendItemLink);
     const unique = Array.from(new Set((spendItemIds || []).filter(Boolean)));
-    const existing = await repo.find({ where: { application_id: appId } as any });
+    const existing = await repo.find({ where: { application_id: resolvedAppId } as any });
     const beforeState = existing.map((e: any) => e.spend_item_id).sort();
     const toDelete = existing.filter((e: any) => !unique.includes(e.spend_item_id));
     const existingSet = new Set(existing.map((e: any) => e.spend_item_id));
-    const toInsert = unique.filter((id) => !existingSet.has(id)).map((id) => repo.create({ application_id: appId, spend_item_id: id } as any));
+    const toInsert = unique.filter((id) => !existingSet.has(id)).map((id) => repo.create({ application_id: resolvedAppId, spend_item_id: id } as any));
     if (toDelete.length > 0) await repo.remove(toDelete as any);
     if (toInsert.length > 0) await repo.save(toInsert as any);
     const afterState = [...unique].sort();
@@ -49,7 +51,7 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
       await this.audit.log(
         {
           table: 'application_spend_items',
-          recordId: appId,
+          recordId: resolvedAppId,
           action: 'update',
           before: beforeState,
           after: afterState,
@@ -64,8 +66,9 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
   // Relations - CAPEX items
   async listLinkedCapexItems(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     const repo = mg.getRepository(ApplicationCapexItemLink);
-    const rows = await repo.find({ where: { application_id: appId } as any });
+    const rows = await repo.find({ where: { application_id: resolvedAppId } as any });
     const ids = rows.map((r: any) => r.capex_item_id);
     if (ids.length === 0) return { items: [] };
     const { CapexItem } = await import('../../capex/capex-item.entity');
@@ -76,13 +79,14 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
 
   async bulkReplaceLinkedCapexItems(appId: string, capexItemIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     const repo = mg.getRepository(ApplicationCapexItemLink);
     const unique = Array.from(new Set((capexItemIds || []).filter(Boolean)));
-    const existing = await repo.find({ where: { application_id: appId } as any });
+    const existing = await repo.find({ where: { application_id: resolvedAppId } as any });
     const beforeState = existing.map((e: any) => e.capex_item_id).sort();
     const toDelete = existing.filter((e: any) => !unique.includes(e.capex_item_id));
     const existingSet = new Set(existing.map((e: any) => e.capex_item_id));
-    const toInsert = unique.filter((id) => !existingSet.has(id)).map((id) => repo.create({ application_id: appId, capex_item_id: id } as any));
+    const toInsert = unique.filter((id) => !existingSet.has(id)).map((id) => repo.create({ application_id: resolvedAppId, capex_item_id: id } as any));
     if (toDelete.length > 0) await repo.remove(toDelete as any);
     if (toInsert.length > 0) await repo.save(toInsert as any);
     const afterState = [...unique].sort();
@@ -90,7 +94,7 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
       await this.audit.log(
         {
           table: 'application_capex_items',
-          recordId: appId,
+          recordId: resolvedAppId,
           action: 'update',
           before: beforeState,
           after: afterState,
@@ -105,8 +109,9 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
   // Relations - Contracts
   async listLinkedContracts(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     const repo = mg.getRepository(ApplicationContractLink);
-    const rows = await repo.find({ where: { application_id: appId } as any });
+    const rows = await repo.find({ where: { application_id: resolvedAppId } as any });
     const ids = rows.map((r: any) => r.contract_id);
     const items = ids.length ? await mg.query(`SELECT id, name FROM contracts WHERE id = ANY($1)`, [ids]) : [];
     return { items };
@@ -114,13 +119,14 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
 
   async bulkReplaceLinkedContracts(appId: string, contractIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     const repo = mg.getRepository(ApplicationContractLink);
     const unique = Array.from(new Set((contractIds || []).filter(Boolean)));
-    const existing = await repo.find({ where: { application_id: appId } as any });
+    const existing = await repo.find({ where: { application_id: resolvedAppId } as any });
     const beforeState = existing.map((e: any) => e.contract_id).sort();
     const toDelete = existing.filter((e: any) => !unique.includes(e.contract_id));
     const existingSet = new Set(existing.map((e: any) => e.contract_id));
-    const toInsert = unique.filter((id) => !existingSet.has(id)).map((id) => repo.create({ application_id: appId, contract_id: id } as any));
+    const toInsert = unique.filter((id) => !existingSet.has(id)).map((id) => repo.create({ application_id: resolvedAppId, contract_id: id } as any));
     if (toDelete.length > 0) await repo.remove(toDelete as any);
     if (toInsert.length > 0) await repo.save(toInsert as any);
     const afterState = [...unique].sort();
@@ -128,7 +134,7 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
       await this.audit.log(
         {
           table: 'application_contracts',
-          recordId: appId,
+          recordId: resolvedAppId,
           action: 'update',
           before: beforeState,
           after: afterState,
@@ -143,21 +149,23 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
   // Projects
   async listProjects(applicationId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    await this.ensureApp(applicationId, mg);
+    const resolvedAppId = await this.resolveApplicationIdentifier(applicationId, mg);
+    await this.ensureApp(resolvedAppId, mg);
     const rows = await mg.query(
       `SELECT l.project_id as id, p.name
        FROM application_projects l
        JOIN portfolio_projects p ON p.id = l.project_id
        WHERE l.application_id = $1
        ORDER BY p.name ASC`,
-      [applicationId],
+      [resolvedAppId],
     );
     return { items: rows };
   }
 
   async bulkReplaceProjects(applicationId: string, projectIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const app = await this.ensureApp(applicationId, mg);
+    const resolvedAppId = await this.resolveApplicationIdentifier(applicationId, mg);
+    const app = await this.ensureApp(resolvedAppId, mg);
     const cleanIds = Array.from(new Set((projectIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
     if (cleanIds.length) {
       const projects = await mg.getRepository(PortfolioProject).find({ where: { id: In(cleanIds) } as any });
@@ -166,11 +174,11 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
       if (invalid) throw new BadRequestException('Project does not belong to tenant');
     }
     const repo = mg.getRepository(ApplicationProject);
-    const existing = await repo.find({ where: { application_id: applicationId } as any });
+    const existing = await repo.find({ where: { application_id: resolvedAppId } as any });
     const beforeState = existing.map((e) => e.project_id).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
     if (cleanIds.length) {
-      const rows = cleanIds.map((projId) => repo.create({ tenant_id: (app as any).tenant_id, project_id: projId, application_id: applicationId }));
+      const rows = cleanIds.map((projId) => repo.create({ tenant_id: (app as any).tenant_id, project_id: projId, application_id: resolvedAppId }));
       await repo.save(rows);
     }
     const afterState = [...cleanIds].sort();
@@ -178,7 +186,7 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
       await this.audit.log(
         {
           table: 'application_projects',
-          recordId: applicationId,
+          recordId: resolvedAppId,
           action: 'update',
           before: beforeState,
           after: afterState,
@@ -187,6 +195,6 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
         { manager: mg },
       );
     }
-    return this.listProjects(applicationId, { manager: mg });
+    return this.listProjects(resolvedAppId, { manager: mg });
   }
 }

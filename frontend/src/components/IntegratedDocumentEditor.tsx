@@ -27,8 +27,8 @@ import { normalizeMarkdownForRichTextEditor } from '../lib/markdownEditorNormali
 
 const MarkdownEditor = React.lazy(() => import('./MarkdownEditor'));
 
-type SourceEntityType = 'requests' | 'projects' | 'interfaces';
-type SlotKey = 'purpose' | 'risks_mitigations' | 'specification';
+type SourceEntityType = 'requests' | 'projects' | 'interfaces' | 'applications';
+type SlotKey = 'purpose' | 'risks_mitigations' | 'specification' | 'overview';
 
 type EditLockInfo = {
   holder_user_id: string;
@@ -81,6 +81,7 @@ const ENTITY_ENDPOINTS: Record<SourceEntityType, string> = {
   requests: '/portfolio/requests',
   projects: '/portfolio/projects',
   interfaces: '/interfaces',
+  applications: '/applications',
 };
 
 function MarkdownEditorLoadingFallback({ minRows }: { minRows: number }) {

@@ -1,5 +1,5 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { Alert, Autocomplete, Box, Button, Chip, CircularProgress, IconButton, LinearProgress, Stack, TextField, Typography, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Paper, InputAdornment } from '@mui/material';
+import { Alert, Autocomplete, Box, Button, Chip, CircularProgress, IconButton, LinearProgress, Stack, TextField, Typography, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Paper } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../../api';
@@ -7,12 +7,37 @@ import { useAuth } from '../../../auth/AuthContext';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { KanapDialog, PropertyRow } from '../../../components/design';
+import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
 export type ApplicationRelationsPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
 };
 
 type Props = { id: string; isSuite?: boolean; onDirtyChange?: (dirty: boolean) => void };
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography
+      component="h2"
+      sx={(theme) => ({
+        m: 0,
+        fontSize: 14,
+        fontWeight: 500,
+        lineHeight: 1.4,
+        color: theme.palette.kanap.text.primary,
+      })}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+function normalizeUrl(value: string) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
 
 export default forwardRef<ApplicationRelationsPanelHandle, Props>(function ApplicationRelationsPanel({ id, isSuite = false, onDirtyChange }, ref) {
   const { t } = useTranslation(['it', 'common']);
@@ -41,6 +66,8 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
 
   const [urls, setUrls] = React.useState<Array<{ id?: string; description?: string; url: string }>>([]);
   const [baselineUrls, setBaselineUrls] = React.useState<Array<{ id?: string; description?: string; url: string }>>([]);
+  const [linkDialogOpen, setLinkDialogOpen] = React.useState(false);
+  const [linkDraft, setLinkDraft] = React.useState<{ description: string; url: string }>({ description: '', url: '' });
   const urlsEditedRef = React.useRef(false);
 
   const [attachments, setAttachments] = React.useState<Array<{ id: string; original_filename: string }>>([]);
@@ -187,13 +214,134 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
 
   useImperativeHandle(ref, () => ({ save, reset: () => { urlsEditedRef.current = false; void load(); } }), [save, load]);
 
+  const relationTagSx = {
+    height: 22,
+    borderRadius: '4px',
+    fontSize: 12,
+    '& .MuiChip-label': { px: '7px' },
+  } as const;
+  const relationControlSx = { maxWidth: 420 } as const;
+  const relationWideControlSx = { maxWidth: 640 } as const;
+  const relationAutocompleteSx = [drawerFieldValueSx, { width: '100%' }] as const;
+
+  const replaceOpexRelations = React.useCallback(async (next: Array<{ id: string; product_name: string }>) => {
+    setLinkedOpex(next);
+    if (readOnly) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post(`/applications/${id}/spend-items/bulk-replace`, { spend_item_ids: next.map((item) => item.id) });
+      setBaselineOpex(next);
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
+    } finally {
+      setSaving(false);
+    }
+  }, [id, readOnly, t]);
+
+  const replaceCapexRelations = React.useCallback(async (next: Array<{ id: string; description: string }>) => {
+    setLinkedCapex(next);
+    if (readOnly) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post(`/applications/${id}/capex-items/bulk-replace`, { capex_item_ids: next.map((item) => item.id) });
+      setBaselineCapex(next);
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
+    } finally {
+      setSaving(false);
+    }
+  }, [id, readOnly, t]);
+
+  const replaceContractRelations = React.useCallback(async (next: Array<{ id: string; name: string }>) => {
+    setLinkedContracts(next);
+    if (readOnly) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post(`/applications/${id}/contracts/bulk-replace`, { contract_ids: next.map((item) => item.id) });
+      setBaselineContracts(next);
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
+    } finally {
+      setSaving(false);
+    }
+  }, [id, readOnly, t]);
+
+  const replaceProjectRelations = React.useCallback(async (next: Array<{ id: string; name: string }>) => {
+    setLinkedProjects(next);
+    if (readOnly) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post(`/applications/${id}/projects/bulk-replace`, { project_ids: next.map((item) => item.id) });
+      setBaselineProjects(next);
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
+    } finally {
+      setSaving(false);
+    }
+  }, [id, readOnly, t]);
+
+  const syncUrls = React.useCallback(async (nextUrls: Array<{ id?: string; description?: string; url: string }>) => {
+    setUrls(nextUrls);
+    if (readOnly) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const existingIds = new Set(baselineUrls.filter((item) => item.id).map((item) => item.id as string));
+      const currentIds = new Set(nextUrls.filter((item) => item.id).map((item) => item.id as string));
+      for (const existing of baselineUrls) {
+        if (existing.id && !currentIds.has(existing.id)) {
+          await api.delete(`/applications/${id}/links/${existing.id}`);
+        }
+      }
+      for (const link of nextUrls) {
+        const url = String(link.url || '').trim();
+        if (!url) continue;
+        const body = { description: link.description ?? null, url };
+        if (link.id && existingIds.has(link.id)) {
+          await api.patch(`/applications/${id}/links/${link.id}`, body);
+        } else {
+          await api.post(`/applications/${id}/links`, body);
+        }
+      }
+      const resUrls = await api.get(`/applications/${id}/links`);
+      const urlItems = ((resUrls.data || []) as Array<{ id?: string; description?: string | null; url?: string }>).map((item) => ({ id: item.id, description: item.description || undefined, url: item.url || '' }));
+      urlsEditedRef.current = false;
+      setBaselineUrls(urlItems);
+      setUrls(urlItems);
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
+    } finally {
+      setSaving(false);
+    }
+  }, [baselineUrls, id, readOnly, t]);
+
+  const addLink = React.useCallback(async () => {
+    const url = String(linkDraft.url || '').trim();
+    if (!url) return;
+    const nextUrls = [
+      ...urls,
+      {
+        description: String(linkDraft.description || '').trim() || undefined,
+        url,
+      },
+    ];
+    await syncUrls(nextUrls);
+    setLinkDraft({ description: '', url: '' });
+    setLinkDialogOpen(false);
+  }, [linkDraft.description, linkDraft.url, syncUrls, urls]);
+
   return (
-    <Stack spacing={2}>
-      {!!error && <Alert severity="error">{error}</Alert>}
+    <>
+      <Stack spacing={2}>
+        {!!error && <Alert severity="error">{error}</Alert>}
 
       {isSuite && (
         <>
-          <Typography variant="subtitle2">Components</Typography>
+          <SectionTitle>Components</SectionTitle>
           {components.length === 0 ? (
             <Typography variant="body2" color="text.secondary">No child applications linked yet.</Typography>
           ) : (
@@ -221,192 +369,229 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
         </>
       )}
 
-      <Autocomplete
-        multiple
-        options={opexOptions}
-        value={linkedOpex}
-        getOptionLabel={(o) => o.product_name}
-        onChange={(_, v) => setLinkedOpex(v as any)}
-        renderOption={(props, option) => (
-          <li {...props} key={option.id}>{option.product_name}</li>
-        )}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => (
-            <Chip {...getTagProps({ index })} key={option.id} label={option.product_name} />
-          ))
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label="OPEX items"
-            placeholder="Select OPEX items"
-            InputLabelProps={{ shrink: true }}
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {params.InputProps.endAdornment}
-                </>
-              )
-            }}
-          />
-        )}
-        isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
-        filterSelectedOptions
-        disabled={saving || readOnly}
-        fullWidth
-      />
-
-      <Autocomplete
-        multiple
-        options={capexOptions}
-        value={linkedCapex}
-        getOptionLabel={(o) => o.description}
-        onChange={(_, v) => setLinkedCapex(v as any)}
-        renderOption={(props, option) => (
-          <li {...props} key={option.id}>{option.description}</li>
-        )}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => (
-            <Chip {...getTagProps({ index })} key={option.id} label={option.description} />
-          ))
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label="CAPEX items"
-            placeholder="Select CAPEX items"
-            InputLabelProps={{ shrink: true }}
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {params.InputProps.endAdornment}
-                </>
-              )
-            }}
-          />
-        )}
-        isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
-        filterSelectedOptions
-        disabled={saving || readOnly}
-        fullWidth
-      />
-
-      <Autocomplete
-        multiple
-        options={contractOptions}
-        value={linkedContracts}
-        getOptionLabel={(o) => o.name}
-        onChange={(_, v) => setLinkedContracts(v as any)}
-        renderOption={(props, option) => (
-          <li {...props} key={option.id}>{option.name}</li>
-        )}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => (
-            <Chip {...getTagProps({ index })} key={option.id} label={option.name} />
-          ))
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label="Contracts"
-            placeholder="Select contracts"
-            InputLabelProps={{ shrink: true }}
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {params.InputProps.endAdornment}
-                </>
-              )
-            }}
-          />
-        )}
-        isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
-        filterSelectedOptions
-        disabled={saving || readOnly}
-        fullWidth
-      />
-
-      <Autocomplete
-        multiple
-        options={projectOptions}
-        value={linkedProjects}
-        getOptionLabel={(o) => o.name}
-        onChange={(_, v) => setLinkedProjects(v as any)}
-        renderOption={(props, option) => (
-          <li {...props} key={option.id}>{option.name}</li>
-        )}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => (
-            <Chip {...getTagProps({ index })} key={option.id} label={option.name} />
-          ))
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label="Projects"
-            placeholder="Select projects"
-            InputLabelProps={{ shrink: true }}
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {params.InputProps.endAdornment}
-                </>
-              )
-            }}
-          />
-        )}
-        isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
-        filterSelectedOptions
-        disabled={saving || readOnly}
-        fullWidth
-      />
-
-      <Typography variant="subtitle2">Relevant websites</Typography>
-      <Stack spacing={1}>
-        {urls.map((l, idx) => (
-          <Stack key={l.id || idx} direction="row" spacing={1} alignItems="center">
-            <TextField label="Description" value={l.description || ''} onChange={(e) => { urlsEditedRef.current = true; setUrls(prev => prev.map((x, i) => i===idx? { ...x, description: e.target.value }: x)); }} fullWidth InputLabelProps={{ shrink: true }} disabled={readOnly} />
+      <PropertyRow label="OPEX items" valueSx={relationControlSx}>
+        <Autocomplete
+          multiple
+          options={opexOptions}
+          value={linkedOpex}
+          getOptionLabel={(o) => o.product_name}
+          onChange={(_, v) => { void replaceOpexRelations(v); }}
+          renderOption={(props, option) => (
+            <li {...props} key={option.id}>{option.product_name}</li>
+          )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip {...getTagProps({ index })} key={option.id} label={option.product_name} sx={relationTagSx} />
+            ))
+          }
+          renderInput={(params) => (
             <TextField
-              label="URL"
-              value={l.url}
-              onChange={(e) => { urlsEditedRef.current = true; setUrls(prev => prev.map((x, i) => i===idx? { ...x, url: e.target.value }: x)); }}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              InputProps={{
-                readOnly: readOnly,
-                endAdornment: (
-                  <InputAdornment position="end">
+              {...params}
+              placeholder="Select OPEX items"
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={drawerFieldValueSx}
+            />
+          )}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          isOptionEqualToValue={(opt, val) => opt.id === val.id}
+          filterSelectedOptions
+          disabled={saving || readOnly}
+          fullWidth
+          sx={relationAutocompleteSx}
+        />
+      </PropertyRow>
+
+      <PropertyRow label="CAPEX items" valueSx={relationControlSx}>
+        <Autocomplete
+          multiple
+          options={capexOptions}
+          value={linkedCapex}
+          getOptionLabel={(o) => o.description}
+          onChange={(_, v) => { void replaceCapexRelations(v); }}
+          renderOption={(props, option) => (
+            <li {...props} key={option.id}>{option.description}</li>
+          )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip {...getTagProps({ index })} key={option.id} label={option.description} sx={relationTagSx} />
+            ))
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Select CAPEX items"
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={drawerFieldValueSx}
+            />
+          )}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          isOptionEqualToValue={(opt, val) => opt.id === val.id}
+          filterSelectedOptions
+          disabled={saving || readOnly}
+          fullWidth
+          sx={relationAutocompleteSx}
+        />
+      </PropertyRow>
+
+      <PropertyRow label="Contracts" valueSx={relationControlSx}>
+        <Autocomplete
+          multiple
+          options={contractOptions}
+          value={linkedContracts}
+          getOptionLabel={(o) => o.name}
+          onChange={(_, v) => { void replaceContractRelations(v); }}
+          renderOption={(props, option) => (
+            <li {...props} key={option.id}>{option.name}</li>
+          )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />
+            ))
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Select contracts"
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={drawerFieldValueSx}
+            />
+          )}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          isOptionEqualToValue={(opt, val) => opt.id === val.id}
+          filterSelectedOptions
+          disabled={saving || readOnly}
+          fullWidth
+          sx={relationAutocompleteSx}
+        />
+      </PropertyRow>
+
+      <PropertyRow label="Projects" valueSx={relationControlSx}>
+        <Autocomplete
+          multiple
+          options={projectOptions}
+          value={linkedProjects}
+          getOptionLabel={(o) => o.name}
+          onChange={(_, v) => { void replaceProjectRelations(v); }}
+          renderOption={(props, option) => (
+            <li {...props} key={option.id}>{option.name}</li>
+          )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />
+            ))
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Select projects"
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={drawerFieldValueSx}
+            />
+          )}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          isOptionEqualToValue={(opt, val) => opt.id === val.id}
+          filterSelectedOptions
+          disabled={saving || readOnly}
+          fullWidth
+          sx={relationAutocompleteSx}
+        />
+      </PropertyRow>
+
+        <SectionTitle>Relevant websites</SectionTitle>
+        <Stack spacing={1} sx={relationWideControlSx}>
+          {urls.length === 0 && (
+            <Typography variant="body2" color="text.secondary">
+              No URLs linked.
+            </Typography>
+          )}
+          {urls.map((link, index) => {
+            const label = String(link.description || '').trim() || link.url;
+            const href = normalizeUrl(link.url);
+            return (
+              <Stack
+                key={link.id || `${link.url}:${index}`}
+                direction="row"
+                alignItems="center"
+                spacing={0.5}
+                sx={(theme) => ({
+                  minHeight: 30,
+                  px: 1,
+                  borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
+                  '& .hover-actions': { opacity: 0, transition: 'opacity 120ms' },
+                  '&:hover': { bgcolor: theme.palette.kanap.bg.hover },
+                  '&:hover .hover-actions': { opacity: 1 },
+                })}
+              >
+                <Typography
+                  component="a"
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={(theme) => ({
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: 13,
+                    color: theme.palette.kanap.text.primary,
+                    textDecoration: 'none',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    '&:hover': {
+                      color: theme.palette.kanap.teal,
+                      textDecoration: 'underline',
+                    },
+                  })}
+                  title={link.url}
+                >
+                  {label}
+                </Typography>
+                <Box className="hover-actions">
+                  <IconButton
+                    aria-label="Open URL"
+                    size="small"
+                    onClick={() => window.open(href, '_blank', 'noopener,noreferrer')}
+                    disabled={!href}
+                  >
+                    <OpenInNewIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                  {!readOnly && (
                     <IconButton
-                      aria-label="open-link"
+                      aria-label="Delete URL"
                       size="small"
                       onClick={() => {
-                        const raw = String(l.url || '').trim();
-                        if (!raw) return;
-                        const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-                        window.open(href, '_blank', 'noopener,noreferrer');
+                        urlsEditedRef.current = true;
+                        void syncUrls(urls.filter((_, currentIndex) => currentIndex !== index));
                       }}
-                      disabled={!String(l.url || '').trim()}
                     >
-                      <OpenInNewIcon fontSize="small" />
+                      <DeleteIcon sx={{ fontSize: 16 }} />
                     </IconButton>
-                  </InputAdornment>
-                )
-              }}
-            />
-            {!readOnly && (
-              <IconButton aria-label="delete" onClick={() => { urlsEditedRef.current = true; setUrls(prev => prev.filter((_, i) => i!==idx)); }}><DeleteIcon fontSize="small"/></IconButton>
-            )}
-          </Stack>
-        ))}
-        {!readOnly && <Button size="small" onClick={() => { urlsEditedRef.current = true; setUrls(prev => [...prev, { url: '' }]); }}>Add URL</Button>}
-      </Stack>
+                  )}
+                </Box>
+              </Stack>
+            );
+          })}
+          {!readOnly && (
+            <Box>
+              <Button
+                variant="action"
+                size="small"
+                onClick={() => {
+                  setLinkDraft({ description: '', url: '' });
+                  setLinkDialogOpen(true);
+                }}
+              >
+                Add URL
+              </Button>
+            </Box>
+          )}
+        </Stack>
 
-      <Typography variant="subtitle2">Attachments</Typography>
-      <Stack spacing={1}>
+      <SectionTitle>Attachments</SectionTitle>
+      <Stack spacing={1} sx={relationWideControlSx}>
         <Box
           onDragOver={(e) => { e.preventDefault(); setHover(true); }}
           onDragLeave={() => setHover(false)}
@@ -473,6 +658,40 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
           })}
         </Stack>
       </Stack>
-    </Stack>
+      </Stack>
+
+      <KanapDialog
+        open={linkDialogOpen}
+        title="New URL"
+        onClose={() => setLinkDialogOpen(false)}
+        onSave={addLink}
+        saveLabel="Add"
+        saveDisabled={!String(linkDraft.url || '').trim()}
+        saveLoading={saving}
+      >
+        <Stack spacing={1.25}>
+          <PropertyRow label="Label">
+            <TextField
+              value={linkDraft.description}
+              onChange={(event) => setLinkDraft((prev) => ({ ...prev, description: event.target.value }))}
+              variant="standard"
+              fullWidth
+              InputProps={{ disableUnderline: true }}
+              sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+            />
+          </PropertyRow>
+          <PropertyRow label="URL" required>
+            <TextField
+              value={linkDraft.url}
+              onChange={(event) => setLinkDraft((prev) => ({ ...prev, url: event.target.value }))}
+              variant="standard"
+              fullWidth
+              InputProps={{ disableUnderline: true }}
+              sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+            />
+          </PropertyRow>
+        </Stack>
+      </KanapDialog>
+    </>
   );
 });

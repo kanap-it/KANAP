@@ -153,6 +153,8 @@ pre {
   font-size: 18px;
   line-height: 1.55;
   color: var(--kanap-text-secondary);
+  /* Honor authored `\n` for rhythm breaks in hero subtitles, CTA bodies, etc. */
+  white-space: pre-line;
 }
 
 .mk-small {

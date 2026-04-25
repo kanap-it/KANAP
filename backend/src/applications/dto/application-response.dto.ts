@@ -7,6 +7,7 @@ export interface ApplicationResponse {
   id: string;
   tenant_id: string;
   name: string;
+  sequential_id: string | null;
   supplier_id: string | null;
   category: string;
   description: string | null;
@@ -156,6 +157,7 @@ export interface ApplicationDetailResponse extends ApplicationResponse {
   derived_total_users: number;
   support_contacts?: ApplicationSupportContactResponse[];
   instances?: ApplicationInstanceResponse[];
+  deployments?: ApplicationInstanceResponse[];
 }
 
 /**
@@ -193,6 +195,8 @@ export interface ApplicationListItemResponse extends ApplicationResponse {
   first_component_name?: string | null;
   /** App instances (when include=instances) */
   instances?: ApplicationInstanceResponse[];
+  /** Application deployments (when include=deployments) */
+  deployments?: ApplicationInstanceResponse[];
 }
 
 /**

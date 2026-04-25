@@ -1,8 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Autocomplete, TextField, CircularProgress } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type Supplier = {
   id: string;
@@ -19,6 +21,8 @@ type SupplierSelectProps = {
   error?: boolean;
   helperText?: React.ReactNode;
   required?: boolean;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 function assignRef<T>(target: React.Ref<T | null> | undefined, value: T | null) {
@@ -39,6 +43,8 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
     error,
     helperText,
     required = false,
+    hideLabel = false,
+    textFieldSx,
   },
   ref,
 ) {
@@ -87,25 +93,28 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
       renderOption={(props, option) => (
         <li {...props} key={option.id}>
           <div>
-            <div style={{ fontWeight: 500 }}>
+            <div className="kanap-autocomplete-option-primary">
               {option.name}
             </div>
             {option.erp_supplier_id && (
-              <div style={{ fontSize: '0.875rem', opacity: 0.7 }}>
+              <div className="kanap-autocomplete-option-secondary">
                 ERP ID: {option.erp_supplier_id}
               </div>
             )}
             {option.status && option.status.toLowerCase() === 'disabled' && (
-              <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>(disabled)</div>
+              <div className="kanap-autocomplete-option-secondary">(disabled)</div>
             )}
           </div>
         </li>
       )}
+      ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
+          label={hideLabel ? undefined : label}
           required={required}
+          variant={hideLabel ? 'standard' : undefined}
+          sx={textFieldSx}
           inputRef={(node) => {
             assignRef((params.inputProps as any)?.ref, node);
             assignRef(ref, node ?? null);
@@ -114,6 +123,7 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
+            ...(hideLabel ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}

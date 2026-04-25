@@ -45,9 +45,44 @@ export abstract class ApplicationsBaseService {
 
   async ensureApp(id: string, manager?: EntityManager): Promise<Application> {
     const repo = this.getRepo(manager);
-    const app = await repo.findOne({ where: { id } });
+    const resolvedId = await this.resolveApplicationIdentifier(id, manager);
+    const app = await repo.findOne({ where: { id: resolvedId } });
     if (!app) throw new NotFoundException('Application not found');
     return app;
+  }
+
+  async resolveApplicationIdentifier(identifier: string, manager?: EntityManager): Promise<string> {
+    const normalized = String(identifier || '').trim();
+    if (!normalized) throw new NotFoundException('Application not found');
+
+    const mg = manager ?? this.appRepo.manager;
+    const uuidMatch = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized);
+    const sequentialMatch = normalized.match(/^(APP-[0-9]+)(?:-.+)?$/i);
+
+    const rows: Array<{ id: string }> = uuidMatch
+      ? await mg.query(
+        `SELECT id::text AS id
+         FROM applications
+         WHERE id = $1
+           AND tenant_id = app_current_tenant()
+         LIMIT 1`,
+        [normalized],
+      )
+      : sequentialMatch
+        ? await mg.query(
+          `SELECT id::text AS id
+           FROM applications
+           WHERE upper(sequential_id) = upper($1)
+             AND tenant_id = app_current_tenant()
+           LIMIT 1`,
+          [sequentialMatch[1]],
+        )
+        : [];
+
+    if (!rows[0]?.id) {
+      throw new NotFoundException('Application not found');
+    }
+    return rows[0].id;
   }
 
   protected async resolveTenantId(manager: EntityManager): Promise<string> {

@@ -20,6 +20,7 @@ import { taskDetailTokens, taskDetailTypography } from '../../tasks/theme/taskDe
 export type PortfolioDetailWorkspaceTab = {
   key: string;
   label: string;
+  badge?: number;
   disabled?: boolean;
 };
 
@@ -394,7 +395,37 @@ export default function PortfolioDetailWorkspaceShell({
               {tabs.map((tab) => (
                 <Tab
                   key={tab.key}
-                  label={tab.label}
+                  label={(
+                    <Box component="span" sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                      {tab.label}
+                      {typeof tab.badge === 'number' && (
+                        <Box
+                          component="span"
+                          sx={(theme) => ({
+                            position: 'absolute',
+                            top: '-9px',
+                            right: '-16px',
+                            minWidth: 15,
+                            height: 15,
+                            px: '4px',
+                            borderRadius: '999px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            bgcolor: activeTab === tab.key ? theme.palette.kanap.teal : theme.palette.kanap.pill.bg,
+                            border: `1px solid ${activeTab === tab.key ? theme.palette.kanap.teal : theme.palette.kanap.pill.border}`,
+                            color: activeTab === tab.key ? theme.palette.kanap.tealForeground : theme.palette.kanap.text.tertiary,
+                            fontSize: 10,
+                            fontWeight: 500,
+                            lineHeight: 1,
+                            pointerEvents: 'none',
+                          })}
+                        >
+                          {tab.badge}
+                        </Box>
+                      )}
+                    </Box>
+                  )}
                   value={tab.key}
                   disabled={tab.disabled}
                   sx={(theme) => ({
@@ -403,7 +434,7 @@ export default function PortfolioDetailWorkspaceShell({
                     pt: 0,
                     px: 0,
                     pb: '9px',
-                    mr: '24px',
+                    mr: tab.badge != null ? '30px' : '24px',
                     textTransform: 'none',
                     minWidth: 'auto',
                     fontSize: '14px',

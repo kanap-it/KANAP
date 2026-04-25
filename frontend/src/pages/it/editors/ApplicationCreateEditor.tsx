@@ -1,10 +1,12 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { Alert, Stack, TextField, FormControlLabel, Checkbox, Divider, Typography } from '@mui/material';
+import { Alert, Box, Stack, TextField, Divider, Typography } from '@mui/material';
 import SupplierSelect from '../../../components/fields/SupplierSelect';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import DateEUField from '../../../components/fields/DateEUField';
 import api from '../../../api';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
+import { PropertyRow } from '../../../components/design';
+import { drawerFieldValueSx } from '../../../theme/formSx';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
@@ -121,36 +123,80 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
   return (
     <Stack spacing={2}>
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
-      <TextField label="Name" value={name} onChange={(e) => { setName(e.target.value); markDirty(); }} required fullWidth />
-      <TextField label="Description" value={description} onChange={(e) => { setDescription(e.target.value); markDirty(); }} fullWidth />
-      <SupplierSelect label="Supplier" value={supplierId} onChange={(v) => { setSupplierId(v); markDirty(); }} />
-      <EnumAutocomplete
-        label="Category"
-        value={category}
-        onChange={(v) => { setCategory(v); markDirty(); }}
-        options={byField.applicationCategory.filter((o) => !o.deprecated).map((o) => ({ label: o.label, value: o.code }))}
-        required
-      />
-      <TextField label="Publisher" value={editor} onChange={(e) => { setEditor(e.target.value); markDirty(); }} fullWidth />
-      <EnumAutocomplete label="Criticality" value={criticality} onChange={(v) => { setCriticality(v as any); markDirty(); }} options={[{ label: 'Business critical', value: 'business_critical' }, { label: 'High', value: 'high' }, { label: 'Medium', value: 'medium' }, { label: 'Low', value: 'low' }]} required />
-      <EnumAutocomplete label="Lifecycle" value={lifecycle} onChange={(v) => { setLifecycle(v as any); markDirty(); }} options={lifecycleOptions} required />
-      <FormControlLabel control={<Checkbox checked={isSuite} onChange={(e) => { setIsSuite(e.target.checked); markDirty(); }} />} label="Can have child apps" />
+      <PropertyRow label="Name" required>
+        <TextField value={name} onChange={(e) => { setName(e.target.value); markDirty(); }} required fullWidth variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
+      </PropertyRow>
+      <PropertyRow label="Description">
+        <TextField value={description} onChange={(e) => { setDescription(e.target.value); markDirty(); }} fullWidth variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
+      </PropertyRow>
+      <PropertyRow label="Supplier">
+        <SupplierSelect value={supplierId} onChange={(v) => { setSupplierId(v); markDirty(); }} hideLabel textFieldSx={drawerFieldValueSx} />
+      </PropertyRow>
+      <PropertyRow label="Category" required>
+        <EnumAutocomplete
+          label="Category"
+          value={category}
+          onChange={(v) => { setCategory(v); markDirty(); }}
+          options={byField.applicationCategory.filter((o) => !o.deprecated).map((o) => ({ label: o.label, value: o.code }))}
+          required
+          hideLabel
+          textFieldSx={drawerFieldValueSx}
+        />
+      </PropertyRow>
+      <PropertyRow label="Publisher">
+        <TextField value={editor} onChange={(e) => { setEditor(e.target.value); markDirty(); }} fullWidth variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
+      </PropertyRow>
+      <PropertyRow label="Criticality" required>
+        <EnumAutocomplete label="Criticality" value={criticality} onChange={(v) => { setCriticality(v as any); markDirty(); }} options={[{ label: 'Business critical', value: 'business_critical' }, { label: 'High', value: 'high' }, { label: 'Medium', value: 'medium' }, { label: 'Low', value: 'low' }]} required hideLabel textFieldSx={drawerFieldValueSx} />
+      </PropertyRow>
+      <PropertyRow label="Lifecycle" required>
+        <EnumAutocomplete label="Lifecycle" value={lifecycle} onChange={(v) => { setLifecycle(v as any); markDirty(); }} options={lifecycleOptions} required hideLabel textFieldSx={drawerFieldValueSx} />
+      </PropertyRow>
+      <Box component="label" sx={(theme) => ({ display: 'flex', gap: '8px', alignItems: 'center', fontSize: 13, color: theme.palette.kanap.text.primary })}>
+        <input type="checkbox" checked={isSuite} onChange={(e) => { setIsSuite(e.target.checked); markDirty(); }} style={{ accentColor: 'var(--kanap-teal)' }} />
+        Can have child apps
+      </Box>
       <Divider sx={{ my: 1 }} />
-      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Version Information</Typography>
-      <TextField
-        label="Version"
-        value={version}
-        onChange={(e) => { setVersion(e.target.value); markDirty(); }}
-        fullWidth
-        placeholder="e.g., 4.2.1, 2023, Q1 2024"
-        size="small"
-      />
-      <DateEUField label="Go Live Date" valueYmd={goLiveDate} onChangeYmd={(v) => { setGoLiveDate(v); markDirty(); }} />
-      <DateEUField label="End of Support" valueYmd={endOfSupportDate} onChangeYmd={(v) => { setEndOfSupportDate(v); markDirty(); }} />
+      <Typography
+        component="h2"
+        sx={(theme) => ({
+          m: 0,
+          fontSize: 14,
+          fontWeight: 500,
+          lineHeight: 1.4,
+          color: theme.palette.kanap.text.primary,
+        })}
+      >
+        Version information
+      </Typography>
+      <PropertyRow label="Version">
+        <TextField
+          value={version}
+          onChange={(e) => { setVersion(e.target.value); markDirty(); }}
+          fullWidth
+          placeholder="e.g., 4.2.1, 2023, Q1 2024"
+          size="small"
+          variant="standard"
+          InputProps={{ disableUnderline: true }}
+          sx={drawerFieldValueSx}
+        />
+      </PropertyRow>
+      <PropertyRow label="Go live">
+        <DateEUField label="" valueYmd={goLiveDate} onChangeYmd={(v) => { setGoLiveDate(v); markDirty(); }} hideLabel textFieldSx={drawerFieldValueSx} />
+      </PropertyRow>
+      <PropertyRow label="End of support">
+        <DateEUField label="" valueYmd={endOfSupportDate} onChangeYmd={(v) => { setEndOfSupportDate(v); markDirty(); }} hideLabel textFieldSx={drawerFieldValueSx} />
+      </PropertyRow>
       <Divider sx={{ my: 1 }} />
-      <DateEUField label="Retired Date" valueYmd={retiredDate} onChangeYmd={(v) => { setRetiredDate(v); markDirty(); }} />
-      <TextField label="Licensing" value={licensing} onChange={(e) => { setLicensing(e.target.value); markDirty(); }} fullWidth multiline minRows={3} />
-      <TextField label="Notes" value={notes} onChange={(e) => { setNotes(e.target.value); markDirty(); }} multiline minRows={3} fullWidth />
+      <PropertyRow label="Retired date">
+        <DateEUField label="" valueYmd={retiredDate} onChangeYmd={(v) => { setRetiredDate(v); markDirty(); }} hideLabel textFieldSx={drawerFieldValueSx} />
+      </PropertyRow>
+      <PropertyRow label="Licensing">
+        <TextField value={licensing} onChange={(e) => { setLicensing(e.target.value); markDirty(); }} fullWidth multiline minRows={3} variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
+      </PropertyRow>
+      <PropertyRow label="Notes">
+        <TextField value={notes} onChange={(e) => { setNotes(e.target.value); markDirty(); }} multiline minRows={3} fullWidth variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
+      </PropertyRow>
     </Stack>
   );
 });

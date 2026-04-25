@@ -42,7 +42,29 @@ export interface FeatureContent {
   };
 }
 
-/** Hub page (features landing). */
+/** Hub page (features landing) — role-based scenarios. */
+
+export interface PersonaModuleRef {
+  /** Feature slug (`budget` | `it-landscape` | `portfolio` | `knowledge` | `ai`). */
+  slug: string;
+  label: string;
+}
+
+export interface Persona {
+  /** Short role label rendered as eyebrow above the headline. */
+  role: string;
+  /** The H2 — concrete pain or task framed in the role's voice. */
+  headline: string;
+  /** 3–5 sentence narrative of how the persona uses KANAP. */
+  body: string;
+  /** One-line punchline rendered with a teal accent (the "win"). */
+  outcome: string;
+  /** Modules combined in the scenario; chips link to the deep-dive pages. */
+  modules: PersonaModuleRef[];
+  /** Alt text for the placeholder screenshot. */
+  shotAlt: string;
+}
+
 export interface FeaturesHubContent {
   meta: { title: string; description: string };
   header: {
@@ -50,21 +72,9 @@ export interface FeaturesHubContent {
     title: string;
     lead: string;
   };
-  modules: {
-    slug: string;
-    eyebrow: string;
-    title: string;
-    body: string;
-    bullets: string[];
-    ctaLabel: string;
-    shotAlt: string;
-  }[];
-  crossCutting: {
-    eyebrow: string;
-    title: string;
-    intro: string;
-    items: FeatureMore[];
-  };
+  /** Label rendered above the modules chip list, e.g. "Modules combined". */
+  modulesUsedLabel: string;
+  personas: Persona[];
   cta: {
     title: string;
     body: string;

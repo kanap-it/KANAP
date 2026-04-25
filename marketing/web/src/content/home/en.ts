@@ -10,7 +10,7 @@ const content: HomeContent = {
   hero: {
     eyebrow: 'Bring clarity to your IT department',
     title: 'The open source IT governance platform.',
-    lead: 'Budget, architecture, portfolio and knowledge in one platform, with Plaid, the built-in AI assistant. Self-host it, or let us run it.',
+    lead: 'Budget, architecture, portfolio and knowledge in one platform, with Plaid, the built-in AI assistant.\nSelf-host it, or let us run it.',
     primaryCta: 'Start free trial',
     secondaryCta: 'Explore features',
     trialNote: '14-day trial · no credit card · free activation session.',
@@ -18,7 +18,7 @@ const content: HomeContent = {
 
   pillars: {
     eyebrow: 'Why KANAP',
-    title: 'Built different.\nPriced fairly.',
+    title: 'Built different.',
     items: [
       {
         title: 'Practitioner-built',
@@ -30,14 +30,14 @@ const content: HomeContent = {
       },
       {
         title: 'Truly open source',
-        body: 'AGPL v3. Full source on GitHub. Free to self-host, open to contributions. No vendor lock-in, no bait-and-switch. If we vanish tomorrow, your platform stays yours.',
+        body: 'AGPL v3. Full source on GitHub. Free to self-host, open to contributions. No vendor lock-in, no bait-and-switch, no freemium pricing.',
       },
     ],
   },
 
   modules: {
     eyebrow: 'Complete IT toolbox',
-    title: 'Five integrated modules.\nOne source of truth.',
+    title: 'Built for every IT role.\nUse the whole platform, or one tile at a time.',
     intro:
       'KANAP covers the core territory every IT department needs to run, from the first budget line to the last retired application, with an AI assistant that reads across all of it.',
     items: [
@@ -45,7 +45,7 @@ const content: HomeContent = {
         slug: '/features/budget',
         title: 'Budget management',
         blurb:
-          'Master IT budget with multi-year planning, intelligent allocations, and executive chargeback reports. Track OPEX and CAPEX with full visibility.',
+          'For CIOs and finance partners. Multi-year planning, intelligent allocations, executive-ready chargeback. Defend the IT budget with the numbers your CFO will trust.',
         bullets: [
           'Multi-year budget planning',
           'Six allocation methods',
@@ -58,7 +58,7 @@ const content: HomeContent = {
         slug: '/features/it-landscape',
         title: 'IT landscape',
         blurb:
-          'Document your information system: applications, interfaces, infrastructure. Visualise your architecture with interactive maps.',
+          'For architects, application owners and infrastructure teams. Document apps, interfaces and servers. See the system at a glance, plan changes with the dependencies in front of you.',
         bullets: [
           'Application portfolio with per-environment instances',
           'Interface documentation with 3-leg middleware',
@@ -71,7 +71,7 @@ const content: HomeContent = {
         slug: '/features/portfolio',
         title: 'Portfolio management',
         blurb:
-          'From request to delivery: score demand, generate capacity-aware roadmaps, apply project dates with confidence.',
+          'For project managers and IT leads. Score the demand, simulate capacity-aware roadmaps, commit dates without crossing your fingers.',
         bullets: [
           'Request scoring with weighted criteria',
           'Automatic roadmap scheduling',
@@ -84,7 +84,7 @@ const content: HomeContent = {
         slug: '/features/knowledge',
         title: 'Knowledge',
         blurb:
-          'Govern IT documentation with a markdown editor, structured libraries, and review workflows. Link documents to everything.',
+          'For everyone, especially support and operations. Markdown editor, libraries, review workflows. Runbooks, decisions and architecture notes connected to the apps and projects they describe.',
         bullets: [
           'Markdown editor with review workflows',
           'Libraries, folders, document types',
@@ -97,7 +97,7 @@ const content: HomeContent = {
         slug: '/features/ai',
         title: 'Plaid, AI assistant',
         blurb:
-          'Ask Plaid anything about your data. Create documents, update tasks, connect your existing AI tools via MCP.',
+          'For every role, not just the AI-curious. Ask in plain language; get structured answers across every module. The shortest path between an IT question and the data that answers it.',
         bullets: [
           'Natural-language queries across every module',
           'Document and task actions with preview',
@@ -106,6 +106,17 @@ const content: HomeContent = {
         ],
         ctaLabel: 'Learn more',
       },
+      {
+        title: 'Adopt at your pace',
+        blurb:
+          'Every core module is fully operational on its own. Start where it hurts most — budget, landscape, portfolio, knowledge — and add the rest when you\'re ready. The platform pays off more as you adopt more, but you never need all five to get value.',
+        bullets: [
+          'Each module fully usable standalone',
+          'No forced sequence or full-platform migration',
+          'Cross-module value compounds as you adopt',
+          'Replace one tool today, consolidate when ready',
+        ],
+      },
     ],
   },
 
@@ -113,7 +124,7 @@ const content: HomeContent = {
     eyebrow: 'Enterprise ready',
     title: 'Everything connected.\nAlways under control.',
     intro:
-      'Five modules working from the same data, with the governance layer IT departments actually need.',
+      'Five modules working from the same data, creating the governance layer IT departments actually need.',
     items: [
       {
         title: 'Reporting & dashboards',
@@ -124,7 +135,7 @@ const content: HomeContent = {
         body: 'Fine-grained permissions per module. Reader, manager, admin levels.',
       },
       {
-        title: 'Full relations',
+        title: 'Rich relations',
         body: 'Link costs to apps, apps to projects, projects to budgets, knowledge to everything.',
       },
       {
@@ -136,16 +147,8 @@ const content: HomeContent = {
         body: 'Assign tasks across OPEX, CAPEX, contracts, and projects. One backlog across the platform.',
       },
       {
-        title: 'Multi-tenant with RLS',
-        body: 'Row-level security isolates every tenant. Your data stays yours.',
-      },
-      {
         title: 'SSO via Microsoft Entra ID',
         body: 'Enterprise single sign-on. One login for your entire organisation.',
-      },
-      {
-        title: 'Open by design',
-        body: 'MCP server, public API, CSV import/export. No walled garden.',
       },
     ],
   },
@@ -153,9 +156,9 @@ const content: HomeContent = {
   cta: {
     title: 'Ready to bring clarity to your IT department?',
     body:
-      'Start free with self-hosting, or try the cloud from €49/mo. All features on every plan. No lock-in.',
+      'Start free with self-hosting, or try the cloud from €49/mo.\nAll features on every plan, cloud or self-hosted.',
     primary: 'Start free trial',
-    secondary: 'Talk to us',
+    secondary: 'Deploy from GitHub',
   },
 };
 

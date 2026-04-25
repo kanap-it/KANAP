@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { Application } from '../application.entity';
 import { ApplicationOwner } from '../application-owner.entity';
 import { ApplicationCompany } from '../application-company.entity';
@@ -25,13 +25,19 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
   // Owners
   async listOwners(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    return mg.getRepository(ApplicationOwner).find({ where: { application_id: appId } as any });
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
+    if (!app) throw new NotFoundException('Application not found');
+    return this.listOwnersInternal(resolvedAppId, app.tenant_id, mg);
   }
 
   async bulkReplaceOwners(appId: string, owners: Array<{ user_id: string; owner_type: 'business' | 'it' }>, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
+    if (!app) throw new NotFoundException('Application not found');
     const repo = mg.getRepository(ApplicationOwner);
-    const existing = await repo.find({ where: { application_id: appId } as any });
+    const existing = await repo.find({ where: { application_id: resolvedAppId } as any });
     const beforeState = existing.map((o) => `${o.owner_type}:${o.user_id}`).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
     let afterRows: ApplicationOwner[] = [];
@@ -47,7 +53,15 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
         seen.add(key);
         uniqueOwners.push({ user_id: userId, owner_type: ownerType });
       }
-      const rows = uniqueOwners.map((o) => repo.create({ application_id: appId, user_id: o.user_id, owner_type: o.owner_type }));
+      if (uniqueOwners.length) {
+        const userIds = Array.from(new Set(uniqueOwners.map((o) => o.user_id)));
+        const found = await mg.query(
+          `SELECT id FROM users WHERE tenant_id = $1 AND id = ANY($2::uuid[])`,
+          [app.tenant_id, userIds],
+        );
+        if (found.length !== userIds.length) throw new BadRequestException('One or more owners not found');
+      }
+      const rows = uniqueOwners.map((o) => repo.create({ tenant_id: app.tenant_id, application_id: resolvedAppId, user_id: o.user_id, owner_type: o.owner_type }));
       afterRows = await repo.save(rows);
     }
     const afterState = afterRows.map((o) => `${o.owner_type}:${o.user_id}`).sort();
@@ -55,7 +69,7 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
       await this.audit.log(
         {
           table: 'application_owners',
-          recordId: appId,
+          recordId: resolvedAppId,
           action: 'update',
           before: beforeState,
           after: afterState,
@@ -64,24 +78,62 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
         { manager: mg },
       );
     }
-    return this.listOwners(appId, { manager: mg });
+    return this.listOwnersInternal(resolvedAppId, app.tenant_id, mg);
+  }
+
+  private async listOwnersInternal(appId: string, tenantId: string, mg: EntityManager) {
+    const rows = await mg.query(
+      `SELECT o.id,
+              o.tenant_id,
+              o.application_id,
+              o.user_id,
+              o.owner_type,
+              o.created_at,
+              u.email,
+              u.first_name,
+              u.last_name,
+              NULLIF(TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))), '') AS full_name
+       FROM application_owners o
+       LEFT JOIN users u ON u.id = o.user_id AND u.tenant_id = o.tenant_id
+       WHERE o.application_id = $1 AND o.tenant_id = $2
+       ORDER BY o.owner_type ASC, full_name ASC NULLS LAST, u.email ASC NULLS LAST, o.created_at ASC`,
+      [appId, tenantId],
+    );
+    return (rows as Array<ApplicationOwner & { email?: string | null; first_name?: string | null; last_name?: string | null; full_name?: string | null }>).map((row) => ({
+      ...row,
+      full_name: row.full_name || row.email || row.user_id,
+    }));
   }
 
   // Companies (Audience)
   async listCompanies(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    return mg.getRepository(ApplicationCompany).find({ where: { application_id: appId } as any });
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
+    if (!app) throw new NotFoundException('Application not found');
+    return mg.getRepository(ApplicationCompany).find({ where: { application_id: resolvedAppId, tenant_id: app.tenant_id } as any });
   }
 
   async bulkReplaceCompanies(appId: string, companyIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
+    if (!app) throw new NotFoundException('Application not found');
     const repo = mg.getRepository(ApplicationCompany);
-    const existing = await repo.find({ where: { application_id: appId } as any });
+    const existing = await repo.find({ where: { application_id: resolvedAppId, tenant_id: app.tenant_id } as any });
     const beforeState = existing.map((c) => c.company_id).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
     let afterRows: ApplicationCompany[] = [];
     if (companyIds && companyIds.length) {
-      const rows = companyIds.map((cid) => repo.create({ application_id: appId, company_id: cid }));
+      const uniqueCompanyIds = Array.from(new Set(companyIds.map((id) => String(id || '').trim()).filter(Boolean)));
+      if (uniqueCompanyIds.length) {
+        const found = await mg.query(
+          `SELECT id FROM companies WHERE tenant_id = $1 AND id = ANY($2::uuid[])`,
+          [app.tenant_id, uniqueCompanyIds],
+        );
+        if (found.length !== uniqueCompanyIds.length) throw new BadRequestException('One or more companies not found');
+      }
+      const rows = uniqueCompanyIds.map((cid) => repo.create({ tenant_id: app.tenant_id, application_id: resolvedAppId, company_id: cid }));
       afterRows = await repo.save(rows);
     }
     const afterState = afterRows.map((c) => c.company_id).sort();
@@ -89,7 +141,7 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
       await this.audit.log(
         {
           table: 'application_companies',
-          recordId: appId,
+          recordId: resolvedAppId,
           action: 'update',
           before: beforeState,
           after: afterState,
@@ -98,24 +150,38 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
         { manager: mg },
       );
     }
-    return this.listCompanies(appId, { manager: mg });
+    return this.listCompanies(resolvedAppId, { manager: mg });
   }
 
   // Departments (Audience)
   async listDepartments(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    return mg.getRepository(ApplicationDepartment).find({ where: { application_id: appId } as any });
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
+    if (!app) throw new NotFoundException('Application not found');
+    return mg.getRepository(ApplicationDepartment).find({ where: { application_id: resolvedAppId, tenant_id: app.tenant_id } as any });
   }
 
   async bulkReplaceDepartments(appId: string, departmentIds: string[], userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
+    if (!app) throw new NotFoundException('Application not found');
     const repo = mg.getRepository(ApplicationDepartment);
-    const existing = await repo.find({ where: { application_id: appId } as any });
+    const existing = await repo.find({ where: { application_id: resolvedAppId, tenant_id: app.tenant_id } as any });
     const beforeState = existing.map((d) => d.department_id).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
     let afterRows: ApplicationDepartment[] = [];
     if (departmentIds && departmentIds.length) {
-      const rows = departmentIds.map((did) => repo.create({ application_id: appId, department_id: did }));
+      const uniqueDepartmentIds = Array.from(new Set(departmentIds.map((id) => String(id || '').trim()).filter(Boolean)));
+      if (uniqueDepartmentIds.length) {
+        const found = await mg.query(
+          `SELECT id FROM departments WHERE tenant_id = $1 AND id = ANY($2::uuid[])`,
+          [app.tenant_id, uniqueDepartmentIds],
+        );
+        if (found.length !== uniqueDepartmentIds.length) throw new BadRequestException('One or more departments not found');
+      }
+      const rows = uniqueDepartmentIds.map((did) => repo.create({ tenant_id: app.tenant_id, application_id: resolvedAppId, department_id: did }));
       afterRows = await repo.save(rows);
     }
     const afterState = afterRows.map((d) => d.department_id).sort();
@@ -123,7 +189,7 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
       await this.audit.log(
         {
           table: 'application_departments',
-          recordId: appId,
+          recordId: resolvedAppId,
           action: 'update',
           before: beforeState,
           after: afterState,
@@ -132,13 +198,14 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
         { manager: mg },
       );
     }
-    return this.listDepartments(appId, { manager: mg });
+    return this.listDepartments(resolvedAppId, { manager: mg });
   }
 
   // Support contacts
   async listSupportContacts(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
     if (!app) throw new NotFoundException('Application not found');
     const rows = await mg.query(
       `SELECT sc.id, sc.contact_id, sc.role, c.first_name, c.last_name, c.email, c.phone, c.mobile
@@ -146,7 +213,7 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
        JOIN contacts c ON c.id = sc.contact_id
        WHERE sc.application_id = $1
        ORDER BY sc.created_at ASC, sc.id ASC`,
-      [appId],
+      [resolvedAppId],
     );
     return rows.map((r: any) => ({
       id: r.id,
@@ -165,7 +232,8 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
 
   async bulkReplaceSupportContacts(appId: string, contacts: Array<{ contact_id: string; role?: string | null }>, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
     if (!app) throw new NotFoundException('Application not found');
 
     const repo = mg.getRepository(ApplicationSupportContact);
@@ -181,12 +249,12 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
       if (invalid) throw new BadRequestException('Contact does not belong to tenant');
     }
 
-    const existing = await repo.find({ where: { application_id: appId } as any });
+    const existing = await repo.find({ where: { application_id: resolvedAppId } as any });
     const beforeState = existing.map((c) => `${c.contact_id}:${c.role ?? ''}`).sort();
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
     let afterRows: ApplicationSupportContact[] = [];
     if (filtered.length) {
-      const rows = filtered.map((c) => repo.create({ tenant_id: app.tenant_id, application_id: appId, contact_id: c.contact_id, role: c.role ?? null }));
+      const rows = filtered.map((c) => repo.create({ tenant_id: app.tenant_id, application_id: resolvedAppId, contact_id: c.contact_id, role: c.role ?? null }));
       afterRows = await repo.save(rows);
     }
     const afterState = afterRows.map((c) => `${c.contact_id}:${c.role ?? ''}`).sort();
@@ -194,7 +262,7 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
       await this.audit.log(
         {
           table: 'application_support_contacts',
-          recordId: appId,
+          recordId: resolvedAppId,
           action: 'update',
           before: beforeState,
           after: afterState,
@@ -203,6 +271,6 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
         { manager: mg },
       );
     }
-    return this.listSupportContacts(appId, { manager: mg });
+    return this.listSupportContacts(resolvedAppId, { manager: mg });
   }
 }

@@ -419,6 +419,31 @@ Used in dashboard cards where a status chip is isolated and needs visual weight.
 - **ID columns** (T-48, PRJ-5, INT-12): `color: var(--kanap-text-secondary)`, mono font, 12px, `tabular-nums`
 - Wrapper border-radius: **8px**
 
+### Dense workspace tables
+
+Use this pattern for plain `<table>` elements inside workspace tabs and detail sections:
+
+- Header: 12px, weight 500, `kanap.text.tertiary`, sentence case
+- Cell: 13px, weight 400, `kanap.text.primary`
+- Borders: horizontal only, `kanap.border.default` under the header and `kanap.border.soft` between rows
+- Row hover: `kanap.bg.hover` or the closest shared hover token
+- Right-align numeric columns with a shared `.r` class
+- Keep related tables as distinct table elements in a 2-column grid with at least 20px gap; add a subtle vertical divider only when needed to prevent them reading as one continuous table
+- If a table cell contains a true secondary navigation link, keep it neutral at rest and use a restrained underline/teal hover treatment only; never make table links permanently teal
+- If displayed allocations depend on editable base totals, keep those totals editable inline next to the allocation heading or result. Allocation dialogs should adjust distribution only, not hide the calculation basis.
+
+### Workspace metric strips
+
+Use inline metric strips when a workspace tab needs quick context before detailed sections:
+
+- Prefer one full-width lightweight container over multiple small metric cards
+- Align groups with `justify-content: space-between` when there are two primary metrics
+- Use inline labels and values with optional 10px tertiary source labels under each group
+- Use sliders or stacked bars with matching widths when comparing progress and consumption; avoid visually oversized bars in one section and tiny bars in another
+- Inline metric sliders and bars should remain usable and visually balanced; prefer about 200px on desktop over tiny 100px controls, then adapt responsively on narrow screens
+- Do not repeat the same story twice. If a calculated metric appears in the overview, avoid duplicating the same breakdown as a second section unless the section adds actionable detail
+- Use `kanap.bg.drawer`, `kanap.border.soft`, and 8px radius for subtle surfaces; avoid white cards inside already neutral work areas
+
 ### Editable inline fields (click-to-edit)
 
 Titles and other prominent editable fields use click-to-edit:
@@ -476,6 +501,16 @@ When a single panel combines multiple actions (comment + status change + time lo
 - If the editor hides/reveals its toolbar on focus, the submit button must preserve the first click. Prevent the editor blur/layout shift on submit pointer-down when needed so users do not need to click twice.
 - After successful submit, shows transient success label (e.g. "Logged 2h") for ~1500ms, then resets. During success state, `pointer-events: none` to prevent double submits.
 - Footer: single line, `border-top 1px solid kanap.border.soft`, padding `10px 16px 12px`
+
+### Allocation dialogs
+
+Percentage allocation dialogs should reduce arithmetic work:
+
+- Editing a percentage pins that row for automatic redistribution purposes, but it remains editable
+- Redistribute remaining percentage immediately across unpinned rows, preserving their current relative weights when possible
+- Do not add a "redistribute remainder" action when redistribution already happens on edit
+- Show invalid totals clearly when pinned rows exceed 100%
+- Provide only high-value bulk actions such as "Split equally" and "Clear manual pins"
 
 ### Avatars
 
@@ -614,6 +649,8 @@ All fields inside groups use the PropertyRow pattern. All Selects use `drawerSel
 - Hover reveals action icons (open, unlink — turns `kanap.danger` on hover)
 - Empty state: "No documents linked" in `kanap.text.tertiary`
 - Action links below list: teal 12px, `whiteSpace: nowrap`
+- Direct documents take precedence over related documents. If the same document appears in both groups, display it only as direct.
+- Related documents must be deduplicated across provenance paths. Display each document once and merge or summarize the sources that linked it.
 
 ### Keyboard shortcuts (workspace-level)
 
@@ -783,6 +820,7 @@ Most form fields save on every change, optimistically update the UI, and show a 
 22. **No ISO date strings** in user-facing display. Always format.
 23. **No section headers in bold with collapse chevrons** inside drawers. Use plain dividers.
 24. **No duplicating action labels** (e.g. label "Status" both above and inside a dropdown).
+25. **No duplicate metric storytelling.** If two sections communicate the same value or progression, consolidate them.
 
 ---
 

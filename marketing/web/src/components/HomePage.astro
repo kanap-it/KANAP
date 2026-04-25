@@ -24,12 +24,14 @@ const locale = getLocaleFromUrl(Astro.url);
 const content = getHomeContent(locale);
 const site = (Astro.site ?? new URL('https://kanap.net')).href.replace(/\/$/, '');
 
-// Feature cards: prefix module slugs with locale
+// Feature cards: prefix module slugs with locale.
+// The 6th tile ("Adopt at your pace") has no slug — it's a non-linking
+// info card, so we skip the href when slug is missing.
 const moduleItems = content.modules.items.map((m) => ({
   title: m.title,
   blurb: m.blurb,
   bullets: m.bullets,
-  href: localePath(locale, m.slug),
+  href: m.slug ? localePath(locale, m.slug) : undefined,
   ctaLabel: m.ctaLabel,
 }));
 
@@ -104,7 +106,7 @@ const crossItems = content.crossCutting.items.map((i) => ({
       body={content.cta.body}
       primaryHref={localePath(locale, '/trial/start')}
       primaryLabel={content.cta.primary}
-      secondaryHref={localePath(locale, '/contact')}
+      secondaryHref="https://github.com/kanap-it/kanap"
       secondaryLabel={content.cta.secondary}
     />
   </Section>

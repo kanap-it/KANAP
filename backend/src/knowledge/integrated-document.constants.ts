@@ -12,7 +12,7 @@ export type ManagedDocsFolderSystemKey =
   | 'integrated_applications'
   | 'integrated_assets';
 
-export type IntegratedDocumentSlotKey = 'purpose' | 'risks_mitigations' | 'specification';
+export type IntegratedDocumentSlotKey = 'purpose' | 'risks_mitigations' | 'specification' | 'overview';
 
 export const MANAGED_DOCS_LIBRARY_NAME = 'Managed Docs';
 export const MANAGED_DOCS_LIBRARY_SLUG = 'managed-docs';
@@ -32,7 +32,7 @@ export const MANAGED_DOCS_FOLDER_DEFINITIONS: Array<{
 ];
 
 export const INTEGRATED_DOCUMENT_SLOT_DEFINITIONS: Array<{
-  sourceEntityType: Extract<IntegratedDocumentSourceEntityType, 'requests' | 'projects' | 'interfaces'>;
+  sourceEntityType: Extract<IntegratedDocumentSourceEntityType, 'requests' | 'projects' | 'interfaces' | 'applications'>;
   slotKey: IntegratedDocumentSlotKey;
   displayName: string;
   folderSystemKey: ManagedDocsFolderSystemKey;
@@ -43,6 +43,18 @@ export const INTEGRATED_DOCUMENT_SLOT_DEFINITIONS: Array<{
   templateSummary: string;
   templateContentMarkdown?: string;
 }> = [
+  {
+    sourceEntityType: 'applications',
+    slotKey: 'overview',
+    displayName: 'Overview',
+    folderSystemKey: 'integrated_applications',
+    documentTypeName: 'Application Overview',
+    documentTypeSystemKey: 'application-overview',
+    documentTypeDescription: 'Managed document type for application overview descriptions',
+    templateTitle: 'Application Overview Template',
+    templateSummary: 'Managed template for application overview descriptions',
+    templateContentMarkdown: '',
+  },
   {
     sourceEntityType: 'requests',
     slotKey: 'purpose',
@@ -108,7 +120,7 @@ export const INTEGRATED_DOCUMENT_SLOT_DEFINITIONS: Array<{
 ];
 
 export function getIntegratedDocumentSlotKey(
-  sourceEntityType: Extract<IntegratedDocumentSourceEntityType, 'requests' | 'projects' | 'interfaces'>,
+  sourceEntityType: Extract<IntegratedDocumentSourceEntityType, 'requests' | 'projects' | 'interfaces' | 'applications'>,
   slotKey: IntegratedDocumentSlotKey,
 ): string {
   return `${sourceEntityType}:${slotKey}`;

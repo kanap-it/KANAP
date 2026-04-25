@@ -14,6 +14,8 @@ type Props = {
   helperText?: string;
   size?: 'small' | 'medium';
   sx?: SxProps<Theme>;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 // Extract just the date portion (YYYY-MM-DD) from a value that might be ISO datetime
@@ -26,7 +28,7 @@ function toYmdOnly(value: string): string {
   return value;
 }
 
-export default function DateEUField({ label, valueYmd = '', onChangeYmd, disabled, required, name, error, helperText, size, sx }: Props) {
+export default function DateEUField({ label, valueYmd = '', onChangeYmd, disabled, required, name, error, helperText, size, sx, hideLabel = false, textFieldSx }: Props) {
   const [text, setText] = React.useState<string>('');
   const nativeRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -85,21 +87,24 @@ export default function DateEUField({ label, valueYmd = '', onChangeYmd, disable
         onChange={onNativeChange}
       />
       <TextField
-        label={label}
+        label={hideLabel || !label ? undefined : label}
         placeholder="dd/mm/yyyy"
         value={text}
         onChange={onTextChange}
         onBlur={onBlur}
         disabled={disabled}
         required={required}
-        InputLabelProps={{ shrink: true }}
+        variant={hideLabel || !label ? 'standard' : undefined}
+        InputLabelProps={hideLabel || !label ? undefined : { shrink: true }}
         name={name}
         error={error}
         helperText={helperText}
         size={size}
         fullWidth
+        sx={textFieldSx}
         inputProps={{ inputMode: 'numeric' }}
         InputProps={{
+          ...(hideLabel || !label ? { disableUnderline: true } : {}),
           endAdornment: (
             <InputAdornment position="end">
               <IconButton size="small" onClick={openPicker} aria-label="Open calendar" tabIndex={-1}>

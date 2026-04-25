@@ -196,6 +196,8 @@ export class InterfacesListService extends InterfacesBaseService {
       source_application_name: string | null;
       target_application_id: string | null;
       target_application_name: string | null;
+      middleware_application_ids: string[] | null;
+      middleware_application_names: string[] | null;
       via_middleware: boolean;
       is_middleware: boolean;
       is_integration_tool: boolean;
@@ -210,6 +212,22 @@ export class InterfacesListService extends InterfacesBaseService {
          sa.name AS source_application_name,
          ta.id AS target_application_id,
          ta.name AS target_application_name,
+         ARRAY(
+           SELECT mw.application_id::text
+           FROM interface_middleware_applications mw
+           JOIN applications mwa ON mwa.id = mw.application_id AND mwa.tenant_id = mw.tenant_id
+           WHERE mw.interface_id = i.id
+             AND mw.tenant_id = i.tenant_id
+           ORDER BY mwa.name ASC
+         ) AS middleware_application_ids,
+         ARRAY(
+           SELECT mwa.name
+           FROM interface_middleware_applications mw
+           JOIN applications mwa ON mwa.id = mw.application_id AND mwa.tenant_id = mw.tenant_id
+           WHERE mw.interface_id = i.id
+             AND mw.tenant_id = i.tenant_id
+           ORDER BY mwa.name ASC
+         ) AS middleware_application_names,
          (i.integration_route_type = 'via_middleware') AS via_middleware,
          EXISTS (
            SELECT 1
@@ -255,6 +273,8 @@ export class InterfacesListService extends InterfacesBaseService {
       source_application_name: row.source_application_name,
       target_application_id: row.target_application_id,
       target_application_name: row.target_application_name,
+      middleware_application_ids: row.middleware_application_ids || [],
+      middleware_application_names: row.middleware_application_names || [],
       via_middleware: !!(row.via_middleware || row.is_middleware || row.is_integration_tool),
     }));
 

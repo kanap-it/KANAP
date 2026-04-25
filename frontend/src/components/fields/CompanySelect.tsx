@@ -1,7 +1,9 @@
 import React from 'react';
 import { TextField, CircularProgress, Autocomplete, Box } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type Company = { id: string; name: string };
 
@@ -15,6 +17,8 @@ export default function CompanySelect({
   required,
   size = 'medium',
   excludeCompanyIds,
+  hideLabel = false,
+  textFieldSx,
 }: {
   label?: string;
   value: string | null | undefined;
@@ -25,6 +29,8 @@ export default function CompanySelect({
   required?: boolean;
   size?: 'small' | 'medium';
   excludeCompanyIds?: string[];
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 }) {
   const { data: companies, isLoading } = useQuery({
     queryKey: ['companies', 'active'],
@@ -78,14 +84,18 @@ export default function CompanySelect({
         renderInput={(params) => (
           <TextField
             {...params}
-            label={label}
+            label={hideLabel ? undefined : label}
+            placeholder={hideLabel ? label : undefined}
             error={error}
             helperText={helperText}
             required={required}
             size={size}
-            InputLabelProps={{ shrink: true }}
+            variant={hideLabel ? 'standard' : undefined}
+            sx={textFieldSx}
+            InputLabelProps={hideLabel ? undefined : { shrink: true }}
             InputProps={{
               ...params.InputProps,
+              ...(hideLabel ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {(isLoading || isLoadingSelected) ? <CircularProgress size={20} /> : null}
@@ -101,6 +111,7 @@ export default function CompanySelect({
         }}
         disabled={disabled || isLoading}
         loading={isLoading || isLoadingSelected}
+        ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
         size={size}
         fullWidth
       />

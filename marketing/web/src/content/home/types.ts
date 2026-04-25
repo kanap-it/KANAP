@@ -6,11 +6,12 @@ export interface Pillar {
 }
 
 export interface ModuleEntry {
-  slug: string;
+  /** Optional — when omitted, the tile renders without a CTA link. */
+  slug?: string;
   title: string;
   blurb: string;
   bullets: string[];
-  ctaLabel: string;
+  ctaLabel?: string;
 }
 
 export interface CrossCuttingFeature {

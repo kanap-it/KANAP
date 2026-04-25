@@ -2,114 +2,87 @@ import type { FeaturesHubContent } from '../features/types';
 
 const content: FeaturesHubContent = {
   meta: {
-    title: 'Funktionen',
+    title: 'Wie IT-Teams KANAP wirklich nutzen',
     description:
-      'Fünf integrierte Module: Budget, IT-Landschaft, Portfolio, Wissen, KI-Assistent. Enterprise-ready mit RBAC, Audit, SSO, Multi-Tenant. Open Source unter AGPL v3.',
+      'Fünf Szenarien aus dem IT-Alltag — CIO, Architekt, PMO, Support, IT-Lead. Sehen Sie, wie die Module sich kombinieren, nicht nur, was jedes für sich tut.',
   },
   header: {
-    eyebrow: 'Das komplette IT-Toolkit',
-    title: 'Fünf integrierte Module.\nEine Quelle der Wahrheit.',
-    lead: 'KANAP deckt das Kernterrain jeder IT-Abteilung ab, von der ersten Budgetzeile bis zur letzten abgeschalteten Anwendung, mit einem KI-Assistenten, der alles quer liest.',
+    eyebrow: 'Nach Rolle',
+    title: 'Wie IT-Teams KANAP wirklich nutzen.',
+    lead: 'Fünf Szenarien von Menschen, die IT täglich am Laufen halten. Echte Probleme, echte Abläufe, echte Ergebnisse. Sehen Sie, wie die Module sich kombinieren, nicht nur, was jedes für sich tut.',
   },
-  modules: [
+  modulesUsedLabel: 'Module kombiniert',
+  personas: [
     {
-      slug: '/features/budget',
-      eyebrow: 'Modul 1',
-      title: 'Budget-Management',
-      body: 'Beherrschen Sie Ihr IT-Budget mit mehrjähriger Planung, intelligenter Kostenverteilung und Chargeback-Berichten für die Geschäftsführung. OPEX und CAPEX mit voller Transparenz über Gesellschaften und Abteilungen hinweg.',
-      bullets: [
-        'Mehrjährige Budgetplanung mit dynamischen Spalten',
-        'Sechs Verteilungsmethoden, u. a. Mitarbeiterzahl und Umsatz',
-        'Mehrwährung mit automatischen FX-Kursen',
-        'Chargeback-Berichte nach Gesellschaft und Abteilung',
-        'Freeze/Unfreeze-Workflows für die Governance',
+      role: 'CIO / IT-Leitung',
+      headline: 'Verteidigen Sie das IT-Budget im Vorstand.',
+      body:
+        'Ihr CFO fragt, warum die IT-Kosten um 12 % gestiegen sind. Sie kommen mit den Zahlen: ein Chargeback-Bericht nach Gesellschaft und Abteilung, OPEX und CAPEX nach Anwendung aufgeschlüsselt, der Mehrjahrestrend. Jede Zeile lässt sich auf einen Vertrag oder ein Projekt zurückführen. Keine Excel-Akrobatik, kein „Ich melde mich".',
+      outcome: 'Gehen Sie mit Antworten ins Budget-Review, nicht mit Fragen.',
+      modules: [
+        { slug: 'budget', label: 'Budget' },
+        { slug: 'it-landscape', label: 'IT-Landschaft' },
       ],
-      ctaLabel: 'Budget-Management entdecken',
-      shotAlt: 'Budget-Grid mit OPEX und CAPEX',
+      shotAlt: 'Chargeback-Bericht nach Gesellschaft und Abteilung, OPEX/CAPEX-Aufschlüsselung',
     },
     {
-      slug: '/features/it-landscape',
-      eyebrow: 'Modul 2',
-      title: 'IT-Landschaft',
-      body: 'Dokumentieren Sie Ihr gesamtes Informationssystem: Anwendungen, Schnittstellen und Infrastruktur. Visualisieren Sie Ihre Architektur mit interaktiven Karten und verfolgen Sie den Lebenszyklus vom Vorschlag bis zur Abschaltung.',
-      bullets: [
-        'Anwendungsportfolio mit Instanzen pro Umgebung',
-        'Schnittstellendokumentation mit 3-Leg-Middleware-Unterstützung',
-        'Server- und Infrastrukturregister',
-        'Interaktive Schnittstellen- und Verbindungskarten',
-        'Versions-Lineage-Tracking für die Entwicklung',
+      role: 'Unternehmensarchitekt',
+      headline: 'Planen Sie eine Migration ohne Überraschungen.',
+      body:
+        'Sie schalten das alte CRM ab. Bevor Sie Termine zusagen, müssen Sie wissen, was davon abhängt: welche Schnittstellen, welche nachgelagerten Apps, welche Projekte es bereits berühren. Die Schnittstellenkarte zeigt den Abhängigkeitsgraph auf einen Blick. Ihr Migrationsplan listet jeden Schnittstellen-Eigentümer, jedes betroffene Projekt. Wissen verknüpft die Entscheidungen mit den Anwendungen, die sie beschreiben. Ihre Nachfolgerin wird wissen, warum.',
+      outcome: 'Migrieren Sie mit offenen Augen statt mit gekreuzten Fingern.',
+      modules: [
+        { slug: 'it-landscape', label: 'IT-Landschaft' },
+        { slug: 'knowledge', label: 'Wissen' },
+        { slug: 'portfolio', label: 'Portfolio' },
       ],
-      ctaLabel: 'IT-Landschaft entdecken',
-      shotAlt: 'Schnittstellenkarte mit Anwendungsknoten',
+      shotAlt: 'Schnittstellenkarte mit den Abhängigkeiten des abzuschaltenden CRM',
     },
     {
-      slug: '/features/portfolio',
-      eyebrow: 'Modul 3',
-      title: 'Portfolio-Management',
-      body: 'Von der Anfrage bis zur Lieferung: Nachfrage priorisieren, realistische Lieferpläne simulieren und Roadmap-Termine mit Vertrauen übernehmen. Datenbasierte Entscheidungen, was wann gebaut wird.',
-      bullets: [
-        'Konfigurierbares Anfrage-Scoring mit gewichteten Kriterien',
-        'Workflow zur Umwandlung Anfrage-zu-Projekt',
-        'Automatische Roadmap-Erstellung aus Aufwand, Abhängigkeiten und Kapazität',
-        'Engpass- und Auslastungsanalyse',
-        'Selektive, transaktionale Übernahme generierter Termine',
-        'Baseline-Erfassung für die Abweichungsanalyse',
+      role: 'PMO-Leitung / IT-Projektmanager',
+      headline: 'Quartalsplanung mit echten Kapazitätszahlen.',
+      body:
+        'Zwanzig eingehende Anfragen, acht Teams, ein Quartal. Bewerten Sie jede Anfrage anhand gewichteter Kriterien und erstellen Sie eine kapazitätsbewusste Roadmap. Engpässe sind sichtbar, bevor Sie zusagen. Termine sind kein Wunschdenken. Sie sind Mathematik. Im Steering Committee erklären Sie, warum dieses Projekt in Q3 statt Q1 liegt: Kapazität im Plattform-Team.',
+      outcome: 'Sagen Sie Termine zu, die Sie wirklich verteidigen können.',
+      modules: [
+        { slug: 'portfolio', label: 'Portfolio' },
+        { slug: 'budget', label: 'Budget' },
       ],
-      ctaLabel: 'Portfolio-Management entdecken',
-      shotAlt: 'Roadmap mit Kapazitäts-Heatmap',
+      shotAlt: 'Kapazitätsbewusste Roadmap mit Engpass-Heatmap',
     },
     {
-      slug: '/features/knowledge',
-      eyebrow: 'Modul 4',
-      title: 'Wissen',
-      body: 'Steuern Sie Ihre IT-Dokumentation mit einem Markdown-Editor, strukturierten Bibliotheken und Review-Workflows. Verknüpfen Sie Dokumente mit Anwendungen, Assets, Projekten, Anfragen und Aufgaben, für volle Nachvollziehbarkeit.',
-      bullets: [
-        'Markdown-Editor mit Edit Locks und Autosave',
-        'Bibliotheken, Ordner und Dokumenttypen',
-        'Review- und Freigabe-Workflows',
-        'Versionshistorie mit Rollback',
-        'Export nach PDF, DOCX, ODT',
-        'Tiefe Integration mit Apps, Assets, Projekten, Aufgaben',
+      role: 'IT-Operations / Support',
+      headline: 'Die Ursache in Sekunden finden, nicht in Stunden.',
+      body:
+        'Die Auftragsverwaltung in der Produktion ist langsam. Sie fragen Plaid: „Welche Apps nutzen die order-management-API?" Fünf Sekunden später, eine Liste. „Welche davon wurden diese Woche aktualisiert?" Eine. „Wer ist verantwortlich?" E-Mail und Teams. Vom Symptom zur Verantwortlichkeit, ohne fünf Tools zu öffnen.',
+      outcome: 'Behandeln Sie Vorfälle aus einem Ort. Schlafen Sie besser.',
+      modules: [
+        { slug: 'it-landscape', label: 'IT-Landschaft' },
+        { slug: 'knowledge', label: 'Wissen' },
+        { slug: 'ai', label: 'Plaid' },
       ],
-      ctaLabel: 'Wissen entdecken',
-      shotAlt: 'Bibliotheksbaum mit Dokumenttypen',
+      shotAlt: 'Plaid beantwortet eine Ursachenforschung mit strukturierten Ergebnissen',
     },
     {
-      slug: '/features/ai',
-      eyebrow: 'KI-Assistent',
-      title: 'Plaid kennenlernen',
-      body: 'Fragen Sie alles zu Ihren IT-Daten in natürlicher Sprache. Plaid sucht über alle Module hinweg, erstellt Dokumente und verwaltet Aufgaben, immer unter Beachtung Ihrer Berechtigungen.',
-      bullets: [
-        'Abfragen in natürlicher Sprache über alle Module',
-        'Dokument- und Aufgabenaktionen direkt aus dem Chat',
-        'MCP-Server für jedes KI-Tool',
-        'Eigener API-Key, OpenAI, Anthropic, Ollama, individuell',
-        'Volle Tenant-Isolation und RBAC-Durchsetzung',
+      role: 'IT-Lead / Infrastruktur-Leitung',
+      headline: 'Was abschalten, was verlängern, was zusammenführen.',
+      body:
+        'Wie viele SaaS-Anwendungen bezahlen wir? Welche überlappen? Wer ist Eigentümer, wenn es um Verhandlungen geht? Jede Anwendung trägt ihre OPEX-Zeile, ihren Vertrag, ihr Verlängerungsdatum, ihre Datenklassifizierung. Sortieren nach Kosten, Überlappung, Nutzung. Führen Sie das Gespräch mit der Finanzabteilung mit Fakten vor sich.',
+      outcome: 'Verlängern Sie nicht mehr, was niemand nutzt.',
+      modules: [
+        { slug: 'it-landscape', label: 'IT-Landschaft' },
+        { slug: 'budget', label: 'Budget' },
+        { slug: 'knowledge', label: 'Wissen' },
       ],
-      ctaLabel: 'Plaid entdecken',
-      shotAlt: 'Plaid-Chat mit modulübergreifender Abfrage',
+      shotAlt: 'Anwendungsportfolio nach OPEX sortiert mit Verlängerungsdaten',
     },
   ],
-  crossCutting: {
-    eyebrow: 'Enterprise-ready',
-    title: 'Alles verbunden. Immer unter Kontrolle.',
-    intro: 'Fünf Module arbeiten auf derselben Datenbasis, mit der Governance-Schicht, die IT-Abteilungen tatsächlich brauchen.',
-    items: [
-      { title: 'Reporting & Dashboards', body: 'Berichte für die Geschäftsführung, Trendanalysen und KPI-Dashboards.' },
-      { title: 'Rollenbasierte Zugriffskontrolle', body: 'Feinkörnige Berechtigungen pro Modul. Leser-, Manager- und Admin-Ebenen.' },
-      { title: 'Umfassende Verknüpfungen', body: 'Kosten an Apps, Apps an Projekte, Projekte an Budgets, Wissen an alles.' },
-      { title: 'Vollständiger Audit-Trail', body: 'Jede Änderung protokolliert mit kompletter Vorher-Nachher-Historie.' },
-      { title: 'Einheitliches Aufgabenmanagement', body: 'Aufgaben über OPEX, CAPEX und Verträge hinweg. Fälligkeiten und Fortschritt im Blick.' },
-      { title: 'Multi-Tenant-Architektur', body: 'Sichere Tenant-Isolation mit Row-Level Security.' },
-      { title: 'SSO über Microsoft Entra ID', body: 'Enterprise Single Sign-On Integration.' },
-      { title: 'Open Source unter AGPL v3', body: 'Echtes Open Source. Einsehen, selbst hosten, mitgestalten.' },
-    ],
-  },
   cta: {
-    title: 'Bereit, Klarheit in Ihre IT-Abteilung zu bringen?',
-    body: 'Starten Sie kostenlos mit Self-Hosting oder testen Sie die Cloud ab 49 €/Mon. Alle Funktionen in jedem Plan.',
+    title: 'Bereit, Ihre Rolle auf der Plattform zu sehen?',
+    body:
+      'Starten Sie kostenlos mit Self-Hosting oder testen Sie die Cloud ab 49 €/Mon.\nAlle Funktionen in jedem Plan, Cloud wie Self-Hosting.',
     primary: 'Testversion starten',
-    secondary: 'Sprechen Sie mit uns',
+    secondary: 'Von GitHub bereitstellen',
   },
 };
 

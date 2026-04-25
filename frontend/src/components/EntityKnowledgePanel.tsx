@@ -6,15 +6,12 @@ import {
   Button,
   ButtonGroup,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   ListSubheader,
   Menu,
   MenuItem,
   Paper,
+  Select,
   Stack,
   Table,
   TableBody,
@@ -32,6 +29,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
+import { KanapDialog, PropertyRow } from './design';
+import { drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../theme/formSx';
 
 export type EntityKnowledgeType = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
 
@@ -718,8 +717,8 @@ export default function EntityKnowledgePanel({
           isOptionEqualToValue={(option, value) => option.id === value.id}
           noOptionsText={deferredSearch ? t('knowledgePanel.noMatchingKnowledge') : t('knowledgePanel.noAvailableKnowledge')}
           renderOption={(props, option) => (
-            <Box component="li" {...props} sx={{ minHeight: 36, py: 0.5 }}>
-              <Typography variant="body2" noWrap title={formatDocumentOptionLabel(option)}>
+            <Box component="li" {...props}>
+              <Typography className="kanap-autocomplete-option-primary" noWrap title={formatDocumentOptionLabel(option)}>
                 {formatDocumentOptionLabel(option)}
               </Typography>
             </Box>
@@ -727,24 +726,14 @@ export default function EntityKnowledgePanel({
           renderInput={(params) => (
             <TextField
               {...params}
-              label={t('knowledgePanel.linkExisting')}
               placeholder={t('knowledgePanel.searchByNameOrRef')}
-              InputLabelProps={{ shrink: true }}
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={drawerFieldValueSx}
             />
           )}
-          ListboxProps={{
-            sx: {
-              '& .MuiAutocomplete-option': {
-                fontSize: '0.85rem',
-              },
-            },
-          }}
-          sx={{
-            width: '100%',
-            '& .MuiFormLabel-root': { fontSize: '0.9rem' },
-            '& .MuiInputBase-root': { fontSize: '0.9rem' },
-            '& .MuiInputBase-input': { fontSize: '0.9rem' },
-          }}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          sx={{ width: '100%', ...drawerFieldValueSx }}
           disabled={linkExistingMutation.isPending}
         />
       </Stack>
@@ -796,9 +785,23 @@ export default function EntityKnowledgePanel({
             isOptionEqualToValue={(option, value) => option.id === value.id}
             noOptionsText={deferredSearch ? 'No matching knowledge' : 'No available knowledge'}
             renderInput={(params) => (
-              <TextField {...params} label={t('knowledgePanel.linkExistingKnowledge')} placeholder="Search by name or ref" />
+              <TextField
+                {...params}
+                placeholder={t('knowledgePanel.searchByNameOrRef')}
+                variant="standard"
+                InputProps={{ ...params.InputProps, disableUnderline: true }}
+                sx={drawerFieldValueSx}
+              />
             )}
-            sx={{ minWidth: 320, flex: 1 }}
+            renderOption={(props, option) => (
+              <Box component="li" {...props}>
+                <Typography className="kanap-autocomplete-option-primary" noWrap title={formatDocumentOptionLabel(option)}>
+                  {formatDocumentOptionLabel(option)}
+                </Typography>
+              </Box>
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            sx={{ minWidth: 320, flex: 1, ...drawerFieldValueSx }}
             disabled={linkExistingMutation.isPending}
           />
         </Stack>
@@ -857,45 +860,42 @@ export default function EntityKnowledgePanel({
         </MenuItem>
       </Menu>
 
-      <Dialog open={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{t('knowledgePanel.selectTemplate')}</DialogTitle>
-        <DialogContent>
-          <TextField
-            select
+      <KanapDialog
+        open={templatePickerOpen}
+        onClose={() => setTemplatePickerOpen(false)}
+        title={t('knowledgePanel.selectTemplate')}
+        onSave={handleCreateFromTemplate}
+        saveLabel={t('knowledgePanel.useTemplate')}
+        saveDisabled={!selectedTemplateId || createLinkedMutation.isPending}
+        saveLoading={createLinkedMutation.isPending}
+      >
+        <PropertyRow label={t('labels.template')}>
+          <Select
             fullWidth
-            margin="dense"
-            label={t('labels.template')}
             value={selectedTemplateId}
             onChange={(e) => setSelectedTemplateId(e.target.value)}
+            variant="standard"
+            disableUnderline
+            sx={drawerSelectSx}
           >
             {groupedTemplates.map((group) => ([
               <ListSubheader key={`${group.typeName}-header`} disableSticky>
                 {group.typeName}
               </ListSubheader>,
               ...group.items.map((row) => (
-                <MenuItem key={row.id} value={row.id}>
+                <MenuItem key={row.id} value={row.id} sx={drawerMenuItemSx}>
                   {`DOC-${row.item_number} - ${row.title}`}
                 </MenuItem>
               )),
             ]))}
-          </TextField>
-          {!templatesData?.items?.length && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {t('knowledgePanel.noTemplatesAvailable')}
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setTemplatePickerOpen(false)}>{t('buttons.cancel')}</Button>
-          <Button
-            variant="contained"
-            onClick={handleCreateFromTemplate}
-            disabled={!selectedTemplateId || createLinkedMutation.isPending}
-          >
-            {t('knowledgePanel.useTemplate')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </Select>
+        </PropertyRow>
+        {!templatesData?.items?.length && (
+          <Typography sx={(theme) => ({ mt: 1, fontSize: 13, color: theme.palette.kanap.text.secondary })}>
+            {t('knowledgePanel.noTemplatesAvailable')}
+          </Typography>
+        )}
+      </KanapDialog>
 
       {isLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: isSidebar ? 3 : 6 }}>

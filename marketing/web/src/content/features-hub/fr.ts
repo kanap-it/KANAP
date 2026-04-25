@@ -2,114 +2,87 @@ import type { FeaturesHubContent } from '../features/types';
 
 const content: FeaturesHubContent = {
   meta: {
-    title: 'Fonctionnalités',
+    title: 'Comment les DSI utilisent vraiment KANAP',
     description:
-      'Cinq modules intégrés : budget, paysage IT, portefeuille, connaissance, assistant IA. Pensé entreprise avec RBAC, audit, SSO, multi-tenant. Open source sous AGPL v3.',
+      'Cinq scénarios concrets vécus par les équipes IT au quotidien — DSI, architecte, PMO, support, lead IT. Voyez comment les modules se combinent, au-delà de ce que chacun fait séparément.',
   },
   header: {
-    eyebrow: 'La boîte à outils IT complète',
-    title: 'Cinq modules intégrés.\nUne source de vérité.',
-    lead: 'KANAP couvre le cœur de ce qu\'une DSI doit maîtriser, de la première ligne de budget à la dernière application retirée, avec un assistant IA qui lit transversalement tout le reste.',
+    eyebrow: 'Par rôle',
+    title: 'Comment les DSI utilisent vraiment KANAP.',
+    lead: 'Cinq scénarios issus de ceux qui font tourner l\'IT au quotidien. Vraies douleurs, vrais flux, vrais résultats. Voyez comment les modules se combinent, au-delà de ce que chacun fait séparément.',
   },
-  modules: [
+  modulesUsedLabel: 'Modules combinés',
+  personas: [
     {
-      slug: '/features/budget',
-      eyebrow: 'Module 1',
-      title: 'Gestion du budget',
-      body: 'Maîtrisez votre budget IT avec une planification pluriannuelle, une allocation intelligente et des rapports de refacturation exécutifs. OPEX et CAPEX avec visibilité complète.',
-      bullets: [
-        'Planification pluriannuelle avec colonnes dynamiques',
-        'Six méthodes d\'allocation dont effectif et chiffre d\'affaires',
-        'Multi-devises avec taux FX automatiques',
-        'Refacturation exécutive par société et département',
-        'Workflows freeze / unfreeze pour la gouvernance',
+      role: 'DSI / directeur IT',
+      headline: 'Défendez le budget IT en comité de direction.',
+      body:
+        'Votre directeur financier demande pourquoi les coûts IT ont augmenté de 12 %. Vous arrivez avec les chiffres : un rapport de refacturation par société et département, OPEX et CAPEX ventilés par application, la tendance pluriannuelle. Chaque ligne remonte à un contrat ou un projet. Pas de gymnastique Excel, pas de « je vous reviens ».',
+      outcome: 'Allez au budget review avec des réponses, pas des questions.',
+      modules: [
+        { slug: 'budget', label: 'Budget' },
+        { slug: 'it-landscape', label: 'Paysage IT' },
       ],
-      ctaLabel: 'Explorer la gestion du budget',
-      shotAlt: 'Grille budgétaire avec OPEX et CAPEX',
+      shotAlt: 'Rapport de refacturation par société et département, ventilation OPEX/CAPEX',
     },
     {
-      slug: '/features/it-landscape',
-      eyebrow: 'Module 2',
-      title: 'Paysage IT',
-      body: 'Documentez tout votre SI : applications, interfaces et infrastructure. Visualisez l\'architecture via des cartes interactives et suivez les cycles de vie.',
-      bullets: [
-        'Portefeuille applicatif avec instances par environnement',
-        'Documentation d\'interfaces avec middleware 3 segments',
-        'Registre de serveurs et d\'infrastructure',
-        'Cartes d\'interfaces et de connexions interactives',
-        'Suivi de lignée de versions',
+      role: 'Architecte d\'entreprise',
+      headline: 'Planifiez une migration sans mauvaises surprises.',
+      body:
+        'Vous retirez le CRM historique. Avant d\'engager des dates, il faut savoir ce qui en dépend : quelles interfaces, quelles applications en aval, quels projets l\'utilisent déjà. La carte des interfaces montre le graphe de dépendances d\'un coup d\'œil. Votre plan de migration liste chaque propriétaire d\'interface à contacter, chaque projet à mettre dans la boucle. La connaissance attache les décisions aux applications qu\'elles décrivent. Votre successeur saura pourquoi.',
+      outcome: 'Migrez les yeux ouverts plutôt que les doigts croisés.',
+      modules: [
+        { slug: 'it-landscape', label: 'Paysage IT' },
+        { slug: 'knowledge', label: 'Connaissance' },
+        { slug: 'portfolio', label: 'Portefeuille' },
       ],
-      ctaLabel: 'Explorer le paysage IT',
-      shotAlt: 'Carte d\'interfaces avec nœuds d\'applications',
+      shotAlt: 'Carte des interfaces montrant les dépendances du CRM en cours de retrait',
     },
     {
-      slug: '/features/portfolio',
-      eyebrow: 'Module 3',
-      title: 'Gestion de portefeuille',
-      body: 'De la demande à la livraison : priorisez, simulez, appliquez des dates avec confiance. Des décisions basées sur les données.',
-      bullets: [
-        'Scoring paramétrable avec critères pondérés',
-        'Conversion demande-vers-projet',
-        'Feuille de route automatique selon effort, dépendances, capacité',
-        'Analyse de goulots et d\'occupation',
-        'Application sélective et transactionnelle des dates',
-        'Baseline pour l\'analyse d\'écart',
+      role: 'PMO / chef de projet IT',
+      headline: 'Faites la planification trimestrielle avec des chiffres de capacité.',
+      body:
+        'Vingt demandes entrantes, huit équipes, un trimestre. Scorez chaque demande sur des critères pondérés, puis générez une feuille de route consciente de la capacité. Les goulots sont visibles avant l\'engagement. Les dates ne sont pas du vœu pieux. C\'est de l\'arithmétique. En comité de pilotage, vous expliquez pourquoi ce projet tombe en T3 et non en T1 : la capacité de l\'équipe plateforme.',
+      outcome: 'Engagez-vous sur des dates que vous pouvez vraiment défendre.',
+      modules: [
+        { slug: 'portfolio', label: 'Portefeuille' },
+        { slug: 'budget', label: 'Budget' },
       ],
-      ctaLabel: 'Explorer la gestion de portefeuille',
-      shotAlt: 'Feuille de route avec heatmap de capacité',
+      shotAlt: 'Feuille de route consciente de la capacité avec heatmap des goulots',
     },
     {
-      slug: '/features/knowledge',
-      eyebrow: 'Module 4',
-      title: 'Connaissance',
-      body: 'Gouvernez votre documentation IT avec un éditeur markdown, des bibliothèques structurées et des workflows de revue. Liez les documents à tout le reste.',
-      bullets: [
-        'Éditeur markdown avec verrous et autosave',
-        'Bibliothèques, dossiers, types de documents',
-        'Workflows de revue et d\'approbation',
-        'Historique des versions avec restauration',
-        'Export PDF, DOCX, ODT',
-        'Intégration profonde avec apps, actifs, projets, tâches',
+      role: 'Opérations IT / support',
+      headline: 'Trouvez la cause racine en secondes, pas en heures.',
+      body:
+        'La gestion de commandes en production est lente. Vous demandez à Plaid : « Quelles applications consomment l\'API order-management ? » Cinq secondes plus tard, une liste. « Lesquelles ont été mises à jour cette semaine ? » Une seule. « Qui en est responsable ? » Email et Teams. Du symptôme au responsable sans ouvrir cinq outils.',
+      outcome: 'Résolvez les incidents depuis un seul endroit. Dormez mieux.',
+      modules: [
+        { slug: 'it-landscape', label: 'Paysage IT' },
+        { slug: 'knowledge', label: 'Connaissance' },
+        { slug: 'ai', label: 'Plaid' },
       ],
-      ctaLabel: 'Explorer la connaissance',
-      shotAlt: 'Arborescence de bibliothèque avec types de documents',
+      shotAlt: 'Plaid répondant à une enquête d\'incident avec des résultats structurés',
     },
     {
-      slug: '/features/ai',
-      eyebrow: 'Assistant IA',
-      title: 'Découvrir Plaid',
-      body: 'Demandez n\'importe quoi sur vos données IT en langage naturel. Plaid cherche dans tous les modules, crée des documents, gère des tâches, dans le respect de vos permissions.',
-      bullets: [
-        'Requêtes en langage naturel sur tous les modules',
-        'Création de documents et mise à jour de tâches depuis le chat',
-        'Serveur MCP pour n\'importe quel outil IA',
-        'Clé API perso, OpenAI, Anthropic, Ollama, personnalisée',
-        'Isolation par tenant et RBAC appliqués partout',
+      role: 'Lead IT / responsable infrastructure',
+      headline: 'Identifiez ce qu\'il faut arrêter, renouveler, consolider.',
+      body:
+        'Combien de SaaS payons-nous ? Lesquels se chevauchent ? Qui est le propriétaire quand il faut renégocier ? Chaque application porte sa ligne OPEX, son contrat, sa date de renouvellement, sa classification de données. Triez par coût, par chevauchement, par usage. Discutez avec la finance, les faits sous les yeux.',
+      outcome: 'Arrêtez de renouveler ce que personne n\'utilise.',
+      modules: [
+        { slug: 'it-landscape', label: 'Paysage IT' },
+        { slug: 'budget', label: 'Budget' },
+        { slug: 'knowledge', label: 'Connaissance' },
       ],
-      ctaLabel: 'Explorer Plaid',
-      shotAlt: 'Chat Plaid avec requête transverse',
+      shotAlt: 'Portefeuille d\'applications trié par coût OPEX avec dates de renouvellement',
     },
   ],
-  crossCutting: {
-    eyebrow: 'Pensé pour l\'entreprise',
-    title: 'Tout connecté. Toujours maîtrisé.',
-    intro: 'Cinq modules travaillent sur les mêmes données, avec la couche de gouvernance dont une DSI a réellement besoin.',
-    items: [
-      { title: 'Reporting & tableaux de bord', body: 'Rapports orientés direction, analyse de tendance et KPI.' },
-      { title: 'Contrôle d\'accès par rôle', body: 'Permissions fines par module. Niveaux lecteur, gestionnaire, admin.' },
-      { title: 'Relations complètes', body: 'Liez coûts, applications, projets, budgets, connaissance.' },
-      { title: 'Piste d\'audit complète', body: 'Chaque changement tracé avec historique avant/après.' },
-      { title: 'Gestion unifiée des tâches', body: 'Tâches sur OPEX, CAPEX, contrats. Échéances et avancement.' },
-      { title: 'Architecture multi-tenant', body: 'Isolation sécurisée avec row-level security.' },
-      { title: 'SSO via Microsoft Entra ID', body: 'Authentification unique d\'entreprise.' },
-      { title: 'Open source sous AGPL v3', body: 'Véritablement open source. Inspectez, auto-hébergez, contribuez.' },
-    ],
-  },
   cta: {
-    title: 'Prêt à mettre de la clarté dans votre DSI ?',
-    body: 'Démarrez gratuitement en auto-hébergement, ou essayez le cloud à partir de 49 €/mois.',
+    title: 'Prêt à voir votre rôle sur la plateforme ?',
+    body:
+      'Démarrez gratuitement en auto-hébergement, ou essayez le cloud à partir de 49 €/mois.\nToutes les fonctionnalités sur chaque plan, cloud comme auto-hébergement.',
     primary: 'Essai gratuit',
-    secondary: 'Nous contacter',
+    secondary: 'Déployer depuis GitHub',
   },
 };
 

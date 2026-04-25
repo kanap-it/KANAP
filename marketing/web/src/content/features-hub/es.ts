@@ -2,114 +2,87 @@ import type { FeaturesHubContent } from '../features/types';
 
 const content: FeaturesHubContent = {
   meta: {
-    title: 'Funcionalidades',
+    title: 'Cómo los equipos de TI usan KANAP de verdad',
     description:
-      'Cinco módulos integrados: presupuesto, paisaje de TI, portafolio, conocimiento, asistente de IA. Listo para empresas con RBAC, auditoría, SSO y multi-tenant. Código abierto bajo AGPL v3.',
+      'Cinco escenarios de quienes operan TI cada día — CIO, arquitecto, PMO, soporte, lead de TI. Mira cómo se combinan los módulos, no solo lo que hace cada uno por separado.',
   },
   header: {
-    eyebrow: 'La caja de herramientas de TI completa',
-    title: 'Cinco módulos integrados.\nUna fuente de verdad.',
-    lead: 'KANAP cubre el terreno esencial de cualquier departamento de TI, desde la primera línea de presupuesto hasta la última aplicación retirada, con un asistente de IA que lee todo de forma transversal.',
+    eyebrow: 'Por rol',
+    title: 'Cómo los equipos de TI usan KANAP de verdad.',
+    lead: 'Cinco escenarios de quienes mantienen la TI en marcha cada día. Dolor real, flujos reales, resultados reales. Mira cómo se combinan los módulos, no solo lo que hace cada uno por separado.',
   },
-  modules: [
+  modulesUsedLabel: 'Módulos combinados',
+  personas: [
     {
-      slug: '/features/budget',
-      eyebrow: 'Módulo 1',
-      title: 'Gestión de presupuesto',
-      body: 'Controla tu presupuesto de TI con planificación plurianual, asignación inteligente e informes de repercusión ejecutivos. Sigue OPEX y CAPEX con visibilidad completa a través de empresas y departamentos.',
-      bullets: [
-        'Planificación plurianual con columnas dinámicas',
-        'Seis métodos de asignación, entre ellos plantilla y facturación',
-        'Soporte multidivisa con tasas FX automáticas',
-        'Informes de repercusión ejecutivos por empresa y departamento',
-        'Flujos freeze / unfreeze para la gobernanza',
+      role: 'CIO / director de TI',
+      headline: 'Defiende el presupuesto de TI ante el comité de dirección.',
+      body:
+        'Tu CFO pregunta por qué los costes de TI subieron un 12 %. Llegas con los números: un informe de repercusión por empresa y departamento, OPEX y CAPEX desglosados por aplicación, la tendencia plurianual. Cada línea se rastrea hasta un contrato o un proyecto. Sin gimnasia de hojas de cálculo, sin «ya te vuelvo a llamar».',
+      outcome: 'Entra a la revisión presupuestaria con respuestas, no con preguntas.',
+      modules: [
+        { slug: 'budget', label: 'Presupuesto' },
+        { slug: 'it-landscape', label: 'Paisaje de TI' },
       ],
-      ctaLabel: 'Explorar gestión de presupuesto',
-      shotAlt: 'Grid presupuestario con OPEX y CAPEX',
+      shotAlt: 'Informe de repercusión por empresa y departamento, desglose OPEX/CAPEX',
     },
     {
-      slug: '/features/it-landscape',
-      eyebrow: 'Módulo 2',
-      title: 'Paisaje de TI',
-      body: 'Documenta todo tu sistema de información: aplicaciones, interfaces e infraestructura. Visualiza tu arquitectura con mapas interactivos y sigue los ciclos de vida de las aplicaciones desde la propuesta hasta la retirada.',
-      bullets: [
-        'Portafolio de aplicaciones con instancias por entorno',
-        'Documentación de interfaces con soporte de middleware de 3 tramos',
-        'Registro de servidores e infraestructura',
-        'Mapas interactivos de interfaces y de conexiones',
-        'Seguimiento del linaje de versiones para su evolución',
+      role: 'Arquitecto de empresa',
+      headline: 'Planifica una migración sin sorpresas.',
+      body:
+        'Vas a retirar el CRM heredado. Antes de comprometer fechas, necesitas saber qué depende de él: qué interfaces, qué aplicaciones aguas abajo, qué proyectos ya lo tocan. El mapa de interfaces muestra el grafo de dependencias de un vistazo. Tu plan de migración lista cada responsable de interfaz que llamar, cada proyecto que avisar. La base de conocimiento ata las decisiones a las aplicaciones que describen. Tu sucesor sabrá por qué.',
+      outcome: 'Migra con los ojos abiertos, no con los dedos cruzados.',
+      modules: [
+        { slug: 'it-landscape', label: 'Paisaje de TI' },
+        { slug: 'knowledge', label: 'Conocimiento' },
+        { slug: 'portfolio', label: 'Portafolio' },
       ],
-      ctaLabel: 'Explorar paisaje de TI',
-      shotAlt: 'Mapa de interfaces con nodos de aplicación',
+      shotAlt: 'Mapa de interfaces que muestra las dependencias del CRM a retirar',
     },
     {
-      slug: '/features/portfolio',
-      eyebrow: 'Módulo 3',
-      title: 'Gestión de portafolio',
-      body: 'De la solicitud a la entrega: prioriza la demanda, simula planes de entrega viables y aplica las fechas de hoja de ruta con confianza. Toma decisiones basadas en datos sobre qué construir y cuándo.',
-      bullets: [
-        'Puntuación de solicitudes configurable con criterios ponderados',
-        'Flujo de conversión de solicitud a proyecto',
-        'Generación automática de hoja de ruta a partir de esfuerzo, dependencias y capacidad',
-        'Análisis de cuellos de botella y ocupación',
-        'Aplicación selectiva y transaccional de las fechas generadas',
-        'Captura de baseline para análisis de desviación',
+      role: 'PMO / jefe de proyecto de TI',
+      headline: 'Haz la planificación trimestral con cifras de capacidad.',
+      body:
+        'Veinte solicitudes entrantes, ocho equipos, un trimestre. Puntúa cada solicitud con criterios ponderados y genera una hoja de ruta consciente de la capacidad. Los cuellos de botella son visibles antes del compromiso. Las fechas no son ilusión. Son aritmética. En el comité de seguimiento explicas por qué este proyecto cae en Q3 y no en Q1: capacidad del equipo de plataforma.',
+      outcome: 'Comprométete con fechas que realmente puedes defender.',
+      modules: [
+        { slug: 'portfolio', label: 'Portafolio' },
+        { slug: 'budget', label: 'Presupuesto' },
       ],
-      ctaLabel: 'Explorar gestión de portafolio',
-      shotAlt: 'Hoja de ruta con heatmap de capacidad',
+      shotAlt: 'Hoja de ruta consciente de la capacidad con mapa de calor de cuellos de botella',
     },
     {
-      slug: '/features/knowledge',
-      eyebrow: 'Módulo 4',
-      title: 'Conocimiento',
-      body: 'Gobierna tu documentación de TI con un editor markdown, bibliotecas estructuradas y flujos de revisión. Vincula documentos con aplicaciones, activos, proyectos, solicitudes y tareas para una trazabilidad total.',
-      bullets: [
-        'Editor markdown con bloqueos de edición y guardado automático',
-        'Bibliotecas, carpetas y tipos de documento',
-        'Flujos de revisión y aprobación',
-        'Historial de versiones con reversión',
-        'Exportación a PDF, DOCX y ODT',
-        'Integración profunda con aplicaciones, activos, proyectos y tareas',
+      role: 'Operaciones de TI / soporte',
+      headline: 'Encuentra la causa raíz en segundos, no en horas.',
+      body:
+        'La gestión de pedidos en producción está lenta. Le preguntas a Plaid: «¿Qué aplicaciones consumen la API order-management?» Cinco segundos después, una lista. «¿Cuáles se han actualizado esta semana?» Una. «¿Quién es la persona responsable?» Email y Teams. Del síntoma a la persona sin abrir cinco herramientas.',
+      outcome: 'Resuelve incidencias desde un solo lugar. Duerme mejor.',
+      modules: [
+        { slug: 'it-landscape', label: 'Paisaje de TI' },
+        { slug: 'knowledge', label: 'Conocimiento' },
+        { slug: 'ai', label: 'Plaid' },
       ],
-      ctaLabel: 'Explorar conocimiento',
-      shotAlt: 'Árbol de biblioteca con tipos de documento',
+      shotAlt: 'Plaid respondiendo a una investigación de incidencia con resultados estructurados',
     },
     {
-      slug: '/features/ai',
-      eyebrow: 'Asistente de IA',
-      title: 'Conoce a Plaid',
-      body: 'Pregunta lo que quieras sobre tus datos de TI en lenguaje natural. Plaid busca en todos los módulos, crea documentos y gestiona tareas, siempre respetando tus permisos.',
-      bullets: [
-        'Consultas en lenguaje natural en todos los módulos',
-        'Creación de documentos y actualización de tareas desde el chat',
-        'Servidor MCP para cualquier herramienta de IA',
-        'Usa tu propia clave API, OpenAI, Anthropic, Ollama, personalizada',
-        'Aislamiento total por tenant y aplicación de RBAC',
+      role: 'Lead de TI / responsable de infraestructura',
+      headline: 'Identifica qué retirar, qué renovar, qué consolidar.',
+      body:
+        '¿Cuántos SaaS estamos pagando? ¿Cuáles se solapan? ¿Quién es el propietario cuando toca renegociar? Cada aplicación lleva su línea OPEX, su contrato, su fecha de renovación, su clasificación de datos. Ordena por coste, por solapamiento, por uso. Mantén la conversación con finanzas con los hechos delante.',
+      outcome: 'Deja de renovar lo que nadie usa.',
+      modules: [
+        { slug: 'it-landscape', label: 'Paisaje de TI' },
+        { slug: 'budget', label: 'Presupuesto' },
+        { slug: 'knowledge', label: 'Conocimiento' },
       ],
-      ctaLabel: 'Explorar Plaid',
-      shotAlt: 'Chat de Plaid con consulta entre módulos',
+      shotAlt: 'Portafolio de aplicaciones ordenado por coste OPEX con fechas de renovación',
     },
   ],
-  crossCutting: {
-    eyebrow: 'Listo para empresas',
-    title: 'Todo conectado. Siempre bajo control.',
-    intro: 'Cinco módulos trabajan sobre los mismos datos, con la capa de gobernanza que un departamento de TI realmente necesita.',
-    items: [
-      { title: 'Informes y paneles', body: 'Informes para dirección, análisis de tendencias y paneles de KPIs.' },
-      { title: 'Control de acceso por rol', body: 'Permisos granulares por módulo. Niveles lector, gestor, administrador.' },
-      { title: 'Interconexiones ricas', body: 'Vincula costes con apps, apps con proyectos, proyectos con presupuestos, conocimiento con todo.' },
-      { title: 'Pista de auditoría completa', body: 'Cada cambio registrado con historial completo antes/después.' },
-      { title: 'Gestión unificada de tareas', body: 'Asigna tareas entre OPEX, CAPEX y contratos. Sigue fechas y avance.' },
-      { title: 'Arquitectura multi-tenant', body: 'Aislamiento seguro de tenants con row-level security.' },
-      { title: 'SSO vía Microsoft Entra ID', body: 'Integración con Single Sign-On empresarial.' },
-      { title: 'Código abierto bajo AGPL v3', body: 'Código abierto de verdad. Inspecciona, autoaloja y contribuye.' },
-    ],
-  },
   cta: {
-    title: '¿Listo para aportar claridad a tu departamento de TI?',
-    body: 'Empieza gratis autoalojando, o prueba la nube desde 49 €/mes. Todas las funcionalidades en todos los planes.',
+    title: '¿Listo para ver tu rol en la plataforma?',
+    body:
+      'Empieza gratis autoalojando, o prueba la nube desde 49 €/mes.\nTodas las funcionalidades en cada plan, en la nube o autoalojado.',
     primary: 'Empezar prueba gratuita',
-    secondary: 'Habla con nosotros',
+    secondary: 'Desplegar desde GitHub',
   },
 };
 

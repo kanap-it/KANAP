@@ -311,6 +311,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     type Target = FilterTargetConfig;
     const targets: Record<string, Target> = {
       id: { expression: 'a.id', dataType: 'string' },
+      sequential_id: { expression: 'a.sequential_id', dataType: 'string' },
       name: { expression: 'a.name', dataType: 'string' },
       supplier_id: { expression: 'a.supplier_id', dataType: 'string' },
       category: { expression: 'a.category', dataType: 'string' },
@@ -538,6 +539,9 @@ export class ApplicationsListService extends ApplicationsBaseService {
         if (include.has('instances')) {
           base.instances = expansions.instancesByApp[app.id] || [];
         }
+        if (include.has('deployments')) {
+          base.deployments = expansions.instancesByApp[app.id] || [];
+        }
         const derived_total_users = await this.computeDerivedUsersInternal(app.id, app.users_year, app.users_mode, mg);
         base.derived_total_users = derived_total_users;
         return base;
@@ -563,6 +567,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     type Target = FilterTargetConfig;
     const targets: Record<string, Target> = {
       id: { expression: 'a.id', dataType: 'string' },
+      sequential_id: { expression: 'a.sequential_id', dataType: 'string' },
       name: { expression: 'a.name', dataType: 'string' },
       supplier_id: { expression: 'a.supplier_id', dataType: 'string' },
       category: { expression: 'a.category', dataType: 'string' },
@@ -1039,7 +1044,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     }
 
     let instancesByApp: Record<string, Array<any>> = {};
-    if (include.has('instances') && pageIds.length > 0) {
+    if ((include.has('instances') || include.has('deployments')) && pageIds.length > 0) {
       const rows = await mg.query(
         `SELECT id, application_id, environment, lifecycle, status, base_url, region, zone, notes, sso_enabled, mfa_supported, disabled_at, created_at, updated_at
          FROM app_instances

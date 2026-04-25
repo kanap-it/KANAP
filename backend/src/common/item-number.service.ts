@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 
-export type SequenceEntityType = 'task' | 'request' | 'project' | 'document';
+export type SequenceEntityType = 'task' | 'request' | 'project' | 'document' | 'application';
 
 /**
  * Atomically allocate the next item number for a given entity type and tenant.

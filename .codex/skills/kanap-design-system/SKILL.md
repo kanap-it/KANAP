@@ -63,6 +63,16 @@ Expected structure:
 - Rich text description editor hides toolbar until focus.
 - Existing entity fields autosave: selects/dates on change, titles on blur, descriptions with debounced autosave.
 
+For dense workspace sections:
+
+- Prefer full-width inline metric bars over stacked cards when metrics are summary context.
+- Do not repeat the same metric in multiple sections; show it once where it best supports the workflow.
+- Comparable progress/consumption bars must use matching widths and visual weight.
+- Keep inline metric sliders/bars long enough to be usable and balanced; prefer about 200px on desktop over tiny 100px controls.
+- Use small tertiary source labels for calculated/manual values when provenance matters.
+- Keep related tables as separate tables in a grid, with enough gap or a subtle divider so they do not read as one merged table.
+- When allocation values are derived from editable base totals, expose the base totals inline near the allocation result; dialogs should edit distribution, not hide the calculation basis.
+
 ## Tables And Status
 
 For AG Grid and dense lists:
@@ -73,6 +83,20 @@ For AG Grid and dense lists:
 - Technical IDs use mono font, tabular nums, and secondary/tertiary text color.
 - Status in tables/lists is dot plus text, not pill.
 - Status color logic must come from `frontend/src/utils/statusColors.ts`, not page-local maps.
+
+For plain HTML tables in workspace sections, use the same dense typography and horizontal dividers. If a table cell contains a true secondary navigation link, keep it neutral at rest and use only a restrained underline/teal hover treatment; never make table links permanently teal.
+
+## Dialog Interactions
+
+- When editing percentage allocations, manual edits may pin rows for redistribution, but the user must still be able to edit pinned values.
+- If automatic redistribution happens immediately, do not add a redundant "redistribute remainder" action.
+- Provide simple reset actions such as "Split equally" or "Clear manual pins" only when they remove real manual work.
+
+## Knowledge Lists
+
+- Directly linked documents take precedence over related documents.
+- If the same document appears as both direct and related, display it only in direct documents.
+- If the same related document is found through multiple paths, display it once and merge or summarize provenance instead of duplicating rows.
 
 ## Anti-Patterns To Block
 

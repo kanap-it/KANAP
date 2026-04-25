@@ -44,6 +44,7 @@ type AppInstanceSummary = {
 
 type AppRow = {
   id: string;
+  sequential_id?: string | null;
   name: string;
   category: string;
   supplier_id: string | null;
@@ -226,8 +227,18 @@ export default function ApplicationsPage() {
 
   const buildAppHref = useCallback((row: AppRow | null | undefined, tab: 'overview' | 'ownership' | 'technical' | 'relations' | 'compliance' | 'instances') => {
     if (!row?.id) return undefined;
+    const workspaceTab = tab === 'instances'
+      ? 'deployments'
+      : tab === 'technical'
+        ? 'operations'
+        : tab === 'relations'
+          ? 'business'
+          : tab === 'ownership'
+            ? 'overview'
+            : tab;
+    const routeId = row.sequential_id || row.id;
     const sp = buildWorkspaceSearch();
-    return `/it/applications/${row.id}/${tab}?${sp.toString()}`;
+    return `/it/applications/${routeId}/${workspaceTab}?${sp.toString()}`;
   }, [buildWorkspaceSearch]);
 
   const handleInternalNavigate = useCallback((event: React.MouseEvent, href: string | undefined) => {

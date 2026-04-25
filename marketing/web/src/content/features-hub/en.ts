@@ -2,114 +2,87 @@ import type { FeaturesHubContent } from '../features/types';
 
 const content: FeaturesHubContent = {
   meta: {
-    title: 'Features',
+    title: 'How IT teams actually use KANAP',
     description:
-      'Five integrated modules: budget, IT landscape, portfolio, knowledge, AI assistant. Enterprise-ready with RBAC, audit, SSO, multi-tenant. Open source under AGPL v3.',
+      'Five scenarios from the people who run IT every day — CIO, architect, PMO, support, IT lead. See how the modules combine, not just what each one does separately.',
   },
   header: {
-    eyebrow: 'The complete IT toolbox',
-    title: 'Five integrated modules.\nOne source of truth.',
-    lead: 'KANAP covers the core territory every IT department needs, from the first budget line to the last retired application, with an AI assistant that reads across all of it.',
+    eyebrow: 'By role',
+    title: 'How IT teams actually use KANAP.',
+    lead: 'Five scenarios from people who run IT every day. Real pain, real flows, real outcomes. See how the modules combine, not just what each does separately.',
   },
-  modules: [
+  modulesUsedLabel: 'Modules combined',
+  personas: [
     {
-      slug: '/features/budget',
-      eyebrow: 'Module 1',
-      title: 'Budget management',
-      body: 'Master your IT budget with multi-year planning, intelligent allocation and executive chargeback reports. Track OPEX and CAPEX with complete visibility across companies and departments.',
-      bullets: [
-        'Multi-year budget planning with dynamic columns',
-        'Six allocation methods including headcount and turnover',
-        'Multi-currency support with automatic FX rates',
-        'Executive chargeback reports by company and department',
-        'Freeze / unfreeze workflows for governance',
+      role: 'CIO / IT director',
+      headline: 'Defend the IT budget at the board meeting.',
+      body:
+        "Your CFO asks why IT costs went up 12%. You walk in with the numbers: a chargeback report by company and department, OPEX vs CAPEX broken down by application, the multi-year trend. Every line traces back to a contract or a project. No spreadsheet gymnastics, no \"I'll get back to you\".",
+      outcome: 'Walk into the budget review with answers, not questions.',
+      modules: [
+        { slug: 'budget', label: 'Budget' },
+        { slug: 'it-landscape', label: 'IT landscape' },
       ],
-      ctaLabel: 'Explore budget management',
-      shotAlt: 'Budget grid with OPEX and CAPEX',
+      shotAlt: 'Chargeback report by company and department, OPEX/CAPEX breakdown',
     },
     {
-      slug: '/features/it-landscape',
-      eyebrow: 'Module 2',
-      title: 'IT landscape',
-      body: 'Document your entire information system: applications, interfaces and infrastructure. Visualise your architecture with interactive maps and track application lifecycles from proposal to retirement.',
-      bullets: [
-        'Application portfolio with per-environment instances',
-        'Interface documentation with 3-leg middleware support',
-        'Server and infrastructure registry',
-        'Interactive Interface Map and Connection Map',
-        'Version lineage tracking for evolution',
+      role: 'Enterprise architect',
+      headline: 'Plan a migration without surprises.',
+      body:
+        "You're retiring the legacy CRM. Before you commit dates, you need to know what depends on it: which interfaces, which downstream apps, which projects already touch it. The interface map shows the dependency graph at a glance. Your migration plan lists every interface owner to call, every project that needs to be aware. Knowledge ties the decisions to the apps they describe. Your future self will know why.",
+      outcome: 'Migrate with eyes open instead of crossed fingers.',
+      modules: [
+        { slug: 'it-landscape', label: 'IT landscape' },
+        { slug: 'knowledge', label: 'Knowledge' },
+        { slug: 'portfolio', label: 'Portfolio' },
       ],
-      ctaLabel: 'Explore IT landscape',
-      shotAlt: 'Interface map with application nodes',
+      shotAlt: 'Interface map showing the dependency graph for the retiring CRM',
     },
     {
-      slug: '/features/portfolio',
-      eyebrow: 'Module 3',
-      title: 'Portfolio management',
-      body: 'From request to delivery: prioritise demand, simulate feasible delivery plans and apply roadmap dates with confidence. Make data-driven decisions about what to build and when.',
-      bullets: [
-        'Configurable request scoring with weighted criteria',
-        'Request-to-project conversion workflow',
-        'Automatic roadmap generation from effort, dependencies, capacity',
-        'Bottleneck and occupation analysis',
-        'Selective transactional apply of generated dates',
-        'Baseline capture for variance analysis',
+      role: 'PMO lead / IT project manager',
+      headline: 'Run quarterly planning with capacity numbers.',
+      body:
+        "Twenty incoming requests, eight teams, one quarter. Score each request against weighted criteria, then generate a capacity-aware roadmap. Bottlenecks are visible before you commit. Dates aren't wishful thinking. They're math. When the steering committee reviews, you can explain why this project lands in Q3, not Q1: capacity on the platform team.",
+      outcome: 'Commit to dates you can actually defend.',
+      modules: [
+        { slug: 'portfolio', label: 'Portfolio' },
+        { slug: 'budget', label: 'Budget' },
       ],
-      ctaLabel: 'Explore portfolio management',
-      shotAlt: 'Roadmap with capacity heatmap',
+      shotAlt: 'Capacity-aware roadmap with bottleneck heatmap',
     },
     {
-      slug: '/features/knowledge',
-      eyebrow: 'Module 4',
-      title: 'Knowledge',
-      body: 'Govern your IT documentation with a markdown editor, structured libraries and review workflows. Link documents to applications, assets, projects, requests and tasks for full traceability.',
-      bullets: [
-        'Markdown editor with edit locks and autosave',
-        'Libraries, folders and document types',
-        'Review and approval workflows',
-        'Version history with revert',
-        'Export to PDF, DOCX, ODT',
-        'Deep integration with apps, assets, projects, tasks',
+      role: 'IT operations / support',
+      headline: 'Find the root cause in seconds, not hours.',
+      body:
+        "Production order management is slow. You ask Plaid: \"Which apps consume the order-management API?\" Five seconds later, a list. \"Which of those have been updated this week?\" One match. \"Who owns it?\" Email and Teams handle. From symptom to ownership without opening five tools.",
+      outcome: 'Resolve incidents from one place. Sleep better.',
+      modules: [
+        { slug: 'it-landscape', label: 'IT landscape' },
+        { slug: 'knowledge', label: 'Knowledge' },
+        { slug: 'ai', label: 'Plaid' },
       ],
-      ctaLabel: 'Explore knowledge',
-      shotAlt: 'Library tree with document types',
+      shotAlt: 'Plaid answering an incident-investigation query with structured results',
     },
     {
-      slug: '/features/ai',
-      eyebrow: 'AI assistant',
-      title: 'Meet Plaid',
-      body: 'Ask anything about your IT data in plain language. Plaid searches across all modules, creates documents, manages tasks, all while respecting your permissions.',
-      bullets: [
-        'Natural language queries across all modules',
-        'Document creation and task updates from chat',
-        'MCP server for any AI tool',
-        'Bring your own API key, OpenAI, Anthropic, Ollama, custom',
-        'Full tenant isolation and RBAC enforcement',
+      role: 'IT lead / infrastructure manager',
+      headline: 'Find what to retire, what to renew, what to consolidate.',
+      body:
+        "How many SaaS apps are we paying for? Which ones overlap? Who's the owner when it's time to renegotiate? Every application carries its OPEX line, its contract, its renewal date, its data classification. Sort by cost, by overlap, by usage. Have the conversation with finance with facts in front of you.",
+      outcome: 'Stop renewing what nobody uses.',
+      modules: [
+        { slug: 'it-landscape', label: 'IT landscape' },
+        { slug: 'budget', label: 'Budget' },
+        { slug: 'knowledge', label: 'Knowledge' },
       ],
-      ctaLabel: 'Explore Plaid',
-      shotAlt: 'Plaid chat with cross-module query',
+      shotAlt: 'Application portfolio sorted by OPEX cost with renewal dates',
     },
   ],
-  crossCutting: {
-    eyebrow: 'Enterprise ready',
-    title: 'Everything connected. Always under control.',
-    intro: 'Five modules working from the same data, with the governance layer IT departments actually need.',
-    items: [
-      { title: 'Reporting & dashboards', body: 'Executive-ready reports, trend analysis and KPI dashboards.' },
-      { title: 'Role-based access', body: 'Fine-grained permissions per module. Reader, manager, admin levels.' },
-      { title: 'Rich interconnections', body: 'Link costs to apps, apps to projects, projects to budgets, knowledge to everything.' },
-      { title: 'Complete audit trail', body: 'Every change tracked with full before / after history.' },
-      { title: 'Unified task management', body: 'Assign tasks across OPEX, CAPEX, contracts. Track due dates and progress.' },
-      { title: 'Multi-tenant architecture', body: 'Secure tenant isolation with row-level security.' },
-      { title: 'SSO via Microsoft Entra ID', body: 'Enterprise single sign-on integration.' },
-      { title: 'Open source under AGPL v3', body: 'True open source. Inspect it, self-host it, contribute to it.' },
-    ],
-  },
   cta: {
-    title: 'Ready to bring clarity to your IT department?',
-    body: 'Start free with self-hosting, or try the cloud from €49/mo. All features on every plan.',
+    title: 'Ready to see your role on the platform?',
+    body:
+      'Start free with self-hosting, or try the cloud from €49/mo.\nAll features on every plan, cloud or self-hosted.',
     primary: 'Start free trial',
-    secondary: 'Talk to us',
+    secondary: 'Deploy from GitHub',
   },
 };
 

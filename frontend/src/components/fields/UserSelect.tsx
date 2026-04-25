@@ -1,9 +1,11 @@
 import React from 'react';
 import { Autocomplete, Divider, TextField, CircularProgress } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type User = {
   id: string;
@@ -23,6 +25,8 @@ type UserSelectProps = {
   placeholder?: string;
   required?: boolean;
   size?: 'small' | 'medium';
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 function assignRef<T>(target: React.Ref<T | null> | undefined, value: T | null) {
@@ -45,6 +49,8 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
     placeholder,
     required,
     size,
+    hideLabel = false,
+    textFieldSx,
   },
   ref,
 ) {
@@ -115,19 +121,22 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
       renderOption={(props, option) => (
         <React.Fragment key={option.id}>
           <li {...props}>
-            <div style={{ fontWeight: 500 }}>
+            <div className="kanap-autocomplete-option-primary">
               {formatName(option)}{option.id === myId ? ` ${t('selects.meSuffix')}` : ''}
             </div>
           </li>
           {option.id === myId && <Divider />}
         </React.Fragment>
       )}
+      ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
+          label={hideLabel ? undefined : label}
           required={required}
           size={size}
+          variant={hideLabel ? 'standard' : undefined}
+          sx={textFieldSx}
           inputRef={(node) => {
             assignRef((params.inputProps as any)?.ref, node);
             assignRef(ref, node ?? null);
@@ -135,9 +144,10 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
           placeholder={placeholder}
           error={error}
           helperText={helperText}
-          InputLabelProps={{ shrink: true }}
+          InputLabelProps={hideLabel ? undefined : { shrink: true }}
           InputProps={{
             ...params.InputProps,
+            ...(hideLabel ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}

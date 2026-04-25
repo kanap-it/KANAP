@@ -1,5 +1,7 @@
 import React from 'react';
 import { Autocomplete, TextField } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type Option = string | { label: string; value: string };
 
@@ -20,6 +22,8 @@ export default function EnumAutocomplete({
   helperText,
   size,
   required,
+  hideLabel = false,
+  textFieldSx,
 }: {
   label: string;
   value: string;
@@ -30,6 +34,8 @@ export default function EnumAutocomplete({
   helperText?: React.ReactNode;
   size?: 'small' | 'medium';
   required?: boolean;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 }) {
   const list = React.useMemo(() => options.map((o) => ({ label: optionLabel(o), value: optionValue(o) })), [options]);
   const selected = list.find((o) => o.value === value) || null;
@@ -41,8 +47,23 @@ export default function EnumAutocomplete({
       getOptionLabel={(o) => (o as any).label}
       isOptionEqualToValue={(a, b) => (a as any).value === (b as any).value}
       renderInput={(params) => (
-        <TextField {...params} label={label} required={required} error={error} helperText={helperText} size={size} InputLabelProps={{ shrink: true }} />
+        <TextField
+          {...params}
+          label={hideLabel ? undefined : label}
+          required={required}
+          error={error}
+          helperText={helperText}
+          size={size}
+          variant={hideLabel ? 'standard' : undefined}
+          InputLabelProps={hideLabel ? undefined : { shrink: true }}
+          InputProps={{
+            ...params.InputProps,
+            ...(hideLabel ? { disableUnderline: true } : {}),
+          }}
+          sx={textFieldSx}
+        />
       )}
+      ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
       filterOptions={(opts, { inputValue }) => {
         const s = inputValue.toLowerCase();
         return opts.filter((o) => o.label.toLowerCase().includes(s) || o.value.toLowerCase().includes(s));

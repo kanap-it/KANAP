@@ -6,6 +6,7 @@ import { api, PaginatedResponse, PaginationParams } from '../client';
 export interface Application {
   id: string;
   name: string;
+  sequential_id?: string | null;
   category: string;
   supplier_id: string | null;
   editor: string | null;
@@ -52,6 +53,7 @@ export interface ApplicationSummary extends Application {
   components_count?: number;
   first_component_name?: string | null;
   instances?: ApplicationInstance[];
+  deployments?: ApplicationInstance[];
 }
 
 /**
@@ -116,7 +118,7 @@ export interface ApplicationOwner {
  * Application list params with optional include flags
  */
 export interface ApplicationListParams extends PaginationParams {
-  include?: string; // comma-separated: supplier,owners,residency,counts,structure,instances
+  include?: string; // comma-separated: supplier,owners,residency,counts,structure,instances,deployments
   lifecycle?: string;
 }
 
@@ -165,6 +167,12 @@ export const applicationsApi = {
    */
   getInstances: (id: string): Promise<ApplicationInstance[]> =>
     api.get<ApplicationInstance[]>(`/applications/${id}/instances`),
+
+  /**
+   * Get application deployments
+   */
+  getDeployments: (id: string): Promise<ApplicationInstance[]> =>
+    api.get<ApplicationInstance[]>(`/applications/${id}/deployments`),
 
   /**
    * Get application owners

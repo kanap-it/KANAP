@@ -111,6 +111,14 @@ export const LIFECYCLE_COLORS: Record<string, string> = {
   retired: 'default',
 };
 
+/** Application criticality levels */
+export const CRITICALITY_COLORS: Record<string, string> = {
+  low: 'default',
+  medium: 'info',
+  high: 'warning',
+  business_critical: 'warning',
+};
+
 /** Decision outcomes */
 export const DECISION_COLORS: Record<string, string> = {
   go: 'success',
