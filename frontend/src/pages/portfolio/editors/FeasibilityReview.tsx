@@ -1,9 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Button,
-  FormControl,
-  InputLabel,
   MenuItem,
   Select,
   Stack,
@@ -12,9 +9,9 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from '@mui/material';
+import TextareaAutosize from '@mui/material/TextareaAutosize';
 import { useTranslation } from 'react-i18next';
 import { getFeasibilityStatusLabel } from '../../../utils/portfolioI18n';
 
@@ -55,12 +52,6 @@ const STATUS_ACCENT_STYLE: Record<FeasibilityReviewStatus, { border: string; sel
   minor_concerns: { border: 'warning.light', selectBorder: 'warning.main' },
   major_concerns: { border: 'warning.main', selectBorder: 'warning.dark' },
   blocker: { border: 'error.main', selectBorder: 'error.main' },
-};
-
-const COMMENT_FIELD_SX = {
-  '& .MuiInputBase-input': {
-    fontSize: '0.875rem',
-  },
 };
 
 const DIMENSIONS: FeasibilityReviewKey[] = [
@@ -159,15 +150,6 @@ export default function FeasibilityReview({
 }: FeasibilityReviewProps) {
   const { t } = useTranslation('portfolio');
   const normalized = React.useMemo(() => normalizeFeasibilityReviewValue(value), [value]);
-  const [expandedRows, setExpandedRows] = React.useState<Record<FeasibilityReviewKey, boolean>>({
-    technical_feasibility: false,
-    integration_compatibility: false,
-    infrastructure_needs: false,
-    security_compliance: false,
-    resource_skills: false,
-    delivery_constraints: false,
-    change_management: false,
-  });
 
   const setDimensionStatus = (key: FeasibilityReviewKey, status: FeasibilityReviewStatus) => {
     onChange({
@@ -177,10 +159,6 @@ export default function FeasibilityReview({
         status,
       },
     });
-  };
-
-  const toggleExpanded = (key: FeasibilityReviewKey) => {
-    setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const setDimensionComment = (key: FeasibilityReviewKey, comment: string) => {
@@ -212,94 +190,86 @@ export default function FeasibilityReview({
             {DIMENSIONS.map((key) => {
               const current = normalized[key];
               const accent = STATUS_ACCENT_STYLE[current.status];
-              const isExpanded = expandedRows[key];
               const label = t(`editors.feasibility.dimensions.${key}.label`);
               return (
-                <React.Fragment key={key}>
-                  <TableRow
-                    hover
-                    sx={{
-                      '& > td:first-of-type': {
-                        borderLeft: 4,
-                        borderLeftColor: accent.border,
-                      },
-                    }}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {label}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {t(`editors.feasibility.dimensions.${key}.description`)}
-                      </Typography>
-                      <Box sx={{ mt: 0.5 }}>
-                        <Button
-                          size="small"
-                          variant="text"
-                          onClick={() => toggleExpanded(key)}
-                          sx={{ px: 0 }}
-                        >
-                          {isExpanded
-                            ? t('editors.feasibility.actions.hideDetailedNotes')
-                            : t('editors.feasibility.actions.showDetailedNotes')}
-                        </Button>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <FormControl size="small" fullWidth>
-                        <InputLabel>{t('editors.feasibility.fields.status')}</InputLabel>
-                        <Select
-                          value={current.status}
-                          label={t('editors.feasibility.fields.status')}
-                          disabled={disabled}
-                          onChange={(event) => setDimensionStatus(key, event.target.value as FeasibilityReviewStatus)}
-                          sx={{
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: accent.selectBorder,
-                            },
-                          }}
-                        >
-                          {FEASIBILITY_STATUSES.map((status) => (
-                            <MenuItem key={status} value={status}>
-                              {getFeasibilityStatusLabel(t, status)}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        multiline
-                        minRows={2}
-                        maxRows={4}
-                        value={current.comment}
-                        placeholder={t('editors.feasibility.placeholders.comment')}
-                        onChange={(event) => setDimensionComment(key, event.target.value)}
-                        disabled={disabled}
-                        sx={COMMENT_FIELD_SX}
-                      />
-                    </TableCell>
-                  </TableRow>
-                  {isExpanded && (
-                    <TableRow>
-                      <TableCell colSpan={3} sx={{ bgcolor: 'action.hover' }}>
-                        <TextField
-                          fullWidth
-                          multiline
-                          minRows={4}
-                          maxRows={12}
-                          value={current.comment}
-                          placeholder={t('editors.feasibility.placeholders.detailedNotes', { dimension: label })}
-                          onChange={(event) => setDimensionComment(key, event.target.value)}
-                          disabled={disabled}
-                          sx={COMMENT_FIELD_SX}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </React.Fragment>
+                <TableRow
+                  key={key}
+                  hover
+                  sx={{
+                    '& > td:first-of-type': {
+                      borderLeft: 4,
+                      borderLeftColor: accent.border,
+                    },
+                  }}
+                >
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {label}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t(`editors.feasibility.dimensions.${key}.description`)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={current.status}
+                      disabled={disabled}
+                      onChange={(event) => setDimensionStatus(key, event.target.value as FeasibilityReviewStatus)}
+                      variant="standard"
+                      fullWidth
+                      sx={{
+                        fontSize: '0.875rem',
+                        '&:before': { borderBottomColor: accent.selectBorder },
+                        '&:after': { borderBottomColor: accent.selectBorder },
+                      }}
+                    >
+                      {FEASIBILITY_STATUSES.map((status) => (
+                        <MenuItem key={status} value={status}>
+                          {getFeasibilityStatusLabel(t, status)}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Box
+                      component={TextareaAutosize}
+                      minRows={4}
+                      maxRows={4}
+                      value={current.comment}
+                      placeholder={t('editors.feasibility.placeholders.comment')}
+                      onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setDimensionComment(key, event.target.value)}
+                      disabled={disabled}
+                      sx={{
+                        display: 'block',
+                        width: '100%',
+                        m: 0,
+                        p: '0 0 2px',
+                        resize: 'none',
+                        border: 0,
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                        outline: 0,
+                        bgcolor: 'transparent',
+                        color: 'text.primary',
+                        font: 'inherit',
+                        fontSize: '0.875rem',
+                        lineHeight: 1.45,
+                        overflowY: 'auto !important',
+                        '&:focus': {
+                          borderColor: 'primary.main',
+                        },
+                        '&::placeholder': {
+                          color: 'text.disabled',
+                          opacity: 1,
+                        },
+                        '&:disabled': {
+                          color: 'text.disabled',
+                          WebkitTextFillColor: 'currentColor',
+                        },
+                      }}
+                    />
+                  </TableCell>
+                </TableRow>
               );
             })}
           </TableBody>

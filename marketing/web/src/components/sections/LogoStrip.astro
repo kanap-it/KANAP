@@ -1,0 +1,60 @@
+---
+/**
+ * LogoStrip — row of logos or feature badges.
+ *
+ * Designed for future customer logos. For now it's optional; when logos
+ * are empty, nothing is rendered.
+ */
+
+interface LogoEntry {
+  src: string;
+  alt: string;
+}
+
+interface Props {
+  logos?: LogoEntry[];
+  label?: string;
+}
+
+const { logos = [], label } = Astro.props;
+---
+
+{logos.length > 0 && (
+  <div class="mk-logos">
+    {label && <p class="mk-eyebrow">{label}</p>}
+    <div class="mk-logos__row">
+      {logos.map((logo) => (
+        <img src={logo.src} alt={logo.alt} class="mk-logos__item" loading="lazy" />
+      ))}
+    </div>
+  </div>
+)}
+
+<style>
+  .mk-logos {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .mk-logos__row {
+    display: flex;
+    align-items: center;
+    gap: clamp(24px, 5vw, 56px);
+    flex-wrap: wrap;
+    justify-content: center;
+    opacity: 0.7;
+    filter: grayscale(1);
+    transition: opacity var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-logos__row:hover {
+    opacity: 0.9;
+  }
+
+  .mk-logos__item {
+    height: 28px;
+    width: auto;
+  }
+</style>

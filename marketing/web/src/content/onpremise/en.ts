@@ -1,0 +1,169 @@
+import type { OnPremContent } from './types';
+
+const content: OnPremContent = {
+  meta: {
+    title: 'Self-host KANAP, the first-class citizen',
+    description:
+      'Run KANAP on your own infrastructure, under AGPL v3. Full platform, unlimited users, your data never leaves your environment. Deploy in minutes with Docker Compose.',
+  },
+
+  header: {
+    eyebrow: 'Self-hosting · first-class citizen',
+    title: 'Run KANAP yourself.\nOwn every layer.',
+    lead: 'Open source under AGPL v3. Deploy to your infrastructure, own your data, update on your cadence. The full platform, unlimited users, every feature, on your terms.',
+    primaryCta: 'Deploy from GitHub',
+    primaryHref: 'https://github.com/kanap-it/kanap',
+    secondaryCta: 'Read install docs',
+    secondaryHref: 'https://doc.kanap.net/on-premise/',
+  },
+
+  why: {
+    eyebrow: 'Why self-host',
+    title: 'Control, compliance, and no strings attached.',
+    intro:
+      'Self-hosting KANAP is not a stripped-down tier. It\'s the full platform, with the full feature set, free of charge. These are the reasons teams pick it first.',
+    pillars: [
+      {
+        title: 'Your data stays put',
+        body: 'Budget figures, supplier contracts, IT landscape, everything. On your servers, in your network. No third-party data processor to trust with your governance data.',
+      },
+      {
+        title: 'No per-seat tax',
+        body: 'Unlimited users, unlimited workspaces, unlimited Plaid usage with your own LLM key. Roll it out to the entire department without a pricing page spreadsheet.',
+      },
+      {
+        title: 'Compliance-ready',
+        body: 'Row-level security isolates tenants. Argon2 password hashing. TLS everywhere. Your VPC, your backups, your SOC.',
+      },
+      {
+        title: 'Audit the source',
+        body: 'AGPL v3 means the code is open. Your security team reads it, your architects extend it, your CISO sleeps better.',
+      },
+      {
+        title: 'Air-gap friendly',
+        body: 'Docker Compose deployment runs in restricted networks. Self-contained images, no mandatory outbound calls for core functions.',
+      },
+      {
+        title: 'Your cadence',
+        body: 'Pin a version, test a minor release, migrate on your change-window schedule. No forced updates, no surprise downtime.',
+      },
+    ],
+  },
+
+  license: {
+    title: 'AGPL v3: openness without compromise',
+    body:
+      'KANAP is released under the GNU Affero General Public License v3. You get every classic open source freedom: use it, read it, modify it, distribute it. The copyleft provision means anyone who runs a modified version as a service must share their changes, which is how the project stays genuinely open.',
+    bullets: [
+      'Use it commercially, internally, or externally, no royalty, no seat count',
+      'Read and audit the full source, nothing hidden',
+      'Modify and extend, the code is yours to shape',
+      'Contribute back, your improvements benefit the whole community',
+    ],
+    linkLabel: 'Read the AGPL v3 license',
+    linkHref: 'https://www.gnu.org/licenses/agpl-3.0.html',
+  },
+
+  deploy: {
+    eyebrow: 'Install in minutes',
+    title: 'One prompt.\nFifteen minutes.',
+    intro:
+      'A coding AI agent reads our documentation, installs every dependency, and configures the whole stack — Docker, PostgreSQL 16, MinIO, nginx, Let\'s Encrypt — on a clean Ubuntu server. You paste one prompt; you confirm steps; you log in.',
+    steps: [
+      {
+        title: 'Prepare a clean server',
+        body: 'A freshly provisioned Ubuntu 24.04 LTS host with sudo access, a DNS A record pointing your hostname at it, and outbound internet for packages and Let\'s Encrypt. Install your AI coding agent on the server (Claude Code, Codex, anything similar).',
+      },
+      {
+        title: 'Grant temporary passwordless sudo',
+        body: 'So the agent isn\'t prompted for your password on every step. You\'ll revert this at the end.',
+        code: 'echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/90-install-nopasswd',
+      },
+      {
+        title: 'Paste the install prompt',
+        body: 'Open your agent and paste the prompt template from our docs — fill in your hostname, admin email and (optionally) your email transport (Resend or SMTP). The agent reads the linked install pages, installs Docker, PostgreSQL 16 with the required extensions, MinIO, nginx and certbot, clones KANAP into /opt/kanap, generates strong credentials, builds the images and starts the containers. It also wires up TLS and auto-renewal. The agent asks for confirmation before running each command.',
+      },
+      {
+        title: 'Sign in and harden',
+        body: 'Log in at your hostname with the generated admin credentials, change the password, then remove the temporary passwordless sudo entry. Done. The full install log is saved at ~/kanap-install.md.',
+      },
+    ],
+    docsCtaLabel: 'AI-assisted install guide',
+    docsHref: 'https://doc.kanap.net/on-premise/installation-ai/',
+    manualOption: {
+      label: 'Prefer full control?',
+      title: 'Manual install: your stack, your way.',
+      body: 'Bring your own PostgreSQL, S3-compatible storage and reverse proxy. Run on any Docker-capable Linux. Slot KANAP into the architecture you already operate, with the configuration that fits your environment. Same platform, same code, every decision in your hands.',
+      ctaLabel: 'Manual install guide',
+      ctaHref: 'https://doc.kanap.net/on-premise/installation/',
+    },
+  },
+
+  requirements: {
+    title: 'What you\'ll need',
+    intro: 'Modest requirements for a platform that runs the whole IT department.',
+    items: [
+      { label: 'OS', value: 'Any Linux with Docker (Ubuntu 22+, Debian 12+, RHEL 9+ recommended)' },
+      { label: 'CPU', value: '2 vCPU minimum · 4+ recommended for 50+ users' },
+      { label: 'RAM', value: '4 GB minimum · 8 GB recommended' },
+      { label: 'Storage', value: '20 GB for the platform + whatever your data grows to' },
+      { label: 'Database', value: 'PostgreSQL 15+ (bundled in the compose file, or bring your own)' },
+      { label: 'Network', value: 'HTTPS terminator (your choice, nginx, Traefik, cloud LB)' },
+      { label: 'Outbound (optional)', value: 'World Bank FX API for live currency rates · LLM provider for Plaid' },
+    ],
+  },
+
+  operations: {
+    title: 'Operating KANAP',
+    intro: 'Built to run like any other internal service.',
+    items: [
+      {
+        title: 'Updates on your schedule',
+        body: 'Pin a version tag, test a release in pre-prod, apply in your change window. Migrations run on boot, idempotent by design.',
+      },
+      {
+        title: 'Backups are a postgres dump',
+        body: 'Standard tooling. Schedule pg_dump with your existing backup pipeline. Files are minimal and can be snapshotted independently.',
+      },
+      {
+        title: 'Observability you already have',
+        body: 'Containers emit structured logs and health endpoints. Point your existing stack at them (Prometheus, Loki, Datadog, whatever you already run).',
+      },
+      {
+        title: 'Branding included',
+        body: 'Upload your logo, set your primary color. The admin branding page works the same in self-hosted as in cloud.',
+      },
+      {
+        title: 'SSO via Entra ID',
+        body: 'Enterprise SSO is part of the core platform, not an upsell. Wire it up through the admin console.',
+      },
+      {
+        title: 'Plaid, your way',
+        body: 'Bring your own LLM key, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint. Your prompts never leave your chosen provider.',
+      },
+    ],
+  },
+
+  support: {
+    title: 'Need priority help?',
+    body:
+      'The Self-Hosted Support plan adds priority email support, install troubleshooting, Plaid BYOK unlock, and 20% off consulting, without changing the deployment model.',
+    bullets: [
+      'Priority email support (real humans, best-effort response)',
+      'Installation and upgrade troubleshooting',
+      '20% discount on all consulting services',
+      '€2,490/yr, annual billing',
+    ],
+    ctaLabel: 'See pricing',
+    ctaHref: '/offer',
+  },
+
+  cta: {
+    title: 'Ready to self-host?',
+    body: 'Clone the repo and bring up the stack in under ten minutes. No account required, no trial countdown, just open source.',
+    primary: 'Deploy from GitHub',
+    secondary: 'Talk to us',
+  },
+};
+
+export default content;

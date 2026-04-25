@@ -1,0 +1,427 @@
+---
+/**
+ * OfferPage — shared content for /offer in every locale.
+ * Self-hosted is the primary / first-class citizen; cloud is second.
+ */
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import {
+  Section,
+  PageHeader,
+  PricingCard,
+  CTABand,
+  Callout,
+} from './sections';
+import { getLocaleFromUrl, localePath } from '../i18n/ui';
+import { getOfferContent } from '../content/resolve';
+
+const locale = getLocaleFromUrl(Astro.url);
+const content = getOfferContent(locale);
+
+// Localize internal CTA hrefs
+function resolveHref(href: string): string {
+  if (href.startsWith('http')) return href;
+  return localePath(locale, href);
+}
+---
+
+<BaseLayout title={content.meta.title} description={content.meta.description}>
+  <PageHeader
+    eyebrow={content.header.eyebrow}
+    title={content.header.title}
+    lead={content.header.lead}
+  />
+
+  {/* ---------- Self-hosted (primary) ---------- */}
+  <Section tone="default">
+    <header class="mk-offer-head">
+      <span class="mk-eyebrow">{content.selfHosted.eyebrow}</span>
+      <h2 class="mk-offer-head__title">{content.selfHosted.title}</h2>
+      <p class="mk-lead mk-offer-head__intro">{content.selfHosted.intro}</p>
+    </header>
+    <div class="mk-offer-grid mk-offer-grid--2">
+      {content.selfHosted.plans.map((plan) => (
+        <PricingCard
+          name={plan.name}
+          badge={plan.badge}
+          target={plan.target}
+          price={plan.price}
+          period={plan.period}
+          subPrice={plan.subPrice}
+          features={plan.features}
+          ctaLabel={plan.ctaLabel}
+          ctaHref={resolveHref(plan.ctaHref)}
+          ctaVariant={plan.ctaVariant}
+          note={plan.note}
+          featured={plan.featured}
+        />
+      ))}
+    </div>
+  </Section>
+
+  {/* ---------- Open-source banner ---------- */}
+  <Section tone="sunken" compact>
+    <div class="mk-oss">
+      <h3 class="mk-oss__title">{content.openSourceBanner.title}</h3>
+      <p class="mk-oss__body">
+        {content.openSourceBanner.body}
+        {' '}
+        <a href={content.openSourceBanner.linkHref} rel="noopener" target="_blank">
+          {content.openSourceBanner.linkLabel}
+        </a>
+      </p>
+    </div>
+  </Section>
+
+  {/* ---------- Cloud (secondary) ---------- */}
+  <Section tone="default">
+    <header class="mk-offer-head">
+      <span class="mk-eyebrow">{content.cloud.eyebrow}</span>
+      <h2 class="mk-offer-head__title">{content.cloud.title}</h2>
+      <p class="mk-lead mk-offer-head__intro">{content.cloud.intro}</p>
+    </header>
+    <div class="mk-offer-grid mk-offer-grid--3">
+      {content.cloud.plans.map((plan) => (
+        <PricingCard
+          name={plan.name}
+          badge={plan.badge}
+          target={plan.target}
+          price={plan.price}
+          period={plan.period}
+          subPrice={plan.subPrice}
+          features={plan.features}
+          ctaLabel={plan.ctaLabel}
+          ctaHref={resolveHref(plan.ctaHref)}
+          ctaVariant={plan.ctaVariant}
+          note={plan.note}
+          featured={plan.featured}
+        />
+      ))}
+    </div>
+  </Section>
+
+  {/* ---------- How to choose ---------- */}
+  <Section tone="sunken">
+    <div class="mk-choose">
+      <h2 class="mk-choose__title">{content.howToChoose.title}</h2>
+      <p class="mk-lead mk-choose__intro">{content.howToChoose.intro}</p>
+      <div class="mk-choose__grid">
+        {content.howToChoose.items.map((item) => (
+          <article class="mk-choose__item">
+            <h3>{item.title}</h3>
+            <p>{item.body}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </Section>
+
+  {/* ---------- Support vs Consulting ---------- */}
+  <Section tone="default">
+    <div class="mk-services">
+      <header class="mk-services__head">
+        <h2>{content.services.title}</h2>
+        <p class="mk-lead">{content.services.intro}</p>
+      </header>
+      <div class="mk-services__grid">
+        {[content.services.support, content.services.consulting].map((s) => (
+          <article class="mk-services__card">
+            <header>
+              <h3>{s.title}</h3>
+              <p class="mk-small">{s.subtitle}</p>
+            </header>
+            <p>{s.body}</p>
+            <ul>
+              {s.items.map((i) => <li>{i}</li>)}
+            </ul>
+          </article>
+        ))}
+      </div>
+    </div>
+  </Section>
+
+  {/* ---------- Consulting rates ---------- */}
+  <Section tone="sunken">
+    <div class="mk-rates">
+      <h2 class="mk-rates__title">{content.rates.title}</h2>
+      <p class="mk-lead mk-rates__intro">{content.rates.intro}</p>
+      <div class="mk-rates__tablewrap">
+        <table class="mk-rates__table">
+          <thead>
+            <tr>
+              <th>{content.rates.headings.duration}</th>
+              <th>{content.rates.headings.useCases}</th>
+              <th>{content.rates.headings.rate}</th>
+              <th>{content.rates.headings.subscriber}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {content.rates.rows.map((row) => (
+              <tr>
+                <td>{row.duration}</td>
+                <td>{row.useCases}</td>
+                <td>{row.rate}</td>
+                <td class="mk-rates__sub">{row.subscriber}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="mk-small mk-rates__note">{content.rates.note}</p>
+    </div>
+  </Section>
+
+  {/* ---------- FAQ teaser ---------- */}
+  <Section tone="default" compact>
+    <Callout>
+      <p><strong>{content.faqTeaser.title}.</strong> {content.faqTeaser.body} <a href={localePath(locale, '/faq')}>{content.faqTeaser.ctaLabel} →</a></p>
+    </Callout>
+  </Section>
+
+  {/* ---------- Final CTA ---------- */}
+  <Section tone="sunken" compact>
+    <CTABand
+      title={content.cta.title}
+      body={content.cta.body}
+      primaryHref={localePath(locale, '/trial/start')}
+      primaryLabel={content.cta.primary}
+      secondaryHref="https://github.com/kanap-it/kanap"
+      secondaryLabel={content.cta.secondary}
+    />
+  </Section>
+</BaseLayout>
+
+<style>
+  .mk-offer-head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 720px;
+    margin-bottom: 24px;
+  }
+
+  .mk-offer-head__title {
+    margin: 0;
+  }
+
+  .mk-offer-head__intro {
+    max-width: 640px;
+  }
+
+  .mk-offer-grid {
+    display: grid;
+    gap: 20px;
+    align-items: stretch;
+  }
+
+  .mk-offer-grid--2 {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    max-width: 820px;
+  }
+
+  .mk-offer-grid--3 {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+
+  /* Open source banner */
+  .mk-oss {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    max-width: 760px;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .mk-oss {
+    align-items: center;
+  }
+
+  .mk-oss__title {
+    font-size: 22px;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .mk-oss__body {
+    color: var(--kanap-text-secondary);
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .mk-oss__body a {
+    color: var(--kanap-teal);
+  }
+
+  /* How to choose */
+  .mk-choose__title {
+    margin: 0 0 12px;
+  }
+
+  .mk-choose__intro {
+    margin-bottom: 40px;
+    max-width: 640px;
+  }
+
+  .mk-choose__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+  }
+
+  .mk-choose__item {
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    padding: 24px;
+  }
+
+  .mk-choose__item h3 {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 8px;
+  }
+
+  .mk-choose__item p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--kanap-text-secondary);
+    margin: 0;
+  }
+
+  /* Services */
+  .mk-services__head {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 720px;
+    margin-bottom: 40px;
+  }
+
+  .mk-services__head h2 {
+    margin: 0;
+  }
+
+  .mk-services__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  .mk-services__card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    padding: 28px;
+  }
+
+  .mk-services__card header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mk-services__card h3 {
+    font-size: 18px;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .mk-services__card header p {
+    color: var(--kanap-text-tertiary);
+    margin: 0;
+  }
+
+  .mk-services__card > p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--kanap-text-secondary);
+    margin: 0;
+  }
+
+  .mk-services__card ul {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-top: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-services__card li {
+    position: relative;
+    padding-left: 18px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-services__card li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 8px;
+    height: 1px;
+    background: var(--kanap-text-tertiary);
+  }
+
+  /* Rates table */
+  .mk-rates__title {
+    margin: 0 0 12px;
+  }
+
+  .mk-rates__intro {
+    margin-bottom: 32px;
+    max-width: 640px;
+  }
+
+  .mk-rates__tablewrap {
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    overflow-x: auto;
+    background: var(--kanap-bg-primary);
+  }
+
+  .mk-rates__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  .mk-rates__table thead th {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--kanap-text-secondary);
+    text-align: left;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--kanap-border-default);
+    background: var(--kanap-bg-page);
+  }
+
+  .mk-rates__table tbody tr + tr td {
+    border-top: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-rates__table td {
+    padding: 14px 18px;
+    color: var(--kanap-text-secondary);
+    vertical-align: top;
+  }
+
+  .mk-rates__sub {
+    color: var(--kanap-teal);
+    font-weight: 500;
+  }
+
+  .mk-rates__note {
+    margin-top: 14px;
+    color: var(--kanap-text-tertiary);
+  }
+</style>

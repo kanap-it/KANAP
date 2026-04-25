@@ -257,7 +257,7 @@
           "teamAndRelations": "Team und Beziehungen"
         },
         "fields": {
-          "executionProgress": "Ausführungsaufwand"
+          "executionProgress": "Fortschritt"
         },
         "placeholders": {
           "purpose": "Beschreiben Sie den Zweck dieses Projekts..."
@@ -357,7 +357,7 @@
           "noTimeLogged": "Noch keine Zeit erfasst. Klicken Sie auf «Zeit erfassen», um Einträge hinzuzufügen."
         },
         "values": {
-          "executionProgress": "Ausführungsaufwand: {{progress}} %",
+          "executionProgress": "Fortschritt: {{progress}} %",
           "hoursValue": "{{hours}} Std.",
           "mdHigher": "{{count}} PT höher",
           "mdLower": "{{count}} PT niedriger",
@@ -1491,14 +1491,19 @@
         "it": "IT-Aufwandszuordnung"
       },
       "actions": {
+        "clearManualPins": "Manuelle Fixierungen entfernen",
         "edit": "Bearbeiten",
-        "manual": "Manuell"
+        "manual": "Manuell",
+        "splitEqually": "Gleich verteilen"
       },
       "chips": {
         "autoCalculated": "Automatisch berechnet",
         "lead": "Leiter",
         "manual": "Manuell",
         "orphaned": "Verwaist"
+      },
+      "helper": {
+        "autoRedistribution": "Bearbeitete Zeilen bleiben manuell; der Rest wird automatisch neu verteilt."
       },
       "messages": {
         "noEligibleUsers": "Keine berechtigten Benutzer. Weisen Sie zuerst einen {{effortType}}-Leiter oder Teammitglieder zu.",
@@ -1513,6 +1518,7 @@
         "contributor": "Mitwirkender"
       },
       "validation": {
+        "pinnedTotalExceeded": "Manuelle Zeilen überschreiten 100 %. Reduzieren Sie zuerst einen manuellen Wert.",
         "totalDisplay": "Muss 100 % ergeben",
         "totalMustEqual100": "Die Zuordnungen müssen in Summe genau 100 % betragen"
       }

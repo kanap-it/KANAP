@@ -1,0 +1,330 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { Section, PageHeader } from '../sections';
+import { getLocaleFromUrl, localePath } from '../../i18n/ui';
+import { getTrialContent } from '../../content/resolve';
+
+const locale = getLocaleFromUrl(Astro.url);
+const c = getTrialContent(locale).start;
+
+/**
+ * Turnstile site key is injected at build time via PUBLIC_TURNSTILE_SITE_KEY.
+ * When unset, we render a placeholder pass-through (dev mode) and log a
+ * warning in the browser so forms remain testable locally.
+ */
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
+---
+
+<BaseLayout title={c.title} description={c.description}>
+  <Fragment slot="head">
+    <meta name="robots" content="noindex, nofollow" />
+    {turnstileSiteKey && (
+      <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    )}
+  </Fragment>
+
+  <PageHeader eyebrow={c.eyebrow} title={c.heading} lead={c.lead} />
+
+  <Section tone="default">
+    <div class="mk-trial-start">
+      <aside class="mk-trial-start__side">
+        <h3>{c.eyebrow}</h3>
+        <ul>
+          {c.benefits.map((b) => <li>{b}</li>)}
+        </ul>
+      </aside>
+
+      <form class="mk-trial-form" data-trial-form>
+        <div class="mk-tf__field">
+          <label for="tf-org">{c.form.orgLabel}</label>
+          <input id="tf-org" name="org_name" type="text" required autocomplete="organization" />
+          <p class="mk-tf__help">{c.form.orgHelp}</p>
+        </div>
+
+        <div class="mk-tf__field">
+          <label for="tf-country">{c.form.countryLabel}</label>
+          <select id="tf-country" name="country_iso" required>
+            <option value="" disabled selected>—</option>
+            {c.countryOptions.map((o) => (
+              <option value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <p class="mk-tf__help">{c.form.countryHelp}</p>
+        </div>
+
+        <div class="mk-tf__field">
+          <label for="tf-slug">{c.form.slugLabel}</label>
+          <div class="mk-tf__suffix">
+            <input
+              id="tf-slug"
+              name="slug"
+              type="text"
+              required
+              pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <span class="mk-tf__suffix-text">{c.form.slugDomain}</span>
+          </div>
+          <p class="mk-tf__help">{c.form.slugHelp}</p>
+        </div>
+
+        <div class="mk-tf__field">
+          <label for="tf-email">{c.form.emailLabel}</label>
+          <input id="tf-email" name="email" type="email" required autocomplete="email" />
+          <p class="mk-tf__help">{c.form.emailHelp}</p>
+        </div>
+
+        {turnstileSiteKey && (
+          <div class="mk-tf__field">
+            <span class="mk-tf__label-spacer">{c.form.captchaLabel}</span>
+            <div class="cf-turnstile" data-sitekey={turnstileSiteKey}></div>
+          </div>
+        )}
+
+        <div class="mk-tf__status" role="status" aria-live="polite" data-trial-status></div>
+
+        <button type="submit" class="mk-btn mk-btn--primary mk-tf__submit" data-trial-submit>
+          {c.form.submitLabel}
+        </button>
+
+        <p class="mk-tf__privacy mk-small">{c.form.privacyNote}</p>
+      </form>
+    </div>
+  </Section>
+</BaseLayout>
+
+<script define:vars={{
+  submitLabel: c.form.submitLabel,
+  submittingLabel: c.form.submitting,
+  errorGeneric: c.form.errorGeneric,
+  errorRequired: c.form.errorRequired,
+  errorEmail: c.form.errorEmail,
+  errorSlug: c.form.errorSlug,
+  needsCaptcha: !!turnstileSiteKey,
+  checkEmailHref: localePath(locale, '/trial/check-email'),
+}}>
+  const form = document.querySelector('[data-trial-form]');
+  const btn = document.querySelector('[data-trial-submit]');
+  const statusEl = document.querySelector('[data-trial-status]');
+
+  function setStatus(text, kind) {
+    if (!statusEl) return;
+    statusEl.textContent = text;
+    statusEl.className = 'mk-tf__status' + (kind ? ' mk-tf__status--' + kind : '');
+  }
+
+  function getToken() {
+    if (!needsCaptcha) return 'dev';
+    // Cloudflare Turnstile puts the token in a hidden input named cf-turnstile-response
+    const el = document.querySelector('input[name=cf-turnstile-response]');
+    return el ? el.value : '';
+  }
+
+  if (form && btn) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const payload = {
+        org_name: String(fd.get('org_name') ?? '').trim(),
+        slug: String(fd.get('slug') ?? '').trim().toLowerCase(),
+        email: String(fd.get('email') ?? '').trim(),
+        country_iso: String(fd.get('country_iso') ?? ''),
+        captcha_token: getToken(),
+      };
+
+      // Client-side checks (backend revalidates everything)
+      if (!payload.org_name || !payload.email || !payload.slug || !payload.country_iso) {
+        setStatus(errorRequired, 'error');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+        setStatus(errorEmail, 'error');
+        return;
+      }
+      if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(payload.slug)) {
+        setStatus(errorSlug, 'error');
+        return;
+      }
+      if (needsCaptcha && !payload.captcha_token) {
+        setStatus(errorGeneric, 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = submittingLabel;
+      setStatus('');
+
+      try {
+        const res = await fetch('/api/public/start-trial', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('bad status ' + res.status);
+        const url = new URL(checkEmailHref, window.location.origin);
+        url.searchParams.set('email', payload.email);
+        window.location.assign(url.toString());
+      } catch (err) {
+        setStatus(errorGeneric, 'error');
+        btn.disabled = false;
+        btn.textContent = submitLabel;
+      }
+    });
+  }
+</script>
+
+<style>
+  .mk-trial-start {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  @media (min-width: 900px) {
+    .mk-trial-start {
+      grid-template-columns: 260px 1fr;
+    }
+  }
+
+  .mk-trial-start__side h3 {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--kanap-text-tertiary);
+    margin: 0 0 16px;
+    letter-spacing: 0.04em;
+  }
+
+  .mk-trial-start__side ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mk-trial-start__side li {
+    position: relative;
+    padding-left: 22px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-trial-start__side li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 12px;
+    height: 1px;
+    background: var(--kanap-teal);
+  }
+
+  .mk-trial-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 540px;
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    padding: 28px;
+  }
+
+  .mk-tf__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .mk-tf__field label,
+  .mk-tf__label-spacer {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--kanap-text-tertiary);
+    letter-spacing: 0.01em;
+  }
+
+  .mk-tf__field input,
+  .mk-tf__field select {
+    width: 100%;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--kanap-text-primary);
+    background: transparent;
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-submit);
+    padding: 10px 12px;
+    transition: border-color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-tf__field input:focus-visible,
+  .mk-tf__field select:focus-visible {
+    outline: none;
+    border-color: var(--kanap-teal);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--kanap-teal) 30%, transparent);
+  }
+
+  .mk-tf__help {
+    margin: 0;
+    font-size: 12px;
+    color: var(--kanap-text-tertiary);
+    line-height: 1.5;
+  }
+
+  .mk-tf__suffix {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-submit);
+    overflow: hidden;
+    background: var(--kanap-bg-primary);
+  }
+
+  .mk-tf__suffix:focus-within {
+    border-color: var(--kanap-teal);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--kanap-teal) 30%, transparent);
+  }
+
+  .mk-tf__suffix input {
+    border: none;
+    border-radius: 0;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mk-tf__suffix input:focus-visible {
+    box-shadow: none;
+  }
+
+  .mk-tf__suffix-text {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 13px;
+    color: var(--kanap-text-tertiary);
+    padding: 10px 12px;
+    background: var(--kanap-bg-page);
+    border-left: 1px solid var(--kanap-border-default);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+  }
+
+  .mk-tf__status {
+    min-height: 20px;
+    font-size: 13px;
+  }
+
+  .mk-tf__status--error {
+    color: var(--kanap-danger);
+  }
+
+  .mk-tf__submit {
+    margin-top: 8px;
+  }
+
+  .mk-tf__privacy {
+    color: var(--kanap-text-tertiary);
+  }
+</style>

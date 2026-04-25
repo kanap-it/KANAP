@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, IconButton } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
 import { taskDetailTokens } from '../theme/taskDetailTokens';
 
@@ -15,14 +16,31 @@ interface TaskNavChipProps {
 export default function TaskNavChip({ currentIndex, totalCount, onPrev, onNext, hasPrev, hasNext }: TaskNavChipProps) {
   if (totalCount <= 0) return null;
 
+  const navButtonSx = (theme: Theme) => ({
+    p: 0,
+    width: 24,
+    height: 24,
+    minWidth: 24,
+    borderRadius: '4px',
+    color: theme.palette.kanap.navChip.fg,
+    fontSize: '14px',
+    lineHeight: 1,
+    '&:hover': {
+      bgcolor: theme.palette.kanap.tab.bgHover,
+    },
+    '&.Mui-disabled': {
+      opacity: 0.35,
+    },
+  });
+
   return (
     <Box
       sx={(theme) => ({
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '6px',
-        py: '3px',
-        px: '9px',
+        gap: '4px',
+        py: '2px',
+        px: '4px',
         borderRadius: taskDetailTokens.borderRadius.pill,
         bgcolor: theme.palette.kanap.navChip.bg,
         border: `1px solid ${theme.palette.kanap.navChip.border}`,
@@ -33,14 +51,7 @@ export default function TaskNavChip({ currentIndex, totalCount, onPrev, onNext, 
         onClick={onPrev}
         disabled={!hasPrev}
         aria-label="Previous task"
-        sx={(theme) => ({
-          p: 0,
-          color: theme.palette.kanap.navChip.fg,
-          fontSize: '11px',
-          lineHeight: 1,
-          minWidth: 0,
-          '&.Mui-disabled': { opacity: 0.35 },
-        })}
+        sx={navButtonSx}
         size="small"
       >
         ‹
@@ -61,14 +72,7 @@ export default function TaskNavChip({ currentIndex, totalCount, onPrev, onNext, 
         onClick={onNext}
         disabled={!hasNext}
         aria-label="Next task"
-        sx={(theme) => ({
-          p: 0,
-          color: theme.palette.kanap.navChip.fg,
-          fontSize: '11px',
-          lineHeight: 1,
-          minWidth: 0,
-          '&.Mui-disabled': { opacity: 0.35 },
-        })}
+        sx={navButtonSx}
         size="small"
       >
         ›

@@ -1,0 +1,127 @@
+---
+/**
+ * ThemeToggle — three-state cycle: light → dark → auto-detect → light.
+ *
+ * "auto-detect" mode follows the OS-level `prefers-color-scheme`. Choice
+ * is persisted in localStorage under `kanap-theme` (one of 'light' /
+ * 'dark' / 'system'). The no-flash init in BaseLayout reads the same
+ * key before first paint.
+ */
+
+import { getLocaleFromUrl, useTranslations } from '../i18n/ui';
+
+const t = useTranslations(getLocaleFromUrl(Astro.url));
+---
+
+<button
+  type="button"
+  class="mk-theme"
+  aria-label={t('theme.toggle')}
+  title={t('theme.toggle')}
+  data-mk-theme
+>
+  <!-- Sun (light) -->
+  <svg data-icon="light" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+    <circle cx="8" cy="8" r="3" />
+    <path d="M8 1.5v1.6M8 12.9v1.6M14.5 8h-1.6M3.1 8H1.5M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1M12.6 12.6l-1.1-1.1M4.5 4.5l-1.1-1.1" />
+  </svg>
+  <!-- Moon (dark) -->
+  <svg data-icon="dark" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7Z" />
+  </svg>
+  <!-- Monitor (auto-detect / system) -->
+  <svg data-icon="system" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1.5" y="2.5" width="13" height="9" rx="1.5" />
+    <path d="M5.5 14h5M8 11.5V14" />
+  </svg>
+</button>
+
+<script define:vars={{
+  labelLight: t('theme.light'),
+  labelDark: t('theme.dark'),
+  labelSystem: t('theme.system'),
+  labelToggle: t('theme.toggle'),
+}}>
+  const STORAGE_KEY = 'kanap-theme';
+  const ORDER = ['light', 'dark', 'system'];
+  const LABEL = { light: labelLight, dark: labelDark, system: labelSystem };
+
+  function currentMode() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+    } catch {}
+    return 'system';
+  }
+
+  function apply(mode) {
+    if (mode === 'system') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', mode);
+    }
+    try { localStorage.setItem(STORAGE_KEY, mode); } catch {}
+    syncButtons();
+  }
+
+  function syncButtons() {
+    const mode = currentMode();
+    document.querySelectorAll('[data-mk-theme]').forEach((btn) => {
+      btn.querySelectorAll('[data-icon]').forEach((el) => {
+        el.style.display = el.dataset.icon === mode ? 'block' : 'none';
+      });
+      // Aria label tells the user the current state
+      const aria = labelToggle + ' (' + LABEL[mode] + ')';
+      btn.setAttribute('aria-label', aria);
+      btn.setAttribute('title', aria);
+    });
+  }
+
+  document.querySelectorAll('[data-mk-theme]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = ORDER[(ORDER.indexOf(currentMode()) + 1) % ORDER.length];
+      apply(next);
+    });
+  });
+
+  // When the user is on auto-detect, the visible page colours follow the
+  // OS preference via the @media query in tokens.css. Nothing to update
+  // for the toggle icon — it always reflects the user's choice, not the
+  // effective theme.
+  syncButtons();
+</script>
+
+<style>
+  .mk-theme {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-submit);
+    color: var(--kanap-text-secondary);
+    cursor: pointer;
+    transition:
+      color var(--mk-duration) var(--mk-ease),
+      background-color var(--mk-duration) var(--mk-ease),
+      border-color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-theme:hover {
+    color: var(--kanap-text-primary);
+    background: var(--kanap-pill-hover-bg);
+  }
+
+  .mk-theme svg {
+    display: block;
+  }
+
+  /* SSR default: show the system icon. The script picks the right one
+     after hydration based on the persisted preference. */
+  .mk-theme [data-icon='light'],
+  .mk-theme [data-icon='dark'] {
+    display: none;
+  }
+</style>

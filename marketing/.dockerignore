@@ -1,0 +1,20 @@
+# Keep the Docker build context lean.
+# Everything outside of web/ is explicitly excluded.
+
+# Old static site — superseded by web/, no longer served
+site/
+
+# Node modules (re-installed inside the build container)
+**/node_modules/
+
+# Build artifacts
+web/dist/
+web/.astro/
+
+# Editor / OS cruft
+**/.DS_Store
+**/.vscode/
+**/.idea/
+
+# Logs
+**/*.log

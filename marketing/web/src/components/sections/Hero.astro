@@ -1,0 +1,119 @@
+---
+/**
+ * Hero — top-of-page headline block.
+ *
+ * Flexible: eyebrow, title, lead, slot for CTAs, optional slot for a
+ * visual on the right (image, screenshot).
+ *
+ * Default layout is single-column, left-aligned. If the `visual` slot is
+ * used, layout becomes two-column on wide viewports.
+ */
+
+interface Props {
+  eyebrow?: string;
+  title: string;
+  lead?: string;
+  align?: 'start' | 'center';
+}
+
+const { eyebrow, title, lead, align = 'start' } = Astro.props;
+const hasVisual = Astro.slots.has('visual');
+---
+
+<section class:list={['mk-hero', { 'mk-hero--with-visual': hasVisual, [`mk-hero--${align}`]: true }]}>
+  <div class="mk-container mk-hero__inner">
+    <div class="mk-hero__copy">
+      {eyebrow && <span class="mk-eyebrow mk-hero__eyebrow">{eyebrow}</span>}
+      <h1 class="mk-hero__title">{title}</h1>
+      {lead && <p class="mk-lead mk-hero__lead">{lead}</p>}
+      {Astro.slots.has('cta') && (
+        <div class="mk-hero__cta">
+          <slot name="cta" />
+        </div>
+      )}
+      {Astro.slots.has('trust') && (
+        <div class="mk-hero__trust">
+          <slot name="trust" />
+        </div>
+      )}
+    </div>
+    {hasVisual && (
+      <div class="mk-hero__visual">
+        <slot name="visual" />
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .mk-hero {
+    padding-top: clamp(36px, 5vw, 72px);
+    padding-bottom: clamp(28px, 4vw, 52px);
+  }
+
+  .mk-hero__inner {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(24px, 4vw, 44px);
+  }
+
+  .mk-hero--with-visual .mk-hero__inner {
+    gap: clamp(24px, 3vw, 48px);
+  }
+
+  @media (min-width: 900px) {
+    .mk-hero--with-visual .mk-hero__inner {
+      flex-direction: row;
+      align-items: center;
+    }
+    .mk-hero--with-visual .mk-hero__copy {
+      flex: 1;
+      max-width: 560px;
+    }
+    .mk-hero--with-visual .mk-hero__visual {
+      flex: 1.1;
+      min-width: 0;
+    }
+  }
+
+  .mk-hero--center .mk-hero__copy {
+    align-items: center;
+    text-align: center;
+    margin-inline: auto;
+  }
+
+  .mk-hero__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    max-width: 720px;
+  }
+
+  .mk-hero__eyebrow {
+    margin-bottom: 4px;
+  }
+
+  .mk-hero__title {
+    margin: 0;
+  }
+
+  .mk-hero__lead {
+    max-width: 620px;
+  }
+
+  .mk-hero__cta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .mk-hero--center .mk-hero__cta {
+    justify-content: center;
+  }
+
+  .mk-hero__trust {
+    margin-top: 20px;
+  }
+</style>

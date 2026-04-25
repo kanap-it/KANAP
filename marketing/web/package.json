@@ -1,0 +1,21 @@
+{
+  "name": "@kanap/marketing",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "tokens": "node scripts/sync-tokens.mjs"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.2",
+    "astro": "^5.1.0",
+    "puppeteer-core": "^24.42.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

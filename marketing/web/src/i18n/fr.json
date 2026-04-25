@@ -1,0 +1,42 @@
+{
+  "site.title": "KANAP — Gestion IT open source",
+  "site.description": "Plateforme open source pour la gestion du budget, du portefeuille, des opérations et de la connaissance IT. Auto-hébergez-la, ou laissez-nous la gérer.",
+
+  "nav.features": "Fonctionnalités",
+  "nav.featuresBudget": "Gestion du budget",
+  "nav.featuresItLandscape": "Paysage IT",
+  "nav.featuresPortfolio": "Gestion de portefeuille",
+  "nav.featuresKnowledge": "Connaissance",
+  "nav.featuresAi": "Plaid · Assistant IA",
+  "nav.onPremise": "Auto-hébergement",
+  "nav.offer": "Tarifs",
+  "nav.security": "Sécurité",
+  "nav.changelog": "Nouveautés",
+  "nav.faq": "FAQ",
+  "nav.contact": "Contact",
+  "nav.signIn": "Connexion",
+  "nav.startTrial": "Essai gratuit",
+  "nav.menu": "Ouvrir le menu",
+
+  "theme.toggle": "Changer de thème",
+  "theme.light": "Clair",
+  "theme.dark": "Sombre",
+  "theme.system": "Détection automatique",
+
+  "locale.switch": "Changer de langue",
+
+  "footer.tagline": "Gestion IT open source. Auto-hébergez-la, ou laissez-nous la gérer.",
+  "footer.product": "Produit",
+  "footer.resources": "Ressources",
+  "footer.legal": "Mentions légales",
+  "footer.docs": "Documentation",
+  "footer.github": "GitHub",
+  "footer.privacy": "Confidentialité",
+  "footer.terms": "CGU",
+  "footer.sales": "CGV",
+  "footer.legalNotice": "Mentions légales",
+  "footer.copyright": "© {year} KANAP. Tous droits réservés.",
+
+  "trust.placeholder": "Conçue pour les DSI de tous secteurs",
+  "trust.cta": "Partagez votre témoignage"
+}

@@ -1,0 +1,81 @@
+---
+/**
+ * CTABand — recurring page-end call-to-action section.
+ *
+ * Two-button layout: primary + ghost. Supports a small note line below.
+ */
+
+interface Props {
+  title: string;
+  body?: string;
+  primaryHref: string;
+  primaryLabel: string;
+  secondaryHref?: string;
+  secondaryLabel?: string;
+  note?: string;
+}
+
+const {
+  title,
+  body,
+  primaryHref,
+  primaryLabel,
+  secondaryHref,
+  secondaryLabel,
+  note,
+} = Astro.props;
+---
+
+<div class="mk-cta">
+  <div class="mk-cta__inner">
+    <h2 class="mk-cta__title">{title}</h2>
+    {body && <p class="mk-lead mk-cta__body">{body}</p>}
+    <div class="mk-cta__actions">
+      <a href={primaryHref} class="mk-btn mk-btn--primary">{primaryLabel}</a>
+      {secondaryHref && secondaryLabel && (
+        <a href={secondaryHref} class="mk-btn mk-btn--ghost">{secondaryLabel}</a>
+      )}
+    </div>
+    {note && <p class="mk-small mk-cta__note">{note}</p>}
+  </div>
+</div>
+
+<style>
+  .mk-cta {
+    display: flex;
+    justify-content: center;
+  }
+
+  .mk-cta__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+    max-width: 640px;
+  }
+
+  .mk-cta__title {
+    font-size: clamp(28px, 3.2vw, 36px);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  .mk-cta__body {
+    margin: 0;
+  }
+
+  .mk-cta__actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .mk-cta__note {
+    margin-top: 8px;
+    color: var(--kanap-text-tertiary);
+  }
+</style>

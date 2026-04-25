@@ -1,0 +1,42 @@
+{
+  "site.title": "KANAP — Gestión de TI de código abierto",
+  "site.description": "Plataforma de código abierto para gestión de presupuesto, portafolio, operaciones y conocimiento de TI. Autoaloja o déjanos gestionarla.",
+
+  "nav.features": "Funcionalidades",
+  "nav.featuresBudget": "Gestión de presupuesto",
+  "nav.featuresItLandscape": "Paisaje de TI",
+  "nav.featuresPortfolio": "Gestión de portafolio",
+  "nav.featuresKnowledge": "Conocimiento",
+  "nav.featuresAi": "Plaid · Asistente de IA",
+  "nav.onPremise": "Autoalojado",
+  "nav.offer": "Precios",
+  "nav.security": "Seguridad",
+  "nav.changelog": "Novedades",
+  "nav.faq": "Preguntas frecuentes",
+  "nav.contact": "Contacto",
+  "nav.signIn": "Iniciar sesión",
+  "nav.startTrial": "Empezar prueba gratuita",
+  "nav.menu": "Abrir menú",
+
+  "theme.toggle": "Cambiar tema",
+  "theme.light": "Claro",
+  "theme.dark": "Oscuro",
+  "theme.system": "Detección automática",
+
+  "locale.switch": "Cambiar idioma",
+
+  "footer.tagline": "Gestión de TI de código abierto. Autoaloja o déjanos gestionarla.",
+  "footer.product": "Producto",
+  "footer.resources": "Recursos",
+  "footer.legal": "Legal",
+  "footer.docs": "Documentación",
+  "footer.github": "GitHub",
+  "footer.privacy": "Privacidad",
+  "footer.terms": "Términos",
+  "footer.sales": "Condiciones de venta",
+  "footer.legalNotice": "Aviso legal",
+  "footer.copyright": "© {year} KANAP. Todos los derechos reservados.",
+
+  "trust.placeholder": "Pensada para equipos de TI de cualquier sector",
+  "trust.cta": "Comparte tu historia"
+}

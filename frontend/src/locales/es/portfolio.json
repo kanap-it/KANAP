@@ -257,7 +257,7 @@
           "teamAndRelations": "Equipo y relaciones"
         },
         "fields": {
-          "executionProgress": "Esfuerzo de ejecución"
+          "executionProgress": "Progreso"
         },
         "placeholders": {
           "purpose": "Describa el objetivo de este proyecto..."
@@ -357,7 +357,7 @@
           "noTimeLogged": "Aún no se ha registrado tiempo. Haga clic en «Registrar tiempo» para agregar entradas."
         },
         "values": {
-          "executionProgress": "Esfuerzo de ejecución: {{progress}} %",
+          "executionProgress": "Progreso: {{progress}} %",
           "hoursValue": "{{hours}} h",
           "mdHigher": "{{count}} DP más",
           "mdLower": "{{count}} DP menos",
@@ -1491,14 +1491,19 @@
         "it": "Asignación de esfuerzo IT"
       },
       "actions": {
+        "clearManualPins": "Quitar fijaciones manuales",
         "edit": "Editar",
-        "manual": "Manual"
+        "manual": "Manual",
+        "splitEqually": "Repartir por igual"
       },
       "chips": {
         "autoCalculated": "Calculado automáticamente",
         "lead": "Responsable",
         "manual": "Manual",
         "orphaned": "Huérfano"
+      },
+      "helper": {
+        "autoRedistribution": "Las filas editadas quedan manuales; el resto se redistribuye automáticamente."
       },
       "messages": {
         "noEligibleUsers": "No hay usuarios elegibles. Asigne primero un responsable o miembros de equipo de {{effortType}}.",
@@ -1513,6 +1518,7 @@
         "contributor": "Colaborador"
       },
       "validation": {
+        "pinnedTotalExceeded": "Las filas manuales superan el 100 %. Reduzca primero un valor manual.",
         "totalDisplay": "Debe ser igual a 100 %",
         "totalMustEqual100": "Las asignaciones deben sumar exactamente 100 %"
       }

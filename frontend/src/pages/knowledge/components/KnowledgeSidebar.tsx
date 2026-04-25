@@ -142,7 +142,6 @@ function ManagedReadonlyBadge({ title }: { title: string }) {
           display: 'inline-flex',
           alignItems: 'center',
           color: 'text.secondary',
-          cursor: 'help',
           lineHeight: 0,
         }}
       >

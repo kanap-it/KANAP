@@ -1,0 +1,203 @@
+---
+/**
+ * PricingCard — one tier in a pricing section.
+ *
+ * Matches the app card treatment. `featured` adds a teal accent border.
+ * Price block supports a subprice (annual equivalent) and a note (trial).
+ */
+
+interface Props {
+  name: string;
+  badge?: string;
+  target?: string;
+  price: string;
+  period?: string;
+  subPrice?: string;
+  features: string[];
+  ctaLabel: string;
+  ctaHref: string;
+  ctaVariant?: 'primary' | 'ghost';
+  note?: string;
+  featured?: boolean;
+}
+
+const {
+  name,
+  badge,
+  target,
+  price,
+  period = '/mo',
+  subPrice,
+  features,
+  ctaLabel,
+  ctaHref,
+  ctaVariant = 'ghost',
+  note,
+  featured = false,
+} = Astro.props;
+---
+
+<article class:list={['mk-price', { 'mk-price--featured': featured }]}>
+  <header class="mk-price__head">
+    {badge && <span class="mk-price__badge">{badge}</span>}
+    <h3 class="mk-price__name">{name}</h3>
+    {target && <p class="mk-price__target">{target}</p>}
+  </header>
+
+  <div class="mk-price__priceblock">
+    <div class="mk-price__main">
+      <span class="mk-price__value">{price}</span>
+      {period && <span class="mk-price__period">{period}</span>}
+    </div>
+    {subPrice && <div class="mk-price__sub">{subPrice}</div>}
+  </div>
+
+  <a
+    href={ctaHref}
+    class:list={['mk-btn', ctaVariant === 'primary' ? 'mk-btn--primary' : 'mk-btn--ghost', 'mk-price__cta']}
+  >
+    {ctaLabel}
+  </a>
+
+  {note && <p class="mk-price__note mk-small">{note}</p>}
+
+  <ul class="mk-price__features">
+    {features.map((f) => (
+      <li>
+        <svg class="mk-price__check" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 8.5l3 3 7-7" />
+        </svg>
+        <span>{f}</span>
+      </li>
+    ))}
+  </ul>
+</article>
+
+<style>
+  .mk-price {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 28px 24px;
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    transition:
+      box-shadow var(--mk-duration) var(--mk-ease),
+      border-color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-price:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  :root[data-theme='dark'] .mk-price:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .mk-price--featured {
+    border-color: var(--kanap-teal);
+    box-shadow: 0 0 0 1px var(--kanap-teal) inset;
+  }
+
+  .mk-price__head {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mk-price__badge {
+    display: inline-block;
+    width: max-content;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: var(--kanap-text-tertiary);
+    background: var(--kanap-pill-bg);
+    border: 1px solid var(--kanap-pill-border);
+    padding: 3px 8px;
+    border-radius: var(--kanap-radius-pill);
+  }
+
+  .mk-price--featured .mk-price__badge {
+    color: var(--kanap-teal);
+    background: var(--kanap-nav-chip-bg);
+    border-color: var(--kanap-nav-chip-border);
+  }
+
+  .mk-price__name {
+    font-size: 20px;
+    font-weight: 500;
+    margin: 0;
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-price__target {
+    font-size: 13px;
+    color: var(--kanap-text-secondary);
+    margin: 0;
+  }
+
+  .mk-price__priceblock {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mk-price__main {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .mk-price__value {
+    font-size: 34px;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-price__period {
+    font-size: 14px;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-price__sub {
+    font-size: 13px;
+    color: var(--kanap-text-tertiary);
+  }
+
+  .mk-price__cta {
+    width: 100%;
+  }
+
+  .mk-price__note {
+    color: var(--kanap-text-tertiary);
+  }
+
+  .mk-price__features {
+    margin: 0;
+    padding: 14px 0 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-top: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-price__features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-price__check {
+    flex-shrink: 0;
+    margin-top: 3px;
+    color: var(--kanap-teal);
+  }
+</style>

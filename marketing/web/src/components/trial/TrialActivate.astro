@@ -1,0 +1,142 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { Section, PageHeader } from '../sections';
+import { getLocaleFromUrl, localePath } from '../../i18n/ui';
+import { getTrialContent } from '../../content/resolve';
+
+const locale = getLocaleFromUrl(Astro.url);
+const c = getTrialContent(locale).activate;
+
+const expiredHref = localePath(locale, '/trial/expired');
+const failedHref = localePath(locale, '/trial/failed');
+---
+
+<BaseLayout title={c.title} description={c.description}>
+  <Fragment slot="head">
+    <meta name="robots" content="noindex, nofollow" />
+  </Fragment>
+
+  <PageHeader eyebrow={c.eyebrow} title={c.heading} lead={c.lead} />
+
+  <Section tone="default">
+    <div class="mk-activate">
+      <div class="mk-activate__spinner" aria-hidden="true"></div>
+      <p class="mk-activate__status" data-activate-status>{c.progressIdle}</p>
+      <p class="mk-activate__note mk-small" data-activate-note hidden>{c.redirectNote}</p>
+      <a
+        href="#"
+        class="mk-btn mk-btn--primary mk-activate__manual"
+        data-activate-link
+        hidden
+      ></a>
+    </div>
+  </Section>
+</BaseLayout>
+
+<script define:vars={{
+  progressValidating: c.progressValidating,
+  progressCreating: c.progressCreating,
+  progressRedirecting: c.progressRedirecting,
+  successPrefix: c.successPrefix,
+  expiredHref,
+  failedHref,
+}}>
+  const statusEl = document.querySelector('[data-activate-status]');
+  const noteEl = document.querySelector('[data-activate-note]');
+  const linkEl = document.querySelector('[data-activate-link]');
+
+  function setStatus(msg) {
+    if (statusEl) statusEl.textContent = msg;
+  }
+
+  function finalRedirect(tenantUrl, resetToken) {
+    const url = new URL('/reset-password', tenantUrl);
+    url.hash = resetToken;
+    url.searchParams.set('from', 'trial');
+    setStatus(progressRedirecting);
+    if (linkEl) {
+      linkEl.setAttribute('href', url.toString());
+      linkEl.hidden = false;
+      linkEl.textContent = successPrefix;
+    }
+    if (noteEl) noteEl.hidden = false;
+    setTimeout(() => window.location.assign(url.toString()), 400);
+  }
+
+  async function activate() {
+    const hash = window.location.hash.replace(/^#/, '');
+    const params = new URLSearchParams(hash.includes('=') ? hash : ('token=' + hash));
+    const token = params.get('token');
+    if (!token) {
+      window.location.assign(failedHref);
+      return;
+    }
+
+    setStatus(progressValidating);
+    try {
+      const res = await fetch('/api/public/activate-trial', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      if (res.status === 410 || res.status === 404) {
+        window.location.assign(expiredHref);
+        return;
+      }
+      if (!res.ok) throw new Error('bad status ' + res.status);
+      setStatus(progressCreating);
+      const data = await res.json();
+      if (!data.tenant_url || !data.reset_token) throw new Error('bad payload');
+      finalRedirect(data.tenant_url, data.reset_token);
+    } catch (err) {
+      window.location.assign(failedHref);
+    }
+  }
+
+  activate();
+</script>
+
+<style>
+  .mk-activate {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    max-width: 520px;
+  }
+
+  .mk-activate__spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--kanap-border-default);
+    border-top-color: var(--kanap-teal);
+    border-radius: 50%;
+    animation: mk-spin 0.8s linear infinite;
+  }
+
+  .mk-activate__status {
+    font-size: 15px;
+    color: var(--kanap-text-primary);
+    margin: 0;
+  }
+
+  .mk-activate__note {
+    color: var(--kanap-text-tertiary);
+    margin: 0;
+  }
+
+  .mk-activate__manual {
+    margin-top: 8px;
+  }
+
+  @keyframes mk-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mk-activate__spinner {
+      animation: none;
+      border-top-color: var(--kanap-teal);
+    }
+  }
+</style>

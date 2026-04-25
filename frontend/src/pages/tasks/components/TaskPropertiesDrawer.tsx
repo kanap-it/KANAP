@@ -6,11 +6,13 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
+import { PropertyGroup, PropertyRow } from '../../../components/design';
 import DateEUField from '../../../components/fields/DateEUField';
 import UserSelect from '../../../components/fields/UserSelect';
 import UserMultiSelect from '../../../components/fields/UserMultiSelect';
 import RelatedObjectSelect, { RelatedObjectType } from '../../../components/fields/RelatedObjectSelect';
 import CompanySelect from '../../../components/fields/CompanySelect';
+import { drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 import DrawerKnowledgeSection from './DrawerKnowledgeSection';
 import TaskLogTimeDialog from './TaskLogTimeDialog';
 import { taskDetailTokens, taskDetailTypography } from '../theme/taskDetailTokens';
@@ -77,64 +79,6 @@ function withCurrentOption(options: SelectOption[], currentId?: string | null, c
 }
 
 /* ------------------------------------------------------------------ */
-/*  PropertyRow                                                       */
-/*  - Label custom above, value below                                 */
-/*  - Hides any MUI InputLabel/FormLabel rendered by child components  */
-/* ------------------------------------------------------------------ */
-
-const propValueSx = {
-  fontSize: 13,
-  lineHeight: 1.4,
-  minHeight: 26,
-  // Kill any MUI-generated labels inside child components
-  '& .MuiInputLabel-root': { display: 'none' },
-  '& .MuiFormLabel-root': { display: 'none' },
-  // Normalize MUI input internal spacing so all rows have equal height
-  '& .MuiInput-root': { mt: '0 !important' },
-  '& .MuiInput-input': { py: '3px !important', fontSize: '13px !important' },
-  '& .MuiAutocomplete-input': { py: '3px !important', fontSize: '13px !important' },
-  // Kill ALL underlines from any MUI input variant inside the drawer
-  '& .MuiInput-underline:before': { display: 'none !important' },
-  '& .MuiInput-underline:after': { display: 'none !important' },
-  '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none !important' },
-} as const;
-
-function PropertyRow({ label, children }: { label: string; children: React.ReactNode }) {
-  const theme = useTheme();
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', py: '5px' }}>
-      <Box sx={{ fontSize: 12, lineHeight: 1.3, color: theme.palette.kanap.text.tertiary }}>{label}</Box>
-      <Box sx={{ ...propValueSx, color: theme.palette.kanap.text.primary }}>{children}</Box>
-    </Box>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  drawerSelectSx — single constant for ALL Selects in the drawer    */
-/* ------------------------------------------------------------------ */
-
-const drawerSelectSx = {
-  width: '100%',
-  fontSize: 13,
-  '& .MuiSelect-select': { padding: '4px 0', fontSize: 13, lineHeight: 1.4 },
-  '& .MuiSelect-icon': { color: 'kanap.text.secondary', fontSize: 18, right: 0 },
-  '&:before': { display: 'none' },
-  '&:after': { display: 'none' },
-  '&:hover:not(.Mui-disabled):before': { display: 'none' },
-} as const;
-
-/* ------------------------------------------------------------------ */
-/*  drawerMenuItemSx — single constant for ALL MenuItems in drawer    */
-/* ------------------------------------------------------------------ */
-
-const drawerMenuItemSx = {
-  fontSize: 13,
-  paddingTop: '6px',
-  paddingBottom: '6px',
-  minHeight: 'auto',
-} as const;
-
-/* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -150,11 +94,6 @@ function formatHours(t: any, hours: number) {
   if (days > 0 && remaining > 0) return t('workspace.task.workLog.duration.daysHours', { days, hours: remaining });
   if (days > 0) return t('workspace.task.workLog.duration.daysOnly', { days });
   return t('workspace.task.workLog.duration.hoursOnly', { hours });
-}
-
-function GroupDivider() {
-  const theme = useTheme();
-  return <Box sx={{ borderTop: `1px solid ${theme.palette.kanap.border.soft}`, mx: '18px', mt: '4px' }} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -226,10 +165,10 @@ export default function TaskPropertiesDrawer({
   /* ================================================================ */
 
   const drawerBody = (
-    <Box sx={{ flex: 1, overflowY: 'auto', pt: '8px', pb: '12px' }}>
+    <Box sx={{ flex: 1, overflowY: 'auto', pt: '10px', pb: '14px' }}>
 
       {/* ══ Group 1: Context ══ */}
-      <Box sx={{ px: '18px', py: '4px' }}>
+      <PropertyGroup>
         {/* Related to */}
         <PropertyRow label={t('workspace.task.sidebar.fields.relatedTo')}>
           {onRelationChange && !readOnly ? (
@@ -285,12 +224,10 @@ export default function TaskPropertiesDrawer({
             </Select>
           )}
         </PropertyRow>
-      </Box>
-
-      <GroupDivider />
+      </PropertyGroup>
 
       {/* ══ Group 2: Classification ══ */}
-      <Box sx={{ px: '18px', pt: '8px', pb: '4px' }}>
+      <PropertyGroup>
         {canEditClassification && !readOnly ? (
           <>
             <PropertyRow label={t('workspace.task.sidebar.fields.source')}>
@@ -337,12 +274,10 @@ export default function TaskPropertiesDrawer({
             {task.company_name && <PropertyRow label={t('workspace.task.sidebar.fields.company')}><Typography sx={{ fontSize: 13 }}>{task.company_name}</Typography></PropertyRow>}
           </>
         )}
-      </Box>
-
-      <GroupDivider />
+      </PropertyGroup>
 
       {/* ══ Group 3: People ══ */}
-      <Box sx={{ px: '18px', pt: '8px', pb: '4px' }}>
+      <PropertyGroup>
         <PropertyRow label={t('workspace.task.sidebar.fields.requestor')}>
           {readOnly ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -356,12 +291,10 @@ export default function TaskPropertiesDrawer({
         <PropertyRow label={t('workspace.task.sidebar.fields.viewers')}>
           <UserMultiSelect label="" value={task.viewer_ids || []} onChange={(v) => onPatch({ viewer_ids: v })} disabled={readOnly} size="small" />
         </PropertyRow>
-      </Box>
-
-      <GroupDivider />
+      </PropertyGroup>
 
       {/* ══ Group 4: Tracking ══ */}
-      <Box sx={{ px: '18px', pt: '8px', pb: '4px' }}>
+      <PropertyGroup>
         <PropertyRow label={t('workspace.task.sidebar.fields.startDate')}>
           <DateEUField label="" valueYmd={task.start_date || ''} onChangeYmd={(v) => onPatch({ start_date: v || null })} disabled={readOnly} size="small" />
         </PropertyRow>
@@ -388,7 +321,7 @@ export default function TaskPropertiesDrawer({
             <DrawerKnowledgeSection taskId={task.id} canCreate={canCreateKnowledge} />
           </PropertyRow>
         )}
-      </Box>
+      </PropertyGroup>
 
       {/* Log time dialog */}
       {!isCreate && supportsTimeLogging && (
@@ -422,11 +355,15 @@ export default function TaskPropertiesDrawer({
   }
 
   /* ---- Desktop: 280px side panel, no header (tab-anchor handles labeling) ---- */
+  const panelTopOffset = taskDetailTokens.drawer.panelTop;
+
   return (
     <Box
       component="aside"
       sx={{
         width: taskDetailTokens.drawer.panelWidth,
+        mt: `${panelTopOffset}px`,
+        height: `calc(100% + ${Math.abs(panelTopOffset)}px)`,
         flexShrink: 0,
         borderLeft: `1px solid ${theme.palette.kanap.border.default}`,
         bgcolor: theme.palette.kanap.bg.drawer,

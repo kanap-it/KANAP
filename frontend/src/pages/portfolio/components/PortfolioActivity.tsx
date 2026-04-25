@@ -1,9 +1,8 @@
 import React from 'react';
 import {
   Box,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
+  Tab,
+  Tabs,
 } from '@mui/material';
 import CommentIcon from '@mui/icons-material/Comment';
 import HistoryIcon from '@mui/icons-material/History';
@@ -65,7 +64,7 @@ export default function PortfolioActivity({
   const { t } = useTranslation('portfolio');
   const [activeTab, setActiveTab] = React.useState<ActivityTab>('comments');
 
-  const handleTabChange = (_: React.MouseEvent<HTMLElement>, newTab: ActivityTab | null) => {
+  const handleTabChange = (_: React.SyntheticEvent, newTab: ActivityTab) => {
     if (newTab) {
       setActiveTab(newTab);
     }
@@ -73,25 +72,47 @@ export default function PortfolioActivity({
 
   return (
     <Box>
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-          {t('activity.title')}
-        </Typography>
-        <ToggleButtonGroup
+      <Box sx={{ mb: 1.75 }}>
+        <Tabs
           value={activeTab}
-          exclusive
           onChange={handleTabChange}
-          size="small"
+          sx={{ minHeight: 'auto', '& .MuiTabs-indicator': { display: 'none' } }}
         >
-          <ToggleButton value="comments">
-            <CommentIcon fontSize="small" sx={{ mr: 0.5 }} />
-            {t('activity.tabs.comments')}
-          </ToggleButton>
-          <ToggleButton value="history">
-            <HistoryIcon fontSize="small" sx={{ mr: 0.5 }} />
-            {t('activity.tabs.history')}
-          </ToggleButton>
-        </ToggleButtonGroup>
+          <Tab
+            value="comments"
+            icon={<CommentIcon sx={{ fontSize: 14 }} />}
+            iconPosition="start"
+            label={t('activity.tabs.comments')}
+            sx={(theme) => ({
+              minHeight: 'auto',
+              p: 0,
+              mr: 2,
+              textTransform: 'none',
+              minWidth: 'auto',
+              fontSize: '13px',
+              fontWeight: activeTab === 'comments' ? 500 : 400,
+              color: activeTab === 'comments' ? theme.palette.kanap.text.primary : theme.palette.kanap.text.tertiary,
+              '& .MuiTab-iconWrapper': { mr: 0.75 },
+            })}
+          />
+          <Tab
+            value="history"
+            icon={<HistoryIcon sx={{ fontSize: 14 }} />}
+            iconPosition="start"
+            label={t('activity.tabs.history')}
+            sx={(theme) => ({
+              minHeight: 'auto',
+              p: 0,
+              mr: 2,
+              textTransform: 'none',
+              minWidth: 'auto',
+              fontSize: '13px',
+              fontWeight: activeTab === 'history' ? 500 : 400,
+              color: activeTab === 'history' ? theme.palette.kanap.text.primary : theme.palette.kanap.text.tertiary,
+              '& .MuiTab-iconWrapper': { mr: 0.75 },
+            })}
+          />
+        </Tabs>
       </Box>
 
       <Box sx={{ minHeight: 200 }}>

@@ -9,7 +9,6 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
-import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
 import { taskDetailTokens, taskDetailTypography, STATUS_DOT_COLORS, PRIORITY_DOT_COLORS, getScoreColor } from '../theme/taskDetailTokens';
 import type { PriorityLevel } from '../theme/taskDetailTokens';
 import type { TaskStatus } from '../task.constants';
@@ -148,7 +147,7 @@ function ScoreChip({ score, isProjectTask }: { score: number; isProjectTask?: bo
     <Tooltip title={t('workspace.task.priority.title')} arrow>
       <Box sx={{ ...metaItemSx, cursor: 'default', color: theme.palette.kanap.text.primary }}>
         <Box component="span" sx={{ ...dotSx, bgcolor: color }} />
-        <Box component="span" sx={{ fontFamily: MONO_FONT_FAMILY, ...taskDetailTypography.scoreValue }}>
+        <Box component="span" sx={{ ...taskDetailTypography.scoreValue }}>
           {Math.round(score)}
         </Box>
       </Box>

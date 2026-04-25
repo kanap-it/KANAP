@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, ChipProps, useTheme } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
 import { useTranslation } from 'react-i18next';
+import { getDotColor } from '../../../utils/statusColors';
 
 /**
  * Status value mapping configuration
@@ -10,22 +11,6 @@ export interface StatusConfig {
   value: string;
   label: string;
   color: ChipProps['color'];
-}
-
-/**
- * Dot+text color palette for statuses (light and dark mode)
- */
-const STATUS_COLORS: Record<string, { light: string; dark: string }> = {
-  success:   { light: '#15803D', dark: '#4ADE80' },
-  error:     { light: '#B91C1C', dark: '#F87171' },
-  warning:   { light: '#B45309', dark: '#F0A830' },
-  info:      { light: '#1D4ED8', dark: '#60A5FA' },
-  secondary: { light: '#7C3AED', dark: '#A78BFA' },
-  default:   { light: '#6B7280', dark: 'rgba(255,255,255,0.45)' },
-};
-
-function getStatusColor(color: string, mode: 'light' | 'dark'): string {
-  return STATUS_COLORS[color]?.[mode] ?? STATUS_COLORS.default[mode];
 }
 
 /**
@@ -44,7 +29,7 @@ const ENV_COLOR_MAP: Record<string, string> = {
  * Returns the dot color for a given environment value, respecting light/dark mode.
  */
 export function getEnvDotColor(env: string, mode: 'light' | 'dark'): string {
-  return getStatusColor(ENV_COLOR_MAP[env] ?? 'default', mode);
+  return getDotColor(ENV_COLOR_MAP[env] ?? 'default', mode);
 }
 
 /**
@@ -60,11 +45,11 @@ export const DEFAULT_STATUS_CONFIGS: StatusConfig[] = [
   { value: 'retired', label: 'Retired', color: 'default' },
   { value: 'draft', label: 'Draft', color: 'default' },
   { value: 'submitted', label: 'Submitted', color: 'info' },
-  { value: 'under_review', label: 'Under Review', color: 'warning' },
+  { value: 'under_review', label: 'Under review', color: 'warning' },
   { value: 'approved', label: 'Approved', color: 'success' },
   { value: 'rejected', label: 'Rejected', color: 'error' },
-  { value: 'in_progress', label: 'In Progress', color: 'info' },
-  { value: 'on_hold', label: 'On Hold', color: 'warning' },
+  { value: 'in_progress', label: 'In progress', color: 'info' },
+  { value: 'on_hold', label: 'On hold', color: 'warning' },
   { value: 'completed', label: 'Completed', color: 'success' },
   { value: 'cancelled', label: 'Cancelled', color: 'error' },
   { value: 'pending', label: 'Pending', color: 'warning' },
@@ -105,9 +90,11 @@ function getStatusConfig(
  */
 function formatStatusValue(value: string | null | undefined): string {
   if (!value) return '';
-  return String(value)
+  const text = String(value)
     .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+    .trim()
+    .toLowerCase();
+  return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : '';
 }
 
 /**
@@ -142,7 +129,7 @@ export function StatusCellRenderer<T = unknown>(
   const config = getStatusConfig(statusValue, statusConfigs);
   const normalizedKey = statusValue.toLowerCase().trim().replace(/\s+/g, '_');
   const label = t(`statuses.${normalizedKey}`, { defaultValue: config?.label ?? formatStatusValue(statusValue) });
-  const dotColor = getStatusColor(config?.color ?? 'default', mode);
+  const dotColor = getDotColor(config?.color ?? 'default', mode);
 
   const handleClick = onClick && data
     ? () => onClick(data, statusValue)
@@ -219,8 +206,8 @@ export const ProjectStatusRenderer = createStatusCellRenderer({
     { value: 'draft', label: 'Draft', color: 'default' },
     { value: 'proposed', label: 'Proposed', color: 'info' },
     { value: 'approved', label: 'Approved', color: 'success' },
-    { value: 'in_progress', label: 'In Progress', color: 'info' },
-    { value: 'on_hold', label: 'On Hold', color: 'warning' },
+    { value: 'in_progress', label: 'In progress', color: 'info' },
+    { value: 'on_hold', label: 'On hold', color: 'warning' },
     { value: 'completed', label: 'Completed', color: 'success' },
     { value: 'cancelled', label: 'Cancelled', color: 'error' },
   ],

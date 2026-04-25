@@ -1,0 +1,134 @@
+/**
+ * Shared form primitives — imported once by BaseLayout so every page
+ * that uses the `.mk-tf__*` classes (trial signup, contact, anything
+ * else we add) gets the same input treatment without re-declaring the
+ * CSS in each component's scoped style block.
+ */
+
+/* Field group: label above input, tight gap */
+.mk-tf__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mk-tf__field label,
+.mk-tf__label-spacer {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--kanap-text-tertiary);
+  letter-spacing: 0.01em;
+}
+
+/* Inputs, selects, textareas — unified aesthetic */
+.mk-tf__field input,
+.mk-tf__field select,
+.mk-tf__field textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--kanap-text-primary);
+  background: var(--kanap-bg-primary);
+  border: 1px solid var(--kanap-border-default);
+  border-radius: var(--kanap-radius-submit);
+  padding: 10px 12px;
+  transition: border-color var(--mk-duration) var(--mk-ease),
+    box-shadow var(--mk-duration) var(--mk-ease);
+}
+
+.mk-tf__field textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.55;
+}
+
+.mk-tf__field input::placeholder,
+.mk-tf__field textarea::placeholder {
+  color: var(--kanap-text-tertiary);
+}
+
+.mk-tf__field input:focus-visible,
+.mk-tf__field select:focus-visible,
+.mk-tf__field textarea:focus-visible {
+  outline: none;
+  border-color: var(--kanap-teal);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--kanap-teal) 30%, transparent);
+}
+
+/* Field help text (below the input) */
+.mk-tf__help {
+  margin: 0;
+  font-size: 12px;
+  color: var(--kanap-text-tertiary);
+  line-height: 1.5;
+}
+
+/* Suffix pattern: input + static suffix (e.g. .kanap.net) */
+.mk-tf__suffix {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--kanap-border-default);
+  border-radius: var(--kanap-radius-submit);
+  overflow: hidden;
+  background: var(--kanap-bg-primary);
+  transition: border-color var(--mk-duration) var(--mk-ease),
+    box-shadow var(--mk-duration) var(--mk-ease);
+}
+
+.mk-tf__suffix:focus-within {
+  border-color: var(--kanap-teal);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--kanap-teal) 30%, transparent);
+}
+
+.mk-tf__suffix input {
+  border: none;
+  border-radius: 0;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+}
+
+.mk-tf__suffix input:focus-visible {
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.mk-tf__suffix-text {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--kanap-text-tertiary);
+  padding: 10px 12px;
+  background: var(--kanap-bg-page);
+  border-left: 1px solid var(--kanap-border-default);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+
+/* Status line below the submit button */
+.mk-tf__status {
+  min-height: 20px;
+  font-size: 13px;
+  color: var(--kanap-text-secondary);
+}
+
+.mk-tf__status--error {
+  color: var(--kanap-danger);
+}
+
+.mk-tf__status--success {
+  color: var(--kanap-text-primary);
+  padding: 12px 14px;
+  background: var(--kanap-bg-drawer);
+  border: 1px solid var(--kanap-border-default);
+  border-radius: var(--kanap-radius-submit);
+}
+
+.mk-tf__submit {
+  margin-top: 4px;
+}
+
+.mk-tf__privacy {
+  color: var(--kanap-text-tertiary);
+}

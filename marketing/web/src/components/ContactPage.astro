@@ -1,0 +1,283 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Section, PageHeader } from './sections';
+import { getLocaleFromUrl } from '../i18n/ui';
+import { getContactContent } from '../content/resolve';
+
+const locale = getLocaleFromUrl(Astro.url);
+const c = getContactContent(locale);
+---
+
+<BaseLayout title={c.meta.title} description={c.meta.description}>
+  <PageHeader eyebrow={c.header.eyebrow} title={c.header.title} lead={c.header.lead}>
+    <Fragment slot="meta">
+      <span class="mk-contact__promise">
+        <span class="mk-contact__promise-dot" aria-hidden="true"></span>
+        {c.responsePromise}
+      </span>
+    </Fragment>
+  </PageHeader>
+
+  <Section tone="default">
+    <div class="mk-contact">
+      {/* ------------- Side (context, left) ------------- */}
+      <aside class="mk-contact__side">
+        <div class="mk-contact__side-block">
+          <h2 class="mk-contact__side-title">{c.highlightsLabel}</h2>
+          <ul class="mk-contact__highlights">
+            {c.highlights.map((h) => (
+              <li>
+                <svg class="mk-contact__check" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 7.5l3 3 5-6.5" />
+                </svg>
+                <span>{h}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div class="mk-contact__side-block mk-contact__alt">
+          <span class="mk-small mk-contact__alt-label">{c.alternate.label}</span>
+          <a href={`mailto:${c.alternate.email}`} class="mk-contact__alt-email">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3.5" width="12" height="9" rx="1.5" />
+              <path d="M2.5 4.5l5.5 4 5.5-4" />
+            </svg>
+            {c.alternate.email}
+          </a>
+        </div>
+      </aside>
+
+      {/* ------------- Form (primary, right) ------------- */}
+      <form class="mk-contact__form" data-contact-form novalidate>
+        <div class="mk-contact__row">
+          <div class="mk-tf__field">
+            <label for="cf-name">{c.form.nameLabel}</label>
+            <input id="cf-name" name="name" type="text" required autocomplete="name" />
+          </div>
+          <div class="mk-tf__field">
+            <label for="cf-email">{c.form.emailLabel}</label>
+            <input id="cf-email" name="email" type="email" required autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="mk-tf__field">
+          <label for="cf-company">{c.form.companyLabel}</label>
+          <input id="cf-company" name="company" type="text" required autocomplete="organization" />
+        </div>
+
+        <div class="mk-tf__field">
+          <label for="cf-message">{c.form.messageLabel}</label>
+          <textarea
+            id="cf-message"
+            name="message"
+            rows="6"
+            required
+            placeholder={c.form.messagePlaceholder}
+          ></textarea>
+        </div>
+
+        <div class="mk-tf__status" role="status" aria-live="polite" data-contact-status></div>
+
+        <div class="mk-contact__actions">
+          <button type="submit" class="mk-btn mk-btn--primary" data-contact-submit>
+            {c.form.submitLabel}
+          </button>
+        </div>
+      </form>
+    </div>
+  </Section>
+</BaseLayout>
+
+<script define:vars={{
+  submitLabel: c.form.submitLabel,
+  submitting: c.form.submitting,
+  successTitle: c.form.successTitle,
+  successBody: c.form.successBody,
+  errorGeneric: c.form.errorGeneric,
+}}>
+  const form = document.querySelector('[data-contact-form]');
+  const btn = document.querySelector('[data-contact-submit]');
+  const statusEl = document.querySelector('[data-contact-status]');
+
+  if (form && btn) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const payload = {
+        name: String(fd.get('name') ?? '').trim(),
+        email: String(fd.get('email') ?? '').trim(),
+        company: String(fd.get('company') ?? '').trim(),
+        message: String(fd.get('message') ?? '').trim(),
+      };
+      btn.disabled = true;
+      btn.textContent = submitting;
+      try {
+        const res = await fetch('/api/public/contact', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('bad status');
+        statusEl.innerHTML = '<strong>' + successTitle + '</strong> ' + successBody;
+        statusEl.className = 'mk-tf__status mk-tf__status--success';
+        form.reset();
+        btn.disabled = false;
+        btn.textContent = submitLabel;
+      } catch {
+        statusEl.textContent = errorGeneric;
+        statusEl.className = 'mk-tf__status mk-tf__status--error';
+        btn.disabled = false;
+        btn.textContent = submitLabel;
+      }
+    });
+  }
+</script>
+
+<style>
+  /* Response-time promise pill in the page header */
+  .mk-contact__promise {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--kanap-teal);
+    background: var(--kanap-nav-chip-bg);
+    border: 1px solid var(--kanap-nav-chip-border);
+    border-radius: 9999px;
+    letter-spacing: 0.01em;
+  }
+
+  .mk-contact__promise-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--kanap-teal);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--kanap-teal) 22%, transparent);
+  }
+
+  /* Page layout: form primary, side secondary */
+  .mk-contact {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  @media (min-width: 900px) {
+    .mk-contact {
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 48px;
+      align-items: start;
+    }
+  }
+
+  /* Form — primary visual weight */
+  .mk-contact__form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    padding: 28px;
+    max-width: 620px;
+  }
+
+  /* Two-column row for name + email on wide screens */
+  .mk-contact__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  @media (min-width: 560px) {
+    .mk-contact__row {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .mk-contact__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 2px;
+  }
+
+  /* Side column */
+  .mk-contact__side {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 320px;
+  }
+
+  .mk-contact__side-block {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .mk-contact__side-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--kanap-text-tertiary);
+    letter-spacing: 0.01em;
+    margin: 0;
+    /* keep this heading out of the h2 pre-line/balance rule */
+    white-space: normal;
+    text-wrap: initial;
+  }
+
+  .mk-contact__highlights {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mk-contact__highlights li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-contact__check {
+    flex-shrink: 0;
+    margin-top: 3px;
+    color: var(--kanap-teal);
+  }
+
+  /* Alternate email: subtle card with icon + link */
+  .mk-contact__alt {
+    padding: 16px 18px;
+    background: var(--kanap-bg-drawer);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    gap: 6px;
+  }
+
+  .mk-contact__alt-label {
+    color: var(--kanap-text-tertiary);
+  }
+
+  .mk-contact__alt-email {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--kanap-teal);
+    transition: color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-contact__alt-email:hover {
+    color: var(--kanap-text-primary);
+  }
+</style>

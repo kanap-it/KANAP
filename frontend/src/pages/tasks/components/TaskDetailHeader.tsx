@@ -229,31 +229,49 @@ export default function TaskDetailHeader({
       </Box>
 
       {/* ---- TitleBlock ---- */}
-      <Box sx={{ pt: taskDetailTokens.titleBlock.pt, px: taskDetailTokens.titleBlock.px, pb: taskDetailTokens.titleBlock.pb }}>
+      <Box sx={{ pt: taskDetailTokens.titleBlock.pt, px: taskDetailTokens.titleBlock.px, pb: taskDetailTokens.titleStack.metadataOnlyBottomGap }}>
         {/* Title row */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: taskDetailTokens.titleRow.gap, mb: taskDetailTokens.titleRow.mb }}>
-          <Box component="h1" sx={{ ...taskDetailTypography.title, m: 0, flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline' }}>
-            {itemNumber && (
-              <Box
-                component="span"
-                onClick={() => navigator.clipboard.writeText(`T-${itemNumber}`)}
-                title={t('portfolio:workspace.task.actions.copyReference')}
-                sx={(theme) => ({
-                  fontFamily: MONO_FONT_FAMILY,
-                  ...taskDetailTypography.idPrefix,
-                  color: theme.palette.kanap.text.secondary,
-                  mr: '14px',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  '&:hover': { color: theme.palette.kanap.text.primary },
-                })}
-              >
-                T-{itemNumber}
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: taskDetailTokens.titleRow.gap }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: taskDetailTokens.titleStack.gap }}>
+            <Box component="h1" sx={{ ...taskDetailTypography.title, m: 0, minWidth: 0, display: 'flex', alignItems: 'baseline' }}>
+              {itemNumber && (
+                <Box
+                  component="span"
+                  onClick={() => navigator.clipboard.writeText(`T-${itemNumber}`)}
+                  title={t('portfolio:workspace.task.actions.copyReference')}
+                  sx={(theme) => ({
+                    fontFamily: MONO_FONT_FAMILY,
+                    ...taskDetailTypography.idPrefix,
+                    color: theme.palette.kanap.text.secondary,
+                    mr: '14px',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    '&:hover': { color: theme.palette.kanap.text.primary },
+                  })}
+                >
+                  T-{itemNumber}
+                </Box>
+              )}
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <EditableTitle value={title} canEdit={canManage} onChange={onTitleChange} onSave={onTitleSave} />
               </Box>
-            )}
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <EditableTitle value={title} canEdit={canManage} onChange={onTitleChange} onSave={onTitleSave} />
             </Box>
+
+            {/* Metadata bar */}
+            <TaskMetadataBar
+              status={status}
+              priorityLevel={priorityLevel}
+              priorityScore={priorityScore}
+              assigneeUserId={assigneeUserId}
+              assigneeName={assigneeName}
+              dueDate={dueDate}
+              readOnly={!canManage}
+              isProjectTask={isProjectTask}
+              onPatch={onMetadataPatch}
+              projectId={projectId}
+              projectName={projectName}
+              onNavigateToProject={onNavigateToProject}
+            />
           </Box>
 
           {/* Actions bar */}
@@ -287,22 +305,6 @@ export default function TaskDetailHeader({
             </IconButton>
           </Box>
         </Box>
-
-        {/* Metadata bar */}
-        <TaskMetadataBar
-          status={status}
-          priorityLevel={priorityLevel}
-          priorityScore={priorityScore}
-          assigneeUserId={assigneeUserId}
-          assigneeName={assigneeName}
-          dueDate={dueDate}
-          readOnly={!canManage}
-          isProjectTask={isProjectTask}
-          onPatch={onMetadataPatch}
-          projectId={projectId}
-          projectName={projectName}
-          onNavigateToProject={onNavigateToProject}
-        />
       </Box>
     </Box>
   );

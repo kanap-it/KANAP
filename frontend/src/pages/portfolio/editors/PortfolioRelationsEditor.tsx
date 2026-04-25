@@ -377,6 +377,11 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
     setLinkDialogOpen(false);
   };
 
+  const handleLinkDialogSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    addLink();
+  };
+
   const handleAttachmentUpload = async (files: File[]) => {
     if (files.length === 0 || readOnly) return;
     setUploading(true);
@@ -516,15 +521,6 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 <li {...props} key={option.id}>
                   <Box sx={{ minWidth: 0, py: 0.25 }}>
                     <Typography variant="body2">{option.name}</Typography>
-                    {option.summary ? (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: 'block', whiteSpace: 'normal' }}
-                      >
-                        {option.summary}
-                      </Typography>
-                    ) : null}
                   </Box>
                 </li>
               )}
@@ -534,7 +530,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                   key={option.id}
                   label={option.name}
                   size="small"
-                  title={option.summary || option.name}
+                  title={option.name}
                   onClick={() => window.open(`/it/applications/${option.id}/overview`, '_self')}
                   clickable
                 />
@@ -560,20 +556,6 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
               disabled={saving || readOnly}
               fullWidth
             />
-            {linkedApplications.some((item) => item.summary) && (
-              <Stack spacing={0.75} sx={{ mt: -0.25 }}>
-                {linkedApplications.map((item) => item.summary ? (
-                  <Box key={`${item.id}-summary`}>
-                    <Typography variant="caption" sx={{ display: 'block', fontWeight: 600 }}>
-                      {item.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {item.summary}
-                    </Typography>
-                  </Box>
-                ) : null)}
-              </Stack>
-            )}
 
             <Autocomplete
               multiple
@@ -781,32 +763,34 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
       </Stack>
 
       <Dialog open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>{t('editors.relations.dialogs.addExternalLink.title')}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <TextField
-              size="small"
-              label={t('editors.relations.fields.linkDescription')}
-              placeholder={t('editors.relations.placeholders.linkDescription')}
-              value={linkDraft.label}
-              onChange={(event) => setLinkDraft((prev) => ({ ...prev, label: event.target.value }))}
-            />
-            <TextField
-              size="small"
-              label={t('editors.relations.fields.url')}
-              placeholder={t('editors.relations.placeholders.url')}
-              value={linkDraft.url}
-              onChange={(event) => setLinkDraft((prev) => ({ ...prev, url: event.target.value }))}
-              autoFocus
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setLinkDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
-          <Button variant="contained" onClick={addLink} disabled={!String(linkDraft.url || '').trim()}>
-            {t('common:buttons.add')}
-          </Button>
-        </DialogActions>
+        <Box component="form" onSubmit={handleLinkDialogSubmit}>
+          <DialogTitle>{t('editors.relations.dialogs.addExternalLink.title')}</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <TextField
+                size="small"
+                label={t('editors.relations.fields.linkDescription')}
+                placeholder={t('editors.relations.placeholders.linkDescription')}
+                value={linkDraft.label}
+                onChange={(event) => setLinkDraft((prev) => ({ ...prev, label: event.target.value }))}
+              />
+              <TextField
+                size="small"
+                label={t('editors.relations.fields.url')}
+                placeholder={t('editors.relations.placeholders.url')}
+                value={linkDraft.url}
+                onChange={(event) => setLinkDraft((prev) => ({ ...prev, url: event.target.value }))}
+                autoFocus
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setLinkDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
+            <Button type="submit" variant="contained" disabled={!String(linkDraft.url || '').trim()}>
+              {t('common:buttons.add')}
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
     </>
   );

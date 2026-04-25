@@ -1,0 +1,57 @@
+---
+/**
+ * Section — vertical rhythm wrapper for page sections.
+ *
+ * Props:
+ *   tone: 'default' | 'sunken' | 'elevated' — background treatment
+ *   divider: whether to show a top border (automatic between siblings)
+ *   id: anchor id for in-page nav
+ *   compact: smaller vertical padding (e.g. final CTA, trust strip)
+ */
+
+interface Props {
+  tone?: 'default' | 'sunken' | 'elevated';
+  id?: string;
+  compact?: boolean;
+  class?: string;
+}
+
+const { tone = 'default', id, compact = false, class: className = '' } = Astro.props;
+---
+
+<section
+  id={id}
+  class:list={['mk-s', `mk-s--${tone}`, { 'mk-s--compact': compact }, className]}
+>
+  <div class="mk-container">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .mk-s {
+    padding-block: var(--mk-section-pad-y);
+  }
+
+  .mk-s--compact {
+    padding-block: var(--mk-section-pad-y-compact);
+  }
+
+  .mk-s--default {
+    background: var(--kanap-bg-page);
+  }
+
+  .mk-s--sunken {
+    background: var(--kanap-bg-drawer);
+  }
+
+  .mk-s--elevated {
+    background: var(--kanap-bg-primary);
+  }
+
+  .mk-s + .mk-s--default,
+  .mk-s + .mk-s--sunken,
+  .mk-s + .mk-s--elevated {
+    border-top: 1px solid var(--kanap-border-soft);
+  }
+</style>

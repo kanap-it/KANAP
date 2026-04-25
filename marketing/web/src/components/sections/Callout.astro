@@ -1,0 +1,74 @@
+---
+/**
+ * Callout — inline highlighted note.
+ *
+ * Tones:
+ *   info: neutral emphasis
+ *   warn: orange tint (licensing terms, caveats)
+ */
+
+interface Props {
+  tone?: 'info' | 'warn';
+  title?: string;
+}
+
+const { tone = 'info', title } = Astro.props;
+---
+
+<aside class:list={['mk-callout', `mk-callout--${tone}`]}>
+  {title && <h3 class="mk-callout__title">{title}</h3>}
+  <div class="mk-callout__body">
+    <slot />
+  </div>
+</aside>
+
+<style>
+  .mk-callout {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 20px;
+    border-radius: var(--kanap-radius-composer);
+    border: 1px solid var(--kanap-border-default);
+    background: var(--kanap-bg-drawer);
+  }
+
+  .mk-callout--warn {
+    border-color: rgba(232, 146, 15, 0.35);
+    background: rgba(232, 146, 15, 0.06);
+  }
+
+  :root[data-theme='dark'] .mk-callout--warn {
+    border-color: rgba(240, 168, 48, 0.4);
+    background: rgba(240, 168, 48, 0.08);
+  }
+
+  .mk-callout__title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--kanap-text-primary);
+    margin: 0;
+  }
+
+  .mk-callout__body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-callout__body :global(p) {
+    margin: 0;
+  }
+
+  .mk-callout__body :global(p + p) {
+    margin-top: 8px;
+  }
+
+  .mk-callout__body :global(a) {
+    color: var(--kanap-teal);
+  }
+
+  .mk-callout__body :global(a:hover) {
+    color: var(--kanap-text-primary);
+  }
+</style>

@@ -4,8 +4,11 @@ import {
   FormControlLabel, Slider, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography, Divider,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
+import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
+import { getScoreColor } from '../../tasks/theme/taskDetailTokens';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 interface CriterionValue {
@@ -41,8 +44,17 @@ interface Props {
 
 export type ProjectScoringEditorHandle = {
   isDirty: () => boolean;
+  getSnapshot: () => ProjectScoringSnapshot;
   save: () => Promise<number | null>;
   reset: () => void;
+};
+
+export type ProjectScoringSnapshot = {
+  criteria_values: Record<string, string>;
+  priority_score: number | null;
+  priority_override: boolean;
+  override_value: number | null;
+  override_justification: string | null;
 };
 
 export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props>(
@@ -64,6 +76,7 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
     ref,
   ) {
     const { t } = useTranslation(['portfolio', 'errors']);
+    const theme = useTheme();
     const [criteria, setCriteria] = useState<Criterion[]>([]);
     const [values, setValues] = useState<Record<string, string>>(initialValues || {});
     const [override, setOverride] = useState(initialOverride);
@@ -242,8 +255,26 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
       onDirtyChange?.(true);
     };
 
+    const liveScore = bypassActive ? 100 : calculateLocalScore(criteria, values);
+    const displayScore = override && !bypassActive ? overrideVal : liveScore;
+    const roundedDisplayScore = displayScore != null && !isNaN(displayScore) ? Math.round(displayScore) : null;
+    const scoreDotColor = roundedDisplayScore == null
+      ? theme.palette.kanap.text.tertiary
+      : getScoreColor(roundedDisplayScore, theme.palette.mode);
+    const buildSnapshot = useCallback((score: number | null = displayScore): ProjectScoringSnapshot => {
+      const effectiveOverride = override && !bypassActive;
+      return {
+        criteria_values: { ...values },
+        priority_score: score,
+        priority_override: effectiveOverride,
+        override_value: effectiveOverride ? overrideVal : null,
+        override_justification: effectiveOverride ? justification : null,
+      };
+    }, [bypassActive, displayScore, justification, override, overrideVal, values]);
+
     useImperativeHandle(ref, () => ({
       isDirty: () => dirty,
+      getSnapshot: () => buildSnapshot(),
       save: async (): Promise<number | null> => {
         setError(null);
         try {
@@ -289,10 +320,7 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
         setDirty(false);
         onDirtyChange?.(false);
       },
-    }), [dirty, values, override, overrideVal, justification, projectId, initialOverride, initialValues, initialOverrideValue, initialJustification, onScoreChange, onDirtyChange, t]);
-
-    const liveScore = bypassActive ? 100 : calculateLocalScore(criteria, values);
-    const displayScore = override && !bypassActive ? overrideVal : liveScore;
+    }), [buildSnapshot, dirty, values, override, overrideVal, justification, projectId, initialOverride, initialValues, initialOverrideValue, initialJustification, onScoreChange, onDirtyChange, t]);
 
     // Helper to get selected value label for a criterion
     const getValueLabel = (criterionId: string, criteriaVals: Record<string, string>) => {
@@ -308,27 +336,45 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
       <Stack spacing={3}>
         {error && <Alert severity="error">{error}</Alert>}
 
-        {/* Score Display */}
         <Box
           sx={{
-            textAlign: 'center',
-            p: 2,
-            bgcolor: 'background.paper',
-            borderRadius: 2,
-            border: (theme) => `1px solid ${theme.palette.divider}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            pb: '20px',
+            borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
           }}
         >
-          <Typography variant="h2" fontWeight="bold">
-            {displayScore != null && !isNaN(displayScore) ? Math.round(displayScore) : '-'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Box
+            component="span"
+            sx={{ fontSize: 12, fontWeight: 500, lineHeight: 1, color: theme.palette.kanap.text.tertiary }}
+          >
             {t('editors.scoring.labels.priorityScore')}
-            {bypassActive && ` ${t('editors.scoring.labels.mandatoryBypassSuffix')}`}
-            {override && !bypassActive && ` ${t('editors.scoring.labels.overrideSuffix')}`}
-          </Typography>
+          </Box>
+          <Box
+            component="span"
+            sx={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              flexShrink: 0,
+              alignSelf: 'center',
+              bgcolor: scoreDotColor,
+            }}
+          />
+          <Box
+            component="span"
+            sx={{
+              fontFamily: MONO_FONT_FAMILY,
+              fontSize: 36,
+              fontWeight: 500,
+              color: theme.palette.kanap.text.primary,
+              lineHeight: 1,
+            }}
+          >
+            {roundedDisplayScore ?? '-'}
+          </Box>
         </Box>
-
-        <Divider />
 
         {/* Criteria Evaluation */}
         <Typography variant="h6">{t('editors.scoring.sections.evaluationCriteria')}</Typography>
@@ -358,20 +404,84 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
               onChange={(_, val) => handleValueChange(criterion.id, val)}
               disabled={readOnly}
               size="small"
-              sx={{ flexWrap: 'wrap' }}
+              sx={{
+                flexWrap: 'wrap',
+                rowGap: '8px',
+                '& .MuiToggleButtonGroup-grouped': {
+                  m: 0,
+                  mr: '-1px',
+                  px: '14px',
+                  py: '6px',
+                  minWidth: 0,
+                  border: `1px solid ${theme.palette.kanap.border.default}`,
+                  borderRadius: '0 !important',
+                  bgcolor: 'transparent',
+                  color: theme.palette.kanap.text.secondary,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontSize: 12,
+                  fontWeight: 400,
+                  lineHeight: 1.4,
+                  textTransform: 'none',
+                  '&:first-of-type': {
+                    borderRadius: '5px 0 0 5px !important',
+                  },
+                  '&:not(:first-of-type)': {
+                    ml: 0,
+                    borderLeft: `1px solid ${theme.palette.kanap.border.default}`,
+                  },
+                  '&:last-of-type': {
+                    mr: 0,
+                    borderRadius: '0 5px 5px 0 !important',
+                  },
+                  '&:hover': {
+                    bgcolor: theme.palette.kanap.pill.hoverBg,
+                  },
+                  '&.Mui-selected': {
+                    position: 'relative',
+                    zIndex: 1,
+                    bgcolor: theme.palette.mode === 'dark' ? '#E5E7EB' : '#111827',
+                    borderColor: theme.palette.mode === 'dark' ? '#E5E7EB' : '#111827',
+                    color: theme.palette.mode === 'dark' ? '#181A20' : '#FFFFFF',
+                    fontWeight: 500,
+                    '&:hover': {
+                      bgcolor: theme.palette.mode === 'dark' ? '#E5E7EB' : '#111827',
+                    },
+                  },
+                  '&.Mui-disabled': {
+                    cursor: 'default',
+                    color: theme.palette.kanap.text.tertiary,
+                  },
+                },
+              }}
             >
               {criterion.values.map((v) => (
                 <ToggleButton
                   key={v.id}
                   value={v.id}
-                  sx={{
-                    textTransform: 'none',
-                    minWidth: 100,
-                    ...(v.triggers_mandatory_bypass && {
-                      borderColor: 'error.main',
-                      '&.Mui-selected': { bgcolor: 'error.light' },
-                    }),
-                  }}
+                  sx={v.triggers_mandatory_bypass ? {
+                    '&&': {
+                      borderColor: theme.palette.kanap.pillDanger.border,
+                      color: theme.palette.kanap.danger,
+                    },
+                    '&&:not(:first-of-type)': {
+                      borderLeft: `1px solid ${theme.palette.kanap.pillDanger.border}`,
+                    },
+                    '&&:hover': {
+                      bgcolor: theme.palette.kanap.pillDanger.hoverBg,
+                    },
+                    '&&.Mui-selected': {
+                      position: 'relative',
+                      zIndex: 1,
+                      bgcolor: theme.palette.kanap.pillDanger.bg,
+                      borderColor: theme.palette.kanap.danger,
+                      color: theme.palette.kanap.danger,
+                      fontWeight: 500,
+                    },
+                    '&&.Mui-selected:not(:first-of-type)': {
+                      borderLeft: `1px solid ${theme.palette.kanap.danger}`,
+                    },
+                  } : undefined}
                 >
                   {v.label}
                   {v.triggers_mandatory_bypass && ' *'}

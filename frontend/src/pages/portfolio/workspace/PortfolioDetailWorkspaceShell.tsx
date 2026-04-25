@@ -1,0 +1,531 @@
+import React from 'react';
+import {
+  Box,
+  IconButton,
+  Stack,
+  Tab,
+  Tabs,
+  Typography,
+  useMediaQuery,
+} from '@mui/material';
+import type { Theme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import { useTranslation } from 'react-i18next';
+import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
+import { taskDetailTokens, taskDetailTypography } from '../../tasks/theme/taskDetailTokens';
+
+export type PortfolioDetailWorkspaceTab = {
+  key: string;
+  label: string;
+  disabled?: boolean;
+};
+
+type PortfolioDetailWorkspaceNav = {
+  currentIndex: number;
+  totalCount: number;
+  hasPrev: boolean;
+  hasNext: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  previousLabel: string;
+  nextLabel: string;
+};
+
+type PortfolioDetailWorkspaceShellProps = {
+  activeTab: string;
+  actions?: React.ReactNode;
+  backLabel: string;
+  canEditTitle?: boolean;
+  children: React.ReactNode;
+  drawerStorageKey: string;
+  isCreate?: boolean;
+  itemReference?: string | null;
+  metadata?: React.ReactNode;
+  nav?: PortfolioDetailWorkspaceNav;
+  onBack: () => void;
+  onCopyReference?: () => void;
+  onSaveShortcut?: () => void;
+  onTabChange: (nextTab: string) => void;
+  onTitleSave?: (nextTitle: string) => void;
+  properties: React.ReactNode;
+  tabs: PortfolioDetailWorkspaceTab[];
+  title: string;
+  titleFallback: string;
+};
+
+function getStoredDrawerState(storageKey: string) {
+  if (typeof window === 'undefined') return true;
+  try {
+    const stored = window.localStorage.getItem(storageKey);
+    if (stored == null) return true;
+    return JSON.parse(stored) !== false;
+  } catch {
+    return true;
+  }
+}
+
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
+}
+
+function NavChip({ nav }: { nav: PortfolioDetailWorkspaceNav }) {
+  if (nav.totalCount <= 0) return null;
+
+  const navButtonSx = (theme: Theme) => ({
+    p: 0,
+    width: 24,
+    height: 24,
+    minWidth: 24,
+    borderRadius: '4px',
+    color: theme.palette.kanap.navChip.fg,
+    '&:hover': {
+      bgcolor: theme.palette.kanap.tab.bgHover,
+    },
+    '&.Mui-disabled': {
+      opacity: 0.35,
+    },
+  });
+
+  return (
+    <Box
+      sx={(theme) => ({
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        py: '2px',
+        px: '4px',
+        borderRadius: taskDetailTokens.borderRadius.pill,
+        bgcolor: theme.palette.kanap.navChip.bg,
+        border: `1px solid ${theme.palette.kanap.navChip.border}`,
+        ml: '6px',
+      })}
+    >
+      <IconButton onClick={nav.onPrev} disabled={!nav.hasPrev} aria-label={nav.previousLabel} sx={navButtonSx} size="small">
+        <ChevronLeftIcon sx={{ fontSize: 16 }} />
+      </IconButton>
+      <Box
+        component="span"
+        sx={(theme) => ({
+          fontFamily: MONO_FONT_FAMILY,
+          fontSize: '11px',
+          fontWeight: 500,
+          color: theme.palette.kanap.navChip.fg,
+          userSelect: 'none',
+        })}
+      >
+        {nav.currentIndex} of {nav.totalCount}
+      </Box>
+      <IconButton onClick={nav.onNext} disabled={!nav.hasNext} aria-label={nav.nextLabel} sx={navButtonSx} size="small">
+        <ChevronRightIcon sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Box>
+  );
+}
+
+function EditableTitle({
+  canEdit,
+  fallback,
+  onSave,
+  value,
+}: {
+  canEdit: boolean;
+  fallback: string;
+  onSave?: (nextTitle: string) => void;
+  value: string;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(value);
+
+  React.useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [editing, value]);
+
+  const displayValue = value || fallback;
+
+  const commit = React.useCallback(() => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== value) {
+      onSave?.(trimmed);
+    }
+    setEditing(false);
+  }, [draft, onSave, value]);
+
+  if (!canEdit) {
+    return (
+      <Typography component="span" sx={{ ...taskDetailTypography.title, display: 'inline' }}>
+        {displayValue}
+      </Typography>
+    );
+  }
+
+  if (!editing) {
+    return (
+      <Typography
+        component="span"
+        onClick={() => {
+          setDraft(value);
+          setEditing(true);
+        }}
+        sx={{ ...taskDetailTypography.title, display: 'inline', cursor: 'text', '&:hover': { opacity: 0.85 } }}
+      >
+        {displayValue}
+      </Typography>
+    );
+  }
+
+  return (
+    <Box
+      component="input"
+      value={draft}
+      onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commit();
+        }
+        if (event.key === 'Escape') {
+          setDraft(value);
+          setEditing(false);
+        }
+      }}
+      autoFocus
+      sx={(theme) => ({
+        font: 'inherit',
+        color: 'inherit',
+        bgcolor: 'transparent',
+        border: 'none',
+        borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+        outline: 'none',
+        p: 0,
+        m: 0,
+        width: '100%',
+      })}
+    />
+  );
+}
+
+export default function PortfolioDetailWorkspaceShell({
+  activeTab,
+  actions,
+  backLabel,
+  canEditTitle = false,
+  children,
+  drawerStorageKey,
+  isCreate = false,
+  itemReference,
+  metadata,
+  nav,
+  onBack,
+  onCopyReference,
+  onSaveShortcut,
+  onTabChange,
+  onTitleSave,
+  properties,
+  tabs,
+  title,
+  titleFallback,
+}: PortfolioDetailWorkspaceShellProps) {
+  const theme = useTheme();
+  const { t } = useTranslation('portfolio');
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [drawerOpen, setDrawerOpen] = React.useState(() => getStoredDrawerState(drawerStorageKey));
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(drawerStorageKey, JSON.stringify(drawerOpen));
+    } catch {
+      // Local storage can be unavailable in private contexts.
+    }
+  }, [drawerOpen, drawerStorageKey]);
+
+  React.useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        if (onSaveShortcut) {
+          event.preventDefault();
+          onSaveShortcut();
+        }
+        return;
+      }
+
+      if (isCreate || isTypingTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
+
+      switch (event.key) {
+        case 'j':
+        case 'ArrowLeft':
+          if (nav?.hasPrev) {
+            event.preventDefault();
+            nav.onPrev();
+          }
+          break;
+        case 'k':
+        case 'ArrowRight':
+          if (nav?.hasNext) {
+            event.preventDefault();
+            nav.onNext();
+          }
+          break;
+        case 'Escape':
+          event.preventDefault();
+          onBack();
+          break;
+        case 'p':
+        case '.':
+          event.preventDefault();
+          setDrawerOpen((open) => !open);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isCreate, nav, onBack, onSaveShortcut]);
+
+  return (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ flexShrink: 0 }}>
+        <Box
+          component="header"
+          sx={(theme) => ({
+            display: 'flex',
+            alignItems: 'center',
+            py: taskDetailTokens.topbar.py,
+            px: taskDetailTokens.topbar.px,
+            borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+          })}
+        >
+          <Box component="nav" sx={{ display: 'flex', alignItems: 'center', gap: taskDetailTokens.breadcrumb.gap, fontSize: '12px', minWidth: 0 }}>
+            <Box
+              component="button"
+              type="button"
+              onClick={onBack}
+              sx={(theme) => ({
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                color: theme.palette.kanap.text.secondary,
+                bgcolor: 'transparent',
+                border: 0,
+                p: 0,
+                font: 'inherit',
+                fontSize: '12px',
+                cursor: 'pointer',
+                '&:hover': { color: theme.palette.kanap.text.primary },
+              })}
+            >
+              <ArrowBackIcon sx={{ fontSize: 14 }} />
+              {backLabel}
+            </Box>
+            {nav && <NavChip nav={nav} />}
+          </Box>
+        </Box>
+
+        <Box sx={{ pt: taskDetailTokens.titleBlock.pt, px: taskDetailTokens.titleBlock.px, pb: taskDetailTokens.titleBlock.pb }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: taskDetailTokens.titleRow.gap,
+              mb: tabs.length > 1 ? (metadata ? taskDetailTokens.titleStack.metadataToTabsGap : taskDetailTokens.titleRow.mb) : 0,
+            }}
+          >
+            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: taskDetailTokens.titleStack.gap }}>
+              <Box component="h1" sx={{ ...taskDetailTypography.title, m: 0, minWidth: 0, display: 'flex', alignItems: 'baseline' }}>
+                {itemReference && (
+                  <Box
+                    component="span"
+                    onClick={onCopyReference}
+                    title={t('workspace.project.actions.copyReference')}
+                    sx={(theme) => ({
+                      fontFamily: MONO_FONT_FAMILY,
+                      ...taskDetailTypography.idPrefix,
+                      color: theme.palette.kanap.text.secondary,
+                      mr: '14px',
+                      cursor: onCopyReference ? 'pointer' : 'default',
+                      flexShrink: 0,
+                      '&:hover': onCopyReference ? { color: theme.palette.kanap.text.primary } : undefined,
+                    })}
+                  >
+                    {itemReference}
+                  </Box>
+                )}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <EditableTitle
+                    value={title}
+                    fallback={titleFallback}
+                    canEdit={canEditTitle}
+                    onSave={onTitleSave}
+                  />
+                </Box>
+              </Box>
+
+              {metadata && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: taskDetailTokens.metadataBar.gap, flexWrap: 'wrap', fontSize: '12px' }}>
+                  {metadata}
+                </Box>
+              )}
+            </Box>
+
+            {actions && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: taskDetailTokens.actionPills.gap, flexShrink: 0, mt: '7px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {actions}
+              </Box>
+            )}
+          </Box>
+
+          {tabs.length > 1 && (
+            <Tabs
+              value={activeTab}
+              onChange={(_, nextValue) => onTabChange(String(nextValue))}
+              variant="scrollable"
+              allowScrollButtonsMobile
+              sx={(theme) => ({
+                minHeight: 'auto',
+                borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
+                '& .MuiTabs-indicator': { display: 'none' },
+              })}
+            >
+              {tabs.map((tab) => (
+                <Tab
+                  key={tab.key}
+                  label={tab.label}
+                  value={tab.key}
+                  disabled={tab.disabled}
+                  sx={(theme) => ({
+                    position: 'relative',
+                    minHeight: 'auto',
+                    pt: 0,
+                    px: 0,
+                    pb: '9px',
+                    mr: '24px',
+                    textTransform: 'none',
+                    minWidth: 'auto',
+                    fontSize: '14px',
+                    lineHeight: 1.35,
+                    fontWeight: activeTab === tab.key ? 500 : 400,
+                    color: activeTab === tab.key ? theme.palette.kanap.teal : theme.palette.kanap.text.secondary,
+                    '&:hover': {
+                      color: activeTab === tab.key ? theme.palette.kanap.teal : theme.palette.kanap.text.primary,
+                    },
+                    '&.Mui-disabled': {
+                      color: theme.palette.kanap.text.tertiary,
+                      opacity: 0.65,
+                    },
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      left: 0,
+                      right: 0,
+                      bottom: -1,
+                      height: activeTab === tab.key ? 2 : 0,
+                      borderRadius: 1,
+                      bgcolor: theme.palette.kanap.teal,
+                    },
+                  })}
+                />
+              ))}
+            </Tabs>
+          )}
+        </Box>
+      </Box>
+
+      <Box
+        sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          overflow: isMobile ? 'auto' : 'visible',
+          position: 'relative',
+          minHeight: 380,
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0, overflow: 'auto', pt: '8px', pl: 3, pr: isMobile ? 3 : '29px', pb: 3 }}>
+          {children}
+        </Box>
+
+        {!isMobile && (
+          <Box sx={{ width: 0, position: 'relative', alignSelf: 'stretch' }}>
+            <Box
+              component="button"
+              type="button"
+              onClick={() => setDrawerOpen((open) => !open)}
+              aria-label={drawerOpen ? t('workspace.closeProperties') : t('workspace.openProperties')}
+              aria-expanded={drawerOpen}
+              sx={(theme) => ({
+                position: 'absolute',
+                top: taskDetailTokens.drawer.tabTop,
+                right: 0,
+                width: 26,
+                height: 120,
+                bgcolor: drawerOpen ? theme.palette.kanap.tab.bgActive : theme.palette.kanap.tab.bg,
+                border: `1px solid ${drawerOpen ? theme.palette.kanap.tab.borderActive : theme.palette.kanap.tab.border}`,
+                borderRight: 'none',
+                borderRadius: '8px 0 0 8px',
+                cursor: 'pointer',
+                zIndex: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                p: 0,
+                transition: 'background-color 0.15s, border-color 0.15s',
+                '&:hover': {
+                  bgcolor: drawerOpen ? theme.palette.kanap.tab.bgActive : theme.palette.kanap.tab.bgHover,
+                },
+              })}
+            >
+              <Box
+                component="span"
+                sx={(theme) => ({
+                  writingMode: 'vertical-rl',
+                  transform: 'rotate(180deg)',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  letterSpacing: 0,
+                  color: drawerOpen ? theme.palette.kanap.tab.fgActive : theme.palette.kanap.tab.fg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  pointerEvents: 'none',
+                })}
+              >
+                <Box component="span" sx={{ fontSize: '14px', lineHeight: 1 }}>
+                  {drawerOpen ? <ChevronRightIcon sx={{ fontSize: 14 }} /> : <ChevronLeftIcon sx={{ fontSize: 14 }} />}
+                </Box>
+                <span>{t('workspace.sidebarTitle')}</span>
+              </Box>
+            </Box>
+          </Box>
+        )}
+
+        {drawerOpen && (
+          <Box
+            component="aside"
+            sx={(theme) => ({
+              width: isMobile ? '100%' : taskDetailTokens.drawer.panelWidth,
+              mt: isMobile ? 0 : `${taskDetailTokens.drawer.panelTop}px`,
+              height: isMobile ? 'auto' : `calc(100% + ${Math.abs(taskDetailTokens.drawer.panelTop)}px)`,
+              maxHeight: isMobile ? '60vh' : undefined,
+              flexShrink: 0,
+              borderTop: isMobile ? `1px solid ${theme.palette.kanap.border.default}` : undefined,
+              borderLeft: isMobile ? undefined : `1px solid ${theme.palette.kanap.border.default}`,
+              bgcolor: theme.palette.kanap.bg.drawer,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            })}
+          >
+            <Box sx={{ flex: 1, overflowY: 'auto', pt: '10px', pb: '14px' }}>
+              {properties}
+            </Box>
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+}

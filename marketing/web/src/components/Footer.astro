@@ -1,0 +1,164 @@
+---
+/**
+ * Footer — three columns + legal row.
+ * Resource links point to external targets (docs, GitHub).
+ */
+
+import { getLocaleFromUrl, useTranslations, localePath } from '../i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+const year = new Date().getFullYear();
+
+const productLinks = [
+  { href: localePath(locale, '/features'), label: t('nav.features') },
+  { href: localePath(locale, '/on-premise'), label: t('nav.onPremise') },
+  { href: localePath(locale, '/offer'), label: t('nav.offer') },
+  { href: localePath(locale, '/security'), label: t('nav.security') },
+  { href: localePath(locale, '/changelog'), label: t('nav.changelog') },
+];
+
+const resourceLinks = [
+  { href: 'https://doc.kanap.net', label: t('footer.docs'), external: true },
+  { href: 'https://github.com/kanap-it/kanap', label: t('footer.github'), external: true },
+  { href: localePath(locale, '/faq'), label: t('nav.faq') },
+  { href: localePath(locale, '/contact'), label: t('nav.contact') },
+];
+
+const legalLinks = [
+  { href: localePath(locale, '/privacy'), label: t('footer.privacy') },
+  { href: localePath(locale, '/terms'), label: t('footer.terms') },
+  { href: localePath(locale, '/sales'), label: t('footer.sales') },
+  { href: localePath(locale, '/legal'), label: t('footer.legalNotice') },
+];
+---
+
+<footer class="mk-footer">
+  <div class="mk-container mk-footer__grid">
+    <div class="mk-footer__brand">
+      <a class="mk-footer__logo" href={localePath(locale, '/')} aria-label="KANAP">
+        <img src="/logo.svg" alt="" width="24" height="24" />
+        <span>KANAP</span>
+      </a>
+      <p class="mk-footer__tagline">{t('footer.tagline')}</p>
+    </div>
+
+    <nav class="mk-footer__col" aria-label={t('footer.product')}>
+      <h2 class="mk-footer__heading">{t('footer.product')}</h2>
+      <ul>
+        {productLinks.map((l) => (
+          <li><a href={l.href}>{l.label}</a></li>
+        ))}
+      </ul>
+    </nav>
+
+    <nav class="mk-footer__col" aria-label={t('footer.resources')}>
+      <h2 class="mk-footer__heading">{t('footer.resources')}</h2>
+      <ul>
+        {resourceLinks.map((l) => (
+          <li>
+            <a
+              href={l.href}
+              {...l.external ? { rel: 'noopener', target: '_blank' } : {}}
+            >
+              {l.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <nav class="mk-footer__col" aria-label={t('footer.legal')}>
+      <h2 class="mk-footer__heading">{t('footer.legal')}</h2>
+      <ul>
+        {legalLinks.map((l) => (
+          <li><a href={l.href}>{l.label}</a></li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+
+  <div class="mk-container mk-footer__bottom">
+    <span class="mk-small">{t('footer.copyright').replace('{year}', String(year))}</span>
+  </div>
+</footer>
+
+<style>
+  .mk-footer {
+    margin-top: var(--mk-section-pad-y);
+    border-top: 1px solid var(--kanap-border-default);
+    padding-top: 56px;
+    padding-bottom: 32px;
+    background: var(--kanap-bg-page);
+  }
+
+  .mk-footer__grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    gap: 48px;
+    align-items: start;
+  }
+
+  @media (max-width: 820px) {
+    .mk-footer__grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+
+    .mk-footer__brand {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .mk-footer__logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--kanap-text-primary);
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  .mk-footer__tagline {
+    margin-top: 12px;
+    max-width: 360px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-footer__heading {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--kanap-text-tertiary);
+    margin-bottom: 14px;
+  }
+
+  .mk-footer__col ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mk-footer__col a {
+    color: var(--kanap-text-secondary);
+    font-size: 13px;
+  }
+
+  .mk-footer__col a:hover {
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-footer__bottom {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--kanap-border-soft);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--kanap-text-tertiary);
+  }
+</style>

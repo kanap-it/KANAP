@@ -1,0 +1,425 @@
+---
+/**
+ * Top navigation — sticky, transparent-to-solid on scroll.
+ *
+ * The Features entry is a dropdown: hovering the nav item or focusing it
+ * reveals the five modules. Works without JS (CSS :hover + :focus-within
+ * and a <details> fallback on mobile).
+ */
+
+import {
+  getLocaleFromUrl,
+  useTranslations,
+  localePath,
+} from '../i18n/ui';
+import ThemeToggle from './ThemeToggle.astro';
+import LocaleSwitcher from './LocaleSwitcher.astro';
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+
+const featureItems = [
+  { href: localePath(locale, '/features/budget'), label: t('nav.featuresBudget') },
+  { href: localePath(locale, '/features/it-landscape'), label: t('nav.featuresItLandscape') },
+  { href: localePath(locale, '/features/portfolio'), label: t('nav.featuresPortfolio') },
+  { href: localePath(locale, '/features/knowledge'), label: t('nav.featuresKnowledge') },
+  { href: localePath(locale, '/features/ai'), label: t('nav.featuresAi') },
+];
+
+const navLinks = [
+  {
+    href: localePath(locale, '/features'),
+    label: t('nav.features'),
+    children: featureItems,
+  },
+  { href: localePath(locale, '/on-premise'), label: t('nav.onPremise') },
+  { href: localePath(locale, '/offer'), label: t('nav.offer') },
+  { href: localePath(locale, '/security'), label: t('nav.security') },
+  { href: localePath(locale, '/faq'), label: t('nav.faq') },
+  { href: localePath(locale, '/contact'), label: t('nav.contact') },
+];
+
+const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
+
+function isActive(href: string): boolean {
+  const cleanHref = href.replace(/\/$/, '') || '/';
+  if (cleanHref === '/') return currentPath === '/';
+  return currentPath === cleanHref || currentPath.startsWith(cleanHref + '/');
+}
+---
+
+<header class="mk-nav" data-mk-nav>
+  <div class="mk-nav__inner mk-container">
+    <a class="mk-nav__brand" href={localePath(locale, '/')} aria-label="KANAP">
+      <img src="/logo.svg" alt="" width="28" height="28" />
+      <span class="mk-nav__brand-name">KANAP</span>
+    </a>
+
+    <nav class="mk-nav__links" aria-label="Primary">
+      {navLinks.map((link) => (
+        link.children ? (
+          <div class="mk-nav__group">
+            <a
+              href={link.href}
+              class:list={['mk-nav__link', 'mk-nav__link--has-sub', { 'is-active': isActive(link.href) }]}
+              aria-current={isActive(link.href) ? 'page' : undefined}
+              aria-haspopup="true"
+            >
+              {link.label}
+              <svg class="mk-nav__chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <path d="M2.5 4l2.5 2.5L7.5 4" />
+              </svg>
+            </a>
+            <div class="mk-nav__sub" role="menu">
+              {link.children.map((child) => (
+                <a
+                  href={child.href}
+                  class:list={['mk-nav__sub-link', { 'is-active': isActive(child.href) }]}
+                  role="menuitem"
+                >
+                  {child.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <a
+            href={link.href}
+            class:list={['mk-nav__link', { 'is-active': isActive(link.href) }]}
+            aria-current={isActive(link.href) ? 'page' : undefined}
+          >
+            {link.label}
+          </a>
+        )
+      ))}
+    </nav>
+
+    <div class="mk-nav__actions">
+      <LocaleSwitcher />
+      <ThemeToggle />
+      <a href={localePath(locale, '/trial/start')} class="mk-btn mk-btn--primary mk-nav__cta">
+        {t('nav.startTrial')}
+      </a>
+      <button
+        type="button"
+        class="mk-nav__menu"
+        aria-expanded="false"
+        aria-controls="mk-nav-mobile"
+        aria-label={t('nav.menu')}
+        data-mk-menu
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M3 6h14M3 10h14M3 14h14" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="mk-nav-mobile" class="mk-nav__mobile" hidden>
+    <div class="mk-container">
+      {navLinks.map((link) => (
+        <>
+          <a
+            href={link.href}
+            class:list={['mk-nav__mobile-link', { 'is-active': isActive(link.href) }]}
+          >
+            {link.label}
+          </a>
+          {link.children && link.children.map((child) => (
+            <a
+              href={child.href}
+              class:list={['mk-nav__mobile-link', 'mk-nav__mobile-link--child', { 'is-active': isActive(child.href) }]}
+            >
+              {child.label}
+            </a>
+          ))}
+        </>
+      ))}
+      <a href={localePath(locale, '/trial/start')} class="mk-btn mk-btn--primary mk-nav__mobile-cta">
+        {t('nav.startTrial')}
+      </a>
+    </div>
+  </div>
+</header>
+
+<script>
+  const nav = document.querySelector<HTMLElement>('[data-mk-nav]');
+  if (nav) {
+    const onScroll = () => {
+      nav.classList.toggle('is-scrolled', window.scrollY > 4);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+
+  const menuBtn = document.querySelector<HTMLButtonElement>('[data-mk-menu]');
+  const menuPanel = document.getElementById('mk-nav-mobile');
+  if (menuBtn && menuPanel) {
+    menuBtn.addEventListener('click', () => {
+      const open = menuBtn.getAttribute('aria-expanded') === 'true';
+      menuBtn.setAttribute('aria-expanded', open ? 'false' : 'true');
+      menuPanel.hidden = open;
+    });
+  }
+</script>
+
+<style>
+  .mk-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--mk-nav-height);
+    background: color-mix(in srgb, var(--kanap-bg-page) 80%, transparent);
+    backdrop-filter: saturate(140%) blur(8px);
+    -webkit-backdrop-filter: saturate(140%) blur(8px);
+    border-bottom: 1px solid transparent;
+    transition:
+      background-color var(--mk-duration) var(--mk-ease),
+      border-color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-nav.is-scrolled {
+    background: color-mix(in srgb, var(--kanap-bg-page) 92%, transparent);
+    border-bottom-color: var(--kanap-border-default);
+  }
+
+  .mk-nav__inner {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    height: 100%;
+  }
+
+  .mk-nav__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--kanap-text-primary);
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+
+  .mk-nav__brand:hover {
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-nav__brand img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .mk-nav__brand-name {
+    letter-spacing: 0.02em;
+  }
+
+  .mk-nav__links {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    margin-left: 12px;
+  }
+
+  .mk-nav__link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding-inline: 10px;
+    color: var(--kanap-text-secondary);
+    font-size: 14px;
+    font-weight: 400;
+    border-radius: var(--kanap-radius-submit);
+    transition:
+      color var(--mk-duration) var(--mk-ease),
+      background-color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-nav__link:hover {
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-nav__link.is-active {
+    color: var(--kanap-text-primary);
+    font-weight: 500;
+  }
+
+  .mk-nav__link.is-active::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -6px;
+    height: 2px;
+    background: var(--kanap-teal);
+    border-radius: 2px;
+  }
+
+  .mk-nav__chev {
+    opacity: 0.6;
+    transition: transform var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-nav__group {
+    position: relative;
+  }
+
+  .mk-nav__sub {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    min-width: 220px;
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    padding: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition:
+      opacity var(--mk-duration) var(--mk-ease),
+      transform var(--mk-duration) var(--mk-ease),
+      visibility 0s linear var(--mk-duration);
+  }
+
+  :root[data-theme='dark'] .mk-nav__sub {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .mk-nav__group:hover .mk-nav__sub,
+  .mk-nav__group:focus-within .mk-nav__sub {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    transition-delay: 0s;
+  }
+
+  .mk-nav__group:hover .mk-nav__chev,
+  .mk-nav__group:focus-within .mk-nav__chev {
+    transform: rotate(180deg);
+  }
+
+  /* Invisible bridge so moving the cursor down to the submenu doesn't close it */
+  .mk-nav__sub::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 0;
+    right: 0;
+    height: 10px;
+  }
+
+  .mk-nav__sub-link {
+    display: block;
+    padding: 8px 10px;
+    border-radius: var(--kanap-radius-submit);
+    color: var(--kanap-text-secondary);
+    font-size: 13px;
+    line-height: 1.4;
+    transition:
+      color var(--mk-duration) var(--mk-ease),
+      background-color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-nav__sub-link:hover {
+    color: var(--kanap-text-primary);
+    background: var(--kanap-pill-hover-bg);
+  }
+
+  .mk-nav__sub-link.is-active {
+    color: var(--kanap-teal);
+    background: var(--kanap-nav-chip-bg);
+  }
+
+  .mk-nav__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mk-nav__signin {
+    color: var(--kanap-text-secondary);
+    font-size: 14px;
+    padding: 8px 12px;
+    border-radius: var(--kanap-radius-submit);
+    transition: color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-nav__signin:hover {
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-nav__cta {
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+
+  .mk-nav__menu {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-submit);
+    color: var(--kanap-text-primary);
+    cursor: pointer;
+  }
+
+  .mk-nav__mobile {
+    position: fixed;
+    top: var(--mk-nav-height);
+    left: 0;
+    right: 0;
+    max-height: calc(100vh - var(--mk-nav-height));
+    overflow-y: auto;
+    background: var(--kanap-bg-primary);
+    border-bottom: 1px solid var(--kanap-border-default);
+    padding-block: 12px;
+  }
+
+  .mk-nav__mobile-link {
+    display: block;
+    padding: 10px 4px;
+    color: var(--kanap-text-secondary);
+    font-size: 15px;
+    border-bottom: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-nav__mobile-link--child {
+    padding-left: 20px;
+    font-size: 14px;
+    color: var(--kanap-text-tertiary);
+  }
+
+  .mk-nav__mobile-link.is-active {
+    color: var(--kanap-text-primary);
+    font-weight: 500;
+  }
+
+  .mk-nav__mobile-cta {
+    display: flex;
+    margin-top: 12px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  @media (max-width: 960px) {
+    .mk-nav__links,
+    .mk-nav__signin,
+    .mk-nav__cta {
+      display: none;
+    }
+
+    .mk-nav__menu {
+      display: inline-flex;
+    }
+  }
+</style>

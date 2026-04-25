@@ -1,0 +1,4 @@
+interface:
+  display_name: "KANAP design system"
+  short_description: "Apply KANAP refined-density UI rules to front-end work."
+  default_prompt: "Use the KANAP design system when creating, refactoring, or auditing KANAP React UI. Follow the refined-density charter, MUI constraints, color rules, workspace patterns, and dark-mode requirements."

@@ -27,7 +27,7 @@ import TaskActivity from './components/TaskActivity';
 import TaskAttachments, { TaskAttachment } from './components/TaskAttachments';
 import TaskDetailHeader from './components/TaskDetailHeader';
 import TaskPropertiesDrawer from './components/TaskPropertiesDrawer';
-import type { PriorityLevel } from './theme/taskDetailTokens';
+import { taskDetailTokens, type PriorityLevel } from './theme/taskDetailTokens';
 import { RelatedObjectType } from '../../components/fields/RelatedObjectSelect';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import ShareDialog from '../../components/ShareDialog';
@@ -1620,7 +1620,7 @@ export default function TaskWorkspacePage() {
           flex: 1,
           display: 'flex',
           flexDirection: isMobile ? 'column' : 'row',
-          overflow: 'hidden',
+          overflow: isMobile ? 'hidden' : 'visible',
           position: 'relative',
           minHeight: 380,
         }}
@@ -1706,7 +1706,7 @@ export default function TaskWorkspacePage() {
               aria-expanded={drawerOpen}
               sx={(theme) => ({
                 position: 'absolute',
-                top: 20,
+                top: taskDetailTokens.drawer.tabTop,
                 right: 0,
                 width: 26,
                 height: 120,

@@ -1,0 +1,128 @@
+---
+/**
+ * ComparisonTable — row/column feature comparison.
+ *
+ * Rows are features, columns are plans. Cells are strings or booleans
+ * (checkmark / em-dash). Uses the app table aesthetic: no alternating rows,
+ * subtle horizontal borders, 13px cell text, 11px headers.
+ */
+
+type Cell = string | boolean;
+
+interface Row {
+  label: string;
+  values: Cell[];
+  /** Optional subcopy shown under the label. */
+  hint?: string;
+}
+
+interface Props {
+  headings: string[];
+  rows: Row[];
+  caption?: string;
+}
+
+const { headings, rows, caption } = Astro.props;
+---
+
+<div class="mk-compare-wrap">
+  {caption && <p class="mk-small mk-compare__caption">{caption}</p>}
+  <table class="mk-compare">
+    <thead>
+      <tr>
+        <th class="mk-compare__label"></th>
+        {headings.map((h) => (
+          <th>{h}</th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => (
+        <tr>
+          <th class="mk-compare__label" scope="row">
+            <span>{row.label}</span>
+            {row.hint && <span class="mk-compare__hint">{row.hint}</span>}
+          </th>
+          {row.values.map((v) => (
+            <td>
+              {typeof v === 'boolean' ? (
+                v ? (
+                  <svg viewBox="0 0 16 16" width="14" height="14" aria-label="Yes" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 8.5l3 3 7-7" />
+                  </svg>
+                ) : (
+                  <span aria-label="No">—</span>
+                )
+              ) : (
+                v
+              )}
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .mk-compare-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    background: var(--kanap-bg-primary);
+  }
+
+  .mk-compare {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .mk-compare thead th {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--kanap-text-secondary);
+    text-align: left;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--kanap-border-default);
+    background: var(--kanap-bg-page);
+  }
+
+  .mk-compare tbody tr + tr th,
+  .mk-compare tbody tr + tr td {
+    border-top: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-compare td,
+  .mk-compare tbody th {
+    padding: 12px 16px;
+    color: var(--kanap-text-primary);
+    vertical-align: top;
+  }
+
+  .mk-compare__label {
+    font-weight: 400;
+    color: var(--kanap-text-primary);
+    max-width: 280px;
+  }
+
+  .mk-compare__hint {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--kanap-text-tertiary);
+  }
+
+  .mk-compare td {
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-compare td svg {
+    color: var(--kanap-teal);
+  }
+
+  .mk-compare__caption {
+    padding: 14px 16px 0;
+    color: var(--kanap-text-tertiary);
+  }
+</style>

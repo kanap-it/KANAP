@@ -122,7 +122,7 @@ export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableV
     <Box>
       {/* View Toggle - only show if there are phases with dates */}
       {phases.length > 0 && (
-        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
           <ToggleButtonGroup
             value={viewMode}
             exclusive

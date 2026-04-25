@@ -28,7 +28,6 @@ import AddIcon from '@mui/icons-material/Add';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import DeleteIcon from '@mui/icons-material/Delete';
-import LinkIcon from '@mui/icons-material/Link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -172,6 +171,41 @@ function formatDocumentOptionLabel(option: Pick<DocumentListItem, 'title' | 'ite
   const ref = option.item_ref || `DOC-${option.item_number}`;
   const title = String(option.title || '').trim();
   return title ? `${title} (${ref})` : ref;
+}
+
+function mergeProvenance(
+  current: KnowledgeContextSource[],
+  next: KnowledgeContextSource[],
+): KnowledgeContextSource[] {
+  const byKey = new Map<string, KnowledgeContextSource>();
+  for (const source of [...current, ...next]) {
+    byKey.set(`${source.entity_type}:${source.entity_id}`, source);
+  }
+  return Array.from(byKey.values());
+}
+
+function dedupeKnowledgeItems(
+  items: DisplayKnowledgeContextItem[],
+): DisplayKnowledgeContextItem[] {
+  const byId = new Map<string, DisplayKnowledgeContextItem>();
+  for (const item of items) {
+    const existing = byId.get(item.id);
+    if (!existing) {
+      byId.set(item.id, item);
+      continue;
+    }
+
+    const linkedViaLabels = uniqueIds([
+      existing.linked_via_label,
+      item.linked_via_label,
+    ]);
+    byId.set(item.id, {
+      ...existing,
+      linked_via_label: linkedViaLabels.join(' · '),
+      provenance: mergeProvenance(existing.provenance, item.provenance),
+    });
+  }
+  return Array.from(byId.values());
 }
 
 function formatDateTime(value?: string | null): string {
@@ -504,23 +538,30 @@ export default function EntityKnowledgePanel({
     [groups],
   );
   const displayGroups = React.useMemo<DisplayKnowledgeContextGroup[]>(() => {
+    const directItems = directGroup
+      ? dedupeKnowledgeItems(directGroup.items.map((item) => ({
+          ...item,
+          linked_via_label: directGroup.linked_via_label,
+        })))
+      : [];
+    const directDocumentIds = new Set(directItems.map((item) => item.id));
     const directDisplayGroup = directGroup
       ? {
           key: 'direct' as const,
           label: 'Linked documents',
-          total: directGroup.items.length,
-          items: directGroup.items.map((item) => ({
-            ...item,
-            linked_via_label: directGroup.linked_via_label,
-          })),
+          total: directItems.length,
+          items: directItems,
         }
       : null;
-    const relatedItems = groups
-      .filter((group) => group.key !== 'direct')
-      .flatMap((group) => group.items.map((item) => ({
-        ...item,
-        linked_via_label: group.linked_via_label,
-      })));
+    const relatedItems = dedupeKnowledgeItems(
+      groups
+        .filter((group) => group.key !== 'direct')
+        .flatMap((group) => group.items.map((item) => ({
+          ...item,
+          linked_via_label: group.linked_via_label,
+        }))),
+    )
+      .filter((item) => !directDocumentIds.has(item.id));
     const relatedDisplayGroup = relatedItems.length > 0
       ? {
           key: 'related_documents' as const,
@@ -637,6 +678,12 @@ export default function EntityKnowledgePanel({
     setSelectedTemplateId('');
   }, [entityId, entityType, navigate, selectedTemplateId, templatesData?.items]);
 
+  const handleExistingKnowledgeSelected = React.useCallback((document: DocumentListItem | null) => {
+    setSelectedDoc(document);
+    if (!document) return;
+    linkExistingMutation.mutate(document);
+  }, [linkExistingMutation]);
+
   const headerActions = canCreate ? (
     isSidebar ? (
       <Stack spacing={1}>
@@ -663,7 +710,7 @@ export default function EntityKnowledgePanel({
           onOpen={() => setLinkOptionsOpen(true)}
           onClose={() => setLinkOptionsOpen(false)}
           value={selectedDoc}
-          onChange={(_, value) => setSelectedDoc(value)}
+          onChange={(_, value) => handleExistingKnowledgeSelected(value)}
           inputValue={search}
           onInputChange={(_, value) => setSearch(value)}
           loading={canCreate && !!entityId && isSearchingDocs}
@@ -698,20 +745,8 @@ export default function EntityKnowledgePanel({
             '& .MuiInputBase-root': { fontSize: '0.9rem' },
             '& .MuiInputBase-input': { fontSize: '0.9rem' },
           }}
+          disabled={linkExistingMutation.isPending}
         />
-        <Button
-          variant="outlined"
-          startIcon={<LinkIcon />}
-          size="small"
-          onClick={() => {
-            if (!selectedDoc) return;
-            linkExistingMutation.mutate(selectedDoc);
-          }}
-          disabled={!selectedDoc || linkExistingMutation.isPending}
-          fullWidth
-        >
-          {t('knowledgePanel.linkSelected')}
-        </Button>
       </Stack>
     ) : (
       <Stack spacing={2}>
@@ -753,7 +788,7 @@ export default function EntityKnowledgePanel({
             onOpen={() => setLinkOptionsOpen(true)}
             onClose={() => setLinkOptionsOpen(false)}
             value={selectedDoc}
-            onChange={(_, value) => setSelectedDoc(value)}
+            onChange={(_, value) => handleExistingKnowledgeSelected(value)}
             inputValue={search}
             onInputChange={(_, value) => setSearch(value)}
             loading={canCreate && !!entityId && isSearchingDocs}
@@ -764,18 +799,8 @@ export default function EntityKnowledgePanel({
               <TextField {...params} label={t('knowledgePanel.linkExistingKnowledge')} placeholder="Search by name or ref" />
             )}
             sx={{ minWidth: 320, flex: 1 }}
+            disabled={linkExistingMutation.isPending}
           />
-          <Button
-            variant="outlined"
-            startIcon={<LinkIcon />}
-            onClick={() => {
-              if (!selectedDoc) return;
-              linkExistingMutation.mutate(selectedDoc);
-            }}
-            disabled={!selectedDoc || linkExistingMutation.isPending}
-          >
-            {t('buttons.link')}
-          </Button>
         </Stack>
       </Stack>
     )

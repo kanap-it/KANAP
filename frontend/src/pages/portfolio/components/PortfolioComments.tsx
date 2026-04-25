@@ -311,6 +311,7 @@ export default function PortfolioComments({
                   minRows={8}
                   maxRows={14}
                   disabled={submitting}
+                  onModSave={() => { void handleSubmit(); }}
                   onImageUpload={onImageUpload ? handleImageUpload : undefined}
                   onImageUrlImport={onImageUrlImport ? handleImageUrlImport : undefined}
                 />
@@ -445,6 +446,7 @@ export default function PortfolioComments({
                           minRows={6}
                           maxRows={12}
                           disabled={editSubmitting}
+                          onModSave={() => { void handleSaveEdit(); }}
                           onImageUpload={onImageUpload ? handleImageUpload : undefined}
                           onImageUrlImport={onImageUrlImport ? handleImageUrlImport : undefined}
                         />

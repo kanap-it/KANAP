@@ -1,0 +1,63 @@
+---
+/**
+ * PageHeader — lighter hero for non-homepage pages.
+ * Used on /offer, /on-premise, /features/*, /security, /changelog, legal.
+ */
+
+interface Props {
+  eyebrow?: string;
+  title: string;
+  lead?: string;
+}
+
+const { eyebrow, title, lead } = Astro.props;
+---
+
+<section class="mk-page-header">
+  <div class="mk-container mk-page-header__inner">
+    {eyebrow && <span class="mk-eyebrow mk-page-header__eyebrow">{eyebrow}</span>}
+    <h1 class="mk-page-header__title">{title}</h1>
+    {lead && <p class="mk-lead mk-page-header__lead">{lead}</p>}
+    {Astro.slots.has('meta') && (
+      <div class="mk-page-header__meta">
+        <slot name="meta" />
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .mk-page-header {
+    padding-top: clamp(32px, 4.5vw, 64px);
+    padding-bottom: clamp(20px, 2.5vw, 36px);
+  }
+
+  .mk-page-header__inner {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    max-width: 820px;
+  }
+
+  .mk-page-header__eyebrow {
+    margin-bottom: 4px;
+  }
+
+  .mk-page-header__title {
+    font-size: clamp(34px, 4vw, 48px);
+    line-height: 1.1;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .mk-page-header__lead {
+    max-width: 640px;
+  }
+
+  .mk-page-header__meta {
+    margin-top: 8px;
+    font-size: var(--mk-small-size);
+    color: var(--kanap-text-tertiary);
+  }
+</style>

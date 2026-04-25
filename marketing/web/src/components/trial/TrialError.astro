@@ -1,0 +1,56 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { Section, PageHeader } from '../sections';
+import { getLocaleFromUrl, localePath } from '../../i18n/ui';
+import type { TrialErrorCopy } from '../../content/trial/types';
+
+interface Props {
+  copy: TrialErrorCopy;
+}
+
+const { copy } = Astro.props;
+const locale = getLocaleFromUrl(Astro.url);
+---
+
+<BaseLayout title={copy.title} description={copy.description}>
+  <Fragment slot="head">
+    <meta name="robots" content="noindex, nofollow" />
+  </Fragment>
+
+  <PageHeader eyebrow={copy.eyebrow} title={copy.heading} lead={copy.lead} />
+
+  <Section tone="default">
+    <div class="mk-trial-err">
+      <p>{copy.body}</p>
+      <div class="mk-trial-err__actions">
+        <a href={localePath(locale, '/trial/start')} class="mk-btn mk-btn--primary">
+          {copy.restartLabel}
+        </a>
+        <a href={localePath(locale, '/contact')} class="mk-btn mk-btn--ghost">
+          {copy.contactLabel}
+        </a>
+      </div>
+    </div>
+  </Section>
+</BaseLayout>
+
+<style>
+  .mk-trial-err {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 560px;
+  }
+
+  .mk-trial-err p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-trial-err__actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+</style>

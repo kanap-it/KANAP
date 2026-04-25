@@ -1,0 +1,21 @@
+---
+/**
+ * FeaturePageWrapper — resolves the right feature content for the given
+ * slug + locale and renders FeatureDeepDive. Each feature page file just
+ * passes its slug.
+ */
+
+import FeatureDeepDive from './FeatureDeepDive.astro';
+import { getLocaleFromUrl } from '../i18n/ui';
+import { getFeatureContent, type FeatureSlug } from '../content/resolve';
+
+interface Props {
+  slug: FeatureSlug;
+}
+
+const { slug } = Astro.props;
+const locale = getLocaleFromUrl(Astro.url);
+const content = getFeatureContent(slug, locale);
+---
+
+<FeatureDeepDive content={content} />

@@ -166,7 +166,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     // Load source requests
     if (include.has('source_requests')) {
       result.source_requests = await mg.query(
-        `SELECT r.id, r.name, r.status, r.priority_score
+        `SELECT r.id, r.item_number, r.name, r.status, r.priority_score
          FROM portfolio_request_projects rp
          JOIN portfolio_requests r ON r.id = rp.request_id
          WHERE rp.project_id = $1`,

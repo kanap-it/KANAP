@@ -305,7 +305,7 @@ export default function Layout() {
                 },
                 '& .MuiTab-root.Mui-selected': {
                   color: 'text.primary',
-                  fontWeight: 600,
+                  fontWeight: 500,
                 },
                 '& .MuiTabs-indicator': {
                   backgroundColor: 'primary.main',
@@ -440,8 +440,8 @@ export default function Layout() {
                             fontSize: '0.6875rem',
                             fontWeight: 500,
                             color: 'text.secondary',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.06em',
+                            textTransform: 'none',
+                            letterSpacing: 0,
                             pt: idx === 0 ? 1 : '18px',
                             pb: '10px',
                             px: '18px',

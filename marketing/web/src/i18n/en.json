@@ -1,0 +1,42 @@
+{
+  "site.title": "KANAP — Open source IT management",
+  "site.description": "Open source platform for IT budget, portfolio, operations and knowledge management. Self-host it, or let us run it.",
+
+  "nav.features": "Features",
+  "nav.featuresBudget": "Budget management",
+  "nav.featuresItLandscape": "IT landscape",
+  "nav.featuresPortfolio": "Portfolio management",
+  "nav.featuresKnowledge": "Knowledge",
+  "nav.featuresAi": "Plaid · AI assistant",
+  "nav.onPremise": "Self-host",
+  "nav.offer": "Pricing",
+  "nav.security": "Security",
+  "nav.changelog": "Changelog",
+  "nav.faq": "FAQ",
+  "nav.contact": "Contact",
+  "nav.signIn": "Sign in",
+  "nav.startTrial": "Start free trial",
+  "nav.menu": "Open menu",
+
+  "theme.toggle": "Toggle theme",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+  "theme.system": "Auto-detect",
+
+  "locale.switch": "Switch language",
+
+  "footer.tagline": "Open source IT management. Self-host or let us run it.",
+  "footer.product": "Product",
+  "footer.resources": "Resources",
+  "footer.legal": "Legal",
+  "footer.docs": "Documentation",
+  "footer.github": "GitHub",
+  "footer.privacy": "Privacy",
+  "footer.terms": "Terms",
+  "footer.sales": "Terms of sale",
+  "footer.legalNotice": "Legal notice",
+  "footer.copyright": "© {year} KANAP. All rights reserved.",
+
+  "trust.placeholder": "Built for IT teams across industries",
+  "trust.cta": "Share your story"
+}

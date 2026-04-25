@@ -1,0 +1,197 @@
+/**
+ * Content resolver, imports the right locale variant of a page's content.
+ *
+ * Content files live at `src/content/{page}/{locale}.ts` and export a
+ * typed default object. This helper picks the right one, falling back to
+ * English if a locale file is missing.
+ */
+
+import type { Locale } from '../i18n/ui';
+import { DEFAULT_LOCALE } from '../i18n/ui';
+
+import homeEn from './home/en';
+import homeFr from './home/fr';
+import homeDe from './home/de';
+import homeEs from './home/es';
+
+import offerEn from './offer/en';
+import offerFr from './offer/fr';
+import offerDe from './offer/de';
+import offerEs from './offer/es';
+
+import onpremEn from './onpremise/en';
+import onpremFr from './onpremise/fr';
+import onpremDe from './onpremise/de';
+import onpremEs from './onpremise/es';
+
+// Features, full 4-locale set
+import budgetEn from './features/budget/en';
+import budgetFr from './features/budget/fr';
+import budgetDe from './features/budget/de';
+import budgetEs from './features/budget/es';
+import itLandscapeEn from './features/it-landscape/en';
+import itLandscapeFr from './features/it-landscape/fr';
+import itLandscapeDe from './features/it-landscape/de';
+import itLandscapeEs from './features/it-landscape/es';
+import portfolioEn from './features/portfolio/en';
+import portfolioFr from './features/portfolio/fr';
+import portfolioDe from './features/portfolio/de';
+import portfolioEs from './features/portfolio/es';
+import knowledgeEn from './features/knowledge/en';
+import knowledgeFr from './features/knowledge/fr';
+import knowledgeDe from './features/knowledge/de';
+import knowledgeEs from './features/knowledge/es';
+import aiEn from './features/ai/en';
+import aiFr from './features/ai/fr';
+import aiDe from './features/ai/de';
+import aiEs from './features/ai/es';
+import hubEn from './features-hub/en';
+import hubFr from './features-hub/fr';
+import hubDe from './features-hub/de';
+import hubEs from './features-hub/es';
+
+import trialEn from './trial/en';
+import trialFr from './trial/fr';
+import trialDe from './trial/de';
+import trialEs from './trial/es';
+
+import faqEn from './faq/en';
+import faqFr from './faq/fr';
+import faqDe from './faq/de';
+import faqEs from './faq/es';
+import securityEn from './security/en';
+import securityFr from './security/fr';
+import securityDe from './security/de';
+import securityEs from './security/es';
+import changelogEn from './changelog/en';
+import changelogFr from './changelog/fr';
+import changelogDe from './changelog/de';
+import changelogEs from './changelog/es';
+import contactEn from './contact/en';
+import contactFr from './contact/fr';
+import contactDe from './contact/de';
+import contactEs from './contact/es';
+
+import legalEn from './legal/en';
+
+import type { HomeContent } from './home/types';
+import type { OfferContent } from './offer/types';
+import type { OnPremContent } from './onpremise/types';
+import type { FeatureContent, FeaturesHubContent } from './features/types';
+import type { TrialContent } from './trial/types';
+import type { FaqContent } from './faq/types';
+import type { SecurityContent } from './security/types';
+import type { ChangelogContent } from './changelog/types';
+import type { ContactContent } from './contact/types';
+import type { LegalContent } from './legal/types';
+
+const HOME: Record<Locale, HomeContent> = {
+  en: homeEn,
+  fr: homeFr,
+  de: homeDe,
+  es: homeEs,
+};
+
+const OFFER: Record<Locale, OfferContent> = {
+  en: offerEn,
+  fr: offerFr,
+  de: offerDe,
+  es: offerEs,
+};
+
+export function getHomeContent(locale: Locale): HomeContent {
+  return HOME[locale] ?? HOME[DEFAULT_LOCALE];
+}
+
+export function getOfferContent(locale: Locale): OfferContent {
+  return OFFER[locale] ?? OFFER[DEFAULT_LOCALE];
+}
+
+const ONPREM: Record<Locale, OnPremContent> = {
+  en: onpremEn,
+  fr: onpremFr,
+  de: onpremDe,
+  es: onpremEs,
+};
+
+export function getOnPremContent(locale: Locale): OnPremContent {
+  return ONPREM[locale] ?? ONPREM[DEFAULT_LOCALE];
+}
+
+/* ---------------- Features ---------------- */
+
+export type FeatureSlug = 'budget' | 'it-landscape' | 'portfolio' | 'knowledge' | 'ai';
+
+/**
+ * Feature content resolution. DE/ES fall back to EN until the translation
+ * pass writes per-locale files; the resolver is forward-compatible and
+ * picks them up automatically when they exist.
+ */
+const FEATURE_MAP: Record<FeatureSlug, Record<Locale, FeatureContent>> = {
+  budget: { en: budgetEn, fr: budgetFr, de: budgetDe, es: budgetEs },
+  'it-landscape': { en: itLandscapeEn, fr: itLandscapeFr, de: itLandscapeDe, es: itLandscapeEs },
+  portfolio: { en: portfolioEn, fr: portfolioFr, de: portfolioDe, es: portfolioEs },
+  knowledge: { en: knowledgeEn, fr: knowledgeFr, de: knowledgeDe, es: knowledgeEs },
+  ai: { en: aiEn, fr: aiFr, de: aiDe, es: aiEs },
+};
+
+export function getFeatureContent(slug: FeatureSlug, locale: Locale): FeatureContent {
+  return FEATURE_MAP[slug][locale] ?? FEATURE_MAP[slug][DEFAULT_LOCALE];
+}
+
+/* ---------------- Features hub ---------------- */
+
+const HUB: Record<Locale, FeaturesHubContent> = {
+  en: hubEn,
+  fr: hubFr,
+  de: hubDe,
+  es: hubEs,
+};
+
+export function getFeaturesHubContent(locale: Locale): FeaturesHubContent {
+  return HUB[locale] ?? HUB[DEFAULT_LOCALE];
+}
+
+/* ---------------- Trial ---------------- */
+
+const TRIAL: Record<Locale, TrialContent> = {
+  en: trialEn,
+  fr: trialFr,
+  de: trialDe,
+  es: trialEs,
+};
+
+export function getTrialContent(locale: Locale): TrialContent {
+  return TRIAL[locale] ?? TRIAL[DEFAULT_LOCALE];
+}
+
+/* ---------------- Secondary pages (FAQ / Security / Changelog / Contact) ---------------- */
+/*
+ * EN is authoritative. Phase 6 fills in FR/DE/ES. Resolvers fall back
+ * to EN in the meantime, with loaders wired for forward-compatibility.
+ */
+
+const FAQ: Record<Locale, FaqContent> = { en: faqEn, fr: faqFr, de: faqDe, es: faqEs };
+export function getFaqContent(locale: Locale): FaqContent {
+  return FAQ[locale] ?? FAQ[DEFAULT_LOCALE];
+}
+
+const SECURITY: Record<Locale, SecurityContent> = { en: securityEn, fr: securityFr, de: securityDe, es: securityEs };
+export function getSecurityContent(locale: Locale): SecurityContent {
+  return SECURITY[locale] ?? SECURITY[DEFAULT_LOCALE];
+}
+
+const CHANGELOG: Record<Locale, ChangelogContent> = { en: changelogEn, fr: changelogFr, de: changelogDe, es: changelogEs };
+export function getChangelogContent(locale: Locale): ChangelogContent {
+  return CHANGELOG[locale] ?? CHANGELOG[DEFAULT_LOCALE];
+}
+
+const CONTACT: Record<Locale, ContactContent> = { en: contactEn, fr: contactFr, de: contactDe, es: contactEs };
+export function getContactContent(locale: Locale): ContactContent {
+  return CONTACT[locale] ?? CONTACT[DEFAULT_LOCALE];
+}
+
+const LEGAL: Partial<Record<Locale, LegalContent>> = { en: legalEn };
+export function getLegalContent(locale: Locale): LegalContent {
+  return LEGAL[locale] ?? LEGAL[DEFAULT_LOCALE]!;
+}

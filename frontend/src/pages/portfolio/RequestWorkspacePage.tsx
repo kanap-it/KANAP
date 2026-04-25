@@ -9,8 +9,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ShareIcon from '@mui/icons-material/Share';
 import TransformIcon from '@mui/icons-material/Transform';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import api from '../../api';
 import { useRequestNav } from '../../hooks/useRequestNav';
 import { useClassificationDefaults } from '../../hooks/useClassificationDefaults';
@@ -24,7 +22,12 @@ import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/i
 import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
 import { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
-import PortfolioWorkspaceShell from './workspace/PortfolioWorkspaceShell';
+import PortfolioDetailWorkspaceShell from './workspace/PortfolioDetailWorkspaceShell';
+import {
+  PortfolioMetadataItem,
+  PortfolioScoreMetadata,
+  PortfolioStatusMetadata,
+} from './workspace/PortfolioMetadataBar';
 import RequestPropertyPanel from './workspace/request/RequestPropertyPanel';
 import RequestSummaryTab from './workspace/request/RequestSummaryTab';
 import WorkspaceTabLoadingFallback from './workspace/WorkspaceTabLoadingFallback';
@@ -39,10 +42,13 @@ import {
 } from '../../utils/portfolioI18n';
 import { useLocale } from '../../i18n/useLocale';
 import { useTenant } from '../../tenant/TenantContext';
+import { getScoreColor } from '../tasks/theme/taskDetailTokens';
 
-type TabKey = 'summary' | 'analysis' | 'scoring' | 'knowledge' | 'activity';
-type LegacyPanelRoute = 'overview' | 'team' | 'relations';
+type TabKey = 'summary' | 'analysis' | 'scoring' | 'knowledge';
+type LegacyPanelRoute = 'overview' | 'activity' | 'team' | 'relations';
 type RouteTabKey = TabKey | LegacyPanelRoute;
+
+const REQUEST_TAB_KEYS: TabKey[] = ['summary', 'analysis', 'scoring', 'knowledge'];
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   pending_review: ['candidate', 'approved', 'rejected', 'on_hold'],
@@ -81,6 +87,17 @@ const DECISION_OUTCOME_COLORS: Record<string, 'default' | 'success' | 'error' | 
   analysis_complete: 'info',
 };
 
+function formatDate(locale: string, value?: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(locale, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 const RequestAnalysisTab = React.lazy(() => import('./workspace/request/RequestAnalysisTab'));
 const RequestActivityTab = React.lazy(() => import('./workspace/request/RequestActivityTab'));
 const RequestScoringTab = React.lazy(() => import('./workspace/request/RequestScoringTab'));
@@ -104,16 +121,15 @@ export default function RequestWorkspacePage() {
   const isCreate = idParam === 'new';
   const id = idParam;
   const rawRouteTab = (params.tab as RouteTabKey | undefined) || 'summary';
-  const routeTab: TabKey = rawRouteTab === 'overview' || rawRouteTab === 'team' || rawRouteTab === 'relations'
-    ? 'summary'
-    : rawRouteTab;
+  const routeTab: TabKey = REQUEST_TAB_KEYS.includes(rawRouteTab as TabKey)
+    ? (rawRouteTab as TabKey)
+    : 'summary';
   const propertyPanelFocusSection = rawRouteTab === 'team' || rawRouteTab === 'relations'
     ? rawRouteTab
     : null;
   const requestInclude = React.useMemo(() => getRequestWorkspaceInclude(routeTab), [routeTab]);
   const tabs = React.useMemo<Array<{ key: TabKey; label: string }>>(() => [
     { key: 'summary', label: t('portfolio:labels.summary') },
-    { key: 'activity', label: t('portfolio:labels.activity') },
     { key: 'analysis', label: t('portfolio:labels.analysis') },
     { key: 'scoring', label: t('portfolio:labels.scoring') },
     { key: 'knowledge', label: t('portfolio:labels.knowledge') },
@@ -121,23 +137,26 @@ export default function RequestWorkspacePage() {
   const statusOptions = React.useMemo(() => getRequestStatusOptions(t), [t]);
 
   React.useEffect(() => {
-    if (rawRouteTab === 'overview') {
+    if (rawRouteTab !== routeTab) {
       navigate(`/portfolio/requests/${id}/summary${location.search}`, { replace: true });
       return;
     }
     if (isCreate && rawRouteTab !== 'summary') {
       navigate(`/portfolio/requests/${id}/summary${location.search}`, { replace: true });
     }
-  }, [id, isCreate, location.search, navigate, rawRouteTab]);
+  }, [id, isCreate, location.search, navigate, rawRouteTab, routeTab]);
 
   // Fetch request data
-  const { data, error, isFetching, isLoading, isPlaceholderData, refetch } = useQuery({
+  const { data, error, isFetching, isLoading, refetch } = useQuery({
     queryKey: ['portfolio-request', id, requestInclude],
     queryFn: async () => {
       const res = await api.get(`/portfolio/requests/${id}`, { params: { include: requestInclude } });
       return res.data;
     },
     enabled: !isCreate,
+    placeholderData: (previousData, previousQuery) => (
+      previousQuery?.queryKey?.[1] === id ? previousData : undefined
+    ),
   });
 
   // Track recently viewed
@@ -210,6 +229,9 @@ export default function RequestWorkspacePage() {
   const purposeEditorRef = React.useRef<IntegratedDocumentEditorHandle>(null);
   const risksEditorRef = React.useRef<IntegratedDocumentEditorHandle>(null);
   const savedScoreRef = React.useRef<number | null>(null);
+  const feasibilityAutosaveTimerRef = React.useRef<number | null>(null);
+  const scoringAutosaveTimerRef = React.useRef<number | null>(null);
+  const scoringAutosaveInFlightRef = React.useRef(false);
   const canManage = hasLevel('portfolio_requests', 'manager');
   const canEditManagedDocs = hasLevel('portfolio_requests', 'member');
   const canAdmin = hasLevel('portfolio_requests', 'admin');
@@ -239,12 +261,30 @@ export default function RequestWorkspacePage() {
     setRisksDirty(false);
     setSaveError(null);
     savedScoreRef.current = null;
+    if (feasibilityAutosaveTimerRef.current !== null) {
+      window.clearTimeout(feasibilityAutosaveTimerRef.current);
+      feasibilityAutosaveTimerRef.current = null;
+    }
+    if (scoringAutosaveTimerRef.current !== null) {
+      window.clearTimeout(scoringAutosaveTimerRef.current);
+      scoringAutosaveTimerRef.current = null;
+    }
+    scoringAutosaveInFlightRef.current = false;
     scoringEditorRef.current?.reset?.();
     void Promise.all([
       purposeEditorRef.current?.reset?.(),
       risksEditorRef.current?.reset?.(),
     ]);
   }, [id, isCreate]);
+
+  React.useEffect(() => () => {
+    if (feasibilityAutosaveTimerRef.current !== null) {
+      window.clearTimeout(feasibilityAutosaveTimerRef.current);
+    }
+    if (scoringAutosaveTimerRef.current !== null) {
+      window.clearTimeout(scoringAutosaveTimerRef.current);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (!isCreate) return;
@@ -317,6 +357,36 @@ export default function RequestWorkspacePage() {
       setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.savePanelFailed')));
       await refetch();
     }
+  }, [canManage, id, isCreate, queryClient, refetch, t]);
+
+  const handleFeasibilityReviewChange = React.useCallback((value: any) => {
+    setForm((prev: any) => ({ ...prev, feasibility_review: value }));
+
+    if (isCreate) {
+      setTabDirty(true);
+      return;
+    }
+    if (!canManage) return;
+
+    if (feasibilityAutosaveTimerRef.current !== null) {
+      window.clearTimeout(feasibilityAutosaveTimerRef.current);
+    }
+
+    feasibilityAutosaveTimerRef.current = window.setTimeout(() => {
+      setSaveError(null);
+      void api.patch(`/portfolio/requests/${id}`, { feasibility_review: value })
+        .then(() => {
+          setTabDirty(false);
+          queryClient.setQueriesData({ queryKey: ['portfolio-request', id] }, (old: any) => (
+            old ? { ...old, feasibility_review: value } : old
+          ));
+          queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
+        })
+        .catch(async (error) => {
+          setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.savePanelFailed')));
+          await refetch();
+        });
+    }, 700);
   }, [canManage, id, isCreate, queryClient, refetch, t]);
 
   React.useEffect(() => {
@@ -429,6 +499,61 @@ export default function RequestWorkspacePage() {
       return false;
     }
   };
+
+  const handleScoringAutosave = React.useCallback(async () => {
+    if (isCreate || !canManage || form?.status === 'converted') {
+      return;
+    }
+    if (scoringAutosaveInFlightRef.current) {
+      return;
+    }
+    const editor = scoringEditorRef.current;
+    if (!editor?.isDirty()) {
+      setScoringDirty(false);
+      return;
+    }
+
+    scoringAutosaveInFlightRef.current = true;
+    setSaveError(null);
+    try {
+      const nextScore = await editor.save();
+      const scoringPatch = {
+        ...editor.getSnapshot(),
+        priority_score: nextScore,
+      };
+      savedScoreRef.current = nextScore;
+      setForm((prev: any) => ({ ...prev, ...scoringPatch }));
+      setScoringDirty(false);
+      queryClient.setQueriesData({ queryKey: ['portfolio-request', id] }, (old: any) => (
+        old ? { ...old, ...scoringPatch } : old
+      ));
+      queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.saveFailed')));
+    } finally {
+      scoringAutosaveInFlightRef.current = false;
+    }
+  }, [canManage, form?.status, id, isCreate, queryClient, t]);
+
+  React.useEffect(() => {
+    if (scoringAutosaveTimerRef.current !== null) {
+      window.clearTimeout(scoringAutosaveTimerRef.current);
+      scoringAutosaveTimerRef.current = null;
+    }
+    if (!scoringDirty || isCreate || !canManage || form?.status === 'converted') return;
+
+    scoringAutosaveTimerRef.current = window.setTimeout(() => {
+      scoringAutosaveTimerRef.current = null;
+      void handleScoringAutosave();
+    }, 900);
+
+    return () => {
+      if (scoringAutosaveTimerRef.current !== null) {
+        window.clearTimeout(scoringAutosaveTimerRef.current);
+        scoringAutosaveTimerRef.current = null;
+      }
+    };
+  }, [canManage, form?.status, handleScoringAutosave, isCreate, scoringDirty]);
 
   const handleReset = async () => {
     if (data) {
@@ -632,8 +757,37 @@ export default function RequestWorkspacePage() {
     navigate(`/portfolio/requests/${targetId}/${routeTab}${qs ? `?${qs}` : ''}`);
   }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab, t]);
 
+  const closeWorkspace = React.useCallback(async () => {
+    if (hasUnsavedChanges) {
+      const proceed = window.confirm(t('portfolio:workspace.request.confirmations.unsavedNavigate'));
+      if (proceed) {
+        const ok = await handleSave();
+        if (!ok) return;
+      } else {
+        await handleReset();
+      }
+    }
+    const qs = listContextParams.toString();
+    navigate(`/portfolio/requests${qs ? `?${qs}` : ''}`);
+  }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, t]);
+
   const statusLabel = form?.status ? getRequestStatusLabel(t, form.status) : '';
   const statusColor = (REQUEST_STATUS_COLORS[form?.status] || 'default') as 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info';
+  const statusDotColor = getDotColor(statusColor, theme.palette.mode);
+  const statusMenuOptions = statusOptions.map((option) => {
+    const optionColor = (REQUEST_STATUS_COLORS[option.value] || 'default') as 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info';
+    return {
+      ...option,
+      color: getDotColor(optionColor, theme.palette.mode),
+    };
+  });
+  const requestReference = data?.item_number ? `REQ-${data.item_number}` : null;
+  const scoreColor = getScoreColor(Number(form?.priority_score || 0), theme.palette.mode);
+  const targetDeliveryDateLabel = formatDate(locale, form?.target_delivery_date);
+  const originTaskLabel = form?.origin_task?.item_number
+    ? `T-${form.origin_task.item_number}`
+    : form?.origin_task?.title || null;
+  const createDisabled = !String(form?.name || '').trim() || saveDisabled;
   const categoryName = classificationData?.categories?.find((c) => c.id === form?.category_id)?.name;
   const streamName = classificationData?.streams?.find((s) => s.id === form?.stream_id)?.name;
   const analysisRecommendations = React.useMemo(() => {
@@ -687,163 +841,119 @@ export default function RequestWorkspacePage() {
   }
 
   return (
-    <Box sx={{ p: 2 }}>
-      {!!error && <Alert severity="error" sx={{ mb: 1 }}>{t('portfolio:workspace.request.messages.loadFailed')}</Alert>}
-      {!!saveError && <Alert severity="error" sx={{ mb: 1 }}>{saveError}</Alert>}
+    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {!!error && <Alert severity="error" sx={{ mx: 2, mt: 1 }}>{t('portfolio:workspace.request.messages.loadFailed')}</Alert>}
+      {!!saveError && <Alert severity="error" sx={{ mx: 2, mt: 1 }}>{saveError}</Alert>}
 
-      <PortfolioWorkspaceShell
+      <PortfolioDetailWorkspaceShell
         activeTab={routeTab}
         tabs={tabs.map((tab) => ({
           ...tab,
           disabled: isCreate && tab.key !== 'summary',
         }))}
         onTabChange={(nextTab) => onTabChange(null, nextTab as TabKey)}
-        sidebarStorageKey="portfolioRequestWorkspaceSidebarWidth"
-        sidebarTitle={isCreate ? t('portfolio:workspace.request.sidebar.createTitle') : t('portfolio:workspace.request.sidebar.editTitle')}
-        headerContent={(
-          <Stack direction="row" alignItems="center" spacing={2}>
-            {!isCreate && form?.priority_score != null && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 56,
-                  height: 56,
-                  borderRadius: '50%',
-                  bgcolor: form.priority_override ? 'warning.main' : 'primary.main',
-                  color: 'primary.contrastText',
-                  fontWeight: 700,
-                  fontSize: '1.25rem',
-                  boxShadow: 2,
-                }}
-                title={form.priority_override ? t('portfolio:workspace.request.priority.overriddenTitle') : t('portfolio:workspace.request.priority.title')}
-              >
-                {Math.round(form.priority_score)}
-              </Box>
-            )}
-            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                {data?.item_number && (
-                  <Typography
-                    variant="body2"
-                    component="span"
-                    sx={{ fontFamily: 'monospace', color: 'text.secondary', cursor: 'pointer', '&:hover': { color: 'text.primary' } }}
-                    onClick={() => navigator.clipboard.writeText(`REQ-${data.item_number}`)}
-                    title={t('portfolio:workspace.request.actions.copyReference')}
-                  >
-                    {`REQ-${data.item_number}`}
-                  </Typography>
-                )}
-                <Typography variant="h6" sx={{ minWidth: 0 }}>
-                  {isCreate ? t('portfolio:workspace.request.title.new') : (form?.name || t('portfolio:workspace.request.title.fallback'))}
-                </Typography>
-              </Stack>
-              {!isCreate && (
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                  {form?.status && (
-                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', fontWeight: 500, color: getDotColor(statusColor, theme.palette.mode), lineHeight: 1 }}>
-                      <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(statusColor, theme.palette.mode) }} />
-                      {statusLabel}
-                    </Box>
-                  )}
-                  {form?.origin_task?.id && (
-                    <Typography
-                      variant="body2"
-                      component="span"
-                      sx={{ color: 'text.secondary', cursor: 'pointer', '&:hover': { color: 'text.primary' } }}
-                      onClick={() => navigate(`/portfolio/tasks/${form.origin_task.id}/overview`)}
-                      title={t('portfolio:workspace.request.originTask.title', { name: form.origin_task.title || form.origin_task.id })}
-                    >
-                      {form.origin_task.item_number
-                        ? t('portfolio:workspace.request.originTask.withReference', { ref: `T-${form.origin_task.item_number}` })
-                        : t('portfolio:workspace.request.originTask.fallback')}
-                    </Typography>
-                  )}
-                  {total > 0 && (
-                    <Typography variant="body2" color="text.secondary">
-                      {t('portfolio:workspace.request.navigation.position', { index: index + 1, total })}
-                    </Typography>
-                  )}
-                </Stack>
-              )}
-            </Stack>
-          </Stack>
-        )}
-        headerActions={(
+        drawerStorageKey="kanap.request.drawerOpen"
+        backLabel={t('portfolio:requests.entityName')}
+        onBack={() => { void closeWorkspace(); }}
+        itemReference={requestReference}
+        onCopyReference={requestReference ? () => { void navigator.clipboard?.writeText(requestReference); } : undefined}
+        title={form?.name || ''}
+        titleFallback={isCreate ? t('portfolio:workspace.request.title.new') : t('portfolio:workspace.request.title.fallback')}
+        canEditTitle={isCreate || (canManage && form?.status !== 'converted')}
+        onTitleSave={(value) => { void persistPanelPatch({ name: value }); }}
+        nav={!isCreate && total > 0 ? {
+          currentIndex: index + 1,
+          totalCount: total,
+          hasPrev,
+          hasNext,
+          onPrev: () => { void confirmAndNavigate(prevId); },
+          onNext: () => { void confirmAndNavigate(nextId); },
+          previousLabel: t('portfolio:actions.previous'),
+          nextLabel: t('portfolio:actions.next'),
+        } : undefined}
+        onSaveShortcut={hasUnsavedChanges ? () => { void handleSave(); } : undefined}
+        metadata={!isCreate ? (
           <>
-            {!isCreate && showRefreshState && (
-              <Typography variant="caption" color="text.secondary">
-                {isPlaceholderData ? t('portfolio:workspace.request.messages.loadingTabData') : t('portfolio:workspace.request.messages.refreshing')}
-              </Typography>
+            {form?.status && (
+              <PortfolioStatusMetadata
+                value={form.status}
+                label={statusLabel}
+                color={statusDotColor}
+                options={statusMenuOptions}
+                onChange={handleStatusChange}
+                disabled={!canManage || form?.status === 'converted'}
+              />
             )}
+            <PortfolioScoreMetadata
+              value={form?.priority_score}
+              color={scoreColor}
+              title={form?.priority_override ? t('portfolio:workspace.request.priority.overriddenTitle') : t('portfolio:workspace.request.priority.title')}
+            />
+            {targetDeliveryDateLabel && (
+              <PortfolioMetadataItem label={t('portfolio:workspace.request.fields.targetDeliveryDate')}>
+                {targetDeliveryDateLabel}
+              </PortfolioMetadataItem>
+            )}
+            {form?.origin_task?.id && originTaskLabel && (
+              <PortfolioMetadataItem
+                label={t('portfolio:workspace.request.originTask.sourceLabel')}
+                onClick={() => navigate(`/portfolio/tasks/${form.origin_task.id}/overview`)}
+                title={t('portfolio:workspace.request.originTask.title', { name: form.origin_task.title || form.origin_task.id })}
+                mono={!!form.origin_task.item_number}
+              >
+                {originTaskLabel}
+              </PortfolioMetadataItem>
+            )}
+          </>
+        ) : undefined}
+        actions={(
+          <>
             {!isCreate && (
               <Button
-                startIcon={<ShareIcon />}
+                variant="action"
+                startIcon={<ShareIcon sx={{ fontSize: '14px !important' }} />}
                 onClick={() => setShareDialogOpen(true)}
                 size="small"
               >
                 {t('portfolio:actions.sendLink')}
               </Button>
             )}
-            <IconButton
-              aria-label={t('portfolio:actions.previous')}
-              title={t('portfolio:actions.previous')}
-              onClick={() => confirmAndNavigate(prevId)}
-              disabled={!hasPrev}
-              size="small"
-            >
-              <ArrowBackIcon />
-            </IconButton>
-            <IconButton
-              aria-label={t('portfolio:actions.next')}
-              title={t('portfolio:actions.next')}
-              onClick={() => confirmAndNavigate(nextId)}
-              disabled={!hasNext}
-              size="small"
-            >
-              <ArrowForwardIcon />
-            </IconButton>
             {!isCreate && (form?.status === 'approved' || form?.status === 'converted') && (
               <Button
-                variant="outlined"
-                startIcon={<TransformIcon />}
+                variant="action"
+                startIcon={<TransformIcon sx={{ fontSize: '14px !important' }} />}
                 onClick={() => setConvertDialogOpen(true)}
                 size="small"
               >
                 {t('portfolio:actions.convertToProject')}
               </Button>
             )}
-            <Button onClick={() => { void handleReset(); }} disabled={!hasUnsavedChanges} size="small">
-              {t('common:buttons.reset')}
-            </Button>
+            {isCreate && (
+              <Button variant="contained" onClick={() => void handleSave()} disabled={createDisabled} size="small">
+                {t('common:buttons.create')}
+              </Button>
+            )}
             {!isCreate && canAdmin && form?.status !== 'converted' && (
               <Button
-                startIcon={<DeleteIcon />}
-                color="error"
+                variant="action-danger"
+                startIcon={<DeleteIcon sx={{ fontSize: '14px !important' }} />}
                 onClick={() => setDeleteConfirmOpen(true)}
                 size="small"
               >
                 {t('common:buttons.delete')}
               </Button>
             )}
-            <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled} size="small">
-              {t('common:buttons.save')}
-            </Button>
             <IconButton
               aria-label={t('common:buttons.close')}
               title={t('common:buttons.close')}
-              onClick={() => {
-                const qs = listContextParams.toString();
-                navigate(`/portfolio/requests${qs ? `?${qs}` : ''}`);
-              }}
+              onClick={() => { void closeWorkspace(); }}
               size="small"
             >
               <CloseIcon />
             </IconButton>
           </>
         )}
-        sidebar={(
+        properties={(
           <RequestPropertyPanel
             canManage={canManage}
             categories={categories}
@@ -883,24 +993,34 @@ export default function RequestWorkspacePage() {
           <LinearProgress sx={{ mb: 2 }} />
         )}
         {routeTab === 'summary' && (
-          <RequestSummaryTab
-            canEditManagedDocs={canEditManagedDocs}
-            form={form}
-            id={id}
-            isCreate={isCreate}
-            latestAnalysisRecommendation={latestAnalysisRecommendation}
-            latestRecommendationAuthor={latestRecommendationAuthor}
-            latestRecommendationCreatedAt={latestRecommendationCreatedAt}
-            latestRecommendationOutcome={latestRecommendationOutcome}
-            latestRecommendationOutcomeColor={latestRecommendationOutcomeColor}
-            latestRecommendationStatusChange={latestRecommendationStatusChange}
-            onOpenTab={(tab) => onTabChange(null, tab)}
-            onPurposeDirtyChange={setPurposeDirty}
-            onPurposeDraftChange={(value) => updateManagedDocDraft({ purpose: value })}
-            purposeEditorRef={purposeEditorRef}
-            statusColor={statusColor}
-            statusLabel={statusLabel}
-          />
+          <Stack spacing={3}>
+            <RequestSummaryTab
+              canEditManagedDocs={canEditManagedDocs}
+              form={form}
+              id={id}
+              isCreate={isCreate}
+              onPurposeDirtyChange={setPurposeDirty}
+              onPurposeDraftChange={(value) => updateManagedDocDraft({ purpose: value })}
+              purposeEditorRef={purposeEditorRef}
+            />
+            {!isCreate && (
+              <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.request.loadingTabs.activity')} />}>
+                <RequestActivityTab
+                  entityId={form?.id || ''}
+                  activities={form?.activities || []}
+                  currentStatus={form?.status || ''}
+                  allowedTransitions={ALLOWED_TRANSITIONS[form?.status] || []}
+                  statusOptions={statusOptions}
+                  onAddComment={handleAddComment}
+                  onUpdateComment={handleUpdateComment}
+                  currentUserId={profile?.id}
+                  readOnly={!canManage}
+                  onImageUpload={handleImageUpload}
+                  onImageUrlImport={handleImageUrlImport}
+                />
+              </React.Suspense>
+            )}
+          </Stack>
         )}
 
         {routeTab === 'analysis' && !isCreate && (
@@ -924,11 +1044,11 @@ export default function RequestWorkspacePage() {
                 });
                 await refetch();
               }}
-              onOpenActivity={() => onTabChange(null, 'activity')}
+              onOpenActivity={() => onTabChange(null, 'summary')}
               onOpenRecommendationDialog={() => { void handleOpenRecommendationDialog(); }}
               onRisksDraftChange={(value) => updateManagedDocDraft({ risks: value })}
               onRisksDirtyChange={setRisksDirty}
-              onUpdateFeasibilityReview={(value) => update({ feasibility_review: value })}
+              onUpdateFeasibilityReview={handleFeasibilityReviewChange}
               recommendationButtonLabel={recommendationButtonLabel}
               risksEditorRef={risksEditorRef}
               streamName={streamName}
@@ -960,24 +1080,7 @@ export default function RequestWorkspacePage() {
           </React.Suspense>
         )}
 
-        {routeTab === 'activity' && !isCreate && (
-          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.request.loadingTabs.activity')} />}>
-            <RequestActivityTab
-              entityId={form?.id || ''}
-              activities={form?.activities || []}
-              currentStatus={form?.status || ''}
-              allowedTransitions={ALLOWED_TRANSITIONS[form?.status] || []}
-              statusOptions={statusOptions}
-              onAddComment={handleAddComment}
-              onUpdateComment={handleUpdateComment}
-              currentUserId={profile?.id}
-              readOnly={!canManage}
-              onImageUpload={handleImageUpload}
-              onImageUrlImport={handleImageUrlImport}
-            />
-          </React.Suspense>
-        )}
-      </PortfolioWorkspaceShell>
+      </PortfolioDetailWorkspaceShell>
 
       {!isCreate && form && (
         <ConvertToProjectDialog

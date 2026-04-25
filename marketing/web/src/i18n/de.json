@@ -1,0 +1,42 @@
+{
+  "site.title": "KANAP — Open-Source-IT-Management",
+  "site.description": "Open-Source-Plattform für IT-Budget, Portfolio, Betrieb und Wissensmanagement. Selbst hosten oder von uns betreiben lassen.",
+
+  "nav.features": "Funktionen",
+  "nav.featuresBudget": "Budget-Management",
+  "nav.featuresItLandscape": "IT-Landschaft",
+  "nav.featuresPortfolio": "Portfolio-Management",
+  "nav.featuresKnowledge": "Wissen",
+  "nav.featuresAi": "Plaid · KI-Assistent",
+  "nav.onPremise": "Self-Hosting",
+  "nav.offer": "Preise",
+  "nav.security": "Sicherheit",
+  "nav.changelog": "Changelog",
+  "nav.faq": "FAQ",
+  "nav.contact": "Kontakt",
+  "nav.signIn": "Anmelden",
+  "nav.startTrial": "Testversion starten",
+  "nav.menu": "Menü öffnen",
+
+  "theme.toggle": "Design umschalten",
+  "theme.light": "Hell",
+  "theme.dark": "Dunkel",
+  "theme.system": "Automatisch",
+
+  "locale.switch": "Sprache wechseln",
+
+  "footer.tagline": "Open-Source-IT-Management. Selbst hosten oder von uns betreiben lassen.",
+  "footer.product": "Produkt",
+  "footer.resources": "Ressourcen",
+  "footer.legal": "Rechtliches",
+  "footer.docs": "Dokumentation",
+  "footer.github": "GitHub",
+  "footer.privacy": "Datenschutz",
+  "footer.terms": "AGB",
+  "footer.sales": "Verkaufsbedingungen",
+  "footer.legalNotice": "Impressum",
+  "footer.copyright": "© {year} KANAP. Alle Rechte vorbehalten.",
+
+  "trust.placeholder": "Gebaut für IT-Teams aller Branchen",
+  "trust.cta": "Teilen Sie Ihre Geschichte"
+}

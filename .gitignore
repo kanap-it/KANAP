@@ -56,9 +56,13 @@ doc/operations/
 doc/planning/
 doc/templates/
 doc/cheatsheets/__pycache__/
-# AI tooling (local dev only)
+# AI tooling
 .claude/
-.codex/
+.codex/*
+!.codex/skills/
+.codex/skills/*
+!.codex/skills/kanap-design-system/
+!.codex/skills/kanap-design-system/**
 AGENTS.md
 translation-state/
 /tasks/

@@ -1,0 +1,148 @@
+---
+/**
+ * LocaleSwitcher — preserves current route when switching language.
+ *
+ * Uses a <details> disclosure so it works without JS. JS progressively
+ * enhances with outside-click close and Escape-to-close.
+ */
+
+import {
+  getLocaleFromUrl,
+  useTranslations,
+  relocatePath,
+  LOCALES,
+  LOCALE_LABELS,
+  type Locale,
+} from '../i18n/ui';
+
+const currentLocale: Locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(currentLocale);
+
+const items = LOCALES.map((loc) => ({
+  loc,
+  label: LOCALE_LABELS[loc],
+  href: relocatePath(Astro.url, loc),
+  current: loc === currentLocale,
+}));
+---
+
+<details class="mk-lang" data-mk-lang>
+  <summary class="mk-lang__btn" aria-label={t('locale.switch')}>
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="8" cy="8" r="6.5" />
+      <path d="M1.5 8h13M8 1.5a10 10 0 0 1 0 13M8 1.5a10 10 0 0 0 0 13" />
+    </svg>
+    <span>{currentLocale.toUpperCase()}</span>
+  </summary>
+  <div class="mk-lang__menu" role="menu">
+    {items.map((it) => (
+      <a
+        href={it.href}
+        class:list={['mk-lang__item', { 'is-current': it.current }]}
+        role="menuitem"
+        hreflang={it.loc}
+      >
+        <span class="mk-lang__code">{it.loc.toUpperCase()}</span>
+        <span>{it.label}</span>
+      </a>
+    ))}
+  </div>
+</details>
+
+<script>
+  document.querySelectorAll<HTMLDetailsElement>('[data-mk-lang]').forEach((el) => {
+    document.addEventListener('click', (e) => {
+      if (!el.contains(e.target as Node)) el.open = false;
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') el.open = false;
+    });
+  });
+</script>
+
+<style>
+  .mk-lang {
+    position: relative;
+  }
+
+  .mk-lang__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 10px;
+    list-style: none;
+    background: transparent;
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-submit);
+    color: var(--kanap-text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition:
+      color var(--mk-duration) var(--mk-ease),
+      background-color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-lang__btn::-webkit-details-marker {
+    display: none;
+  }
+
+  .mk-lang__btn:hover {
+    color: var(--kanap-text-primary);
+    background: var(--kanap-pill-hover-bg);
+  }
+
+  .mk-lang[open] .mk-lang__btn {
+    color: var(--kanap-text-primary);
+    background: var(--kanap-pill-hover-bg);
+  }
+
+  .mk-lang__menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 160px;
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 20;
+  }
+
+  .mk-lang__item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--kanap-radius-submit);
+    color: var(--kanap-text-secondary);
+    font-size: 13px;
+    transition:
+      color var(--mk-duration) var(--mk-ease),
+      background-color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-lang__item:hover {
+    background: var(--kanap-pill-hover-bg);
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-lang__item.is-current {
+    color: var(--kanap-teal);
+  }
+
+  .mk-lang__code {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--kanap-text-tertiary);
+    min-width: 24px;
+  }
+</style>

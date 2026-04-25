@@ -1,0 +1,70 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import {
+  Section,
+  PageHeader,
+  SplitSection,
+  ScreenshotFrame,
+  FeatureGrid,
+  CTABand,
+} from './sections';
+import { getLocaleFromUrl, localePath } from '../i18n/ui';
+import type { FeaturesHubContent } from '../content/features/types';
+
+interface Props {
+  content: FeaturesHubContent;
+}
+
+const { content } = Astro.props;
+const locale = getLocaleFromUrl(Astro.url);
+---
+
+<BaseLayout title={content.meta.title} description={content.meta.description}>
+  <PageHeader
+    eyebrow={content.header.eyebrow}
+    title={content.header.title}
+    lead={content.header.lead}
+  />
+
+  {content.modules.map((mod, i) => (
+    <Section tone={i % 2 === 0 ? 'default' : 'sunken'} id={mod.slug.replace('/features/', '')}>
+      <SplitSection
+        eyebrow={mod.eyebrow}
+        title={mod.title}
+        body={mod.body}
+        bullets={mod.bullets}
+        reverse={i % 2 === 1}
+      >
+        <Fragment slot="visual">
+          <ScreenshotFrame placeholder alt={mod.shotAlt} />
+        </Fragment>
+        <Fragment slot="cta">
+          <a href={localePath(locale, mod.slug)} class="mk-btn mk-btn--ghost">
+            {mod.ctaLabel} →
+          </a>
+        </Fragment>
+      </SplitSection>
+    </Section>
+  ))}
+
+  <Section tone="default">
+    <FeatureGrid
+      eyebrow={content.crossCutting.eyebrow}
+      title={content.crossCutting.title}
+      intro={content.crossCutting.intro}
+      items={content.crossCutting.items.map((i) => ({ title: i.title, blurb: i.body }))}
+      columns={2}
+    />
+  </Section>
+
+  <Section tone="sunken" compact>
+    <CTABand
+      title={content.cta.title}
+      body={content.cta.body}
+      primaryHref={localePath(locale, '/trial/start')}
+      primaryLabel={content.cta.primary}
+      secondaryHref={localePath(locale, '/contact')}
+      secondaryLabel={content.cta.secondary}
+    />
+  </Section>
+</BaseLayout>

@@ -1,0 +1,108 @@
+---
+/**
+ * FaqList — accessible disclosure list (native <details>).
+ *
+ * Each FAQ is a <details> so it works without JS. First item can be
+ * defaultOpen for orientation on the FAQ page.
+ */
+
+interface Item {
+  q: string;
+  a: string;
+}
+
+interface Props {
+  items: Item[];
+  defaultOpenFirst?: boolean;
+}
+
+const { items, defaultOpenFirst = false } = Astro.props;
+---
+
+<ul class="mk-faq">
+  {items.map((item, i) => (
+    <li>
+      <details class="mk-faq__item" open={defaultOpenFirst && i === 0}>
+        <summary class="mk-faq__q">
+          <span class="mk-faq__q-text">{item.q}</span>
+          <svg class="mk-faq__icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M3 5l4 4 4-4" />
+          </svg>
+        </summary>
+        <div class="mk-faq__a">
+          <p set:html={item.a} />
+        </div>
+      </details>
+    </li>
+  ))}
+</ul>
+
+<style>
+  .mk-faq {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-faq li {
+    border-bottom: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-faq__item {
+    padding: 0;
+  }
+
+  .mk-faq__q {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 0;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--kanap-text-primary);
+    user-select: none;
+  }
+
+  .mk-faq__q::-webkit-details-marker {
+    display: none;
+  }
+
+  .mk-faq__q:hover {
+    color: var(--kanap-teal);
+  }
+
+  .mk-faq__icon {
+    color: var(--kanap-text-secondary);
+    transition: transform var(--mk-duration) var(--mk-ease);
+    flex-shrink: 0;
+  }
+
+  .mk-faq__item[open] .mk-faq__icon {
+    transform: rotate(180deg);
+  }
+
+  .mk-faq__a {
+    padding: 0 0 20px;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-faq__a p {
+    margin: 0;
+  }
+
+  .mk-faq__a :global(a) {
+    color: var(--kanap-teal);
+  }
+
+  .mk-faq__a :global(a:hover) {
+    color: var(--kanap-text-primary);
+  }
+</style>

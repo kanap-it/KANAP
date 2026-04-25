@@ -1,9 +1,8 @@
 import React from 'react';
-import { Box, GlobalStyles } from '@mui/material';
+import { Box, GlobalStyles, MenuItem, Select } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
   AdmonitionDirectiveDescriptor,
-  BlockTypeSelect,
   BoldItalicUnderlineToggles,
   ButtonOrDropdownButton,
   ChangeCodeMirrorLanguage,
@@ -12,6 +11,7 @@ import {
   CodeToggle,
   ConditionalContents,
   CreateLink,
+  activePlugins$,
   diffSourcePlugin,
   DiffSourceToggleWrapper,
   directivesPlugin,
@@ -41,13 +41,17 @@ import {
   toolbarPlugin,
   UndoRedo,
   insertMarkdown$,
+  convertSelectionToNode$,
+  currentBlockType$,
+  useCellValue,
   usePublisher,
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
-import { $getSelection, type LexicalEditor } from 'lexical';
+import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
+import { $createParagraphNode, $getSelection, type LexicalEditor } from 'lexical';
 import { hasPotentiallyUnsafeMdxPaste, sanitizeMarkdownForMdxPaste } from '../lib/mdxPaste';
 import { normalizeMarkdownForRichTextEditor } from '../lib/markdownEditorNormalization';
-import { getMarkdownEditorToolbarConfig } from './markdownEditorToolbarConfig';
+import { getMarkdownEditorToolbarConfig, type MarkdownEditorHeadingLevel } from './markdownEditorToolbarConfig';
 import {
   convertRichClipboardToMarkdown,
   extractClipboardImageFiles,
@@ -71,6 +75,10 @@ interface MarkdownEditorProps {
   fullToolbar?: boolean;
   /** Hide the toolbar until the editor receives focus (via :focus-within). */
   hideToolbarUntilFocus?: boolean;
+  /** Called when Ctrl+Enter or Cmd+Enter is pressed inside the editor. */
+  onModEnter?: () => void;
+  /** Called when Ctrl+S or Cmd+S is pressed inside the editor. */
+  onModSave?: () => void;
 }
 
 const EMOJI_OPTIONS = [
@@ -116,6 +124,99 @@ function EmojiPickerButton() {
   );
 }
 
+function KanapBlockStyleSelect({
+  allowedHeadingLevels,
+}: {
+  allowedHeadingLevels: MarkdownEditorHeadingLevel[];
+}) {
+  const convertSelectionToNode = usePublisher(convertSelectionToNode$);
+  const currentBlockType = useCellValue(currentBlockType$);
+  const activePlugins = useCellValue(activePlugins$);
+  const hasQuote = activePlugins.includes('quote');
+  const hasHeadings = activePlugins.includes('headings');
+
+  const items = React.useMemo(() => {
+    const next = [{ label: 'Paragraph', value: 'paragraph' }];
+    if (hasQuote) {
+      next.push({ label: 'Quote', value: 'quote' });
+    }
+    if (hasHeadings) {
+      next.push(...allowedHeadingLevels.map((level) => ({
+        label: `Heading ${level}`,
+        value: `h${level}`,
+      })));
+    }
+    return next;
+  }, [allowedHeadingLevels, hasHeadings, hasQuote]);
+
+  if (!hasQuote && !hasHeadings) return null;
+
+  const value = items.some((item) => item.value === currentBlockType)
+    ? currentBlockType
+    : 'paragraph';
+
+  return (
+    <Select
+      value={value}
+      variant="standard"
+      disableUnderline
+      size="small"
+      onChange={(event) => {
+        const blockType = String(event.target.value);
+        switch (blockType) {
+          case 'quote':
+            convertSelectionToNode(() => $createQuoteNode());
+            break;
+          case 'paragraph':
+            convertSelectionToNode(() => $createParagraphNode());
+            break;
+          default:
+            if (blockType.startsWith('h')) {
+              convertSelectionToNode(() => $createHeadingNode(blockType as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'));
+            }
+        }
+      }}
+      MenuProps={{
+        disablePortal: false,
+        PaperProps: {
+          sx: {
+            borderRadius: 1,
+            border: 1,
+            borderColor: 'divider',
+            boxShadow: 3,
+          },
+        },
+      }}
+      sx={{
+        minWidth: 116,
+        px: 0.75,
+        py: 0,
+        borderRadius: 0.75,
+        fontSize: '0.8125rem',
+        lineHeight: 1.5,
+        color: 'text.primary',
+        bgcolor: 'transparent',
+        '&:hover': { bgcolor: 'action.hover' },
+        '& .MuiSelect-select': {
+          py: 0.375,
+          pr: '22px !important',
+        },
+        '& .MuiSelect-icon': {
+          right: 2,
+          color: 'text.secondary',
+          fontSize: 18,
+        },
+      }}
+    >
+      {items.map((item) => (
+        <MenuItem key={item.value} value={item.value} sx={{ fontSize: '0.8125rem' }}>
+          {item.label}
+        </MenuItem>
+      ))}
+    </Select>
+  );
+}
+
 function getPasteTargetElement(target: EventTarget | null): HTMLElement | null {
   if (target instanceof HTMLElement) return target;
   if (target instanceof Text) return target.parentElement;
@@ -151,6 +252,8 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   onImageUrlImport,
   fullToolbar = false,
   hideToolbarUntilFocus = false,
+  onModEnter,
+  onModSave,
 }: MarkdownEditorProps) {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
@@ -168,9 +271,13 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   const internalChangeRef = React.useRef(false);
   const currentMarkdownRef = React.useRef(normalizeMarkdownForRichTextEditor(value || ''));
   const onChangeRef = React.useRef<MarkdownEditorProps['onChange']>(onChange);
+  const onModEnterRef = React.useRef<MarkdownEditorProps['onModEnter']>(onModEnter);
+  const onModSaveRef = React.useRef<MarkdownEditorProps['onModSave']>(onModSave);
   const imageUploadHandlerRef = React.useRef<MarkdownEditorProps['onImageUpload']>(onImageUpload);
   const imageUrlImportHandlerRef = React.useRef<MarkdownEditorProps['onImageUrlImport']>(onImageUrlImport);
   onChangeRef.current = onChange;
+  onModEnterRef.current = onModEnter;
+  onModSaveRef.current = onModSave;
   imageUploadHandlerRef.current = onImageUpload;
   imageUrlImportHandlerRef.current = onImageUrlImport;
   const [editorInstanceKey, setEditorInstanceKey] = React.useState(0);
@@ -345,6 +452,16 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
 
   React.useEffect(() => {
     const container = containerRef.current;
+    if (!container) return;
+    container
+      .querySelectorAll<HTMLButtonElement>('.kanap-mdx-toolbar button:not([type])')
+      .forEach((button) => {
+        button.type = 'button';
+      });
+  }, [disabled, editorInstanceKey, fullToolbar, onImageUpload]);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
     if (!container || disabled) return;
 
     const handlePaste = (event: ClipboardEvent) => {
@@ -465,7 +582,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
                       <>
                         <UndoRedo />
                         <Separator />
-                        <BlockTypeSelect />
+                        <KanapBlockStyleSelect allowedHeadingLevels={toolbarConfig.allowedHeadingLevels} />
                         <BoldItalicUnderlineToggles options={['Bold', 'Italic']} />
                         <StrikeThroughSupSubToggles options={toolbarConfig.strikeThroughOptions} />
                         {toolbarConfig.showHighlight ? <HighlightToggle /> : null}
@@ -504,8 +621,12 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
             backgroundColor: `${theme.palette.background.paper} !important`,
             color: `${theme.palette.text.primary} !important`,
             borderColor: `${theme.palette.divider} !important`,
+            zIndex: `${theme.zIndex.modal + 2} !important`,
             width: 'min(92vw, 22rem) !important',
             maxWidth: 'min(92vw, 22rem) !important',
+          },
+          '.kanap-mdx-root [data-radix-popper-content-wrapper]': {
+            zIndex: `${theme.zIndex.modal + 2} !important`,
           },
           '.mdxeditor-select-content [data-editor-dropdown], .kanap-mdx-root [data-editor-dropdown]': {
             backgroundColor: `${theme.palette.background.paper} !important`,
@@ -556,13 +677,30 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
       />
       <Box
         ref={containerRef}
+        onKeyDownCapture={(event) => {
+          if ((!event.ctrlKey && !event.metaKey) || event.nativeEvent.isComposing) return;
+          if (event.key.toLowerCase() === 's') {
+            const save = onModSaveRef.current;
+            if (!save) return;
+            event.preventDefault();
+            event.stopPropagation();
+            save();
+            return;
+          }
+          if (event.key !== 'Enter') return;
+          const submit = onModEnterRef.current;
+          if (!submit) return;
+          event.preventDefault();
+          event.stopPropagation();
+          submit();
+        }}
         sx={{
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
           height: fillHeight ? '100%' : 'auto',
           minHeight: 0,
-          overflow: 'hidden',
+          overflow: 'visible',
           border: 1,
           borderColor: disabled ? 'divider' : 'divider',
           borderRadius: 1,
@@ -605,6 +743,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
             flexDirection: 'column',
             height: fillHeight ? '100%' : 'auto',
             minHeight: 0,
+            overflow: 'visible',
           },
           '& .kanap-mdx-root .mdxeditor-diff-source-wrapper': {
             display: 'flex',

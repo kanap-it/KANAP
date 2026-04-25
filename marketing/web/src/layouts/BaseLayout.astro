@@ -1,0 +1,166 @@
+---
+/**
+ * BaseLayout — shared HTML shell.
+ *
+ * Responsibilities:
+ *  - <head> meta (title, description, canonical, hreflang, OG)
+ *  - Font loading (Inter Variable, JetBrains Mono Variable)
+ *  - No-flash theme init (reads localStorage / prefers-color-scheme before paint)
+ *  - Imports tokens.css + base.css
+ *  - Renders Nav + <slot /> + Footer
+ *
+ * Props surface is intentionally minimal. Page-specific OG images, JSON-LD
+ * and structured data are passed via the `head` slot.
+ */
+
+import '../styles/tokens.css';
+import '../styles/base.css';
+import '../styles/forms.css';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import {
+  DEFAULT_LOCALE,
+  LOCALES,
+  type Locale,
+  getLocaleFromUrl,
+  useTranslations,
+  relocatePath,
+} from '../i18n/ui';
+
+interface Props {
+  /** Page title; will be combined with site title. If omitted, uses site title only. */
+  title?: string;
+  /** Page meta description. Falls back to site default. */
+  description?: string;
+  /** Override canonical URL. Defaults to the current URL. */
+  canonical?: string;
+  /** Path without locale prefix (used to emit hreflang links). */
+  pathWithoutLocale?: string;
+}
+
+const { title, description, canonical, pathWithoutLocale } = Astro.props;
+
+const locale: Locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+
+const siteTitle = t('site.title');
+const siteDescription = t('site.description');
+const finalTitle = title ? `${title} · KANAP` : siteTitle;
+const finalDescription = description ?? siteDescription;
+const finalCanonical = canonical ?? Astro.url.href;
+
+const alternates = LOCALES.map((l) => ({
+  locale: l,
+  href: new URL(relocatePath(Astro.url, l), Astro.site ?? 'https://kanap.net').href,
+}));
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>{finalTitle}</title>
+    <meta name="description" content={finalDescription} />
+    <link rel="canonical" href={finalCanonical} />
+
+    {alternates.map((alt) => (
+      <link rel="alternate" hreflang={alt.locale} href={alt.href} />
+    ))}
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href={new URL(relocatePath(Astro.url, DEFAULT_LOCALE), Astro.site ?? 'https://kanap.net').href}
+    />
+
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={finalCanonical} />
+    <meta property="og:title" content={finalTitle} />
+    <meta property="og:description" content={finalDescription} />
+    <meta property="og:locale" content={locale} />
+    <meta property="og:image" content={new URL('/og-image.png', Astro.site ?? 'https://kanap.net').href} />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={finalTitle} />
+    <meta name="twitter:description" content={finalDescription} />
+    <meta name="twitter:image" content={new URL('/og-image.png', Astro.site ?? 'https://kanap.net').href} />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+
+    <!-- No-flash theme init: must run before first paint -->
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem('kanap-theme');
+          if (stored === 'light' || stored === 'dark') {
+            document.documentElement.setAttribute('data-theme', stored);
+          }
+          // If not stored, the @media (prefers-color-scheme) rule in tokens.css
+          // handles dark mode automatically.
+        } catch (e) {}
+      })();
+    </script>
+
+    <slot name="head" />
+
+    {import.meta.env.PUBLIC_GA_ID && (
+      <>
+        <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${import.meta.env.PUBLIC_GA_ID}`}></script>
+        <script is:inline define:vars={{ GA_ID: import.meta.env.PUBLIC_GA_ID }}>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', GA_ID, { anonymize_ip: true });
+        </script>
+      </>
+    )}
+  </head>
+  <body>
+    <a href="#main" class="mk-skip">Skip to content</a>
+    <Nav />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+
+    <!-- Enable smooth theme transitions only after first paint -->
+    <script is:inline>
+      requestAnimationFrame(function () {
+        document.body.classList.add('mk-theme-transitions');
+      });
+    </script>
+  </body>
+</html>
+
+<style>
+  .mk-skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--kanap-teal);
+    color: var(--kanap-teal-foreground);
+    padding: 8px 14px;
+    border-radius: var(--kanap-radius-submit);
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 100;
+  }
+  .mk-skip:focus {
+    left: 16px;
+    top: 16px;
+  }
+
+  main {
+    min-height: calc(100vh - var(--mk-nav-height));
+  }
+</style>

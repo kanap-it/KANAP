@@ -208,6 +208,9 @@ export default function UnifiedActivityForm({
               onImageUpload={onImageUpload}
               onImageUrlImport={onImageUrlImport}
               hideToolbarUntilFocus
+              onModEnter={() => {
+                void handleSubmit();
+              }}
             />
           </React.Suspense>
         </Box>
@@ -304,7 +307,13 @@ export default function UnifiedActivityForm({
           {/* Submit */}
           <Button
             variant="contained"
+            onMouseDown={(event) => {
+              // Keep the focus-within editor toolbar mounted so the footer does not
+              // shift before the click is dispatched.
+              event.preventDefault();
+            }}
             onClick={handleSubmit}
+            title="Submit (Ctrl/Cmd+Enter)"
             disabled={submitting || readOnly || (!hasAnyAction && !feedbackLabel)}
             sx={(theme) => ({
               flexShrink: 0,

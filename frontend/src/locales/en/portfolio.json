@@ -257,7 +257,7 @@
           "teamAndRelations": "Team and Relations"
         },
         "fields": {
-          "executionProgress": "Execution effort"
+          "executionProgress": "Progress"
         },
         "placeholders": {
           "purpose": "Describe the purpose of this project..."
@@ -357,7 +357,7 @@
           "noTimeLogged": "No time logged yet. Click \"Log Time\" to add entries."
         },
         "values": {
-          "executionProgress": "Execution Effort: {{progress}}%",
+          "executionProgress": "Progress: {{progress}}%",
           "hoursValue": "{{hours}}h",
           "mdHigher": "{{count}} MD higher",
           "mdLower": "{{count}} MD lower",
@@ -484,6 +484,7 @@
       },
       "originTask": {
         "fallback": "Task",
+        "sourceLabel": "Source task",
         "title": "Origin task",
         "withReference": "{{reference}}"
       },
@@ -1491,14 +1492,19 @@
         "it": "IT Effort Allocation"
       },
       "actions": {
+        "clearManualPins": "Clear manual pins",
         "edit": "Edit",
-        "manual": "Manual"
+        "manual": "Manual",
+        "splitEqually": "Split equally"
       },
       "chips": {
         "autoCalculated": "Auto-calculated",
         "lead": "Lead",
         "manual": "Manual",
         "orphaned": "Orphaned"
+      },
+      "helper": {
+        "autoRedistribution": "Edited rows stay manual; the rest is redistributed automatically."
       },
       "messages": {
         "noEligibleUsers": "No eligible users. Assign a {{effortType}} lead or team members first.",
@@ -1513,6 +1519,7 @@
         "contributor": "Contributor"
       },
       "validation": {
+        "pinnedTotalExceeded": "Manual rows exceed 100%. Lower one manual value before redistributing.",
         "totalDisplay": "Must equal 100%",
         "totalMustEqual100": "Allocations must sum to exactly 100%"
       }
@@ -1722,7 +1729,7 @@
         "originalScore": "Original Score",
         "overrideJustification": "Override Justification:",
         "overrideSuffix": "(Override)",
-        "priorityScore": "Priority Score"
+        "priorityScore": "Priority score"
       },
       "messages": {
         "loadCriteriaFailed": "Failed to load evaluation criteria",
@@ -1731,7 +1738,7 @@
         "saveFailed": "Failed to save scoring"
       },
       "sections": {
-        "evaluationCriteria": "Evaluation Criteria",
+        "evaluationCriteria": "Evaluation criteria",
         "originalRequestScoring": "Original Request Scoring"
       },
       "states": {

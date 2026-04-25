@@ -382,7 +382,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     // Load source requests
     if (include.has('source_requests')) {
       const links = await mg.query(
-        `SELECT rp.project_id, r.id, r.name, r.status
+        `SELECT rp.project_id, r.id, r.item_number, r.name, r.status
          FROM portfolio_request_projects rp
          JOIN portfolio_requests r ON r.id = rp.request_id
          WHERE rp.project_id = ANY($1)`,
@@ -391,7 +391,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       const map: Record<string, any[]> = {};
       links.forEach((l: any) => {
         if (!map[l.project_id]) map[l.project_id] = [];
-        map[l.project_id].push({ id: l.id, name: l.name, status: l.status });
+        map[l.project_id].push({ id: l.id, item_number: l.item_number, name: l.name, status: l.status });
       });
       items.forEach((i: any) => {
         i.source_requests = map[i.id] || [];

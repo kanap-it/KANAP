@@ -257,7 +257,7 @@
           "teamAndRelations": "Équipe et relations"
         },
         "fields": {
-          "executionProgress": "Charge d'exécution"
+          "executionProgress": "Progression"
         },
         "placeholders": {
           "purpose": "Décrivez l'objectif de ce projet..."
@@ -357,7 +357,7 @@
           "noTimeLogged": "Aucun temps enregistré. Cliquez sur « Saisir du temps » pour ajouter des entrées."
         },
         "values": {
-          "executionProgress": "Charge d'exécution : {{progress}} %",
+          "executionProgress": "Progression : {{progress}} %",
           "hoursValue": "{{hours}} h",
           "mdHigher": "{{count}} JH de plus",
           "mdLower": "{{count}} JH de moins",
@@ -1491,14 +1491,19 @@
         "it": "Ventilation de la charge IT"
       },
       "actions": {
+        "clearManualPins": "Retirer les épingles",
         "edit": "Modifier",
-        "manual": "Manuel"
+        "manual": "Manuel",
+        "splitEqually": "Répartir également"
       },
       "chips": {
         "autoCalculated": "Calculé automatiquement",
         "lead": "Responsable",
         "manual": "Manuel",
         "orphaned": "Orphelin"
+      },
+      "helper": {
+        "autoRedistribution": "Les lignes modifiées restent manuelles ; le reste est redistribué automatiquement."
       },
       "messages": {
         "noEligibleUsers": "Aucun utilisateur éligible. Assignez d'abord un responsable ou des membres d'équipe {{effortType}}.",
@@ -1513,6 +1518,7 @@
         "contributor": "Contributeur"
       },
       "validation": {
+        "pinnedTotalExceeded": "Les lignes manuelles dépassent 100 %. Réduisez une valeur manuelle avant de redistribuer.",
         "totalDisplay": "Doit être égal à 100 %",
         "totalMustEqual100": "Les ventilations doivent totaliser exactement 100 %"
       }

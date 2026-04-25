@@ -1,0 +1,7 @@
+---
+import TrialError from '../../../components/trial/TrialError.astro';
+import { getLocaleFromUrl } from '../../../i18n/ui';
+import { getTrialContent } from '../../../content/resolve';
+const copy = getTrialContent(getLocaleFromUrl(Astro.url)).failed;
+---
+<TrialError copy={copy} />

@@ -1,0 +1,107 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import {
+  Section,
+  PageHeader,
+  SplitSection,
+  ScreenshotFrame,
+  FeatureGrid,
+  CTABand,
+} from './sections';
+import { getLocaleFromUrl, localePath } from '../i18n/ui';
+import type { FeatureContent } from '../content/features/types';
+
+interface Props {
+  content: FeatureContent;
+}
+
+const { content } = Astro.props;
+const locale = getLocaleFromUrl(Astro.url);
+---
+
+<BaseLayout title={content.meta.title} description={content.meta.description}>
+  <PageHeader
+    eyebrow={content.header.eyebrow}
+    title={content.header.title}
+    lead={content.header.lead}
+  />
+
+  {content.sections.map((section, i) => (
+    <Section tone={i % 2 === 0 ? 'default' : 'sunken'}>
+      <SplitSection
+        title={section.title}
+        body={section.body}
+        bullets={section.bullets}
+        reverse={i % 2 === 1}
+      >
+        <Fragment slot="visual">
+          <ScreenshotFrame placeholder alt={section.shotAlt} />
+        </Fragment>
+      </SplitSection>
+    </Section>
+  ))}
+
+  <Section tone="default">
+    <FeatureGrid
+      title={content.more.title}
+      items={content.more.items.map((i) => ({ title: i.title, blurb: i.body }))}
+      columns={2}
+    />
+  </Section>
+
+  <Section tone="sunken" compact>
+    <nav class="mk-cross" aria-label={content.crossLinks.label}>
+      <p class="mk-eyebrow mk-cross__label">{content.crossLinks.label}</p>
+      <ul class="mk-cross__links">
+        {content.crossLinks.links.map((link) => (
+          <li>
+            <a href={localePath(locale, link.href)}>{link.label} →</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </Section>
+
+  <Section tone="default" compact>
+    <CTABand
+      title={content.cta.title}
+      body={content.cta.body}
+      primaryHref={localePath(locale, '/trial/start')}
+      primaryLabel={content.cta.primary}
+      secondaryHref={localePath(locale, '/contact')}
+      secondaryLabel={content.cta.secondary}
+    />
+  </Section>
+</BaseLayout>
+
+<style>
+  .mk-cross {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    align-items: flex-start;
+  }
+
+  .mk-cross__label {
+    margin: 0;
+  }
+
+  .mk-cross__links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 28px;
+  }
+
+  .mk-cross__links a {
+    font-size: 14px;
+    color: var(--kanap-teal);
+    font-weight: 500;
+  }
+
+  .mk-cross__links a:hover {
+    color: var(--kanap-text-primary);
+  }
+</style>

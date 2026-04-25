@@ -80,7 +80,7 @@ export default function RequestAnalysisTab({
 
   return (
     <Stack spacing={2}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
         {t('workspace.request.analysis.sections.businessProcesses')}
       </Typography>
       <BusinessProcessMultiSelect
@@ -89,7 +89,7 @@ export default function RequestAnalysisTab({
         onChange={onBusinessProcessesChange}
         disabled={!canManage}
       />
-      <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 1 }}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 500, mt: 1 }}>
         {t('workspace.request.analysis.sections.feasibilityReview')}
       </Typography>
       <FeasibilityReview
@@ -113,6 +113,10 @@ export default function RequestAnalysisTab({
           draftValue={form?.risks || ''}
           onDraftChange={onRisksDraftChange}
           onDirtyChange={onRisksDirtyChange}
+          showDocumentControls={false}
+          showManagedDocChip={false}
+          editModeBehavior="auto"
+          autosaveEnabled
         />
       </Box>
 
@@ -126,18 +130,23 @@ export default function RequestAnalysisTab({
         }}
       >
         <Stack spacing={1.5}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            alignItems={{ xs: 'stretch', md: 'flex-start' }}
+            justifyContent="space-between"
+            spacing={2}
+          >
             <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
                 {t('workspace.request.analysis.sections.analysisRecommendation')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {t('workspace.request.analysis.messages.publishRecommendation')}
               </Typography>
             </Box>
-            <Stack direction="row" spacing={1}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}>
               {latestAnalysisRecommendation && (
-                <Button variant="outlined" onClick={onOpenActivity}>
+                <Button variant="outlined" onClick={onOpenActivity} sx={{ whiteSpace: 'nowrap' }}>
                   {t('workspace.request.analysis.actions.viewInActivity')}
                 </Button>
               )}
@@ -146,6 +155,7 @@ export default function RequestAnalysisTab({
                 color="warning"
                 disabled={!canManage || form?.status === 'converted'}
                 onClick={onOpenRecommendationDialog}
+                sx={{ whiteSpace: 'nowrap' }}
               >
                 {recommendationButtonLabel}
               </Button>
@@ -163,7 +173,7 @@ export default function RequestAnalysisTab({
               }}
             >
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
                   {t('workspace.request.analysis.labels.latestRecommendation')}
                 </Typography>
                 {latestRecommendationOutcome && (

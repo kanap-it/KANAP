@@ -1,0 +1,53 @@
+---
+/**
+ * TrustStrip — placeholder for customer logos / proof line.
+ *
+ * With no logos yet, renders a gentle "Used by IT teams worldwide — share
+ * your story" note that invites customers to introduce themselves.
+ */
+
+import { getLocaleFromUrl, useTranslations, localePath } from '../../i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+---
+
+<div class="mk-trust">
+  <p class="mk-small mk-trust__text">
+    <span>{t('trust.placeholder')}</span>
+    <span class="mk-trust__sep" aria-hidden="true">·</span>
+    <a href={localePath(locale, '/contact')} class="mk-trust__link">
+      {t('trust.cta')}
+    </a>
+  </p>
+</div>
+
+<style>
+  .mk-trust {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .mk-trust__text {
+    color: var(--kanap-text-tertiary);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .mk-trust__sep {
+    color: var(--kanap-text-tertiary);
+    opacity: 0.5;
+  }
+
+  .mk-trust__link {
+    color: var(--kanap-teal);
+    font-size: inherit;
+  }
+
+  .mk-trust__link:hover {
+    color: var(--kanap-text-primary);
+  }
+</style>

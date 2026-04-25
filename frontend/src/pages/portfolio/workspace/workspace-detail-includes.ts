@@ -1,5 +1,5 @@
-export type RequestWorkspaceTabKey = 'summary' | 'analysis' | 'scoring' | 'knowledge' | 'activity';
-export type ProjectWorkspaceTabKey = 'summary' | 'scoring' | 'timeline' | 'effort' | 'tasks' | 'knowledge' | 'activity';
+export type RequestWorkspaceTabKey = 'summary' | 'analysis' | 'scoring' | 'knowledge';
+export type ProjectWorkspaceTabKey = 'summary' | 'scoring' | 'timeline' | 'effort' | 'tasks' | 'knowledge';
 
 const REQUEST_SHARED_INCLUDES = [
   'team',
@@ -28,8 +28,6 @@ export function getRequestWorkspaceInclude(tab: RequestWorkspaceTabKey) {
       return joinIncludes([...REQUEST_SHARED_INCLUDES, 'activities', 'business_processes']);
     case 'analysis':
       return joinIncludes([...REQUEST_SHARED_INCLUDES, 'activities', 'business_processes']);
-    case 'activity':
-      return joinIncludes([...REQUEST_SHARED_INCLUDES, 'activities']);
     case 'scoring':
     case 'knowledge':
     default:
@@ -47,8 +45,6 @@ export function getProjectWorkspaceInclude(tab: ProjectWorkspaceTabKey) {
       return joinIncludes([...PROJECT_SHARED_INCLUDES, 'time_entries']);
     case 'tasks':
       return joinIncludes([...PROJECT_SHARED_INCLUDES, 'phases']);
-    case 'activity':
-      return joinIncludes([...PROJECT_SHARED_INCLUDES, 'activities']);
     case 'scoring':
     case 'knowledge':
     default:

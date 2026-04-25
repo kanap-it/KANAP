@@ -1,0 +1,53 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getLocaleFromUrl, useTranslations, localePath } from '../i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+---
+
+<BaseLayout title="404">
+  <section class="mk-404 mk-section">
+    <div class="mk-container mk-404__inner">
+      <span class="mk-eyebrow">404</span>
+      <h1 class="mk-404__title">Page not found.</h1>
+      <p class="mk-lead mk-404__sub">
+        This page doesn't exist — or not yet. The new site is still being built.
+      </p>
+      <div class="mk-404__actions">
+        <a href={localePath(locale, '/')} class="mk-btn mk-btn--primary">
+          Back to home
+        </a>
+        <a href={localePath(locale, '/features')} class="mk-btn mk-btn--ghost">
+          {t('nav.features')}
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .mk-404 {
+    padding-top: clamp(64px, 12vw, 160px);
+    padding-bottom: clamp(64px, 12vw, 160px);
+  }
+
+  .mk-404__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+    max-width: 620px;
+  }
+
+  .mk-404__title {
+    margin-top: 4px;
+  }
+
+  .mk-404__actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+</style>

@@ -1,0 +1,99 @@
+---
+/**
+ * PillarGrid — 3-up grid of positioning pillars (Practitioner-built, etc.)
+ *
+ * Usage:
+ *   <PillarGrid eyebrow="Why KANAP" title="Built different."
+ *               pillars={[{ title, body }, ...]} />
+ */
+
+interface Pillar {
+  title: string;
+  body: string;
+}
+
+interface Props {
+  eyebrow?: string;
+  title?: string;
+  intro?: string;
+  pillars: Pillar[];
+}
+
+const { eyebrow, title, intro, pillars } = Astro.props;
+---
+
+<div class="mk-pillars">
+  {(eyebrow || title || intro) && (
+    <header class="mk-pillars__head">
+      {eyebrow && <span class="mk-eyebrow">{eyebrow}</span>}
+      {title && <h2 class="mk-pillars__title">{title}</h2>}
+      {intro && <p class="mk-lead mk-pillars__intro">{intro}</p>}
+    </header>
+  )}
+
+  <div class="mk-pillars__grid">
+    {pillars.map((p) => (
+      <article class="mk-pillar">
+        <h3 class="mk-pillar__title">{p.title}</h3>
+        <p class="mk-pillar__body">{p.body}</p>
+      </article>
+    ))}
+  </div>
+</div>
+
+<style>
+  .mk-pillars__head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 720px;
+    margin-bottom: 28px;
+  }
+
+  .mk-pillars__title {
+    margin: 0;
+  }
+
+  .mk-pillars__intro {
+    max-width: 620px;
+  }
+
+  .mk-pillars__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+  }
+
+  .mk-pillar {
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: box-shadow var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-pillar:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  :root[data-theme='dark'] .mk-pillar:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .mk-pillar__title {
+    font-size: 18px;
+    line-height: 1.3;
+    margin: 0;
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-pillar__body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--kanap-text-secondary);
+    margin: 0;
+  }
+</style>

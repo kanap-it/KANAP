@@ -1,0 +1,175 @@
+/**
+ * KANAP design tokens — auto-generated from
+ *   frontend/src/pages/tasks/theme/taskDetailTokens.ts
+ *
+ * Do NOT edit by hand. Regenerate with:  npm run tokens
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Palette (light) */
+  --kanap-bg-primary: #FFFFFF;
+  --kanap-bg-page: #FAFAFA;
+  --kanap-bg-drawer: #FBFBFC;
+  --kanap-bg-composer: #FFFFFF;
+  --kanap-border-default: #E5E7EB;
+  --kanap-border-soft: #F1F2F4;
+  --kanap-text-primary: #111827;
+  --kanap-text-secondary: #6B7280;
+  --kanap-text-tertiary: #9CA3AF;
+  --kanap-teal: #1A6B7A;
+  --kanap-teal-foreground: #FFFFFF;
+  --kanap-orange: #E8920F;
+  --kanap-danger: #DC2626;
+  --kanap-pill-bg: #F6F7F9;
+  --kanap-pill-border: #E5E7EB;
+  --kanap-pill-hover-bg: #EDEEF1;
+  --kanap-pill-danger-bg: rgba(220, 38, 38, 0.06);
+  --kanap-pill-danger-border: rgba(220, 38, 38, 0.20);
+  --kanap-pill-danger-hover-bg: rgba(220, 38, 38, 0.10);
+  --kanap-nav-chip-bg: rgba(26, 107, 122, 0.07);
+  --kanap-nav-chip-border: rgba(26, 107, 122, 0.22);
+  --kanap-nav-chip-fg: #1A6B7A;
+  --kanap-slider-track: rgba(0,0,0,0.08);
+  --kanap-tab-bg: rgba(26, 107, 122, 0.09);
+  --kanap-tab-bg-hover: rgba(26, 107, 122, 0.14);
+  --kanap-tab-bg-active: #1A6B7A;
+  --kanap-tab-border: rgba(26, 107, 122, 0.35);
+  --kanap-tab-border-active: #1A6B7A;
+  --kanap-tab-fg: #1A6B7A;
+  --kanap-tab-fg-active: #FFFFFF;
+  --kanap-status-open: #9CA3AF;
+  --kanap-status-pending: #E8920F;
+  --kanap-status-in-progress: #3B82F6;
+  --kanap-status-in-testing: #8B5CF6;
+  --kanap-status-done: #10B981;
+  --kanap-status-cancelled: #9CA3AF;
+  --kanap-priority-blocker: #DC2626;
+  --kanap-priority-high: #E8920F;
+  --kanap-priority-normal: #3B82F6;
+  --kanap-priority-low: #9CA3AF;
+  --kanap-priority-optional: #D1D5DB;
+
+  /* Border radius */
+  --kanap-radius-composer: 8px;
+  --kanap-radius-pill: 5px;
+  --kanap-radius-submit: 6px;
+  --kanap-radius-avatar: 50%;
+  --kanap-radius-slider-track: 2px;
+
+  /* Marketing-only extensions (hero display type, layout) */
+  --mk-hero-size: clamp(36px, 5vw, 60px);
+  --mk-hero-lh: 1.08;
+  --mk-section-size: clamp(26px, 3vw, 34px);
+  --mk-section-lh: 1.18;
+  --mk-eyebrow-size: 12px;
+  --mk-body-size: 15px;
+  --mk-body-lh: 1.6;
+  --mk-small-size: 13px;
+  --mk-max-content: 1200px;
+  --mk-max-prose: 680px;
+  --mk-nav-height: 60px;
+  --mk-section-pad-y: clamp(40px, 5vw, 72px);
+  --mk-section-pad-y-compact: clamp(28px, 3.5vw, 48px);
+  --mk-gutter: clamp(20px, 4vw, 40px);
+
+  /* Motion */
+  --mk-ease: cubic-bezier(0.2, 0, 0, 1);
+  --mk-duration: 160ms;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Palette (dark) */
+  --kanap-bg-primary: #181A20;
+  --kanap-bg-page: #0F1117;
+  --kanap-bg-drawer: #14161C;
+  --kanap-bg-composer: #1F2128;
+  --kanap-border-default: rgba(255,255,255,0.08);
+  --kanap-border-soft: rgba(255,255,255,0.05);
+  --kanap-text-primary: #E5E7EB;
+  --kanap-text-secondary: #9CA3AF;
+  --kanap-text-tertiary: #6B7280;
+  --kanap-teal: #4DB8C9;
+  --kanap-teal-foreground: #0F1117;
+  --kanap-orange: #F0A830;
+  --kanap-danger: #F87171;
+  --kanap-pill-bg: rgba(255,255,255,0.04);
+  --kanap-pill-border: rgba(255,255,255,0.10);
+  --kanap-pill-hover-bg: rgba(255,255,255,0.07);
+  --kanap-pill-danger-bg: rgba(248, 113, 113, 0.08);
+  --kanap-pill-danger-border: rgba(248, 113, 113, 0.25);
+  --kanap-pill-danger-hover-bg: rgba(248, 113, 113, 0.12);
+  --kanap-nav-chip-bg: rgba(77, 184, 201, 0.10);
+  --kanap-nav-chip-border: rgba(77, 184, 201, 0.28);
+  --kanap-nav-chip-fg: #4DB8C9;
+  --kanap-slider-track: rgba(255,255,255,0.10);
+  --kanap-tab-bg: rgba(77, 184, 201, 0.13);
+  --kanap-tab-bg-hover: rgba(77, 184, 201, 0.18);
+  --kanap-tab-bg-active: #4DB8C9;
+  --kanap-tab-border: rgba(77, 184, 201, 0.42);
+  --kanap-tab-border-active: #4DB8C9;
+  --kanap-tab-fg: #4DB8C9;
+  --kanap-tab-fg-active: #0F1117;
+  --kanap-status-open: #9CA3AF;
+  --kanap-status-pending: #F0A830;
+  --kanap-status-in-progress: #60A5FA;
+  --kanap-status-in-testing: #A78BFA;
+  --kanap-status-done: #34D399;
+  --kanap-status-cancelled: #6B7280;
+  --kanap-priority-blocker: #F87171;
+  --kanap-priority-high: #F0A830;
+  --kanap-priority-normal: #60A5FA;
+  --kanap-priority-low: #9CA3AF;
+  --kanap-priority-optional: #6B7280;
+}
+
+/* System preference: dark mode when user has not set a preference */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --kanap-bg-primary: #181A20;
+    --kanap-bg-page: #0F1117;
+    --kanap-bg-drawer: #14161C;
+    --kanap-bg-composer: #1F2128;
+    --kanap-border-default: rgba(255,255,255,0.08);
+    --kanap-border-soft: rgba(255,255,255,0.05);
+    --kanap-text-primary: #E5E7EB;
+    --kanap-text-secondary: #9CA3AF;
+    --kanap-text-tertiary: #6B7280;
+    --kanap-teal: #4DB8C9;
+    --kanap-teal-foreground: #0F1117;
+    --kanap-orange: #F0A830;
+    --kanap-danger: #F87171;
+    --kanap-pill-bg: rgba(255,255,255,0.04);
+    --kanap-pill-border: rgba(255,255,255,0.10);
+    --kanap-pill-hover-bg: rgba(255,255,255,0.07);
+    --kanap-pill-danger-bg: rgba(248, 113, 113, 0.08);
+    --kanap-pill-danger-border: rgba(248, 113, 113, 0.25);
+    --kanap-pill-danger-hover-bg: rgba(248, 113, 113, 0.12);
+    --kanap-nav-chip-bg: rgba(77, 184, 201, 0.10);
+    --kanap-nav-chip-border: rgba(77, 184, 201, 0.28);
+    --kanap-nav-chip-fg: #4DB8C9;
+    --kanap-slider-track: rgba(255,255,255,0.10);
+    --kanap-tab-bg: rgba(77, 184, 201, 0.13);
+    --kanap-tab-bg-hover: rgba(77, 184, 201, 0.18);
+    --kanap-tab-bg-active: #4DB8C9;
+    --kanap-tab-border: rgba(77, 184, 201, 0.42);
+    --kanap-tab-border-active: #4DB8C9;
+    --kanap-tab-fg: #4DB8C9;
+    --kanap-tab-fg-active: #0F1117;
+    --kanap-status-open: #9CA3AF;
+    --kanap-status-pending: #F0A830;
+    --kanap-status-in-progress: #60A5FA;
+    --kanap-status-in-testing: #A78BFA;
+    --kanap-status-done: #34D399;
+    --kanap-status-cancelled: #6B7280;
+    --kanap-priority-blocker: #F87171;
+    --kanap-priority-high: #F0A830;
+    --kanap-priority-normal: #60A5FA;
+    --kanap-priority-low: #9CA3AF;
+    --kanap-priority-optional: #6B7280;
+  }
+}

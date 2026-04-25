@@ -49,8 +49,10 @@ export default function EffortAllocationDialog({
 }: EffortAllocationDialogProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const [allocations, setAllocations] = React.useState<Record<string, number>>({});
+  const [pinnedUserIds, setPinnedUserIds] = React.useState<Set<string>>(() => new Set());
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const initialAllocationsRef = React.useRef<Record<string, number>>({});
   const effortTypeLabel = t(`portfolio:dialogs.effortAllocation.effortTypes.${effortType}`);
 
   // Sort users: lead first, then alphabetically
@@ -71,18 +73,103 @@ export default function EffortAllocationDialog({
       for (const user of eligibleUsers) {
         initial[user.user_id] = user.allocation_pct ?? 0;
       }
+      initialAllocationsRef.current = initial;
       setAllocations(initial);
+      setPinnedUserIds(new Set());
       setError(null);
     }
   }, [open, eligibleUsers]);
 
   const total = Object.values(allocations).reduce((sum, v) => sum + (v || 0), 0);
   const isValid = total === 100;
+  const hasPinnedRows = pinnedUserIds.size > 0;
+
+  const distributeEvenly = React.useCallback((userIds: string[], totalPct: number): Record<string, number> => {
+    if (userIds.length === 0) return {};
+    const base = Math.floor(totalPct / userIds.length);
+    const remainder = totalPct - base * userIds.length;
+    return Object.fromEntries(userIds.map((id, index) => [id, base + (index < remainder ? 1 : 0)]));
+  }, []);
+
+  const distributeByCurrentWeights = React.useCallback((
+    userIds: string[],
+    totalPct: number,
+    weights: Record<string, number>,
+  ): Record<string, number> => {
+    if (userIds.length === 0) return {};
+    const weightTotal = userIds.reduce((sum, id) => sum + Math.max(0, weights[id] || 0), 0);
+    if (weightTotal <= 0) return distributeEvenly(userIds, totalPct);
+
+    const rows = userIds.map((id) => {
+      const exact = (Math.max(0, weights[id] || 0) / weightTotal) * totalPct;
+      return {
+        id,
+        value: Math.floor(exact),
+        remainder: exact - Math.floor(exact),
+      };
+    });
+    let remainder = totalPct - rows.reduce((sum, row) => sum + row.value, 0);
+    rows
+      .sort((a, b) => b.remainder - a.remainder || a.id.localeCompare(b.id))
+      .forEach((row) => {
+        if (remainder <= 0) return;
+        row.value += 1;
+        remainder -= 1;
+      });
+    return Object.fromEntries(rows.map((row) => [row.id, row.value]));
+  }, [distributeEvenly]);
+
+  const redistributeWithPins = React.useCallback((
+    nextAllocations: Record<string, number>,
+    nextPinnedUserIds: Set<string>,
+    redistributionWeights: Record<string, number>,
+  ): Record<string, number> => {
+    const userIds = sortedUsers.map((user) => user.user_id);
+    const pinnedTotal = userIds
+      .filter((id) => nextPinnedUserIds.has(id))
+      .reduce((sum, id) => sum + (nextAllocations[id] || 0), 0);
+
+    if (pinnedTotal > 100) {
+      setError(t('portfolio:dialogs.effortAllocation.validation.pinnedTotalExceeded'));
+      return nextAllocations;
+    }
+
+    const flexibleUserIds = userIds.filter((id) => !nextPinnedUserIds.has(id));
+    const flexibleAllocations = distributeByCurrentWeights(
+      flexibleUserIds,
+      100 - pinnedTotal,
+      redistributionWeights,
+    );
+    setError(null);
+    return {
+      ...nextAllocations,
+      ...flexibleAllocations,
+    };
+  }, [distributeByCurrentWeights, sortedUsers, t]);
 
   const handleChange = (userId: string, value: string) => {
     const numValue = value === '' ? 0 : parseInt(value, 10);
     if (isNaN(numValue) || numValue < 0 || numValue > 100) return;
-    setAllocations((prev) => ({ ...prev, [userId]: numValue }));
+    const nextPinnedUserIds = new Set(pinnedUserIds);
+    nextPinnedUserIds.add(userId);
+    setAllocations(redistributeWithPins(
+      { ...allocations, [userId]: numValue },
+      nextPinnedUserIds,
+      allocations,
+    ));
+    setPinnedUserIds(nextPinnedUserIds);
+  };
+
+  const handleClearPins = () => {
+    setPinnedUserIds(new Set());
+    setAllocations(initialAllocationsRef.current);
+    setError(null);
+  };
+
+  const handleSplitEqually = () => {
+    setPinnedUserIds(new Set());
+    setAllocations(distributeEvenly(sortedUsers.map((user) => user.user_id), 100));
+    setError(null);
   };
 
   const handleSubmit = async () => {
@@ -135,6 +222,27 @@ export default function EffortAllocationDialog({
             {t('portfolio:dialogs.effortAllocation.description')}
           </Typography>
 
+          {sortedUsers.length > 0 && (
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              justifyContent="space-between"
+              alignItems={{ xs: 'flex-start', sm: 'center' }}
+              spacing={1}
+            >
+              <Stack direction="row" spacing={1}>
+                <Button size="small" onClick={handleSplitEqually}>
+                  {t('portfolio:dialogs.effortAllocation.actions.splitEqually')}
+                </Button>
+                <Button size="small" onClick={handleClearPins} disabled={!hasPinnedRows}>
+                  {t('portfolio:dialogs.effortAllocation.actions.clearManualPins')}
+                </Button>
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                {t('portfolio:dialogs.effortAllocation.helper.autoRedistribution')}
+              </Typography>
+            </Stack>
+          )}
+
           {sortedUsers.length === 0 ? (
             <Alert severity="info">
               {t('portfolio:dialogs.effortAllocation.messages.noEligibleUsers', {
@@ -168,6 +276,11 @@ export default function EffortAllocationDialog({
                           {user.is_lead && (
                             <Typography variant="body2" color="text.secondary">
                               {t('portfolio:dialogs.effortAllocation.chips.lead')}
+                            </Typography>
+                          )}
+                          {pinnedUserIds.has(user.user_id) && (
+                            <Typography variant="body2" color="text.secondary">
+                              {t('portfolio:dialogs.effortAllocation.chips.manual')}
                             </Typography>
                           )}
                         </Stack>

@@ -1,0 +1,10 @@
+---
+import FeaturesHub from '../../components/FeaturesHub.astro';
+import { getLocaleFromUrl } from '../../i18n/ui';
+import { getFeaturesHubContent } from '../../content/resolve';
+
+const locale = getLocaleFromUrl(Astro.url);
+const content = getFeaturesHubContent(locale);
+---
+
+<FeaturesHub content={content} />

@@ -112,9 +112,16 @@ export default function RecommendationDialog({
   };
 
   return (
-    <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth="md" fullWidth>
+    <Dialog
+      open={open}
+      onClose={submitting ? undefined : onClose}
+      maxWidth="md"
+      fullWidth
+      disableEnforceFocus
+      PaperProps={{ sx: { overflow: 'visible' } }}
+    >
       <DialogTitle>{t('portfolio:dialogs.recommendation.title')}</DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ overflow: 'visible' }}>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {priorityScore != null && (
             <Alert severity="info">
@@ -183,6 +190,7 @@ export default function RecommendationDialog({
                 minRows={10}
                 maxRows={18}
                 disabled={submitting}
+                onModSave={() => { void handleSubmit(); }}
                 onImageUpload={onImageUpload ? handleImageUpload : undefined}
                 onImageUrlImport={onImageUrlImport ? handleImageUrlImport : undefined}
               />

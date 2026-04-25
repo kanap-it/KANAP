@@ -1,5 +1,4 @@
 import React from 'react';
-import type { TFunction } from 'i18next';
 import {
   Box,
   Button,
@@ -11,6 +10,7 @@ import {
   DialogTitle,
   Divider,
   IconButton,
+  InputAdornment,
   MenuItem,
   Select,
   Stack,
@@ -20,11 +20,14 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import EventIcon from '@mui/icons-material/Event';
 import {
   DndContext,
   closestCenter,
@@ -51,6 +54,7 @@ import {
   getMilestoneStatusLabel,
   getPhaseStatusLabel,
 } from '../../../../utils/portfolioI18n';
+import { getDotColor } from '../../../../utils/statusColors';
 import { ProjectTimeline } from '../../components/ProjectTimeline';
 
 type ProjectTimelineTabProps = {
@@ -78,17 +82,334 @@ type SortablePhaseRowProps = {
 
 function getDateVariance(planned: string | null, baseline: string | null): number | null {
   if (!planned || !baseline) return null;
-  const plannedTime = new Date(planned).getTime();
-  const baselineTime = new Date(baseline).getTime();
+  const [plannedYear, plannedMonth, plannedDay] = getDatePart(planned).split('-').map(Number);
+  const [baselineYear, baselineMonth, baselineDay] = getDatePart(baseline).split('-').map(Number);
+  if (!plannedYear || !plannedMonth || !plannedDay || !baselineYear || !baselineMonth || !baselineDay) return null;
+  const plannedTime = Date.UTC(plannedYear, plannedMonth - 1, plannedDay);
+  const baselineTime = Date.UTC(baselineYear, baselineMonth - 1, baselineDay);
   return Math.round((plannedTime - baselineTime) / (1000 * 60 * 60 * 24));
 }
 
-function formatDateVariance(t: TFunction, diff: number | null) {
-  if (diff == null) return null;
-  if (diff === 0) return t('workspace.project.timeline.values.onTrack');
-  if (diff > 0) return t('workspace.project.timeline.values.daysLater', { count: diff });
-  return t('workspace.project.timeline.values.daysEarlier', { count: Math.abs(diff) });
+function getDatePart(value: string | null | undefined): string {
+  if (!value) return '';
+  return value.includes('T') ? value.split('T')[0] : value;
 }
+
+function formatShortDate(value: string | null | undefined, locale: string): string {
+  const datePart = getDatePart(value);
+  if (!datePart) return '–';
+  const [yearText, monthText, dayText] = datePart.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (!year || !month || !day) return '–';
+
+  const date = new Date(year, month - 1, day);
+  const parts = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).formatToParts(date);
+  const dayPart = parts.find((part) => part.type === 'day')?.value;
+  const monthPart = parts.find((part) => part.type === 'month')?.value;
+  const yearPart = parts.find((part) => part.type === 'year')?.value;
+
+  return [dayPart, monthPart, yearPart].filter(Boolean).join(' ') || '–';
+}
+
+function formatCompactVariance(diff: number | null): { text: string; tone: 'late' | 'early' } | null {
+  if (diff == null || diff === 0) return null;
+  return {
+    text: `${Math.abs(diff)}d ${diff > 0 ? 'late' : 'early'}`,
+    tone: diff > 0 ? 'late' : 'early',
+  };
+}
+
+function getPhaseStatusColorName(status: string): string {
+  if (status === 'completed') return 'success';
+  if (status === 'in_progress') return 'info';
+  if (status === 'pending') return 'warning';
+  return 'default';
+}
+
+function PhaseStatusValue({ status }: { status: string }) {
+  const { t } = useTranslation(['portfolio']);
+
+  return (
+    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+      <Box
+        component="span"
+        sx={(theme) => ({
+          width: 7,
+          height: 7,
+          borderRadius: '50%',
+          flexShrink: 0,
+          bgcolor: getDotColor(getPhaseStatusColorName(status), theme.palette.mode),
+        })}
+      />
+      <Box component="span" sx={(theme) => ({ fontSize: 13, fontWeight: 400, color: theme.palette.kanap.text.primary })}>
+        {getPhaseStatusLabel(t, status)}
+      </Box>
+    </Box>
+  );
+}
+
+function CompactPhaseDateField({
+  disabled,
+  locale,
+  onChangeYmd,
+  valueYmd,
+}: {
+  disabled?: boolean;
+  locale: string;
+  onChangeYmd: (next: string) => void;
+  valueYmd?: string | null;
+}) {
+  const nativeRef = React.useRef<HTMLInputElement | null>(null);
+  const [focused, setFocused] = React.useState(false);
+  const normalizedYmd = getDatePart(valueYmd);
+
+  const openPicker = () => {
+    if (disabled) return;
+    nativeRef.current?.showPicker?.();
+    if (!nativeRef.current?.showPicker) nativeRef.current?.click();
+  };
+
+  return (
+    <Box
+      className="kanap-phase-date-field"
+      sx={{
+        position: 'relative',
+        '&:hover .kanap-phase-calendar-button': {
+          opacity: disabled ? 0 : 1,
+        },
+      }}
+    >
+      <input
+        ref={nativeRef}
+        type="date"
+        style={{
+          position: 'absolute',
+          right: 0,
+          top: '50%',
+          opacity: 0,
+          width: 0,
+          height: 0,
+          pointerEvents: 'none',
+        }}
+        value={normalizedYmd}
+        disabled={disabled}
+        onChange={(event) => onChangeYmd(event.target.value || '')}
+      />
+      <TextField
+        value={formatShortDate(valueYmd, locale)}
+        disabled={disabled}
+        fullWidth
+        onClick={openPicker}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openPicker();
+          }
+        }}
+        inputProps={{ readOnly: true }}
+        InputProps={{
+          disableUnderline: true,
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                className="kanap-phase-calendar-button"
+                size="small"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openPicker();
+                }}
+                aria-label="Open calendar"
+                tabIndex={-1}
+                disabled={disabled}
+                sx={{
+                  opacity: focused && !disabled ? 1 : 0,
+                  transition: 'opacity 0.15s',
+                  p: '2px',
+                }}
+              >
+                <EventIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
+        sx={(theme) => ({
+          '& .MuiInputBase-root': {
+            color: theme.palette.kanap.text.primary,
+            fontFamily: theme.typography.fontFamily,
+            fontSize: 13,
+            fontWeight: 400,
+            cursor: disabled ? 'default' : 'pointer',
+          },
+          '& .MuiInputBase-input': {
+            p: '0 !important',
+            height: 20,
+            fontFamily: theme.typography.fontFamily,
+            fontSize: 13,
+            fontWeight: 400,
+            cursor: disabled ? 'default' : 'pointer',
+          },
+          '& .MuiInputAdornment-root': {
+            m: 0,
+          },
+        })}
+      />
+    </Box>
+  );
+}
+
+const sectionSx: SxProps<Theme> = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '12px',
+};
+
+const sectionHeadSx: SxProps<Theme> = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '16px',
+};
+
+const sectionTitleSx: SxProps<Theme> = (theme) => ({
+  fontSize: 14,
+  fontWeight: 500,
+  lineHeight: 1.4,
+  color: theme.palette.kanap.text.primary,
+});
+
+const linkTealButtonSx: SxProps<Theme> = (theme) => ({
+  minWidth: 0,
+  height: 'auto',
+  p: 0,
+  color: theme.palette.kanap.teal,
+  fontSize: 12,
+  fontWeight: 400,
+  lineHeight: 1.4,
+  '&:hover': {
+    bgcolor: 'transparent',
+    textDecoration: 'underline',
+    textUnderlineOffset: '2px',
+  },
+});
+
+const phaseTableSx: SxProps<Theme> = (theme) => ({
+  '& .MuiTableCell-head': {
+    fontSize: 12,
+    fontWeight: 500,
+    color: theme.palette.kanap.text.tertiary,
+    textAlign: 'left',
+    p: '8px 10px',
+    borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+  },
+  '& .MuiTableCell-body': {
+    fontSize: 13,
+    fontWeight: 400,
+    color: theme.palette.kanap.text.primary,
+    p: '10px 10px',
+    borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
+    verticalAlign: 'middle',
+  },
+  '& .kanap-phase-row:hover .MuiTableCell-body': {
+    bgcolor: theme.palette.action.hover,
+  },
+  '& .kanap-phase-row:focus-within .phase-row-actions, & .kanap-phase-row:hover .phase-row-actions': {
+    opacity: 1,
+  },
+  '& .phase-row-actions': {
+    opacity: 0,
+    transition: 'opacity 0.15s',
+  },
+  '& .kanap-phase-index': {
+    fontSize: 12,
+    fontWeight: 400,
+    color: theme.palette.kanap.text.tertiary,
+  },
+  '& .kanap-phase-index svg': {
+    color: theme.palette.kanap.text.tertiary,
+    fontSize: 15,
+  },
+  '& .MuiInputBase-input': {
+    fontFamily: theme.typography.fontFamily,
+    fontSize: 13,
+    fontWeight: 400,
+    color: theme.palette.kanap.text.primary,
+  },
+  '& .MuiInputBase-input.Mui-disabled, & .MuiInputBase-root.Mui-disabled .MuiSelect-select': {
+    WebkitTextFillColor: theme.palette.kanap.text.primary,
+    color: theme.palette.kanap.text.primary,
+  },
+  '& .MuiInput-root:before, & .MuiInput-root:hover:not(.Mui-disabled):before, & .MuiInput-root:after': {
+    borderBottom: 0,
+  },
+  '& .MuiSelect-select': {
+    display: 'flex',
+    alignItems: 'center',
+    p: '0 !important',
+    minHeight: '20px !important',
+  },
+  '& .MuiSelect-icon': {
+    color: theme.palette.kanap.text.tertiary,
+    fontSize: 18,
+  },
+});
+
+const timelineTableSx: SxProps<Theme> = (theme) => ({
+  width: '100%',
+  borderCollapse: 'collapse',
+  '& .MuiTableCell-head': {
+    fontSize: 12,
+    fontWeight: 500,
+    color: theme.palette.kanap.text.tertiary,
+    textAlign: 'left',
+    p: '6px 12px 6px 0',
+    borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+  },
+  '& .MuiTableCell-body': {
+    fontSize: 13,
+    p: '8px 12px 8px 0',
+    borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
+    verticalAlign: 'baseline',
+  },
+  '& .kanap-tl-label': {
+    fontSize: 12,
+    fontWeight: 500,
+    color: theme.palette.kanap.text.tertiary,
+    cursor: 'help',
+    borderBottom: `1px dotted ${theme.palette.kanap.text.tertiary}`,
+  },
+  '& .kanap-tl-sublabel': {
+    fontSize: 11,
+    fontWeight: 400,
+    color: theme.palette.kanap.text.tertiary,
+    ml: '6px',
+  },
+  '& .kanap-tl-value': {
+    color: theme.palette.kanap.text.primary,
+  },
+  '& .kanap-tl-variance': {
+    whiteSpace: 'nowrap',
+  },
+  '& .kanap-tl-sep': {
+    color: theme.palette.kanap.text.tertiary,
+    mx: '6px',
+  },
+  '& .kanap-bl-late': {
+    color: theme.palette.kanap.danger,
+    fontSize: 12,
+  },
+  '& .kanap-bl-early': {
+    color: theme.palette.kanap.teal,
+    fontSize: 12,
+  },
+});
 
 function SortablePhaseRow({
   canManage,
@@ -102,6 +423,7 @@ function SortablePhaseRow({
   index,
 }: SortablePhaseRowProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const locale = useLocale();
   const {
     attributes,
     listeners,
@@ -119,10 +441,15 @@ function SortablePhaseRow({
   };
 
   return (
-    <TableRow ref={setNodeRef} style={style}>
-      <TableCell sx={{ width: 56, cursor: canManage ? 'grab' : 'default', px: 1 }} {...attributes} {...listeners}>
+    <TableRow ref={setNodeRef} style={style} className="kanap-phase-row">
+      <TableCell
+        className="kanap-phase-index"
+        sx={{ width: 56, cursor: canManage ? 'grab' : 'default', px: 1 }}
+        {...attributes}
+        {...listeners}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          {canManage && <DragIndicatorIcon fontSize="small" sx={{ color: 'action.active' }} />}
+          {canManage && <DragIndicatorIcon />}
           <span>{index + 1}</span>
         </Box>
       </TableCell>
@@ -154,9 +481,9 @@ function SortablePhaseRow({
         />
       </TableCell>
       <TableCell>
-        <DateEUField
+        <CompactPhaseDateField
           valueYmd={phase.planned_start || ''}
-          label=""
+          locale={locale}
           disabled={!canManage}
           onChangeYmd={async (value) => {
             onSetForm((prev: any) => ({
@@ -177,9 +504,9 @@ function SortablePhaseRow({
         />
       </TableCell>
       <TableCell>
-        <DateEUField
+        <CompactPhaseDateField
           valueYmd={phase.planned_end || ''}
-          label=""
+          locale={locale}
           disabled={!canManage}
           onChangeYmd={async (value) => {
             onSetForm((prev: any) => ({
@@ -204,7 +531,9 @@ function SortablePhaseRow({
           size="small"
           value={phase.status || 'pending'}
           fullWidth
+          disableUnderline
           disabled={!canManage}
+          renderValue={(value) => <PhaseStatusValue status={String(value)} />}
           onChange={async (event) => {
             const nextStatus = event.target.value;
             onSetForm((prev: any) => ({
@@ -223,9 +552,9 @@ function SortablePhaseRow({
             }
           }}
         >
-          <MenuItem value="pending">{getPhaseStatusLabel(t, 'pending')}</MenuItem>
-          <MenuItem value="in_progress">{getPhaseStatusLabel(t, 'in_progress')}</MenuItem>
-          <MenuItem value="completed">{getPhaseStatusLabel(t, 'completed')}</MenuItem>
+          <MenuItem value="pending"><PhaseStatusValue status="pending" /></MenuItem>
+          <MenuItem value="in_progress"><PhaseStatusValue status="in_progress" /></MenuItem>
+          <MenuItem value="completed"><PhaseStatusValue status="completed" /></MenuItem>
         </Select>
       </TableCell>
       <TableCell sx={{ textAlign: 'center' }}>
@@ -249,7 +578,7 @@ function SortablePhaseRow({
         />
       </TableCell>
       <TableCell>
-        <Stack direction="row" spacing={0}>
+        <Stack className="phase-row-actions" direction="row" spacing={0}>
           <IconButton
             size="small"
             disabled={!canManage}
@@ -291,7 +620,6 @@ export default function ProjectTimelineTab({
   onNavigateToTask,
   onRefetch,
   onSetForm,
-  onUpdate,
 }: ProjectTimelineTabProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const locale = useLocale();
@@ -346,52 +674,19 @@ export default function ProjectTimelineTab({
 
   const baselineStartVariance = getDateVariance(form?.planned_start, form?.baseline_start_date);
   const baselineEndVariance = getDateVariance(form?.planned_end, form?.baseline_end_date);
+  const baselineStartDisplay = formatCompactVariance(baselineStartVariance);
+  const baselineEndDisplay = formatCompactVariance(baselineEndVariance);
+  const hasBaseline = !!(form?.baseline_start_date || form?.baseline_end_date);
 
   return (
     <Stack spacing={3}>
-      <Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-          {t('workspace.project.timeline.sections.projectDates')}
-        </Typography>
-        <Stack spacing={2}>
-          <Stack direction="row" spacing={2}>
-            <DateEUField
-              label={t('workspace.project.fields.plannedStart')}
-              valueYmd={form?.planned_start || ''}
-              onChangeYmd={(value) => onUpdate({ planned_start: value })}
-            />
-            <DateEUField
-              label={t('workspace.project.fields.plannedEnd')}
-              valueYmd={form?.planned_end || ''}
-              onChangeYmd={(value) => onUpdate({ planned_end: value })}
-            />
-          </Stack>
-          {(form?.actual_start || form?.actual_end) && (
-            <Stack direction="row" spacing={2}>
-              <TextField
-                label={t('workspace.project.timeline.fields.actualStart')}
-                value={form?.actual_start ? new Date(form.actual_start).toLocaleDateString(locale) : '-'}
-                disabled
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                label={t('workspace.project.timeline.fields.actualEnd')}
-                value={form?.actual_end ? new Date(form.actual_end).toLocaleDateString(locale) : '-'}
-                disabled
-                sx={{ flex: 1 }}
-              />
-            </Stack>
-          )}
-        </Stack>
-      </Box>
-
-      <Divider />
-
       {(form?.phases?.length || 0) === 0 ? (
-        <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-            {t('workspace.project.timeline.sections.applyPhaseTemplate')}
-          </Typography>
+        <Box className="kanap-section" sx={sectionSx}>
+          <Box className="kanap-section-head" sx={sectionHeadSx}>
+            <Typography className="kanap-section-title" sx={sectionTitleSx}>
+              {t('workspace.project.timeline.sections.phases')}
+            </Typography>
+          </Box>
           <Stack direction="row" spacing={2} alignItems="center">
             <Select
               value={selectedTemplateId}
@@ -426,9 +721,9 @@ export default function ProjectTimelineTab({
           </Stack>
         </Box>
       ) : (
-        <Box>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+        <Box className="kanap-section" sx={sectionSx}>
+          <Box className="kanap-section-head" sx={sectionHeadSx}>
+            <Typography className="kanap-section-title" sx={sectionTitleSx}>
               {t('workspace.project.timeline.sections.phases')}
             </Typography>
             <Stack direction="row" spacing={1}>
@@ -460,7 +755,7 @@ export default function ProjectTimelineTab({
                 {t('workspace.project.timeline.actions.replaceWithTemplate')}
               </Button>
             </Stack>
-          </Stack>
+          </Box>
           <ProjectTimeline
             projectId={projectId}
             phases={(form?.phases || []).map((phase: any) => ({
@@ -479,7 +774,7 @@ export default function ProjectTimelineTab({
                 collisionDetection={closestCenter}
                 onDragEnd={handlePhaseDragEnd}
               >
-                <Table size="small">
+                <Table className="kanap-phases-table" size="small" sx={phaseTableSx}>
                   <TableHead>
                     <TableRow>
                       <TableCell sx={{ width: 56 }}>#</TableCell>
@@ -522,14 +817,14 @@ export default function ProjectTimelineTab({
       )}
 
       <Divider />
-      <Box>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+      <Box className="kanap-section" sx={sectionSx}>
+        <Box className="kanap-section-head" sx={sectionHeadSx}>
+          <Typography className="kanap-section-title" sx={sectionTitleSx}>
             {t('workspace.project.timeline.sections.milestones')}
           </Typography>
           <Button
-            size="small"
-            startIcon={<AddIcon />}
+            className="kanap-link-teal"
+            sx={linkTealButtonSx}
             disabled={!canManage}
             onClick={async () => {
               try {
@@ -544,12 +839,12 @@ export default function ProjectTimelineTab({
               }
             }}
           >
-            {t('workspace.project.timeline.actions.addMilestone')}
+            + Add milestone
           </Button>
-        </Stack>
+        </Box>
         {(form?.milestones?.length || 0) === 0 ? (
-          <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
-            {t('workspace.project.timeline.states.noMilestones')}
+          <Typography className="kanap-empty-state" sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary, m: 0 })}>
+            No milestones defined.
           </Typography>
         ) : (
           <Table size="small">
@@ -675,38 +970,96 @@ export default function ProjectTimelineTab({
         )}
       </Box>
 
-      {(form?.baseline_start_date || form?.baseline_end_date) && (
-        <>
-          <Divider />
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            {t('workspace.project.timeline.sections.baseline')}
+      <Divider />
+      <Box className="kanap-section" sx={sectionSx}>
+        <Box className="kanap-section-head" sx={sectionHeadSx}>
+          <Typography className="kanap-section-title" sx={sectionTitleSx}>
+            Project timeline
           </Typography>
-          <Stack direction="row" spacing={2}>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="body2" color="text.secondary">
-                {t('workspace.project.timeline.fields.baselineStart')}
-              </Typography>
-              <Typography>{form?.baseline_start_date ? new Date(form.baseline_start_date).toLocaleDateString(locale) : '-'}</Typography>
-              {baselineStartVariance != null && (
-                <Typography variant="caption" color={baselineStartVariance > 0 ? 'error.main' : 'success.main'}>
-                  {formatDateVariance(t, baselineStartVariance)}
-                </Typography>
-              )}
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="body2" color="text.secondary">
-                {t('workspace.project.timeline.fields.baselineEnd')}
-              </Typography>
-              <Typography>{form?.baseline_end_date ? new Date(form.baseline_end_date).toLocaleDateString(locale) : '-'}</Typography>
-              {baselineEndVariance != null && (
-                <Typography variant="caption" color={baselineEndVariance > 0 ? 'error.main' : 'success.main'}>
-                  {formatDateVariance(t, baselineEndVariance)}
-                </Typography>
-              )}
-            </Box>
-          </Stack>
-        </>
-      )}
+        </Box>
+
+        <Table className="kanap-timeline-table" size="small" sx={timelineTableSx}>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ width: 100 }} />
+              <TableCell>Start</TableCell>
+              <TableCell>End</TableCell>
+              <TableCell />
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            <TableRow>
+              <TableCell>
+                <Tooltip title="Date when the project status was changed to In Progress">
+                  <Box component="span" className="kanap-tl-label">Actual</Box>
+                </Tooltip>
+              </TableCell>
+              <TableCell className="kanap-tl-value">
+                {formatShortDate(form?.actual_start, locale)}
+              </TableCell>
+              <TableCell className="kanap-tl-value">
+                {formatShortDate(form?.actual_end, locale)}
+              </TableCell>
+              <TableCell />
+            </TableRow>
+            <TableRow>
+              <TableCell>
+                <Tooltip title="Target dates set by the project manager during planning">
+                  <Box component="span" className="kanap-tl-label">Planned</Box>
+                </Tooltip>
+              </TableCell>
+              <TableCell className="kanap-tl-value">
+                {formatShortDate(form?.planned_start, locale)}
+              </TableCell>
+              <TableCell className="kanap-tl-value">
+                {formatShortDate(form?.planned_end, locale)}
+              </TableCell>
+              <TableCell />
+            </TableRow>
+            {hasBaseline && (
+              <TableRow>
+                <TableCell>
+                  <Tooltip title="Snapshot of planned dates captured when the project entered In Progress">
+                    <Box component="span" className="kanap-tl-label">
+                      Baseline
+                      <Box component="span" className="kanap-tl-sublabel">
+                        at In Progress
+                      </Box>
+                    </Box>
+                  </Tooltip>
+                </TableCell>
+                <TableCell className="kanap-tl-value">
+                  {formatShortDate(form?.baseline_start_date, locale)}
+                </TableCell>
+                <TableCell className="kanap-tl-value">
+                  {formatShortDate(form?.baseline_end_date, locale)}
+                </TableCell>
+                <TableCell className="kanap-tl-variance">
+                  {baselineStartDisplay && (
+                    <Box
+                      component="span"
+                      className={baselineStartDisplay.tone === 'late' ? 'kanap-bl-late' : 'kanap-bl-early'}
+                    >
+                      {baselineStartDisplay.text}
+                    </Box>
+                  )}
+                  {baselineStartDisplay && baselineEndDisplay && (
+                    <Box component="span" className="kanap-tl-sep">·</Box>
+                  )}
+                  {baselineEndDisplay && (
+                    <Box
+                      component="span"
+                      className={baselineEndDisplay.tone === 'late' ? 'kanap-bl-late' : 'kanap-bl-early'}
+                    >
+                      {baselineEndDisplay.text}
+                    </Box>
+                  )}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Box>
 
       <Dialog open={replaceConfirmOpen} onClose={() => setReplaceConfirmOpen(false)}>
         <DialogTitle>{t('workspace.project.timeline.dialogs.replaceAll.title')}</DialogTitle>

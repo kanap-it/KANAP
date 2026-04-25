@@ -1,0 +1,102 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Section, PageHeader, PillarGrid, Callout, CTABand } from './sections';
+import { getLocaleFromUrl, localePath } from '../i18n/ui';
+import { getSecurityContent } from '../content/resolve';
+
+const locale = getLocaleFromUrl(Astro.url);
+const c = getSecurityContent(locale);
+
+const sections = [c.tenancy, c.dataProtection, c.access, c.audit, c.deployment];
+---
+
+<BaseLayout title={c.meta.title} description={c.meta.description}>
+  <PageHeader eyebrow={c.header.eyebrow} title={c.header.title} lead={c.header.lead} />
+
+  <Section tone="default">
+    <PillarGrid
+      title={c.overview.title}
+      intro={c.overview.intro}
+      pillars={c.overview.pillars}
+    />
+  </Section>
+
+  {sections.map((s, i) => (
+    <Section tone={i % 2 === 0 ? 'sunken' : 'default'}>
+      <div class="mk-sec">
+        <h2>{s.title}</h2>
+        <p class="mk-lead">{s.body}</p>
+        <ul>
+          {s.bullets.map((b) => <li>{b}</li>)}
+        </ul>
+      </div>
+    </Section>
+  ))}
+
+  <Section tone="sunken" compact>
+    <Callout>
+      <p><strong>{c.disclosure.title}</strong></p>
+      <p>{c.disclosure.body}</p>
+      <p>
+        <a href={`mailto:${c.disclosure.email}`}>{c.disclosure.emailLabel}</a>
+      </p>
+    </Callout>
+  </Section>
+
+  <Section tone="default" compact>
+    <CTABand
+      title={c.cta.title}
+      body={c.cta.body}
+      primaryHref={localePath(locale, '/contact')}
+      primaryLabel={c.cta.primary}
+      secondaryHref="https://github.com/kanap-it/kanap"
+      secondaryLabel={c.cta.secondary}
+    />
+  </Section>
+</BaseLayout>
+
+<style>
+  .mk-sec {
+    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .mk-sec h2 {
+    margin: 0;
+    font-size: clamp(24px, 2.6vw, 30px);
+    line-height: 1.2;
+  }
+
+  .mk-sec .mk-lead {
+    margin: 0;
+  }
+
+  .mk-sec ul {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mk-sec li {
+    position: relative;
+    padding-left: 22px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-sec li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 12px;
+    height: 1px;
+    background: var(--kanap-text-tertiary);
+  }
+</style>

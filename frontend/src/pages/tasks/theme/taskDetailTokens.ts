@@ -34,6 +34,11 @@ export const taskDetailTokens = {
     gap: '24px',
     mb: '18px',
   },
+  titleStack: {
+    gap: '10px',
+    metadataToTabsGap: '36px',
+    metadataOnlyBottomGap: '40px',
+  },
   metadataBar: {
     gap: '22px',
   },
@@ -60,6 +65,8 @@ export const taskDetailTokens = {
   },
   drawer: {
     tabWidth: 40,
+    tabTop: -48,
+    panelTop: -48,
     panelWidth: 280,
     headerPadding: '14px 18px 12px',
     groupPadding: '6px 18px 10px',

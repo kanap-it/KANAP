@@ -1,0 +1,169 @@
+import type { OnPremContent } from './types';
+
+const content: OnPremContent = {
+  meta: {
+    title: 'Auto-héberger KANAP, l\'approche prioritaire',
+    description:
+      'Exécutez KANAP sur votre infrastructure, sous AGPL v3. Plateforme complète, utilisateurs illimités, vos données ne quittent jamais votre environnement. Déploiement en quelques minutes avec Docker Compose.',
+  },
+
+  header: {
+    eyebrow: 'Auto-hébergement · approche prioritaire',
+    title: 'Hébergez KANAP vous-même.\nMaîtrisez chaque couche.',
+    lead: 'Open source sous AGPL v3. Déployez sur votre infrastructure, gardez vos données, mettez à jour à votre rythme. La plateforme complète, utilisateurs illimités, toutes les fonctionnalités, selon vos conditions.',
+    primaryCta: 'Déployer depuis GitHub',
+    primaryHref: 'https://github.com/kanap-it/kanap',
+    secondaryCta: 'Lire la doc d\'installation',
+    secondaryHref: 'https://doc.kanap.net/on-premise/',
+  },
+
+  why: {
+    eyebrow: 'Pourquoi s\'auto-héberger',
+    title: 'Contrôle, conformité, aucune contrepartie.',
+    intro:
+      'S\'auto-héberger KANAP n\'est pas un palier dégradé. C\'est la plateforme complète, avec toutes les fonctionnalités, gratuitement. Voici les raisons pour lesquelles les équipes la choisissent en premier.',
+    pillars: [
+      {
+        title: 'Vos données restent à la maison',
+        body: 'Budgets, contrats fournisseurs, paysage IT, tout. Sur vos serveurs, dans votre réseau. Aucun sous-traitant à qui confier vos données de gouvernance.',
+      },
+      {
+        title: 'Aucune taxe par utilisateur',
+        body: 'Utilisateurs illimités, workspaces illimités, usage Plaid illimité avec votre clé LLM. Déployez à toute la DSI sans calculatrice.',
+      },
+      {
+        title: 'Prêt pour la conformité',
+        body: 'Row-level security isole les tenants. Hash de mot de passe Argon2. TLS partout. Votre VPC, vos sauvegardes, votre SOC.',
+      },
+      {
+        title: 'Audit du code source',
+        body: 'AGPL v3 signifie que le code est ouvert. Votre équipe sécurité le lit, vos architectes l\'étendent, votre CISO dort mieux.',
+      },
+      {
+        title: 'Compatible air-gap',
+        body: 'Déploiement Docker Compose en réseau restreint. Images autonomes, aucun appel sortant obligatoire pour les fonctions centrales.',
+      },
+      {
+        title: 'Votre cadence',
+        body: 'Épinglez une version, testez une mineure, migrez selon votre calendrier de changements. Aucune mise à jour forcée, aucune coupure surprise.',
+      },
+    ],
+  },
+
+  license: {
+    title: 'AGPL v3 : l\'ouverture sans compromis',
+    body:
+      'KANAP est publiée sous licence GNU Affero General Public License v3. Toutes les libertés open source classiques : l\'utiliser, la lire, la modifier, la distribuer. Le copyleft garantit que quiconque exécute une version modifiée en tant que service doit partager ses changements, c\'est ainsi que le projet reste réellement ouvert.',
+    bullets: [
+      'Usage commercial, interne ou externe, aucune redevance, aucun décompte de sièges',
+      'Lecture et audit du code complet, rien de caché',
+      'Modification et extension, le code vous appartient',
+      'Contribution, vos améliorations profitent à toute la communauté',
+    ],
+    linkLabel: 'Lire la licence AGPL v3',
+    linkHref: 'https://www.gnu.org/licenses/agpl-3.0.html',
+  },
+
+  deploy: {
+    eyebrow: 'Installation en quelques minutes',
+    title: 'Une seule invite.\nQuinze minutes.',
+    intro:
+      'Un agent IA de codage lit notre documentation, installe toutes les dépendances et configure toute la pile — Docker, PostgreSQL 16, MinIO, nginx, Let\'s Encrypt — sur un serveur Ubuntu vierge. Vous collez une invite, vous validez chaque étape, vous vous connectez.',
+    steps: [
+      {
+        title: 'Préparer un serveur vierge',
+        body: 'Un serveur Ubuntu 24.04 LTS fraîchement provisionné avec accès sudo, un enregistrement DNS A pointant votre nom de domaine vers ce serveur, et un accès Internet sortant pour les paquets et Let\'s Encrypt. Installez votre agent IA de codage sur le serveur (Claude Code, Codex, ou équivalent).',
+      },
+      {
+        title: 'Activer temporairement sudo sans mot de passe',
+        body: 'Pour que l\'agent ne vous demande pas votre mot de passe à chaque étape. Vous reviendrez en arrière à la fin.',
+        code: 'echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/90-install-nopasswd',
+      },
+      {
+        title: 'Coller l\'invite d\'installation',
+        body: 'Ouvrez votre agent et collez le modèle d\'invite depuis notre documentation — renseignez votre nom de domaine, votre email admin et (en option) votre transport email (Resend ou SMTP). L\'agent lit les pages d\'installation référencées, installe Docker, PostgreSQL 16 avec les extensions requises, MinIO, nginx et certbot, clone KANAP dans /opt/kanap, génère des identifiants robustes, construit les images et démarre les conteneurs. Il configure aussi TLS et son renouvellement automatique. L\'agent demande votre confirmation avant chaque commande.',
+      },
+      {
+        title: 'Se connecter et durcir',
+        body: 'Connectez-vous à votre nom de domaine avec les identifiants admin générés, changez le mot de passe, puis retirez l\'entrée sudo sans mot de passe temporaire. Terminé. Le journal d\'installation complet est sauvegardé dans ~/kanap-install.md.',
+      },
+    ],
+    docsCtaLabel: 'Guide d\'installation assistée par IA',
+    docsHref: 'https://doc.kanap.net/on-premise/installation-ai/',
+    manualOption: {
+      label: 'Vous préférez tout maîtriser ?',
+      title: 'Installation manuelle : votre stack, à votre main.',
+      body: 'Apportez votre PostgreSQL, votre stockage compatible S3 et votre reverse proxy. Hébergez-la sur n\'importe quel Linux compatible Docker. Intégrez KANAP dans l\'architecture que vous opérez déjà, avec la configuration qui correspond à votre environnement. Même plateforme, même code, chaque décision entre vos mains.',
+      ctaLabel: 'Guide d\'installation manuelle',
+      ctaHref: 'https://doc.kanap.net/on-premise/installation/',
+    },
+  },
+
+  requirements: {
+    title: 'Ce qu\'il vous faut',
+    intro: 'Exigences modestes pour une plateforme qui pilote toute la DSI.',
+    items: [
+      { label: 'OS', value: 'Tout Linux avec Docker (Ubuntu 22+, Debian 12+, RHEL 9+ recommandés)' },
+      { label: 'CPU', value: '2 vCPU minimum · 4+ recommandés pour 50+ utilisateurs' },
+      { label: 'RAM', value: '4 Go minimum · 8 Go recommandés' },
+      { label: 'Stockage', value: '20 Go pour la plateforme + la croissance de vos données' },
+      { label: 'Base de données', value: 'PostgreSQL 15+ (inclus dans Compose, ou externe)' },
+      { label: 'Réseau', value: 'Terminateur HTTPS de votre choix, nginx, Traefik, LB cloud' },
+      { label: 'Sortant (optionnel)', value: 'API World Bank FX pour les taux live · fournisseur LLM pour Plaid' },
+    ],
+  },
+
+  operations: {
+    title: 'Opérer KANAP',
+    intro: 'Conçue pour s\'opérer comme n\'importe quel service interne.',
+    items: [
+      {
+        title: 'Mises à jour à votre rythme',
+        body: 'Épinglez un tag, testez en pré-prod, appliquez dans votre fenêtre de changement. Migrations au boot, idempotentes par conception.',
+      },
+      {
+        title: 'Les sauvegardes sont un dump postgres',
+        body: 'Outillage standard. Programmez pg_dump avec votre pipeline existant. Les fichiers sont légers et peuvent être snapshotés à part.',
+      },
+      {
+        title: 'L\'observabilité que vous avez déjà',
+        body: 'Les conteneurs émettent des logs structurés et des endpoints de santé. Pointez votre stack existant dessus (Prometheus, Loki, Datadog, ce que vous avez déjà).',
+      },
+      {
+        title: 'Branding inclus',
+        body: 'Téléchargez votre logo, réglez votre couleur primaire. La page admin de branding fonctionne en auto-hébergé comme en cloud.',
+      },
+      {
+        title: 'SSO via Entra ID',
+        body: 'Le SSO entreprise fait partie de la plateforme, pas d\'un upsell. Configurable via la console admin.',
+      },
+      {
+        title: 'Plaid, à votre façon',
+        body: 'Clé LLM perso, OpenAI, Anthropic, Ollama, ou tout endpoint compatible OpenAI. Vos prompts ne quittent jamais le fournisseur choisi.',
+      },
+    ],
+  },
+
+  support: {
+    title: 'Besoin d\'aide prioritaire ?',
+    body:
+      'Le plan Support auto-hébergé ajoute le support email prioritaire, l\'aide à l\'installation, le déblocage BYOK de Plaid et 20 % de remise sur le conseil, sans changer votre mode de déploiement.',
+    bullets: [
+      'Support email prioritaire (de vrais humains, réponse meilleur effort)',
+      'Aide à l\'installation et aux mises à niveau',
+      '20 % de remise sur tous les services de conseil',
+      '2 490 €/an, facturation annuelle',
+    ],
+    ctaLabel: 'Voir les tarifs',
+    ctaHref: '/offer',
+  },
+
+  cta: {
+    title: 'Prêt à auto-héberger ?',
+    body: 'Clonez le dépôt et lancez la pile en moins de dix minutes. Pas de compte requis, pas de compte à rebours, juste de l\'open source.',
+    primary: 'Déployer depuis GitHub',
+    secondary: 'Nous contacter',
+  },
+};
+
+export default content;

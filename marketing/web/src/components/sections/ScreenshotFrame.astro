@@ -1,0 +1,127 @@
+---
+/**
+ * ScreenshotFrame — canonical frame for product screenshots.
+ *
+ * Matches the app's card treatment (8px radius, border, hover shadow).
+ * Supports automatic light/dark swap by passing both sources.
+ */
+
+interface Props {
+  src?: string;
+  srcDark?: string;
+  alt: string;
+  width?: number;
+  height?: number;
+  /** Show a placeholder panel when no src yet (so page layout is stable). */
+  placeholder?: boolean;
+  /** Optional caption below the frame */
+  caption?: string;
+}
+
+const { src, srcDark, alt, width, height, placeholder = false, caption } = Astro.props;
+const showPlaceholder = placeholder || !src;
+---
+
+<figure class="mk-shot">
+  <div class="mk-shot__frame">
+    {showPlaceholder ? (
+      <div class="mk-shot__placeholder" role="img" aria-label={alt}>
+        <span class="mk-shot__placeholder-text">Screenshot: {alt}</span>
+      </div>
+    ) : (
+      <>
+        {srcDark ? (
+          <>
+            <img src={src} alt={alt} width={width} height={height} class="mk-shot__img mk-shot__img--light" loading="lazy" decoding="async" />
+            <img src={srcDark} alt={alt} width={width} height={height} class="mk-shot__img mk-shot__img--dark" loading="lazy" decoding="async" />
+          </>
+        ) : (
+          <img src={src} alt={alt} width={width} height={height} class="mk-shot__img" loading="lazy" decoding="async" />
+        )}
+      </>
+    )}
+  </div>
+  {caption && <figcaption class="mk-shot__caption">{caption}</figcaption>}
+</figure>
+
+<style>
+  .mk-shot {
+    margin: 0;
+  }
+
+  .mk-shot__frame {
+    position: relative;
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    overflow: hidden;
+    transition:
+      box-shadow var(--mk-duration) var(--mk-ease),
+      border-color var(--mk-duration) var(--mk-ease);
+  }
+
+  .mk-shot__frame:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  :root[data-theme='dark'] .mk-shot__frame:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .mk-shot__img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .mk-shot__img--dark {
+    display: none;
+  }
+
+  :root[data-theme='dark'] .mk-shot__img--light {
+    display: none;
+  }
+
+  :root[data-theme='dark'] .mk-shot__img--dark {
+    display: block;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .mk-shot__img--light {
+      display: none;
+    }
+    :root:not([data-theme]) .mk-shot__img--dark {
+      display: block;
+    }
+  }
+
+  .mk-shot__placeholder {
+    aspect-ratio: 16 / 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: repeating-linear-gradient(
+      135deg,
+      var(--kanap-bg-drawer),
+      var(--kanap-bg-drawer) 12px,
+      var(--kanap-bg-page) 12px,
+      var(--kanap-bg-page) 24px
+    );
+  }
+
+  .mk-shot__placeholder-text {
+    font-size: 13px;
+    color: var(--kanap-text-tertiary);
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    padding: 6px 12px;
+    border-radius: var(--kanap-radius-pill);
+  }
+
+  .mk-shot__caption {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--kanap-text-tertiary);
+    text-align: center;
+  }
+</style>

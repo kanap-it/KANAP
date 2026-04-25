@@ -74,6 +74,7 @@ type IntegratedDocumentEditorProps = {
   editModeBehavior?: 'explicit' | 'auto';
   showDocumentControls?: boolean;
   autosaveEnabled?: boolean;
+  autosaveDelayMs?: number;
 };
 
 const ENTITY_ENDPOINTS: Record<SourceEntityType, string> = {
@@ -124,6 +125,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
     editModeBehavior = 'explicit',
     showDocumentControls = true,
     autosaveEnabled = true,
+    autosaveDelayMs = 1800,
   },
   ref,
 ) {
@@ -145,6 +147,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
   const [importInteractionActive, setImportInteractionActive] = React.useState(false);
   const [contentResetNonce, setContentResetNonce] = React.useState(0);
   const [contentFocusNonce, setContentFocusNonce] = React.useState(0);
+  const startEditPendingRef = React.useRef(false);
 
   const isDraftMode = !entityId;
   const canEdit = !disabled;
@@ -182,12 +185,12 @@ export const IntegratedDocumentEditor = React.forwardRef<
   });
 
   React.useEffect(() => {
-    if (isDraftMode || !doc || dirty) return;
+    if (isDraftMode || !doc || dirty || editMode) return;
     setForm({
       content_markdown: doc.content_markdown || '',
       revision: Number(doc.revision || 1),
     });
-  }, [dirty, doc, isDraftMode]);
+  }, [dirty, doc, editMode, isDraftMode]);
 
   React.useEffect(() => {
     if (isDraftMode || lockToken) {
@@ -202,11 +205,14 @@ export const IntegratedDocumentEditor = React.forwardRef<
   }, [dirty, onDirtyChange]);
 
   const acquireLock = React.useCallback(async () => {
-    if (isDraftMode || !entityId || lockToken) return;
+    if (isDraftMode || !entityId) return null;
+    if (lockToken) return lockToken;
     const res = await api.post(`${endpointBase}/locks`);
-    setLockToken(res.data?.lock_token || null);
+    const nextLockToken = res.data?.lock_token || null;
+    setLockToken(nextLockToken);
     setLockExpiresAt(res.data?.expires_at || null);
     setActiveLockInfo(null);
+    return nextLockToken;
   }, [endpointBase, entityId, isDraftMode, lockToken]);
 
   const releaseLock = React.useCallback(async () => {
@@ -224,13 +230,31 @@ export const IntegratedDocumentEditor = React.forwardRef<
 
   const startEdit = React.useCallback(async (opts?: {
     silentConflict?: boolean;
+    focusAfterStart?: boolean;
   }) => {
-    if (!canEdit || isDraftMode) return;
+    if (!canEdit || isDraftMode || startEditPendingRef.current) return;
+    if (editMode && lockToken) {
+      if (opts?.focusAfterStart) {
+        window.setTimeout(() => {
+          setContentFocusNonce((prev) => prev + 1);
+        }, 0);
+      }
+      return;
+    }
+    startEditPendingRef.current = true;
     try {
       setError(null);
-      await acquireLock();
+      const nextLockToken = await acquireLock();
+      if (!nextLockToken) {
+        throw new Error('Unable to acquire lock');
+      }
       setActiveLockInfo(null);
       setEditMode(true);
+      if (opts?.focusAfterStart) {
+        window.setTimeout(() => {
+          setContentFocusNonce((prev) => prev + 1);
+        }, 0);
+      }
     } catch (e: any) {
       const status = Number(e?.response?.status || 0);
       const lockInfo = parseLockInfoFromError(e) || parseLockInfo(doc?.edit_lock);
@@ -243,8 +267,10 @@ export const IntegratedDocumentEditor = React.forwardRef<
       if (!opts?.silentConflict) {
         setError(e?.response?.data?.message || e?.message || 'Unable to acquire lock');
       }
+    } finally {
+      startEditPendingRef.current = false;
     }
-  }, [acquireLock, canEdit, doc?.edit_lock, isDraftMode, parseLockInfo, parseLockInfoFromError]);
+  }, [acquireLock, canEdit, doc?.edit_lock, editMode, isDraftMode, lockToken, parseLockInfo, parseLockInfoFromError]);
 
   const saveMutation = useMutation({
     mutationFn: async (mode: 'manual' | 'autosave') => {
@@ -267,6 +293,14 @@ export const IntegratedDocumentEditor = React.forwardRef<
     onSuccess: async (result) => {
       setError(null);
       setDirty(false);
+      qc.setQueryData(docQueryKey, result.data);
+      if (result.mode === 'autosave') {
+        setForm((prev) => ({
+          ...prev,
+          revision: Number(result.data?.revision || prev.revision + 1),
+        }));
+        return;
+      }
       setForm({
         content_markdown: result.data?.content_markdown || '',
         revision: Number(result.data?.revision || form.revision + 1),
@@ -323,37 +357,28 @@ export const IntegratedDocumentEditor = React.forwardRef<
 
   React.useEffect(() => {
     if (!autosaveEnabled) return;
-    if (isDraftMode || !editMode || !dirty || !lockToken) return;
-    const timer = window.setInterval(() => {
+    if (isDraftMode || !editMode || !dirty || !lockToken || saveMutation.isPending) return;
+    const timer = window.setTimeout(() => {
       void saveMutation.mutateAsync('autosave').catch(() => undefined);
-    }, 60_000);
-    return () => window.clearInterval(timer);
-  }, [autosaveEnabled, dirty, editMode, isDraftMode, lockToken, saveMutation]);
+    }, autosaveDelayMs);
+    return () => window.clearTimeout(timer);
+  }, [
+    autosaveDelayMs,
+    autosaveEnabled,
+    dirty,
+    editMode,
+    form.content_markdown,
+    form.revision,
+    isDraftMode,
+    lockToken,
+    saveMutation,
+  ]);
 
   React.useEffect(() => {
     return () => {
       void releaseLock();
     };
   }, [releaseLock]);
-
-  React.useEffect(() => {
-    if (editModeBehavior !== 'auto' || isDraftMode || !canEdit || editMode || lockToken) {
-      return;
-    }
-    if (activeLockInfo?.holder_user_id && activeLockInfo.holder_user_id !== profile?.id) {
-      return;
-    }
-    void startEdit({ silentConflict: true });
-  }, [
-    activeLockInfo?.holder_user_id,
-    canEdit,
-    editMode,
-    editModeBehavior,
-    isDraftMode,
-    lockToken,
-    profile?.id,
-    startEdit,
-  ]);
 
   const save = React.useCallback(async (): Promise<boolean> => {
     if (isDraftMode || !dirty) return true;
@@ -402,7 +427,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
     if (collapsible && collapsed) {
       onToggleCollapsed?.();
     }
-    void startEdit();
+    void startEdit({ focusAfterStart: true });
   }, [collapsed, collapsible, onToggleCollapsed, startEdit]);
 
   const handleInlineImageUpload = React.useCallback(async (file: File): Promise<string> => {
@@ -479,6 +504,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
   }, []);
 
   const handleBlurCapture = React.useCallback(() => {
+    if (showDocumentControls) return;
     if (editModeBehavior === 'auto') return;
     if (isDraftMode || !editMode || dirty || importInteractionActive) return;
     window.setTimeout(() => {
@@ -489,7 +515,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
       setEditMode(false);
       void releaseLock();
     }, 0);
-  }, [dirty, editMode, editModeBehavior, importInteractionActive, isDraftMode, releaseLock]);
+  }, [dirty, editMode, editModeBehavior, importInteractionActive, isDraftMode, releaseLock, showDocumentControls]);
 
   const lockHolderLabel = activeLockInfo?.holder_name || 'another user';
   const loadErrorMessage = React.useMemo(() => {
@@ -509,6 +535,13 @@ export const IntegratedDocumentEditor = React.forwardRef<
   }, [activeLockInfo?.expires_at, lockExpiresAt]);
   const isLockedByAnotherUser = !!activeLockInfo?.holder_user_id && activeLockInfo.holder_user_id !== profile?.id;
   const canEditContent = isDraftMode ? canEdit : (canEdit && editMode && !!lockToken && !isLockedByAnotherUser);
+  const shouldStartInlineEdit = React.useCallback((target: EventTarget | null) => {
+    if (editModeBehavior !== 'auto' || editMode || isDraftMode || !canEdit || isLockedByAnotherUser) {
+      return false;
+    }
+    if (!(target instanceof HTMLElement)) return true;
+    return !target.closest('button, a, input, textarea, select, [role="button"], [role="menu"], [role="dialog"], [contenteditable="true"]');
+  }, [canEdit, editMode, editModeBehavior, isDraftMode, isLockedByAnotherUser]);
   const exportTitle = label.toLowerCase().replace(/\s+/g, '-');
   const deepLinkRef = doc?.item_ref || (doc?.item_number ? `DOC-${doc.item_number}` : null);
   const headerNode = headerTitle || (!hideHeaderLabel ? (
@@ -645,7 +678,10 @@ export const IntegratedDocumentEditor = React.forwardRef<
   );
 
   return (
-    <Box ref={containerRef} onBlurCapture={handleBlurCapture}>
+    <Box
+      ref={containerRef}
+      onBlurCapture={handleBlurCapture}
+    >
       {renderHeader(persistedActions)}
 
       {collapsible && collapsed ? null : (
@@ -711,6 +747,15 @@ export const IntegratedDocumentEditor = React.forwardRef<
         </React.Suspense>
       ) : (
         <Box
+          onPointerDownCapture={(event) => {
+            if (!shouldStartInlineEdit(event.target)) return;
+            void startEdit({ silentConflict: true, focusAfterStart: true });
+          }}
+          onClick={editModeBehavior === 'auto' && canEdit && !isLockedByAnotherUser ? handleEnterEdit : undefined}
+          onFocus={editModeBehavior === 'auto' && canEdit && !isLockedByAnotherUser ? handleEnterEdit : undefined}
+          tabIndex={editModeBehavior === 'auto' && canEdit && !isLockedByAnotherUser ? 0 : undefined}
+          role={editModeBehavior === 'auto' && canEdit && !isLockedByAnotherUser ? 'textbox' : undefined}
+          aria-label={editModeBehavior === 'auto' && canEdit && !isLockedByAnotherUser ? label : undefined}
           sx={{
             minHeight: minRows * 24,
             maxHeight: maxRows * 24,
@@ -721,6 +766,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
             borderRadius: 1,
             bgcolor: 'background.paper',
             p: 1.5,
+            cursor: editModeBehavior === 'auto' && canEdit && !isLockedByAnotherUser ? 'text' : 'default',
           }}
         >
           {String(form.content_markdown || '').trim() ? (

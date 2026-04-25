@@ -1,0 +1,118 @@
+---
+/**
+ * HomePage — full marketing homepage.
+ *
+ * Assembled from section primitives + content pulled from src/content/home
+ * for the current locale.
+ */
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import {
+  Hero,
+  Section,
+  PillarGrid,
+  FeatureGrid,
+  ScreenshotFrame,
+  TrustStrip,
+  CTABand,
+} from './sections';
+import { getLocaleFromUrl, localePath } from '../i18n/ui';
+import { getHomeContent } from '../content/resolve';
+import { organizationLd, softwareApplicationLd } from '../lib/jsonld';
+
+const locale = getLocaleFromUrl(Astro.url);
+const content = getHomeContent(locale);
+const site = (Astro.site ?? new URL('https://kanap.net')).href.replace(/\/$/, '');
+
+// Feature cards: prefix module slugs with locale
+const moduleItems = content.modules.items.map((m) => ({
+  title: m.title,
+  blurb: m.blurb,
+  bullets: m.bullets,
+  href: localePath(locale, m.slug),
+  ctaLabel: m.ctaLabel,
+}));
+
+// Cross-cutting: 2-column grid of short entries (no CTAs, no bullets)
+const crossItems = content.crossCutting.items.map((i) => ({
+  title: i.title,
+  blurb: i.body,
+}));
+---
+
+<BaseLayout title={content.meta.title} description={content.meta.description}>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(organizationLd(site))} />
+    <script type="application/ld+json" set:html={JSON.stringify(softwareApplicationLd(site))} />
+  </Fragment>
+  <Hero
+    eyebrow={content.hero.eyebrow}
+    title={content.hero.title}
+    lead={content.hero.lead}
+  >
+    <Fragment slot="cta">
+      <a href={localePath(locale, '/trial/start')} class="mk-btn mk-btn--primary">
+        {content.hero.primaryCta}
+      </a>
+      <a href={localePath(locale, '/features')} class="mk-btn mk-btn--ghost">
+        {content.hero.secondaryCta}
+      </a>
+    </Fragment>
+    <Fragment slot="trust">
+      <TrustStrip />
+      <p class="mk-small mk-home__trial-note">{content.hero.trialNote}</p>
+    </Fragment>
+    <Fragment slot="visual">
+      <ScreenshotFrame
+        placeholder
+        alt="KANAP dashboard showing integrated modules"
+      />
+    </Fragment>
+  </Hero>
+
+  <Section tone="sunken">
+    <PillarGrid
+      eyebrow={content.pillars.eyebrow}
+      title={content.pillars.title}
+      pillars={content.pillars.items}
+    />
+  </Section>
+
+  <Section tone="default">
+    <FeatureGrid
+      eyebrow={content.modules.eyebrow}
+      title={content.modules.title}
+      intro={content.modules.intro}
+      items={moduleItems}
+      columns={3}
+    />
+  </Section>
+
+  <Section tone="sunken">
+    <FeatureGrid
+      eyebrow={content.crossCutting.eyebrow}
+      title={content.crossCutting.title}
+      intro={content.crossCutting.intro}
+      items={crossItems}
+      columns={2}
+    />
+  </Section>
+
+  <Section tone="default" compact>
+    <CTABand
+      title={content.cta.title}
+      body={content.cta.body}
+      primaryHref={localePath(locale, '/trial/start')}
+      primaryLabel={content.cta.primary}
+      secondaryHref={localePath(locale, '/contact')}
+      secondaryLabel={content.cta.secondary}
+    />
+  </Section>
+</BaseLayout>
+
+<style>
+  .mk-home__trial-note {
+    margin-top: 6px;
+    color: var(--kanap-text-tertiary);
+  }
+</style>

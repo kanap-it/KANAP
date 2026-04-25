@@ -1,0 +1,7 @@
+---
+import LegalPage from '../../components/LegalPage.astro';
+import { getLocaleFromUrl } from '../../i18n/ui';
+import { getLegalContent } from '../../content/resolve';
+const doc = getLegalContent(getLocaleFromUrl(Astro.url)).terms;
+---
+<LegalPage doc={doc} />

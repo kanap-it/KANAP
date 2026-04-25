@@ -1,0 +1,115 @@
+---
+/**
+ * SplitSection — two-column alternating layout: text + visual.
+ *
+ * Used on feature deep-dive pages to alternate descriptive sections.
+ * `reverse` flips which side the copy lands on.
+ */
+
+interface Props {
+  eyebrow?: string;
+  title: string;
+  body?: string;
+  bullets?: string[];
+  reverse?: boolean;
+}
+
+const { eyebrow, title, body, bullets, reverse = false } = Astro.props;
+---
+
+<div class:list={['mk-split', { 'mk-split--reverse': reverse }]}>
+  <div class="mk-split__copy">
+    {eyebrow && <span class="mk-eyebrow">{eyebrow}</span>}
+    <h2 class="mk-split__title">{title}</h2>
+    {body && <p class="mk-split__body">{body}</p>}
+    {bullets && bullets.length > 0 && (
+      <ul class="mk-split__bullets">
+        {bullets.map((b) => (
+          <li>{b}</li>
+        ))}
+      </ul>
+    )}
+    {Astro.slots.has('cta') && (
+      <div class="mk-split__cta">
+        <slot name="cta" />
+      </div>
+    )}
+  </div>
+  <div class="mk-split__visual">
+    <slot name="visual" />
+  </div>
+</div>
+
+<style>
+  .mk-split {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(24px, 4vw, 48px);
+    align-items: center;
+  }
+
+  @media (min-width: 900px) {
+    .mk-split {
+      grid-template-columns: 1fr 1.05fr;
+    }
+    .mk-split--reverse .mk-split__copy {
+      order: 2;
+    }
+  }
+
+  .mk-split__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 520px;
+  }
+
+  .mk-split__title {
+    font-size: clamp(26px, 3vw, 32px);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  .mk-split__body {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--kanap-text-secondary);
+    margin: 0;
+  }
+
+  .mk-split__bullets {
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mk-split__bullets li {
+    position: relative;
+    padding-left: 22px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-split__bullets li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 12px;
+    height: 1px;
+    background: var(--kanap-text-tertiary);
+  }
+
+  .mk-split__cta {
+    margin-top: 12px;
+  }
+
+  .mk-split__visual {
+    min-width: 0;
+  }
+</style>

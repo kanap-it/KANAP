@@ -1,0 +1,21 @@
+# build output
+dist/
+.astro/
+
+# deps
+node_modules/
+
+# env
+.env
+.env.production
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# generated tokens (checked in for traceability, regenerate with `npm run tokens`)
+# keep src/styles/tokens.css tracked
+
+# OS
+.DS_Store
