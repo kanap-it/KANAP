@@ -190,6 +190,48 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     return { ok: true };
   }
 
+  async relationCounts(appId: string, opts?: ServiceOpts) {
+    const mg = this.getManager(opts);
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const rows: Array<{
+      opex_count: string | number;
+      capex_count: string | number;
+      contracts_count: string | number;
+      projects_count: string | number;
+      links_count: string | number;
+      attachments_count: string | number;
+    }> = await mg.query(
+      `SELECT
+         (SELECT COUNT(*) FROM application_spend_items l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS opex_count,
+         (SELECT COUNT(*) FROM application_capex_items l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS capex_count,
+         (SELECT COUNT(*) FROM application_contracts l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS contracts_count,
+         (SELECT COUNT(*) FROM application_projects l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS projects_count,
+         (SELECT COUNT(*) FROM application_links l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS links_count,
+         (SELECT COUNT(*) FROM application_attachments l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS attachments_count`,
+      [resolvedAppId],
+    );
+    const row: Partial<{
+      opex_count: string | number;
+      capex_count: string | number;
+      contracts_count: string | number;
+      projects_count: string | number;
+      links_count: string | number;
+      attachments_count: string | number;
+    }> = rows[0] || {};
+    const counts = {
+      opex: Number(row.opex_count || 0),
+      capex: Number(row.capex_count || 0),
+      contracts: Number(row.contracts_count || 0),
+      projects: Number(row.projects_count || 0),
+      links: Number(row.links_count || 0),
+      attachments: Number(row.attachments_count || 0),
+    };
+    return {
+      ...counts,
+      total: counts.opex + counts.capex + counts.contracts + counts.projects + counts.links + counts.attachments,
+    };
+  }
+
   // Links
   async listLinks(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);

@@ -388,8 +388,11 @@ export default function PortfolioDetailWorkspaceShell({
               allowScrollButtonsMobile
               sx={(theme) => ({
                 minHeight: 'auto',
+                overflow: 'visible',
                 borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
                 '& .MuiTabs-indicator': { display: 'none' },
+                '& .MuiTabs-scroller': { overflow: 'visible !important' },
+                '& .MuiTabs-flexContainer': { overflow: 'visible', pt: '10px' },
               })}
             >
               {tabs.map((tab) => (
@@ -430,6 +433,7 @@ export default function PortfolioDetailWorkspaceShell({
                   disabled={tab.disabled}
                   sx={(theme) => ({
                     position: 'relative',
+                    overflow: 'visible',
                     minHeight: 'auto',
                     pt: 0,
                     px: 0,

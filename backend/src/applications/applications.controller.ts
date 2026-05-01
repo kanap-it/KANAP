@@ -697,6 +697,16 @@ export class ApplicationsController {
     return this.svc.bulkReplaceDataResidency(id, body?.countries ?? [], ctx.userId || null, { manager: ctx.manager });
   }
 
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get(':id/relations-count')
+  relationCounts(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+  ): Promise<{ opex: number; capex: number; contracts: number; projects: number; links: number; attachments: number; total: number }> {
+    return this.svc.relationCounts(id, { manager: ctx.manager });
+  }
+
   // Relations — OPEX (spend items)
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')

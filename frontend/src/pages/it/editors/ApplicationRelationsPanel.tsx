@@ -14,7 +14,7 @@ export type ApplicationRelationsPanelHandle = {
   reset: () => void;
 };
 
-type Props = { id: string; isSuite?: boolean; onDirtyChange?: (dirty: boolean) => void };
+type Props = { id: string; isSuite?: boolean; onDirtyChange?: (dirty: boolean) => void; onRelationsChange?: () => void };
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -39,7 +39,7 @@ function normalizeUrl(value: string) {
   return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
 }
 
-export default forwardRef<ApplicationRelationsPanelHandle, Props>(function ApplicationRelationsPanel({ id, isSuite = false, onDirtyChange }, ref) {
+export default forwardRef<ApplicationRelationsPanelHandle, Props>(function ApplicationRelationsPanel({ id, isSuite = false, onDirtyChange, onRelationsChange }, ref) {
   const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel('applications', 'manager');
@@ -232,12 +232,13 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
     try {
       await api.post(`/applications/${id}/spend-items/bulk-replace`, { spend_item_ids: next.map((item) => item.id) });
       setBaselineOpex(next);
+      onRelationsChange?.();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
     } finally {
       setSaving(false);
     }
-  }, [id, readOnly, t]);
+  }, [id, onRelationsChange, readOnly, t]);
 
   const replaceCapexRelations = React.useCallback(async (next: Array<{ id: string; description: string }>) => {
     setLinkedCapex(next);
@@ -247,12 +248,13 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
     try {
       await api.post(`/applications/${id}/capex-items/bulk-replace`, { capex_item_ids: next.map((item) => item.id) });
       setBaselineCapex(next);
+      onRelationsChange?.();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
     } finally {
       setSaving(false);
     }
-  }, [id, readOnly, t]);
+  }, [id, onRelationsChange, readOnly, t]);
 
   const replaceContractRelations = React.useCallback(async (next: Array<{ id: string; name: string }>) => {
     setLinkedContracts(next);
@@ -262,12 +264,13 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
     try {
       await api.post(`/applications/${id}/contracts/bulk-replace`, { contract_ids: next.map((item) => item.id) });
       setBaselineContracts(next);
+      onRelationsChange?.();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
     } finally {
       setSaving(false);
     }
-  }, [id, readOnly, t]);
+  }, [id, onRelationsChange, readOnly, t]);
 
   const replaceProjectRelations = React.useCallback(async (next: Array<{ id: string; name: string }>) => {
     setLinkedProjects(next);
@@ -277,12 +280,13 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
     try {
       await api.post(`/applications/${id}/projects/bulk-replace`, { project_ids: next.map((item) => item.id) });
       setBaselineProjects(next);
+      onRelationsChange?.();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
     } finally {
       setSaving(false);
     }
-  }, [id, readOnly, t]);
+  }, [id, onRelationsChange, readOnly, t]);
 
   const syncUrls = React.useCallback(async (nextUrls: Array<{ id?: string; description?: string; url: string }>) => {
     setUrls(nextUrls);
@@ -312,12 +316,13 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
       urlsEditedRef.current = false;
       setBaselineUrls(urlItems);
       setUrls(urlItems);
+      onRelationsChange?.();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
     } finally {
       setSaving(false);
     }
-  }, [baselineUrls, id, readOnly, t]);
+  }, [baselineUrls, id, onRelationsChange, readOnly, t]);
 
   const addLink = React.useCallback(async () => {
     const url = String(linkDraft.url || '').trim();
@@ -604,6 +609,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
               for (const f of files) { const fd = new FormData(); fd.append('file', f); await api.post(`/applications/${id}/attachments`, fd); }
               const resAtt = await api.get(`/applications/${id}/attachments`);
               setAttachments(resAtt.data || []);
+              onRelationsChange?.();
             } finally { setUploading(false); setUploadCount(0); }
           }}
           sx={{ border: '2px dashed', borderColor: hover ? 'primary.main' : 'divider', borderRadius: 1, p: 2, textAlign: 'center', cursor: 'pointer' }}
@@ -621,6 +627,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
                   for (const f of files) { const fd = new FormData(); fd.append('file', f); await api.post(`/applications/${id}/attachments`, fd); }
                   const resAtt = await api.get(`/applications/${id}/attachments`);
                   setAttachments(resAtt.data || []);
+                  onRelationsChange?.();
                 } finally { setUploading(false); setUploadCount(0); if (input) input.value = ''; }
               }} />
             </Button>
@@ -639,7 +646,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
               if (!canDelete) return;
               const ok = window.confirm(`Delete attachment \"${a.original_filename}\"?`);
               if (!ok) return;
-              try { await api.patch(`/applications/attachments/${a.id}/delete`, {}); const res = await api.get(`/applications/${id}/attachments`); setAttachments(res.data || []); } catch {}
+              try { await api.patch(`/applications/attachments/${a.id}/delete`, {}); const res = await api.get(`/applications/${id}/attachments`); setAttachments(res.data || []); onRelationsChange?.(); } catch {}
             };
             return (
               <Chip
