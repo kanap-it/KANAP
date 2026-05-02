@@ -14,8 +14,11 @@ import { AiQueryExecutor } from './query/ai-query.executor';
 import { AiMutationOperationRegistry } from './mutation/ai-mutation-operation.registry';
 import { AiSettings } from './ai-settings.entity';
 import {
+  AI_CONTEXT_ENTITY_TYPES,
+  AI_QUERY_ENTITY_TYPES,
   AiContextEntityTypeSchema,
   AiDocumentDto,
+  AiEntityDetailDto,
   AiEntitySummaryDto,
   AiExecutionContextWithManager,
   AiKnowledgeSearchResultDto,
@@ -37,6 +40,11 @@ const SearchAllInputSchema = z.object({
 const GetEntityContextInputSchema = z.object({
   entity_type: AiContextEntityTypeSchema,
   entity_id: z.string().trim().min(1),
+});
+
+const GetEntityDetailInputSchema = z.object({
+  entity_type: AiQueryEntityTypeSchema,
+  entity_id: z.string().trim().min(1).describe('Entity UUID or canonical reference when that entity supports references.'),
 });
 
 const GetEntityCommentsInputSchema = z.object({
@@ -107,6 +115,9 @@ const WebSearchInputSchema = z.object({
 const UndoPreviewInputSchema = z.object({
   preview_id: z.string().trim().uuid(),
 });
+
+const QUERY_ENTITY_TYPE_SUMMARY = AI_QUERY_ENTITY_TYPES.join(', ');
+const CONTEXT_ENTITY_TYPE_SUMMARY = AI_CONTEXT_ENTITY_TYPES.join(', ');
 
 function normalizeJsonSchemaForProviders(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -192,7 +203,7 @@ export class AiToolRegistry {
           description: 'Query one readable entity family with server-side filters, pagination, and exact totals. If `filters_ignored` is non-empty, the query was not fully honored and must be repaired before answering.',
           inputSchema: QueryEntitiesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, tasks, or users.',
+            entity_type: `One of ${QUERY_ENTITY_TYPE_SUMMARY}.`,
             scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             filters: 'Optional field filters keyed by AI field name.',
             q: 'Optional literal quick-search text. Use plain text only; never encode filters like status:in_progress or assignee=bob@example.com here.',
@@ -216,7 +227,7 @@ export class AiToolRegistry {
           description: 'Break down one readable entity family by a supported field with exact server-side counts or metric aggregations. If `filters_ignored` is non-empty, the query was not fully honored and must be repaired before answering.',
           inputSchema: AggregateEntitiesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, tasks, or users.',
+            entity_type: `One of ${QUERY_ENTITY_TYPE_SUMMARY}.`,
             scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             group_by: 'A supported group-by field from the query layer registry.',
             metric: 'Optional numeric or date field to aggregate when using sum, avg, min, or max.',
@@ -240,7 +251,7 @@ export class AiToolRegistry {
           description: 'Discover exact filter values for supported set-like AI query fields. If `fields_ignored` is non-empty, those field names are unsupported for that entity and must not be used for filtering.',
           inputSchema: GetFilterValuesInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, companies, contracts, departments, documents, locations, projects, requests, spend_items, suppliers, tasks, or users.',
+            entity_type: `One of ${QUERY_ENTITY_TYPE_SUMMARY}.`,
             fields: 'AI field names to inspect.',
           },
           surfaces: ['chat', 'mcp'],
@@ -252,6 +263,25 @@ export class AiToolRegistry {
         },
       ],
       [
+        'get_entity_detail',
+        {
+          name: 'get_entity_detail',
+          category: 'inspection',
+          description: 'Return one readable business/domain entity as a detailed AI-safe DTO. Use query_entities for long lists, then call this for the specific item that needs full scalar detail and attachment metadata.',
+          inputSchema: GetEntityDetailInputSchema,
+          inputSummary: {
+            entity_type: `One of ${QUERY_ENTITY_TYPE_SUMMARY}.`,
+            entity_id: 'The entity UUID, or canonical reference such as PRJ-12, REQ-7, T-42, or DOC-3 when supported.',
+          },
+          surfaces: ['chat', 'mcp'],
+          readOnly: true,
+          execute: async (context, input): Promise<AiEntityDetailDto> => {
+            await this.policy.assertEntityTypeReadAccess(context, input.entity_type, context.manager);
+            return this.queryExecutor.executeDetail(context, input);
+          },
+        },
+      ],
+      [
         'get_entity_context',
         {
           name: 'get_entity_context',
@@ -259,7 +289,7 @@ export class AiToolRegistry {
           description: 'Return a stable relationship-focused context payload for one known entity.',
           inputSchema: GetEntityContextInputSchema,
           inputSummary: {
-            entity_type: 'One of applications, assets, projects, requests, or tasks.',
+            entity_type: `One of ${CONTEXT_ENTITY_TYPE_SUMMARY}.`,
             entity_id: 'The entity UUID to inspect.',
           },
           surfaces: ['chat', 'mcp'],
@@ -501,9 +531,10 @@ export class AiToolRegistry {
       case 'query_entities':
       case 'aggregate_entities':
       case 'get_filter_values':
+      case 'get_entity_detail':
         return avail.readableEntityTypes.length > 0;
       case 'get_entity_context':
-        return avail.readableEntityTypes.some((type) => type !== 'documents');
+        return AI_CONTEXT_ENTITY_TYPES.some((type) => avail.readableEntityTypes.includes(type));
       case 'get_entity_comments':
         return avail.readableEntityTypes.includes('projects') || avail.readableEntityTypes.includes('tasks');
       case 'search_knowledge':
@@ -535,7 +566,7 @@ export class AiToolRegistry {
   private async loadAvailabilityContext(context: AiExecutionContextWithManager) {
     const readableEntityTypes = await this.policy.listReadableEntityTypes(
       context,
-      ['applications', 'assets', 'companies', 'contracts', 'departments', 'documents', 'locations', 'projects', 'requests', 'spend_items', 'suppliers', 'tasks', 'users'],
+      [...AI_QUERY_ENTITY_TYPES],
       context.manager,
     );
     const canReadKnowledge = await this.policy.canReadKnowledge(context, context.manager);

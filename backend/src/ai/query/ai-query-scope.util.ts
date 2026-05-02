@@ -2,12 +2,20 @@ import { BadRequestException } from '@nestjs/common';
 import { AiExecutionContextWithManager, AiQueryScope } from '../ai.types';
 
 export type ScopedAiEntityType =
+  | 'accounts'
+  | 'analytics_categories'
   | 'applications'
   | 'assets'
+  | 'business_processes'
+  | 'capex_items'
+  | 'chart_of_accounts'
   | 'companies'
+  | 'connections'
+  | 'contacts'
   | 'contracts'
   | 'departments'
   | 'documents'
+  | 'interfaces'
   | 'locations'
   | 'projects'
   | 'requests'

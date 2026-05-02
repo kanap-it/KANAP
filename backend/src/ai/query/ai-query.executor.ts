@@ -1,9 +1,17 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { AccountsService } from '../../accounts/accounts.service';
+import { ChartOfAccountsService } from '../../accounts/chart-of-accounts.service';
+import { AnalyticsCategoriesService } from '../../analytics/analytics-categories.service';
 import { ApplicationsService } from '../../applications/services';
 import { AssetsService } from '../../assets/services';
+import { BusinessProcessesService } from '../../business-processes/business-processes.service';
+import { CapexItemsService } from '../../capex/capex-items.service';
 import { CompaniesService } from '../../companies/companies.service';
+import { ConnectionsService } from '../../connections/services';
+import { ContactsService } from '../../contacts/contacts.service';
 import { ContractsService } from '../../contracts/contracts.service';
 import { DepartmentsService } from '../../departments/departments.service';
+import { InterfacesService } from '../../interfaces/services';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
 import { LocationsService } from '../../locations/locations.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
@@ -14,6 +22,7 @@ import { SuppliersService } from '../../suppliers/suppliers.service';
 import { UsersService } from '../../users/users.service';
 import {
   AiEntityMetadata,
+  AiEntityDetailDto,
   AiEntitySummaryDto,
   AiExecutionContextWithManager,
   AiQueryEntityType,
@@ -131,6 +140,48 @@ function buildSpendYearlyTotals(row: any, anchorYear: number): Array<Record<stri
   }));
 }
 
+function getCapexVersionMetric(
+  row: any,
+  slotKey: 'yMinus1' | 'y' | 'yPlus1',
+  metric: 'budget' | 'revision' | 'follow_up' | 'landing',
+): number | null {
+  const slot = row?.versions?.[slotKey];
+  if (!slot || typeof slot !== 'object') return null;
+  const reportingValue = numericScalar(slot.reporting?.[metric]);
+  if (reportingValue != null) return reportingValue;
+  return numericScalar(slot.totals?.[metric]);
+}
+
+const DETAIL_OMITTED_KEYS = new Set([
+  'tenant_id',
+  'storage_key',
+  'storage_path',
+  'file_path',
+  'object_key',
+  'password',
+  'secret',
+  'token',
+]);
+
+function sanitizeDetailValue(value: unknown): unknown {
+  if (value === null || value === undefined) return null;
+  if (value instanceof Date) return toIso(value);
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map((entry) => sanitizeDetailValue(entry));
+
+  const output: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    const normalizedKey = key.toLowerCase();
+    if (DETAIL_OMITTED_KEYS.has(normalizedKey)) continue;
+    if (normalizedKey.endsWith('_encrypted')) continue;
+    if (normalizedKey.includes('password') || normalizedKey.includes('secret')) continue;
+    if (normalizedKey.endsWith('_token') || normalizedKey.includes('api_key')) continue;
+    output[key] = sanitizeDetailValue(entry);
+  }
+  return output;
+}
+
 function toEntitySummary(
   entityType: AiQueryEntityType,
   row: {
@@ -171,6 +222,14 @@ export class AiQueryExecutor {
     private readonly knowledge: KnowledgeService,
     private readonly locations: LocationsService,
     private readonly users: UsersService,
+    private readonly accounts: AccountsService,
+    private readonly chartOfAccounts: ChartOfAccountsService,
+    private readonly analyticsCategories: AnalyticsCategoriesService,
+    private readonly businessProcesses: BusinessProcessesService,
+    private readonly capexItems: CapexItemsService,
+    private readonly contacts: ContactsService,
+    private readonly interfaces: InterfacesService,
+    private readonly connections: ConnectionsService,
   ) {}
 
   private resolveSort(
@@ -227,8 +286,14 @@ export class AiQueryExecutor {
       query.include_inactive = true;
     } else if (
       entityType === 'spend_items'
+      || entityType === 'accounts'
+      || entityType === 'analytics_categories'
+      || entityType === 'business_processes'
+      || entityType === 'capex_items'
       || entityType === 'contracts'
+      || entityType === 'chart_of_accounts'
       || entityType === 'companies'
+      || entityType === 'contacts'
       || entityType === 'suppliers'
       || entityType === 'departments'
     ) {
@@ -401,6 +466,100 @@ export class AiQueryExecutor {
     });
   }
 
+  private mapCapexItem(row: any): AiEntitySummaryDto {
+    const summary = row.notes
+      ?? ([row.company_name, row.ppe_type, row.investment_type].filter(Boolean).join(' | ') || null);
+    return toEntitySummary('capex_items', {
+      id: row.id,
+      label: row.description || 'Untitled CAPEX item',
+      status: row.status ?? null,
+      summary,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        paying_company: scalar(row.company_name),
+        ppe_type: scalar(row.ppe_type),
+        investment_type: scalar(row.investment_type),
+        priority: scalar(row.priority),
+        currency: scalar(row.currency),
+        effective_start: scalar(row.effective_start),
+        effective_end: scalar(row.effective_end),
+        allocation_method: scalar(row.allocation_method_label),
+        next_year_allocation_method: scalar(row.next_year_allocation_method_label),
+        budget_anchor_year: new Date().getFullYear(),
+        y_minus1_landing: getCapexVersionMetric(row, 'yMinus1', 'landing'),
+        y_budget: getCapexVersionMetric(row, 'y', 'budget'),
+        y_review: getCapexVersionMetric(row, 'y', 'revision'),
+        y_actual: getCapexVersionMetric(row, 'y', 'follow_up'),
+        y_landing: getCapexVersionMetric(row, 'y', 'landing'),
+        y_plus1_budget: getCapexVersionMetric(row, 'yPlus1', 'budget'),
+        y_plus1_landing: getCapexVersionMetric(row, 'yPlus1', 'landing'),
+      },
+    });
+  }
+
+  private mapAccount(row: any): AiEntitySummaryDto {
+    return toEntitySummary('accounts', {
+      id: row.id,
+      label: [row.account_number, row.account_name].filter(Boolean).join(' - ') || 'Untitled account',
+      status: row.status ?? null,
+      summary: row.description ?? row.native_name ?? null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        coa_code: scalar(row.coa_code),
+        account_number: scalar(row.account_number),
+        native_name: scalar(row.native_name),
+        consolidation_account_number: numericScalar(row.consolidation_account_number),
+        consolidation_account_name: scalar(row.consolidation_account_name),
+      },
+    });
+  }
+
+  private mapChartOfAccounts(row: any): AiEntitySummaryDto {
+    return toEntitySummary('chart_of_accounts', {
+      id: row.id,
+      label: [row.code, row.name].filter(Boolean).join(' - ') || 'Untitled chart of accounts',
+      status: null,
+      summary: [row.scope, row.country_iso].filter(Boolean).join(' | ') || null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        code: scalar(row.code),
+        country_iso: scalar(row.country_iso),
+        scope: scalar(row.scope),
+        is_default: row.is_default == null ? null : Boolean(row.is_default),
+        is_global_default: row.is_global_default == null ? null : Boolean(row.is_global_default),
+        companies_count: numericScalar(row.companies_count),
+        accounts_count: numericScalar(row.accounts_count),
+      },
+    });
+  }
+
+  private mapAnalyticsCategory(row: any): AiEntitySummaryDto {
+    return toEntitySummary('analytics_categories', {
+      id: row.id,
+      label: row.name || 'Untitled analytics category',
+      status: row.status ?? null,
+      summary: row.description ?? null,
+      updated_at: row.updated_at ?? null,
+      metadata: {},
+    });
+  }
+
+  private mapBusinessProcess(row: any): AiEntitySummaryDto {
+    return toEntitySummary('business_processes', {
+      id: row.id,
+      label: row.name || 'Untitled business process',
+      status: row.status ?? null,
+      summary: row.description ?? row.notes ?? null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        owner: scalar(row.owner_name),
+        primary_category: scalar(row.primary_category_name),
+        categories: scalar(Array.isArray(row.categories) ? row.categories.map((item: any) => item.name).join(', ') : null),
+        is_default: row.is_default == null ? null : Boolean(row.is_default),
+      },
+    });
+  }
+
   private mapContract(row: any): AiEntitySummaryDto {
     const companyName = row.company?.name ?? row.company_name ?? null;
     const supplierName = row.supplier?.name ?? row.supplier_name ?? null;
@@ -471,6 +630,27 @@ export class AiQueryExecutor {
     });
   }
 
+  private mapContact(row: any): AiEntitySummaryDto {
+    const label = [row.first_name, row.last_name].filter(Boolean).join(' ').trim()
+      || row.email
+      || 'Unknown contact';
+    return toEntitySummary('contacts', {
+      id: row.id,
+      label,
+      status: row.active === false ? 'inactive' : 'active',
+      summary: [row.job_title, row.supplier_name, row.country].filter(Boolean).join(' | ') || null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        email: scalar(row.email),
+        phone: scalar(row.phone),
+        mobile: scalar(row.mobile),
+        country: scalar(row.country),
+        supplier: scalar(row.supplier_name),
+        supplier_role: scalar(row.supplier_role),
+      },
+    });
+  }
+
   private mapAsset(row: any): AiEntitySummaryDto {
     return toEntitySummary('assets', {
       id: row.id,
@@ -508,6 +688,52 @@ export class AiQueryExecutor {
         city: scalar(row.city),
         assets: row.servers_count ?? 0,
         sub_locations: subLocations,
+      },
+    });
+  }
+
+  private mapInterface(row: any): AiEntitySummaryDto {
+    return toEntitySummary('interfaces', {
+      id: row.id,
+      label: [row.interface_id, row.name].filter(Boolean).join(' - ') || 'Untitled interface',
+      status: row.lifecycle ?? null,
+      summary: row.business_purpose ?? row.overview_notes ?? null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        interface_id: scalar(row.interface_id),
+        source_application: scalar(row.source_application_name),
+        target_application: scalar(row.target_application_name),
+        business_process: scalar(row.business_process_name),
+        data_category: scalar(row.data_category),
+        data_class: scalar(row.data_class),
+        criticality: scalar(row.criticality),
+        integration_route_type: scalar(row.integration_route_type),
+        contains_pii: row.contains_pii == null ? null : Boolean(row.contains_pii),
+        bindings_count: numericScalar(row.bindings_count),
+        environment_coverage: numericScalar(row.environment_coverage),
+        binding_environments: scalar(Array.isArray(row.binding_environments) ? row.binding_environments.join(', ') : null),
+      },
+    });
+  }
+
+  private mapConnection(row: any): AiEntitySummaryDto {
+    return toEntitySummary('connections', {
+      id: row.id,
+      label: [row.connection_id, row.name].filter(Boolean).join(' - ') || 'Untitled connection',
+      status: row.lifecycle ?? null,
+      summary: row.purpose ?? row.notes ?? null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        connection_id: scalar(row.connection_id),
+        topology: scalar(row.topology),
+        source: scalar(row.source_label ?? row.source_asset_name ?? row.source_entity_code),
+        destination: scalar(row.destination_label ?? row.destination_asset_name ?? row.destination_entity_code),
+        protocols: scalar(Array.isArray(row.protocol_labels) ? row.protocol_labels.join(', ') : null),
+        criticality: scalar(row.effective_criticality ?? row.criticality),
+        data_class: scalar(row.effective_data_class ?? row.data_class),
+        contains_pii: row.effective_contains_pii == null ? null : Boolean(row.effective_contains_pii),
+        risk_mode: scalar(row.risk_mode),
+        derived_interface_count: numericScalar(row.derived_interface_count),
       },
     });
   }
@@ -687,6 +913,33 @@ export class AiQueryExecutor {
       };
     }
 
+    if (input.entity_type === 'capex_items') {
+      const anchorYear = new Date().getFullYear();
+      const result = await this.capexItems.summary(
+        {
+          ...scoped.query,
+          years: [anchorYear - 1, anchorYear, anchorYear + 1].join(','),
+        },
+        { manager: context.manager },
+      );
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
+      return {
+        items: (result.items || []).map((row: any) => this.mapCapexItem(row)),
+        total: result.total ?? 0,
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
     if (input.entity_type === 'spend_items') {
       const anchorYear = new Date().getFullYear();
       const result = await this.spendItems.summary(
@@ -754,6 +1007,86 @@ export class AiQueryExecutor {
       };
     }
 
+    if (input.entity_type === 'accounts') {
+      const result = await this.accounts.list(scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
+      return {
+        items: (result.items || []).map((row: any) => this.mapAccount(row)),
+        total: result.total ?? 0,
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
+    if (input.entity_type === 'chart_of_accounts') {
+      const result = await this.chartOfAccounts.list(scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
+      return {
+        items: (result.items || []).map((row: any) => this.mapChartOfAccounts(row)),
+        total: result.total ?? 0,
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
+    if (input.entity_type === 'analytics_categories') {
+      const result = await this.analyticsCategories.list(scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
+      return {
+        items: (result.items || []).map((row: any) => this.mapAnalyticsCategory(row)),
+        total: result.total ?? 0,
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
+    if (input.entity_type === 'business_processes') {
+      const result = await this.businessProcesses.list(scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
+      return {
+        items: (result.items || []).map((row: any) => this.mapBusinessProcess(row)),
+        total: result.total ?? 0,
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
     if (input.entity_type === 'suppliers') {
       const result = await this.suppliers.list(scoped.query, { manager: context.manager });
       const resultPage = result.page ?? page;
@@ -782,6 +1115,26 @@ export class AiQueryExecutor {
       const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapDepartment(row)),
+        total: result.total ?? 0,
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
+    if (input.entity_type === 'contacts') {
+      const result = await this.contacts.list(scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
+      return {
+        items: (result.items || []).map((row: any) => this.mapContact(row)),
         total: result.total ?? 0,
         page: resultPage,
         limit: resultLimit,
@@ -858,6 +1211,46 @@ export class AiQueryExecutor {
       };
     }
 
+    if (input.entity_type === 'interfaces') {
+      const result = await this.interfaces.list(scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
+      return {
+        items: (result.items || []).map((row: any) => this.mapInterface(row)),
+        total: result.total ?? 0,
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
+    if (input.entity_type === 'connections') {
+      const result = await this.connections.list(context.tenantId, scoped.query, { manager: context.manager });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
+      return {
+        items: (result.items || []).map((row: any) => this.mapConnection(row)),
+        total: result.total ?? 0,
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
     if (input.entity_type === 'users') {
       const result = await this.users.listForAi(scoped.query, {
         manager: context.manager,
@@ -882,6 +1275,228 @@ export class AiQueryExecutor {
     }
 
     throw new BadRequestException('Unsupported entity type.');
+  }
+
+  private async resolveDetailEntityId(
+    context: AiExecutionContextWithManager,
+    entityType: AiQueryEntityType,
+    rawId: string,
+  ): Promise<string> {
+    const value = String(rawId || '').trim();
+    if (!value) return value;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+      return value;
+    }
+    if (entityType === 'documents') {
+      return value;
+    }
+
+    const result = await this.execute(context, {
+      entity_type: entityType,
+      q: value,
+      page: 1,
+      limit: 5,
+    });
+    const lower = value.toLowerCase();
+    const exact = result.items.find((item) =>
+      item.id.toLowerCase() === lower
+      || item.ref?.toLowerCase() === lower
+      || item.label.toLowerCase() === lower,
+    );
+    if (exact) return exact.id;
+    if (result.items.length === 1) return result.items[0].id;
+    return value;
+  }
+
+  private toDetailResult(
+    entity: AiEntitySummaryDto,
+    row: unknown,
+    complete = true,
+  ): AiEntityDetailDto {
+    const data = sanitizeDetailValue(row);
+    return {
+      entity,
+      data: data && typeof data === 'object' && !Array.isArray(data) ? data as Record<string, unknown> : { value: data },
+      total: 1,
+      returned: 1,
+      truncated: false,
+      complete,
+    };
+  }
+
+  async executeDetail(
+    context: AiExecutionContextWithManager,
+    input: {
+      entity_type: AiQueryEntityType;
+      entity_id: string;
+    },
+  ): Promise<AiEntityDetailDto> {
+    const entityType = input.entity_type;
+    const entityId = await this.resolveDetailEntityId(context, entityType, input.entity_id);
+
+    if (entityType === 'tasks') {
+      const row = await this.tasks.getOne(entityId, { manager: context.manager });
+      if (!row) throw new NotFoundException('Task not found.');
+      return this.toDetailResult(this.mapTask(row), row);
+    }
+
+    if (entityType === 'projects') {
+      const row = await this.projects.get(
+        entityId,
+        { include: 'team,sponsors,contacts,company,department,source_requests,urls,dependencies,attachments,phases,milestones,financials' },
+        { manager: context.manager, tenantId: context.tenantId },
+      );
+      return this.toDetailResult(this.mapProject(row), row);
+    }
+
+    if (entityType === 'requests') {
+      const row = await this.requests.get(
+        entityId,
+        { include: 'team,sponsors,contacts,company,department,origin_task,urls,attachments,projects,dependencies,financials,business_processes' },
+        { manager: context.manager },
+      );
+      return this.toDetailResult(this.mapRequest(row), row);
+    }
+
+    if (entityType === 'applications') {
+      const row = await this.applications.get(entityId, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+        include: 'instances,deployments,support',
+      });
+      return this.toDetailResult(this.mapApplication(row), row);
+    }
+
+    if (entityType === 'assets') {
+      const row: any = await this.assets.get(entityId, { manager: context.manager, tenantId: context.tenantId });
+      row.support_info = await this.assets.getSupportInfo(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => null);
+      row.support_contacts = await this.assets.listSupportContacts(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => []);
+      row.links = await this.assets.listLinks(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => []);
+      row.attachments = await this.assets.listAttachments(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => []);
+      return this.toDetailResult(this.mapAsset(row), row);
+    }
+
+    if (entityType === 'spend_items') {
+      const row = await this.spendItems.get(entityId, { manager: context.manager });
+      return this.toDetailResult(this.mapSpendItem(row), row);
+    }
+
+    if (entityType === 'capex_items') {
+      const row: any = await this.capexItems.get(entityId, { manager: context.manager });
+      row.links = await this.capexItems.listLinks(entityId, { manager: context.manager }).catch(() => []);
+      row.attachments = await this.capexItems.listAttachments(entityId, { manager: context.manager }).catch(() => []);
+      return this.toDetailResult(this.mapCapexItem(row), row);
+    }
+
+    if (entityType === 'contracts') {
+      const row = await this.contracts.get(entityId, { manager: context.manager });
+      return this.toDetailResult(this.mapContract(row), row);
+    }
+
+    if (entityType === 'companies') {
+      const row = await this.companies.get(entityId, { manager: context.manager });
+      return this.toDetailResult(this.mapCompany(row), row);
+    }
+
+    if (entityType === 'suppliers') {
+      const row = await this.suppliers.get(entityId, { manager: context.manager });
+      return this.toDetailResult(this.mapSupplier(row), row);
+    }
+
+    if (entityType === 'departments') {
+      const row = await this.departments.get(entityId, { manager: context.manager });
+      return this.toDetailResult(this.mapDepartment(row), row);
+    }
+
+    if (entityType === 'accounts') {
+      const row = await this.accounts.get(entityId, { manager: context.manager });
+      return this.toDetailResult(this.mapAccount(row), row);
+    }
+
+    if (entityType === 'chart_of_accounts') {
+      const row = await this.chartOfAccounts.get(entityId, { manager: context.manager });
+      return this.toDetailResult(this.mapChartOfAccounts(row), row);
+    }
+
+    if (entityType === 'analytics_categories') {
+      const row = await this.analyticsCategories.get(entityId, { manager: context.manager });
+      return this.toDetailResult(this.mapAnalyticsCategory(row), row);
+    }
+
+    if (entityType === 'business_processes') {
+      const row = await this.businessProcesses.get(entityId, { manager: context.manager });
+      return this.toDetailResult(this.mapBusinessProcess(row), row);
+    }
+
+    if (entityType === 'contacts') {
+      const row = await this.contacts.get(entityId, { manager: context.manager });
+      return this.toDetailResult(this.mapContact(row), row);
+    }
+
+    if (entityType === 'locations') {
+      const row = await this.locations.get(entityId, { manager: context.manager, tenantId: context.tenantId } as any);
+      return this.toDetailResult(this.mapLocation(row), row);
+    }
+
+    if (entityType === 'interfaces') {
+      const row = await this.interfaces.get(
+        entityId,
+        { include: 'relations,legs,attachments,middleware_applications' },
+        { manager: context.manager },
+      );
+      return this.toDetailResult(this.mapInterface(row), row);
+    }
+
+    if (entityType === 'connections') {
+      const row = await this.connections.get(entityId, context.tenantId, { manager: context.manager, includeLegs: true });
+      return this.toDetailResult(this.mapConnection(row), row);
+    }
+
+    if (entityType === 'users') {
+      const row = await this.users.findById(entityId, { manager: context.manager });
+      if (!row) throw new NotFoundException('User not found.');
+      return this.toDetailResult(this.mapUser(row), row);
+    }
+
+    if (entityType === 'documents') {
+      const document = await this.knowledge.get(entityId, { manager: context.manager, userId: context.userId });
+      if (!document) throw new NotFoundException('Document not found.');
+      return this.toDetailResult(this.mapDocument(document), document);
+    }
+
+    throw new BadRequestException('Unsupported entity type.');
+  }
+
+  private async loadRegistryFilterValues(
+    context: AiExecutionContextWithManager,
+    entityType: AiQueryEntityType,
+    aiFields: string[],
+  ): Promise<Record<string, Array<string | boolean | null>>> {
+    const registry = getAiEntityRegistry(entityType);
+    const values: Record<string, Array<string | boolean | null>> = {};
+
+    for (const aiField of aiFields) {
+      const groupField = registry.aggregate.groupFields[aiField];
+      if (!groupField) continue;
+      const joins = Array.from(new Set(groupField.joins || [])).join('\n');
+      const alias = registry.aggregate.alias;
+      const rows = await context.manager.query(
+        `SELECT DISTINCT ${groupField.expression} AS value
+         FROM ${registry.aggregate.baseTable} ${alias}
+         ${joins}
+         WHERE ${alias}.tenant_id = $1
+         ORDER BY value ASC NULLS LAST
+         LIMIT 5000`,
+        [context.tenantId],
+      );
+      values[aiField] = (rows || []).map((row: any) => {
+        if (row.value === null || row.value === undefined || row.value === '') return null;
+        if (typeof row.value === 'boolean') return row.value;
+        return String(row.value);
+      });
+    }
+
+    return values;
   }
 
   async executeFilterValues(
@@ -945,8 +1560,14 @@ export class AiQueryExecutor {
       query.include_inactive = true;
     } else if (
       input.entity_type === 'spend_items'
+      || input.entity_type === 'accounts'
+      || input.entity_type === 'analytics_categories'
+      || input.entity_type === 'business_processes'
+      || input.entity_type === 'capex_items'
+      || input.entity_type === 'chart_of_accounts'
       || input.entity_type === 'contracts'
       || input.entity_type === 'companies'
+      || input.entity_type === 'contacts'
       || input.entity_type === 'suppliers'
       || input.entity_type === 'departments'
     ) {
@@ -976,6 +1597,10 @@ export class AiQueryExecutor {
       }) as any;
     } else if (input.entity_type === 'spend_items') {
       raw = await this.spendItems.summaryFilterValues(query, {
+        manager: context.manager,
+      }) as any;
+    } else if (input.entity_type === 'capex_items') {
+      raw = await this.capexItems.summaryFilterValues(query, {
         manager: context.manager,
       }) as any;
     } else if (input.entity_type === 'contracts') {
@@ -1008,6 +1633,18 @@ export class AiQueryExecutor {
         manager: context.manager,
         tenantId: context.tenantId,
       }) as any;
+    }
+
+    const fallbackAiFields = requestedFields.filter((fieldName) => {
+      const field = registry.fields[fieldName];
+      return field?.dynamic === true && !raw?.[field.grid];
+    });
+    if (fallbackAiFields.length > 0) {
+      const fallback = await this.loadRegistryFilterValues(context, input.entity_type, fallbackAiFields);
+      for (const [aiField, fieldValues] of Object.entries(fallback)) {
+        const field = registry.fields[aiField];
+        if (field) raw[field.grid] = fieldValues;
+      }
     }
 
     for (const [gridField, aiFields] of dynamicFieldMap.entries()) {

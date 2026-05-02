@@ -1371,6 +1371,14 @@ function createAiQueryHarness(manager: any) {
     knowledge as any,
     locations as any,
     users as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
   const aggregateExecutor = new AiAggregateExecutor(
     tasks as any,
@@ -1384,7 +1392,16 @@ function createAiQueryHarness(manager: any) {
     suppliers,
     departments,
     knowledge as any,
+    locations as any,
     users as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
 
   return { knowledge, queryExecutor, aggregateExecutor };
@@ -1660,6 +1677,23 @@ function buildToolIsolationCases(
             assert.deepEqual(getRelatedIdsByRelation(result, 'converted_request'), [fixtures.graphA.requestId]);
             assert.equal(getPersonName(result.entity.metadata.creator), fixtures.peopleA.taskCreator.name);
             assert.equal(getMetadataObjectName(result.entity.metadata.phase), fixtures.graphA.phaseName);
+          },
+        },
+      ];
+
+    case 'get_entity_detail':
+      return [
+        {
+          label: 'tasks-detail',
+          input: { entity_type: 'tasks', entity_id: fixtures.graphA.taskId },
+          assertResult: (result: any) => {
+            assert.equal(result.total, 1);
+            assert.equal(result.returned, 1);
+            assert.equal(result.truncated, false);
+            assert.equal(result.complete, true);
+            assert.equal(result.entity.id, fixtures.graphA.taskId);
+            assert.equal(result.data.id, fixtures.graphA.taskId);
+            assert.equal(result.data.tenant_id, undefined);
           },
         },
       ];
@@ -3701,6 +3735,14 @@ async function testAiQueryExecutorClosesRemainingMilestone1aGapFields() {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
     );
 
     const context = {
@@ -3825,6 +3867,14 @@ async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
 
   const result = await executor.execute(
@@ -3900,11 +3950,11 @@ async function testSpendSummaryFiltersSupportRelativeYearMetricsAndDates() {
 
 async function testAiAggregateExecutorSpendItemsSupportsSummaryMetricsAndProjectStreams() {
   const executor = new AiAggregateExecutor(
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
+    {} as any, // tasks
+    {} as any, // projects
+    {} as any, // requests
+    {} as any, // applications
+    {} as any, // assets
     {
       summaryIds: async () => ({ ids: ['spend-1', 'spend-2', 'spend-3'], total: 3 }),
       summaryRowsByIds: async () => ([
@@ -3925,12 +3975,21 @@ async function testAiAggregateExecutorSpendItemsSupportsSummaryMetricsAndProject
         },
       ]),
     } as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    {} as any,
+    {} as any, // contracts
+    {} as any, // companies
+    {} as any, // suppliers
+    {} as any, // departments
+    {} as any, // knowledge
+    {} as any, // locations
+    {} as any, // users
+    {} as any, // accounts
+    {} as any, // chartOfAccounts
+    {} as any, // analyticsCategories
+    {} as any, // businessProcesses
+    {} as any, // capexItems
+    {} as any, // contacts
+    {} as any, // interfaces
+    {} as any, // connections
   );
 
   const result = await executor.execute(

@@ -81,6 +81,14 @@ function createRegistry(overrides?: {
     } as any,
     {
       execute: async () => ({ items: [], total: 0, filters_applied: [], filters_ignored: [], complete: true }),
+      executeDetail: async () => ({
+        entity: { type: 'applications', id: 'app-1', ref: null, label: 'App', status: 'enabled', summary: null, updated_at: null },
+        data: { id: 'app-1', name: 'App' },
+        total: 1,
+        returned: 1,
+        truncated: false,
+        complete: true,
+      }),
       executeFilterValues: async () => ({ values: {}, fields_ignored: [], total: 0, returned: 0, truncated: false, complete: true }),
       ...(overrides?.queryExecutor || {}),
     } as any,
@@ -355,6 +363,14 @@ function createQueryExecutor(overrides?: {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
 }
 
@@ -377,6 +393,15 @@ function createAggregateExecutor(overrides?: {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
 }
 
@@ -386,7 +411,7 @@ async function testListAvailableTools() {
   const tools = await registry.listAvailableTools(createContext());
   assert.deepEqual(
     tools.map((tool) => tool.name),
-    ['search_all', 'query_entities', 'aggregate_entities', 'get_filter_values', 'get_entity_context', 'search_knowledge', 'get_document'],
+    ['search_all', 'query_entities', 'aggregate_entities', 'get_filter_values', 'get_entity_detail', 'get_entity_context', 'search_knowledge', 'get_document'],
   );
   assert.match(
     tools.find((tool) => tool.name === 'query_entities')?.description || '',
@@ -431,6 +456,7 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
       'query_entities',
       'aggregate_entities',
       'get_filter_values',
+      'get_entity_detail',
       'get_entity_context',
       'get_entity_comments',
       'search_knowledge',
@@ -456,6 +482,7 @@ async function testListAvailableToolsIncludesCategories() {
 
   assert.equal(tools.find((tool) => tool.name === 'search_all')?.category, 'discovery');
   assert.equal(tools.find((tool) => tool.name === 'query_entities')?.category, 'authoritative');
+  assert.equal(tools.find((tool) => tool.name === 'get_entity_detail')?.category, 'inspection');
   assert.equal(tools.find((tool) => tool.name === 'get_entity_context')?.category, 'inspection');
 }
 
@@ -473,6 +500,7 @@ async function testRegisteredToolCategoriesMatchExpectedAssignments() {
   assert.equal(categories.get('query_entities'), 'authoritative');
   assert.equal(categories.get('aggregate_entities'), 'authoritative');
   assert.equal(categories.get('get_filter_values'), 'authoritative');
+  assert.equal(categories.get('get_entity_detail'), 'inspection');
   assert.equal(categories.get('get_entity_context'), 'inspection');
   assert.equal(categories.get('get_entity_comments'), 'inspection');
   assert.equal(categories.get('search_knowledge'), 'discovery');

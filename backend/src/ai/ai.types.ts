@@ -19,6 +19,7 @@ export type AiToolName =
   | 'query_entities'
   | 'aggregate_entities'
   | 'get_filter_values'
+  | 'get_entity_detail'
   | 'get_entity_context'
   | 'get_entity_comments'
   | 'search_knowledge'
@@ -27,13 +28,21 @@ export type AiToolName =
   | AiMutationWriteToolName
   | 'undo_preview';
 
-export const AiSearchEntityTypeSchema = z.enum([
+export const AI_QUERY_ENTITY_TYPES = [
+  'accounts',
+  'analytics_categories',
   'applications',
   'assets',
+  'business_processes',
+  'capex_items',
+  'chart_of_accounts',
   'companies',
+  'connections',
+  'contacts',
   'contracts',
   'departments',
   'documents',
+  'interfaces',
   'locations',
   'projects',
   'requests',
@@ -41,18 +50,22 @@ export const AiSearchEntityTypeSchema = z.enum([
   'suppliers',
   'tasks',
   'users',
-]);
+] as const;
 
-export const AiQueryEntityTypeSchema = AiSearchEntityTypeSchema;
-export const AiQueryScopeSchema = z.enum(['me', 'my_team']);
-
-export const AiContextEntityTypeSchema = z.enum([
+export const AI_CONTEXT_ENTITY_TYPES = [
   'applications',
   'assets',
   'projects',
   'requests',
   'tasks',
-]);
+] as const;
+
+export const AiSearchEntityTypeSchema = z.enum(AI_QUERY_ENTITY_TYPES);
+
+export const AiQueryEntityTypeSchema = AiSearchEntityTypeSchema;
+export const AiQueryScopeSchema = z.enum(['me', 'my_team']);
+
+export const AiContextEntityTypeSchema = z.enum(AI_CONTEXT_ENTITY_TYPES);
 
 export type AiSearchEntityType = z.infer<typeof AiSearchEntityTypeSchema>;
 export type AiContextEntityType = z.infer<typeof AiContextEntityTypeSchema>;
@@ -167,6 +180,15 @@ export type AiEntityCommentsDto = {
   total: number;
   offset: number;
   limit: number;
+  returned: number;
+  truncated: boolean;
+  complete: boolean;
+};
+
+export type AiEntityDetailDto = {
+  entity: AiEntitySummaryDto;
+  data: Record<string, unknown>;
+  total: number;
   returned: number;
   truncated: boolean;
   complete: boolean;

@@ -21,5 +21,6 @@ import { User } from '../users/user.entity';
   ],
   controllers: [BusinessProcessesController, BusinessProcessCategoriesController],
   providers: [BusinessProcessesService, BusinessProcessesDeleteService, BusinessProcessCategoriesService],
+  exports: [BusinessProcessesService, BusinessProcessCategoriesService],
 })
 export class BusinessProcessesModule {}

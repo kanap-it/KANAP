@@ -1,13 +1,20 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AccountsModule } from '../accounts/accounts.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { ApplicationsModule } from '../applications/applications.module';
 import { AuditModule } from '../audit/audit.module';
 import { AssetsModule } from '../assets/assets.module';
 import { Subscription } from '../billing/subscription.entity';
 import { BillingModule } from '../billing/billing.module';
+import { BusinessProcessesModule } from '../business-processes/business-processes.module';
+import { CapexModule } from '../capex/capex.module';
 import { CompaniesModule } from '../companies/companies.module';
+import { ConnectionsModule } from '../connections/connections.module';
+import { ContactsModule } from '../contacts/contacts.module';
 import { ContractsModule } from '../contracts/contracts.module';
 import { DepartmentsModule } from '../departments/departments.module';
+import { InterfacesModule } from '../interfaces/interfaces.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { LocationsModule } from '../locations/locations.module';
 import { PermissionsModule } from '../permissions/permissions.module';
@@ -77,13 +84,20 @@ import { BraveSearchService } from './web-search/brave-search.service';
       Subscription,
       Tenant,
     ]),
+    AccountsModule,
+    AnalyticsModule,
     ApplicationsModule,
     AuditModule,
     AssetsModule,
     BillingModule,
+    BusinessProcessesModule,
+    CapexModule,
     CompaniesModule,
+    ConnectionsModule,
+    ContactsModule,
     ContractsModule,
     DepartmentsModule,
+    InterfacesModule,
     KnowledgeModule,
     LocationsModule,
     AiProviderSupportModule,

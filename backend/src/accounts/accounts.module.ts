@@ -19,6 +19,6 @@ import { CommonModule } from '../common/common.module';
   imports: [TypeOrmModule.forFeature([Account, Company, ChartOfAccounts]), AuditModule, PermissionsModule, forwardRef(() => UsersModule), CommonModule],
   providers: [AccountsService, AccountsDeleteService, ChartOfAccountsService, ChartOfAccountsDeleteService],
   controllers: [AccountsController, ChartOfAccountsController],
-  exports: [ChartOfAccountsService],
+  exports: [AccountsService, ChartOfAccountsService],
 })
 export class AccountsModule {}

@@ -175,6 +175,96 @@ export class InterfacesListService extends InterfacesBaseService {
     return { items, total, page, limit };
   }
 
+  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; total: number }> {
+    const repo = this.getRepo(opts?.manager);
+    const { sort, q, filters } = parsePagination(query);
+    const qb = repo.createQueryBuilder('i').select('i.id', 'id');
+    qb.leftJoin('applications', 'sa', 'sa.id = i.source_application_id');
+    qb.leftJoin('applications', 'ta', 'ta.id = i.target_application_id');
+    qb.leftJoin('business_processes', 'bp', 'bp.id = i.business_process_id');
+
+    if (q) {
+      qb.andWhere(
+        new Brackets((expr) => {
+          expr.where('i.name ILIKE :q OR i.interface_id ILIKE :q OR i.business_purpose ILIKE :q', {
+            q: `%${q}%`,
+          });
+        }),
+      );
+    }
+
+    const interfaceIdFilter = this.resolveFilterInput(query.interface_id, filters?.interface_id);
+    if (interfaceIdFilter) {
+      qb.andWhere('i.interface_id ILIKE :interfaceIdFilter', { interfaceIdFilter: `%${interfaceIdFilter}%` });
+    }
+
+    const nameFilter = this.resolveFilterInput(query.name, filters?.name);
+    if (nameFilter) {
+      qb.andWhere('i.name ILIKE :nameFilter', { nameFilter: `%${nameFilter}%` });
+    }
+
+    const sourceAppFilter = this.resolveFilterInput(query.source_application_name, filters?.source_application_name);
+    if (sourceAppFilter) {
+      qb.andWhere('sa.name ILIKE :sourceAppFilter', { sourceAppFilter: `%${sourceAppFilter}%` });
+    }
+
+    const targetAppFilter = this.resolveFilterInput(query.target_application_name, filters?.target_application_name);
+    if (targetAppFilter) {
+      qb.andWhere('ta.name ILIKE :targetAppFilter', { targetAppFilter: `%${targetAppFilter}%` });
+    }
+
+    const lifecycleFilter = this.resolveFilterInput(query.lifecycle, filters?.lifecycle);
+    if (lifecycleFilter) {
+      qb.andWhere('i.lifecycle ILIKE :lifecycle', { lifecycle: `%${lifecycleFilter}%` });
+    }
+
+    const criticalityFilter = this.resolveFilterInput(query.criticality, filters?.criticality);
+    if (criticalityFilter) {
+      qb.andWhere('i.criticality ILIKE :criticality', { criticality: `%${criticalityFilter}%` });
+    }
+
+    const dataCategoryFilter = this.resolveFilterInput(query.data_category, filters?.data_category);
+    if (dataCategoryFilter) qb.andWhere('i.data_category = :dataCategory', { dataCategory: dataCategoryFilter });
+
+    const dataClassFilter = this.resolveFilterInput(query.data_class, filters?.data_class);
+    if (dataClassFilter) qb.andWhere('i.data_class = :dataClass', { dataClass: dataClassFilter });
+
+    const routeFilter = this.resolveFilterInput(query.integration_route_type, filters?.integration_route_type);
+    if (routeFilter) qb.andWhere('i.integration_route_type = :route', { route: routeFilter });
+
+    const businessProcessFilter = this.resolveFilterInput(query.business_process_id, filters?.business_process_id);
+    if (businessProcessFilter) qb.andWhere('i.business_process_id = :bpId', { bpId: businessProcessFilter });
+
+    const containsPiiFilter =
+      query.contains_pii !== undefined ? this.parseBoolean(query.contains_pii) : this.extractBooleanFilter(filters?.contains_pii);
+    if (containsPiiFilter !== null && containsPiiFilter !== undefined) {
+      qb.andWhere('i.contains_pii = :pii', { pii: containsPiiFilter });
+    }
+
+    const envFilterModel = filters?.environment ?? filters?.binding_environments;
+    const envFilterRaw = this.extractFilterValue(envFilterModel);
+    if (envFilterRaw) {
+      const envFilterLike = `%${String(envFilterRaw).toLowerCase()}%`;
+      qb.andWhere(
+        `EXISTS (
+          SELECT 1
+          FROM interface_bindings b
+          WHERE b.interface_id = i.id
+            AND LOWER(b.environment) LIKE :envFilterLike
+        )`,
+        { envFilterLike },
+      );
+    }
+
+    const allowedSort = ['interface_id', 'name', 'lifecycle', 'criticality', 'created_at', 'updated_at'];
+    const sortField = allowedSort.includes(sort.field) ? sort.field : 'created_at';
+    const sortDirection = sort.direction === 'ASC' ? 'ASC' : 'DESC';
+    const total = await qb.clone().getCount();
+    const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
+    const rows = await qb.orderBy(`i.${sortField}`, sortDirection as any).take(limit).getRawMany<{ id: string }>();
+    return { ids: rows.map((row) => row.id).filter(Boolean), total };
+  }
+
   /**
    * List interfaces by application.
    */

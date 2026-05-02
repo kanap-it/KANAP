@@ -67,6 +67,27 @@ export class ChartOfAccountsService {
     return { items, total, page, limit };
   }
 
+  async listIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; total: number }> {
+    const repo = this.getRepo(opts?.manager);
+    const { sort, q, filters } = parsePagination(query);
+    const allowed = ['code','name','country_iso','scope','is_default','is_global_default','created_at','updated_at'];
+    const where: any = {};
+    if (filters && Object.keys(filters).length > 0) {
+      Object.assign(where, buildWhereFromAgFilters(filters, allowed));
+    }
+    const whereArr = q ? [{ ...where, code: ILike(`%${q}%`) }, { ...where, name: ILike(`%${q}%`) }] : undefined;
+    const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
+    const total = await repo.count({ where: whereArr ?? where });
+    const rows = await repo.find({
+      where: whereArr ?? where,
+      order: { [sort.field]: sort.direction as any },
+      take: limit,
+      skip: 0,
+      select: ['id'],
+    });
+    return { ids: rows.map((row) => row.id), total };
+  }
+
   async get(id: string, opts?: { manager?: EntityManager }) {
     const repo = this.getRepo(opts?.manager);
     const found = await repo.findOne({ where: { id } });
