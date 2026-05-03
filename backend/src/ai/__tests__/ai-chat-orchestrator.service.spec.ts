@@ -1,6 +1,10 @@
 import * as assert from 'node:assert/strict';
 import { Logger } from '@nestjs/common';
-import { AiChatOrchestratorService, resolveProviderMaxTokens } from '../ai-chat-orchestrator.service';
+import {
+  AiChatOrchestratorService,
+  resolveChatProviderTimeoutMs,
+  resolveProviderMaxTokens,
+} from '../ai-chat-orchestrator.service';
 import { AiSystemPromptService } from '../ai-system-prompt.service';
 import { ChatStreamEvent } from '../ai.types';
 
@@ -325,6 +329,54 @@ async function testToolCallFlow() {
   assert.deepEqual(done.conversation_usage, { input_tokens: 300, output_tokens: 150 });
 }
 
+async function testParallelToolCallsAreReplayedAsSequentialTurns() {
+  const { orchestrator, recordedRequests, persistedMessages, toolExecuteCount } = createOrchestrator({
+    providerEvents: [
+      { type: 'tool_call_start', id: 'tc-1', name: 'get_entity_detail' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"entity_type":"capex_items","entity_id":"capex-1"}' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'tool_call_start', id: 'tc-2', name: 'search_all' },
+      { type: 'tool_call_delta', id: 'tc-2', arguments: '{"query":"Remplacement infra","entity_types":["tasks"]}' },
+      { type: 'tool_call_end', id: 'tc-2' },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 50 } },
+    ],
+    providerToolEvents: [
+      { type: 'text_delta', text: 'Here are the details.' },
+      { type: 'done', usage: { input_tokens: 200, output_tokens: 100 } },
+    ],
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Show details for this CAPEX item',
+    }),
+  );
+
+  assert.equal(toolExecuteCount.value, 2);
+  assert.equal(events.filter((event) => event.type === 'tool_call').length, 2);
+  assert.equal(recordedRequests.length, 2);
+
+  const replayMessages = recordedRequests[1].messages as any[];
+  const assistantToolMessages = replayMessages.filter((message) => message.role === 'assistant' && message.tool_calls?.length);
+  assert.equal(assistantToolMessages.length, 2);
+  assert.deepEqual(assistantToolMessages.map((message) => message.tool_calls.map((tc: any) => tc.id)), [['tc-1'], ['tc-2']]);
+
+  const toolMessages = replayMessages.filter((message) => message.role === 'tool');
+  assert.deepEqual(toolMessages.map((message) => message.tool_call_id), ['tc-1', 'tc-2']);
+
+  assert.deepEqual(
+    persistedMessages.map((message) => message.role).slice(1, 5),
+    ['assistant', 'tool', 'assistant', 'tool'],
+  );
+}
+
 async function testApprovalMarkerExecutesPreviewWithoutProviderRoundTrip() {
   const { orchestrator, persistedMessages, recordedRequests, providerCallCount } = createOrchestrator({
     historyMessages: [
@@ -383,6 +435,27 @@ async function testProviderReceivesAbortSignal() {
   );
 
   assert.equal(recordedRequests[0].signal, abortController.signal);
+}
+
+async function testProviderRequestUsesChatTimeout() {
+  const { orchestrator, recordedRequests } = createOrchestrator({
+    providerEvents: [{ type: 'done', usage: { input_tokens: 1, output_tokens: 1 } }],
+  });
+
+  await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Hello',
+    }),
+  );
+
+  assert.equal(recordedRequests[0].timeoutMs, 300000);
 }
 
 async function testRepeatedToolCallsStopWithoutFurtherProgress() {
@@ -728,11 +801,20 @@ async function testReasoningModelsGetLargerOpenAiTokenBudget() {
   assert.equal(resolveProviderMaxTokens('custom', 'gpt-5.4'), 4096);
 }
 
+async function testChatProviderTimeoutResolver() {
+  assert.equal(resolveChatProviderTimeoutMs(undefined), 300000);
+  assert.equal(resolveChatProviderTimeoutMs('45000'), 45000);
+  assert.equal(resolveChatProviderTimeoutMs('0'), 300000);
+  assert.equal(resolveChatProviderTimeoutMs('not-a-number'), 300000);
+}
+
 async function run() {
   await testSimpleTextResponse();
   await testToolCallFlow();
+  await testParallelToolCallsAreReplayedAsSequentialTurns();
   await testApprovalMarkerExecutesPreviewWithoutProviderRoundTrip();
   await testProviderReceivesAbortSignal();
+  await testProviderRequestUsesChatTimeout();
   await testRepeatedToolCallsStopWithoutFurtherProgress();
   await testProviderErrorIncludesConversationUsage();
   await testSystemPromptGuidance();
@@ -741,6 +823,7 @@ async function run() {
   await testMalformedToolArgumentsReturnSyntheticToolError();
   await testStructuredToolResultsCarryBlockingValidationMetadataForIgnoredFilters();
   await testReasoningModelsGetLargerOpenAiTokenBudget();
+  await testChatProviderTimeoutResolver();
 }
 
 void run();

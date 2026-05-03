@@ -92,12 +92,13 @@ export class AnalyticsCategoriesService {
       }
     }
 
+    const total = await qb.clone().getCount();
     qb.orderBy(`cat.${safeSortField}`, sort.direction as 'ASC' | 'DESC');
     const limit = Math.min(Number(query?.limit) || 10000, 10000);
     qb.take(limit);
     const rows = await qb.getRawMany();
     const ids = rows.map((r: any) => r.id as string).filter((v) => !!v);
-    return { ids, total: ids.length };
+    return { ids, total };
   }
 
   async create(body: Partial<AnalyticsCategory>, userId?: string | null, opts?: { manager?: EntityManager }) {

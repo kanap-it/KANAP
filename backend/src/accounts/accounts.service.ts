@@ -284,6 +284,7 @@ export class AccountsService {
     // Map virtual fields to actual DB columns for sorting
     const sortField = sort.field === 'coa_code' ? 'coa_id' : sort.field;
 
+    const total = await repo.count({ where: whereArr ?? where });
     const items = await repo.find({
       where: whereArr ?? where,
       order: { [sortField]: sort.direction as any },
@@ -292,7 +293,7 @@ export class AccountsService {
       select: ['id'],
     });
     const ids = items.map((i) => i.id);
-    return { ids, total: ids.length };
+    return { ids, total };
   }
 
   async create(body: AccountUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {

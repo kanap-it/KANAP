@@ -9,6 +9,8 @@ import { AiBuiltinRateLimiter } from './platform/ai-builtin-rate-limiter';
 import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
 import { isAbortError } from './providers/streaming.util';
 
+const AI_STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
+
 @Controller('ai/chat')
 @UseGuards(JwtAuthGuard)
 @SkipTenantTransaction()
@@ -70,6 +72,19 @@ export class AiChatController {
     req.on('close', handleDisconnect);
     req.on('aborted', handleDisconnect);
 
+    const keepaliveTimer = setInterval(() => {
+      if (clientDisconnected || res.writableEnded || res.destroyed) {
+        return;
+      }
+      try {
+        res.write('\n');
+      } catch {
+        clientDisconnected = true;
+        abortController.abort();
+      }
+    }, AI_STREAM_KEEPALIVE_INTERVAL_MS);
+    keepaliveTimer.unref?.();
+
     try {
       for await (const event of this.orchestrator.streamPrepared(prepared, { signal: abortController.signal })) {
         if (!clientDisconnected) {
@@ -89,6 +104,7 @@ export class AiChatController {
         }
       }
     } finally {
+      clearInterval(keepaliveTimer);
       req.off('close', handleDisconnect);
       req.off('aborted', handleDisconnect);
     }

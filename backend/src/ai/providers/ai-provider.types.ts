@@ -66,6 +66,7 @@ export type AiStreamParams = {
   signal?: AbortSignal | null;
   timeoutMs?: number;
   maxRetries?: number;
+  parallelToolCalls?: boolean;
 };
 
 export type AiStreamEvent =

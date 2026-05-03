@@ -633,10 +633,12 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     const nullsOption = sortField === 'priority_score' ? 'NULLS LAST' : undefined;
     qb.orderBy(`p.${sortField}`, sort.direction, nullsOption);
 
-    const rows = await qb.getRawMany();
+    const total = await qb.clone().getCount();
+    const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
+    const rows = await qb.take(limit).getRawMany();
     const ids = rows.map((r) => r.p_id);
 
-    return { ids, total: ids.length };
+    return { ids, total };
   }
 
   /**

@@ -84,6 +84,8 @@ type ApplicationDetail = {
   }>;
   companies: Array<{ company_id: string }>;
   departments: Array<{ department_id: string }>;
+  links?: Array<{ id?: string; url?: string | null }>;
+  attachments?: Array<{ id?: string; original_filename?: string | null }>;
   data_residency: Array<{ country_iso: string }>;
   support_contacts?: any[];
   instances?: Array<{
@@ -122,6 +124,16 @@ type InterfaceMiniRow = {
   middleware_application_ids?: string[];
   middleware_application_names?: string[];
   via_middleware: boolean;
+};
+
+type ApplicationRelationsCount = {
+  opex: number;
+  capex: number;
+  contracts: number;
+  projects: number;
+  links: number;
+  attachments: number;
+  total: number;
 };
 
 type ConnectionsResult =
@@ -1195,6 +1207,15 @@ export default function ApplicationWorkspacePage() {
     enabled: !!app?.id,
   });
 
+  const relationsCountQuery = useQuery({
+    queryKey: ['application-workspace-relations-count', app?.id],
+    queryFn: async () => {
+      const res = await api.get<ApplicationRelationsCount>(`/applications/${app?.id}/relations-count`);
+      return res.data;
+    },
+    enabled: !isCreate && !!app?.id,
+  });
+
   const connections = React.useMemo(
     () => app ? computeConnections(app, interfacesQuery.data || []) : { type: 'none' } as ConnectionsResult,
     [app, interfacesQuery.data],
@@ -1303,13 +1324,14 @@ export default function ApplicationWorkspacePage() {
   const deployments = app?.deployments || app?.instances || [];
   const deploymentCount = deployments.length;
   const interfaceCount = interfacesQuery.data?.length || 0;
+  const relationCount = relationsCountQuery.data?.total ?? ((app?.links?.length || 0) + (app?.attachments?.length || 0));
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'deployments', label: 'Deployments', badge: deploymentCount, disabled: isCreate },
     { key: 'interfaces', label: 'Interfaces', badge: interfaceCount, disabled: isCreate },
     { key: 'operations', label: 'Operations', disabled: isCreate },
     { key: 'compliance', label: 'Compliance', disabled: isCreate },
-    { key: 'relations', label: 'Relations', disabled: isCreate },
+    { key: 'relations', label: 'Relations', badge: relationCount, disabled: isCreate },
   ];
 
   return (
@@ -1449,7 +1471,13 @@ export default function ApplicationWorkspacePage() {
         )}
 
         {!isCreate && app && routeTab === 'relations' && (
-          <ApplicationRelationsPanel id={app.id} isSuite={!!app.is_suite} />
+          <ApplicationRelationsPanel
+            id={app.id}
+            isSuite={!!app.is_suite}
+            onRelationsChange={() => {
+              void relationsCountQuery.refetch();
+            }}
+          />
         )}
       </PortfolioDetailWorkspaceShell>
 

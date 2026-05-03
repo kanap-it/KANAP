@@ -83,6 +83,10 @@ export class ApplicationsService {
     return this.crudService.delete(id, userId, opts);
   }
 
+  relationCounts(id: string, opts?: ServiceOpts) {
+    return this.crudService.relationCounts(id, opts);
+  }
+
   // Links
   listLinks(appId: string, opts?: ServiceOpts) {
     return this.crudService.listLinks(appId, opts);

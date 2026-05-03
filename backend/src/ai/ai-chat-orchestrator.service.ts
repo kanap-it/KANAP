@@ -13,6 +13,7 @@ import { AiProviderAdapter, AiProviderMessage, AiProviderToolCall, AiStreamEvent
 import { addUsage, cloneUsage, isAbortError, tryParseToolCallArguments } from './providers/streaming.util';
 import { isOpenAiReasoningModel } from './providers/openai-stream.util';
 import {
+  AI_QUERY_ENTITY_TYPES,
   AiBuiltinUsageDto,
   AiExecutionContext,
   AiExecutionContextWithManager,
@@ -27,6 +28,7 @@ import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
 const MAX_TOOL_ITERATIONS = 20;
 const DEFAULT_MAX_TOKENS = 4096;
 const OPENAI_REASONING_MAX_TOKENS = 8192;
+const DEFAULT_CHAT_PROVIDER_TIMEOUT_MS = 300_000;
 const APPROVE_MARKER_RE = /^\[APPROVE:([0-9a-f-]{36})\]$/i;
 const REJECT_MARKER_RE = /^\[REJECT:([0-9a-f-]{36})\]$/i;
 /** Strip base64 data-URI images from text to avoid blowing up the LLM context. */
@@ -99,6 +101,18 @@ export function resolveProviderMaxTokens(providerId: string, model: string): num
     return OPENAI_REASONING_MAX_TOKENS;
   }
   return DEFAULT_MAX_TOKENS;
+}
+
+export function resolveChatProviderTimeoutMs(rawValue = process.env.AI_CHAT_PROVIDER_TIMEOUT_MS): number {
+  const normalized = String(rawValue ?? '').trim();
+  if (!normalized) {
+    return DEFAULT_CHAT_PROVIDER_TIMEOUT_MS;
+  }
+  if (!/^\d+$/.test(normalized)) {
+    return DEFAULT_CHAT_PROVIDER_TIMEOUT_MS;
+  }
+  const parsed = Number.parseInt(normalized, 10);
+  return parsed > 0 ? parsed : DEFAULT_CHAT_PROVIDER_TIMEOUT_MS;
 }
 
 @Injectable()
@@ -455,7 +469,7 @@ export class AiChatOrchestratorService {
         const availableTools = await this.toolRegistry.listAvailableTools(toolContext);
         const readableTypes = await this.policy.listReadableEntityTypes(
           ctx,
-          ['applications', 'assets', 'projects', 'requests', 'tasks', 'documents'],
+          [...AI_QUERY_ENTITY_TYPES],
           ctx.manager,
         );
         const currentUser = await this.loadCurrentUserPromptContext(ctx);
@@ -568,6 +582,7 @@ export class AiChatOrchestratorService {
         tools,
         maxTokens: requestMaxTokens,
         signal: abortSignal,
+        timeoutMs: resolveChatProviderTimeoutMs(),
       });
 
       try {
@@ -642,29 +657,6 @@ export class AiChatOrchestratorService {
         }));
         const toolCallSignature = buildToolCallSignature(assistantToolCalls);
 
-        messages.push({
-          role: 'assistant',
-          content: accumulatedText,
-          tool_calls: assistantToolCalls,
-        });
-
-        // Persist the assistant turn before tool execution so usage survives interrupted loops.
-        await this.tenantExecutor.runWithContext(context, async (ctx) => {
-          await this.conversations.appendMessage(
-            {
-              conversationId,
-              tenantId: ctx.tenantId,
-              conversationUserId: ctx.userId,
-              userId: null,
-              role: 'assistant',
-              content: accumulatedText,
-              toolCalls: assistantToolCalls,
-              usage: iterationUsage ?? null,
-            },
-            { manager: ctx.manager },
-          );
-        });
-
         if (previousToolCallSignature === toolCallSignature) {
           const conversationUsage = await loadConversationUsage();
           yield {
@@ -678,13 +670,37 @@ export class AiChatOrchestratorService {
         }
         previousToolCallSignature = toolCallSignature;
 
-        const messagesToPersist: Array<{
-          role: 'tool';
-          content: string;
-        }> = [];
-
         // Execute each tool call
-        for (const tc of pendingToolCalls) {
+        for (let toolCallIndex = 0; toolCallIndex < assistantToolCalls.length; toolCallIndex++) {
+          const tc = assistantToolCalls[toolCallIndex];
+          const assistantContent = toolCallIndex === 0 ? accumulatedText : '';
+          const assistantUsage = toolCallIndex === 0 ? (iterationUsage ?? null) : null;
+
+          messages.push({
+            role: 'assistant',
+            content: assistantContent,
+            tool_calls: [tc],
+          });
+
+          // Persist the assistant turn before tool execution so usage survives interrupted loops.
+          // Multiple parallel tool calls are stored as sequential one-call turns for stricter
+          // OpenAI-compatible backends such as Qwen tool parsers.
+          await this.tenantExecutor.runWithContext(context, async (ctx) => {
+            await this.conversations.appendMessage(
+              {
+                conversationId,
+                tenantId: ctx.tenantId,
+                conversationUserId: ctx.userId,
+                userId: null,
+                role: 'assistant',
+                content: assistantContent,
+                toolCalls: [tc],
+                usage: assistantUsage,
+              },
+              { manager: ctx.manager },
+            );
+          });
+
           const parsedArgsResult = tryParseToolCallArguments(tc.arguments || '{}');
           const parseErrorMessage = 'message' in parsedArgsResult ? parsedArgsResult.message : null;
           const parsedArgs = 'value' in parsedArgsResult ? parsedArgsResult.value : {};
@@ -743,27 +759,20 @@ export class AiChatOrchestratorService {
             tool_call_id: tc.id,
           });
 
-          messagesToPersist.push({
-            role: 'tool',
-            content: toolContent,
-          });
-        }
-
-        await this.tenantExecutor.runWithContext(context, async (ctx) => {
-          for (const msg of messagesToPersist) {
+          await this.tenantExecutor.runWithContext(context, async (ctx) => {
             await this.conversations.appendMessage(
               {
                 conversationId,
                 tenantId: ctx.tenantId,
                 conversationUserId: ctx.userId,
                 userId: null,
-                role: msg.role,
-                content: msg.content,
+                role: 'tool',
+                content: toolContent,
               },
               { manager: ctx.manager },
             );
-          }
-        });
+          });
+        }
 
         // Continue loop for next iteration
         continue;

@@ -219,6 +219,42 @@ export class LocationsService {
     return { items, total, page, limit };
   }
 
+  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ ids: string[]; total: number }> {
+    const repo = this.getRepo(opts?.manager);
+    const { sort, q, filters } = parsePagination(query, {
+      field: 'created_at',
+      direction: 'DESC',
+    });
+    const allowedFilters = ['code', 'name', 'hosting_type', 'provider', 'country_iso', 'city'];
+    const where: Record<string, any> = buildWhereFromAgFilters(filters, allowedFilters);
+    if (opts?.tenantId) {
+      where.tenant_id = opts.tenantId;
+    }
+
+    let whereArr: any[] | undefined;
+    if (q) {
+      const like = ILike(`%${q}%`);
+      whereArr = [
+        { ...where, code: like },
+        { ...where, name: like },
+        { ...where, city: like },
+        { ...where, region: like },
+      ];
+    }
+
+    const allowedSortFields = ['code', 'name', 'hosting_type', 'provider', 'country_iso', 'city', 'created_at'];
+    const sortField = allowedSortFields.includes(sort.field) ? sort.field : 'created_at';
+    const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
+    const [rows, total] = await repo.findAndCount({
+      where: whereArr ?? where,
+      order: { [sortField]: sort.direction as any },
+      take: limit,
+      skip: 0,
+      select: ['id'],
+    });
+    return { ids: rows.map((row) => row.id), total };
+  }
+
   async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<Record<string, Array<string | null>>> {
     const tenantId = this.requireTenantId(opts?.tenantId);
     const mg = opts?.manager ?? this.repo.manager;
