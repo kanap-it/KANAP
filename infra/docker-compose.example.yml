@@ -28,6 +28,10 @@ services:
     # Local dev config (untracked)
     env_file:
       - ../backend/env.dev
+    # Nested Windows-on-Linux dev: expose the outer Linux host gateway to the API
+    # container. Override KANAP_LINUX_HOST_GATEWAY if the VM gateway changes.
+    extra_hosts:
+      - "linux.host.internal:${KANAP_LINUX_HOST_GATEWAY:-172.20.0.1}"
     ports:
       - "8080:8080"
     command: ["sh","-lc","npm run typeorm -- migration:run && npm run start:dev"]
@@ -40,7 +44,7 @@ services:
     depends_on:
       - api
     environment:
-      VITE_API_URL: /api
+      VITE_API_URL: http://localhost:8080
       VITE_MARKETING_URL: http://localhost:8082
     ports:
       - "5173:5173"

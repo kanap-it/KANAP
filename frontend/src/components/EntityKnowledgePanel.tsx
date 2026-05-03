@@ -38,6 +38,7 @@ type EntityKnowledgePanelProps = {
   entityType: EntityKnowledgeType;
   entityId: string;
   canCreate?: boolean;
+  controlsMaxWidth?: number | string;
   variant?: 'default' | 'sidebar';
 };
 
@@ -251,7 +252,7 @@ function KnowledgeGroupTable({
           justifyContent="space-between"
           spacing={1}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
             {group.label}
           </Typography>
         </Stack>
@@ -348,7 +349,7 @@ function SidebarKnowledgeGroupList({
 
   return (
     <Stack spacing={1}>
-      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
         {group.label}
       </Typography>
       {group.items.map((item) => (
@@ -363,7 +364,7 @@ function SidebarKnowledgeGroupList({
                 >
                   {`DOC-${item.item_number}`}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap title={item.title}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap title={item.title}>
                   {item.title}
                 </Typography>
               </Box>
@@ -423,6 +424,7 @@ export default function EntityKnowledgePanel({
   entityType,
   entityId,
   canCreate = false,
+  controlsMaxWidth,
   variant = 'default',
 }: EntityKnowledgePanelProps) {
   const navigate = useNavigate();
@@ -716,13 +718,16 @@ export default function EntityKnowledgePanel({
           getOptionLabel={formatDocumentOptionLabel}
           isOptionEqualToValue={(option, value) => option.id === value.id}
           noOptionsText={deferredSearch ? t('knowledgePanel.noMatchingKnowledge') : t('knowledgePanel.noAvailableKnowledge')}
-          renderOption={(props, option) => (
-            <Box component="li" {...props}>
-              <Typography className="kanap-autocomplete-option-primary" noWrap title={formatDocumentOptionLabel(option)}>
-                {formatDocumentOptionLabel(option)}
-              </Typography>
-            </Box>
-          )}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return (
+              <Box key={key} component="li" {...optionProps}>
+                <Typography className="kanap-autocomplete-option-primary" noWrap title={formatDocumentOptionLabel(option)}>
+                  {formatDocumentOptionLabel(option)}
+                </Typography>
+              </Box>
+            );
+          }}
           renderInput={(params) => (
             <TextField
               {...params}
@@ -746,7 +751,7 @@ export default function EntityKnowledgePanel({
           spacing={1.5}
         >
           <Stack spacing={0.75}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            <Typography variant="h6" sx={{ fontWeight: 500 }}>
               {t('knowledgePanel.title')}
             </Typography>
           </Stack>
@@ -793,13 +798,16 @@ export default function EntityKnowledgePanel({
                 sx={drawerFieldValueSx}
               />
             )}
-            renderOption={(props, option) => (
-              <Box component="li" {...props}>
-                <Typography className="kanap-autocomplete-option-primary" noWrap title={formatDocumentOptionLabel(option)}>
-                  {formatDocumentOptionLabel(option)}
-                </Typography>
-              </Box>
-            )}
+            renderOption={(props, option) => {
+              const { key, ...optionProps } = props;
+              return (
+                <Box key={key} component="li" {...optionProps}>
+                  <Typography className="kanap-autocomplete-option-primary" noWrap title={formatDocumentOptionLabel(option)}>
+                    {formatDocumentOptionLabel(option)}
+                  </Typography>
+                </Box>
+              );
+            }}
             ListboxProps={{ sx: drawerAutocompleteListboxSx }}
             sx={{ minWidth: 320, flex: 1, ...drawerFieldValueSx }}
             disabled={linkExistingMutation.isPending}
@@ -809,7 +817,7 @@ export default function EntityKnowledgePanel({
     )
   ) : (!isSidebar ? (
     <Stack spacing={0.75}>
-      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+      <Typography variant="h6" sx={{ fontWeight: 500 }}>
         Knowledge
       </Typography>
     </Stack>
@@ -828,7 +836,7 @@ export default function EntityKnowledgePanel({
             )}
           </Stack>
         ) : (
-          <Paper variant="outlined" sx={{ p: 2 }}>
+          <Paper variant="outlined" sx={{ p: 2, width: '100%', maxWidth: controlsMaxWidth }}>
             <Stack spacing={2}>
               {headerActions}
               {(linkExistingMutation.isError || unlinkMutation.isError || createLinkedMutation.isError) && (

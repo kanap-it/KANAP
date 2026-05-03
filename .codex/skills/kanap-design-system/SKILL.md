@@ -47,6 +47,9 @@ KANAP uses MUI, but only through constrained patterns:
 - Use label-above-value form rows with `PropertyRow`.
 - Use `Select variant="standard" disableUnderline`.
 - Use `TextField variant="standard"` with underline disabled.
+- Use the same naked `PropertyRow` treatment for one-line scalar fields in content tabs; reserve bordered inputs for dialogs and defined long-form editor/composer surfaces.
+- Underline-disabled editable fields need concrete data-shape placeholders and a subtle 120ms `kanap.bg.composer` background on hover, whether empty or populated. Use a single hover layer on the outer editable value, 4px radius, about `margin: -3px -6px` and `padding: 3px 6px` so the highlight extends beyond the text; reset the background on `:focus-within`.
+- Use tertiary `Not set` only for display/read-only empty values, not as a generic editable-field placeholder.
 - Use shared `sx` constants for repeated drawer/select/date/menu styling; do not paste large repeated inline `sx` objects.
 - Required asterisks are orange, not red.
 
@@ -61,7 +64,12 @@ Expected structure:
 - Main work area with content column, permanent drawer-tab gutter, zero-width tab anchor, and right-side contained properties drawer.
 - Drawer state persisted in `localStorage` with `kanap.{pageName}.{setting}` keys.
 - Rich text description editor hides toolbar until focus.
-- Existing entity fields autosave: selects/dates on change, titles on blur, descriptions with debounced autosave.
+- Autosave is the default for every in-place edit on existing workspace entities, including child tab panels, drawer fields, metadata controls, relations, links, and supporting detail sections. Use save-on-change for selects/dates/autocompletes/toggles and short relation changes, blur-to-save or short debounced autosave for one-line text, and debounced autosave for long-form text.
+- Title IDs show proper business references (`T-4`, `PRJ-3`, `AST-5`), not raw or truncated technical UUIDs; add/backfill reference fields when needed.
+- Metadata bars expose the primary scanning fields as inline editable controls where practical: lifecycle/status, environment, type/classification, assignee/owner, location, and important dates. Keep their menus compact and anchored to the clicked item.
+- Clicking a metadata date opens the date picker immediately near the click target/cursor, not an intermediate full-width date field.
+- Long-form text areas such as Description, Notes, Purpose, Risks, and Support notes use a defined editor/composer surface (`kanap.bg.composer`, `kanap.border.default`, 8px radius) so text is visually separated from the page background in light and dark mode.
+- Keep technical, high-density work blocks in the content column when drawer placement would make comparison or scanning worse; the drawer is for scalar properties, not every field by default.
 
 For dense workspace sections:
 
@@ -104,9 +112,11 @@ Block or refactor these during UI work:
 
 - Colored header bars or decorative teal surfaces.
 - Heavy shadows, MUI elevations above subtle card hover treatment, or excessive borders.
+- Subtle separator lines between normal content groups unless a documented pattern calls for them; use spacing first. Separators belong in drawer property groups, tables, composer/editor borders, and intentional list/table disambiguation.
+- Dropdown-only pages or metadata dropdowns that stretch across the full page; menus should support visible content and stay compact/anchored.
 - Pill/chip styling for non-status metadata.
 - Permanent rich-text toolbars for description-like editors.
-- Explicit save buttons for in-place editing of existing entities.
+- Explicit save buttons or global "Save changes" actions for in-place editing of existing entities. Keep explicit submit/save only for create forms, dialogs, composers, imports/uploads, and other bounded transactional flows.
 - ISO dates in user-facing UI.
 - `cursor: help` on tooltip targets.
 - Auto-focus at page load.

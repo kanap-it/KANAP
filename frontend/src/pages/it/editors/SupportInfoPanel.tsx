@@ -19,8 +19,10 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
+import { PropertyRow } from '../../../components/design';
 import DateEUField from '../../../components/fields/DateEUField';
 import ContactSelect from '../../../components/fields/ContactSelect';
+import { drawerAutocompleteListboxSx, editableFieldValueSx, longFormSurfaceFieldSx } from '../../../theme/formSx';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
@@ -80,6 +82,7 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
   const [notes, setNotes] = React.useState('');
 
   const [baseline, setBaseline] = React.useState<SupportInfo>({});
+  const failedSaveSignatureRef = React.useRef<string | null>(null);
 
   // Support contacts
   const [supportContacts, setSupportContacts] = React.useState<SupportContactRow[]>([]);
@@ -239,38 +242,50 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
     setSupportContacts((rows) => rows.map((row, i) => (i === idx ? { ...row, role } : row)));
   };
 
-  const save = async () => {
+  const supportInfoPayload = React.useMemo<SupportInfo>(() => ({
+    vendor_id: vendorId || null,
+    support_contract_id: contractId || null,
+    support_tier: supportTier || null,
+    support_expiry: supportExpiry || null,
+    notes: notes || null,
+  }), [vendorId, contractId, supportTier, supportExpiry, notes]);
+
+  const saveSignature = React.useMemo(() => JSON.stringify({
+    info: supportInfoPayload,
+    contacts: normalizeContacts(supportContacts),
+  }), [supportInfoPayload, supportContacts]);
+
+  const save = React.useCallback(async () => {
     if (readOnly) return;
     setSaving(true);
     setError(null);
     try {
       // Save support info
-      await api.post(`/assets/${assetId}/support-info`, {
-        vendor_id: vendorId || null,
-        support_contract_id: contractId || null,
-        support_tier: supportTier || null,
-        support_expiry: supportExpiry || null,
-        notes: notes || null,
-      });
-      setBaseline({
-        vendor_id: vendorId || null,
-        support_contract_id: contractId || null,
-        support_tier: supportTier || null,
-        support_expiry: supportExpiry || null,
-        notes: notes || null,
-      });
+      await api.post(`/assets/${assetId}/support-info`, supportInfoPayload);
+      setBaseline(supportInfoPayload);
 
       // Save support contacts
       const payload = normalizeContacts(supportContacts).filter((r) => r.contact_id);
       await api.post(`/assets/${assetId}/support-contacts/bulk-replace`, { contacts: payload });
+      failedSaveSignatureRef.current = null;
       setContactsBaseline(supportContacts);
     } catch (e: any) {
+      failedSaveSignatureRef.current = saveSignature;
       setError(getApiErrorMessage(e, t, t('messages.saveSupportInfoFailed')));
       throw e;
     } finally {
       setSaving(false);
     }
-  };
+  }, [assetId, readOnly, saveSignature, supportContacts, supportInfoPayload, t]);
+
+  React.useEffect(() => {
+    if (!dirty || loading || saving || readOnly) return undefined;
+    if (failedSaveSignatureRef.current === saveSignature) return undefined;
+    const timer = window.setTimeout(() => {
+      void save();
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [dirty, loading, readOnly, save, saveSignature, saving]);
 
   const reset = () => {
     setVendorId(baseline.vendor_id || null);
@@ -287,10 +302,6 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
     isDirty: () => dirty,
   }), [save, dirty, baseline, contactsBaseline]);
 
-  if (loading) {
-    return <Alert severity="info">Loading support information...</Alert>;
-  }
-
   const selectedVendor = vendorId ? vendorOptions.find((v) => v.id === vendorId) || null : null;
   const selectedContract = contractId ? contractOptions.find((c) => c.id === contractId) || null : null;
 
@@ -299,97 +310,126 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
       {error && <Alert severity="error">{error}</Alert>}
 
       <Stack spacing={2} maxWidth={520}>
-        <Autocomplete
-          options={vendorOptions}
-          value={selectedVendor}
-          onChange={(_, v) => setVendorId(v?.id || null)}
-          getOptionLabel={(o) => o.name}
-          isOptionEqualToValue={(opt, val) => opt.id === val.id}
-          loading={vendorsLoading}
-          disabled={saving || readOnly}
-          renderOption={(props, option) => (
-            <li {...props} key={option.id}>{option.name}</li>
-          )}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Vendor"
-              placeholder="Select vendor"
-              InputLabelProps={{ shrink: true }}
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <>
-                    {vendorsLoading ? <CircularProgress color="inherit" size={16} /> : null}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
-              }}
-            />
-          )}
-        />
+        <PropertyRow label="Vendor">
+          <Autocomplete
+            options={vendorOptions}
+            value={selectedVendor}
+            onChange={(_, v) => setVendorId(v?.id || null)}
+            getOptionLabel={(o) => o.name}
+            isOptionEqualToValue={(opt, val) => opt.id === val.id}
+            loading={vendorsLoading}
+            disabled={readOnly}
+            renderOption={(props, option) => {
+              const { key, ...optionProps } = props;
+              return <li key={key} {...optionProps}>{option.name}</li>;
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Search vendors"
+                variant="standard"
+                InputProps={{
+                  ...params.InputProps,
+                  disableUnderline: true,
+                  endAdornment: (
+                    <>
+                      {vendorsLoading ? <CircularProgress color="inherit" size={16} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+                sx={editableFieldValueSx}
+              />
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            fullWidth
+          />
+        </PropertyRow>
 
-        <Autocomplete
-          options={contractOptions}
-          value={selectedContract}
-          onChange={(_, v) => setContractId(v?.id || null)}
-          getOptionLabel={(o) => o.name}
-          isOptionEqualToValue={(opt, val) => opt.id === val.id}
-          loading={contractsLoading}
-          disabled={saving || readOnly}
-          renderOption={(props, option) => (
-            <li {...props} key={option.id}>{option.name}</li>
-          )}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Support contract"
-              placeholder="Select contract"
-              InputLabelProps={{ shrink: true }}
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <>
-                    {contractsLoading ? <CircularProgress color="inherit" size={16} /> : null}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
-              }}
-            />
-          )}
-        />
+        <PropertyRow label="Support contract">
+          <Autocomplete
+            options={contractOptions}
+            value={selectedContract}
+            onChange={(_, v) => setContractId(v?.id || null)}
+            getOptionLabel={(o) => o.name}
+            isOptionEqualToValue={(opt, val) => opt.id === val.id}
+            loading={contractsLoading}
+            disabled={readOnly}
+            renderOption={(props, option) => {
+              const { key, ...optionProps } = props;
+              return <li key={key} {...optionProps}>{option.name}</li>;
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Search support contracts"
+                variant="standard"
+                InputProps={{
+                  ...params.InputProps,
+                  disableUnderline: true,
+                  endAdornment: (
+                    <>
+                      {contractsLoading ? <CircularProgress color="inherit" size={16} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+                sx={editableFieldValueSx}
+              />
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            fullWidth
+          />
+        </PropertyRow>
 
-        <TextField
-          label="Support tier"
-          value={supportTier}
-          onChange={(e) => setSupportTier(e.target.value)}
-          disabled={saving || readOnly}
-          placeholder="e.g., Gold, Silver, 24x7"
-          InputLabelProps={{ shrink: true }}
-        />
+        <PropertyRow label="Support tier">
+          <TextField
+            value={supportTier}
+            onChange={(e) => setSupportTier(e.target.value)}
+            disabled={saving || readOnly}
+            placeholder="Support tier"
+            size="small"
+            variant="standard"
+            InputProps={{ disableUnderline: true }}
+            sx={editableFieldValueSx}
+            fullWidth
+          />
+        </PropertyRow>
 
-        <DateEUField
-          label="Support expiry"
-          valueYmd={supportExpiry}
-          onChangeYmd={setSupportExpiry}
-          disabled={saving || readOnly}
-        />
+        <PropertyRow label="Support expiry" valueSx={{ maxWidth: 180 }}>
+          <DateEUField
+            label=""
+            hideLabel
+            valueYmd={supportExpiry}
+            onChangeYmd={setSupportExpiry}
+            disabled={saving || readOnly}
+            size="small"
+            textFieldSx={editableFieldValueSx}
+          />
+        </PropertyRow>
 
-        <TextField
-          label="Notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          disabled={saving || readOnly}
-          multiline
-          minRows={3}
-          InputLabelProps={{ shrink: true }}
-        />
+        <PropertyRow label="Notes" valueSx={{ width: '100%' }}>
+          <TextField
+            id="asset-support-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            disabled={saving || readOnly}
+            multiline
+            minRows={4}
+            maxRows={12}
+            placeholder="Support notes"
+            variant="standard"
+            InputProps={{ disableUnderline: true }}
+            sx={longFormSurfaceFieldSx}
+            fullWidth
+          />
+        </PropertyRow>
       </Stack>
 
-      {/* Support Contacts Table */}
+      {/* Support contacts table */}
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Support Contacts</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>Support contacts</Typography>
           {!readOnly && (
             <Button startIcon={<AddIcon />} onClick={addContactRow} size="small">
               Add contact
@@ -422,6 +462,8 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
                     value={row.contact_id}
                     onChange={(v) => void setContactRowContact(idx, v)}
                     showEmail={false}
+                    hideLabel
+                    textFieldSx={editableFieldValueSx}
                     disabled={readOnly || saving}
                   />
                 </TableCell>
@@ -433,7 +475,10 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
                     value={row.role}
                     onChange={(e) => setContactRowRole(idx, e.target.value)}
                     size="small"
-                    placeholder="Role"
+                    placeholder="Contact role"
+                    variant="standard"
+                    InputProps={{ disableUnderline: true }}
+                    sx={editableFieldValueSx}
                     fullWidth
                     disabled={readOnly || saving}
                   />

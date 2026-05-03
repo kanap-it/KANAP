@@ -132,6 +132,7 @@ export const kanapPalette = {
     page: { light: '#FAFAFA', dark: '#0F1117' },
     drawer: { light: '#FBFBFC', dark: '#14161C' },
     composer: { light: '#FFFFFF', dark: '#1F2128' },
+    hover: { light: 'rgba(0,0,0,0.04)', dark: 'rgba(255,255,255,0.06)' },
   },
   border: {
     default: { light: '#E5E7EB', dark: 'rgba(255,255,255,0.08)' },

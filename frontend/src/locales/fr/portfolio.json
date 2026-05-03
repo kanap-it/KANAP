@@ -201,6 +201,7 @@
         "activity": "Activité",
         "knowledge": "Connaissances",
         "progress": "Charge",
+        "relations": "Relations",
         "scoring": "Évaluation",
         "tasks": "Tâches",
         "timeline": "Chronologie"
@@ -462,6 +463,7 @@
         "activity": "Activité",
         "analysis": "Analyse",
         "knowledge": "Connaissances",
+        "relations": "Relations",
         "scoring": "Évaluation"
       },
       "messages": {
@@ -1235,6 +1237,7 @@
     "description": "Description",
     "knowledge": "Connaissances",
     "progress": "Charge",
+    "relations": "Relations",
     "scoring": "Évaluation",
     "summary": "Synthèse",
     "tasks": "Tâches",
@@ -1677,11 +1680,15 @@
       "dialogs": {
         "addExternalLink": {
           "title": "Ajouter un lien externe"
+        },
+        "editExternalLink": {
+          "title": "Modifier le lien externe"
         }
       },
       "fields": {
         "capexItems": "Postes CAPEX",
         "linkDescription": "Description du lien",
+        "name": "Nom",
         "opexItems": "Postes OPEX",
         "url": "URL"
       },
@@ -1703,7 +1710,7 @@
         "appsAndAssets": "Applications et actifs",
         "attachments": "Pièces jointes",
         "budgetItems": "Postes budgétaires",
-        "externalLinks": "Liens externes"
+        "externalLinks": "Sites web pertinents"
       },
       "states": {
         "noExternalLinks": "Aucun lien externe ajouté."

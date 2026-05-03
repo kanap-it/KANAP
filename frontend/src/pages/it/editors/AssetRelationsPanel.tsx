@@ -6,8 +6,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  IconButton,
-  InputAdornment,
   LinearProgress,
   Paper,
   Stack,
@@ -20,13 +18,14 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { KanapDialog, PropertyRow, RelevantWebsitesList } from '../../../components/design';
+import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, editableFieldValueSx } from '../../../theme/formSx';
 export type AssetRelationsPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
@@ -56,6 +55,23 @@ type Props = {
   onDirtyChange?: (dirty: boolean) => void;
 };
 
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography
+      component="h2"
+      sx={(theme) => ({
+        m: 0,
+        fontSize: 14,
+        fontWeight: 500,
+        lineHeight: 1.4,
+        color: theme.palette.kanap.text.primary,
+      })}
+    >
+      {children}
+    </Typography>
+  );
+}
+
 export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelationsPanel(
   { assetId, onDirtyChange },
   ref
@@ -63,6 +79,14 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
   const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel('infrastructure', 'member');
+  const relationTagSx = {
+    borderRadius: '6px',
+    height: 24,
+    '& .MuiChip-label': { px: '8px', fontSize: 12 },
+  } as const;
+  const relationControlSx = { maxWidth: 420 } as const;
+  const relationWideControlSx = { maxWidth: 640 } as const;
+  const relationAutocompleteSx = [editableFieldValueSx, { width: '100%' }, relationControlSx] as const;
 
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -101,7 +125,12 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
   // URLs
   const [urls, setUrls] = React.useState<Array<{ id?: string; description?: string; url: string }>>([]);
   const [baselineUrls, setBaselineUrls] = React.useState<Array<{ id?: string; description?: string; url: string }>>([]);
+  const [linkDialogOpen, setLinkDialogOpen] = React.useState(false);
+  const [linkDraft, setLinkDraft] = React.useState<{ description: string; url: string }>({ description: '', url: '' });
+  const [editingLinkIndex, setEditingLinkIndex] = React.useState<number | null>(null);
+  const linkNameInputRef = React.useRef<HTMLInputElement | null>(null);
   const urlsEditedRef = React.useRef(false);
+  const failedSaveSignatureRef = React.useRef<string | null>(null);
 
   // Attachments
   const [attachments, setAttachments] = React.useState<Array<{ id: string; original_filename: string }>>([]);
@@ -127,6 +156,18 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
   React.useEffect(() => {
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
+
+  React.useEffect(() => {
+    if (!linkDialogOpen) return undefined;
+    const timer = window.setTimeout(() => {
+      const input = linkNameInputRef.current;
+      if (!input) return;
+      input.focus();
+      const cursorPosition = input.value.length;
+      input.setSelectionRange(cursorPosition, cursorPosition);
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [editingLinkIndex, linkDialogOpen]);
 
   // Combine current selections with search options for autocomplete
   const allContainsOptions = React.useMemo(() => {
@@ -285,14 +326,13 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
   // Asset search for contains/depends_on
   React.useEffect(() => {
     let alive = true;
-    const timer = setTimeout(async () => {
-      if (!assetSearch || assetSearch.length < 2) {
-        setAssetOptions([]);
-        return;
-      }
+    const timer = window.setTimeout(async () => {
+      const query = assetSearch.trim();
       setOptionsLoading(true);
       try {
-        const res = await api.get('/assets', { params: { q: assetSearch, limit: 50, sort: 'name:ASC' } });
+        const params: Record<string, string | number> = { limit: 50, sort: 'name:ASC' };
+        if (query) params.q = query;
+        const res = await api.get('/assets', { params });
         if (!alive) return;
         const items = (res.data?.items || [])
           .filter((a: any) => a.id !== assetId)
@@ -302,13 +342,67 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
         if (!alive) return;
         setAssetOptions([]);
       } finally {
-        setOptionsLoading(false);
+        if (alive) setOptionsLoading(false);
       }
-    }, 300);
-    return () => { alive = false; clearTimeout(timer); };
+    }, 250);
+    return () => { alive = false; window.clearTimeout(timer); };
   }, [assetSearch, assetId]);
 
-  const save = async () => {
+  const saveSignature = React.useMemo(() => JSON.stringify({
+    contains: containsAssets.map((item) => item.id).sort(),
+    dependsOn: dependsOnAssets.map((item) => item.id).sort(),
+    opex: linkedOpex.map((item) => item.id).sort(),
+    capex: linkedCapex.map((item) => item.id).sort(),
+    contracts: linkedContracts.map((item) => item.id).sort(),
+    projects: linkedProjects.map((item) => item.id).sort(),
+    urls: urls.map((item) => ({
+      id: item.id,
+      description: String(item.description || '').trim(),
+      url: String(item.url || '').trim(),
+    })),
+  }), [containsAssets, dependsOnAssets, linkedOpex, linkedCapex, linkedContracts, linkedProjects, urls]);
+
+  const syncUrls = React.useCallback(async (nextUrls: Array<{ id?: string; description?: string; url: string }>) => {
+    urlsEditedRef.current = true;
+    setUrls(nextUrls);
+    if (readOnly) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const existingIds = new Set(baselineUrls.filter((item) => item.id).map((item) => item.id as string));
+      const currentIds = new Set(nextUrls.filter((item) => item.id).map((item) => item.id as string));
+      for (const existing of baselineUrls) {
+        if (existing.id && !currentIds.has(existing.id)) {
+          await api.delete(`/assets/${assetId}/links/${existing.id}`);
+        }
+      }
+      for (const link of nextUrls) {
+        const url = String(link.url || '').trim();
+        if (!url) continue;
+        const body = { description: String(link.description || '').trim() || null, url };
+        if (link.id && existingIds.has(link.id)) {
+          await api.patch(`/assets/${assetId}/links/${link.id}`, body);
+        } else {
+          await api.post(`/assets/${assetId}/links`, body);
+        }
+      }
+      const res = await api.get(`/assets/${assetId}/links`);
+      const urlItems = ((res.data || []) as Array<{ id?: string; description?: string | null; url?: string }>).map((item) => ({
+        id: item.id,
+        description: item.description || undefined,
+        url: item.url || '',
+      }));
+      urlsEditedRef.current = false;
+      setBaselineUrls(urlItems);
+      setUrls(urlItems);
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
+    } finally {
+      setSaving(false);
+    }
+  }, [assetId, baselineUrls, readOnly, t]);
+
+  const save = React.useCallback(async () => {
     if (readOnly) return;
     setSaving(true);
     setError(null);
@@ -354,13 +448,56 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
         }
       }
       setBaselineUrls(urls);
+      failedSaveSignatureRef.current = null;
     } catch (e: any) {
+      failedSaveSignatureRef.current = saveSignature;
       setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
       throw e;
     } finally {
       setSaving(false);
     }
-  };
+  }, [assetId, baselineUrls, containsAssets, dependsOnAssets, linkedCapex, linkedContracts, linkedOpex, linkedProjects, readOnly, saveSignature, t, urls]);
+
+  React.useEffect(() => {
+    if (!dirty || loading || saving || readOnly) return undefined;
+    if (failedSaveSignatureRef.current === saveSignature) return undefined;
+    const timer = window.setTimeout(() => {
+      void save();
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [dirty, loading, readOnly, save, saveSignature, saving]);
+
+  const openAddLinkDialog = React.useCallback(() => {
+    setEditingLinkIndex(null);
+    setLinkDraft({ description: '', url: '' });
+    setLinkDialogOpen(true);
+  }, []);
+
+  const openEditLinkDialog = React.useCallback((index: number) => {
+    const link = urls[index];
+    if (!link || readOnly) return;
+    setEditingLinkIndex(index);
+    setLinkDraft({ description: link.description || '', url: link.url || '' });
+    setLinkDialogOpen(true);
+  }, [readOnly, urls]);
+
+  const closeLinkDialog = React.useCallback(() => {
+    setLinkDialogOpen(false);
+    setEditingLinkIndex(null);
+    setLinkDraft({ description: '', url: '' });
+  }, []);
+
+  const saveLinkDraft = React.useCallback(async () => {
+    const url = String(linkDraft.url || '').trim();
+    if (!url) return;
+    const description = String(linkDraft.description || '').trim() || undefined;
+    const nextLink = { description, url };
+    const nextUrls = editingLinkIndex === null || !urls[editingLinkIndex]
+      ? [...urls, nextLink]
+      : urls.map((link, index) => (index === editingLinkIndex ? { ...link, ...nextLink } : link));
+    await syncUrls(nextUrls);
+    closeLinkDialog();
+  }, [closeLinkDialog, editingLinkIndex, linkDraft.description, linkDraft.url, syncUrls, urls]);
 
   const reset = () => {
     urlsEditedRef.current = false;
@@ -369,16 +506,12 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
 
   useImperativeHandle(ref, () => ({ save, reset, isDirty: () => dirty }), [save, dirty]);
 
-  if (loading) {
-    return <Alert severity="info">Loading relations...</Alert>;
-  }
-
   return (
+    <>
     <Stack spacing={3}>
       {error && <Alert severity="error">{error}</Alert>}
 
-      {/* Dependencies section */}
-      <Typography variant="subtitle2">Depends on (this asset depends on...)</Typography>
+      <SectionTitle>Depends on</SectionTitle>
       <Autocomplete
         multiple
         options={allDependsOnOptions}
@@ -388,30 +521,21 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
         inputValue={assetSearch}
         onInputChange={(_, v) => setAssetSearch(v)}
         loading={optionsLoading}
-        renderOption={(props, option) => (
-          <li {...props} key={option.id}>
-            <div>
-              <div style={{ fontWeight: 600 }}>{option.name}</div>
-              {(option.kind || option.environment) && (
-                <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                  {[option.kind, option.environment?.toUpperCase()].filter(Boolean).join(' · ')}
-                </div>
-              )}
-            </div>
-          </li>
-        )}
+        renderOption={(props, option) => {
+          const { key, ...optionProps } = props;
+          return <li key={key} {...optionProps} title={option.name}>{option.name}</li>;
+        }}
         renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} />)
+          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
         }
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Dependencies"
-            placeholder="Search assets to add"
-            helperText="e.g., database servers this app server depends on"
-            InputLabelProps={{ shrink: true }}
+            placeholder="Search dependent assets"
+            variant="standard"
             InputProps={{
               ...params.InputProps,
+              disableUnderline: true,
               endAdornment: (
                 <>
                   {optionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -419,15 +543,17 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
                 </>
               ),
             }}
+            sx={editableFieldValueSx}
           />
         )}
+        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
         isOptionEqualToValue={(opt, val) => opt.id === val.id}
         filterSelectedOptions
-        disabled={saving || readOnly}
-        fullWidth
+        disabled={readOnly}
+        sx={relationAutocompleteSx}
       />
 
-      <Typography variant="subtitle2">Contains (this asset contains...)</Typography>
+      <SectionTitle>Contains</SectionTitle>
       <Autocomplete
         multiple
         options={allContainsOptions}
@@ -437,30 +563,21 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
         inputValue={assetSearch}
         onInputChange={(_, v) => setAssetSearch(v)}
         loading={optionsLoading}
-        renderOption={(props, option) => (
-          <li {...props} key={option.id}>
-            <div>
-              <div style={{ fontWeight: 600 }}>{option.name}</div>
-              {(option.kind || option.environment) && (
-                <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                  {[option.kind, option.environment?.toUpperCase()].filter(Boolean).join(' · ')}
-                </div>
-              )}
-            </div>
-          </li>
-        )}
+        renderOption={(props, option) => {
+          const { key, ...optionProps } = props;
+          return <li key={key} {...optionProps} title={option.name}>{option.name}</li>;
+        }}
         renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} />)
+          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
         }
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Contained assets"
-            placeholder="Search assets to add"
-            helperText="e.g., servers contained in a rack"
-            InputLabelProps={{ shrink: true }}
+            placeholder="Search contained assets"
+            variant="standard"
             InputProps={{
               ...params.InputProps,
+              disableUnderline: true,
               endAdornment: (
                 <>
                   {optionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -468,18 +585,20 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
                 </>
               ),
             }}
+            sx={editableFieldValueSx}
           />
         )}
+        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
         isOptionEqualToValue={(opt, val) => opt.id === val.id}
         filterSelectedOptions
-        disabled={saving || readOnly}
-        fullWidth
+        disabled={readOnly}
+        sx={relationAutocompleteSx}
       />
 
       {/* Reverse relations (read-only) */}
       {containedBy.length > 0 && (
         <>
-          <Typography variant="subtitle2">Contained by</Typography>
+          <SectionTitle>Contained by</SectionTitle>
           <TableContainer component={Paper} variant="outlined">
             <Table size="small">
               <TableHead>
@@ -501,7 +620,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
 
       {dependedOnBy.length > 0 && (
         <>
-          <Typography variant="subtitle2">Depended on by</Typography>
+          <SectionTitle>Depended on by</SectionTitle>
           <TableContainer component={Paper} variant="outlined">
             <Table size="small">
               <TableHead>
@@ -522,24 +641,34 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
       )}
 
       {/* Financial relations */}
-      <Typography variant="subtitle2">Financials</Typography>
+      <SectionTitle>Financials</SectionTitle>
       <Autocomplete
         multiple
         options={opexOptions}
         value={linkedOpex}
         getOptionLabel={(o) => o.product_name}
         onChange={(_, v) => setLinkedOpex(v as any)}
-        renderOption={(props, option) => <li {...props} key={option.id}>{option.product_name}</li>}
+        renderOption={(props, option) => {
+          const { key, ...optionProps } = props;
+          return <li key={key} {...optionProps}>{option.product_name}</li>;
+        }}
         renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.product_name} />)
+          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.product_name} sx={relationTagSx} />)
         }
         renderInput={(params) => (
-          <TextField {...params} label="OPEX items" placeholder="Select OPEX items" InputLabelProps={{ shrink: true }} />
+          <TextField
+            {...params}
+            placeholder="Search OPEX items"
+            variant="standard"
+            InputProps={{ ...params.InputProps, disableUnderline: true }}
+            sx={editableFieldValueSx}
+          />
         )}
+        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
         isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
         filterSelectedOptions
-        disabled={saving || readOnly}
-        fullWidth
+        disabled={readOnly}
+        sx={relationAutocompleteSx}
       />
 
       <Autocomplete
@@ -548,17 +677,27 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
         value={linkedCapex}
         getOptionLabel={(o) => o.description}
         onChange={(_, v) => setLinkedCapex(v as any)}
-        renderOption={(props, option) => <li {...props} key={option.id}>{option.description}</li>}
+        renderOption={(props, option) => {
+          const { key, ...optionProps } = props;
+          return <li key={key} {...optionProps}>{option.description}</li>;
+        }}
         renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.description} />)
+          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.description} sx={relationTagSx} />)
         }
         renderInput={(params) => (
-          <TextField {...params} label="CAPEX items" placeholder="Select CAPEX items" InputLabelProps={{ shrink: true }} />
+          <TextField
+            {...params}
+            placeholder="Search CAPEX items"
+            variant="standard"
+            InputProps={{ ...params.InputProps, disableUnderline: true }}
+            sx={editableFieldValueSx}
+          />
         )}
+        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
         isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
         filterSelectedOptions
-        disabled={saving || readOnly}
-        fullWidth
+        disabled={readOnly}
+        sx={relationAutocompleteSx}
       />
 
       <Autocomplete
@@ -567,96 +706,89 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
         value={linkedContracts}
         getOptionLabel={(o) => o.name}
         onChange={(_, v) => setLinkedContracts(v as any)}
-        renderOption={(props, option) => <li {...props} key={option.id}>{option.name}</li>}
+        renderOption={(props, option) => {
+          const { key, ...optionProps } = props;
+          return <li key={key} {...optionProps}>{option.name}</li>;
+        }}
         renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} />)
+          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
         }
         renderInput={(params) => (
-          <TextField {...params} label="Contracts" placeholder="Select contracts" InputLabelProps={{ shrink: true }} />
+          <TextField
+            {...params}
+            placeholder="Search contracts"
+            variant="standard"
+            InputProps={{ ...params.InputProps, disableUnderline: true }}
+            sx={editableFieldValueSx}
+          />
         )}
+        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
         isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
         filterSelectedOptions
-        disabled={saving || readOnly}
-        fullWidth
+        disabled={readOnly}
+        sx={relationAutocompleteSx}
       />
 
       {/* Projects */}
-      <Typography variant="subtitle2">Projects</Typography>
+      <SectionTitle>Projects</SectionTitle>
       <Autocomplete
         multiple
         options={projectOptions}
         value={linkedProjects}
         getOptionLabel={(o) => o.name}
         onChange={(_, v) => setLinkedProjects(v as any)}
-        renderOption={(props, option) => <li {...props} key={option.id}>{option.name}</li>}
+        renderOption={(props, option) => {
+          const { key, ...optionProps } = props;
+          return <li key={key} {...optionProps}>{option.name}</li>;
+        }}
         renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} />)
+          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
         }
         renderInput={(params) => (
-          <TextField {...params} label="Projects" placeholder="Select projects" InputLabelProps={{ shrink: true }} />
+          <TextField
+            {...params}
+            placeholder="Search projects"
+            variant="standard"
+            InputProps={{ ...params.InputProps, disableUnderline: true }}
+            sx={editableFieldValueSx}
+          />
         )}
+        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
         isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
         filterSelectedOptions
-        disabled={saving || readOnly}
-        fullWidth
+        disabled={readOnly}
+        sx={relationAutocompleteSx}
       />
 
       {/* URLs */}
-      <Typography variant="subtitle2">Relevant websites</Typography>
-      <Stack spacing={1}>
-        {urls.map((l, idx) => (
-          <Stack key={l.id || idx} direction="row" spacing={1} alignItems="center">
-            <TextField
-              label="Description"
-              value={l.description || ''}
-              onChange={(e) => { urlsEditedRef.current = true; setUrls((prev) => prev.map((x, i) => (i === idx ? { ...x, description: e.target.value } : x))); }}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              disabled={readOnly}
-            />
-            <TextField
-              label="URL"
-              value={l.url}
-              onChange={(e) => { urlsEditedRef.current = true; setUrls((prev) => prev.map((x, i) => (i === idx ? { ...x, url: e.target.value } : x))); }}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              InputProps={{
-                readOnly: readOnly,
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        const raw = String(l.url || '').trim();
-                        if (!raw) return;
-                        const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-                        window.open(href, '_blank', 'noopener,noreferrer');
-                      }}
-                      disabled={!String(l.url || '').trim()}
-                    >
-                      <OpenInNewIcon fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            {!readOnly && (
-              <IconButton onClick={() => { urlsEditedRef.current = true; setUrls((prev) => prev.filter((_, i) => i !== idx)); }}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            )}
-          </Stack>
-        ))}
+      <Stack direction="row" alignItems="center" spacing={1} sx={relationWideControlSx}>
+        <SectionTitle>Relevant websites</SectionTitle>
         {!readOnly && (
-          <Button size="small" onClick={() => { urlsEditedRef.current = true; setUrls((prev) => [...prev, { url: '' }]); }}>
+          <Button size="small" variant="action" onClick={openAddLinkDialog}>
             Add URL
           </Button>
         )}
       </Stack>
+      <Stack spacing={0.75}>
+        <RelevantWebsitesList
+          items={urls.map((link) => ({
+            id: link.id,
+            name: String(link.description || '').trim() || link.url,
+            url: link.url,
+          }))}
+          canEdit={!readOnly}
+          canDelete={!readOnly}
+          onEdit={openEditLinkDialog}
+          onDelete={(index) => {
+            void syncUrls(urls.filter((_, currentIndex) => currentIndex !== index));
+          }}
+          sx={relationWideControlSx}
+        />
+      </Stack>
 
       {/* Attachments */}
-      <Typography variant="subtitle2">Attachments</Typography>
-      <Stack spacing={1}>
+      <SectionTitle>Attachments</SectionTitle>
+      <Stack spacing={1} sx={relationControlSx}>
         <Box
           onDragOver={(e) => { e.preventDefault(); setHover(true); }}
           onDragLeave={() => setHover(false)}
@@ -760,5 +892,43 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
         </Stack>
       </Stack>
     </Stack>
+
+    <KanapDialog
+      open={linkDialogOpen}
+      title={editingLinkIndex === null ? 'New URL' : 'Edit URL'}
+      onClose={closeLinkDialog}
+      onSave={saveLinkDraft}
+      saveLabel={editingLinkIndex === null ? 'Add' : 'Save'}
+      saveDisabled={!String(linkDraft.url || '').trim()}
+      saveLoading={saving}
+    >
+      <Stack spacing={1.25}>
+        <PropertyRow label="Name">
+          <TextField
+            value={linkDraft.description}
+            onChange={(event) => setLinkDraft((prev) => ({ ...prev, description: event.target.value }))}
+            placeholder="Website name"
+            autoFocus
+            inputRef={linkNameInputRef}
+            variant="standard"
+            fullWidth
+            InputProps={{ disableUnderline: true }}
+            sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+          />
+        </PropertyRow>
+        <PropertyRow label="URL" required>
+          <TextField
+            value={linkDraft.url}
+            onChange={(event) => setLinkDraft((prev) => ({ ...prev, url: event.target.value }))}
+            placeholder="https://example.com"
+            variant="standard"
+            fullWidth
+            InputProps={{ disableUnderline: true }}
+            sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+          />
+        </PropertyRow>
+      </Stack>
+    </KanapDialog>
+    </>
   );
 });

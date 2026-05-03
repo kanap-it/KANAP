@@ -21,10 +21,8 @@ import { PropertyGroup, PropertyRow } from '../../../../components/design';
 import { drawerMenuItemSx, drawerSelectSx } from '../../../../theme/formSx';
 import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
 import { getRequestStatusLabel } from '../../../../utils/portfolioI18n';
-import DependencySelector from '../../components/DependencySelector';
-import ProjectRelationsPanel from '../../editors/ProjectRelationsPanel';
 
-type PanelSection = 'core' | 'team' | 'relations';
+type PanelSection = 'core' | 'team';
 
 type ProjectPropertyPanelProps = {
   canManage: boolean;
@@ -388,47 +386,6 @@ export default function ProjectPropertyPanel({
 
       {!isCreate && form?.id && (
         <PropertyGroup>
-          <PropertyRow label={t('workspace.project.sections.dependencies')} valueSx={{ minHeight: 0 }}>
-            <DependencySelector
-              entityType="project"
-              entityId={form.id}
-              dependencies={form?.dependencies || []}
-              onAdd={(target) => handleImmediateSave(
-                () => api.post(`/portfolio/projects/${form.id}/dependencies`, {
-                  target_type: target.type,
-                  target_id: target.id,
-                }),
-                (prev) => ({
-                  ...prev,
-                  dependencies: [
-                    ...(Array.isArray(prev?.dependencies) ? prev.dependencies : []),
-                    {
-                      id: `optimistic:${target.type}:${target.id}`,
-                      target_type: target.type,
-                      target_id: target.id,
-                      target_name: target.name,
-                      target_status: '',
-                    },
-                  ],
-                }),
-              )}
-              onRemove={(targetType, targetId) => handleImmediateSave(
-                () => api.delete(`/portfolio/projects/${form.id}/dependencies/${targetType}/${targetId}`),
-                (prev) => ({
-                  ...prev,
-                  dependencies: (Array.isArray(prev?.dependencies) ? prev.dependencies : []).filter(
-                    (dep: any) => !(dep?.target_type === targetType && dep?.target_id === targetId),
-                  ),
-                }),
-              )}
-              disabled={!canManage}
-            />
-          </PropertyRow>
-
-          <PropertyRow label={t('workspace.project.sections.relations')} valueSx={{ minHeight: 0 }}>
-            <ProjectRelationsPanel id={form.id} autoSave />
-          </PropertyRow>
-
           <PropertyRow label={t('workspace.project.sections.sourceRequests')} valueSx={{ minHeight: 0 }}>
             {form?.source_requests?.length > 0 ? (
               <Stack spacing={1}>

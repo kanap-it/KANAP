@@ -6,9 +6,10 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import helmet from 'helmet';
 import * as cors from 'cors';
 import * as express from 'express';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { User } from './users/user.entity';
 import { Role } from './roles/role.entity';
+import { UserRole } from './users/user-role.entity';
 import { RolePermission } from './permissions/role-permission.entity';
 import { RESOURCES } from './permissions/permissions.service';
 import * as argon2 from 'argon2';
@@ -30,6 +31,23 @@ function validateStartupEnv() {
   requireEnv('JWT_SECRET');
   if (isProductionEnv()) {
     requireAppBaseUrl();
+  }
+}
+
+async function ensurePrimaryUserRole(manager: EntityManager, user: User, role: Role) {
+  const userRoleRepo = manager.getRepository(UserRole);
+  const existing = await userRoleRepo.findOne({ where: { user_id: user.id, role_id: role.id } });
+  if (!existing) {
+    const tenantId = user.tenant_id ?? (await manager.query(`SELECT app_current_tenant()::text AS tenant_id`))?.[0]?.tenant_id;
+    await userRoleRepo.save(userRoleRepo.create({
+      tenant_id: tenantId,
+      user_id: user.id,
+      role_id: role.id,
+      is_primary: true,
+    }));
+  } else if (!existing.is_primary && user.role_id === role.id) {
+    existing.is_primary = true;
+    await userRoleRepo.save(existing);
   }
 }
 
@@ -166,12 +184,14 @@ async function bootstrap() {
         const existing = await userRepo.findOne({ where: { email: adminEmail } });
         if (!existing) {
           const password_hash = await argon2.hash(adminPassword, { type: argon2.argon2id });
-          await userRepo.save(userRepo.create({
+          const savedAdmin = await userRepo.save(userRepo.create({
             email: adminEmail,
             password_hash,
+            tenant_id: tenantId,
             role_id: adminRole.id,
             status: 'enabled'
           }));
+          await ensurePrimaryUserRole(runner.manager, savedAdmin, adminRole);
           // eslint-disable-next-line no-console
           console.log(`Seeded admin user ${adminEmail} with Administrator role`);
         } else {
@@ -185,6 +205,7 @@ async function bootstrap() {
             // eslint-disable-next-line no-console
             console.log(`Admin user already present: ${adminEmail}`);
           }
+          await ensurePrimaryUserRole(runner.manager, existing, adminRole);
         }
         await runner.commitTransaction();
       } catch (seedError) {
@@ -271,19 +292,24 @@ async function bootstrap() {
         const existingUser = await userRepo.findOne({ where: { email: adminEmail } });
         if (!existingUser) {
           const password_hash = await argon2.hash(adminPassword, { type: argon2.argon2id });
-          await userRepo.save(userRepo.create({
+          const savedAdmin = await userRepo.save(userRepo.create({
             email: adminEmail,
             password_hash,
+            tenant_id: tenantId,
             role_id: adminRole.id,
             status: 'enabled',
           }));
+          await ensurePrimaryUserRole(runner.manager, savedAdmin, adminRole);
           // eslint-disable-next-line no-console
           console.log(`[on-prem] Seeded admin user ${adminEmail}`);
         } else if (existingUser.role_id !== adminRole.id) {
           existingUser.role_id = adminRole.id;
           await userRepo.save(existingUser);
+          await ensurePrimaryUserRole(runner.manager, existingUser, adminRole);
           // eslint-disable-next-line no-console
           console.log(`[on-prem] Updated admin user ${adminEmail} to Administrator role`);
+        } else {
+          await ensurePrimaryUserRole(runner.manager, existingUser, adminRole);
         }
 
         await runner.commitTransaction();

@@ -30,6 +30,7 @@ export class AssetsListService extends AssetsBaseService {
     // Sort field mapping
     const sortFieldMap: Record<string, string> = {
       name: 'a.name',
+      asset_reference: 'a.asset_reference',
       environment: 'a.environment',
       kind: 'a.kind',
       provider: 'a.provider',
@@ -65,7 +66,7 @@ export class AssetsListService extends AssetsBaseService {
     // Data query with pagination
     const dataQuery = `
       SELECT DISTINCT ON (a.id)
-        a.id, a.tenant_id, a.name, a.kind, a.provider, a.environment,
+        a.id, a.tenant_id, a.name, a.asset_reference, a.kind, a.provider, a.environment,
         a.region, a.zone, a.hostname, a.domain, a.fqdn, a.aliases,
         a.ip_addresses, a.cluster, a.is_cluster, a.operating_system,
         a.location_id, a.sub_location_id, a.status, a.notes, a.created_at, a.updated_at,
@@ -105,7 +106,7 @@ export class AssetsListService extends AssetsBaseService {
     // Fetch full data for paginated IDs
     const itemsQuery = `
       SELECT
-        a.id, a.tenant_id, a.name, a.kind, a.provider, a.environment,
+        a.id, a.tenant_id, a.name, a.asset_reference, a.kind, a.provider, a.environment,
         a.region, a.zone, a.hostname, a.domain, a.fqdn, a.aliases,
         a.ip_addresses, a.cluster, a.is_cluster, a.operating_system,
         a.location_id, a.sub_location_id, a.status, a.notes, a.created_at, a.updated_at,
@@ -144,6 +145,7 @@ export class AssetsListService extends AssetsBaseService {
     // Sort field mapping
     const sortFieldMap: Record<string, string> = {
       name: 'a.name',
+      asset_reference: 'a.asset_reference',
       environment: 'a.environment',
       kind: 'a.kind',
       provider: 'a.provider',
@@ -263,6 +265,7 @@ export class AssetsListService extends AssetsBaseService {
     // Map of allowed fields to their SQL expressions
     const FILTER_VALUE_FIELDS: Record<string, string> = {
       kind: 'a.kind',
+      asset_reference: 'a.asset_reference',
       environment: 'a.environment',
       provider: 'a.provider',
       operating_system: 'a.operating_system',
@@ -328,6 +331,7 @@ export class AssetsListService extends AssetsBaseService {
     // Map frontend field names to SQL expressions
     const fieldExpressions: Record<string, string> = {
       kind: 'a.kind',
+      asset_reference: 'a.asset_reference',
       environment: 'a.environment',
       operating_system: 'a.operating_system',
       status: 'a.status',
@@ -394,6 +398,7 @@ export class AssetsListService extends AssetsBaseService {
       const qIdx = params.length;
       whereConditions += ` AND (
         a.name ILIKE $${qIdx}
+        OR a.asset_reference ILIKE $${qIdx}
         OR a.hostname ILIKE $${qIdx}
         OR a.ip_addresses::text ILIKE $${qIdx}
         OR cluster_asset.name ILIKE $${qIdx}

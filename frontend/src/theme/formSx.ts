@@ -1,9 +1,35 @@
 import type { Theme } from '@mui/material/styles';
 
+export const nakedEditableHoverSx = {
+  borderRadius: '4px',
+  px: '6px',
+  py: '3px',
+  mx: '-6px',
+  my: '-3px',
+  transition: 'background-color 120ms ease',
+  '&:hover:not(.Mui-disabled):not(.Mui-readOnly)': {
+    backgroundColor: (theme: Theme) => theme.palette.kanap.bg.composer,
+  },
+  '&:focus-within': {
+    backgroundColor: 'transparent',
+  },
+} as const;
+
+export const nakedInputHoverSx = {
+  ...nakedEditableHoverSx,
+  cursor: 'text',
+} as const;
+
+export const nakedControlHoverSx = {
+  ...nakedEditableHoverSx,
+  cursor: 'pointer',
+} as const;
+
 export const drawerSelectSx = {
   width: '100%',
   fontSize: 13,
   color: 'kanap.text.primary',
+  ...nakedControlHoverSx,
   '& .MuiSelect-select': {
     padding: '4px 0',
     fontSize: 13,
@@ -48,9 +74,22 @@ export const drawerFieldValueSx = {
   },
   '& .MuiOutlinedInput-input': { py: '3px !important', px: '0 !important', fontSize: '13px !important' },
   '& .MuiAutocomplete-input': { py: '3px !important', fontSize: '13px !important' },
+  '& .MuiAutocomplete-inputRoot': {
+    rowGap: '3px',
+  },
+  '& .MuiAutocomplete-tag ~ .MuiAutocomplete-input': {
+    flexBasis: '100% !important',
+    width: '100% !important',
+    minWidth: '100% !important',
+  },
   '& .MuiInput-underline:before': { display: 'none !important' },
   '& .MuiInput-underline:after': { display: 'none !important' },
   '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none !important' },
+} as const;
+
+export const editableFieldValueSx = {
+  ...drawerFieldValueSx,
+  ...nakedInputHoverSx,
 } as const;
 
 export const dialogBorderedFieldSx = {
@@ -70,6 +109,42 @@ export const dialogBorderedFieldSx = {
   '& textarea': {
     p: '0 !important',
   },
+} as const;
+
+export const longFormSurfaceFieldSx = {
+  width: '100%',
+  maxWidth: 900,
+  '& .MuiInputBase-root': {
+    alignItems: 'flex-start',
+    minHeight: 154,
+    px: '16px',
+    py: '14px',
+    border: (theme: Theme) => `1px solid ${theme.palette.kanap.border.default}`,
+    borderRadius: '8px',
+    bgcolor: (theme: Theme) => theme.palette.kanap.bg.composer,
+    color: (theme: Theme) => theme.palette.kanap.text.primary,
+    transition: 'border-color 0.15s ease, background-color 0.15s ease',
+    '&.Mui-focused': {
+      borderColor: (theme: Theme) => theme.palette.kanap.teal,
+    },
+    '&.Mui-disabled': {
+      bgcolor: (theme: Theme) => theme.palette.kanap.bg.drawer,
+      color: (theme: Theme) => theme.palette.kanap.text.secondary,
+    },
+  },
+  '& .MuiInputBase-input': {
+    p: '0 !important',
+    fontSize: '14px !important',
+    lineHeight: '1.6 !important',
+    color: 'inherit',
+  },
+  '& textarea::placeholder': {
+    color: 'kanap.text.tertiary',
+    opacity: 1,
+  },
+  '& .MuiInput-underline:before': { display: 'none' },
+  '& .MuiInput-underline:after': { display: 'none' },
+  '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' },
 } as const;
 
 export const drawerAutocompleteListboxSx = {

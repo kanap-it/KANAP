@@ -13,6 +13,9 @@ export class Asset {
   @Column('text')
   name!: string;
 
+  @Column('text', { nullable: true })
+  asset_reference!: string | null;
+
   @Column('text')
   kind!: string;
 
